@@ -1,0 +1,23 @@
+[package]
+name = "garage"
+version = "0.1.0"
+authors = ["Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "0.4"
+http = "0.2"
+hyper = "0.13.4"
+kv = "0.20.2"
+futures = "0.3"
+futures-core = "0.3"
+futures-channel = "0.3"
+futures-util = "0.3"
+tokio = { version = "0.2", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.2.1"
+err-derive = "0.2.3"
+rmp-serde = "0.14.3"
+structopt = { version = "0.3", default-features = false }
