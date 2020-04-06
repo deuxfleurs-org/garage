@@ -27,6 +27,8 @@ pub struct Opt {
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
+	datacenter: String,
+
 	metadata_dir: PathBuf,
 	data_dir: PathBuf,
 
