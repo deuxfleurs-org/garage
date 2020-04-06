@@ -24,31 +24,10 @@ pub async fn rpc_call_many(sys: Arc<System>,
 						   timeout: Duration)
 	-> Vec<Result<Message, Error>>
 {
-	let resp_stream = to.iter()
+	let mut resp_stream = to.iter()
 		.map(|to| rpc_call(sys.clone(), to, msg, timeout))
 		.collect::<FuturesUnordered<_>>();
 
-	collect_rpc_results(resp_stream, stop_after).await
-}
-
-pub async fn rpc_call_many_addr(sys: Arc<System>,
-							    to: &[SocketAddr],
-						   	    msg: &Message,
-						   		stop_after: Option<usize>,
-						   		timeout: Duration)
-	-> Vec<Result<Message, Error>>
-{
-	let resp_stream = to.iter()
-		.map(|to| rpc_call_addr(sys.clone(), to, msg, timeout))
-		.collect::<FuturesUnordered<_>>();
-	
-	collect_rpc_results(resp_stream, stop_after).await
-}
-
-async fn collect_rpc_results(mut resp_stream: FuturesUnordered<impl Future<Output=Result<Message, Error>>>,
-							 stop_after: Option<usize>)
-	-> Vec<Result<Message, Error>>
-{
 	let mut results = vec![];
 	let mut n_ok = 0;
 	while let Some(resp) = resp_stream.next().await {
