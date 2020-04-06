@@ -9,7 +9,10 @@ pub enum Message {
 	Error(String),
 
 	Ping(PingMessage),	
-	AdvertiseNode(AdvertiseNodeMessage),
+	PullStatus,
+	PullConfig,
+	AdvertiseNodesUp(Vec<AdvertisedNode>),
+	AdvertiseConfig(NetworkConfig),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -17,12 +20,12 @@ pub struct PingMessage {
 	pub id: UUID,
 	pub rpc_port: u16,
 
-	pub present_hash: Hash,
+	pub status_hash: Hash,
 	pub config_version: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AdvertiseNodeMessage {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AdvertisedNode {
 	pub id: UUID,
 	pub addr: SocketAddr,
 }

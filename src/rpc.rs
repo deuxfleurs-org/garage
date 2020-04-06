@@ -133,7 +133,11 @@ async fn handler(sys: Arc<System>, req: Request<Body>, addr: SocketAddr) -> Resu
 
 	let resp = err_to_msg(match &msg {
 		Message::Ping(ping) => sys.handle_ping(&addr, ping).await,
-		Message::AdvertiseNode(adv) => sys.handle_advertise_node(adv).await,
+		Message::PullStatus => sys.handle_pull_status().await,
+		Message::PullConfig => sys.handle_pull_config().await,
+		Message::AdvertiseNodesUp(adv) => sys.handle_advertise_nodes_up(adv).await,
+		Message::AdvertiseConfig(adv) => sys.handle_advertise_config(adv).await,
+
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),
 	});
 

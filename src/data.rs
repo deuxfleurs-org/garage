@@ -1,8 +1,22 @@
+use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 pub type UUID = [u8; 32];
 pub type Hash = [u8; 32];
 
+
+// Network management
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NetworkConfig {
+	pub members: HashMap<UUID, NetworkConfigEntry>,
+	pub version: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NetworkConfigEntry {
+	pub n_tokens: u32,
+}
 
 // Data management
 
