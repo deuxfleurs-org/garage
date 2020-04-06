@@ -103,7 +103,7 @@ async fn main() {
 	let api_server = api::run_api_server(sys.clone(), wait_from(rx2));
 
 	tokio::spawn(shutdown_signal(vec![tx1, tx2]));
-	tokio::spawn(membership::bootstrap(sys));
+	tokio::spawn(sys.bootstrap());
 
 	let (e1, e2) = futures::join![rpc_server, api_server];
 

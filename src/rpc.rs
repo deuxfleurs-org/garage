@@ -14,7 +14,6 @@ use crate::data::*;
 use crate::error::Error;
 use crate::proto::Message;
 use crate::membership::System;
-use crate::membership;
 
 // ---- CLIENT PART ----
 
@@ -133,8 +132,8 @@ async fn handler(sys: Arc<System>, req: Request<Body>, addr: SocketAddr) -> Resu
 	eprintln!("RPC from {}: {:?}", addr, msg);
 
 	let resp = err_to_msg(match &msg {
-		Message::Ping(ping) => membership::handle_ping(sys, &addr, ping).await,
-		Message::AdvertiseNode(adv) => membership::handle_advertise_node(sys, adv).await,
+		Message::Ping(ping) => sys.handle_ping(&addr, ping).await,
+		Message::AdvertiseNode(adv) => sys.handle_advertise_node(adv).await,
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),
 	});
 

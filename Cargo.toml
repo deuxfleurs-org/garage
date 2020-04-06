@@ -24,3 +24,4 @@ toml = "0.5"
 structopt = { version = "0.3", default-features = false }
 rand = "0.7"
 hex = "0.3"
+sha2 = "0.8"
