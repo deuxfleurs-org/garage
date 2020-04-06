@@ -1,14 +1,16 @@
+use std::sync::Arc;
+
 use futures_util::TryStreamExt;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use futures::future::Future;
 
 use crate::error::Error;
-use crate::System;
+use crate::membership::System;
 
 /// This is our service handler. It receives a Request, routes on its
 /// path, and returns a Future of a Response.
-async fn echo(req: Request<Body>) -> Result<Response<Body>, Error> {
+async fn handler(sys: Arc<System>, req: Request<Body>) -> Result<Response<Body>, Error> {
     match (req.method(), req.uri().path()) {
         // Serve some instructions at /
         (&Method::GET, "/") => Ok(Response::new(Body::from(
@@ -51,15 +53,24 @@ async fn echo(req: Request<Body>) -> Result<Response<Body>, Error> {
     }
 }
 
-pub async fn run_api_server(sys: &System, api_port: u16, shutdown_signal: impl Future<Output=()>) -> Result<(), hyper::Error> {
-    let addr = ([0, 0, 0, 0], api_port).into();
+pub async fn run_api_server(sys: Arc<System>, shutdown_signal: impl Future<Output=()>) -> Result<(), hyper::Error> {
+    let addr = ([0, 0, 0, 0], sys.config.api_port).into();
 
-    let service = make_service_fn(|_| async { Ok::<_, Error>(service_fn(echo)) });
+    let service = make_service_fn(|_| {
+		let sys = sys.clone();
+		async move {
+			let sys = sys.clone();
+			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
+				let sys = sys.clone();
+				handler(sys, req)
+			}))
+		}
+	});
 
     let server = Server::bind(&addr).serve(service);
 
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
-    println!("Listening on http://{}", addr);
+    println!("API server listening on http://{}", addr);
 
 	graceful.await
 }
