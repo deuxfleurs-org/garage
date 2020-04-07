@@ -1,7 +1,10 @@
+use std::time::Duration;
 use std::net::SocketAddr;
 use serde::{Serialize, Deserialize};
 
 use crate::data::*;
+
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
@@ -29,4 +32,5 @@ pub struct PingMessage {
 pub struct AdvertisedNode {
 	pub id: UUID,
 	pub addr: SocketAddr,
+	pub datacenter: String,
 }
