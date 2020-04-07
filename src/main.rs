@@ -55,6 +55,9 @@ pub struct ConfigureOpt {
 	/// Node to configure (prefix of hexadecimal node id)
 	node_id: String,
 
+	/// Location (datacenter) of the node
+	datacenter: String,
+
 	/// Number of tokens
 	n_tokens: u32,
 }
@@ -100,7 +103,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 	println!("Healthy nodes:");
 	for adv in status.iter() {
 		if let Some(cfg) = config.members.get(&adv.id) {
-			println!("{}\t{}\t{}\t{}", hex::encode(adv.id), adv.addr, adv.datacenter, cfg.n_tokens);
+			println!("{}\t{}\t{}\t{}", hex::encode(adv.id), cfg.datacenter, cfg.n_tokens, adv.addr);
 		}
 	}
 
@@ -109,7 +112,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 		println!("\nFailed nodes:");
 		for (id, cfg) in config.members.iter() {
 			if !status.iter().any(|x| x.id == *id) {
-				println!("{}\t{}", hex::encode(id), cfg.n_tokens);
+				println!("{}\t{}\t{}", hex::encode(id), cfg.datacenter, cfg.n_tokens);
 			}
 		}
 	}
@@ -118,7 +121,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 		println!("\nUnconfigured nodes:");
 		for adv in status.iter() {
 			if !config.members.contains_key(&adv.id) {
-				println!("{}\t{}\t{}", hex::encode(adv.id), adv.addr, adv.datacenter);
+				println!("{}\t{}", hex::encode(adv.id), adv.addr);
 			}
 		}
 	}
@@ -153,6 +156,7 @@ async fn cmd_configure(rpc_cli: RpcClient, rpc_host: SocketAddr, args: Configure
 
 	config.members.insert(candidates[0].clone(),
 						  NetworkConfigEntry{
+							  datacenter: args.datacenter,
 							  n_tokens: args.n_tokens,
 						  });
 	config.version += 1;

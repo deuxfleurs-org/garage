@@ -14,8 +14,6 @@ use crate::rpc_server;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
-	pub datacenter: String,
-
 	pub metadata_dir: PathBuf,
 	pub data_dir: PathBuf,
 

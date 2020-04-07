@@ -15,6 +15,7 @@ pub struct NetworkConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfigEntry {
+	pub datacenter: String,
 	pub n_tokens: u32,
 }
 

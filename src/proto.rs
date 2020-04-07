@@ -21,7 +21,6 @@ pub enum Message {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PingMessage {
 	pub id: UUID,
-	pub datacenter: String,
 	pub rpc_port: u16,
 
 	pub status_hash: Hash,
@@ -32,5 +31,4 @@ pub struct PingMessage {
 pub struct AdvertisedNode {
 	pub id: UUID,
 	pub addr: SocketAddr,
-	pub datacenter: String,
 }
