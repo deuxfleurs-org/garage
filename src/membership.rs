@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::net::{IpAddr, SocketAddr};
 
+use sha2::{Sha256, Digest};
 use tokio::prelude::*;
 use futures::future::join_all;
 use tokio::sync::RwLock;
-use sha2::{Sha256, Digest};
 
 use crate::server::Config;
 use crate::error::Error;
@@ -96,10 +96,7 @@ impl Members {
             }
 
             for i in 0..config.n_tokens {
-                let mut location_hasher = Sha256::new();
-                location_hasher.input(format!("{} {}", hex::encode(&id), i));
-                let mut location = [0u8; 32];
-                location.copy_from_slice(&location_hasher.result()[..]);
+                let location = hash(format!("{} {}", hex::encode(&id), i).as_bytes());
 
                 new_ring.push(RingEntry{
                     location: location.into(),
@@ -114,7 +111,7 @@ impl Members {
         self.n_datacenters = datacenters.len();
     }
 
-    fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
+    pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
         if n >= self.config.members.len() {
             return self.config.members.keys().cloned().collect::<Vec<_>>();
         }
@@ -222,7 +219,7 @@ impl System {
 		let members = self.members.read().await;
 		let to = members.status.keys().filter(|x| **x != self.id).cloned().collect::<Vec<_>>();
 		drop(members);
-		rpc_call_many(self.clone(), &to[..], &msg, None, timeout).await;
+		rpc_call_many(self.clone(), &to[..], &msg, timeout).await;
 	}
 
 	pub async fn bootstrap(self: Arc<Self>) {

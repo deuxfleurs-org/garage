@@ -16,6 +16,9 @@ pub enum Message {
 	PullConfig,
 	AdvertiseNodesUp(Vec<AdvertisedNode>),
 	AdvertiseConfig(NetworkConfig),
+
+	PutBlock(PutBlockMessage),
+	AdvertiseVersion(VersionMeta),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,4 +34,12 @@ pub struct PingMessage {
 pub struct AdvertisedNode {
 	pub id: UUID,
 	pub addr: SocketAddr,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PutBlockMessage {
+	pub meta: BlockMeta,
+
+	#[serde(with="serde_bytes")]
+	pub data: Vec<u8>,
 }

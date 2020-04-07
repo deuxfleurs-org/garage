@@ -4,13 +4,19 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use futures::channel::oneshot;
 use serde::Deserialize;
-use rand::Rng;
 
-use crate::data::UUID;
+use crate::data::*;
 use crate::error::Error;
 use crate::membership::System;
 use crate::api_server;
 use crate::rpc_server;
+
+fn default_block_size() -> usize {
+	1048576
+}
+fn default_meta_replication_factor() -> usize {
+	3
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -21,6 +27,12 @@ pub struct Config {
 	pub rpc_port: u16,
 
 	pub bootstrap_peers: Vec<SocketAddr>,
+
+	#[serde(default = "default_block_size")]
+	pub block_size: usize,
+
+	#[serde(default = "default_meta_replication_factor")]
+	pub meta_replication_factor: usize,
 }
 
 fn read_config(config_file: PathBuf) -> Result<Config, Error> {
@@ -49,11 +61,11 @@ fn gen_node_id(metadata_dir: &PathBuf) -> Result<UUID, Error> {
 		id.copy_from_slice(&d[..]);
 		Ok(id.into())
 	} else {
-		let id = rand::thread_rng().gen::<[u8; 32]>();
+		let id = gen_uuid();
 
 		let mut f = std::fs::File::create(id_file.as_path())?;
-		f.write_all(&id[..])?;
-		Ok(id.into())
+		f.write_all(id.as_slice())?;
+		Ok(id)
 	}
 }
 

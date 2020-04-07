@@ -12,6 +12,9 @@ pub enum Error {
 	#[error(display = "HTTP error: {}", _0)]
 	HTTP(#[error(source)] http::Error),
 
+    #[error(display = "Invalid HTTP header value: {}", _0)]
+    HTTPHeader(#[error(source)] http::header::ToStrError),
+
 	#[error(display = "Messagepack encode error: {}", _0)]
 	RMPEncode(#[error(source)] rmp_serde::encode::Error),
 	#[error(display = "Messagepack decode error: {}", _0)]
@@ -25,6 +28,9 @@ pub enum Error {
 
 	#[error(display = "RPC error: {}", _0)]
 	RPCError(String),
+
+	#[error(display = "{}", _0)]
+	BadRequest(String),
 
 	#[error(display = "{}", _0)]
 	Message(String),

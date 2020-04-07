@@ -1,7 +1,10 @@
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::fmt;
 use std::collections::HashMap;
 use serde::{Serializer, Deserializer, Serialize, Deserialize};
 use serde::de::{self, Visitor};
+use rand::Rng;
+use sha2::{Sha256, Digest};
 
 #[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq)]
 pub struct FixedBytes32([u8; 32]);
@@ -69,6 +72,23 @@ impl FixedBytes32 {
 pub type UUID = FixedBytes32;
 pub type Hash = FixedBytes32;
 
+pub fn hash(data: &[u8]) -> Hash {
+	let mut hasher = Sha256::new();
+	hasher.input(data);
+	let mut hash = [0u8; 32];
+	hash.copy_from_slice(&hasher.result()[..]);
+	hash.into()
+}
+
+pub fn gen_uuid() -> UUID {
+	rand::thread_rng().gen::<[u8; 32]>().into()
+}
+
+pub fn now_msec() -> u64 {
+	SystemTime::now().duration_since(UNIX_EPOCH)
+		.expect("Fix your clock :o")
+		.as_millis() as u64
+}
 
 // Network management
 
@@ -86,47 +106,49 @@ pub struct NetworkConfigEntry {
 
 // Data management
 
+pub const INLINE_THRESHOLD: usize = 2048;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SplitpointMeta {
-	bucket: String,
-	key: String,
+	pub bucket: String,
+	pub key: String,
 
-	timestamp: u64,
-	uuid: UUID,
-	deleted: bool,
+	pub timestamp: u64,
+	pub uuid: UUID,
+	pub deleted: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VersionMeta {
-	bucket: String,
-	key: String,
+	pub bucket: String,
+	pub key: String,
 
-	timestamp: u64,
-	uuid: UUID,
-	deleted: bool,
+	pub timestamp: u64,
+	pub uuid: UUID,
 
-	mime_type: String,
-	size: u64,
-	is_complete: bool,
+	pub mime_type: String,
+	pub size: u64,
+	pub is_complete: bool,
 
-	data: VersionData,
+	pub data: VersionData,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum VersionData {
-	Inline(Vec<u8>),
+	DeleteMarker,
+	Inline(#[serde(with="serde_bytes")] Vec<u8>),
 	FirstBlock(Hash),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BlockMeta {
-	version_uuid: UUID,
-	offset: u64,
-	hash: Hash,
+	pub version_uuid: UUID,
+	pub offset: u64,
+	pub hash: Hash,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BlockReverseMeta {
-	versions: Vec<UUID>,
-	deleted_versions: Vec<UUID>,
+	pub versions: Vec<UUID>,
+	pub deleted_versions: Vec<UUID>,
 }
