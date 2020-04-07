@@ -103,7 +103,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 	println!("Healthy nodes:");
 	for adv in status.iter() {
 		if let Some(cfg) = config.members.get(&adv.id) {
-			println!("{}\t{}\t{}\t{}", hex::encode(adv.id), cfg.datacenter, cfg.n_tokens, adv.addr);
+			println!("{}\t{}\t{}\t{}", hex::encode(&adv.id), cfg.datacenter, cfg.n_tokens, adv.addr);
 		}
 	}
 
@@ -112,7 +112,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 		println!("\nFailed nodes:");
 		for (id, cfg) in config.members.iter() {
 			if !status.iter().any(|x| x.id == *id) {
-				println!("{}\t{}\t{}", hex::encode(id), cfg.datacenter, cfg.n_tokens);
+				println!("{}\t{}\t{}", hex::encode(&id), cfg.datacenter, cfg.n_tokens);
 			}
 		}
 	}
@@ -121,7 +121,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 		println!("\nUnconfigured nodes:");
 		for adv in status.iter() {
 			if !config.members.contains_key(&adv.id) {
-				println!("{}\t{}", hex::encode(adv.id), adv.addr);
+				println!("{}\t{}", hex::encode(&adv.id), adv.addr);
 			}
 		}
 	}
@@ -139,7 +139,7 @@ async fn cmd_configure(rpc_cli: RpcClient, rpc_host: SocketAddr, args: Configure
 
 	let mut candidates = vec![];
 	for adv in status.iter() {
-		if hex::encode(adv.id).starts_with(&args.node_id) {
+		if hex::encode(&adv.id).starts_with(&args.node_id) {
 			candidates.push(adv.id.clone());
 		}
 	}

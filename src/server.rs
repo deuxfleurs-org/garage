@@ -47,13 +47,13 @@ fn gen_node_id(metadata_dir: &PathBuf) -> Result<UUID, Error> {
 
 		let mut id = [0u8; 32];
 		id.copy_from_slice(&d[..]);
-		Ok(id)
+		Ok(id.into())
 	} else {
-		let id = rand::thread_rng().gen::<UUID>();
+		let id = rand::thread_rng().gen::<[u8; 32]>();
 
 		let mut f = std::fs::File::create(id_file.as_path())?;
 		f.write_all(&id[..])?;
-		Ok(id)
+		Ok(id.into())
 	}
 }
 
@@ -78,7 +78,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	let id = gen_node_id(&config.metadata_dir)
 		.expect("Unable to read or generate node ID");
-	println!("Node ID: {}", hex::encode(id));
+	println!("Node ID: {}", hex::encode(&id));
 
 	let sys = Arc::new(System::new(config, id));
 

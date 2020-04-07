@@ -61,7 +61,7 @@ impl Members {
 			});
 		match old_status {
 			None => {
-				eprintln!("Newly pingable node: {}", hex::encode(info.id));
+				eprintln!("Newly pingable node: {}", hex::encode(&info.id));
 				true
 			}
 			Some(x) => x.addr != addr,
@@ -70,16 +70,16 @@ impl Members {
 
 	fn recalculate_status_hash(&mut self) {
 		let mut nodes = self.status.iter().collect::<Vec<_>>();
-		nodes.sort_by_key(|(id, _status)| *id);
+		nodes.sort_unstable_by_key(|(id, _status)| *id);
 
 		let mut hasher = Sha256::new();
 		eprintln!("Current set of pingable nodes: --");
 		for (id, status) in nodes {
-			eprintln!("{} {}", hex::encode(id), status.addr);
-			hasher.input(format!("{} {}\n", hex::encode(id), status.addr));
+			eprintln!("{} {}", hex::encode(&id), status.addr);
+			hasher.input(format!("{} {}\n", hex::encode(&id), status.addr));
 		}
 		eprintln!("END --");
-		self.status_hash.copy_from_slice(&hasher.result()[..]);
+		self.status_hash.as_slice_mut().copy_from_slice(&hasher.result()[..]);
 	}
 
     fn rebuild_ring(&mut self) {
@@ -97,19 +97,19 @@ impl Members {
 
             for i in 0..config.n_tokens {
                 let mut location_hasher = Sha256::new();
-                location_hasher.input(format!("{} {}", hex::encode(id), i));
+                location_hasher.input(format!("{} {}", hex::encode(&id), i));
                 let mut location = [0u8; 32];
                 location.copy_from_slice(&location_hasher.result()[..]);
 
                 new_ring.push(RingEntry{
-                    location,
+                    location: location.into(),
                     node: id.clone(),
                     datacenter,
                 })
             }
         }
 
-        new_ring.sort_by_key(|x| x.location);
+        new_ring.sort_unstable_by(|x, y| x.location.cmp(&y.location));
         self.ring = new_ring;
         self.n_datacenters = datacenters.len();
     }
@@ -119,7 +119,7 @@ impl Members {
             return self.config.members.keys().cloned().collect::<Vec<_>>();
         }
 
-        let start = match self.ring.binary_search_by_key(from, |x| x.location) {
+        let start = match self.ring.binary_search_by(|x| x.location.cmp(from)) {
             Ok(i) => i,
             Err(i) => if i == 0 {
                 self.ring.len() - 1
@@ -178,7 +178,7 @@ impl System {
         };
 		let mut members = Members{
 				status: HashMap::new(),
-				status_hash: [0u8; 32],
+				status_hash: Hash::default(),
 				config: net_config,
                 ring: Vec::new(),
                 n_datacenters: 0,
@@ -193,7 +193,7 @@ impl System {
 		}
 	}
 
-    pub async fn save_network_config(&self) {
+    async fn save_network_config(self: Arc<Self>) {
         let mut path = self.config.metadata_dir.clone();
         path.push("network_config");
 
@@ -211,7 +211,7 @@ impl System {
 	pub async fn make_ping(&self) -> Message {
 		let members = self.members.read().await;
 		Message::Ping(PingMessage{
-			id: self.id,
+			id: self.id.clone(),
 			rpc_port: self.config.rpc_port,
 			status_hash: members.status_hash.clone(),
 			config_version: members.config.version,
@@ -271,8 +271,8 @@ impl System {
 			} else if let Some(id) = id_option {
 				let remaining_attempts = members.status.get(id).map(|x| x.remaining_ping_attempts).unwrap_or(0);
 				if remaining_attempts == 0 {
-					eprintln!("Removing node {} after too many failed pings", hex::encode(id));
-					members.status.remove(id);
+					eprintln!("Removing node {} after too many failed pings", hex::encode(&id));
+					members.status.remove(&id);
 					has_changes = true;
 				} else {
 					if let Some(st) = members.status.get_mut(id) {
@@ -376,11 +376,12 @@ impl System {
 	{
 		let mut members = self.members.write().await;
 		if adv.version > members.config.version {
-			tokio::spawn(self.clone().broadcast(Message::AdvertiseConfig(adv.clone()), PING_TIMEOUT));
 
 			members.config = adv.clone();
-            self.save_network_config().await;
             members.rebuild_ring();
+
+			tokio::spawn(self.clone().broadcast(Message::AdvertiseConfig(adv.clone()), PING_TIMEOUT));
+            tokio::spawn(self.clone().save_network_config());
 		}
 
 		Ok(Message::Ok)

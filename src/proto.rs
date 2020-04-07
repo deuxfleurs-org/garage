@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::data::*;
 
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(2);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
