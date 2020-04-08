@@ -37,13 +37,16 @@ pub struct VersionTable {
 	pub garage: RwLock<Option<Arc<Garage>>>,
 }
 
-impl KeyHash for VersionMetaKey {
+impl TableKey for VersionMetaKey {
 	fn hash(&self) -> Hash {
 		hash(self.bucket.as_bytes())
 	}
 }
 
-impl ValueMerge for VersionMetaValue {
+impl TableValue for VersionMetaValue {
+	fn sort_key(&self) -> Vec<u8> {
+		vec![]
+	}
 	fn merge(&mut self, other: &Self) {
 		unimplemented!()
 	}

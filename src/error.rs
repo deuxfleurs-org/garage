@@ -35,9 +35,6 @@ pub enum Error {
 	#[error(display = "{}", _0)]
 	BadRequest(String),
 
-	#[error(display = "Entry not found")]
-	NotFound,
-
 	#[error(display = "{}", _0)]
 	Message(String),
 }

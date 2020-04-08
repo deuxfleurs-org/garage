@@ -1,0 +1,29 @@
+Object table
+------------
+
+
+Rename version table to object table
+In value handle the different versions
+
+So that the table becomes (bucket, key) -> CRDT(list of versions)
+
+CRDT merge rule:
+- keep one complete version (the one with the highest timestamp)
+- keep all incomplete versions with timestamps higher than the complete version
+
+Cleanup rule: remove incomplete versions after a given delay (say 24h)
+
+
+Block table
+-----------
+
+Table is version_UUID -> BTreeMap<(offset, block hash)> OR Deleted (= CRDT top)
+
+
+Block reference table
+---------------------
+
+Table is block_Hash + Sort key: version_UUID -> boolean (true when deleted)
+
+Since the hash key is the same as for the blocks themselves,
+we can simply consider the updates to this table as events that increase/decrease a reference counter.

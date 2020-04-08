@@ -67,6 +67,9 @@ impl FixedBytes32 {
 	pub fn as_slice_mut(&mut self) -> &mut [u8] {
 		&mut self.0[..]
 	}
+	pub fn to_vec(&self) -> Vec<u8> {
+		self.0.to_vec()
+	}
 }
 
 pub type UUID = FixedBytes32;
