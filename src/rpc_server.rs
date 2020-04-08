@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use futures_util::future::FutureExt;
 use bytes::IntoBuf;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::server::conn::AddrStream;

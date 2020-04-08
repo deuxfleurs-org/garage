@@ -15,6 +15,9 @@ pub enum Error {
     #[error(display = "Invalid HTTP header value: {}", _0)]
     HTTPHeader(#[error(source)] http::header::ToStrError),
 
+	#[error(display = "Sled error: {}", _0)]
+	Sled(#[error(source)] sled::Error),
+
 	#[error(display = "Messagepack encode error: {}", _0)]
 	RMPEncode(#[error(source)] rmp_serde::encode::Error),
 	#[error(display = "Messagepack decode error: {}", _0)]
@@ -31,6 +34,9 @@ pub enum Error {
 
 	#[error(display = "{}", _0)]
 	BadRequest(String),
+
+	#[error(display = "Entry not found")]
+	NotFound,
 
 	#[error(display = "{}", _0)]
 	Message(String),

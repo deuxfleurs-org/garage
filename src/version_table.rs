@@ -1,13 +1,14 @@
 use std::sync::Arc;
 use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 use crate::data::*;
 use crate::table::*;
-use crate::membership::System;
+use crate::server::Garage;
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VersionMetaKey {
 	pub bucket: String,
 	pub key: String,
@@ -33,7 +34,7 @@ pub enum VersionData {
 }
 
 pub struct VersionTable {
-	system: Arc<System>,
+	pub garage: RwLock<Option<Arc<Garage>>>,
 }
 
 impl KeyHash for VersionMetaKey {

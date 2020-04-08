@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use futures::channel::oneshot;
 use serde::Deserialize;
+use tokio::sync::RwLock;
 
 use crate::data::*;
 use crate::proto::*;
@@ -24,7 +25,7 @@ pub struct Garage {
 }
 
 impl Garage {
-	pub fn new(config: Config, id: UUID, db: sled::Db) -> Self {
+	pub async fn new(config: Config, id: UUID, db: sled::Db) -> Arc<Self> {
 		let system = Arc::new(System::new(config, id));
 
 		let meta_rep_param = TableReplicationParams{
@@ -35,6 +36,7 @@ impl Garage {
 		};
 
 		let version_table = Arc::new(Table::new(
+			VersionTable{garage: RwLock::new(None)},
 			system.clone(),
 			&db,
 			"version".to_string(),
@@ -49,6 +51,9 @@ impl Garage {
 		garage.table_rpc_handlers.insert(
 			garage.version_table.name.clone(),
 			garage.version_table.clone().rpc_handler());
+
+		let garage = Arc::new(garage);
+		*garage.version_table.instance.garage.write().await = Some(garage.clone());
 		garage
 	}
 }
@@ -139,7 +144,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.expect("Unable to read or generate node ID");
 	println!("Node ID: {}", hex::encode(&id));
 
-	let garage = Arc::new(Garage::new(config, id, db));
+	let garage = Garage::new(config, id, db).await;
 
 	let (tx1, rx1) = oneshot::channel();
 	let (tx2, rx2) = oneshot::channel();
