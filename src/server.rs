@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::net::SocketAddr;
@@ -6,10 +7,51 @@ use futures::channel::oneshot;
 use serde::Deserialize;
 
 use crate::data::*;
+use crate::proto::*;
 use crate::error::Error;
 use crate::membership::System;
 use crate::api_server;
 use crate::rpc_server;
+use crate::table::*;
+
+pub struct Garage {
+	pub db: sled::Db,
+	pub system: Arc<System>,
+
+	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
+
+	pub version_table: Arc<Table<VersionTable>>,
+}
+
+impl Garage {
+	pub fn new(config: Config, id: UUID, db: sled::Db) -> Self {
+		let system = Arc::new(System::new(config, id));
+
+		let meta_rep_param = TableReplicationParams{
+			replication_factor: system.config.meta_replication_factor,
+			write_quorum: (system.config.meta_replication_factor+1)/2,
+			read_quorum: (system.config.meta_replication_factor+1)/2,
+			timeout: DEFAULT_TIMEOUT,
+		};
+
+		let version_table = Arc::new(Table::new(
+			system.clone(),
+			&db,
+			"version".to_string(),
+			meta_rep_param.clone())); 
+
+		let mut garage = Self{
+			db,
+			system: system.clone(),
+			table_rpc_handlers: HashMap::new(),
+			version_table,
+		};
+		garage.table_rpc_handlers.insert(
+			garage.version_table.name.clone(),
+			garage.version_table.clone().rpc_handler());
+		garage
+	}
+}
 
 fn default_block_size() -> usize {
 	1048576
@@ -88,20 +130,25 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let config = read_config(config_file)
 		.expect("Unable to read config file");
 
+	let mut db_path = config.metadata_dir.clone();
+	db_path.push("garage_metadata");
+	let db = sled::open(db_path)
+		.expect("Unable to open DB");
+
 	let id = gen_node_id(&config.metadata_dir)
 		.expect("Unable to read or generate node ID");
 	println!("Node ID: {}", hex::encode(&id));
 
-	let sys = Arc::new(System::new(config, id));
+	let garage = Arc::new(Garage::new(config, id, db));
 
 	let (tx1, rx1) = oneshot::channel();
 	let (tx2, rx2) = oneshot::channel();
 
-	let rpc_server = rpc_server::run_rpc_server(sys.clone(), wait_from(rx1));
-	let api_server = api_server::run_api_server(sys.clone(), wait_from(rx2));
+	let rpc_server = rpc_server::run_rpc_server(garage.clone(), wait_from(rx1));
+	let api_server = api_server::run_api_server(garage.clone(), wait_from(rx2));
 
 	tokio::spawn(shutdown_signal(vec![tx1, tx2]));
-	tokio::spawn(sys.bootstrap());
+	tokio::spawn(garage.system.clone().bootstrap());
 
 	futures::try_join!(rpc_server, api_server)?;
 	Ok(())

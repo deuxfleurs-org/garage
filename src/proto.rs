@@ -18,7 +18,8 @@ pub enum Message {
 	AdvertiseConfig(NetworkConfig),
 
 	PutBlock(PutBlockMessage),
-	AdvertiseVersion(VersionMeta),
+
+	TableRPC(String, #[serde(with = "serde_bytes")] Vec<u8>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

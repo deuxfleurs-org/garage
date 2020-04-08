@@ -106,7 +106,7 @@ pub struct NetworkConfigEntry {
 
 // Data management
 
-pub const INLINE_THRESHOLD: usize = 2048;
+pub const INLINE_THRESHOLD: usize = 3072;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SplitpointMeta {
@@ -118,27 +118,7 @@ pub struct SplitpointMeta {
 	pub deleted: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct VersionMeta {
-	pub bucket: String,
-	pub key: String,
-
-	pub timestamp: u64,
-	pub uuid: UUID,
-
-	pub mime_type: String,
-	pub size: u64,
-	pub is_complete: bool,
-
-	pub data: VersionData,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum VersionData {
-	DeleteMarker,
-	Inline(#[serde(with="serde_bytes")] Vec<u8>),
-	FirstBlock(Hash),
-}
+pub use crate::version_table::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BlockMeta {

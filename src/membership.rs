@@ -124,6 +124,11 @@ impl Members {
                 i - 1
             }
         };
+
+		self.walk_ring_from_pos(start, n)
+    }
+
+	fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
         let mut ret = vec![];
         let mut datacenters = vec![];
 
@@ -143,7 +148,7 @@ impl Members {
         }
 
         ret
-    }
+	}
 }
 
 fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {

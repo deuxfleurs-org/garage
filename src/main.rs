@@ -1,7 +1,12 @@
 mod error;
 mod data;
 mod proto;
+
 mod membership;
+mod table;
+
+mod version_table;
+
 mod server;
 mod rpc_server;
 mod rpc_client;
