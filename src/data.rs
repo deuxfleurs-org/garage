@@ -121,7 +121,7 @@ pub struct SplitpointMeta {
 	pub deleted: bool,
 }
 
-pub use crate::version_table::*;
+pub use crate::object_table::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BlockMeta {

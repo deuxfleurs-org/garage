@@ -21,7 +21,7 @@ pub struct Garage {
 
 	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
 
-	pub version_table: Arc<Table<VersionTable>>,
+	pub object_table: Arc<Table<ObjectTable>>,
 }
 
 impl Garage {
@@ -35,25 +35,25 @@ impl Garage {
 			timeout: DEFAULT_TIMEOUT,
 		};
 
-		let version_table = Arc::new(Table::new(
-			VersionTable{garage: RwLock::new(None)},
+		let object_table = Arc::new(Table::new(
+			ObjectTable{garage: RwLock::new(None)},
 			system.clone(),
 			&db,
-			"version".to_string(),
+			"object".to_string(),
 			meta_rep_param.clone())); 
 
 		let mut garage = Self{
 			db,
 			system: system.clone(),
 			table_rpc_handlers: HashMap::new(),
-			version_table,
+			object_table,
 		};
 		garage.table_rpc_handlers.insert(
-			garage.version_table.name.clone(),
-			garage.version_table.clone().rpc_handler());
+			garage.object_table.name.clone(),
+			garage.object_table.clone().rpc_handler());
 
 		let garage = Arc::new(garage);
-		*garage.version_table.instance.garage.write().await = Some(garage.clone());
+		*garage.object_table.instance.garage.write().await = Some(garage.clone());
 		garage
 	}
 }

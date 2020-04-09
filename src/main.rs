@@ -5,7 +5,7 @@ mod proto;
 mod membership;
 mod table;
 
-mod version_table;
+mod object_table;
 
 mod server;
 mod rpc_server;

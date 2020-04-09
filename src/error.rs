@@ -1,5 +1,6 @@
-use err_derive::Error;
 use std::io;
+use err_derive::Error;
+use hyper::StatusCode;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -32,9 +33,22 @@ pub enum Error {
 	#[error(display = "RPC error: {}", _0)]
 	RPCError(String),
 
-	#[error(display = "{}", _0)]
+	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+
+	#[error(display = "Not found")]
+	NotFound,
 
 	#[error(display = "{}", _0)]
 	Message(String),
+}
+
+impl Error {
+	pub fn http_status_code(&self) -> StatusCode {
+		match self {
+			Error::BadRequest(_) => StatusCode::BAD_REQUEST,
+			Error::NotFound => StatusCode::NOT_FOUND,
+			_ => StatusCode::INTERNAL_SERVER_ERROR,
+		}
+	}
 }

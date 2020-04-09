@@ -64,11 +64,11 @@ pub struct Partition {
 	pub other_nodes: Vec<UUID>,
 }
 
-pub trait PartitionKey: Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync {
+pub trait PartitionKey {
 	fn hash(&self) -> Hash;
 }
 
-pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync {
+pub trait SortKey {
 	fn sort_key(&self) -> &[u8];
 }
 
@@ -87,33 +87,21 @@ impl SortKey for EmptySortKey {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct StringKey(String);
-impl PartitionKey for StringKey {
+impl<T: AsRef<str>> PartitionKey for T {
 	fn hash(&self) -> Hash {
-		hash(self.0.as_bytes())
+		hash(self.as_ref().as_bytes())
 	}
 }
-impl SortKey for StringKey {
+impl<T: AsRef<str>> SortKey for T {
 	fn sort_key(&self) -> &[u8] {
-		self.0.as_bytes()
-	}
-}
-impl AsRef<str> for StringKey {
-	fn as_ref(&self) -> &str {
-		&self.0
-	}
-}
-impl From<&str> for StringKey {
-	fn from(s: &str) -> StringKey {
-		StringKey(s.to_string())
+		self.as_ref().as_bytes()
 	}
 }
 
 #[async_trait]
 pub trait TableFormat: Send + Sync {
-	type P: PartitionKey;
-	type S: SortKey;
+	type P: PartitionKey + Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync;
+	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	type E: Entry<Self::P, Self::S>;
 
 	async fn updated(&self, old: Option<&Self::E>, new: &Self::E);

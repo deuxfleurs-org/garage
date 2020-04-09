@@ -39,16 +39,10 @@ pub async fn run_api_server(garage: Arc<Garage>, shutdown_signal: impl Future<Ou
 async fn handler(garage: Arc<Garage>, req: Request<Body>, addr: SocketAddr) -> Result<Response<Body>, Error> {
 	match handler_inner(garage, req, addr).await {
 		Ok(x) => Ok(x),
-		Err(Error::BadRequest(e)) => {
-			let mut bad_request = Response::new(Body::from(format!("{}\n", e)));
-			*bad_request.status_mut() = StatusCode::BAD_REQUEST;
-			Ok(bad_request)
-		}
 		Err(e) => {
-			let mut ise = Response::new(Body::from(
-				format!("Internal server error: {}\n", e)));
-			*ise.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-			Ok(ise)
+			let mut http_error = Response::new(Body::from(format!("{}\n", e)));
+			*http_error.status_mut() = e.http_status_code();
+			Ok(http_error)
 		}
 	}
 }
@@ -65,9 +59,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>, addr: SocketAddr
 
     match req.method() {
 		&Method::GET => {
-			Ok(Response::new(Body::from(
-				"TODO: implement GET object",
-			)))
+			Ok(handle_get(garage, &bucket, &key).await?)
 		}
 		&Method::PUT => {
 			let mime_type = req.headers()
@@ -97,27 +89,30 @@ async fn handle_put(garage: Arc<Garage>,
 		None => return Err(Error::BadRequest(format!("Empty body"))),
 	};
 
-	let mut version = VersionMeta{
+	let mut object = Object {
 		bucket: bucket.into(),
 		key: key.into(),
-		timestamp: now_msec(),
+		versions: Vec::new(),
+	};
+	object.versions.push(Box::new(Version{
 		uuid: version_uuid.clone(),
+		timestamp: now_msec(),
 		mime_type: mime_type.to_string(),
 		size: first_block.len() as u64,
 		is_complete: false,
 		data: VersionData::DeleteMarker,
-	};
+	}));
 
 	if first_block.len() < INLINE_THRESHOLD {
-		version.data = VersionData::Inline(first_block);
-		version.is_complete = true;
-		garage.version_table.insert(&version).await?;
+		object.versions[0].data = VersionData::Inline(first_block);
+		object.versions[0].is_complete = true;
+		garage.object_table.insert(&object).await?;
 		return Ok(version_uuid)
 	}
 
 	let first_block_hash = hash(&first_block[..]);
-	version.data = VersionData::FirstBlock(first_block_hash);
-	garage.version_table.insert(&version).await?;
+	object.versions[0].data = VersionData::FirstBlock(first_block_hash);
+	garage.object_table.insert(&object).await?;
 
 	let block_meta = BlockMeta{
 		version_uuid: version_uuid.clone(),
@@ -143,8 +138,9 @@ async fn handle_put(garage: Arc<Garage>,
 
 	// TODO: if at any step we have an error, we should undo everything we did
 
-	version.is_complete = true;
-	garage.version_table.insert(&version).await?;
+	object.versions[0].is_complete = true;
+	object.versions[0].size = next_offset as u64;
+	garage.object_table.insert(&object).await?;
 	Ok(version_uuid)
 }
 
@@ -195,6 +191,35 @@ impl BodyChunker {
 			let block = self.buf.drain(..self.block_size)
 				.collect::<Vec<u8>>();
 			Ok(Some(block))
+		}
+	}
+}
+
+async fn handle_get(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<Response<Body>, Error> {
+	let mut object = match garage.object_table.get(&bucket.to_string(), &key.to_string()).await? {
+		None => return Err(Error::NotFound),
+		Some(o) => o
+	};
+
+	let last_v = match object.versions.drain(..)
+		.rev().filter(|v| v.is_complete)
+		.next() {
+		Some(v) => v,
+		None => return Err(Error::NotFound),
+	};
+
+	let resp_builder = Response::builder()
+		.header("Content-Type", last_v.mime_type)
+		.status(StatusCode::OK);
+
+	match last_v.data {
+		VersionData::DeleteMarker => Err(Error::NotFound),
+		VersionData::Inline(bytes) => {
+			Ok(resp_builder.body(bytes.into())?)
+		}
+		VersionData::FirstBlock(hash) => {
+			// TODO
+			unimplemented!()
 		}
 	}
 }
