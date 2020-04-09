@@ -54,3 +54,12 @@ impl Error {
 		}
 	}
 }
+
+impl From<sled::TransactionError<Error>> for Error {
+	fn from(e: sled::TransactionError<Error>) -> Error {
+		match e {
+			sled::TransactionError::Abort(x) => x,
+			sled::TransactionError::Storage(x) => Error::Sled(x),
+		}
+	}
+}

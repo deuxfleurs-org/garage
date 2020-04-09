@@ -47,20 +47,25 @@ impl Entry<String, String> for Object {
 		&self.key
 	}
 
-	fn merge(&mut self, other: &Self) {
+	fn merge(&mut self, other: &Self) -> bool {
+		let mut has_change = false;
+
 		for other_v in other.versions.iter() {
 			match self.versions.binary_search_by(|v| (v.timestamp, &v.uuid).cmp(&(other_v.timestamp, &other_v.uuid))) {
 				Ok(i) => {
 					let mut v = &mut self.versions[i];
 					if other_v.size > v.size {
 						v.size = other_v.size;
+						has_change = true;
 					}
-					if other_v.is_complete {
+					if other_v.is_complete && !v.is_complete {
 						v.is_complete = true;
+						has_change = true;
 					}
 				}
 				Err(i) => {
 					self.versions.insert(i, other_v.clone());
+					has_change = true;
 				}
 			}
 		}
@@ -73,6 +78,8 @@ impl Entry<String, String> for Object {
 		if let Some(last_vi) = last_complete {
 			self.versions = self.versions.drain(last_vi..).collect::<Vec<_>>();
 		}
+
+		has_change
 	}
 }
 
