@@ -167,11 +167,9 @@ fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {
 		.open(path.as_path())?;
 	
 	let mut net_config_bytes = vec![];
-	file.read_to_end(&mut net_config_bytes)
-        .expect("Failure when reading network_config");
+	file.read_to_end(&mut net_config_bytes)?;
 
-    let net_config = rmp_serde::decode::from_read_ref(&net_config_bytes[..])
-        .expect("Invalid or corrupt network_config file");
+    let net_config = rmp_serde::decode::from_read_ref(&net_config_bytes[..])?;
 
 	Ok(net_config)
 }
@@ -180,9 +178,12 @@ impl System {
 	pub fn new(config: Config, id: UUID) -> Self {
         let net_config = match read_network_config(&config.metadata_dir) {
             Ok(x) => x,
-            Err(_) => NetworkConfig{
-                members: HashMap::new(),
-                version: 0,
+            Err(e) => {
+				println!("No valid previous network configuration stored ({}), starting fresh.", e);
+				NetworkConfig{
+					members: HashMap::new(),
+					version: 0,
+				}
 			},
         };
 		let mut members = Members{

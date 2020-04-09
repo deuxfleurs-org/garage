@@ -72,11 +72,11 @@ pub trait SortKey {
 	fn sort_key(&self) -> &[u8];
 }
 
-pub trait Entry<P: PartitionKey, S: SortKey>: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync {
+pub trait Entry<P: PartitionKey, S: SortKey>: PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync {
 	fn partition_key(&self) -> &P;
 	fn sort_key(&self) -> &S;
 
-	fn merge(&mut self, other: &Self) -> bool;
+	fn merge(&mut self, other: &Self);
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -95,6 +95,12 @@ impl<T: AsRef<str>> PartitionKey for T {
 impl<T: AsRef<str>> SortKey for T {
 	fn sort_key(&self) -> &[u8] {
 		self.as_ref().as_bytes()
+	}
+}
+
+impl PartitionKey for Hash {
+	fn hash(&self) -> Hash {
+		self.clone()
 	}
 }
 
@@ -159,9 +165,9 @@ impl<F: TableFormat + 'static> Table<F> {
 					ret = match ret {
 						None => Some(v),
 						Some(mut x) => {
-							let updated = x.merge(&v);
-							if updated {
+							if x != v {
 								not_all_same = true;
+								x.merge(&v);
 							}
 							Some(x)
 						}
@@ -239,17 +245,16 @@ impl<F: TableFormat + 'static> Table<F> {
 			let tree_key = self.tree_key(update.partition_key(), update.sort_key());
 
 			let (old_entry, new_entry) = self.store.transaction(|db| {
-				let mut new_entry = update.clone();
-
-				let old_entry = match db.get(&tree_key)? {
+				let (old_entry, new_entry) = match db.get(&tree_key)? {
 					Some(prev_bytes) => {
 						let old_entry = rmp_serde::decode::from_read_ref::<_, F::E>(&prev_bytes)
 							.map_err(Error::RMPDecode)
 							.map_err(sled::ConflictableTransactionError::Abort)?;
-						new_entry.merge(&old_entry);
-						Some(old_entry)
+						let mut new_entry = old_entry.clone();
+						new_entry.merge(&update);
+						(Some(old_entry), new_entry)
 					}
-					None => None
+					None => (None, update.clone())
 				};
 
 				let new_bytes = rmp_to_vec_all_named(&new_entry)

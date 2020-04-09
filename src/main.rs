@@ -6,6 +6,8 @@ mod membership;
 mod table;
 
 mod object_table;
+mod version_table;
+mod block;
 
 mod server;
 mod rpc_server;

@@ -102,7 +102,7 @@ impl RpcClient {
 					   timeout: Duration)
 		-> Result<Message, Error>
 	{
-		let uri = format!("http://{}/", to_addr);
+		let uri = format!("http://{}/rpc", to_addr);
 		let req = Request::builder()
 			.method(Method::POST)
 			.uri(uri)

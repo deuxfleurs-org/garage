@@ -136,16 +136,4 @@ pub struct SplitpointMeta {
 }
 
 pub use crate::object_table::*;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BlockMeta {
-	pub version_uuid: UUID,
-	pub offset: u64,
-	pub hash: Hash,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BlockReverseMeta {
-	pub versions: Vec<UUID>,
-	pub deleted_versions: Vec<UUID>,
-}
+pub use crate::version_table::*;

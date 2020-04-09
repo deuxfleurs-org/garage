@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use futures::channel::oneshot;
 use serde::Deserialize;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::data::*;
 use crate::proto::*;
@@ -18,10 +18,12 @@ use crate::table::*;
 pub struct Garage {
 	pub db: sled::Db,
 	pub system: Arc<System>,
+	pub fs_lock: Mutex<()>,
 
 	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
 
 	pub object_table: Arc<Table<ObjectTable>>,
+	pub version_table: Arc<Table<VersionTable>>,
 }
 
 impl Garage {
@@ -41,19 +43,34 @@ impl Garage {
 			&db,
 			"object".to_string(),
 			meta_rep_param.clone())); 
+		let version_table = Arc::new(Table::new(
+			VersionTable{garage: RwLock::new(None)},
+			system.clone(),
+			&db,
+			"version".to_string(),
+			meta_rep_param.clone())); 
 
 		let mut garage = Self{
 			db,
 			system: system.clone(),
+			fs_lock: Mutex::new(()),
 			table_rpc_handlers: HashMap::new(),
 			object_table,
+			version_table,
 		};
+
 		garage.table_rpc_handlers.insert(
 			garage.object_table.name.clone(),
 			garage.object_table.clone().rpc_handler());
+		garage.table_rpc_handlers.insert(
+			garage.version_table.name.clone(),
+			garage.version_table.clone().rpc_handler());
 
 		let garage = Arc::new(garage);
+
 		*garage.object_table.instance.garage.write().await = Some(garage.clone());
+		*garage.version_table.instance.garage.write().await = Some(garage.clone());
+
 		garage
 	}
 }

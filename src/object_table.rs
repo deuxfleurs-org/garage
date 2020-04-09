@@ -8,16 +8,20 @@ use crate::table::*;
 use crate::server::Garage;
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
+	// Primary key
 	pub bucket: String,
+
+	// Sort key
 	pub key: String,
 
-	pub versions: Vec<Box<Version>>,
+	// Data
+	pub versions: Vec<Box<ObjectVersion>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Version {
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectVersion {
 	pub uuid: UUID,
 	pub timestamp: u64,
 
@@ -25,18 +29,14 @@ pub struct Version {
 	pub size: u64,
 	pub is_complete: bool,
 
-	pub data: VersionData,
+	pub data: ObjectVersionData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum VersionData {
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum ObjectVersionData {
 	DeleteMarker,
 	Inline(#[serde(with="serde_bytes")] Vec<u8>),
 	FirstBlock(Hash),
-}
-
-pub struct ObjectTable {
-	pub garage: RwLock<Option<Arc<Garage>>>,
 }
 
 impl Entry<String, String> for Object {
@@ -47,25 +47,20 @@ impl Entry<String, String> for Object {
 		&self.key
 	}
 
-	fn merge(&mut self, other: &Self) -> bool {
-		let mut has_change = false;
-
+	fn merge(&mut self, other: &Self) {
 		for other_v in other.versions.iter() {
 			match self.versions.binary_search_by(|v| (v.timestamp, &v.uuid).cmp(&(other_v.timestamp, &other_v.uuid))) {
 				Ok(i) => {
 					let mut v = &mut self.versions[i];
 					if other_v.size > v.size {
 						v.size = other_v.size;
-						has_change = true;
 					}
 					if other_v.is_complete && !v.is_complete {
 						v.is_complete = true;
-						has_change = true;
 					}
 				}
 				Err(i) => {
 					self.versions.insert(i, other_v.clone());
-					has_change = true;
 				}
 			}
 		}
@@ -78,9 +73,11 @@ impl Entry<String, String> for Object {
 		if let Some(last_vi) = last_complete {
 			self.versions = self.versions.drain(last_vi..).collect::<Vec<_>>();
 		}
-
-		has_change
 	}
+}
+
+pub struct ObjectTable {
+	pub garage: RwLock<Option<Arc<Garage>>>,
 }
 
 #[async_trait]

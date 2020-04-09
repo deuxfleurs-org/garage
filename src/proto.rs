@@ -17,6 +17,7 @@ pub enum Message {
 	AdvertiseNodesUp(Vec<AdvertisedNode>),
 	AdvertiseConfig(NetworkConfig),
 
+	GetBlock(Hash),
 	PutBlock(PutBlockMessage),
 
 	TableRPC(String, #[serde(with = "serde_bytes")] Vec<u8>),
@@ -39,7 +40,7 @@ pub struct AdvertisedNode {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PutBlockMessage {
-	pub meta: BlockMeta,
+	pub hash: Hash,
 
 	#[serde(with="serde_bytes")]
 	pub data: Vec<u8>,
