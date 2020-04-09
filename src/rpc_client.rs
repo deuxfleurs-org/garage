@@ -106,7 +106,7 @@ impl RpcClient {
 		let req = Request::builder()
 			.method(Method::POST)
 			.uri(uri)
-			.body(Body::from(rmp_serde::encode::to_vec_named(msg)?))?;
+			.body(Body::from(rmp_to_vec_all_named(msg)?))?;
 
 		let resp_fut = self.client.request(req);
 		let resp = tokio::time::timeout(timeout, resp_fut).await??;

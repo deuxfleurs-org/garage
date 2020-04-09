@@ -93,6 +93,20 @@ pub fn now_msec() -> u64 {
 		.as_millis() as u64
 }
 
+// RMP serialization with names of fields and variants
+
+pub fn rmp_to_vec_all_named<T>(val: &T) -> Result<Vec<u8>, rmp_serde::encode::Error>
+where T: Serialize + ?Sized
+{
+	let mut wr = Vec::with_capacity(128);
+	let mut se = rmp_serde::Serializer::new(&mut wr)
+		.with_struct_map()
+		.with_string_variants();
+	val.serialize(&mut se)?;
+	Ok(wr)
+
+}
+
 // Network management
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

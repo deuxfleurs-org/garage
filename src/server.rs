@@ -136,7 +136,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.expect("Unable to read config file");
 
 	let mut db_path = config.metadata_dir.clone();
-	db_path.push("garage_metadata");
+	db_path.push("db");
 	let db = sled::open(db_path)
 		.expect("Unable to open DB");
 

@@ -23,6 +23,8 @@ pub enum Error {
 	RMPEncode(#[error(source)] rmp_serde::encode::Error),
 	#[error(display = "Messagepack decode error: {}", _0)]
 	RMPDecode(#[error(source)] rmp_serde::decode::Error),
+	#[error(display = "JSON error: {}", _0)]
+	JSON(#[error(source)] serde_json::error::Error),
 
 	#[error(display = "TOML decode error: {}", _0)]
 	TomlDecode(#[error(source)] toml::de::Error),

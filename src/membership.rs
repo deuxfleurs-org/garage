@@ -45,6 +45,7 @@ pub struct NodeStatus {
 	pub remaining_ping_attempts: usize,
 }
 
+#[derive(Debug)]
 pub struct RingEntry {
     pub location: Hash,
     pub node: UUID,
@@ -109,6 +110,12 @@ impl Members {
         new_ring.sort_unstable_by(|x, y| x.location.cmp(&y.location));
         self.ring = new_ring;
         self.n_datacenters = datacenters.len();
+
+		eprintln!("RING: --");
+		for e in self.ring.iter() {
+			eprintln!("{:?}", e);
+		}
+		eprintln!("END --");
     }
 
     pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
@@ -200,7 +207,7 @@ impl System {
         path.push("network_config");
 
         let members = self.members.read().await;
-        let data = rmp_serde::encode::to_vec_named(&members.config)
+        let data = rmp_to_vec_all_named(&members.config)
             .expect("Error while encoding network config");
         drop(members);
 

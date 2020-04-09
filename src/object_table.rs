@@ -83,6 +83,7 @@ impl TableFormat for ObjectTable {
 	type E = Object;
 
 	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
-		unimplemented!()
+		//unimplemented!()
+		// TODO
 	}
 }

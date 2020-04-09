@@ -8,6 +8,7 @@ use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use futures::future::Future;
 
 use crate::error::Error;
+use crate::data::rmp_to_vec_all_named;
 use crate::proto::Message;
 use crate::server::Garage;
 
@@ -28,7 +29,7 @@ async fn handler(garage: Arc<Garage>, req: Request<Body>, addr: SocketAddr) -> R
 	let whole_body = hyper::body::to_bytes(req.into_body()).await?;
 	let msg = rmp_serde::decode::from_read::<_, Message>(whole_body.into_buf())?;
 
-	eprintln!("RPC from {}: {:?}", addr, msg);
+	eprintln!("RPC from {}: {}", addr, serde_json::to_string(&msg)?);
 
 	let sys = garage.system.clone();
 	let resp = err_to_msg(match &msg {
@@ -49,8 +50,10 @@ async fn handler(garage: Arc<Garage>, req: Request<Body>, addr: SocketAddr) -> R
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),
 	});
 
+	eprintln!("reply to {}: {}", addr, serde_json::to_string(&resp)?);
+
 	Ok(Response::new(Body::from(
-		rmp_serde::encode::to_vec_named(&resp)?
+		rmp_to_vec_all_named(&resp)?
         )))
 }
 
