@@ -5,7 +5,7 @@ Object table
 Rename version table to object table
 In value handle the different versions
 
-So that the table becomes (bucket, key) -> CRDT(list of versions)
+So that the table becomes bucket + Sort key = object key -> CRDT(list of versions)
 
 CRDT merge rule:
 - keep one complete version (the one with the highest timestamp)

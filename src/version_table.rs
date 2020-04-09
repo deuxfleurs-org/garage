@@ -8,14 +8,11 @@ use crate::table::*;
 use crate::server::Garage;
 
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct VersionMetaKey {
-	pub bucket: String,
-	pub key: String,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct VersionMetaValue {
+pub struct VersionMeta {
+	pub bucket: StringKey,
+	pub key: StringKey,
+
 	pub timestamp: u64,
 	pub uuid: UUID,
 
@@ -37,16 +34,14 @@ pub struct VersionTable {
 	pub garage: RwLock<Option<Arc<Garage>>>,
 }
 
-impl TableKey for VersionMetaKey {
-	fn hash(&self) -> Hash {
-		hash(self.bucket.as_bytes())
+impl Entry<StringKey, StringKey> for VersionMeta {
+	fn partition_key(&self) -> &StringKey {
+		&self.bucket
 	}
-}
+	fn sort_key(&self) -> &StringKey {
+		&self.key
+	}
 
-impl TableValue for VersionMetaValue {
-	fn sort_key(&self) -> Vec<u8> {
-		vec![]
-	}
 	fn merge(&mut self, other: &Self) {
 		unimplemented!()
 	}
@@ -54,10 +49,11 @@ impl TableValue for VersionMetaValue {
 
 #[async_trait]
 impl TableFormat for VersionTable {
-	type K = VersionMetaKey;
-	type V = VersionMetaValue;
+	type P = StringKey;
+	type S = StringKey;
+	type E = VersionMeta;
 
-	async fn updated(&self, key: &Self::K, old: Option<&Self::V>, new: &Self::V) {
+	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
 		unimplemented!()
 	}
 }

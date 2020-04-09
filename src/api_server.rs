@@ -97,11 +97,9 @@ async fn handle_put(garage: Arc<Garage>,
 		None => return Err(Error::BadRequest(format!("Empty body"))),
 	};
 
-	let version_key = VersionMetaKey{
-		bucket: bucket.to_string(),
-		key: key.to_string(),
-	};
-	let mut version_value = VersionMetaValue {
+	let mut version = VersionMeta{
+		bucket: bucket.into(),
+		key: key.into(),
 		timestamp: now_msec(),
 		uuid: version_uuid.clone(),
 		mime_type: mime_type.to_string(),
@@ -111,15 +109,15 @@ async fn handle_put(garage: Arc<Garage>,
 	};
 
 	if first_block.len() < INLINE_THRESHOLD {
-		version_value.data = VersionData::Inline(first_block);
-		version_value.is_complete = true;
-		garage.version_table.insert(&version_key, &version_value).await?;
+		version.data = VersionData::Inline(first_block);
+		version.is_complete = true;
+		garage.version_table.insert(&version).await?;
 		return Ok(version_uuid)
 	}
 
 	let first_block_hash = hash(&first_block[..]);
-	version_value.data = VersionData::FirstBlock(first_block_hash);
-	garage.version_table.insert(&version_key, &version_value).await?;
+	version.data = VersionData::FirstBlock(first_block_hash);
+	garage.version_table.insert(&version).await?;
 
 	let block_meta = BlockMeta{
 		version_uuid: version_uuid.clone(),
@@ -145,8 +143,8 @@ async fn handle_put(garage: Arc<Garage>,
 
 	// TODO: if at any step we have an error, we should undo everything we did
 
-	version_value.is_complete = true;
-	garage.version_table.insert(&version_key, &version_value).await?;
+	version.is_complete = true;
+	garage.version_table.insert(&version).await?;
 	Ok(version_uuid)
 }
 
