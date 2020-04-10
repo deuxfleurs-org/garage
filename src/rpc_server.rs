@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use bytes::IntoBuf;
 use futures::future::Future;
+use futures_util::future::*;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
@@ -14,12 +15,16 @@ use crate::error::Error;
 use crate::proto::Message;
 use crate::server::Garage;
 
-fn debug_serialize<T: Serialize>(x: T) -> Result<String, Error> {
-	let ss = serde_json::to_string(&x)?;
-	if ss.len() > 100 {
-		Ok(ss[..100].to_string())
-	} else {
-		Ok(ss)
+fn debug_serialize<T: Serialize>(x: T) -> String {
+	match serde_json::to_string(&x) {
+		Ok(ss) => {
+			if ss.len() > 100 {
+				ss[..100].to_string()
+			} else {
+				ss
+			}
+		}
+		Err(e) => format!("<JSON serialization error: {}>", e),
 	}
 }
 
@@ -47,19 +52,22 @@ async fn handler(
 	eprintln!(
 		"RPC from {}: {} ({} bytes)",
 		addr,
-		debug_serialize(&msg)?,
+		debug_serialize(&msg),
 		whole_body.len()
 	);
 
 	let sys = garage.system.clone();
 	let resp = err_to_msg(match &msg {
 		Message::Ping(ping) => sys.handle_ping(&addr, ping).await,
+
 		Message::PullStatus => sys.handle_pull_status().await,
 		Message::PullConfig => sys.handle_pull_config().await,
 		Message::AdvertiseNodesUp(adv) => sys.handle_advertise_nodes_up(adv).await,
 		Message::AdvertiseConfig(adv) => sys.handle_advertise_config(adv).await,
+
 		Message::PutBlock(m) => write_block(garage, &m.hash, &m.data).await,
 		Message::GetBlock(h) => read_block(garage, &h).await,
+
 		Message::TableRPC(table, msg) => {
 			if let Some(rpc_handler) = garage.table_rpc_handlers.get(table) {
 				rpc_handler
@@ -74,7 +82,7 @@ async fn handler(
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),
 	});
 
-	eprintln!("reply to {}: {}", addr, debug_serialize(&resp)?);
+	eprintln!("reply to {}: {}", addr, debug_serialize(&resp));
 
 	Ok(Response::new(Body::from(rmp_to_vec_all_named(&resp)?)))
 }
@@ -91,7 +99,10 @@ pub async fn run_rpc_server(
 		async move {
 			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
-				handler(garage, req, client_addr)
+				handler(garage, req, client_addr).map_err(|e| {
+					eprintln!("RPC handler error: {}", e);
+					e
+				})
 			}))
 		}
 	});
