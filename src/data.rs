@@ -129,15 +129,6 @@ pub struct NetworkConfigEntry {
 
 pub const INLINE_THRESHOLD: usize = 3072;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SplitpointMeta {
-	pub bucket: String,
-	pub key: String,
-
-	pub timestamp: u64,
-	pub uuid: UUID,
-	pub deleted: bool,
-}
-
+pub use crate::block_ref_table::*;
 pub use crate::object_table::*;
 pub use crate::version_table::*;

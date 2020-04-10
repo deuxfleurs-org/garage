@@ -24,6 +24,7 @@ pub struct Garage {
 
 	pub object_table: Arc<Table<ObjectTable>>,
 	pub version_table: Arc<Table<VersionTable>>,
+	pub block_ref_table: Arc<Table<BlockRefTable>>,
 }
 
 impl Garage {
@@ -55,6 +56,15 @@ impl Garage {
 			"version".to_string(),
 			meta_rep_param.clone(),
 		));
+		let block_ref_table = Arc::new(Table::new(
+			BlockRefTable {
+				garage: RwLock::new(None),
+			},
+			system.clone(),
+			&db,
+			"block_ref".to_string(),
+			meta_rep_param.clone(),
+		));
 
 		let mut garage = Self {
 			db,
@@ -63,6 +73,7 @@ impl Garage {
 			table_rpc_handlers: HashMap::new(),
 			object_table,
 			version_table,
+			block_ref_table,
 		};
 
 		garage.table_rpc_handlers.insert(
@@ -73,11 +84,16 @@ impl Garage {
 			garage.version_table.name.clone(),
 			garage.version_table.clone().rpc_handler(),
 		);
+		garage.table_rpc_handlers.insert(
+			garage.block_ref_table.name.clone(),
+			garage.block_ref_table.clone().rpc_handler(),
+		);
 
 		let garage = Arc::new(garage);
 
 		*garage.object_table.instance.garage.write().await = Some(garage.clone());
 		*garage.version_table.instance.garage.write().await = Some(garage.clone());
+		*garage.block_ref_table.instance.garage.write().await = Some(garage.clone());
 
 		garage
 	}

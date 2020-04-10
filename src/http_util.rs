@@ -15,7 +15,7 @@ pub struct StreamBody {
 
 impl StreamBody {
 	pub fn new(stream: StreamType) -> Self {
-		Self{stream}
+		Self { stream }
 	}
 }
 
@@ -47,7 +47,7 @@ pub struct BytesBody {
 
 impl BytesBody {
 	pub fn new(bytes: Bytes) -> Self {
-		Self{bytes: Some(bytes)}
+		Self { bytes: Some(bytes) }
 	}
 }
 

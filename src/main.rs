@@ -6,6 +6,7 @@ mod membership;
 mod table;
 
 mod block;
+mod block_ref_table;
 mod object_table;
 mod version_table;
 

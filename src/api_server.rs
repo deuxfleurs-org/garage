@@ -133,7 +133,7 @@ async fn handle_put(
 	}
 
 	let version = Version {
-		version: version_uuid.clone(),
+		uuid: version_uuid.clone(),
 		deleted: false,
 		blocks: Vec::new(),
 		bucket: bucket.into(),
@@ -146,7 +146,7 @@ async fn handle_put(
 
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block =
-		put_version_block(garage.clone(), &version, 0, first_block_hash.clone());
+		put_block_meta(garage.clone(), &version, 0, first_block_hash.clone());
 	let mut put_curr_block = put_block(garage.clone(), first_block_hash, first_block);
 
 	loop {
@@ -155,7 +155,7 @@ async fn handle_put(
 		if let Some(block) = next_block {
 			let block_hash = hash(&block[..]);
 			let block_len = block.len();
-			put_curr_version_block = put_version_block(
+			put_curr_version_block = put_block_meta(
 				garage.clone(),
 				&version,
 				next_offset as u64,
@@ -176,15 +176,28 @@ async fn handle_put(
 	Ok(version_uuid)
 }
 
-async fn put_version_block(
+async fn put_block_meta(
 	garage: Arc<Garage>,
 	version: &Version,
 	offset: u64,
 	hash: Hash,
 ) -> Result<(), Error> {
 	let mut version = version.clone();
-	version.blocks.push(VersionBlock { offset, hash });
-	garage.version_table.insert(&version).await?;
+	version.blocks.push(VersionBlock {
+		offset,
+		hash: hash.clone(),
+	});
+
+	let block_ref = BlockRef {
+		block: hash,
+		version: version.uuid.clone(),
+		deleted: false,
+	};
+
+	futures::try_join!(
+		garage.version_table.insert(&version),
+		garage.block_ref_table.insert(&block_ref),
+	)?;
 	Ok(())
 }
 
@@ -308,9 +321,7 @@ async fn handle_get(
 					}
 				})
 				.buffered(2);
-			let body: BodyType = Box::new(StreamBody::new(
-				Box::pin(body_stream),
-			));
+			let body: BodyType = Box::new(StreamBody::new(Box::pin(body_stream)));
 			Ok(resp_builder.body(body)?)
 		}
 	}

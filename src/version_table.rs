@@ -10,7 +10,7 @@ use crate::table::*;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
 	// Primary key
-	pub version: UUID,
+	pub uuid: UUID,
 
 	// Actual data: the blocks for this version
 	pub deleted: bool,
@@ -30,7 +30,7 @@ pub struct VersionBlock {
 
 impl Entry<Hash, EmptySortKey> for Version {
 	fn partition_key(&self) -> &Hash {
-		&self.version
+		&self.uuid
 	}
 	fn sort_key(&self) -> &EmptySortKey {
 		&EmptySortKey
