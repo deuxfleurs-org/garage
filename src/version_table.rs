@@ -1,12 +1,11 @@
-use std::sync::Arc;
-use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::data::*;
-use crate::table::*;
 use crate::server::Garage;
-
+use crate::table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {

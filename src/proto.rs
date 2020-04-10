@@ -1,6 +1,6 @@
-use std::time::Duration;
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use serde::{Serialize, Deserialize};
+use std::time::Duration;
 
 use crate::data::*;
 
@@ -11,7 +11,7 @@ pub enum Message {
 	Ok,
 	Error(String),
 
-	Ping(PingMessage),	
+	Ping(PingMessage),
 	PullStatus,
 	PullConfig,
 	AdvertiseNodesUp(Vec<AdvertisedNode>),
@@ -42,6 +42,6 @@ pub struct AdvertisedNode {
 pub struct PutBlockMessage {
 	pub hash: Hash,
 
-	#[serde(with="serde_bytes")]
+	#[serde(with = "serde_bytes")]
 	pub data: Vec<u8>,
 }

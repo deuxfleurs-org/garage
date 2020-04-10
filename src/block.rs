@@ -1,13 +1,13 @@
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tokio::fs;
 use tokio::prelude::*;
 
-use crate::error::Error;
-use crate::server::Garage;
-use crate::proto::*;
 use crate::data::*;
+use crate::error::Error;
+use crate::proto::*;
+use crate::server::Garage;
 
 fn block_dir(garage: &Garage, hash: &Hash) -> PathBuf {
 	let mut path = garage.system.config.data_dir.clone();
@@ -24,7 +24,7 @@ pub async fn write_block(garage: Arc<Garage>, hash: &Hash, data: &[u8]) -> Resul
 
 	path.push(hex::encode(hash));
 	if fs::metadata(&path).await.is_ok() {
-		return Ok(Message::Ok)
+		return Ok(Message::Ok);
 	}
 
 	let mut f = fs::File::create(path).await?;
@@ -42,7 +42,7 @@ pub async fn read_block(garage: Arc<Garage>, hash: &Hash) -> Result<Message, Err
 	let mut data = vec![];
 	f.read_to_end(&mut data).await?;
 
-	Ok(Message::PutBlock(PutBlockMessage{
+	Ok(Message::PutBlock(PutBlockMessage {
 		hash: hash.clone(),
 		data,
 	}))

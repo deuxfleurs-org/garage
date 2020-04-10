@@ -1,12 +1,11 @@
-use std::sync::Arc;
-use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::data::*;
-use crate::table::*;
 use crate::server::Garage;
-
+use crate::table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
@@ -35,7 +34,7 @@ pub struct ObjectVersion {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionData {
 	DeleteMarker,
-	Inline(#[serde(with="serde_bytes")] Vec<u8>),
+	Inline(#[serde(with = "serde_bytes")] Vec<u8>),
 	FirstBlock(Hash),
 }
 
@@ -49,7 +48,9 @@ impl Entry<String, String> for Object {
 
 	fn merge(&mut self, other: &Self) {
 		for other_v in other.versions.iter() {
-			match self.versions.binary_search_by(|v| (v.timestamp, &v.uuid).cmp(&(other_v.timestamp, &other_v.uuid))) {
+			match self.versions.binary_search_by(|v| {
+				(v.timestamp, &v.uuid).cmp(&(other_v.timestamp, &other_v.uuid))
+			}) {
 				Ok(i) => {
 					let mut v = &mut self.versions[i];
 					if other_v.size > v.size {
@@ -64,8 +65,11 @@ impl Entry<String, String> for Object {
 				}
 			}
 		}
-		let last_complete = self.versions
-			.iter().enumerate().rev()
+		let last_complete = self
+			.versions
+			.iter()
+			.enumerate()
+			.rev()
 			.filter(|(_, v)| v.is_complete)
 			.next()
 			.map(|(vi, _)| vi);

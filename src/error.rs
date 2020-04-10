@@ -1,6 +1,6 @@
-use std::io;
 use err_derive::Error;
 use hyper::StatusCode;
+use std::io;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -13,8 +13,8 @@ pub enum Error {
 	#[error(display = "HTTP error: {}", _0)]
 	HTTP(#[error(source)] http::Error),
 
-    #[error(display = "Invalid HTTP header value: {}", _0)]
-    HTTPHeader(#[error(source)] http::header::ToStrError),
+	#[error(display = "Invalid HTTP header value: {}", _0)]
+	HTTPHeader(#[error(source)] http::header::ToStrError),
 
 	#[error(display = "Sled error: {}", _0)]
 	Sled(#[error(source)] sled::Error),

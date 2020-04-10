@@ -1,10 +1,10 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::fmt;
-use std::collections::HashMap;
-use serde::{Serializer, Deserializer, Serialize, Deserialize};
-use serde::de::{self, Visitor};
 use rand::Rng;
-use sha2::{Sha256, Digest};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq)]
 pub struct FixedBytes32([u8; 32]);
@@ -43,7 +43,10 @@ impl<'de> Visitor<'de> for FixedBytes32Visitor {
 			res.copy_from_slice(value);
 			Ok(res.into())
 		} else {
-			Err(E::custom(format!("Invalid byte string length {}, expected 32", value.len())))
+			Err(E::custom(format!(
+				"Invalid byte string length {}, expected 32",
+				value.len()
+			)))
 		}
 	}
 }
@@ -88,7 +91,8 @@ pub fn gen_uuid() -> UUID {
 }
 
 pub fn now_msec() -> u64 {
-	SystemTime::now().duration_since(UNIX_EPOCH)
+	SystemTime::now()
+		.duration_since(UNIX_EPOCH)
 		.expect("Fix your clock :o")
 		.as_millis() as u64
 }
@@ -96,7 +100,8 @@ pub fn now_msec() -> u64 {
 // RMP serialization with names of fields and variants
 
 pub fn rmp_to_vec_all_named<T>(val: &T) -> Result<Vec<u8>, rmp_serde::encode::Error>
-where T: Serialize + ?Sized
+where
+	T: Serialize + ?Sized,
 {
 	let mut wr = Vec::with_capacity(128);
 	let mut se = rmp_serde::Serializer::new(&mut wr)
@@ -104,7 +109,6 @@ where T: Serialize + ?Sized
 		.with_string_variants();
 	val.serialize(&mut se)?;
 	Ok(wr)
-
 }
 
 // Network management
