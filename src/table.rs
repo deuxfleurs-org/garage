@@ -104,6 +104,11 @@ impl PartitionKey for Hash {
 		self.clone()
 	}
 }
+impl SortKey for Hash {
+	fn sort_key(&self) -> &[u8] {
+		self.as_slice()
+	}
+}
 
 #[async_trait]
 pub trait TableFormat: Send + Sync {
