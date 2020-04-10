@@ -1,12 +1,8 @@
-use core::pin::Pin;
-use core::task::{Context, Poll};
-
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use futures::future::Future;
-use futures::ready;
 use futures::stream::*;
 use hyper::body::{Bytes, HttpBody};
 use hyper::server::conn::AddrStream;
@@ -16,6 +12,7 @@ use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use crate::data;
 use crate::data::*;
 use crate::error::Error;
+use crate::http_util::*;
 use crate::proto::*;
 use crate::rpc_client::*;
 use crate::server::Garage;
@@ -311,9 +308,9 @@ async fn handle_get(
 					}
 				})
 				.buffered(2);
-			let body: BodyType = Box::new(NonSyncStreamBody {
-				stream: Box::pin(body_stream),
-			});
+			let body: BodyType = Box::new(StreamBody::new(
+				Box::pin(body_stream),
+			));
 			Ok(resp_builder.body(body)?)
 		}
 	}
@@ -343,68 +340,4 @@ async fn get_block(garage: Arc<Garage>, hash: &Hash) -> Result<Vec<u8>, Error> {
 		}
 	}
 	Err(Error::Message(format!("No valid blocks returned")))
-}
-
-pub struct NonSyncStreamBody {
-	pub stream: Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>,
-}
-
-impl HttpBody for NonSyncStreamBody {
-	type Data = Bytes;
-	type Error = Error;
-
-	fn poll_data(
-		mut self: Pin<&mut Self>,
-		cx: &mut Context,
-	) -> Poll<Option<Result<Bytes, Self::Error>>> {
-		match ready!(self.stream.as_mut().poll_next(cx)) {
-			Some(res) => Poll::Ready(Some(res)),
-			None => Poll::Ready(None),
-		}
-	}
-
-	fn poll_trailers(
-		self: Pin<&mut Self>,
-		cx: &mut Context,
-	) -> Poll<Result<Option<hyper::HeaderMap<hyper::header::HeaderValue>>, Self::Error>> {
-		Poll::Ready(Ok(None))
-	}
-}
-
-pub struct BytesBody {
-	pub bytes: Option<Bytes>,
-}
-
-impl HttpBody for BytesBody {
-	type Data = Bytes;
-	type Error = Error;
-
-	fn poll_data(
-		mut self: Pin<&mut Self>,
-		_cx: &mut Context,
-	) -> Poll<Option<Result<Bytes, Self::Error>>> {
-		Poll::Ready(self.bytes.take().map(Ok))
-	}
-
-	fn poll_trailers(
-		self: Pin<&mut Self>,
-		_cx: &mut Context,
-	) -> Poll<Result<Option<hyper::HeaderMap<hyper::header::HeaderValue>>, Self::Error>> {
-		Poll::Ready(Ok(None))
-	}
-}
-
-impl From<String> for BytesBody {
-	fn from(x: String) -> BytesBody {
-		BytesBody {
-			bytes: Some(Bytes::from(x.into_bytes())),
-		}
-	}
-}
-impl From<Vec<u8>> for BytesBody {
-	fn from(x: Vec<u8>) -> BytesBody {
-		BytesBody {
-			bytes: Some(Bytes::from(x)),
-		}
-	}
 }

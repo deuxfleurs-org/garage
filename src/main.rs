@@ -10,6 +10,7 @@ mod object_table;
 mod version_table;
 
 mod api_server;
+mod http_util;
 mod rpc_client;
 mod rpc_server;
 mod server;
