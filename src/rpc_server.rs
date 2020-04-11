@@ -90,7 +90,7 @@ async fn handler(
 pub async fn run_rpc_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
-) -> Result<(), hyper::Error> {
+) -> Result<(), Error> {
 	let bind_addr = ([0, 0, 0, 0], garage.system.config.rpc_port).into();
 
 	let service = make_service_fn(|conn: &AddrStream| {
@@ -112,5 +112,6 @@ pub async fn run_rpc_server(
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
 	println!("RPC server listening on http://{}", bind_addr);
 
-	graceful.await
+	graceful.await?;
+	Ok(())
 }

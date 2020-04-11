@@ -63,3 +63,9 @@ impl From<sled::TransactionError<Error>> for Error {
 		}
 	}
 }
+
+impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {
+	fn from(_e: tokio::sync::watch::error::SendError<T>) -> Error {
+		Error::Message(format!("Watch send error"))
+	}
+}

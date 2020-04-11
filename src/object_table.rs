@@ -38,6 +38,12 @@ pub enum ObjectVersionData {
 	FirstBlock(Hash),
 }
 
+impl ObjectVersion {
+	fn cmp_key(&self) -> (u64, &UUID) {
+		(self.timestamp, &self.uuid)
+	}
+}
+
 impl Entry<String, String> for Object {
 	fn partition_key(&self) -> &String {
 		&self.bucket
@@ -48,9 +54,10 @@ impl Entry<String, String> for Object {
 
 	fn merge(&mut self, other: &Self) {
 		for other_v in other.versions.iter() {
-			match self.versions.binary_search_by(|v| {
-				(v.timestamp, &v.uuid).cmp(&(other_v.timestamp, &other_v.uuid))
-			}) {
+			match self
+				.versions
+				.binary_search_by(|v| v.cmp_key().cmp(&other_v.cmp_key()))
+			{
 				Ok(i) => {
 					let mut v = &mut self.versions[i];
 					if other_v.size > v.size {
@@ -91,7 +98,30 @@ impl TableFormat for ObjectTable {
 	type E = Object;
 
 	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
-		//unimplemented!()
-		// TODO
+		let old = old.cloned();
+		let new = new.clone();
+		let garage = self.garage.read().await.as_ref().cloned().unwrap();
+		garage.clone().background.spawn(async move {
+			// Propagate deletion of old versions
+			if let Some(old_v) = old {
+				for v in old_v.versions.iter() {
+					if new
+						.versions
+						.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
+						.is_err()
+					{
+						let deleted_version = Version {
+							uuid: v.uuid.clone(),
+							deleted: true,
+							blocks: vec![],
+							bucket: old_v.bucket.clone(),
+							key: old_v.key.clone(),
+						};
+						garage.version_table.insert(&deleted_version).await?;
+					}
+				}
+			}
+			Ok(())
+		});
 	}
 }

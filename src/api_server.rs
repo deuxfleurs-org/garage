@@ -23,7 +23,7 @@ type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
 pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
-) -> Result<(), hyper::Error> {
+) -> Result<(), Error> {
 	let addr = ([0, 0, 0, 0], garage.system.config.api_port).into();
 
 	let service = make_service_fn(|conn: &AddrStream| {
@@ -42,7 +42,8 @@ pub async fn run_api_server(
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
 	println!("API server listening on http://{}", addr);
 
-	graceful.await
+	graceful.await?;
+	Ok(())
 }
 
 async fn handler(
@@ -87,6 +88,13 @@ async fn handler_inner(
 				.to_string();
 			let version_uuid =
 				handle_put(garage, &mime_type, &bucket, &key, req.into_body()).await?;
+			Ok(Response::new(Box::new(BytesBody::from(format!(
+				"{:?}\n",
+				version_uuid
+			)))))
+		}
+		&Method::DELETE => {
+			let version_uuid = handle_delete(garage, &bucket, &key).await?;
 			Ok(Response::new(Box::new(BytesBody::from(format!(
 				"{:?}\n",
 				version_uuid
@@ -255,6 +263,27 @@ impl BodyChunker {
 			Ok(Some(block))
 		}
 	}
+}
+
+async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<UUID, Error> {
+	let version_uuid = gen_uuid();
+
+	let mut object = Object {
+		bucket: bucket.into(),
+		key: key.into(),
+		versions: Vec::new(),
+	};
+	object.versions.push(Box::new(ObjectVersion {
+		uuid: version_uuid.clone(),
+		timestamp: now_msec(),
+		mime_type: "application/x-delete-marker".into(),
+		size: 0,
+		is_complete: true,
+		data: ObjectVersionData::DeleteMarker,
+	}));
+
+	garage.object_table.insert(&object).await?;
+	return Ok(version_uuid);
 }
 
 async fn handle_get(

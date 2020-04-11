@@ -2,6 +2,7 @@ mod data;
 mod error;
 mod proto;
 
+mod background;
 mod membership;
 mod table;
 
