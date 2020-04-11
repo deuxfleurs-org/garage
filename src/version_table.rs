@@ -63,8 +63,23 @@ impl TableFormat for VersionTable {
 	type S = EmptySortKey;
 	type E = Version;
 
-	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
-		//unimplemented!()
-		// TODO
+	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
+		let garage = self.garage.read().await.as_ref().cloned().unwrap();
+		garage.clone().background.spawn(async move {
+			// Propagate deletion of version blocks
+			if let Some(old_v) = old {
+				if new.deleted && !old_v.deleted {
+					let deleted_block_refs = old_v.blocks.iter()
+						.map(|vb| BlockRef{
+							block: vb.hash.clone(),
+							version: old_v.uuid.clone(),
+							deleted: true,
+						})
+						.collect::<Vec<_>>();
+					garage.block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+				}
+			}
+			Ok(())
+		});
 	}
 }

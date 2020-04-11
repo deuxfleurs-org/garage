@@ -44,7 +44,7 @@ impl TableFormat for BlockRefTable {
 	type S = UUID;
 	type E = BlockRef;
 
-	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
+	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
 		//unimplemented!()
 		// TODO
 	}

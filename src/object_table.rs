@@ -97,9 +97,7 @@ impl TableFormat for ObjectTable {
 	type S = String;
 	type E = Object;
 
-	async fn updated(&self, old: Option<&Self::E>, new: &Self::E) {
-		let old = old.cloned();
-		let new = new.clone();
+	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
 		let garage = self.garage.read().await.as_ref().cloned().unwrap();
 		garage.clone().background.spawn(async move {
 			// Propagate deletion of old versions

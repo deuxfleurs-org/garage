@@ -30,10 +30,10 @@ pub struct Config {
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
 
-	#[serde(default = "default_meta_replication_factor")]
+	#[serde(default = "default_replication_factor")]
 	pub meta_replication_factor: usize,
 
-	#[serde(default = "default_data_replication_factor")]
+	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
 }
 
@@ -139,10 +139,7 @@ impl Garage {
 fn default_block_size() -> usize {
 	1048576
 }
-fn default_meta_replication_factor() -> usize {
-	3
-}
-fn default_data_replication_factor() -> usize {
+fn default_replication_factor() -> usize {
 	3
 }
 
