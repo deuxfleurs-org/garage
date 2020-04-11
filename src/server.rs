@@ -1,4 +1,4 @@
-use futures_util::future::FutureExt;
+pub use futures_util::future::FutureExt;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -6,11 +6,12 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use crate::api_server;
 use crate::background::*;
 use crate::data::*;
+use crate::block::*;
 use crate::error::Error;
 use crate::membership::System;
 use crate::proto::*;
@@ -40,7 +41,7 @@ pub struct Config {
 pub struct Garage {
 	pub db: sled::Db,
 	pub system: Arc<System>,
-	pub fs_lock: Mutex<()>,
+	pub block_manager: BlockManager,
 	pub background: Arc<BackgroundRunner>,
 
 	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
@@ -57,6 +58,8 @@ impl Garage {
 		db: sled::Db,
 		background: Arc<BackgroundRunner>,
 	) -> Arc<Self> {
+		let block_manager = BlockManager::new(&db, config.data_dir.clone());
+
 		let system = Arc::new(System::new(config, id, background.clone()));
 
 		let meta_rep_param = TableReplicationParams {
@@ -105,7 +108,7 @@ impl Garage {
 		let mut garage = Self {
 			db,
 			system: system.clone(),
-			fs_lock: Mutex::new(()),
+			block_manager,
 			background,
 			table_rpc_handlers: HashMap::new(),
 			object_table,

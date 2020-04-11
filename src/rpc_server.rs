@@ -9,7 +9,6 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde::Serialize;
 
-use crate::block::*;
 use crate::data::rmp_to_vec_all_named;
 use crate::error::Error;
 use crate::proto::Message;
@@ -65,8 +64,8 @@ async fn handler(
 		Message::AdvertiseNodesUp(adv) => sys.handle_advertise_nodes_up(adv).await,
 		Message::AdvertiseConfig(adv) => sys.handle_advertise_config(adv).await,
 
-		Message::PutBlock(m) => write_block(garage, &m.hash, &m.data).await,
-		Message::GetBlock(h) => read_block(garage, &h).await,
+		Message::PutBlock(m) => garage.block_manager.write_block(&m.hash, &m.data).await,
+		Message::GetBlock(h) => garage.block_manager.read_block(&h).await,
 
 		Message::TableRPC(table, msg) => {
 			if let Some(rpc_handler) = garage.table_rpc_handlers.get(table) {

@@ -45,7 +45,19 @@ impl TableFormat for BlockRefTable {
 	type E = BlockRef;
 
 	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
-		//unimplemented!()
-		// TODO
+		let garage = self.garage.read().await.as_ref().cloned().unwrap();
+
+		let was_before = old.map(|x| !x.deleted).unwrap_or(false);
+		let is_after = !new.deleted;
+		if is_after && !was_before {
+			if let Err(e) = garage.block_manager.block_incref(&new.block) {
+				eprintln!("Failed to incref block {:?}: {}", &new.block, e);
+			}
+		}
+		if was_before && !is_after {
+			if let Err(e) = garage.block_manager.block_decref(&new.block, &garage.background) {
+				eprintln!("Failed to decref or delete block {:?}: {}", &new.block, e);
+			}
+		}
 	}
 }
