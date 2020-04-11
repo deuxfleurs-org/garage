@@ -212,9 +212,9 @@ async fn put_block_meta(
 async fn put_block(garage: Arc<Garage>, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
 	let who = garage
 		.system
-		.members
-		.read()
-		.await
+		.ring
+		.borrow()
+		.clone()
 		.walk_ring(&hash, garage.system.config.meta_replication_factor);
 	rpc_try_call_many(
 		garage.system.clone(),
@@ -359,9 +359,9 @@ async fn handle_get(
 async fn get_block(garage: Arc<Garage>, hash: &Hash) -> Result<Vec<u8>, Error> {
 	let who = garage
 		.system
-		.members
-		.read()
-		.await
+		.ring
+		.borrow()
+		.clone()
 		.walk_ring(&hash, garage.system.config.meta_replication_factor);
 	let resps = rpc_try_call_many(
 		garage.system.clone(),

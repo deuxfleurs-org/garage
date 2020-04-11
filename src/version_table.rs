@@ -69,14 +69,19 @@ impl TableFormat for VersionTable {
 			// Propagate deletion of version blocks
 			if let Some(old_v) = old {
 				if new.deleted && !old_v.deleted {
-					let deleted_block_refs = old_v.blocks.iter()
-						.map(|vb| BlockRef{
+					let deleted_block_refs = old_v
+						.blocks
+						.iter()
+						.map(|vb| BlockRef {
 							block: vb.hash.clone(),
 							version: old_v.uuid.clone(),
 							deleted: true,
 						})
 						.collect::<Vec<_>>();
-					garage.block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+					garage
+						.block_ref_table
+						.insert_many(&deleted_block_refs[..])
+						.await?;
 				}
 			}
 			Ok(())

@@ -79,8 +79,8 @@ pub async fn rpc_call(
 	timeout: Duration,
 ) -> Result<Message, Error> {
 	let addr = {
-		let members = sys.members.read().await;
-		match members.status.get(to) {
+		let status = sys.status.borrow().clone();
+		match status.nodes.get(to) {
 			Some(status) => status.addr.clone(),
 			None => return Err(Error::Message(format!("Peer ID not found"))),
 		}

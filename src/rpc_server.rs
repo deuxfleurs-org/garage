@@ -59,8 +59,8 @@ async fn handler(
 	let resp = err_to_msg(match &msg {
 		Message::Ping(ping) => sys.handle_ping(&addr, ping).await,
 
-		Message::PullStatus => sys.handle_pull_status().await,
-		Message::PullConfig => sys.handle_pull_config().await,
+		Message::PullStatus => sys.handle_pull_status(),
+		Message::PullConfig => sys.handle_pull_config(),
 		Message::AdvertiseNodesUp(adv) => sys.handle_advertise_nodes_up(adv).await,
 		Message::AdvertiseConfig(adv) => sys.handle_advertise_config(adv).await,
 

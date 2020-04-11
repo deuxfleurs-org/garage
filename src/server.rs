@@ -10,8 +10,8 @@ use tokio::sync::RwLock;
 
 use crate::api_server;
 use crate::background::*;
-use crate::data::*;
 use crate::block::*;
+use crate::data::*;
 use crate::error::Error;
 use crate::membership::System;
 use crate::proto::*;

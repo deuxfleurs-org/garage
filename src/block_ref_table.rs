@@ -55,8 +55,11 @@ impl TableFormat for BlockRefTable {
 			}
 		}
 		if was_before && !is_after {
-			if let Err(e) = garage.block_manager.block_decref(&new.block, &garage.background) {
-				eprintln!("Failed to decref or delete block {:?}: {}", &new.block, e);
+			if let Err(e) = garage
+				.block_manager
+				.block_decref(&new.block, &garage.background)
+			{
+				eprintln!("Failed to decref block {:?}: {}", &new.block, e);
 			}
 		}
 	}
