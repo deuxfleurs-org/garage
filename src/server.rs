@@ -36,14 +36,14 @@ pub struct Config {
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
 
-	pub tls: TlsConfig,
+	pub rpc_tls: Option<TlsConfig>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct TlsConfig {
-	pub ca_cert: Option<String>,
-	pub node_cert: Option<String>,
-	pub node_key: Option<String>,
+	pub ca_cert: String,
+	pub node_cert: String,
+	pub node_key: String,
 }
 
 pub struct Garage {
@@ -114,7 +114,6 @@ impl Garage {
 			"object".to_string(),
 			meta_rep_param.clone(),
 		));
-
 
 		let mut garage = Self {
 			db,

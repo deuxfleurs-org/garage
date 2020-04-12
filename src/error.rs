@@ -16,6 +16,12 @@ pub enum Error {
 	#[error(display = "Invalid HTTP header value: {}", _0)]
 	HTTPHeader(#[error(source)] http::header::ToStrError),
 
+	#[error(display = "TLS error: {}", _0)]
+	TLS(#[error(source)] rustls::TLSError),
+
+	#[error(display = "PKI error: {}", _0)]
+	PKI(#[error(source)] webpki::Error),
+
 	#[error(display = "Sled error: {}", _0)]
 	Sled(#[error(source)] sled::Error),
 

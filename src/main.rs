@@ -16,6 +16,7 @@ mod http_util;
 mod rpc_client;
 mod rpc_server;
 mod server;
+mod tls_util;
 
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -76,7 +77,7 @@ pub struct ConfigureOpt {
 async fn main() {
 	let opt = Opt::from_args();
 
-	let rpc_cli = RpcClient::new();
+	let rpc_cli = RpcClient::new(&None).expect("Could not create RPC client");
 
 	let resp = match opt.cmd {
 		Command::Server(server_opt) => server::run_server(server_opt.config_file).await,

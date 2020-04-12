@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::table::*;
-use crate::background::BackgroundRunner;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
@@ -78,9 +78,7 @@ impl TableFormat for VersionTable {
 							deleted: true,
 						})
 						.collect::<Vec<_>>();
-					block_ref_table
-						.insert_many(&deleted_block_refs[..])
-						.await?;
+					block_ref_table.insert_many(&deleted_block_refs[..]).await?;
 				}
 			}
 			Ok(())

@@ -226,10 +226,12 @@ impl System {
 		ring.rebuild_ring();
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
+		let rpc_client = RpcClient::new(&config.rpc_tls).expect("Could not create RPC client");
+
 		System {
 			config,
 			id,
-			rpc_client: RpcClient::new(),
+			rpc_client,
 			status,
 			ring,
 			update_lock: Mutex::new((update_status, update_ring)),

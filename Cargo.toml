@@ -29,6 +29,11 @@ sha2 = "0.8"
 async-trait = "0.1.30"
 reduce = "0.1.2"
 serde_json = "1.0"
+rustls = "0.17"
+tokio-rustls = "0.13"
+webpki = "0.21"
+hyper-rustls = "0.20"
+#hyper-rustls = { version = "0.4", default-features = false }
 
 [profile.dev]
 lto = "off"
