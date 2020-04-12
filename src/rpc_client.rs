@@ -109,7 +109,6 @@ impl RpcClient {
 			}
 
 			config.set_single_client_cert([&node_certs[..], &ca_certs[..]].concat(), node_key)?;
-			// config.dangerous().set_certificate_verifier(Arc::new(tls_util::NoHostnameCertVerifier));
 
 			let connector =
 				tls_util::HttpsConnectorFixedDnsname::<HttpConnector>::new(config, "garage");
@@ -143,7 +142,7 @@ impl RpcClient {
 		let resp = tokio::time::timeout(timeout, resp_fut)
 			.await?
 			.map_err(|e| {
-				eprintln!("RPC client error: {}", e);
+				eprintln!("RPC HTTP client error when connecting to {}: {}", to_addr, e);
 				e
 			})?;
 

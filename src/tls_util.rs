@@ -7,7 +7,6 @@ use core::future::Future;
 use futures_util::future::*;
 use tokio::io::{AsyncRead, AsyncWrite};
 use rustls::internal::pemfile;
-use rustls::*;
 use hyper::client::HttpConnector;
 use hyper::client::connect::Connection;
 use hyper::service::Service;
@@ -57,63 +56,6 @@ pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
 		)));
 	}
 	Ok(keys[0].clone())
-}
-
-
-// ---- AWFUL COPYPASTA FROM rustls/verifier.rs
-// ---- USED TO ALLOW TO VERIFY SERVER CERTIFICATE VALIDITY IN CHAIN
-// ---- BUT DISREGARD HOSTNAME PARAMETER
-
-pub struct NoHostnameCertVerifier;
-
-type SignatureAlgorithms = &'static [&'static webpki::SignatureAlgorithm];
-static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[
-	&webpki::ECDSA_P256_SHA256,
-	&webpki::ECDSA_P256_SHA384,
-	&webpki::ECDSA_P384_SHA256,
-	&webpki::ECDSA_P384_SHA384,
-	&webpki::RSA_PSS_2048_8192_SHA256_LEGACY_KEY,
-	&webpki::RSA_PSS_2048_8192_SHA384_LEGACY_KEY,
-	&webpki::RSA_PSS_2048_8192_SHA512_LEGACY_KEY,
-	&webpki::RSA_PKCS1_2048_8192_SHA256,
-	&webpki::RSA_PKCS1_2048_8192_SHA384,
-	&webpki::RSA_PKCS1_2048_8192_SHA512,
-	&webpki::RSA_PKCS1_3072_8192_SHA384
-];
-
-impl rustls::ServerCertVerifier for NoHostnameCertVerifier {
-	fn verify_server_cert(&self,
-			roots: &RootCertStore,
-			presented_certs: &[Certificate],
-			_dns_name: webpki::DNSNameRef,
-			_ocsp_response: &[u8]) -> Result<rustls::ServerCertVerified, TLSError> {
-
-		if presented_certs.is_empty() {
-			return Err(TLSError::NoCertificatesPresented);
-		}
-
-		let cert = webpki::EndEntityCert::from(&presented_certs[0].0)
-			.map_err(TLSError::WebPKIError)?;
-
-		let chain = presented_certs.iter()
-			.skip(1)
-			.map(|cert| cert.0.as_ref())
-			.collect::<Vec<_>>();
-
-		let trustroots: Vec<webpki::TrustAnchor> = roots.roots
-			.iter()
-			.map(|x| x.to_trust_anchor())
-			.collect();
-
-		let now = webpki::Time::try_from(std::time::SystemTime::now())
-		        .map_err( |_ | TLSError::FailedToGetCurrentTime)?;
-
-		cert.verify_is_valid_tls_server_cert(SUPPORTED_SIG_ALGS,
-				&webpki::TLSServerTrustAnchors(&trustroots), &chain, now)
-			.map_err(TLSError::WebPKIError)?;
-
-		Ok(rustls::ServerCertVerified::assertion())
-	}
 }
 
 
