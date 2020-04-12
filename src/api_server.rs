@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::net::SocketAddr;
+use std::net::{Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use futures::future::Future;
@@ -24,7 +24,7 @@ pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
 ) -> Result<(), Error> {
-	let addr = ([0, 0, 0, 0, 0, 0, 0, 0], garage.system.config.api_port).into();
+	let addr = (Ipv6Addr::LOCALHOST, garage.system.config.api_port).into();
 
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();

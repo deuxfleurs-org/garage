@@ -27,6 +27,7 @@ use data::*;
 use error::Error;
 use proto::*;
 use rpc_client::RpcClient;
+use server::TlsConfig;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]
@@ -34,6 +35,13 @@ pub struct Opt {
 	/// RPC connect to this host to execute client operations
 	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901")]
 	rpc_host: SocketAddr,
+
+	#[structopt(long="ca-cert")]
+	ca_cert: Option<String>,
+	#[structopt(long="client-cert")]
+	client_cert: Option<String>,
+	#[structopt(long="client-key")]
+	client_key: Option<String>,
 
 	#[structopt(subcommand)]
 	cmd: Command,
@@ -77,7 +85,22 @@ pub struct ConfigureOpt {
 async fn main() {
 	let opt = Opt::from_args();
 
-	let rpc_cli = RpcClient::new(&None).expect("Could not create RPC client");
+	let tls_config = match (opt.ca_cert, opt.client_cert, opt.client_key) {
+		(Some(ca_cert), Some(client_cert), Some(client_key)) => {
+			Some(TlsConfig{
+				ca_cert,
+				node_cert: client_cert,
+				node_key: client_key,
+			})
+		}
+		(None, None, None) => None,
+		_ => {
+			eprintln!("Missing one of: --ca-cert, --node-cert, --node-key. Not using TLS.");
+			None
+		}
+	};
+
+	let rpc_cli = RpcClient::new(&tls_config).expect("Could not create RPC client");
 
 	let resp = match opt.cmd {
 		Command::Server(server_opt) => server::run_server(server_opt.config_file).await,
