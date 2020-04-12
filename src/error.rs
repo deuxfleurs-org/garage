@@ -32,6 +32,9 @@ pub enum Error {
 	#[error(display = "Timeout: {}", _0)]
 	RPCTimeout(#[error(source)] tokio::time::Elapsed),
 
+	#[error(display = "Tokio join error: {}", _0)]
+	TokioJoin(#[error(source)] tokio::task::JoinError),
+
 	#[error(display = "RPC error: {}", _0)]
 	RPCError(String),
 

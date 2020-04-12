@@ -24,7 +24,7 @@ pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
 ) -> Result<(), Error> {
-	let addr = ([0, 0, 0, 0], garage.system.config.api_port).into();
+	let addr = ([0, 0, 0, 0, 0, 0, 0, 0], garage.system.config.api_port).into();
 
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
@@ -215,12 +215,12 @@ async fn put_block(garage: Arc<Garage>, hash: Hash, data: Vec<u8>) -> Result<(),
 		.ring
 		.borrow()
 		.clone()
-		.walk_ring(&hash, garage.system.config.meta_replication_factor);
+		.walk_ring(&hash, garage.system.config.data_replication_factor);
 	rpc_try_call_many(
 		garage.system.clone(),
 		&who[..],
 		&Message::PutBlock(PutBlockMessage { hash, data }),
-		(garage.system.config.meta_replication_factor + 1) / 2,
+		(garage.system.config.data_replication_factor + 1) / 2,
 		DEFAULT_TIMEOUT,
 	)
 	.await?;
@@ -362,7 +362,7 @@ async fn get_block(garage: Arc<Garage>, hash: &Hash) -> Result<Vec<u8>, Error> {
 		.ring
 		.borrow()
 		.clone()
-		.walk_ring(&hash, garage.system.config.meta_replication_factor);
+		.walk_ring(&hash, garage.system.config.data_replication_factor);
 	let resps = rpc_try_call_many(
 		garage.system.clone(),
 		&who[..],
