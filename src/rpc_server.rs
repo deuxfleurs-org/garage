@@ -120,7 +120,7 @@ pub async fn run_rpc_server(
 
 		let mut config =
 			rustls::ServerConfig::new(rustls::AllowAnyAuthenticatedClient::new(ca_store));
-		config.set_single_cert([&ca_certs[..], &node_certs[..]].concat(), node_key)?;
+		config.set_single_cert([&node_certs[..], &ca_certs[..]].concat(), node_key)?;
 		let tls_acceptor = Arc::new(TlsAcceptor::from(Arc::new(config)));
 
 		let mut listener = TcpListener::bind(&bind_addr).await?;

@@ -8,7 +8,6 @@ use futures::stream::StreamExt;
 use futures_util::future::FutureExt;
 use hyper::client::{Client, HttpConnector};
 use hyper::{Body, Method, Request, StatusCode};
-use hyper_rustls::HttpsConnector;
 
 use crate::data::*;
 use crate::error::Error;
@@ -93,7 +92,7 @@ pub async fn rpc_call(
 
 pub enum RpcClient {
 	HTTP(Client<HttpConnector, hyper::Body>),
-	HTTPS(Client<HttpsConnector<HttpConnector>, hyper::Body>),
+	HTTPS(Client<tls_util::HttpsConnectorFixedDnsname<HttpConnector>, hyper::Body>),
 }
 
 impl RpcClient {
@@ -109,12 +108,11 @@ impl RpcClient {
 				config.root_store.add(crt)?;
 			}
 
-			config.set_single_client_cert([&ca_certs[..], &node_certs[..]].concat(), node_key)?;
+			config.set_single_client_cert([&node_certs[..], &ca_certs[..]].concat(), node_key)?;
+			// config.dangerous().set_certificate_verifier(Arc::new(tls_util::NoHostnameCertVerifier));
 
-			let mut http_connector = HttpConnector::new();
-			http_connector.enforce_http(false);
 			let connector =
-				HttpsConnector::<HttpConnector>::from((http_connector, Arc::new(config)));
+				tls_util::HttpsConnectorFixedDnsname::<HttpConnector>::new(config, "garage");
 
 			Ok(RpcClient::HTTPS(Client::builder().build(connector)))
 		} else {
@@ -161,3 +159,4 @@ impl RpcClient {
 		}
 	}
 }
+
