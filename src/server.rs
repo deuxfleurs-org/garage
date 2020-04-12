@@ -6,7 +6,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;
-use tokio::sync::RwLock;
 
 use crate::api_server;
 use crate::background::*;
@@ -36,12 +35,21 @@ pub struct Config {
 
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
+
+	pub tls: TlsConfig,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TlsConfig {
+	pub ca_cert: Option<String>,
+	pub node_cert: Option<String>,
+	pub node_key: Option<String>,
 }
 
 pub struct Garage {
 	pub db: sled::Db,
 	pub system: Arc<System>,
-	pub block_manager: BlockManager,
+	pub block_manager: Arc<BlockManager>,
 	pub background: Arc<BackgroundRunner>,
 
 	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
@@ -58,35 +66,9 @@ impl Garage {
 		db: sled::Db,
 		background: Arc<BackgroundRunner>,
 	) -> Arc<Self> {
-		let block_manager = BlockManager::new(&db, config.data_dir.clone());
+		let block_manager = Arc::new(BlockManager::new(&db, config.data_dir.clone()));
 
 		let system = Arc::new(System::new(config, id, background.clone()));
-
-		let meta_rep_param = TableReplicationParams {
-			replication_factor: system.config.meta_replication_factor,
-			write_quorum: (system.config.meta_replication_factor + 1) / 2,
-			read_quorum: (system.config.meta_replication_factor + 1) / 2,
-			timeout: DEFAULT_TIMEOUT,
-		};
-
-		let object_table = Arc::new(Table::new(
-			ObjectTable {
-				garage: RwLock::new(None),
-			},
-			system.clone(),
-			&db,
-			"object".to_string(),
-			meta_rep_param.clone(),
-		));
-		let version_table = Arc::new(Table::new(
-			VersionTable {
-				garage: RwLock::new(None),
-			},
-			system.clone(),
-			&db,
-			"version".to_string(),
-			meta_rep_param.clone(),
-		));
 
 		let data_rep_param = TableReplicationParams {
 			replication_factor: system.config.data_replication_factor,
@@ -95,15 +77,44 @@ impl Garage {
 			timeout: DEFAULT_TIMEOUT,
 		};
 
+		let meta_rep_param = TableReplicationParams {
+			replication_factor: system.config.meta_replication_factor,
+			write_quorum: (system.config.meta_replication_factor + 1) / 2,
+			read_quorum: (system.config.meta_replication_factor + 1) / 2,
+			timeout: DEFAULT_TIMEOUT,
+		};
+
 		let block_ref_table = Arc::new(Table::new(
 			BlockRefTable {
-				garage: RwLock::new(None),
+				background: background.clone(),
+				block_manager: block_manager.clone(),
 			},
 			system.clone(),
 			&db,
 			"block_ref".to_string(),
 			data_rep_param.clone(),
 		));
+		let version_table = Arc::new(Table::new(
+			VersionTable {
+				background: background.clone(),
+				block_ref_table: block_ref_table.clone(),
+			},
+			system.clone(),
+			&db,
+			"version".to_string(),
+			meta_rep_param.clone(),
+		));
+		let object_table = Arc::new(Table::new(
+			ObjectTable {
+				background: background.clone(),
+				version_table: version_table.clone(),
+			},
+			system.clone(),
+			&db,
+			"object".to_string(),
+			meta_rep_param.clone(),
+		));
+
 
 		let mut garage = Self {
 			db,
@@ -129,13 +140,7 @@ impl Garage {
 			garage.block_ref_table.clone().rpc_handler(),
 		);
 
-		let garage = Arc::new(garage);
-
-		*garage.object_table.instance.garage.write().await = Some(garage.clone());
-		*garage.version_table.instance.garage.write().await = Some(garage.clone());
-		*garage.block_ref_table.instance.garage.write().await = Some(garage.clone());
-
-		garage
+		Arc::new(garage)
 	}
 }
 

@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use crate::data::*;
-use crate::server::Garage;
 use crate::table::*;
+use crate::background::BackgroundRunner;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
@@ -54,7 +53,8 @@ impl Entry<Hash, EmptySortKey> for Version {
 }
 
 pub struct VersionTable {
-	pub garage: RwLock<Option<Arc<Garage>>>,
+	pub background: Arc<BackgroundRunner>,
+	pub block_ref_table: Arc<Table<BlockRefTable>>,
 }
 
 #[async_trait]
@@ -64,8 +64,8 @@ impl TableFormat for VersionTable {
 	type E = Version;
 
 	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
-		let garage = self.garage.read().await.as_ref().cloned().unwrap();
-		garage.clone().background.spawn(async move {
+		let block_ref_table = self.block_ref_table.clone();
+		self.background.spawn(async move {
 			// Propagate deletion of version blocks
 			if let Some(old_v) = old {
 				if new.deleted && !old_v.deleted {
@@ -78,8 +78,7 @@ impl TableFormat for VersionTable {
 							deleted: true,
 						})
 						.collect::<Vec<_>>();
-					garage
-						.block_ref_table
+					block_ref_table
 						.insert_many(&deleted_block_refs[..])
 						.await?;
 				}

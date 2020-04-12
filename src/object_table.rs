@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use crate::data::*;
-use crate::server::Garage;
 use crate::table::*;
+use crate::background::BackgroundRunner;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
@@ -88,7 +87,8 @@ impl Entry<String, String> for Object {
 }
 
 pub struct ObjectTable {
-	pub garage: RwLock<Option<Arc<Garage>>>,
+	pub background: Arc<BackgroundRunner>,
+	pub version_table: Arc<Table<VersionTable>>,
 }
 
 #[async_trait]
@@ -98,8 +98,8 @@ impl TableFormat for ObjectTable {
 	type E = Object;
 
 	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
-		let garage = self.garage.read().await.as_ref().cloned().unwrap();
-		garage.clone().background.spawn(async move {
+		let version_table = self.version_table.clone();
+		self.background.spawn(async move {
 			// Propagate deletion of old versions
 			if let Some(old_v) = old {
 				for v in old_v.versions.iter() {
@@ -115,7 +115,7 @@ impl TableFormat for ObjectTable {
 							bucket: old_v.bucket.clone(),
 							key: old_v.key.clone(),
 						};
-						garage.version_table.insert(&deleted_version).await?;
+						version_table.insert(&deleted_version).await?;
 					}
 				}
 			}
