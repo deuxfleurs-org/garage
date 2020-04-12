@@ -92,7 +92,7 @@ pub struct ObjectTable {
 }
 
 #[async_trait]
-impl TableFormat for ObjectTable {
+impl TableSchema for ObjectTable {
 	type P = String;
 	type S = String;
 	type E = Object;

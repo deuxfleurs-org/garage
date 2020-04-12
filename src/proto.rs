@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use crate::data::*;
 
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(42);
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {

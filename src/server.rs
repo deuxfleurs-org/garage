@@ -84,7 +84,7 @@ impl Garage {
 			timeout: DEFAULT_TIMEOUT,
 		};
 
-		let block_ref_table = Arc::new(Table::new(
+		let block_ref_table = Table::new(
 			BlockRefTable {
 				background: background.clone(),
 				block_manager: block_manager.clone(),
@@ -93,8 +93,8 @@ impl Garage {
 			&db,
 			"block_ref".to_string(),
 			data_rep_param.clone(),
-		));
-		let version_table = Arc::new(Table::new(
+		);
+		let version_table = Table::new(
 			VersionTable {
 				background: background.clone(),
 				block_ref_table: block_ref_table.clone(),
@@ -103,8 +103,8 @@ impl Garage {
 			&db,
 			"version".to_string(),
 			meta_rep_param.clone(),
-		));
-		let object_table = Arc::new(Table::new(
+		);
+		let object_table = Table::new(
 			ObjectTable {
 				background: background.clone(),
 				version_table: version_table.clone(),
@@ -113,7 +113,7 @@ impl Garage {
 			&db,
 			"object".to_string(),
 			meta_rep_param.clone(),
-		));
+		);
 
 		let mut garage = Self {
 			db,

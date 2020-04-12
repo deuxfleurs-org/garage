@@ -58,7 +58,7 @@ pub struct VersionTable {
 }
 
 #[async_trait]
-impl TableFormat for VersionTable {
+impl TableSchema for VersionTable {
 	type P = Hash;
 	type S = EmptySortKey;
 	type E = Version;

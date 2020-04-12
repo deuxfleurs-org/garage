@@ -13,7 +13,7 @@ use crate::membership::System;
 use crate::proto::*;
 use crate::rpc_client::*;
 
-pub struct Table<F: TableFormat> {
+pub struct Table<F: TableSchema> {
 	pub instance: F,
 
 	pub name: String,
@@ -38,12 +38,12 @@ pub trait TableRpcHandler {
 	async fn handle(&self, rpc: &[u8]) -> Result<Vec<u8>, Error>;
 }
 
-struct TableRpcHandlerAdapter<F: TableFormat> {
+struct TableRpcHandlerAdapter<F: TableSchema> {
 	table: Arc<Table<F>>,
 }
 
 #[async_trait]
-impl<F: TableFormat + 'static> TableRpcHandler for TableRpcHandlerAdapter<F> {
+impl<F: TableSchema + 'static> TableRpcHandler for TableRpcHandlerAdapter<F> {
 	async fn handle(&self, rpc: &[u8]) -> Result<Vec<u8>, Error> {
 		let msg = rmp_serde::decode::from_read_ref::<_, TableRPC<F>>(rpc)?;
 		let rep = self.table.handle(msg).await?;
@@ -52,7 +52,7 @@ impl<F: TableFormat + 'static> TableRpcHandler for TableRpcHandlerAdapter<F> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum TableRPC<F: TableFormat> {
+pub enum TableRPC<F: TableSchema> {
 	Ok,
 
 	ReadEntry(F::P, F::S),
@@ -115,7 +115,7 @@ impl SortKey for Hash {
 }
 
 #[async_trait]
-pub trait TableFormat: Send + Sync {
+pub trait TableSchema: Send + Sync {
 	type P: PartitionKey + Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	type E: Entry<Self::P, Self::S>;
@@ -123,23 +123,23 @@ pub trait TableFormat: Send + Sync {
 	async fn updated(&self, old: Option<Self::E>, new: Self::E);
 }
 
-impl<F: TableFormat + 'static> Table<F> {
+impl<F: TableSchema + 'static> Table<F> {
 	pub fn new(
 		instance: F,
 		system: Arc<System>,
 		db: &sled::Db,
 		name: String,
 		param: TableReplicationParams,
-	) -> Self {
+	) -> Arc<Self> {
 		let store = db.open_tree(&name).expect("Unable to open DB tree");
-		Self {
+		Arc::new(Self {
 			instance,
 			name,
 			system,
 			store,
 			partitions: Vec::new(),
 			param,
-		}
+		})
 	}
 
 	pub fn rpc_handler(self: Arc<Self>) -> Box<dyn TableRpcHandler + Send + Sync> {

@@ -221,7 +221,7 @@ async fn put_block(garage: Arc<Garage>, hash: Hash, data: Vec<u8>) -> Result<(),
 		&who[..],
 		&Message::PutBlock(PutBlockMessage { hash, data }),
 		(garage.system.config.data_replication_factor + 1) / 2,
-		DEFAULT_TIMEOUT,
+		BLOCK_RW_TIMEOUT,
 	)
 	.await?;
 	Ok(())
@@ -368,7 +368,7 @@ async fn get_block(garage: Arc<Garage>, hash: &Hash) -> Result<Vec<u8>, Error> {
 		&who[..],
 		&Message::GetBlock(hash.clone()),
 		1,
-		DEFAULT_TIMEOUT,
+		BLOCK_RW_TIMEOUT,
 	)
 	.await?;
 

@@ -40,7 +40,7 @@ pub struct BlockRefTable {
 }
 
 #[async_trait]
-impl TableFormat for BlockRefTable {
+impl TableSchema for BlockRefTable {
 	type P = Hash;
 	type S = UUID;
 	type E = BlockRef;
