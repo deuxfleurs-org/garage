@@ -76,22 +76,26 @@ async fn handler(
 			// and the request handler simply sits there waiting for the task to finish.
 			// (if it's cancelled, that's not an issue)
 			// (TODO FIXME except if garage happens to shut down at that point)
-			let write_fut = async move { garage.block_manager.write_block(&m.hash, &m.data).await };
+			let write_fut = async move {
+				garage.block_manager.write_block(&m.hash, &m.data).await
+			};
 			tokio::spawn(write_fut).await?
 		}
 		Message::GetBlock(h) => garage.block_manager.read_block(&h).await,
 
 		Message::TableRPC(table, msg) => {
-			// For now, table RPCs use transactions that are not async so even if the future
-			// is canceled, the db should be in a consistent state.
-			if let Some(rpc_handler) = garage.table_rpc_handlers.get(&table) {
-				rpc_handler
-					.handle(&msg[..])
-					.await
-					.map(|rep| Message::TableRPC(table.to_string(), rep))
-			} else {
-				Ok(Message::Error(format!("Unknown table: {}", table)))
-			}
+			// Same trick for table RPCs than for PutBlock
+			let op_fut = async move {
+				if let Some(rpc_handler) = garage.table_rpc_handlers.get(&table) {
+					rpc_handler
+						.handle(&msg[..])
+						.await
+						.map(|rep| Message::TableRPC(table.to_string(), rep))
+				} else {
+					Ok(Message::Error(format!("Unknown table: {}", table)))
+				}
+			};
+			tokio::spawn(op_fut).await?
 		}
 
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),

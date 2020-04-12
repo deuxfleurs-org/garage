@@ -1,29 +1,16 @@
-Object table
-------------
-
-
-Rename version table to object table
-In value handle the different versions
-
-So that the table becomes bucket + Sort key = object key -> CRDT(list of versions)
-
-CRDT merge rule:
-- keep one complete version (the one with the highest timestamp)
-- keep all incomplete versions with timestamps higher than the complete version
-
-Cleanup rule: remove incomplete versions after a given delay (say 24h)
-
-
-Block table
+Replication
 -----------
 
-Table is version_UUID -> BTreeMap<(offset, block hash)> OR Deleted (= CRDT top)
+- for each interval of tokens, we know the list of nodes that are responsible
+- every node watches the current ring and state of the network
+- and thus determines the interval of tokens for which they are responsible
 
 
-Block reference table
----------------------
 
-Table is block_Hash + Sort key: version_UUID -> boolean (true when deleted)
+To do list
+----------
 
-Since the hash key is the same as for the blocks themselves,
-we can simply consider the updates to this table as events that increase/decrease a reference counter.
+- important: check block values on read and repare corrupted block contents
+- less a priority: hinted handoff
+- FIXME in rpc_server when garage shuts down and futures can be interrupted
+  (tokio::spawn should be replaced by a new function background::spawn_joinable)
