@@ -37,3 +37,6 @@ webpki = "0.21"
 
 [profile.dev]
 lto = "off"
+
+[profile.release]
+debug = true
