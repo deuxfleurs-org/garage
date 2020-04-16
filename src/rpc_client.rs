@@ -84,7 +84,7 @@ pub async fn rpc_call(
 		let status = sys.status.borrow().clone();
 		match status.nodes.get(to) {
 			Some(status) => status.addr.clone(),
-			None => return Err(Error::Message(format!("Peer ID not found"))),
+			None => return Err(Error::Message(format!("Peer ID not found: {:?}", to))),
 		}
 	};
 	sys.rpc_client.call(&addr, msg, timeout).await

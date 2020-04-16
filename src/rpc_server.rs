@@ -8,29 +8,16 @@ use futures_util::stream::*;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
-use serde::Serialize;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
-use crate::data::rmp_to_vec_all_named;
+use crate::data::{rmp_to_vec_all_named, debug_serialize};
 use crate::error::Error;
 use crate::proto::Message;
 use crate::server::Garage;
 use crate::tls_util;
 
-fn debug_serialize<T: Serialize>(x: T) -> String {
-	match serde_json::to_string(&x) {
-		Ok(ss) => {
-			if ss.len() > 100 {
-				ss[..100].to_string()
-			} else {
-				ss
-			}
-		}
-		Err(e) => format!("<JSON serialization error: {}>", e),
-	}
-}
 
 fn err_to_msg(x: Result<Message, Error>) -> Message {
 	match x {
@@ -53,12 +40,12 @@ async fn handler(
 	let whole_body = hyper::body::to_bytes(req.into_body()).await?;
 	let msg = rmp_serde::decode::from_read::<_, Message>(whole_body.into_buf())?;
 
-	eprintln!(
-		"RPC from {}: {} ({} bytes)",
-		addr,
-		debug_serialize(&msg),
-		whole_body.len()
-	);
+	// eprintln!(
+	// 	"RPC from {}: {} ({} bytes)",
+	// 	addr,
+	// 	debug_serialize(&msg),
+	// 	whole_body.len()
+	// );
 
 	let sys = garage.system.clone();
 	let resp = err_to_msg(match msg {
@@ -99,7 +86,7 @@ async fn handler(
 		_ => Ok(Message::Error(format!("Unexpected message: {:?}", msg))),
 	});
 
-	eprintln!("reply to {}: {}", addr, debug_serialize(&resp));
+	// eprintln!("reply to {}: {}", addr, debug_serialize(&resp));
 
 	Ok(Response::new(Body::from(rmp_to_vec_all_named(&resp)?)))
 }

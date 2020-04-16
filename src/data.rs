@@ -111,6 +111,19 @@ where
 	Ok(wr)
 }
 
+pub fn debug_serialize<T: Serialize>(x: T) -> String {
+	match serde_json::to_string(&x) {
+		Ok(ss) => {
+			if ss.len() > 100 {
+				ss[..100].to_string()
+			} else {
+				ss
+			}
+		}
+		Err(e) => format!("<JSON serialization error: {}>", e),
+	}
+}
+
 // Network management
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

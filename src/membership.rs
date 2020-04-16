@@ -131,11 +131,11 @@ impl Ring {
 		self.ring = new_ring;
 		self.n_datacenters = datacenters.len();
 
-		eprintln!("RING: --");
-		for e in self.ring.iter() {
-			eprintln!("{:?}", e);
-		}
-		eprintln!("END --");
+		// eprintln!("RING: --");
+		// for e in self.ring.iter() {
+		// 	eprintln!("{:?}", e);
+		// }
+		// eprintln!("END --");
 	}
 
 	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
