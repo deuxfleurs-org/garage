@@ -270,7 +270,7 @@ impl System {
 			.filter(|x| **x != self.id)
 			.cloned()
 			.collect::<Vec<_>>();
-		rpc_call_many(self.clone(), &to[..], &msg, timeout).await;
+		rpc_call_many(self.clone(), &to[..], msg, timeout).await;
 	}
 
 	pub async fn bootstrap(self: Arc<Self>) {

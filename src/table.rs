@@ -280,7 +280,7 @@ impl<F: TableSchema + 'static> Table<F> {
 		let resps = rpc_try_call_many(
 			self.system.clone(),
 			who,
-			&rpc_msg,
+			rpc_msg,
 			quorum,
 			self.param.timeout,
 		)
@@ -384,6 +384,7 @@ impl<F: TableSchema + 'static> Table<F> {
 	}
 
 	pub async fn delete_range(&self, begin: &Hash, end: &Hash) -> Result<(), Error> {
+		eprintln!("({}) Deleting range {:?} - {:?}", self.name, begin, end);
 		// TODO
 		Ok(())
 	}

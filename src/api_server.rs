@@ -219,7 +219,7 @@ async fn put_block(garage: Arc<Garage>, hash: Hash, data: Vec<u8>) -> Result<(),
 	rpc_try_call_many(
 		garage.system.clone(),
 		&who[..],
-		&Message::PutBlock(PutBlockMessage { hash, data }),
+		Message::PutBlock(PutBlockMessage { hash, data }),
 		(garage.system.config.data_replication_factor + 1) / 2,
 		BLOCK_RW_TIMEOUT,
 	)
@@ -366,7 +366,7 @@ async fn get_block(garage: Arc<Garage>, hash: &Hash) -> Result<Vec<u8>, Error> {
 	let resps = rpc_try_call_many(
 		garage.system.clone(),
 		&who[..],
-		&Message::GetBlock(hash.clone()),
+		Message::GetBlock(hash.clone()),
 		1,
 		BLOCK_RW_TIMEOUT,
 	)
