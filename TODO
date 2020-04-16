@@ -5,6 +5,8 @@ Replication
 - every node watches the current ring and state of the network
 - and thus determines the interval of tokens for which they are responsible
 
+How are we going to test that our replication method works correctly?
+We will have to introduce lots of dummy data and then add/remove nodes many times.
 
 
 To do list

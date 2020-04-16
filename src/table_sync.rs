@@ -149,9 +149,8 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 	}
 
 	async fn sync_partition(self: Arc<Self>, partition: &Partition, must_exit: &mut watch::Receiver<bool>) -> Result<(), Error> {
-		eprintln!("({}) Calculating root checksum for {:?}...", self.table.name, partition);
+		eprintln!("({}) Preparing to sync {:?}...", self.table.name, partition);
 		let root_cks = self.root_checksum(&partition.begin, &partition.end, must_exit).await?;
-		eprintln!("({}) Root checksum for {:?}: {:?}", self.table.name, partition, root_cks);
 
 		let nodes = self.table.system.ring.borrow().clone().walk_ring(&partition.begin, self.table.param.replication_factor);
 		let mut sync_futures = nodes.iter()
@@ -196,9 +195,14 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 			drop(cache);
 
 			let v = self.range_checksum_inner(&range, must_exit).await?;
+			eprintln!("({}) New checksum calculated for {}-{}/{}, {} children",
+				self.table.name,
+				hex::encode(&range.begin[..]),
+				hex::encode(&range.end[..]),
+				range.level,
+				v.children.len());
 
 			let mut cache = self.cache[range.level].lock().await;
-			eprintln!("({}) Checksum for {:?}: {:?}", self.table.name, range, v);
 			cache.insert(range.clone(), v.clone());
 			Ok(v)
 		}.boxed()
@@ -281,7 +285,8 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 		todo.push_back(root_ck);
 
 		while !todo.is_empty() && !*must_exit.borrow() {
-			eprintln!("({}) Sync with {:?}: {} remaining", self.table.name, who, todo.len());
+			let total_children = todo.iter().map(|x| x.children.len()).fold(0, |x, y| x + y);
+			eprintln!("({}) Sync with {:?}: {} ({}) remaining", self.table.name, who, todo.len(), total_children);
 
 			let end = std::cmp::min(16, todo.len());
 			let step = todo.drain(..end).collect::<Vec<_>>();
