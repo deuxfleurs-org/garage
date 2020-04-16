@@ -93,7 +93,8 @@ impl Garage {
 			&db,
 			"block_ref".to_string(),
 			data_rep_param.clone(),
-		).await;
+		)
+		.await;
 		let version_table = Table::new(
 			VersionTable {
 				background: background.clone(),
@@ -103,7 +104,8 @@ impl Garage {
 			&db,
 			"version".to_string(),
 			meta_rep_param.clone(),
-		).await;
+		)
+		.await;
 		let object_table = Table::new(
 			ObjectTable {
 				background: background.clone(),
@@ -113,7 +115,8 @@ impl Garage {
 			&db,
 			"object".to_string(),
 			meta_rep_param.clone(),
-		).await;
+		)
+		.await;
 
 		let mut garage = Self {
 			db,

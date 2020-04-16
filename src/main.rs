@@ -61,6 +61,10 @@ pub enum Command {
 	/// Configure Garage node
 	#[structopt(name = "configure")]
 	Configure(ConfigureOpt),
+
+	/// Remove Garage node from cluster
+	#[structopt(name = "remove")]
+	Remove(RemoveOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -80,6 +84,16 @@ pub struct ConfigureOpt {
 
 	/// Number of tokens
 	n_tokens: u32,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct RemoveOpt {
+	/// Node to configure (prefix of hexadecimal node id)
+	node_id: String,
+
+	/// If this flag is not given, the node won't be removed
+	#[structopt(long = "yes")]
+	yes: bool,
 }
 
 #[tokio::main]
@@ -102,11 +116,20 @@ async fn main() {
 	let rpc_cli = RpcClient::new(&tls_config).expect("Could not create RPC client");
 
 	let resp = match opt.cmd {
-		Command::Server(server_opt) => server::run_server(server_opt.config_file).await,
+		Command::Server(server_opt) => {
+			// Abort on panic (same behavior as in Go)
+			std::panic::set_hook(Box::new(|panic_info| {
+				eprintln!("{}", panic_info.to_string());
+				std::process::abort();
+			}));
+
+			server::run_server(server_opt.config_file).await
+		}
 		Command::Status => cmd_status(rpc_cli, opt.rpc_host).await,
 		Command::Configure(configure_opt) => {
 			cmd_configure(rpc_cli, opt.rpc_host, configure_opt).await
 		}
+		Command::Remove(remove_opt) => cmd_remove(rpc_cli, opt.rpc_host, remove_opt).await,
 	};
 
 	if let Err(e) = resp {
@@ -213,6 +236,52 @@ async fn cmd_configure(
 			n_tokens: args.n_tokens,
 		},
 	);
+	config.version += 1;
+
+	rpc_cli
+		.call(
+			&rpc_host,
+			&Message::AdvertiseConfig(config),
+			DEFAULT_TIMEOUT,
+		)
+		.await?;
+	Ok(())
+}
+
+async fn cmd_remove(
+	rpc_cli: RpcClient,
+	rpc_host: SocketAddr,
+	args: RemoveOpt,
+) -> Result<(), Error> {
+	let mut config = match rpc_cli
+		.call(&rpc_host, &Message::PullConfig, DEFAULT_TIMEOUT)
+		.await?
+	{
+		Message::AdvertiseConfig(cfg) => cfg,
+		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
+	};
+
+	let mut candidates = vec![];
+	for (key, _) in config.members.iter() {
+		if hex::encode(key).starts_with(&args.node_id) {
+			candidates.push(key.clone());
+		}
+	}
+	if candidates.len() != 1 {
+		return Err(Error::Message(format!(
+			"{} matching nodes",
+			candidates.len()
+		)));
+	}
+
+	if !args.yes {
+		return Err(Error::Message(format!(
+			"Add the flag --yes to really remove {:?} from the cluster",
+			candidates[0]
+		)));
+	}
+
+	config.members.remove(&candidates[0]);
 	config.version += 1;
 
 	rpc_cli
