@@ -76,9 +76,7 @@ async fn handler(
 			// and the request handler simply sits there waiting for the task to finish.
 			// (if it's cancelled, that's not an issue)
 			// (TODO FIXME except if garage happens to shut down at that point)
-			let write_fut = async move {
-				garage.block_manager.write_block(&m.hash, &m.data).await
-			};
+			let write_fut = async move { garage.block_manager.write_block(&m.hash, &m.data).await };
 			tokio::spawn(write_fut).await?
 		}
 		Message::GetBlock(h) => garage.block_manager.read_block(&h).await,

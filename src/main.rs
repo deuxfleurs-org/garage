@@ -5,6 +5,7 @@ mod proto;
 mod background;
 mod membership;
 mod table;
+mod table_sync;
 
 mod block;
 mod block_ref_table;
@@ -36,11 +37,11 @@ pub struct Opt {
 	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901")]
 	rpc_host: SocketAddr,
 
-	#[structopt(long="ca-cert")]
+	#[structopt(long = "ca-cert")]
 	ca_cert: Option<String>,
-	#[structopt(long="client-cert")]
+	#[structopt(long = "client-cert")]
 	client_cert: Option<String>,
-	#[structopt(long="client-key")]
+	#[structopt(long = "client-key")]
 	client_key: Option<String>,
 
 	#[structopt(subcommand)]
@@ -86,13 +87,11 @@ async fn main() {
 	let opt = Opt::from_args();
 
 	let tls_config = match (opt.ca_cert, opt.client_cert, opt.client_key) {
-		(Some(ca_cert), Some(client_cert), Some(client_key)) => {
-			Some(TlsConfig{
-				ca_cert,
-				node_cert: client_cert,
-				node_key: client_key,
-			})
-		}
+		(Some(ca_cert), Some(client_cert), Some(client_key)) => Some(TlsConfig {
+			ca_cert,
+			node_cert: client_cert,
+			node_key: client_key,
+		}),
 		(None, None, None) => None,
 		_ => {
 			eprintln!("Missing one of: --ca-cert, --node-cert, --node-key. Not using TLS.");

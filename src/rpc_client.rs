@@ -142,7 +142,10 @@ impl RpcClient {
 		let resp = tokio::time::timeout(timeout, resp_fut)
 			.await?
 			.map_err(|e| {
-				eprintln!("RPC HTTP client error when connecting to {}: {}", to_addr, e);
+				eprintln!(
+					"RPC HTTP client error when connecting to {}: {}",
+					to_addr, e
+				);
 				e
 			})?;
 
@@ -158,4 +161,3 @@ impl RpcClient {
 		}
 	}
 }
-

@@ -157,7 +157,7 @@ impl Ring {
 		self.walk_ring_from_pos(start, n)
 	}
 
-	fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
+	pub fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
 		let mut ret = vec![];
 		let mut datacenters = vec![];
 
@@ -282,13 +282,13 @@ impl System {
 			.collect::<Vec<_>>();
 		self.clone().ping_nodes(bootstrap_peers).await;
 
-		self.background
-			.clone()
+		self.clone()
+			.background
 			.spawn_worker(|stop_signal| self.ping_loop(stop_signal).map(Ok))
 			.await;
 	}
 
-	pub async fn ping_nodes(self: Arc<Self>, peers: Vec<(SocketAddr, Option<UUID>)>) {
+	async fn ping_nodes(self: Arc<Self>, peers: Vec<(SocketAddr, Option<UUID>)>) {
 		let ping_msg = self.make_ping();
 		let ping_resps = join_all(peers.iter().map(|(addr, id_option)| {
 			let sys = self.clone();

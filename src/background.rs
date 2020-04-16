@@ -68,7 +68,7 @@ impl BackgroundRunner {
 		let _: Result<_, _> = self.queue_in.clone().send((boxed, true));
 	}
 
-	pub async fn spawn_worker<F, T>(self: Arc<Self>, worker: F)
+	pub async fn spawn_worker<F, T>(&self, worker: F)
 	where
 		F: FnOnce(watch::Receiver<bool>) -> T + Send + 'static,
 		T: Future<Output = JobOutput> + Send + 'static,
