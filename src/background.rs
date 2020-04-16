@@ -14,7 +14,7 @@ type Job = Pin<Box<dyn Future<Output = JobOutput> + Send>>;
 
 pub struct BackgroundRunner {
 	n_runners: usize,
-	stop_signal: watch::Receiver<bool>,
+	pub stop_signal: watch::Receiver<bool>,
 
 	queue_in: mpsc::UnboundedSender<(Job, bool)>,
 	queue_out: Mutex<mpsc::UnboundedReceiver<(Job, bool)>>,
