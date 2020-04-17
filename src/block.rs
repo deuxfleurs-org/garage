@@ -136,17 +136,18 @@ impl BlockManager {
 	}
 
 	pub fn block_incref(&self, hash: &Hash) -> Result<(), Error> {
-		let new_rc = self.rc.merge(&hash, vec![1])?;
-		if new_rc.map(|x| u64_from_bytes(&x[..]) == 0).unwrap_or(true) {
-			self.put_to_resync(&hash, BLOCK_RW_TIMEOUT.as_millis() as u64)?;
+		let old_rc = self.rc.get(&hash)?;
+		self.rc.merge(&hash, vec![1])?;
+		if old_rc.map(|x| u64_from_bytes(&x[..]) == 0).unwrap_or(true) {
+			self.put_to_resync(&hash, 2 * BLOCK_RW_TIMEOUT.as_millis() as u64)?;
 		}
 		Ok(())
 	}
 
 	pub fn block_decref(&self, hash: &Hash) -> Result<(), Error> {
 		let new_rc = self.rc.merge(&hash, vec![0])?;
-		if new_rc.is_none() {
-			self.put_to_resync(&hash, 2 * BLOCK_RW_TIMEOUT.as_millis() as u64)?;
+		if new_rc.map(|x| u64_from_bytes(&x[..]) == 0).unwrap_or(true) {
+			self.put_to_resync(&hash, BLOCK_RW_TIMEOUT.as_millis() as u64)?;
 		}
 		Ok(())
 	}
