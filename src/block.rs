@@ -77,7 +77,14 @@ impl BlockManager {
 		let mut path = self.block_dir(hash);
 		path.push(hex::encode(hash));
 
-		let mut f = fs::File::open(&path).await?;
+		let mut f = match fs::File::open(&path).await {
+			Ok(f) => f,
+			Err(e) => {
+				// Not found but maybe we should have had it ??
+				self.put_to_resync(hash, DEFAULT_TIMEOUT.as_millis() as u64)?;
+				return Err(Into::into(e));
+			}
+		};
 		let mut data = vec![];
 		f.read_to_end(&mut data).await?;
 		drop(f);
