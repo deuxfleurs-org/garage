@@ -158,21 +158,23 @@ impl Ring {
 	}
 
 	pub fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
+		if n >= self.config.members.len() {
+			return self.config.members.keys().cloned().collect::<Vec<_>>();
+		}
+
 		let mut ret = vec![];
 		let mut datacenters = vec![];
 
-		for delta in 0..self.ring.len() {
-			if ret.len() == n {
-				break;
-			}
-
+		let mut delta = 0;
+		while ret.len() < n {
 			let i = (start + delta) % self.ring.len();
+			delta += 1;
 
-			if datacenters.len() == self.n_datacenters && !ret.contains(&self.ring[i].node) {
-				ret.push(self.ring[i].node.clone());
-			} else if !datacenters.contains(&self.ring[i].datacenter) {
+			if !datacenters.contains(&self.ring[i].datacenter) {
 				ret.push(self.ring[i].node.clone());
 				datacenters.push(self.ring[i].datacenter);
+			} else if datacenters.len() == self.n_datacenters && !ret.contains(&self.ring[i].node) {
+				ret.push(self.ring[i].node.clone());
 			}
 		}
 

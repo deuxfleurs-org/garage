@@ -86,7 +86,7 @@ impl BlockManager {
 			Ok(f) => f,
 			Err(e) => {
 				// Not found but maybe we should have had it ??
-				self.put_to_resync(hash, DEFAULT_TIMEOUT.as_millis() as u64)?;
+				self.put_to_resync(hash, 0)?;
 				return Err(Into::into(e));
 			}
 		};
