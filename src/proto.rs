@@ -20,6 +20,8 @@ pub enum Message {
 
 	GetBlock(Hash),
 	PutBlock(PutBlockMessage),
+	NeedBlockQuery(Hash),
+	NeedBlockReply(bool),
 
 	TableRPC(String, #[serde(with = "serde_bytes")] Vec<u8>),
 }

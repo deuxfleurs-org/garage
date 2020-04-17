@@ -1,3 +1,3 @@
 all:
-	cargo fmt
+	cargo fmt || true
 	cargo build

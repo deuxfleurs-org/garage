@@ -66,6 +66,11 @@ async fn handler(
 			tokio::spawn(write_fut).await?
 		}
 		Message::GetBlock(h) => garage.block_manager.read_block(&h).await,
+		Message::NeedBlockQuery(h) => garage
+			.block_manager
+			.need_block(&h)
+			.await
+			.map(Message::NeedBlockReply),
 
 		Message::TableRPC(table, msg) => {
 			// Same trick for table RPCs than for PutBlock

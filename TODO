@@ -1,9 +1,7 @@
 Replication
 -----------
 
-- for each interval of tokens, we know the list of nodes that are responsible
-- every node watches the current ring and state of the network
-- and thus determines the interval of tokens for which they are responsible
+Finish the thing that sends blocks to other nodes if needed before deleting them locally.
 
 How are we going to test that our replication method works correctly?
 We will have to introduce lots of dummy data and then add/remove nodes many times.
@@ -12,7 +10,6 @@ We will have to introduce lots of dummy data and then add/remove nodes many time
 To do list
 ----------
 
-- important: check block values on read and repare corrupted block contents
 - less a priority: hinted handoff
 - FIXME in rpc_server when garage shuts down and futures can be interrupted
   (tokio::spawn should be replaced by a new function background::spawn_joinable)
