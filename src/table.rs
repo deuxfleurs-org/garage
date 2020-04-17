@@ -326,7 +326,7 @@ impl<F: TableSchema + 'static> Table<F> {
 		rpc: &TableRPC<F>,
 		quorum: usize,
 	) -> Result<Vec<TableRPC<F>>, Error> {
-		eprintln!("Table RPC to {:?}: {}", who, serde_json::to_string(&rpc)?);
+		//eprintln!("Table RPC to {:?}: {}", who, serde_json::to_string(&rpc)?);
 
 		let rpc_bytes = rmp_to_vec_all_named(rpc)?;
 		let rpc_msg = Message::TableRPC(self.name.to_string(), rpc_bytes);
@@ -353,10 +353,10 @@ impl<F: TableSchema + 'static> Table<F> {
 				resp
 			)));
 		}
-		eprintln!(
-			"Table RPC responses: {}",
-			serde_json::to_string(&resps_vals)?
-		);
+		//eprintln!(
+		//	"Table RPC responses: {}",
+		//	serde_json::to_string(&resps_vals)?
+		//);
 		Ok(resps_vals)
 	}
 
