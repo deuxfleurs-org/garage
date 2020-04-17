@@ -96,6 +96,7 @@ impl TableSchema for ObjectTable {
 	type P = String;
 	type S = String;
 	type E = Object;
+	type Filter = ();
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let version_table = self.version_table.clone();
@@ -121,5 +122,10 @@ impl TableSchema for ObjectTable {
 				Ok(())
 			});
 		}
+	}
+
+	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {
+		// TODO
+		true
 	}
 }

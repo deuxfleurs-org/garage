@@ -295,6 +295,7 @@ dependencies = [
 name = "garage"
 version = "0.1.0"
 dependencies = [
+ "arc-swap 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait 0.1.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "bincode 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -44,6 +44,7 @@ impl TableSchema for BlockRefTable {
 	type P = Hash;
 	type S = UUID;
 	type E = BlockRef;
+	type Filter = ();
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
@@ -59,5 +60,9 @@ impl TableSchema for BlockRefTable {
 				eprintln!("Failed to decref block {:?}: {}", block, e);
 			}
 		}
+	}
+
+	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
+		!entry.deleted
 	}
 }
