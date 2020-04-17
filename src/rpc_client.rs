@@ -1,7 +1,7 @@
+use std::borrow::Borrow;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use std::borrow::Borrow;
 
 use bytes::IntoBuf;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -45,7 +45,8 @@ pub async fn rpc_try_call_many(
 ) -> Result<Vec<Message>, Error> {
 	let sys2 = sys.clone();
 	let msg = Arc::new(msg);
-	let mut resp_stream = to.to_vec()
+	let mut resp_stream = to
+		.to_vec()
 		.into_iter()
 		.map(move |to| rpc_call(sys2.clone(), to.clone(), msg.clone(), timeout))
 		.collect::<FuturesUnordered<_>>();
@@ -95,7 +96,12 @@ pub async fn rpc_call<M: Borrow<Message>, N: Borrow<UUID>>(
 		let status = sys.status.borrow().clone();
 		match status.nodes.get(to.borrow()) {
 			Some(status) => status.addr.clone(),
-			None => return Err(Error::Message(format!("Peer ID not found: {:?}", to.borrow()))),
+			None => {
+				return Err(Error::Message(format!(
+					"Peer ID not found: {:?}",
+					to.borrow()
+				)))
+			}
 		}
 	};
 	sys.rpc_client.call(&addr, msg, timeout).await

@@ -2,6 +2,8 @@ use err_derive::Error;
 use hyper::StatusCode;
 use std::io;
 
+use crate::data::Hash;
+
 #[derive(Debug, Error)]
 pub enum Error {
 	#[error(display = "IO error: {}", _0)]
@@ -49,6 +51,9 @@ pub enum Error {
 
 	#[error(display = "Not found")]
 	NotFound,
+
+	#[error(display = "Corrupt data: does not match hash {:?}", _0)]
+	CorruptData(Hash),
 
 	#[error(display = "{}", _0)]
 	Message(String),

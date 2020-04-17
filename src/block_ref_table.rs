@@ -55,10 +55,7 @@ impl TableSchema for BlockRefTable {
 			}
 		}
 		if was_before && !is_after {
-			if let Err(e) = self
-				.block_manager
-				.block_decref(block, &self.background)
-			{
+			if let Err(e) = self.block_manager.block_decref(block) {
 				eprintln!("Failed to decref block {:?}: {}", block, e);
 			}
 		}

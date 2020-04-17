@@ -18,7 +18,6 @@ use crate::proto::Message;
 use crate::server::Garage;
 use crate::tls_util;
 
-
 fn err_to_msg(x: Result<Message, Error>) -> Message {
 	match x {
 		Err(e) => Message::Error(format!("{}", e)),

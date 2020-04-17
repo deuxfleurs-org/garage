@@ -17,7 +17,7 @@ use crate::proto::*;
 use crate::rpc_server;
 use crate::table::*;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Config {
 	pub metadata_dir: PathBuf,
 	pub data_dir: PathBuf,
@@ -39,7 +39,7 @@ pub struct Config {
 	pub rpc_tls: Option<TlsConfig>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct TlsConfig {
 	pub ca_cert: String,
 	pub node_cert: String,
@@ -48,9 +48,9 @@ pub struct TlsConfig {
 
 pub struct Garage {
 	pub db: sled::Db,
+	pub background: Arc<BackgroundRunner>,
 	pub system: Arc<System>,
 	pub block_manager: Arc<BlockManager>,
-	pub background: Arc<BackgroundRunner>,
 
 	pub table_rpc_handlers: HashMap<String, Box<dyn TableRpcHandler + Sync + Send>>,
 
@@ -66,9 +66,9 @@ impl Garage {
 		db: sled::Db,
 		background: Arc<BackgroundRunner>,
 	) -> Arc<Self> {
-		let block_manager = Arc::new(BlockManager::new(&db, config.data_dir.clone()));
+		let system = Arc::new(System::new(config.clone(), id, background.clone()));
 
-		let system = Arc::new(System::new(config, id, background.clone()));
+		let block_manager = BlockManager::new(&db, config.data_dir.clone(), system.clone()).await;
 
 		let data_rep_param = TableReplicationParams {
 			replication_factor: system.config.data_replication_factor,
