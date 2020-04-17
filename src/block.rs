@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use arc_swap::ArcSwapOption;
 use futures::stream::*;
 use tokio::fs;
 use tokio::prelude::*;
 use tokio::sync::{watch, Mutex};
-use arc_swap::ArcSwapOption;
 
 use crate::data;
 use crate::data::*;
@@ -48,8 +48,7 @@ impl BlockManager {
 
 	pub async fn spawn_background_worker(self: Arc<Self>) {
 		let bm2 = self.clone();
-		self
-			.system
+		self.system
 			.background
 			.spawn_worker(move |must_exit| bm2.resync_loop(must_exit))
 			.await;
@@ -139,7 +138,11 @@ impl BlockManager {
 		while !*must_exit.borrow() {
 			if let Some((time_bytes, hash_bytes)) = self.resync_queue.get_gt(&[])? {
 				let time_msec = u64_from_bytes(&time_bytes[0..8]);
-				eprintln!("First in resync queue: {} (now = {})", time_msec, now_msec());
+				eprintln!(
+					"First in resync queue: {} (now = {})",
+					time_msec,
+					now_msec()
+				);
 				if now_msec() >= time_msec {
 					let mut hash = [0u8; 32];
 					hash.copy_from_slice(hash_bytes.as_ref());
@@ -147,7 +150,7 @@ impl BlockManager {
 
 					match self.resync_iter(&hash).await {
 						Ok(_) => {
-							self.resync_queue.remove(&hash_bytes)?;
+							self.resync_queue.remove(&time_bytes)?;
 						}
 						Err(e) => {
 							eprintln!(
@@ -175,11 +178,17 @@ impl BlockManager {
 			.map(|x| u64_from_bytes(x.as_ref()) > 0)
 			.unwrap_or(false);
 
-		eprintln!("Resync block {:?}: exists {}, needed {}", hash, exists, needed);
+		eprintln!(
+			"Resync block {:?}: exists {}, needed {}",
+			hash, exists, needed
+		);
 
 		if exists && !needed {
 			let garage = self.garage.load_full().unwrap();
-			let active_refs = garage.block_ref_table.get_range(&hash, &[0u8; 32].into(), Some(()), 1).await?;
+			let active_refs = garage
+				.block_ref_table
+				.get_range(&hash, &[0u8; 32].into(), Some(()), 1)
+				.await?;
 			let needed_by_others = !active_refs.is_empty();
 			if needed_by_others {
 				// TODO check they have it and send it if not
