@@ -76,8 +76,7 @@ impl BlockManager {
 	}
 
 	pub async fn read_block(&self, hash: &Hash) -> Result<Message, Error> {
-		let mut path = self.block_dir(hash);
-		path.push(hex::encode(hash));
+		let path = self.block_path(hash);
 
 		let mut f = match fs::File::open(&path).await {
 			Ok(f) => f,
@@ -112,8 +111,7 @@ impl BlockManager {
 			.map(|x| u64_from_bytes(x.as_ref()) > 0)
 			.unwrap_or(false);
 		if needed {
-			let mut path = self.data_dir.clone();
-			path.push(hex::encode(hash.as_ref()));
+			let path = self.block_path(hash);
 			let exists = fs::metadata(&path).await.is_ok();
 			Ok(!exists)
 		} else {
@@ -125,6 +123,11 @@ impl BlockManager {
 		let mut path = self.data_dir.clone();
 		path.push(hex::encode(&hash.as_slice()[0..1]));
 		path.push(hex::encode(&hash.as_slice()[1..2]));
+		path
+	}
+	fn block_path(&self, hash: &Hash) -> PathBuf {
+		let mut path = self.block_dir(hash);
+		path.push(hex::encode(hash.as_ref()));
 		path
 	}
 
@@ -187,8 +190,7 @@ impl BlockManager {
 	}
 
 	async fn resync_iter(&self, hash: &Hash) -> Result<(), Error> {
-		let mut path = self.data_dir.clone();
-		path.push(hex::encode(hash.as_ref()));
+		let path = self.block_path(hash);
 
 		let exists = fs::metadata(&path).await.is_ok();
 		let needed = self
