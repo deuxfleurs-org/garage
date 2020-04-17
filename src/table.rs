@@ -119,7 +119,7 @@ pub trait TableSchema: Send + Sync {
 	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	type E: Entry<Self::P, Self::S>;
 
-	async fn updated(&self, old: Option<Self::E>, new: Self::E);
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>);
 }
 
 impl<F: TableSchema + 'static> Table<F> {
@@ -370,10 +370,10 @@ impl<F: TableSchema + 'static> Table<F> {
 					.map_err(Error::RMPEncode)
 					.map_err(sled::ConflictableTransactionError::Abort)?;
 				db.insert(tree_key.clone(), new_bytes)?;
-				Ok((old_entry, new_entry))
+				Ok((old_entry, Some(new_entry)))
 			})?;
 
-			if old_entry.as_ref() != Some(&new_entry) {
+			if old_entry != new_entry {
 				self.instance.updated(old_entry, new_entry).await;
 
 				let syncer = self.syncer.read().await.as_ref().unwrap().clone();
@@ -385,7 +385,18 @@ impl<F: TableSchema + 'static> Table<F> {
 
 	pub async fn delete_range(&self, begin: &Hash, end: &Hash) -> Result<(), Error> {
 		eprintln!("({}) Deleting range {:?} - {:?}", self.name, begin, end);
-		// TODO
+		let mut count = 0;
+		while let Some((key, _value)) = self.store.get_lt(end.as_slice())? {
+			if key.as_ref() < begin.as_slice() {
+				break;
+			}
+			if let Some(old_val) = self.store.remove(&key)? {
+				let old_entry = rmp_serde::decode::from_read_ref::<_, F::E>(&old_val)?;
+				self.instance.updated(Some(old_entry), None).await;
+				count += 1;
+			}
+		}
+		eprintln!("({}) {} entries deleted", self.name, count);
 		Ok(())
 	}
 

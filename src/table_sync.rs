@@ -346,6 +346,8 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 				}
 			}
 		}
+		let n_checksums = checksums.iter().map(|x| x.children.len()).fold(0, |x, y| x + y);
+		eprintln!("({}) Checksum comparison RPC: {} different out of {}", self.table.name, ret.len(), n_checksums);
 		Ok(ret)
 	}
 

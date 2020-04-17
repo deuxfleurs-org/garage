@@ -45,20 +45,21 @@ impl TableSchema for BlockRefTable {
 	type S = UUID;
 	type E = BlockRef;
 
-	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
-		let was_before = old.map(|x| !x.deleted).unwrap_or(false);
-		let is_after = !new.deleted;
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
+		let was_before = old.as_ref().map(|x| !x.deleted).unwrap_or(false);
+		let is_after = new.as_ref().map(|x| !x.deleted).unwrap_or(false);
 		if is_after && !was_before {
-			if let Err(e) = self.block_manager.block_incref(&new.block) {
-				eprintln!("Failed to incref block {:?}: {}", &new.block, e);
+			if let Err(e) = self.block_manager.block_incref(block) {
+				eprintln!("Failed to incref block {:?}: {}", block, e);
 			}
 		}
 		if was_before && !is_after {
 			if let Err(e) = self
 				.block_manager
-				.block_decref(&new.block, &self.background)
+				.block_decref(block, &self.background)
 			{
-				eprintln!("Failed to decref block {:?}: {}", &new.block, e);
+				eprintln!("Failed to decref block {:?}: {}", block, e);
 			}
 		}
 	}

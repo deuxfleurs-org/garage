@@ -63,12 +63,12 @@ impl TableSchema for VersionTable {
 	type S = EmptySortKey;
 	type E = Version;
 
-	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let block_ref_table = self.block_ref_table.clone();
-		self.background.spawn(async move {
+		if let (Some(old_v), Some(new_v)) = (old, new) {
 			// Propagate deletion of version blocks
-			if let Some(old_v) = old {
-				if new.deleted && !old_v.deleted {
+			self.background.spawn(async move {
+				if new_v.deleted && !old_v.deleted {
 					let deleted_block_refs = old_v
 						.blocks
 						.iter()
@@ -80,8 +80,8 @@ impl TableSchema for VersionTable {
 						.collect::<Vec<_>>();
 					block_ref_table.insert_many(&deleted_block_refs[..]).await?;
 				}
-			}
-			Ok(())
-		});
+				Ok(())
+			});
+		}
 	}
 }

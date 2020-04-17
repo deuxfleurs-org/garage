@@ -97,13 +97,13 @@ impl TableSchema for ObjectTable {
 	type S = String;
 	type E = Object;
 
-	async fn updated(&self, old: Option<Self::E>, new: Self::E) {
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let version_table = self.version_table.clone();
-		self.background.spawn(async move {
+		if let (Some(old_v), Some(new_v)) = (old, new) {
 			// Propagate deletion of old versions
-			if let Some(old_v) = old {
+			self.background.spawn(async move {
 				for v in old_v.versions.iter() {
-					if new
+					if new_v
 						.versions
 						.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
 						.is_err()
@@ -118,8 +118,8 @@ impl TableSchema for ObjectTable {
 						version_table.insert(&deleted_version).await?;
 					}
 				}
-			}
-			Ok(())
-		});
+				Ok(())
+			});
+		}
 	}
 }
