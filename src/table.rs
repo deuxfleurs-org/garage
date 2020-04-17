@@ -155,7 +155,7 @@ impl<F: TableSchema + 'static> Table<F> {
 		let hash = e.partition_key().hash();
 		let ring = self.system.ring.borrow().clone();
 		let who = ring.walk_ring(&hash, self.param.replication_factor);
-		eprintln!("insert who: {:?}", who);
+		//eprintln!("insert who: {:?}", who);
 
 		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
 		let rpc = &TableRPC::<F>::Update(vec![e_enc]);
@@ -212,7 +212,7 @@ impl<F: TableSchema + 'static> Table<F> {
 		let hash = partition_key.hash();
 		let ring = self.system.ring.borrow().clone();
 		let who = ring.walk_ring(&hash, self.param.replication_factor);
-		eprintln!("get who: {:?}", who);
+		//eprintln!("get who: {:?}", who);
 
 		let rpc = &TableRPC::<F>::ReadEntry(partition_key.clone(), sort_key.clone());
 		let resps = self

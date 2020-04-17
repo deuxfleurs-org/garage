@@ -242,14 +242,14 @@ impl BlockManager {
 
 				if need_nodes.len() > 0 {
 					let put_block_message = self.read_block(hash).await?;
-					for resp in rpc_call_many(
+					let put_responses = rpc_call_many(
 						garage.system.clone(),
 						&need_nodes[..],
 						put_block_message,
 						BLOCK_RW_TIMEOUT,
 					)
-					.await
-					{
+					.await;
+					for resp in put_responses {
 						resp?;
 					}
 				}

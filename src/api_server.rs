@@ -86,16 +86,14 @@ async fn handler_inner(
 				.to_string();
 			let version_uuid =
 				handle_put(garage, &mime_type, &bucket, &key, req.into_body()).await?;
-			Ok(Response::new(Box::new(BytesBody::from(format!(
-				"{:?}\n",
-				version_uuid
+			Ok(Response::new(Box::new(BytesBody::from(hex::encode(
+				version_uuid,
 			)))))
 		}
 		&Method::DELETE => {
 			let version_uuid = handle_delete(garage, &bucket, &key).await?;
-			Ok(Response::new(Box::new(BytesBody::from(format!(
-				"{:?}\n",
-				version_uuid
+			Ok(Response::new(Box::new(BytesBody::from(hex::encode(
+				version_uuid,
 			)))))
 		}
 		_ => Err(Error::BadRequest(format!("Invalid method"))),
