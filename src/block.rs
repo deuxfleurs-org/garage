@@ -14,11 +14,13 @@ use crate::data;
 use crate::data::*;
 use crate::error::Error;
 use crate::membership::System;
-use crate::proto::*;
 use crate::rpc_client::*;
 use crate::rpc_server::*;
 use crate::server::Garage;
 
+pub const INLINE_THRESHOLD: usize = 3072;
+
+const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(42);
 const NEED_BLOCK_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 const RESYNC_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -29,6 +31,14 @@ pub enum Message {
 	PutBlock(PutBlockMessage),
 	NeedBlockQuery(Hash),
 	NeedBlockReply(bool),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PutBlockMessage {
+	pub hash: Hash,
+
+	#[serde(with = "serde_bytes")]
+	pub data: Vec<u8>,
 }
 
 impl RpcMessage for Message {}

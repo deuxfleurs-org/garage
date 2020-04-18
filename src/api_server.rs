@@ -9,11 +9,15 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
+use crate::block::INLINE_THRESHOLD;
+use crate::block_ref_table::*;
 use crate::data::*;
 use crate::error::Error;
 use crate::http_util::*;
+use crate::object_table::*;
 use crate::server::Garage;
 use crate::table::EmptySortKey;
+use crate::version_table::*;
 
 type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
 

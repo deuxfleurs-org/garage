@@ -19,7 +19,6 @@ use tokio::sync::Mutex;
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::error::Error;
-use crate::proto::*;
 use crate::rpc_client::*;
 use crate::rpc_server::*;
 use crate::server::Config;
@@ -39,6 +38,33 @@ pub enum Message {
 }
 
 impl RpcMessage for Message {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PingMessage {
+	pub id: UUID,
+	pub rpc_port: u16,
+
+	pub status_hash: Hash,
+	pub config_version: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AdvertisedNode {
+	pub id: UUID,
+	pub addr: SocketAddr,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NetworkConfig {
+	pub members: HashMap<UUID, NetworkConfigEntry>,
+	pub version: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NetworkConfigEntry {
+	pub datacenter: String,
+	pub n_tokens: u32,
+}
 
 pub struct System {
 	pub config: Config,

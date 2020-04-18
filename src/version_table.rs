@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::background::BackgroundRunner;
+use crate::block_ref_table::*;
 use crate::data::*;
 use crate::table::*;
 

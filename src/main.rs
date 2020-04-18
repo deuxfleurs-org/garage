@@ -1,6 +1,5 @@
 mod data;
 mod error;
-mod proto;
 
 mod background;
 mod membership;
@@ -25,12 +24,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
 
-use data::*;
 use error::Error;
-use membership::Message;
-use proto::*;
+use membership::*;
 use rpc_client::*;
-use server::TlsConfig;
+use server::{TlsConfig, DEFAULT_TIMEOUT};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]

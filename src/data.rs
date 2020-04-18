@@ -2,7 +2,6 @@ use rand::Rng;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -123,25 +122,3 @@ pub fn debug_serialize<T: Serialize>(x: T) -> String {
 		Err(e) => format!("<JSON serialization error: {}>", e),
 	}
 }
-
-// Network management
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NetworkConfig {
-	pub members: HashMap<UUID, NetworkConfigEntry>,
-	pub version: u64,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NetworkConfigEntry {
-	pub datacenter: String,
-	pub n_tokens: u32,
-}
-
-// Data management
-
-pub const INLINE_THRESHOLD: usize = 3072;
-
-pub use crate::block_ref_table::*;
-pub use crate::object_table::*;
-pub use crate::version_table::*;
