@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::background::*;
-use crate::block::*;
 use crate::data::*;
 use crate::table::*;
+
+use crate::block::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {

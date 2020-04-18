@@ -16,6 +16,7 @@ use crate::error::Error;
 use crate::membership::System;
 use crate::rpc_client::*;
 use crate::rpc_server::*;
+
 use crate::server::Garage;
 
 pub const INLINE_THRESHOLD: usize = 3072;

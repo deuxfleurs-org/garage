@@ -12,12 +12,12 @@ use hyper::client::{Client, HttpConnector};
 use hyper::{Body, Method, Request, StatusCode};
 use tokio::sync::watch;
 
-use crate::background::*;
+use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::error::Error;
 use crate::membership::Status;
 use crate::rpc_server::RpcMessage;
-use crate::server::*;
+use crate::server::TlsConfig;
 use crate::tls_util;
 
 pub struct RpcClient<M: RpcMessage> {

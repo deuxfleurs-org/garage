@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::table::*;
+
 use crate::version_table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]

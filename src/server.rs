@@ -8,17 +8,19 @@ pub use futures_util::future::FutureExt;
 use serde::Deserialize;
 use tokio::sync::watch;
 
-use crate::api_server;
 use crate::background::*;
-use crate::block::*;
-use crate::block_ref_table::*;
 use crate::data::*;
 use crate::error::Error;
 use crate::membership::System;
-use crate::object_table::*;
 use crate::rpc_server::RpcServer;
 use crate::table::*;
+
+use crate::block::*;
+use crate::block_ref_table::*;
+use crate::object_table::*;
 use crate::version_table::*;
+
+use crate::api_server;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 

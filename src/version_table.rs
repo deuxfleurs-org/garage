@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::background::BackgroundRunner;
-use crate::block_ref_table::*;
 use crate::data::*;
 use crate::table::*;
+
+use crate::block_ref_table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
