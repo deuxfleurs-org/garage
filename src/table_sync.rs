@@ -360,12 +360,14 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 		// If their root checksum has level > than us, use that as a reference
 		let root_cks_resp = self
 			.table
-			.rpc_call(
+			.rpc_client
+			.call(
 				&who,
 				&TableRPC::<F>::SyncRPC(SyncRPC::GetRootChecksumRange(
 					partition.begin.clone(),
 					partition.end.clone(),
 				)),
+				self.table.param.timeout,
 			)
 			.await?;
 		if let TableRPC::<F>::SyncRPC(SyncRPC::RootChecksumRange(range)) = root_cks_resp {
@@ -392,9 +394,11 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 
 			let rpc_resp = self
 				.table
-				.rpc_call(
+				.rpc_client
+				.call(
 					&who,
 					&TableRPC::<F>::SyncRPC(SyncRPC::Checksums(step, retain)),
+					self.table.param.timeout,
 				)
 				.await?;
 			if let TableRPC::<F>::SyncRPC(SyncRPC::Difference(mut diff_ranges, diff_items)) =
@@ -451,7 +455,12 @@ impl<F: TableSchema + 'static> TableSyncer<F> {
 		}
 		let rpc_resp = self
 			.table
-			.rpc_call(&who, &TableRPC::<F>::Update(values))
+			.rpc_client
+			.call(
+				&who,
+				&TableRPC::<F>::Update(values),
+				self.table.param.timeout,
+			)
 			.await?;
 		if let TableRPC::<F>::Ok = rpc_resp {
 			Ok(())

@@ -9,7 +9,6 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
-use crate::block::*;
 use crate::data::*;
 use crate::error::Error;
 use crate::http_util::*;
@@ -151,7 +150,9 @@ async fn handle_put(
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block =
 		put_block_meta(garage.clone(), &version, 0, first_block_hash.clone());
-	let mut put_curr_block = rpc_put_block(&garage.system, first_block_hash, first_block);
+	let mut put_curr_block = garage
+		.block_manager
+		.rpc_put_block(first_block_hash, first_block);
 
 	loop {
 		let (_, _, next_block) =
@@ -165,7 +166,7 @@ async fn handle_put(
 				next_offset as u64,
 				block_hash.clone(),
 			);
-			put_curr_block = rpc_put_block(&garage.system, block_hash, block);
+			put_curr_block = garage.block_manager.rpc_put_block(block_hash, block);
 			next_offset += block_len;
 		} else {
 			break;
@@ -300,7 +301,7 @@ async fn handle_get(
 			Ok(resp_builder.body(body)?)
 		}
 		ObjectVersionData::FirstBlock(first_block_hash) => {
-			let read_first_block = rpc_get_block(&garage.system, &first_block_hash);
+			let read_first_block = garage.block_manager.rpc_get_block(&first_block_hash);
 			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptySortKey);
 
 			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
@@ -323,7 +324,11 @@ async fn handle_get(
 						if let Some(data) = data_opt {
 							Ok(Bytes::from(data))
 						} else {
-							rpc_get_block(&garage.system, &hash).await.map(Bytes::from)
+							garage
+								.block_manager
+								.rpc_get_block(&hash)
+								.await
+								.map(Bytes::from)
 						}
 					}
 				})

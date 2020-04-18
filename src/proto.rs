@@ -8,25 +8,6 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 pub const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(42);
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Message {
-	Ok,
-	Error(String),
-
-	Ping(PingMessage),
-	PullStatus,
-	PullConfig,
-	AdvertiseNodesUp(Vec<AdvertisedNode>),
-	AdvertiseConfig(NetworkConfig),
-
-	GetBlock(Hash),
-	PutBlock(PutBlockMessage),
-	NeedBlockQuery(Hash),
-	NeedBlockReply(bool),
-
-	TableRPC(String, #[serde(with = "serde_bytes")] Vec<u8>),
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct PingMessage {
 	pub id: UUID,
 	pub rpc_port: u16,

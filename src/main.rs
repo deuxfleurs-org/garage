@@ -22,12 +22,14 @@ mod tls_util;
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
 use structopt::StructOpt;
 
 use data::*;
 use error::Error;
+use membership::Message;
 use proto::*;
-use rpc_client::RpcClient;
+use rpc_client::*;
 use server::TlsConfig;
 
 #[derive(StructOpt, Debug)]
@@ -113,7 +115,9 @@ async fn main() {
 		}
 	};
 
-	let rpc_cli = RpcClient::new(&tls_config).expect("Could not create RPC client");
+	let rpc_http_cli =
+		Arc::new(RpcHttpClient::new(&tls_config).expect("Could not create RPC client"));
+	let rpc_cli = RpcAddrClient::new(rpc_http_cli, "_membership".into());
 
 	let resp = match opt.cmd {
 		Command::Server(server_opt) => {
@@ -137,7 +141,7 @@ async fn main() {
 	}
 }
 
-async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Error> {
+async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Result<(), Error> {
 	let status = match rpc_cli
 		.call(&rpc_host, &Message::PullStatus, DEFAULT_TIMEOUT)
 		.await?
@@ -196,7 +200,7 @@ async fn cmd_status(rpc_cli: RpcClient, rpc_host: SocketAddr) -> Result<(), Erro
 }
 
 async fn cmd_configure(
-	rpc_cli: RpcClient,
+	rpc_cli: RpcAddrClient<Message>,
 	rpc_host: SocketAddr,
 	args: ConfigureOpt,
 ) -> Result<(), Error> {
@@ -249,7 +253,7 @@ async fn cmd_configure(
 }
 
 async fn cmd_remove(
-	rpc_cli: RpcClient,
+	rpc_cli: RpcAddrClient<Message>,
 	rpc_host: SocketAddr,
 	args: RemoveOpt,
 ) -> Result<(), Error> {
