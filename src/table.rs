@@ -105,7 +105,7 @@ pub trait TableSchema: Send + Sync {
 	type E: Entry<Self::P, Self::S>;
 	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>);
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error>;
 	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {
 		true
 	}
@@ -469,7 +469,7 @@ where
 					epidemic_propagate.push(new_entry.clone());
 				}
 
-				self.instance.updated(old_entry, Some(new_entry)).await;
+				self.instance.updated(old_entry, Some(new_entry)).await?;
 				self.system
 					.background
 					.spawn(syncer.clone().invalidate(tree_key));
@@ -497,7 +497,7 @@ where
 			}
 			if let Some(old_val) = self.store.remove(&key)? {
 				let old_entry = rmp_serde::decode::from_read_ref::<_, F::E>(&old_val)?;
-				self.instance.updated(Some(old_entry), None).await;
+				self.instance.updated(Some(old_entry), None).await?;
 				self.system
 					.background
 					.spawn(syncer.clone().invalidate(key.to_vec()));

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::background::*;
 use crate::data::*;
+use crate::error::Error;
 use crate::table::*;
 
 use crate::block::*;
@@ -47,20 +48,17 @@ impl TableSchema for BlockRefTable {
 	type E = BlockRef;
 	type Filter = ();
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
 		let was_before = old.as_ref().map(|x| !x.deleted).unwrap_or(false);
 		let is_after = new.as_ref().map(|x| !x.deleted).unwrap_or(false);
 		if is_after && !was_before {
-			if let Err(e) = self.block_manager.block_incref(block) {
-				eprintln!("Failed to incref block {:?}: {}", block, e);
-			}
+			self.block_manager.block_incref(block)?;
 		}
 		if was_before && !is_after {
-			if let Err(e) = self.block_manager.block_decref(block) {
-				eprintln!("Failed to decref block {:?}: {}", block, e);
-			}
+			self.block_manager.block_decref(block)?;
 		}
+		Ok(())
 	}
 
 	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {

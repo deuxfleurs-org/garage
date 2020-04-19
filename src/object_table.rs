@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::background::BackgroundRunner;
 use crate::data::*;
+use crate::error::Error;
 use crate::table::*;
 use crate::table_sharded::*;
 
@@ -101,30 +102,28 @@ impl TableSchema for ObjectTable {
 	type E = Object;
 	type Filter = ();
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let version_table = self.version_table.clone();
 		if let (Some(old_v), Some(new_v)) = (old, new) {
 			// Propagate deletion of old versions
-			self.background.spawn(async move {
-				for v in old_v.versions.iter() {
-					if new_v
-						.versions
-						.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
-						.is_err()
-					{
-						let deleted_version = Version {
-							uuid: v.uuid.clone(),
-							deleted: true,
-							blocks: vec![],
-							bucket: old_v.bucket.clone(),
-							key: old_v.key.clone(),
-						};
-						version_table.insert(&deleted_version).await?;
-					}
+			for v in old_v.versions.iter() {
+				if new_v
+					.versions
+					.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
+					.is_err()
+				{
+					let deleted_version = Version {
+						uuid: v.uuid.clone(),
+						deleted: true,
+						blocks: vec![],
+						bucket: old_v.bucket.clone(),
+						key: old_v.key.clone(),
+					};
+					version_table.insert(&deleted_version).await?;
 				}
-				Ok(())
-			});
+			}
 		}
+		Ok(())
 	}
 
 	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {

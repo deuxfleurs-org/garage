@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::background::BackgroundRunner;
 use crate::data::*;
+use crate::error::Error;
 use crate::table::*;
 use crate::table_sharded::*;
 
@@ -67,26 +68,24 @@ impl TableSchema for VersionTable {
 	type E = Version;
 	type Filter = ();
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let block_ref_table = self.block_ref_table.clone();
 		if let (Some(old_v), Some(new_v)) = (old, new) {
 			// Propagate deletion of version blocks
-			self.background.spawn(async move {
-				if new_v.deleted && !old_v.deleted {
-					let deleted_block_refs = old_v
-						.blocks
-						.iter()
-						.map(|vb| BlockRef {
-							block: vb.hash.clone(),
-							version: old_v.uuid.clone(),
-							deleted: true,
-						})
-						.collect::<Vec<_>>();
-					block_ref_table.insert_many(&deleted_block_refs[..]).await?;
-				}
-				Ok(())
-			});
+			if new_v.deleted && !old_v.deleted {
+				let deleted_block_refs = old_v
+					.blocks
+					.iter()
+					.map(|vb| BlockRef {
+						block: vb.hash.clone(),
+						version: old_v.uuid.clone(),
+						deleted: true,
+					})
+					.collect::<Vec<_>>();
+				block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+			}
 		}
+		Ok(())
 	}
 
 	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {

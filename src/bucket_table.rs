@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use crate::error::Error;
 use crate::table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -71,7 +72,9 @@ impl TableSchema for BucketTable {
 	type E = Bucket;
 	type Filter = ();
 
-	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {}
+	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
 		!entry.deleted
