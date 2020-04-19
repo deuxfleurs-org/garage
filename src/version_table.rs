@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::table::*;
+use crate::table_sharded::*;
 
 use crate::block_ref_table::*;
 
@@ -56,7 +57,7 @@ impl Entry<Hash, EmptySortKey> for Version {
 
 pub struct VersionTable {
 	pub background: Arc<BackgroundRunner>,
-	pub block_ref_table: Arc<Table<BlockRefTable>>,
+	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
 }
 
 #[async_trait]

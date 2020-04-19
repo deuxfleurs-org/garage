@@ -2,7 +2,6 @@ use std::io::{Read, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 pub use futures_util::future::FutureExt;
 use serde::Deserialize;
@@ -14,6 +13,7 @@ use crate::error::Error;
 use crate::membership::System;
 use crate::rpc_server::RpcServer;
 use crate::table::*;
+use crate::table_sharded::*;
 
 use crate::block::*;
 use crate::block_ref_table::*;
@@ -21,8 +21,6 @@ use crate::object_table::*;
 use crate::version_table::*;
 
 use crate::api_server;
-
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
@@ -59,9 +57,9 @@ pub struct Garage {
 	pub system: Arc<System>,
 	pub block_manager: Arc<BlockManager>,
 
-	pub object_table: Arc<Table<ObjectTable>>,
-	pub version_table: Arc<Table<VersionTable>>,
-	pub block_ref_table: Arc<Table<BlockRefTable>>,
+	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
+	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
+	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
 }
 
 impl Garage {
@@ -79,18 +77,16 @@ impl Garage {
 		let block_manager =
 			BlockManager::new(&db, config.data_dir.clone(), system.clone(), rpc_server);
 
-		let data_rep_param = TableReplicationParams {
+		let data_rep_param = TableShardedReplication {
 			replication_factor: system.config.data_replication_factor,
 			write_quorum: (system.config.data_replication_factor + 1) / 2,
 			read_quorum: 1,
-			timeout: DEFAULT_TIMEOUT,
 		};
 
-		let meta_rep_param = TableReplicationParams {
+		let meta_rep_param = TableShardedReplication {
 			replication_factor: system.config.meta_replication_factor,
 			write_quorum: (system.config.meta_replication_factor + 1) / 2,
 			read_quorum: (system.config.meta_replication_factor + 1) / 2,
-			timeout: DEFAULT_TIMEOUT,
 		};
 
 		println!("Initialize block_ref_table...");
@@ -99,10 +95,10 @@ impl Garage {
 				background: background.clone(),
 				block_manager: block_manager.clone(),
 			},
+			data_rep_param.clone(),
 			system.clone(),
 			&db,
 			"block_ref".to_string(),
-			data_rep_param.clone(),
 			rpc_server,
 		)
 		.await;
@@ -113,10 +109,10 @@ impl Garage {
 				background: background.clone(),
 				block_ref_table: block_ref_table.clone(),
 			},
+			meta_rep_param.clone(),
 			system.clone(),
 			&db,
 			"version".to_string(),
-			meta_rep_param.clone(),
 			rpc_server,
 		)
 		.await;
@@ -127,10 +123,10 @@ impl Garage {
 				background: background.clone(),
 				version_table: version_table.clone(),
 			},
+			meta_rep_param.clone(),
 			system.clone(),
 			&db,
 			"object".to_string(),
-			meta_rep_param.clone(),
 			rpc_server,
 		)
 		.await;

@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::table::*;
+use crate::table_sharded::*;
 
 use crate::version_table::*;
 
@@ -90,7 +91,7 @@ impl Entry<String, String> for Object {
 
 pub struct ObjectTable {
 	pub background: Arc<BackgroundRunner>,
-	pub version_table: Arc<Table<VersionTable>>,
+	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 }
 
 #[async_trait]

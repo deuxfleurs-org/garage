@@ -198,7 +198,7 @@ impl Ring {
 		self.walk_ring_from_pos(start, n)
 	}
 
-	pub fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
+	fn walk_ring_from_pos(&self, start: usize, n: usize) -> Vec<UUID> {
 		if n >= self.config.members.len() {
 			return self.config.members.keys().cloned().collect::<Vec<_>>();
 		}

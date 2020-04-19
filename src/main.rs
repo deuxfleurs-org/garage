@@ -4,6 +4,7 @@ mod error;
 mod background;
 mod membership;
 mod table;
+mod table_sharded;
 mod table_sync;
 
 mod block;
@@ -22,12 +23,15 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use structopt::StructOpt;
 
 use error::Error;
 use membership::*;
 use rpc_client::*;
-use server::{TlsConfig, DEFAULT_TIMEOUT};
+use server::TlsConfig;
+
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]
@@ -158,11 +162,8 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 	for adv in status.iter() {
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
-				"{}\t{}\t{}\t{}",
-				hex::encode(&adv.id),
-				cfg.datacenter,
-				cfg.n_tokens,
-				adv.addr
+				"{:?}\t{}\t{}\t{}",
+				adv.id, cfg.datacenter, cfg.n_tokens, adv.addr
 			);
 		}
 	}
@@ -176,7 +177,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		println!("\nFailed nodes:");
 		for (id, cfg) in config.members.iter() {
 			if !status.iter().any(|x| x.id == *id) {
-				println!("{}\t{}\t{}", hex::encode(&id), cfg.datacenter, cfg.n_tokens);
+				println!("{:?}\t{}\t{}", id, cfg.datacenter, cfg.n_tokens);
 			}
 		}
 	}
@@ -188,7 +189,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		println!("\nUnconfigured nodes:");
 		for adv in status.iter() {
 			if !config.members.contains_key(&adv.id) {
-				println!("{}\t{}", hex::encode(&adv.id), adv.addr);
+				println!("{:?}\t{}", adv.id, adv.addr);
 			}
 		}
 	}
