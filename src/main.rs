@@ -247,8 +247,8 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 	for adv in status.iter() {
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
-				"{:?}\t{}\t{}\t{}",
-				adv.id, cfg.datacenter, cfg.n_tokens, adv.addr
+				"{:?}\t{}\t{}\t{}\t{}",
+				adv.id, adv.state_info.hostname, adv.addr, cfg.datacenter, cfg.n_tokens
 			);
 		}
 	}
@@ -274,7 +274,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		println!("\nUnconfigured nodes:");
 		for adv in status.iter() {
 			if !config.members.contains_key(&adv.id) {
-				println!("{:?}\t{}", adv.id, adv.addr);
+				println!("{:?}\t{}\t{}", adv.id, adv.state_info.hostname, adv.addr);
 			}
 		}
 	}

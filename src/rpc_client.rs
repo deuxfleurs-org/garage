@@ -231,10 +231,11 @@ impl RpcHttpClient {
 		let status = resp.status();
 		let body = hyper::body::to_bytes(resp.into_body()).await?;
 		match rmp_serde::decode::from_read::<_, Result<M, String>>(body.into_buf()) {
-			Err(e) => 
-				Err(Error::RPCError(format!("Invalid reply"), status)),
-			Ok(Err(e)) => 
-				Err(Error::RPCError(e, status)),
+			Err(e) => Err(Error::RPCError(
+				format!("Invalid reply (deserialize error: {})", e),
+				status,
+			)),
+			Ok(Err(e)) => Err(Error::RPCError(e, status)),
 			Ok(Ok(x)) => Ok(x),
 		}
 	}

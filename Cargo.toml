@@ -30,6 +30,7 @@ async-trait = "0.1.30"
 reduce = "0.1.2"
 serde_json = "1.0"
 arc-swap = "0.4"
+gethostname = "0.2"
 
 rustls = "0.17"
 tokio-rustls = "0.13"

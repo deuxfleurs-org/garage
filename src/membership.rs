@@ -48,12 +48,15 @@ pub struct PingMessage {
 
 	pub status_hash: Hash,
 	pub config_version: u64,
+
+	pub state_info: StateInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AdvertisedNode {
 	pub id: UUID,
 	pub addr: SocketAddr,
+	pub state_info: StateInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -72,6 +75,8 @@ pub struct System {
 	pub config: Config,
 	pub id: UUID,
 
+	pub state_info: StateInfo,
+
 	pub rpc_http_client: Arc<RpcHttpClient>,
 	rpc_client: Arc<RpcClient<Message>>,
 
@@ -85,14 +90,20 @@ pub struct System {
 
 #[derive(Debug, Clone)]
 pub struct Status {
-	pub nodes: HashMap<UUID, NodeStatus>,
+	pub nodes: HashMap<UUID, StatusEntry>,
 	pub hash: Hash,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeStatus {
+pub struct StatusEntry {
 	pub addr: SocketAddr,
 	pub remaining_ping_attempts: usize,
+	pub state_info: StateInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateInfo {
+	pub hostname: String,
 }
 
 #[derive(Clone)]
@@ -114,9 +125,10 @@ impl Status {
 		let addr = SocketAddr::new(ip, info.rpc_port);
 		let old_status = self.nodes.insert(
 			info.id.clone(),
-			NodeStatus {
+			StatusEntry {
 				addr: addr.clone(),
 				remaining_ping_attempts: MAX_FAILED_PINGS,
+				state_info: info.state_info.clone(),
 			},
 		);
 		match old_status {
@@ -268,6 +280,12 @@ impl System {
 		status.recalculate_hash();
 		let (update_status, status) = watch::channel(Arc::new(status));
 
+		let state_info = StateInfo {
+			hostname: gethostname::gethostname()
+				.into_string()
+				.unwrap_or("<invalid utf-8>".to_string()),
+		};
+
 		let mut ring = Ring {
 			config: net_config,
 			ring: Vec::new(),
@@ -289,6 +307,7 @@ impl System {
 		let sys = Arc::new(System {
 			config,
 			id,
+			state_info,
 			rpc_http_client,
 			rpc_client,
 			status,
@@ -346,6 +365,7 @@ impl System {
 			rpc_port: self.config.rpc_port,
 			status_hash: status.hash.clone(),
 			config_version: ring.config.version,
+			state_info: self.state_info.clone(),
 		})
 	}
 
@@ -408,6 +428,7 @@ impl System {
 					to_advertise.push(AdvertisedNode {
 						id: info.id.clone(),
 						addr: addr.clone(),
+						state_info: info.state_info.clone(),
 					});
 				}
 				if is_new || status.hash != info.status_hash {
@@ -486,9 +507,15 @@ impl System {
 		let status = self.status.borrow().clone();
 		let mut mem = vec![];
 		for (node, status) in status.nodes.iter() {
+			let state_info = if *node == self.id {
+				self.state_info.clone()
+			} else {
+				status.state_info.clone()
+			};
 			mem.push(AdvertisedNode {
 				id: node.clone(),
 				addr: status.addr.clone(),
+				state_info,
 			});
 		}
 		Ok(Message::AdvertiseNodesUp(mem))
@@ -515,9 +542,10 @@ impl System {
 				let self_addr = SocketAddr::new(node.addr.ip(), self.config.rpc_port);
 				let old_self = status.nodes.insert(
 					node.id.clone(),
-					NodeStatus {
+					StatusEntry {
 						addr: self_addr,
 						remaining_ping_attempts: MAX_FAILED_PINGS,
+						state_info: self.state_info.clone(),
 					},
 				);
 				has_changed = match old_self {
