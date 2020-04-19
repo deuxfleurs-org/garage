@@ -436,6 +436,7 @@ where
 		self: &Arc<Self>,
 		mut entries: Vec<Arc<ByteBuf>>,
 	) -> Result<(), Error> {
+		let syncer = self.syncer.load_full().unwrap();
 		let mut epidemic_propagate = vec![];
 
 		for update_bytes in entries.drain(..) {
@@ -469,9 +470,9 @@ where
 				}
 
 				self.instance.updated(old_entry, Some(new_entry)).await;
-
-				let syncer = self.syncer.load_full().unwrap();
-				self.system.background.spawn(syncer.invalidate(tree_key));
+				self.system
+					.background
+					.spawn(syncer.clone().invalidate(tree_key));
 			}
 		}
 
@@ -486,6 +487,8 @@ where
 	}
 
 	pub async fn delete_range(&self, begin: &Hash, end: &Hash) -> Result<(), Error> {
+		let syncer = self.syncer.load_full().unwrap();
+
 		eprintln!("({}) Deleting range {:?} - {:?}", self.name, begin, end);
 		let mut count = 0;
 		while let Some((key, _value)) = self.store.get_lt(end.as_slice())? {
@@ -495,6 +498,9 @@ where
 			if let Some(old_val) = self.store.remove(&key)? {
 				let old_entry = rmp_serde::decode::from_read_ref::<_, F::E>(&old_val)?;
 				self.instance.updated(Some(old_entry), None).await;
+				self.system
+					.background
+					.spawn(syncer.clone().invalidate(key.to_vec()));
 				count += 1;
 			}
 		}

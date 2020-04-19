@@ -78,6 +78,8 @@ impl BackgroundRunner {
 		workers.push(tokio::spawn(async move {
 			if let Err(e) = worker(stop_signal).await {
 				eprintln!("Worker stopped with error: {}", e);
+			} else {
+				println!("A worker exited successfully (which one?)");
 			}
 		}));
 	}

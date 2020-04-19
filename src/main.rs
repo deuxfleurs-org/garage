@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 mod data;
 mod error;
 
@@ -387,8 +389,8 @@ async fn cmd_admin(
 	args: AdminRPC,
 ) -> Result<(), Error> {
 	match rpc_cli.call(&rpc_host, args, DEFAULT_TIMEOUT).await? {
-		AdminRPC::Ok => {
-			println!("Ok.");
+		AdminRPC::Ok(msg) => {
+			println!("{}", msg);
 		}
 		AdminRPC::BucketList(bl) => {
 			println!("List of buckets:");

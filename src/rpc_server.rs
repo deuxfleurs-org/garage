@@ -145,10 +145,7 @@ impl RpcServer {
 				match socket {
 					Ok(stream) => match tls_acceptor.clone().accept(stream).await {
 						Ok(x) => Some(Ok::<_, hyper::Error>(x)),
-						Err(e) => {
-							eprintln!("RPC server TLS error: {}", e);
-							None
-						}
+						Err(_e) => None,
 					},
 					Err(_) => None,
 				}

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub use futures_util::future::FutureExt;
+use futures_util::future::*;
 use serde::Deserialize;
 use tokio::sync::watch;
 
@@ -30,8 +30,8 @@ pub struct Config {
 	pub metadata_dir: PathBuf,
 	pub data_dir: PathBuf,
 
-	pub api_port: u16,
-	pub rpc_port: u16,
+	pub api_bind_addr: SocketAddr,
+	pub rpc_bind_addr: SocketAddr,
 
 	pub bootstrap_peers: Vec<SocketAddr>,
 
@@ -252,8 +252,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let db = sled::open(db_path).expect("Unable to open DB");
 
 	println!("Initialize RPC server...");
-	let rpc_bind_addr = ([0, 0, 0, 0, 0, 0, 0, 0], config.rpc_port).into();
-	let mut rpc_server = RpcServer::new(rpc_bind_addr, config.rpc_tls.clone());
+	let mut rpc_server = RpcServer::new(config.rpc_bind_addr.clone(), config.rpc_tls.clone());
 
 	println!("Initializing background runner...");
 	let (send_cancel, watch_cancel) = watch::channel(false);
@@ -266,11 +265,26 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let api_server = api_server::run_api_server(garage.clone(), wait_from(watch_cancel.clone()));
 
 	futures::try_join!(
-		garage.system.clone().bootstrap().map(Ok),
-		run_rpc_server,
-		api_server,
-		background.run().map(Ok),
+		garage.system.clone().bootstrap().map(|rv| {
+			println!("Bootstrap done");
+			Ok(rv)
+		}),
+		run_rpc_server.map(|rv| {
+			println!("RPC server exited");
+			rv
+		}),
+		api_server.map(|rv| {
+			println!("API server exited");
+			rv
+		}),
+		background.run().map(|rv| {
+			println!("Background runner exited");
+			Ok(rv)
+		}),
 		shutdown_signal(send_cancel),
 	)?;
+
+	println!("Cleaning up...");
+
 	Ok(())
 }

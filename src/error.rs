@@ -83,3 +83,9 @@ impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {
 		Error::Message(format!("Watch send error"))
 	}
 }
+
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
+	fn from(_e: tokio::sync::mpsc::error::SendError<T>) -> Error {
+		Error::Message(format!("MPSC send error"))
+	}
+}

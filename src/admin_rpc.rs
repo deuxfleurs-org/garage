@@ -18,7 +18,7 @@ pub enum AdminRPC {
 	BucketOperation(BucketOperation),
 
 	// Replies
-	Ok,
+	Ok(String),
 	BucketList(Vec<String>),
 	BucketInfo(Bucket),
 }
@@ -86,13 +86,13 @@ impl AdminRpcHandler {
 				self.garage
 					.bucket_table
 					.insert(&Bucket {
-						name: query.name,
+						name: query.name.clone(),
 						timestamp: new_time,
 						deleted: false,
 						authorized_keys: vec![],
 					})
 					.await?;
-				Ok(AdminRPC::Ok)
+				Ok(AdminRPC::Ok(format!("Bucket {} was created.", query.name)))
 			}
 			BucketOperation::Delete(query) => {
 				let bucket = match self
@@ -129,13 +129,13 @@ impl AdminRpcHandler {
 				self.garage
 					.bucket_table
 					.insert(&Bucket {
-						name: query.name,
+						name: query.name.clone(),
 						timestamp: std::cmp::max(bucket.timestamp + 1, now_msec()),
 						deleted: true,
 						authorized_keys: vec![],
 					})
 					.await?;
-				Ok(AdminRPC::Ok)
+				Ok(AdminRPC::Ok(format!("Bucket {} was deleted.", query.name)))
 			}
 			_ => {
 				// TODO

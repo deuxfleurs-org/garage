@@ -362,7 +362,7 @@ impl System {
 		let ring = self.ring.borrow().clone();
 		Message::Ping(PingMessage {
 			id: self.id.clone(),
-			rpc_port: self.config.rpc_port,
+			rpc_port: self.config.rpc_bind_addr.port(),
 			status_hash: status.hash.clone(),
 			config_version: ring.config.version,
 			state_info: self.state_info.clone(),
@@ -539,7 +539,7 @@ impl System {
 		for node in adv.iter() {
 			if node.id == self.id {
 				// learn our own ip address
-				let self_addr = SocketAddr::new(node.addr.ip(), self.config.rpc_port);
+				let self_addr = SocketAddr::new(node.addr.ip(), self.config.rpc_bind_addr.port());
 				let old_self = status.nodes.insert(
 					node.id.clone(),
 					StatusEntry {
