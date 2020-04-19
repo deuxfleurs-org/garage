@@ -27,6 +27,8 @@ const PING_INTERVAL: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_FAILED_PINGS: usize = 3;
 
+pub const MEMBERSHIP_RPC_PATH: &str = "_membership";
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Message {
 	Ok,
@@ -277,9 +279,9 @@ impl System {
 		let rpc_http_client =
 			Arc::new(RpcHttpClient::new(&config.rpc_tls).expect("Could not create RPC client"));
 
-		let rpc_path = "_membership";
+		let rpc_path = MEMBERSHIP_RPC_PATH.to_string();
 		let rpc_client = RpcClient::new(
-			RpcAddrClient::<Message>::new(rpc_http_client.clone(), rpc_path.into()),
+			RpcAddrClient::<Message>::new(rpc_http_client.clone(), rpc_path.clone()),
 			background.clone(),
 			status.clone(),
 		);
@@ -294,7 +296,7 @@ impl System {
 			update_lock: Mutex::new((update_status, update_ring)),
 			background,
 		});
-		sys.clone().register_handler(rpc_server, rpc_path.into());
+		sys.clone().register_handler(rpc_server, rpc_path);
 		sys
 	}
 
@@ -310,7 +312,7 @@ impl System {
 					Message::AdvertiseNodesUp(adv) => self2.handle_advertise_nodes_up(&adv).await,
 					Message::AdvertiseConfig(adv) => self2.handle_advertise_config(&adv).await,
 
-					_ => Err(Error::Message(format!("Unexpected RPC message"))),
+					_ => Err(Error::BadRequest(format!("Unexpected RPC message"))),
 				}
 			}
 		});

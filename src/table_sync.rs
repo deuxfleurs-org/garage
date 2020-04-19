@@ -438,7 +438,7 @@ where
 						.spawn(self.clone().send_items(who.clone(), items_to_send));
 				}
 			} else {
-				return Err(Error::Message(format!(
+				return Err(Error::BadRequest(format!(
 					"Unexpected response to sync RPC checksums: {}",
 					debug_serialize(&rpc_resp)
 				)));

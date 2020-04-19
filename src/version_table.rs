@@ -30,12 +30,12 @@ pub struct VersionBlock {
 	pub hash: Hash,
 }
 
-impl Entry<Hash, EmptySortKey> for Version {
+impl Entry<Hash, EmptyKey> for Version {
 	fn partition_key(&self) -> &Hash {
 		&self.uuid
 	}
-	fn sort_key(&self) -> &EmptySortKey {
-		&EmptySortKey
+	fn sort_key(&self) -> &EmptyKey {
+		&EmptyKey
 	}
 
 	fn merge(&mut self, other: &Self) {
@@ -63,7 +63,7 @@ pub struct VersionTable {
 #[async_trait]
 impl TableSchema for VersionTable {
 	type P = Hash;
-	type S = EmptySortKey;
+	type S = EmptyKey;
 	type E = Version;
 	type Filter = ();
 

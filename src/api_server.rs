@@ -12,7 +12,7 @@ use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use crate::data::*;
 use crate::error::Error;
 use crate::http_util::*;
-use crate::table::EmptySortKey;
+use crate::table::EmptyKey;
 
 use crate::block::INLINE_THRESHOLD;
 use crate::block_ref_table::*;
@@ -307,7 +307,7 @@ async fn handle_get(
 		}
 		ObjectVersionData::FirstBlock(first_block_hash) => {
 			let read_first_block = garage.block_manager.rpc_get_block(&first_block_hash);
-			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptySortKey);
+			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
 
 			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
 			let version = match version {

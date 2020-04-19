@@ -98,7 +98,7 @@ impl BlockManager {
 					Message::NeedBlockQuery(h) => {
 						self2.need_block(&h).await.map(Message::NeedBlockReply)
 					}
-					_ => Err(Error::Message(format!("Invalid RPC"))),
+					_ => Err(Error::BadRequest(format!("Unexpected RPC message"))),
 				}
 			}
 		});
@@ -262,7 +262,7 @@ impl BlockManager {
 			let garage = self.garage.load_full().unwrap();
 			let active_refs = garage
 				.block_ref_table
-				.get_range(&hash, &[0u8; 32].into(), Some(()), 1)
+				.get_range(&hash, None, Some(()), 1)
 				.await?;
 			let needed_by_others = !active_refs.is_empty();
 			if needed_by_others {

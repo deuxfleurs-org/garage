@@ -43,8 +43,8 @@ pub enum Error {
 	#[error(display = "Tokio join error: {}", _0)]
 	TokioJoin(#[error(source)] tokio::task::JoinError),
 
-	#[error(display = "RPC error: {}", _0)]
-	RPCError(String),
+	#[error(display = "RPC error: {} (status code {})", _0, _1)]
+	RPCError(String, StatusCode),
 
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),

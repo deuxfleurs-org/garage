@@ -10,9 +10,11 @@ mod table_sync;
 
 mod block;
 mod block_ref_table;
+mod bucket_table;
 mod object_table;
 mod version_table;
 
+mod admin_rpc;
 mod api_server;
 mod http_util;
 mod rpc_client;
@@ -20,6 +22,7 @@ mod rpc_server;
 mod server;
 mod tls_util;
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -31,6 +34,8 @@ use error::Error;
 use membership::*;
 use rpc_client::*;
 use server::TlsConfig;
+
+use admin_rpc::*;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -62,13 +67,13 @@ pub enum Command {
 	#[structopt(name = "status")]
 	Status,
 
-	/// Configure Garage node
-	#[structopt(name = "configure")]
-	Configure(ConfigureOpt),
+	/// Garage node operations
+	#[structopt(name = "node")]
+	Node(NodeOperation),
 
-	/// Remove Garage node from cluster
-	#[structopt(name = "remove")]
-	Remove(RemoveOpt),
+	/// Bucket operations
+	#[structopt(name = "bucket")]
+	Bucket(BucketOperation),
 }
 
 #[derive(StructOpt, Debug)]
@@ -79,7 +84,18 @@ pub struct ServerOpt {
 }
 
 #[derive(StructOpt, Debug)]
-pub struct ConfigureOpt {
+pub enum NodeOperation {
+	/// Configure Garage node
+	#[structopt(name = "configure")]
+	Configure(ConfigureNodeOpt),
+
+	/// Remove Garage node from cluster
+	#[structopt(name = "remove")]
+	Remove(RemoveNodeOpt),
+}
+
+#[derive(StructOpt, Debug)]
+pub struct ConfigureNodeOpt {
 	/// Node to configure (prefix of hexadecimal node id)
 	node_id: String,
 
@@ -91,13 +107,74 @@ pub struct ConfigureOpt {
 }
 
 #[derive(StructOpt, Debug)]
-pub struct RemoveOpt {
+pub struct RemoveNodeOpt {
 	/// Node to configure (prefix of hexadecimal node id)
 	node_id: String,
 
 	/// If this flag is not given, the node won't be removed
 	#[structopt(long = "yes")]
 	yes: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub enum BucketOperation {
+	/// List buckets
+	#[structopt(name = "list")]
+	List,
+
+	/// Get bucket info
+	#[structopt(name = "info")]
+	Info(BucketOpt),
+
+	/// Create bucket
+	#[structopt(name = "create")]
+	Create(BucketOpt),
+
+	/// Delete bucket
+	#[structopt(name = "delete")]
+	Delete(DeleteBucketOpt),
+
+	/// Allow key to read or write to bucket
+	#[structopt(name = "allow")]
+	Allow(PermBucketOpt),
+
+	/// Allow key to read or write to bucket
+	#[structopt(name = "deny")]
+	Deny(PermBucketOpt),
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct BucketOpt {
+	/// Bucket name
+	pub name: String,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct DeleteBucketOpt {
+	/// Bucket name
+	pub name: String,
+
+	/// If this flag is not given, the bucket won't be deleted
+	#[structopt(long = "yes")]
+	pub yes: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct PermBucketOpt {
+	/// Access key ID
+	#[structopt(long = "key")]
+	pub key: String,
+
+	/// Allow/deny read operations
+	#[structopt(long = "read")]
+	pub read: bool,
+
+	/// Allow/deny write operations
+	#[structopt(long = "write")]
+	pub write: bool,
+
+	/// Bucket name
+	pub bucket: String,
 }
 
 #[tokio::main]
@@ -119,7 +196,9 @@ async fn main() {
 
 	let rpc_http_cli =
 		Arc::new(RpcHttpClient::new(&tls_config).expect("Could not create RPC client"));
-	let rpc_cli = RpcAddrClient::new(rpc_http_cli, "_membership".into());
+	let membership_rpc_cli =
+		RpcAddrClient::new(rpc_http_cli.clone(), MEMBERSHIP_RPC_PATH.to_string());
+	let admin_rpc_cli = RpcAddrClient::new(rpc_http_cli.clone(), ADMIN_RPC_PATH.to_string());
 
 	let resp = match opt.cmd {
 		Command::Server(server_opt) => {
@@ -131,11 +210,16 @@ async fn main() {
 
 			server::run_server(server_opt.config_file).await
 		}
-		Command::Status => cmd_status(rpc_cli, opt.rpc_host).await,
-		Command::Configure(configure_opt) => {
-			cmd_configure(rpc_cli, opt.rpc_host, configure_opt).await
+		Command::Status => cmd_status(membership_rpc_cli, opt.rpc_host).await,
+		Command::Node(NodeOperation::Configure(configure_opt)) => {
+			cmd_configure(membership_rpc_cli, opt.rpc_host, configure_opt).await
 		}
-		Command::Remove(remove_opt) => cmd_remove(rpc_cli, opt.rpc_host, remove_opt).await,
+		Command::Node(NodeOperation::Remove(remove_opt)) => {
+			cmd_remove(membership_rpc_cli, opt.rpc_host, remove_opt).await
+		}
+		Command::Bucket(bo) => {
+			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::BucketOperation(bo)).await
+		}
 	};
 
 	if let Err(e) = resp {
@@ -201,7 +285,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 async fn cmd_configure(
 	rpc_cli: RpcAddrClient<Message>,
 	rpc_host: SocketAddr,
-	args: ConfigureOpt,
+	args: ConfigureNodeOpt,
 ) -> Result<(), Error> {
 	let status = match rpc_cli
 		.call(&rpc_host, &Message::PullStatus, DEFAULT_TIMEOUT)
@@ -254,7 +338,7 @@ async fn cmd_configure(
 async fn cmd_remove(
 	rpc_cli: RpcAddrClient<Message>,
 	rpc_host: SocketAddr,
-	args: RemoveOpt,
+	args: RemoveNodeOpt,
 ) -> Result<(), Error> {
 	let mut config = match rpc_cli
 		.call(&rpc_host, &Message::PullConfig, DEFAULT_TIMEOUT)
@@ -294,5 +378,30 @@ async fn cmd_remove(
 			DEFAULT_TIMEOUT,
 		)
 		.await?;
+	Ok(())
+}
+
+async fn cmd_admin(
+	rpc_cli: RpcAddrClient<AdminRPC>,
+	rpc_host: SocketAddr,
+	args: AdminRPC,
+) -> Result<(), Error> {
+	match rpc_cli.call(&rpc_host, args, DEFAULT_TIMEOUT).await? {
+		AdminRPC::Ok => {
+			println!("Ok.");
+		}
+		AdminRPC::BucketList(bl) => {
+			println!("List of buckets:");
+			for bucket in bl {
+				println!("{}", bucket);
+			}
+		}
+		AdminRPC::BucketInfo(bucket) => {
+			println!("{:?}", bucket);
+		}
+		r => {
+			eprintln!("Unexpected response: {:?}", r);
+		}
+	}
 	Ok(())
 }

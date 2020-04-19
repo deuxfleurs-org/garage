@@ -106,7 +106,8 @@ impl RpcServer {
 
 		let resp_waiter = tokio::spawn(handler(req, addr));
 		match resp_waiter.await {
-			Err(_err) => {
+			Err(err) => {
+				eprintln!("Handler await error: {}", err);
 				let mut ise = Response::default();
 				*ise.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
 				Ok(ise)

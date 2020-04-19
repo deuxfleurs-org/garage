@@ -13,13 +13,16 @@ use crate::error::Error;
 use crate::membership::System;
 use crate::rpc_server::RpcServer;
 use crate::table::*;
+use crate::table_fullcopy::*;
 use crate::table_sharded::*;
 
 use crate::block::*;
 use crate::block_ref_table::*;
+use crate::bucket_table::*;
 use crate::object_table::*;
 use crate::version_table::*;
 
+use crate::admin_rpc::*;
 use crate::api_server;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -38,10 +41,23 @@ pub struct Config {
 	#[serde(default = "default_replication_factor")]
 	pub meta_replication_factor: usize,
 
+	#[serde(default = "default_epidemic_factor")]
+	pub meta_epidemic_factor: usize,
+
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
 
 	pub rpc_tls: Option<TlsConfig>,
+}
+
+fn default_block_size() -> usize {
+	1048576
+}
+fn default_replication_factor() -> usize {
+	3
+}
+fn default_epidemic_factor() -> usize {
+	3
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -57,6 +73,7 @@ pub struct Garage {
 	pub system: Arc<System>,
 	pub block_manager: Arc<BlockManager>,
 
+	pub bucket_table: Arc<Table<BucketTable, TableFullReplication>>,
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
@@ -88,6 +105,11 @@ impl Garage {
 			write_quorum: (system.config.meta_replication_factor + 1) / 2,
 			read_quorum: (system.config.meta_replication_factor + 1) / 2,
 		};
+
+		let control_rep_param = TableFullReplication::new(
+			system.config.meta_epidemic_factor,
+			(system.config.meta_epidemic_factor + 1) / 2,
+		);
 
 		println!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
@@ -131,16 +153,31 @@ impl Garage {
 		)
 		.await;
 
+		println!("Initialize bucket_table...");
+		let bucket_table = Table::new(
+			BucketTable,
+			control_rep_param.clone(),
+			system.clone(),
+			&db,
+			"bucket".to_string(),
+			rpc_server,
+		)
+		.await;
+
 		println!("Initialize Garage...");
 		let garage = Arc::new(Self {
 			db,
 			system: system.clone(),
 			block_manager,
 			background,
+			bucket_table,
 			object_table,
 			version_table,
 			block_ref_table,
 		});
+
+		println!("Crate admin RPC handler...");
+		AdminRpcHandler::new(garage.clone()).register_handler(rpc_server);
 
 		println!("Start block manager background thread...");
 		garage.block_manager.garage.swap(Some(garage.clone()));
@@ -148,13 +185,6 @@ impl Garage {
 
 		garage
 	}
-}
-
-fn default_block_size() -> usize {
-	1048576
-}
-fn default_replication_factor() -> usize {
-	3
 }
 
 fn read_config(config_file: PathBuf) -> Result<Config, Error> {
