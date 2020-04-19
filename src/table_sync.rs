@@ -433,13 +433,15 @@ where
 			if let TableRPC::<F>::SyncRPC(SyncRPC::Difference(mut diff_ranges, diff_items)) =
 				rpc_resp
 			{
-				eprintln!(
-					"({}) Sync with {:?}: difference {} ranges, {} items",
-					self.table.name,
-					who,
-					diff_ranges.len(),
-					diff_items.len()
-				);
+				if diff_ranges.len() > 0 || diff_items.len() > 0 {
+					eprintln!(
+						"({}) Sync with {:?}: difference {} ranges, {} items",
+						self.table.name,
+						who,
+						diff_ranges.len(),
+						diff_items.len()
+					);
+				}
 				let mut items_to_send = vec![];
 				for differing in diff_ranges.drain(..) {
 					if differing.level == 0 {
@@ -583,13 +585,15 @@ where
 			.iter()
 			.map(|x| x.children.len())
 			.fold(0, |x, y| x + y);
-		eprintln!(
-			"({}) Checksum comparison RPC: {} different + {} items for {} received",
-			self.table.name,
-			ret_ranges.len(),
-			ret_items.len(),
-			n_checksums
-		);
+		if ret_ranges.len() > 0 || ret_items.len() > 0 {
+			eprintln!(
+				"({}) Checksum comparison RPC: {} different + {} items for {} received",
+				self.table.name,
+				ret_ranges.len(),
+				ret_items.len(),
+				n_checksums
+			);
+		}
 		Ok(SyncRPC::Difference(ret_ranges, ret_items))
 	}
 
