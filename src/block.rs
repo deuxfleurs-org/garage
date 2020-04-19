@@ -107,11 +107,13 @@ impl BlockManager {
 
 	pub async fn spawn_background_worker(self: Arc<Self>) {
 		// Launch 2 simultaneous workers for background resync loop preprocessing
-		for _i in 0..2usize {
+		for i in 0..2usize {
 			let bm2 = self.clone();
 			self.system
 				.background
-				.spawn_worker(move |must_exit| bm2.resync_loop(must_exit))
+				.spawn_worker(format!("block resync worker {}", i), move |must_exit| {
+					bm2.resync_loop(must_exit)
+				})
 				.await;
 		}
 	}

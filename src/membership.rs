@@ -391,7 +391,9 @@ impl System {
 
 		self.clone()
 			.background
-			.spawn_worker(|stop_signal| self.ping_loop(stop_signal).map(Ok))
+			.spawn_worker(format!("ping loop"), |stop_signal| {
+				self.ping_loop(stop_signal).map(Ok)
+			})
 			.await;
 	}
 

@@ -36,8 +36,8 @@ impl BackgroundRunner {
 
 	pub async fn run(self: Arc<Self>) {
 		let mut workers = self.workers.lock().await;
-		for _i in 0..self.n_runners {
-			workers.push(tokio::spawn(self.clone().runner()));
+		for i in 0..self.n_runners {
+			workers.push(tokio::spawn(self.clone().runner(i)));
 		}
 		drop(workers);
 
@@ -68,7 +68,7 @@ impl BackgroundRunner {
 		let _: Result<_, _> = self.queue_in.clone().send((boxed, true));
 	}
 
-	pub async fn spawn_worker<F, T>(&self, worker: F)
+	pub async fn spawn_worker<F, T>(&self, name: String, worker: F)
 	where
 		F: FnOnce(watch::Receiver<bool>) -> T + Send + 'static,
 		T: Future<Output = JobOutput> + Send + 'static,
@@ -77,14 +77,14 @@ impl BackgroundRunner {
 		let stop_signal = self.stop_signal.clone();
 		workers.push(tokio::spawn(async move {
 			if let Err(e) = worker(stop_signal).await {
-				eprintln!("Worker stopped with error: {}", e);
+				eprintln!("Worker stopped with error: {}, error: {}", name, e);
 			} else {
-				println!("A worker exited successfully (which one?)");
+				println!("Worker exited successfully: {}", name);
 			}
 		}));
 	}
 
-	async fn runner(self: Arc<Self>) {
+	async fn runner(self: Arc<Self>, i: usize) {
 		let stop_signal = self.stop_signal.clone();
 		loop {
 			let must_exit: bool = *stop_signal.borrow();
@@ -94,6 +94,7 @@ impl BackgroundRunner {
 				}
 			} else {
 				if must_exit {
+					eprintln!("Background runner {} exiting", i);
 					return;
 				}
 				tokio::time::delay_for(Duration::from_secs(1)).await;

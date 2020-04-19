@@ -96,18 +96,20 @@ where
 		table
 			.system
 			.background
-			.spawn_worker(move |must_exit: watch::Receiver<bool>| {
-				s1.watcher_task(must_exit, busy_rx)
-			})
+			.spawn_worker(
+				format!("table sync watcher for {}", table.name),
+				move |must_exit: watch::Receiver<bool>| s1.watcher_task(must_exit, busy_rx),
+			)
 			.await;
 
 		let s2 = syncer.clone();
 		table
 			.system
 			.background
-			.spawn_worker(move |must_exit: watch::Receiver<bool>| {
-				s2.syncer_task(must_exit, busy_tx)
-			})
+			.spawn_worker(
+				format!("table syncer for {}", table.name),
+				move |must_exit: watch::Receiver<bool>| s2.syncer_task(must_exit, busy_tx),
+			)
 			.await;
 
 		syncer
