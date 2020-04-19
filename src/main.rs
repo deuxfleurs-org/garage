@@ -4,6 +4,7 @@ mod error;
 mod background;
 mod membership;
 mod table;
+mod table_fullcopy;
 mod table_sharded;
 mod table_sync;
 

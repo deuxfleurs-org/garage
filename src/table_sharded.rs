@@ -1,5 +1,5 @@
 use crate::data::*;
-use crate::membership::{System, Ring};
+use crate::membership::{Ring, System};
 use crate::table::*;
 
 #[derive(Clone)]

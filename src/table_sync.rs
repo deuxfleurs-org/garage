@@ -604,7 +604,7 @@ impl SyncTodo {
 		for i in 0..split_points.len() - 1 {
 			let begin = split_points[i].clone();
 			let end = split_points[i + 1].clone();
-			let nodes = table.replication.write_nodes_from_ring(&begin, &ring);
+			let nodes = table.replication.replication_nodes(&begin, &ring);
 
 			let retain = nodes.contains(&my_id);
 			if !retain {
@@ -650,11 +650,11 @@ impl SyncTodo {
 			let end = all_points[i + 1].clone();
 			let was_ours = table
 				.replication
-				.write_nodes_from_ring(&begin, &old_ring)
+				.replication_nodes(&begin, &old_ring)
 				.contains(&my_id);
 			let is_ours = table
 				.replication
-				.write_nodes_from_ring(&begin, &new_ring)
+				.replication_nodes(&begin, &new_ring)
 				.contains(&my_id);
 
 			let was_todo = match old_todo.binary_search_by(|x| x.begin.cmp(&begin)) {
