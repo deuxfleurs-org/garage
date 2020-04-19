@@ -7,8 +7,6 @@ How are we going to test that our replication method works correctly?
 We will have to introduce lots of dummy data and then add/remove nodes many times.
 
 Repair:
-- re-propagate object table version deletions to version table
-- re-propagate version table deletion to block ref table
 - re-propagate block ref table to rc
 
 

@@ -358,19 +358,7 @@ impl BlockManager {
 		Ok(())
 	}
 
-	pub async fn launch_repair(self: &Arc<Self>) -> Result<(), Error> {
-		let self2 = self.clone();
-		self.system
-			.background
-			.spawn_worker(move |must_exit| async move { self2.repair_worker(must_exit).await })
-			.await;
-		Ok(())
-	}
-
-	pub async fn repair_worker(
-		self: Arc<Self>,
-		must_exit: watch::Receiver<bool>,
-	) -> Result<(), Error> {
+	pub async fn repair_data_store(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		// 1. Repair blocks from RC table
 		let garage = self.garage.load_full().unwrap();
 		let mut last_hash = None;
