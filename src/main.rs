@@ -39,8 +39,6 @@ use server::TlsConfig;
 
 use admin_rpc::*;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
-
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]
 pub struct Opt {
@@ -76,6 +74,10 @@ pub enum Command {
 	/// Bucket operations
 	#[structopt(name = "bucket")]
 	Bucket(BucketOperation),
+
+	/// Start repair of node data
+	#[structopt(name = "repair")]
+	Repair(RepairOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -179,6 +181,13 @@ pub struct PermBucketOpt {
 	pub bucket: String,
 }
 
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct RepairOpt {
+	/// Launch repair operation on all nodes
+	#[structopt(long = "all")]
+	pub all: bool,
+}
+
 #[tokio::main]
 async fn main() {
 	let opt = Opt::from_args();
@@ -222,6 +231,9 @@ async fn main() {
 		Command::Bucket(bo) => {
 			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::BucketOperation(bo)).await
 		}
+		Command::Repair(ro) => {
+			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::LaunchRepair(ro.all)).await
+		}
 	};
 
 	if let Err(e) = resp {
@@ -231,14 +243,14 @@ async fn main() {
 
 async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, &Message::PullStatus, DEFAULT_TIMEOUT)
+		.call(&rpc_host, &Message::PullStatus, ADMIN_RPC_TIMEOUT)
 		.await?
 	{
 		Message::AdvertiseNodesUp(nodes) => nodes,
 		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	};
 	let config = match rpc_cli
-		.call(&rpc_host, &Message::PullConfig, DEFAULT_TIMEOUT)
+		.call(&rpc_host, &Message::PullConfig, ADMIN_RPC_TIMEOUT)
 		.await?
 	{
 		Message::AdvertiseConfig(cfg) => cfg,
@@ -290,7 +302,7 @@ async fn cmd_configure(
 	args: ConfigureNodeOpt,
 ) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, &Message::PullStatus, DEFAULT_TIMEOUT)
+		.call(&rpc_host, &Message::PullStatus, ADMIN_RPC_TIMEOUT)
 		.await?
 	{
 		Message::AdvertiseNodesUp(nodes) => nodes,
@@ -311,7 +323,7 @@ async fn cmd_configure(
 	}
 
 	let mut config = match rpc_cli
-		.call(&rpc_host, &Message::PullConfig, DEFAULT_TIMEOUT)
+		.call(&rpc_host, &Message::PullConfig, ADMIN_RPC_TIMEOUT)
 		.await?
 	{
 		Message::AdvertiseConfig(cfg) => cfg,
@@ -331,7 +343,7 @@ async fn cmd_configure(
 		.call(
 			&rpc_host,
 			&Message::AdvertiseConfig(config),
-			DEFAULT_TIMEOUT,
+			ADMIN_RPC_TIMEOUT,
 		)
 		.await?;
 	Ok(())
@@ -343,7 +355,7 @@ async fn cmd_remove(
 	args: RemoveNodeOpt,
 ) -> Result<(), Error> {
 	let mut config = match rpc_cli
-		.call(&rpc_host, &Message::PullConfig, DEFAULT_TIMEOUT)
+		.call(&rpc_host, &Message::PullConfig, ADMIN_RPC_TIMEOUT)
 		.await?
 	{
 		Message::AdvertiseConfig(cfg) => cfg,
@@ -377,7 +389,7 @@ async fn cmd_remove(
 		.call(
 			&rpc_host,
 			&Message::AdvertiseConfig(config),
-			DEFAULT_TIMEOUT,
+			ADMIN_RPC_TIMEOUT,
 		)
 		.await?;
 	Ok(())
@@ -388,7 +400,7 @@ async fn cmd_admin(
 	rpc_host: SocketAddr,
 	args: AdminRPC,
 ) -> Result<(), Error> {
-	match rpc_cli.call(&rpc_host, args, DEFAULT_TIMEOUT).await? {
+	match rpc_cli.call(&rpc_host, args, ADMIN_RPC_TIMEOUT).await? {
 		AdminRPC::Ok(msg) => {
 			println!("{}", msg);
 		}

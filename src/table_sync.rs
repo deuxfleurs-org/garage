@@ -220,11 +220,17 @@ where
 			})
 			.collect::<FuturesUnordered<_>>();
 
+		let mut n_errors = 0;
 		while let Some(r) = sync_futures.next().await {
 			if let Err(e) = r {
+				n_errors += 1;
 				eprintln!("({}) Sync error: {}", self.table.name, e);
 			}
 		}
+		if n_errors > self.table.replication.max_write_errors() {
+			return Err(Error::Message(format!("Sync failed with too many nodes.")));
+		}
+
 		if !partition.retain {
 			self.table
 				.delete_range(&partition.begin, &partition.end)
