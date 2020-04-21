@@ -90,15 +90,13 @@ async fn handler_inner(
 				.to_string();
 			let version_uuid =
 				handle_put(garage, &mime_type, &bucket, &key, req.into_body()).await?;
-			Ok(Response::new(Box::new(BytesBody::from(hex::encode(
-				version_uuid,
-			)))))
+			let response = format!("{}\n", hex::encode(version_uuid,));
+			Ok(Response::new(Box::new(BytesBody::from(response))))
 		}
 		&Method::DELETE => {
 			let version_uuid = handle_delete(garage, &bucket, &key).await?;
-			Ok(Response::new(Box::new(BytesBody::from(hex::encode(
-				version_uuid,
-			)))))
+			let response = format!("{}\n", hex::encode(version_uuid,));
+			Ok(Response::new(Box::new(BytesBody::from(response))))
 		}
 		_ => Err(Error::BadRequest(format!("Invalid method"))),
 	}
@@ -250,6 +248,29 @@ impl BodyChunker {
 }
 
 async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<UUID, Error> {
+	let exists = match garage
+		.object_table
+		.get(&bucket.to_string(), &key.to_string())
+		.await?
+	{
+		None => false,
+		Some(o) => {
+			let mut has_active_version = false;
+			for v in o.versions.iter() {
+				if v.data != ObjectVersionData::DeleteMarker {
+					has_active_version = true;
+					break;
+				}
+			}
+			has_active_version
+		}
+	};
+
+	if !exists {
+		// No need to delete
+		return Ok([0u8; 32].into());
+	}
+
 	let version_uuid = gen_uuid();
 
 	let mut object = Object {
