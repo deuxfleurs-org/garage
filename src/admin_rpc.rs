@@ -194,6 +194,37 @@ impl AdminRpcHandler {
 	}
 
 	async fn repair_worker(self: Arc<Self>, must_exit: watch::Receiver<bool>) -> Result<(), Error> {
+		self.garage
+			.bucket_table
+			.syncer
+			.load_full()
+			.unwrap()
+			.add_full_scan()
+			.await;
+		self.garage
+			.object_table
+			.syncer
+			.load_full()
+			.unwrap()
+			.add_full_scan()
+			.await;
+		self.garage
+			.version_table
+			.syncer
+			.load_full()
+			.unwrap()
+			.add_full_scan()
+			.await;
+		self.garage
+			.block_ref_table
+			.syncer
+			.load_full()
+			.unwrap()
+			.add_full_scan()
+			.await;
+
+		// TODO: wait for full sync to finish before proceeding to the rest?
+
 		self.repair_versions(&must_exit).await?;
 		self.repair_block_ref(&must_exit).await?;
 		self.repair_rc(&must_exit).await?;
@@ -297,8 +328,9 @@ impl AdminRpcHandler {
 		Ok(())
 	}
 
-	async fn repair_rc(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
+	async fn repair_rc(&self, _must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		// TODO
+		warn!("repair_rc: not implemented");
 		Ok(())
 	}
 }
