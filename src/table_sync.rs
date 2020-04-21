@@ -18,7 +18,7 @@ use crate::membership::Ring;
 use crate::table::*;
 
 const MAX_DEPTH: usize = 16;
-const SCAN_INTERVAL: Duration = Duration::from_secs(1800);
+const SCAN_INTERVAL: Duration = Duration::from_secs(3600);
 const CHECKSUM_CACHE_TIMEOUT: Duration = Duration::from_secs(1800);
 const TABLE_SYNC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -130,6 +130,13 @@ where
 				move |must_exit: watch::Receiver<bool>| s2.syncer_task(must_exit, busy_tx),
 			)
 			.await;
+
+		let s3 = syncer.clone();
+		table.system.background.spawn(async move {
+			tokio::time::delay_for(Duration::from_secs(20)).await;
+			s3.add_full_scan().await;
+			Ok(())
+		});
 
 		syncer
 	}
