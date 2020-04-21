@@ -195,7 +195,7 @@ where
 			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
 			for node in who {
 				if !call_list.contains_key(&node) {
-					call_list.insert(node.clone(), vec![]);
+					call_list.insert(node, vec![]);
 				}
 				call_list.get_mut(&node).unwrap().push(e_enc.clone());
 			}

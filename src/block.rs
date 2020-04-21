@@ -156,13 +156,10 @@ impl BlockManager {
 			warn!("Block {:?} is corrupted. Deleting and resyncing.", hash);
 			fs::remove_file(path).await?;
 			self.put_to_resync(&hash, 0)?;
-			return Err(Error::CorruptData(hash.clone()));
+			return Err(Error::CorruptData(*hash));
 		}
 
-		Ok(Message::PutBlock(PutBlockMessage {
-			hash: hash.clone(),
-			data,
-		}))
+		Ok(Message::PutBlock(PutBlockMessage { hash: *hash, data }))
 	}
 
 	pub async fn need_block(&self, hash: &Hash) -> Result<bool, Error> {
@@ -273,7 +270,7 @@ impl BlockManager {
 			if needed_by_others {
 				let ring = garage.system.ring.borrow().clone();
 				let who = ring.walk_ring(&hash, garage.system.config.data_replication_factor);
-				let msg = Arc::new(Message::NeedBlockQuery(hash.clone()));
+				let msg = Arc::new(Message::NeedBlockQuery(*hash));
 				let who_needs_fut = who.iter().map(|to| {
 					self.rpc_client
 						.call(to, msg.clone(), NEED_BLOCK_QUERY_TIMEOUT)
@@ -329,7 +326,7 @@ impl BlockManager {
 	pub async fn rpc_get_block(&self, hash: &Hash) -> Result<Vec<u8>, Error> {
 		let ring = self.system.ring.borrow().clone();
 		let who = ring.walk_ring(&hash, self.system.config.data_replication_factor);
-		let msg = Arc::new(Message::GetBlock(hash.clone()));
+		let msg = Arc::new(Message::GetBlock(*hash));
 		let mut resp_stream = who
 			.iter()
 			.map(|to| self.rpc_client.call(to, msg.clone(), BLOCK_RW_TIMEOUT))
@@ -374,7 +371,7 @@ impl BlockManager {
 				continue;
 			}
 			if !block_ref.deleted {
-				last_hash = Some(block_ref.block.clone());
+				last_hash = Some(block_ref.block);
 				self.put_to_resync(&block_ref.block, 0)?;
 			}
 			i += 1;

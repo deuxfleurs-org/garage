@@ -47,7 +47,7 @@ impl TableReplication for TableShardedReplication {
 
 		ret.push([0u8; 32].into());
 		for entry in ring.ring.iter() {
-			ret.push(entry.location.clone());
+			ret.push(entry.location);
 		}
 		ret.push([0xFFu8; 32].into());
 		ret

@@ -123,7 +123,7 @@ async fn handle_put(
 		versions: Vec::new(),
 	};
 	object.versions.push(Box::new(ObjectVersion {
-		uuid: version_uuid.clone(),
+		uuid: version_uuid,
 		timestamp: now_msec(),
 		mime_type: mime_type.to_string(),
 		size: first_block.len() as u64,
@@ -139,7 +139,7 @@ async fn handle_put(
 	}
 
 	let version = Version {
-		uuid: version_uuid.clone(),
+		uuid: version_uuid,
 		deleted: false,
 		blocks: Vec::new(),
 		bucket: bucket.into(),
@@ -147,12 +147,11 @@ async fn handle_put(
 	};
 
 	let first_block_hash = hash(&first_block[..]);
-	object.versions[0].data = ObjectVersionData::FirstBlock(first_block_hash.clone());
+	object.versions[0].data = ObjectVersionData::FirstBlock(first_block_hash);
 	garage.object_table.insert(&object).await?;
 
 	let mut next_offset = first_block.len();
-	let mut put_curr_version_block =
-		put_block_meta(garage.clone(), &version, 0, first_block_hash.clone());
+	let mut put_curr_version_block = put_block_meta(garage.clone(), &version, 0, first_block_hash);
 	let mut put_curr_block = garage
 		.block_manager
 		.rpc_put_block(first_block_hash, first_block);
@@ -163,12 +162,8 @@ async fn handle_put(
 		if let Some(block) = next_block {
 			let block_hash = hash(&block[..]);
 			let block_len = block.len();
-			put_curr_version_block = put_block_meta(
-				garage.clone(),
-				&version,
-				next_offset as u64,
-				block_hash.clone(),
-			);
+			put_curr_version_block =
+				put_block_meta(garage.clone(), &version, next_offset as u64, block_hash);
 			put_curr_block = garage.block_manager.rpc_put_block(block_hash, block);
 			next_offset += block_len;
 		} else {
@@ -191,14 +186,11 @@ async fn put_block_meta(
 	hash: Hash,
 ) -> Result<(), Error> {
 	let mut version = version.clone();
-	version.blocks.push(VersionBlock {
-		offset,
-		hash: hash.clone(),
-	});
+	version.blocks.push(VersionBlock { offset, hash: hash });
 
 	let block_ref = BlockRef {
 		block: hash,
-		version: version.uuid.clone(),
+		version: version.uuid,
 		deleted: false,
 	};
 
@@ -279,7 +271,7 @@ async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<U
 		versions: Vec::new(),
 	};
 	object.versions.push(Box::new(ObjectVersion {
-		uuid: version_uuid.clone(),
+		uuid: version_uuid,
 		timestamp: now_msec(),
 		mime_type: "application/x-delete-marker".into(),
 		size: 0,
@@ -339,7 +331,7 @@ async fn handle_get(
 			let mut blocks = version
 				.blocks
 				.iter()
-				.map(|vb| (vb.hash.clone(), None))
+				.map(|vb| (vb.hash, None))
 				.collect::<Vec<_>>();
 			blocks[0].1 = Some(first_block);
 

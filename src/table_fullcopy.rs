@@ -38,12 +38,12 @@ impl TableFullReplication {
 
 		// Recalculate neighbors
 		let ring = system.ring.borrow().clone();
-		let my_id = system.id.clone();
+		let my_id = system.id;
 
 		let mut nodes = vec![];
 		for (node, _) in ring.config.members.iter() {
 			let node_ranking = hash(&[node.as_slice(), my_id.as_slice()].concat());
-			nodes.push((node.clone(), node_ranking));
+			nodes.push((*node, node_ranking));
 		}
 		nodes.sort_by(|(_, rank1), (_, rank2)| rank1.cmp(rank2));
 		let mut neighbors = nodes
@@ -69,7 +69,7 @@ impl TableReplication for TableFullReplication {
 	// Inconvenient: only suitable to reasonably small tables
 
 	fn read_nodes(&self, _hash: &Hash, system: &System) -> Vec<UUID> {
-		vec![system.id.clone()]
+		vec![system.id]
 	}
 	fn read_quorum(&self) -> usize {
 		1

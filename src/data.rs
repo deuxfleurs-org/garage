@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq)]
+#[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq, Copy)]
 pub struct FixedBytes32([u8; 32]);
 
 impl From<[u8; 32]> for FixedBytes32 {

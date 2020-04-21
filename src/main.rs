@@ -299,7 +299,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		}
 	}
 
-	let status_keys = status.iter().map(|x| x.id.clone()).collect::<HashSet<_>>();
+	let status_keys = status.iter().map(|x| x.id).collect::<HashSet<_>>();
 	if config
 		.members
 		.iter()
@@ -347,7 +347,7 @@ async fn cmd_configure(
 	let mut candidates = vec![];
 	for adv in status.iter() {
 		if hex::encode(&adv.id).starts_with(&args.node_id) {
-			candidates.push(adv.id.clone());
+			candidates.push(adv.id);
 		}
 	}
 	if candidates.len() != 1 {
@@ -401,7 +401,7 @@ async fn cmd_remove(
 	let mut candidates = vec![];
 	for (key, _) in config.members.iter() {
 		if hex::encode(key).starts_with(&args.node_id) {
-			candidates.push(key.clone());
+			candidates.push(*key);
 		}
 	}
 	if candidates.len() != 1 {

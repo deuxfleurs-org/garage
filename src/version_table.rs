@@ -77,8 +77,8 @@ impl TableSchema for VersionTable {
 					.blocks
 					.iter()
 					.map(|vb| BlockRef {
-						block: vb.hash.clone(),
-						version: old_v.uuid.clone(),
+						block: vb.hash,
+						version: old_v.uuid,
 						deleted: true,
 					})
 					.collect::<Vec<_>>();

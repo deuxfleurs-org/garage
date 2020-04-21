@@ -228,7 +228,7 @@ where
 		partition: &TodoPartition,
 		must_exit: &mut watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		let my_id = self.table.system.id.clone();
+		let my_id = self.table.system.id;
 		let nodes = self
 			.table
 			.replication
@@ -251,7 +251,7 @@ where
 				self.clone().do_sync_with(
 					partition.clone(),
 					root_cks.clone(),
-					node.clone(),
+					*node,
 					partition.retain,
 					must_exit.clone(),
 				)
@@ -361,8 +361,8 @@ where
 					.range_checksum_cached_hash(&sub_range, must_exit)
 					.await?;
 
-				if let Some(hash) = &sub_ck.hash {
-					children.push((sub_range.clone(), hash.clone()));
+				if let Some(hash) = sub_ck.hash {
+					children.push((sub_range.clone(), hash));
 					if sub_ck.time < time {
 						time = sub_ck.time;
 					}
@@ -527,7 +527,7 @@ where
 					self.table.handle_update(diff_items).await?;
 				}
 				if items_to_send.len() > 0 {
-					self.send_items(who.clone(), items_to_send).await?;
+					self.send_items(who, items_to_send).await?;
 				}
 			} else {
 				return Err(Error::BadRequest(format!(
@@ -688,7 +688,7 @@ where
 
 impl SyncTodo {
 	fn add_full_scan<F: TableSchema, R: TableReplication>(&mut self, table: &Table<F, R>) {
-		let my_id = table.system.id.clone();
+		let my_id = table.system.id;
 
 		self.todo.clear();
 
@@ -696,19 +696,14 @@ impl SyncTodo {
 		let split_points = table.replication.split_points(&ring);
 
 		for i in 0..split_points.len() - 1 {
-			let begin = split_points[i].clone();
-			let end = split_points[i + 1].clone();
+			let begin = split_points[i];
+			let end = split_points[i + 1];
 			let nodes = table.replication.replication_nodes(&begin, &ring);
 
 			let retain = nodes.contains(&my_id);
 			if !retain {
 				// Check if we have some data to send, otherwise skip
-				if table
-					.store
-					.range(begin.clone()..end.clone())
-					.next()
-					.is_none()
-				{
+				if table.store.range(begin..end).next().is_none() {
 					continue;
 				}
 			}
@@ -723,7 +718,7 @@ impl SyncTodo {
 		old_ring: &Ring,
 		new_ring: &Ring,
 	) {
-		let my_id = table.system.id.clone();
+		let my_id = table.system.id;
 
 		// If it is us who are entering or leaving the system,
 		// initiate a full sync instead of incremental sync
@@ -738,8 +733,8 @@ impl SyncTodo {
 			.into_iter()
 			.chain(table.replication.split_points(old_ring).drain(..))
 			.chain(table.replication.split_points(new_ring).drain(..))
-			.chain(self.todo.iter().map(|x| x.begin.clone()))
-			.chain(self.todo.iter().map(|x| x.end.clone()))
+			.chain(self.todo.iter().map(|x| x.begin))
+			.chain(self.todo.iter().map(|x| x.end))
 			.collect::<Vec<_>>();
 		all_points.sort();
 		all_points.dedup();
@@ -749,8 +744,8 @@ impl SyncTodo {
 		let mut new_todo = vec![];
 
 		for i in 0..all_points.len() - 1 {
-			let begin = all_points[i].clone();
-			let end = all_points[i + 1].clone();
+			let begin = all_points[i];
+			let end = all_points[i + 1];
 			let was_ours = table
 				.replication
 				.replication_nodes(&begin, &old_ring)

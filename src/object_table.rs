@@ -113,7 +113,7 @@ impl TableSchema for ObjectTable {
 					.is_err()
 				{
 					let deleted_version = Version {
-						uuid: v.uuid.clone(),
+						uuid: v.uuid,
 						deleted: true,
 						blocks: vec![],
 						bucket: old_v.bucket.clone(),

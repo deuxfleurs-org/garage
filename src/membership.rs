@@ -125,9 +125,9 @@ impl Status {
 	fn handle_ping(&mut self, ip: IpAddr, info: &PingMessage) -> bool {
 		let addr = SocketAddr::new(ip, info.rpc_port);
 		let old_status = self.nodes.insert(
-			info.id.clone(),
+			info.id,
 			StatusEntry {
-				addr: addr.clone(),
+				addr,
 				remaining_ping_attempts: MAX_FAILED_PINGS,
 				state_info: info.state_info.clone(),
 			},
@@ -177,7 +177,7 @@ impl Ring {
 
 				new_ring.push(RingEntry {
 					location: location.into(),
-					node: id.clone(),
+					node: *id,
 					datacenter,
 				})
 			}
@@ -227,10 +227,10 @@ impl Ring {
 			delta += 1;
 
 			if !datacenters.contains(&self.ring[i].datacenter) {
-				ret.push(self.ring[i].node.clone());
+				ret.push(self.ring[i].node);
 				datacenters.push(self.ring[i].datacenter);
 			} else if datacenters.len() == self.n_datacenters && !ret.contains(&self.ring[i].node) {
-				ret.push(self.ring[i].node.clone());
+				ret.push(self.ring[i].node);
 			}
 		}
 
@@ -363,9 +363,9 @@ impl System {
 		let status = self.status.borrow().clone();
 		let ring = self.ring.borrow().clone();
 		Message::Ping(PingMessage {
-			id: self.id.clone(),
+			id: self.id,
 			rpc_port: self.config.rpc_bind_addr.port(),
-			status_hash: status.hash.clone(),
+			status_hash: status.hash,
 			config_version: ring.config.version,
 			state_info: self.state_info.clone(),
 		})
@@ -387,7 +387,7 @@ impl System {
 			.config
 			.bootstrap_peers
 			.iter()
-			.map(|ip| (ip.clone(), None))
+			.map(|ip| (*ip, None))
 			.collect::<Vec<_>>();
 		self.clone().ping_nodes(bootstrap_peers).await;
 
@@ -407,7 +407,7 @@ impl System {
 			async move {
 				(
 					id_option,
-					addr.clone(),
+					addr,
 					sys.rpc_client
 						.by_addr()
 						.call(&addr, ping_msg_ref, PING_TIMEOUT)
@@ -430,18 +430,18 @@ impl System {
 				if is_new {
 					has_changes = true;
 					to_advertise.push(AdvertisedNode {
-						id: info.id.clone(),
-						addr: addr.clone(),
+						id: info.id,
+						addr: *addr,
 						state_info: info.state_info.clone(),
 					});
 				}
 				if is_new || status.hash != info.status_hash {
 					self.background
-						.spawn_cancellable(self.clone().pull_status(info.id.clone()).map(Ok));
+						.spawn_cancellable(self.clone().pull_status(info.id).map(Ok));
 				}
 				if is_new || ring.config.version < info.config_version {
 					self.background
-						.spawn_cancellable(self.clone().pull_config(info.id.clone()).map(Ok));
+						.spawn_cancellable(self.clone().pull_config(info.id).map(Ok));
 				}
 			} else if let Some(id) = id_option {
 				let remaining_attempts = status
@@ -489,7 +489,7 @@ impl System {
 		if is_new {
 			status.recalculate_hash();
 		}
-		let status_hash = status.hash.clone();
+		let status_hash = status.hash;
 		let config_version = self.ring.borrow().config.version;
 
 		update_locked.0.broadcast(Arc::new(status))?;
@@ -497,11 +497,11 @@ impl System {
 
 		if is_new || status_hash != ping.status_hash {
 			self.background
-				.spawn_cancellable(self.clone().pull_status(ping.id.clone()).map(Ok));
+				.spawn_cancellable(self.clone().pull_status(ping.id).map(Ok));
 		}
 		if is_new || config_version < ping.config_version {
 			self.background
-				.spawn_cancellable(self.clone().pull_config(ping.id.clone()).map(Ok));
+				.spawn_cancellable(self.clone().pull_config(ping.id).map(Ok));
 		}
 
 		Ok(self.make_ping())
@@ -517,8 +517,8 @@ impl System {
 				status.state_info.clone()
 			};
 			mem.push(AdvertisedNode {
-				id: node.clone(),
-				addr: status.addr.clone(),
+				id: *node,
+				addr: status.addr,
 				state_info,
 			});
 		}
@@ -545,7 +545,7 @@ impl System {
 				// learn our own ip address
 				let self_addr = SocketAddr::new(node.addr.ip(), self.config.rpc_bind_addr.port());
 				let old_self = status.nodes.insert(
-					node.id.clone(),
+					node.id,
 					StatusEntry {
 						addr: self_addr,
 						remaining_ping_attempts: MAX_FAILED_PINGS,
@@ -557,7 +557,7 @@ impl System {
 					Some(x) => x.addr != self_addr,
 				};
 			} else if !status.nodes.contains_key(&node.id) {
-				to_ping.push((node.addr.clone(), Some(node.id.clone())));
+				to_ping.push((node.addr, Some(node.id)));
 			}
 		}
 		if has_changed {
@@ -607,7 +607,7 @@ impl System {
 				.nodes
 				.iter()
 				.filter(|(id, _)| **id != self.id)
-				.map(|(id, status)| (status.addr.clone(), Some(id.clone())))
+				.map(|(id, status)| (status.addr, Some(*id)))
 				.collect::<Vec<_>>();
 
 			self.clone().ping_nodes(ping_addrs).await;

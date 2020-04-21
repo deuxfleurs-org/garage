@@ -53,7 +53,7 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 		let addr = {
 			let status = self.status.borrow().clone();
 			match status.nodes.get(to.borrow()) {
-				Some(status) => status.addr.clone(),
+				Some(status) => status.addr,
 				None => {
 					return Err(Error::Message(format!(
 						"Peer ID not found: {:?}",
@@ -93,7 +93,7 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 			.map(|to| {
 				let self2 = self.clone();
 				let msg = msg.clone();
-				async move { self2.call(to.clone(), msg, timeout).await }
+				async move { self2.call(to, msg, timeout).await }
 			})
 			.collect::<FuturesUnordered<_>>();
 
