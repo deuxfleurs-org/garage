@@ -188,11 +188,34 @@ pub struct PermBucketOpt {
 	pub bucket: String,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
 pub struct RepairOpt {
 	/// Launch repair operation on all nodes
-	#[structopt(long = "all")]
-	pub all: bool,
+	#[structopt(short = "a", long = "all-nodes")]
+	pub all_nodes: bool,
+
+	/// Confirm the launch of the repair operation
+	#[structopt(long = "yes")]
+	pub yes: bool,
+
+	#[structopt(subcommand)]
+	pub what: Option<RepairWhat>,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum RepairWhat {
+	/// Only do a full sync of metadata tables
+	#[structopt(name = "tables")]
+	Tables,
+	/// Only repair (resync/rebalance) the set of stored blocks
+	#[structopt(name = "blocks")]
+	Blocks,
+	/// Only redo the propagation of object deletions to the version table (slow)
+	#[structopt(name = "versions")]
+	Versions,
+	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
+	#[structopt(name = "block_refs")]
+	BlockRefs,
 }
 
 #[tokio::main]
@@ -241,7 +264,7 @@ async fn main() {
 			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::BucketOperation(bo)).await
 		}
 		Command::Repair(ro) => {
-			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::LaunchRepair(ro.all)).await
+			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::LaunchRepair(ro)).await
 		}
 	};
 
