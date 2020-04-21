@@ -49,7 +49,7 @@ impl AdminRpcHandler {
 				match msg {
 					AdminRPC::BucketOperation(bo) => self2.handle_bucket_cmd(bo).await,
 					AdminRPC::LaunchRepair(opt) => self2.handle_launch_repair(opt).await,
-					_ => Err(Error::Message(format!("Invalid RPC"))),
+					_ => Err(Error::BadRequest(format!("Invalid RPC"))),
 				}
 			}
 		});
@@ -77,13 +77,16 @@ impl AdminRpcHandler {
 					.filter(|b| !b.deleted);
 				match bucket {
 					Some(b) => Ok(AdminRPC::BucketInfo(b)),
-					None => Err(Error::Message(format!("Bucket {} not found", query.name))),
+					None => Err(Error::BadRequest(format!(
+						"Bucket {} not found",
+						query.name
+					))),
 				}
 			}
 			BucketOperation::Create(query) => {
 				let bucket = self.garage.bucket_table.get(&EmptyKey, &query.name).await?;
 				if bucket.as_ref().filter(|b| !b.deleted).is_some() {
-					return Err(Error::Message(format!(
+					return Err(Error::BadRequest(format!(
 						"Bucket {} already exists",
 						query.name
 					)));
@@ -112,7 +115,7 @@ impl AdminRpcHandler {
 					.filter(|b| !b.deleted)
 				{
 					None => {
-						return Err(Error::Message(format!(
+						return Err(Error::BadRequest(format!(
 							"Bucket {} does not exist",
 							query.name
 						)));
@@ -125,13 +128,13 @@ impl AdminRpcHandler {
 					.get_range(&query.name, None, Some(()), 10)
 					.await?;
 				if !objects.is_empty() {
-					return Err(Error::Message(format!(
+					return Err(Error::BadRequest(format!(
 						"Bucket {} is not empty",
 						query.name
 					)));
 				}
 				if !query.yes {
-					return Err(Error::Message(format!(
+					return Err(Error::BadRequest(format!(
 						"Add --yes flag to really perform this operation"
 					)));
 				}
@@ -155,7 +158,7 @@ impl AdminRpcHandler {
 
 	async fn handle_launch_repair(self: &Arc<Self>, opt: RepairOpt) -> Result<AdminRPC, Error> {
 		if !opt.yes {
-			return Err(Error::Message(format!(
+			return Err(Error::BadRequest(format!(
 				"Please provide the --yes flag to initiate repair operations."
 			)));
 		}
