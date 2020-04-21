@@ -153,7 +153,7 @@ impl BlockManager {
 
 		if data::hash(&data[..]) != *hash {
 			let _lock = self.lock.lock().await;
-			eprintln!("Block {:?} is corrupted. Deleting and resyncing.", hash);
+			warn!("Block {:?} is corrupted. Deleting and resyncing.", hash);
 			fs::remove_file(path).await?;
 			self.put_to_resync(&hash, 0)?;
 			return Err(Error::CorruptData(hash.clone()));
@@ -211,7 +211,7 @@ impl BlockManager {
 
 	fn put_to_resync(&self, hash: &Hash, delay_millis: u64) -> Result<(), Error> {
 		let when = now_msec() + delay_millis;
-		eprintln!("Put resync_queue: {} {:?}", when, hash);
+		trace!("Put resync_queue: {} {:?}", when, hash);
 		let mut key = u64::to_be_bytes(when).to_vec();
 		key.extend(hash.as_ref());
 		self.resync_queue.insert(key, hash.as_ref())?;
@@ -222,7 +222,7 @@ impl BlockManager {
 		while !*must_exit.borrow() {
 			if let Some((time_bytes, hash_bytes)) = self.resync_queue.pop_min()? {
 				let time_msec = u64_from_bytes(&time_bytes[0..8]);
-				eprintln!(
+				trace!(
 					"First in resync queue: {} (now = {})",
 					time_msec,
 					now_msec()
@@ -233,7 +233,7 @@ impl BlockManager {
 					let hash = Hash::from(hash);
 
 					if let Err(e) = self.resync_iter(&hash).await {
-						eprintln!("Failed to resync block {:?}, retrying later: {}", hash, e);
+						warn!("Failed to resync block {:?}, retrying later: {}", hash, e);
 						self.put_to_resync(&hash, RESYNC_RETRY_TIMEOUT.as_millis() as u64)?;
 					}
 					continue;
@@ -256,10 +256,12 @@ impl BlockManager {
 			.map(|x| u64_from_bytes(x.as_ref()) > 0)
 			.unwrap_or(false);
 
-		eprintln!(
-			"Resync block {:?}: exists {}, needed {}",
-			hash, exists, needed
-		);
+		if exists != needed {
+			info!(
+				"Resync block {:?}: exists {}, needed {}",
+				hash, exists, needed
+			);
+		}
 
 		if exists && !needed {
 			let garage = self.garage.load_full().unwrap();
@@ -396,7 +398,7 @@ impl BlockManager {
 
 			let mut ls_data_dir_2 = match fs::read_dir(data_dir_ent.path()).await {
 				Err(e) => {
-					eprintln!(
+					warn!(
 						"Warning: could not list dir {:?}: {}",
 						data_dir_ent.path().to_str(),
 						e

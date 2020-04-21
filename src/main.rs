@@ -1,5 +1,8 @@
 #![recursion_limit = "1024"]
 
+#[macro_use]
+extern crate log;
+
 mod data;
 mod error;
 
@@ -190,6 +193,8 @@ pub struct RepairOpt {
 
 #[tokio::main]
 async fn main() {
+	pretty_env_logger::init();
+
 	let opt = Opt::from_args();
 
 	let tls_config = match (opt.ca_cert, opt.client_cert, opt.client_key) {
@@ -200,7 +205,7 @@ async fn main() {
 		}),
 		(None, None, None) => None,
 		_ => {
-			eprintln!("Missing one of: --ca-cert, --node-cert, --node-key. Not using TLS.");
+			warn!("Missing one of: --ca-cert, --node-cert, --node-key. Not using TLS.");
 			None
 		}
 	};
@@ -215,7 +220,7 @@ async fn main() {
 		Command::Server(server_opt) => {
 			// Abort on panic (same behavior as in Go)
 			std::panic::set_hook(Box::new(|panic_info| {
-				eprintln!("{}", panic_info.to_string());
+				error!("{}", panic_info.to_string());
 				std::process::abort();
 			}));
 
@@ -237,7 +242,7 @@ async fn main() {
 	};
 
 	if let Err(e) = resp {
-		eprintln!("Error: {}", e);
+		error!("Error: {}", e);
 	}
 }
 
@@ -414,7 +419,7 @@ async fn cmd_admin(
 			println!("{:?}", bucket);
 		}
 		r => {
-			eprintln!("Unexpected response: {:?}", r);
+			error!("Unexpected response: {:?}", r);
 		}
 	}
 	Ok(())

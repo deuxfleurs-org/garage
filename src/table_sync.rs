@@ -134,7 +134,7 @@ where
 			select! {
 				new_ring_r = s_ring_recv => {
 					if let Some(new_ring) = new_ring_r {
-						eprintln!("({}) Adding ring difference to syncer todo list", self.table.name);
+						debug!("({}) Adding ring difference to syncer todo list", self.table.name);
 						self.todo.lock().await.add_ring_difference(&self.table, &prev_ring, &new_ring);
 						prev_ring = new_ring;
 					}
@@ -158,7 +158,7 @@ where
 				_ = s_timeout => {
 					if nothing_to_do_since.map(|t| Instant::now() - t >= SCAN_INTERVAL).unwrap_or(false) {
 						nothing_to_do_since = None;
-						eprintln!("({}) Adding full scan to syncer todo list", self.table.name);
+						debug!("({}) Adding full scan to syncer todo list", self.table.name);
 						self.todo.lock().await.add_full_scan(&self.table);
 					}
 				}
@@ -180,7 +180,7 @@ where
 					.sync_partition(&partition, &mut must_exit)
 					.await;
 				if let Err(e) = res {
-					eprintln!(
+					warn!(
 						"({}) Error while syncing {:?}: {}",
 						self.table.name, partition, e
 					);
@@ -198,7 +198,7 @@ where
 		partition: &TodoPartition,
 		must_exit: &mut watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		eprintln!("({}) Preparing to sync {:?}...", self.table.name, partition);
+		debug!("({}) Preparing to sync {:?}...", self.table.name, partition);
 		let root_cks = self
 			.root_checksum(&partition.begin, &partition.end, must_exit)
 			.await?;
@@ -226,7 +226,7 @@ where
 		while let Some(r) = sync_futures.next().await {
 			if let Err(e) = r {
 				n_errors += 1;
-				eprintln!("({}) Sync error: {}", self.table.name, e);
+				warn!("({}) Sync error: {}", self.table.name, e);
 			}
 		}
 		if n_errors > self.table.replication.max_write_errors() {
@@ -284,7 +284,7 @@ where
 			drop(cache);
 
 			let v = self.range_checksum_inner(&range, must_exit).await?;
-			eprintln!(
+			trace!(
 				"({}) New checksum calculated for {}-{}/{}, {} children",
 				self.table.name,
 				hex::encode(&range.begin[..]),
@@ -418,7 +418,7 @@ where
 
 		while !todo.is_empty() && !*must_exit.borrow() {
 			let total_children = todo.iter().map(|x| x.children.len()).fold(0, |x, y| x + y);
-			eprintln!(
+			trace!(
 				"({}) Sync with {:?}: {} ({}) remaining",
 				self.table.name,
 				who,
@@ -442,7 +442,7 @@ where
 				rpc_resp
 			{
 				if diff_ranges.len() > 0 || diff_items.len() > 0 {
-					eprintln!(
+					info!(
 						"({}) Sync with {:?}: difference {} ranges, {} items",
 						self.table.name,
 						who,
@@ -479,7 +479,7 @@ where
 	}
 
 	async fn send_items(self: Arc<Self>, who: UUID, item_list: Vec<Vec<u8>>) -> Result<(), Error> {
-		eprintln!(
+		info!(
 			"({}) Sending {} items to {:?}",
 			self.table.name,
 			item_list.len(),
@@ -594,7 +594,7 @@ where
 			.map(|x| x.children.len())
 			.fold(0, |x, y| x + y);
 		if ret_ranges.len() > 0 || ret_items.len() > 0 {
-			eprintln!(
+			trace!(
 				"({}) Checksum comparison RPC: {} different + {} items for {} received",
 				self.table.name,
 				ret_ranges.len(),

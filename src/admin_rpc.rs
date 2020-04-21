@@ -222,12 +222,15 @@ impl AdminRpcHandler {
 			let version_exists = match object {
 				Some(o) => o.versions.iter().any(|x| x.uuid == version.uuid),
 				None => {
-					eprintln!("No object entry found for version {:?}", version);
+					warn!(
+						"Repair versions: object for version {:?} not found",
+						version
+					);
 					false
 				}
 			};
 			if !version_exists {
-				eprintln!("Marking deleted version: {:?}", version);
+				info!("Repair versions: marking version as deleted: {:?}", version);
 				self.garage
 					.version_table
 					.insert(&Version {
@@ -265,12 +268,18 @@ impl AdminRpcHandler {
 			let ref_exists = match version {
 				Some(v) => !v.deleted,
 				None => {
-					eprintln!("No version found for block ref {:?}", block_ref);
+					warn!(
+						"Block ref repair: version for block ref {:?} not found",
+						block_ref
+					);
 					false
 				}
 			};
 			if !ref_exists {
-				eprintln!("Marking deleted block_ref: {:?}", block_ref);
+				info!(
+					"Repair block ref: marking block_ref as deleted: {:?}",
+					block_ref
+				);
 				self.garage
 					.block_ref_table
 					.insert(&BlockRef {

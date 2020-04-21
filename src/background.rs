@@ -77,9 +77,9 @@ impl BackgroundRunner {
 		let stop_signal = self.stop_signal.clone();
 		workers.push(tokio::spawn(async move {
 			if let Err(e) = worker(stop_signal).await {
-				eprintln!("Worker stopped with error: {}, error: {}", name, e);
+				error!("Worker stopped with error: {}, error: {}", name, e);
 			} else {
-				println!("Worker exited successfully: {}", name);
+				info!("Worker exited successfully: {}", name);
 			}
 		}));
 	}
@@ -90,11 +90,11 @@ impl BackgroundRunner {
 			let must_exit: bool = *stop_signal.borrow();
 			if let Some(job) = self.dequeue_job(must_exit).await {
 				if let Err(e) = job.await {
-					eprintln!("Job failed: {}", e)
+					error!("Job failed: {}", e)
 				}
 			} else {
 				if must_exit {
-					eprintln!("Background runner {} exiting", i);
+					info!("Background runner {} exiting", i);
 					return;
 				}
 				tokio::time::delay_for(Duration::from_secs(1)).await;

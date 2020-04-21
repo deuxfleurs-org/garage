@@ -8,34 +8,38 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.4"
-http = "0.2"
-hyper = "0.13"
+rand = "0.7"
+hex = "0.3"
+sha2 = "0.8"
+arc-swap = "0.4"
+gethostname = "0.2"
+err-derive = "0.2.3"
+log = "0.4"
+pretty_env_logger = "0.4"
+
 sled = "0.31"
+
+structopt = { version = "0.3", default-features = false }
+toml = "0.5"
+rmp-serde = "0.14.3"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_bytes = "0.11"
+serde_json = "1.0"
+
+async-trait = "0.1.30"
 futures = "0.3"
 futures-core = "0.3"
 futures-channel = "0.3"
 futures-util = "0.3"
 tokio = { version = "0.2", features = ["full"] }
-serde = { version = "1.0", features = ["derive", "rc"] }
-serde_bytes = "0.11"
-bincode = "1.2.1"
-err-derive = "0.2.3"
-rmp-serde = "0.14.3"
-toml = "0.5"
-structopt = { version = "0.3", default-features = false }
-rand = "0.7"
-hex = "0.3"
-sha2 = "0.8"
-async-trait = "0.1.30"
-reduce = "0.1.2"
-serde_json = "1.0"
-arc-swap = "0.4"
-gethostname = "0.2"
 
+http = "0.2"
+hyper = "0.13"
 rustls = "0.17"
 tokio-rustls = "0.13"
 hyper-rustls = { version = "0.20", default-features = false }
 webpki = "0.21"
+
 
 [profile.dev]
 lto = "off"

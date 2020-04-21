@@ -133,7 +133,7 @@ impl Status {
 		);
 		match old_status {
 			None => {
-				eprintln!("Newly pingable node: {}", hex::encode(&info.id));
+				info!("Newly pingable node: {}", hex::encode(&info.id));
 				true
 			}
 			Some(x) => x.addr != addr,
@@ -145,12 +145,12 @@ impl Status {
 		nodes.sort_unstable_by_key(|(id, _status)| *id);
 
 		let mut hasher = Sha256::new();
-		eprintln!("Current set of pingable nodes: --");
+		debug!("Current set of pingable nodes: --");
 		for (id, status) in nodes {
-			eprintln!("{} {}", hex::encode(&id), status.addr);
+			debug!("{} {}", hex::encode(&id), status.addr);
 			hasher.input(format!("{} {}\n", hex::encode(&id), status.addr));
 		}
-		eprintln!("END --");
+		debug!("END --");
 		self.hash
 			.as_slice_mut()
 			.copy_from_slice(&hasher.result()[..]);
@@ -263,7 +263,7 @@ impl System {
 		let net_config = match read_network_config(&config.metadata_dir) {
 			Ok(x) => x,
 			Err(e) => {
-				println!(
+				info!(
 					"No valid previous network configuration stored ({}), starting fresh.",
 					e
 				);
@@ -448,7 +448,7 @@ impl System {
 					.map(|x| x.remaining_ping_attempts)
 					.unwrap_or(0);
 				if remaining_attempts == 0 {
-					eprintln!(
+					warn!(
 						"Removing node {} after too many failed pings",
 						hex::encode(&id)
 					);
@@ -465,7 +465,7 @@ impl System {
 			status.recalculate_hash();
 		}
 		if let Err(e) = update_locked.0.broadcast(Arc::new(status)) {
-			eprintln!("In ping_nodes: could not save status update ({})", e);
+			error!("In ping_nodes: could not save status update ({})", e);
 		}
 		drop(update_locked);
 

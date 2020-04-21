@@ -42,7 +42,7 @@ pub async fn run_api_server(
 	let server = Server::bind(&addr).serve(service);
 
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
-	println!("API server listening on http://{}", addr);
+	info!("API server listening on http://{}", addr);
 
 	graceful.await?;
 	Ok(())
@@ -69,7 +69,7 @@ async fn handler_inner(
 	req: Request<Body>,
 	addr: SocketAddr,
 ) -> Result<Response<BodyType>, Error> {
-	eprintln!("{} {} {}", addr, req.method(), req.uri());
+	info!("{} {} {}", addr, req.method(), req.uri());
 
 	let bucket = req
 		.headers()
@@ -231,7 +231,7 @@ impl BodyChunker {
 		while !self.read_all && self.buf.len() < self.block_size {
 			if let Some(block) = self.body.next().await {
 				let bytes = block?;
-				eprintln!("Body next: {} bytes", bytes.len());
+				trace!("Body next: {} bytes", bytes.len());
 				self.buf.extend(&bytes[..]);
 			} else {
 				self.read_all = true;

@@ -87,10 +87,10 @@ impl Garage {
 		background: Arc<BackgroundRunner>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
-		println!("Initialize membership management system...");
+		info!("Initialize membership management system...");
 		let system = System::new(config.clone(), id, background.clone(), rpc_server);
 
-		println!("Initialize block manager...");
+		info!("Initialize block manager...");
 		let block_manager =
 			BlockManager::new(&db, config.data_dir.clone(), system.clone(), rpc_server);
 
@@ -111,7 +111,7 @@ impl Garage {
 			(system.config.meta_epidemic_factor + 1) / 2,
 		);
 
-		println!("Initialize block_ref_table...");
+		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
 			BlockRefTable {
 				background: background.clone(),
@@ -125,7 +125,7 @@ impl Garage {
 		)
 		.await;
 
-		println!("Initialize version_table...");
+		info!("Initialize version_table...");
 		let version_table = Table::new(
 			VersionTable {
 				background: background.clone(),
@@ -139,7 +139,7 @@ impl Garage {
 		)
 		.await;
 
-		println!("Initialize object_table...");
+		info!("Initialize object_table...");
 		let object_table = Table::new(
 			ObjectTable {
 				background: background.clone(),
@@ -153,7 +153,7 @@ impl Garage {
 		)
 		.await;
 
-		println!("Initialize bucket_table...");
+		info!("Initialize bucket_table...");
 		let bucket_table = Table::new(
 			BucketTable,
 			control_rep_param.clone(),
@@ -164,7 +164,7 @@ impl Garage {
 		)
 		.await;
 
-		println!("Initialize Garage...");
+		info!("Initialize Garage...");
 		let garage = Arc::new(Self {
 			db,
 			system: system.clone(),
@@ -176,10 +176,10 @@ impl Garage {
 			block_ref_table,
 		});
 
-		println!("Crate admin RPC handler...");
+		info!("Crate admin RPC handler...");
 		AdminRpcHandler::new(garage.clone()).register_handler(rpc_server);
 
-		println!("Start block manager background thread...");
+		info!("Start block manager background thread...");
 		garage.block_manager.garage.swap(Some(garage.clone()));
 		garage.block_manager.clone().spawn_background_worker().await;
 
@@ -226,7 +226,7 @@ async fn shutdown_signal(send_cancel: watch::Sender<bool>) -> Result<(), Error> 
 	tokio::signal::ctrl_c()
 		.await
 		.expect("failed to install CTRL+C signal handler");
-	println!("Received CTRL+C, shutting down.");
+	info!("Received CTRL+C, shutting down.");
 	send_cancel.broadcast(true)?;
 	Ok(())
 }
@@ -240,51 +240,51 @@ async fn wait_from(mut chan: watch::Receiver<bool>) -> () {
 }
 
 pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
-	println!("Loading configuration...");
+	info!("Loading configuration...");
 	let config = read_config(config_file).expect("Unable to read config file");
 
 	let id = gen_node_id(&config.metadata_dir).expect("Unable to read or generate node ID");
-	println!("Node ID: {}", hex::encode(&id));
+	info!("Node ID: {}", hex::encode(&id));
 
-	println!("Opening database...");
+	info!("Opening database...");
 	let mut db_path = config.metadata_dir.clone();
 	db_path.push("db");
 	let db = sled::open(db_path).expect("Unable to open DB");
 
-	println!("Initialize RPC server...");
+	info!("Initialize RPC server...");
 	let mut rpc_server = RpcServer::new(config.rpc_bind_addr.clone(), config.rpc_tls.clone());
 
-	println!("Initializing background runner...");
+	info!("Initializing background runner...");
 	let (send_cancel, watch_cancel) = watch::channel(false);
 	let background = BackgroundRunner::new(8, watch_cancel.clone());
 
 	let garage = Garage::new(config, id, db, background.clone(), &mut rpc_server).await;
 
-	println!("Initializing RPC and API servers...");
+	info!("Initializing RPC and API servers...");
 	let run_rpc_server = Arc::new(rpc_server).run(wait_from(watch_cancel.clone()));
 	let api_server = api_server::run_api_server(garage.clone(), wait_from(watch_cancel.clone()));
 
 	futures::try_join!(
 		garage.system.clone().bootstrap().map(|rv| {
-			println!("Bootstrap done");
+			info!("Bootstrap done");
 			Ok(rv)
 		}),
 		run_rpc_server.map(|rv| {
-			println!("RPC server exited");
+			info!("RPC server exited");
 			rv
 		}),
 		api_server.map(|rv| {
-			println!("API server exited");
+			info!("API server exited");
 			rv
 		}),
 		background.run().map(|rv| {
-			println!("Background runner exited");
+			info!("Background runner exited");
 			Ok(rv)
 		}),
 		shutdown_signal(send_cancel),
 	)?;
 
-	println!("Cleaning up...");
+	info!("Cleaning up...");
 
 	Ok(())
 }
