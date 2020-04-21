@@ -22,16 +22,15 @@ sled = "0.31"
 structopt = { version = "0.3", default-features = false }
 toml = "0.5"
 rmp-serde = "0.14.3"
-serde = { version = "1.0", features = ["derive", "rc"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
 
 async-trait = "0.1.30"
 futures = "0.3"
 futures-core = "0.3"
-futures-channel = "0.3"
 futures-util = "0.3"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
 
 http = "0.2"
 hyper = "0.13"
