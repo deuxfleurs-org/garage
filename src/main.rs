@@ -111,6 +111,10 @@ pub struct ConfigureNodeOpt {
 
 	/// Number of tokens
 	n_tokens: u32,
+
+	/// Optionnal node tag
+	#[structopt(long = "tag", default_value = "")]
+	tag: String,
 }
 
 #[derive(StructOpt, Debug)]
@@ -266,8 +270,8 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 	for adv in status.iter() {
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
-				"{:?}\t{}\t{}\t{}\t{}",
-				adv.id, adv.state_info.hostname, adv.addr, cfg.datacenter, cfg.n_tokens
+				"{:?}\t{}\t{}\t{}\t{}\t{}",
+				adv.id, adv.state_info.hostname, adv.addr, cfg.tag, cfg.datacenter, cfg.n_tokens
 			);
 		}
 	}
@@ -281,7 +285,10 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		println!("\nFailed nodes:");
 		for (id, cfg) in config.members.iter() {
 			if !status.iter().any(|x| x.id == *id) {
-				println!("{:?}\t{}\t{}", id, cfg.datacenter, cfg.n_tokens);
+				println!(
+					"{:?}\t{}\t{}\t{}",
+					id, cfg.tag, cfg.datacenter, cfg.n_tokens
+				);
 			}
 		}
 	}
@@ -340,6 +347,7 @@ async fn cmd_configure(
 		NetworkConfigEntry {
 			datacenter: args.datacenter,
 			n_tokens: args.n_tokens,
+			tag: args.tag,
 		},
 	);
 	config.version += 1;

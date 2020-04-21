@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::time::Instant;
 use std::sync::Arc;
+use std::time::Instant;
 
 use bytes::IntoBuf;
 use futures::future::Future;
@@ -51,7 +51,11 @@ where
 	match handler(msg, sockaddr).await {
 		Ok(resp) => {
 			let resp_bytes = rmp_to_vec_all_named::<Result<M, String>>(&Ok(resp))?;
-			trace!("]RPC:{},ok ({} ms)", name, (Instant::now()-begin_time).as_millis());
+			trace!(
+				"]RPC:{},ok ({} ms)",
+				name,
+				(Instant::now() - begin_time).as_millis()
+			);
 			Ok(Response::new(Body::from(resp_bytes)))
 		}
 		Err(e) => {
@@ -59,7 +63,13 @@ where
 			let rep_bytes = rmp_to_vec_all_named::<Result<M, String>>(&Err(err_str))?;
 			let mut err_response = Response::new(Body::from(rep_bytes));
 			*err_response.status_mut() = e.http_status_code();
-			warn!("RPC error ({}): {} ({} ms), request: {}", name, e, (Instant::now()-begin_time).as_millis(), req_str);
+			warn!(
+				"RPC error ({}): {} ({} ms), request: {}",
+				name,
+				e,
+				(Instant::now() - begin_time).as_millis(),
+				req_str
+			);
 			Ok(err_response)
 		}
 	}

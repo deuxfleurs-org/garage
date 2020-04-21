@@ -198,19 +198,25 @@ where
 		partition: &TodoPartition,
 		must_exit: &mut watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		debug!("({}) Preparing to sync {:?}...", self.table.name, partition);
-		let root_cks = self
-			.root_checksum(&partition.begin, &partition.end, must_exit)
-			.await?;
-
 		let my_id = self.table.system.id.clone();
 		let nodes = self
 			.table
 			.replication
-			.write_nodes(&partition.begin, &self.table.system);
+			.write_nodes(&partition.begin, &self.table.system)
+			.into_iter()
+			.filter(|node| *node != my_id)
+			.collect::<Vec<_>>();
+
+		debug!(
+			"({}) Preparing to sync {:?} with {:?}...",
+			self.table.name, partition, nodes
+		);
+		let root_cks = self
+			.root_checksum(&partition.begin, &partition.end, must_exit)
+			.await?;
+
 		let mut sync_futures = nodes
 			.iter()
-			.filter(|node| **node != my_id)
 			.map(|node| {
 				self.clone().do_sync_with(
 					partition.clone(),
@@ -230,7 +236,10 @@ where
 			}
 		}
 		if n_errors > self.table.replication.max_write_errors() {
-			return Err(Error::Message(format!("Sync failed with too many nodes.")));
+			return Err(Error::Message(format!(
+				"Sync failed with too many nodes (should have been: {:?}).",
+				nodes
+			)));
 		}
 
 		if !partition.retain {

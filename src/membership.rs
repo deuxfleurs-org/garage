@@ -69,6 +69,7 @@ pub struct NetworkConfig {
 pub struct NetworkConfigEntry {
 	pub datacenter: String,
 	pub n_tokens: u32,
+	pub tag: String,
 }
 
 pub struct System {
@@ -248,7 +249,8 @@ fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {
 	let mut net_config_bytes = vec![];
 	file.read_to_end(&mut net_config_bytes)?;
 
-	let net_config = rmp_serde::decode::from_read_ref(&net_config_bytes[..])?;
+	let net_config = rmp_serde::decode::from_read_ref(&net_config_bytes[..])
+		.expect("Unable to parse network configuration file (has version format changed?).");
 
 	Ok(net_config)
 }
