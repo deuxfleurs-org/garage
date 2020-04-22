@@ -280,8 +280,10 @@ impl BlockManager {
 				let mut need_nodes = vec![];
 				for (node, needed) in who.into_iter().zip(who_needs.iter()) {
 					match needed {
-						Ok(Message::NeedBlockReply(true)) => {
-							need_nodes.push(node);
+						Ok(Message::NeedBlockReply(needed)) => {
+							if *needed {
+								need_nodes.push(node);
+							}
 						}
 						Err(e) => {
 							return Err(Error::Message(format!(
