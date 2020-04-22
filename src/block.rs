@@ -278,23 +278,23 @@ impl BlockManager {
 				let who_needs = join_all(who_needs_fut).await;
 
 				let mut need_nodes = vec![];
-				let mut errors = 0;
 				for (node, needed) in who.into_iter().zip(who_needs.iter()) {
 					match needed {
 						Ok(Message::NeedBlockReply(true)) => {
 							need_nodes.push(node);
 						}
-						Err(_) => {
-							errors += 1;
+						Err(e) => {
+							return Err(Error::Message(format!(
+								"Should delete block, but unable to confirm that all other nodes that need it have it: {}",
+								e
+							)));
 						}
-						_ => (),
+						_ => {
+							return Err(Error::Message(format!(
+								"Unexpected response to NeedBlockQuery RPC"
+							)));
+						}
 					}
-				}
-
-				if errors > (garage.system.config.data_replication_factor - 1) / 2 {
-					return Err(Error::Message(format!(
-						"Should delete block, but not enough nodes confirm that they have it."
-					)));
 				}
 
 				if need_nodes.len() > 0 {

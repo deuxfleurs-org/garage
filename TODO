@@ -1,18 +1,36 @@
-Replication
------------
-
-Finish the thing that sends blocks to other nodes if needed before deleting them locally.
+Testing
+-------
 
 How are we going to test that our replication method works correctly?
 We will have to introduce lots of dummy data and then add/remove nodes many times.
 
-Repair:
-- re-propagate block ref table to rc
+
+Improvements
+------------
+
+Membership: keep IP addresses of failed nodes and try to reping them regularly
+
+RPC client/server: do not go through the serialization+HTTP+TLS+deserialization when doing a request to ourself.
+
+RPC requests: unify quorum + timeout in a "RequestStrategy" class,
+and add to the request strategy whether or not the request should continue in the background
+once `quorum` valid responses have been received
 
 
-To do list
-----------
+Attaining S3 compatibility
+--------------------------
+
+- table for access keys
+- S3 request signature verification
+- api_server following the S3 semantics for get/put/delete
+- implement object listing
+- possibly other necessary endpoints ?
+
+
+Lower priority
+--------------
 
 - less a priority: hinted handoff
+- repair: re-propagate block ref table to rc
 - FIXME in rpc_server when garage shuts down and futures can be interrupted
   (tokio::spawn should be replaced by a new function background::spawn_joinable)
