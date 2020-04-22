@@ -238,7 +238,7 @@ async fn main() {
 	};
 
 	let rpc_http_cli =
-		Arc::new(RpcHttpClient::new(&tls_config).expect("Could not create RPC client"));
+		Arc::new(RpcHttpClient::new(8, &tls_config).expect("Could not create RPC client"));
 	let membership_rpc_cli =
 		RpcAddrClient::new(rpc_http_cli.clone(), MEMBERSHIP_RPC_PATH.to_string());
 	let admin_rpc_cli = RpcAddrClient::new(rpc_http_cli.clone(), ADMIN_RPC_PATH.to_string());

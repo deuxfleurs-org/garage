@@ -35,6 +35,9 @@ pub struct Config {
 
 	pub bootstrap_peers: Vec<SocketAddr>,
 
+	#[serde(default = "default_max_concurrent_requests")]
+	pub max_concurrent_requests: usize,
+
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
 
@@ -50,6 +53,9 @@ pub struct Config {
 	pub rpc_tls: Option<TlsConfig>,
 }
 
+fn default_max_concurrent_requests() -> usize {
+	12
+}
 fn default_block_size() -> usize {
 	1048576
 }

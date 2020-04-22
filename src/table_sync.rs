@@ -132,10 +132,9 @@ where
 			.await;
 
 		let s3 = syncer.clone();
-		table.system.background.spawn(async move {
+		tokio::spawn(async move {
 			tokio::time::delay_for(Duration::from_secs(20)).await;
 			s3.add_full_scan().await;
-			Ok(())
 		});
 
 		syncer

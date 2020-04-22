@@ -269,7 +269,7 @@ where
 				let ent2 = ret_entry.clone();
 				self.system
 					.background
-					.spawn(async move { self2.repair_on_read(&who[..], ent2).await });
+					.spawn_cancellable(async move { self2.repair_on_read(&who[..], ent2).await });
 			}
 		}
 		Ok(ret)
@@ -324,7 +324,7 @@ where
 		}
 		if !to_repair.is_empty() {
 			let self2 = self.clone();
-			self.system.background.spawn(async move {
+			self.system.background.spawn_cancellable(async move {
 				for (_, v) in to_repair.iter_mut() {
 					self2.repair_on_read(&who[..], v.take().unwrap()).await?;
 				}
@@ -472,7 +472,7 @@ where
 				self.instance.updated(old_entry, Some(new_entry)).await?;
 				self.system
 					.background
-					.spawn(syncer.clone().invalidate(tree_key));
+					.spawn_cancellable(syncer.clone().invalidate(tree_key));
 			}
 		}
 
@@ -480,7 +480,7 @@ where
 			let self2 = self.clone();
 			self.system
 				.background
-				.spawn(async move { self2.insert_many(&epidemic_propagate[..]).await });
+				.spawn_cancellable(async move { self2.insert_many(&epidemic_propagate[..]).await });
 		}
 
 		Ok(())
@@ -500,7 +500,7 @@ where
 				self.instance.updated(Some(old_entry), None).await?;
 				self.system
 					.background
-					.spawn(syncer.clone().invalidate(key.to_vec()));
+					.spawn_cancellable(syncer.clone().invalidate(key.to_vec()));
 				count += 1;
 			}
 		}

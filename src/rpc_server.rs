@@ -52,9 +52,10 @@ where
 		Ok(resp) => {
 			let resp_bytes = rmp_to_vec_all_named::<Result<M, String>>(&Ok(resp))?;
 			trace!(
-				"]RPC:{},ok ({} ms)",
+				"]RPC:{},ok ({} ms), request: {}",
 				name,
-				(Instant::now() - begin_time).as_millis()
+				(Instant::now() - begin_time).as_millis(),
+				req_str,
 			);
 			Ok(Response::new(Body::from(resp_bytes)))
 		}
@@ -68,7 +69,7 @@ where
 				name,
 				e,
 				(Instant::now() - begin_time).as_millis(),
-				req_str
+				req_str,
 			);
 			Ok(err_response)
 		}

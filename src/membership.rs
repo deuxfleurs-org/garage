@@ -296,8 +296,10 @@ impl System {
 		ring.rebuild_ring();
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
-		let rpc_http_client =
-			Arc::new(RpcHttpClient::new(&config.rpc_tls).expect("Could not create RPC client"));
+		let rpc_http_client = Arc::new(
+			RpcHttpClient::new(config.max_concurrent_requests, &config.rpc_tls)
+				.expect("Could not create RPC client"),
+		);
 
 		let rpc_path = MEMBERSHIP_RPC_PATH.to_string();
 		let rpc_client = RpcClient::new(
