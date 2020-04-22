@@ -2,6 +2,8 @@ use core::future::Future;
 use std::pin::Pin;
 
 use futures::future::join_all;
+use futures::select;
+use futures_util::future::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, watch, Notify};
@@ -88,7 +90,7 @@ impl BackgroundRunner {
 	}
 
 	async fn runner(self: Arc<Self>, i: usize) {
-		let stop_signal = self.stop_signal.clone();
+		let mut stop_signal = self.stop_signal.clone();
 		loop {
 			let must_exit: bool = *stop_signal.borrow();
 			if let Some(job) = self.dequeue_job(must_exit).await {
@@ -100,7 +102,10 @@ impl BackgroundRunner {
 					info!("Background runner {} exiting", i);
 					return;
 				}
-				self.job_notify.notified().await;
+				select! {
+					_ = self.job_notify.notified().fuse() => (),
+					_ = stop_signal.recv().fuse() => (),
+				}
 			}
 		}
 	}
