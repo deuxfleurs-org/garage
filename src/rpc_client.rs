@@ -117,10 +117,20 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 		if results.len() >= stop_after {
 			// Continue requests in background
 			// TODO: make this optionnal (only usefull for write requests)
-			self.clone().background.spawn_cancellable(async move {
+
+			// Continue the remaining requests immediately using tokio::spawn
+			// but enqueue a task in the background runner
+			// to ensure that the process won't exit until the requests are done
+			// (if we had just enqueued the resp_stream.collect directly in the background runner,
+			// the requests might have been put on hold in the background runner's queue,
+			// in which case they might timeout or otherwise fail)
+			let wait_finished_fut = tokio::spawn(async move {
 				resp_stream.collect::<Vec<_>>().await;
 				Ok(())
 			});
+			self.clone().background.spawn(wait_finished_fut.map(|x| {
+				x.unwrap_or_else(|e| Err(Error::Message(format!("Await failed: {}", e))))
+			}));
 
 			Ok(results)
 		} else {
