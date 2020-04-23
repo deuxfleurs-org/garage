@@ -30,7 +30,8 @@ impl Key {
 			authorized_buckets: vec![],
 		};
 		for b in buckets {
-			ret.add_bucket(b);
+			ret.add_bucket(b)
+				.expect("Duplicate AllowedBucket in Key constructor");
 		}
 		ret
 	}

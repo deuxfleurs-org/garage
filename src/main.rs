@@ -70,6 +70,10 @@ pub enum Command {
 	#[structopt(name = "bucket")]
 	Bucket(BucketOperation),
 
+	/// Key operations
+	#[structopt(name = "key")]
+	Key(KeyOperation),
+
 	/// Start repair of node data
 	#[structopt(name = "repair")]
 	Repair(RepairOpt),
@@ -182,6 +186,27 @@ pub struct PermBucketOpt {
 	pub bucket: String,
 }
 
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub enum KeyOperation {
+	/// List keys
+	#[structopt(name = "list")]
+	List,
+
+	/// Create new key
+	#[structopt(name = "new")]
+	New,
+
+	/// Delete key
+	#[structopt(name = "delete")]
+	Delete(KeyDeleteOpt),
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyDeleteOpt {
+	/// Name of the bucket to delete
+	bucket: String,
+}
+
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
 pub struct RepairOpt {
 	/// Launch repair operation on all nodes
@@ -256,6 +281,9 @@ async fn main() {
 		}
 		Command::Bucket(bo) => {
 			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::BucketOperation(bo)).await
+		}
+		Command::Key(bo) => {
+			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::KeyOperation(bo)).await
 		}
 		Command::Repair(ro) => {
 			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::LaunchRepair(ro)).await
