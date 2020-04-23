@@ -41,7 +41,7 @@ impl Bucket {
 	pub fn add_key(&mut self, key: AllowedKey) -> Result<(), ()> {
 		match self
 			.authorized_keys
-			.binary_search_by(|k| k.access_key_id.cmp(&key.access_key_id))
+			.binary_search_by(|k| k.key_id.cmp(&key.key_id))
 		{
 			Err(i) => {
 				self.authorized_keys.insert(i, key);
@@ -53,14 +53,17 @@ impl Bucket {
 	pub fn authorized_keys(&self) -> &[AllowedKey] {
 		&self.authorized_keys[..]
 	}
+	pub fn clear_keys(&mut self) {
+		self.authorized_keys.clear();
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct AllowedKey {
-	pub access_key_id: String,
+	pub key_id: String,
 	pub timestamp: u64,
-	pub allowed_read: bool,
-	pub allowed_write: bool,
+	pub allow_read: bool,
+	pub allow_write: bool,
 }
 
 impl Entry<EmptyKey, String> for Bucket {
@@ -83,7 +86,7 @@ impl Entry<EmptyKey, String> for Bucket {
 		for ak in other.authorized_keys.iter() {
 			match self
 				.authorized_keys
-				.binary_search_by(|our_ak| our_ak.access_key_id.cmp(&ak.access_key_id))
+				.binary_search_by(|our_ak| our_ak.key_id.cmp(&ak.key_id))
 			{
 				Ok(i) => {
 					let our_ak = &mut self.authorized_keys[i];

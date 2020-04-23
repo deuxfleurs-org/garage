@@ -19,6 +19,7 @@ use crate::table::*;
 use crate::store::block::*;
 use crate::store::block_ref_table::*;
 use crate::store::bucket_table::*;
+use crate::store::key_table::*;
 use crate::store::object_table::*;
 use crate::store::version_table::*;
 
@@ -35,6 +36,8 @@ pub struct Garage {
 	pub block_manager: Arc<BlockManager>,
 
 	pub bucket_table: Arc<Table<BucketTable, TableFullReplication>>,
+	pub key_table: Arc<Table<KeyTable, TableFullReplication>>,
+
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
@@ -138,6 +141,17 @@ impl Garage {
 		)
 		.await;
 
+		info!("Initialize key_table_table...");
+		let key_table = Table::new(
+			KeyTable,
+			control_rep_param.clone(),
+			system.clone(),
+			&db,
+			"key".to_string(),
+			rpc_server,
+		)
+		.await;
+
 		info!("Initialize Garage...");
 		let garage = Arc::new(Self {
 			config,
@@ -146,6 +160,7 @@ impl Garage {
 			block_manager,
 			background,
 			bucket_table,
+			key_table,
 			object_table,
 			version_table,
 			block_ref_table,

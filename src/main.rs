@@ -172,7 +172,7 @@ pub struct DeleteBucketOpt {
 pub struct PermBucketOpt {
 	/// Access key ID
 	#[structopt(long = "key")]
-	pub key: String,
+	pub key_id: String,
 
 	/// Allow/deny read operations
 	#[structopt(long = "read")]
@@ -192,9 +192,17 @@ pub enum KeyOperation {
 	#[structopt(name = "list")]
 	List,
 
+	/// Get key info
+	#[structopt(name = "info")]
+	Info(KeyOpt),
+
 	/// Create new key
 	#[structopt(name = "new")]
-	New,
+	New(KeyNewOpt),
+
+	/// Rename key
+	#[structopt(name = "rename")]
+	Rename(KeyRenameOpt),
 
 	/// Delete key
 	#[structopt(name = "delete")]
@@ -202,9 +210,35 @@ pub enum KeyOperation {
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyOpt {
+	/// ID of the key
+	key_id: String,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyNewOpt {
+	/// Name of the key
+	#[structopt(long = "name", default_value = "Unnamed key")]
+	name: String,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyRenameOpt {
+	/// ID of the key
+	key_id: String,
+
+	/// New name of the key
+	new_name: String,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct KeyDeleteOpt {
-	/// Name of the bucket to delete
-	bucket: String,
+	/// ID of the key
+	key_id: String,
+
+	/// Confirm deletion
+	#[structopt(long = "yes")]
+	yes: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
@@ -488,6 +522,15 @@ async fn cmd_admin(
 		}
 		AdminRPC::BucketInfo(bucket) => {
 			println!("{:?}", bucket);
+		}
+		AdminRPC::KeyList(kl) => {
+			println!("List of keys:");
+			for key in kl {
+				println!("{}\t{}", key.0, key.1);
+			}
+		}
+		AdminRPC::KeyInfo(key) => {
+			println!("{:?}", key);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

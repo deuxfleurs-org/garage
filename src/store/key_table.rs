@@ -1,16 +1,21 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use crate::data::*;
 use crate::error::Error;
 use crate::table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
 	// Primary key
-	pub access_key_id: String,
+	pub key_id: String,
 
 	// Associated secret key (immutable)
-	pub secret_access_key: String,
+	pub secret_key: String,
+
+	// Name
+	pub name: String,
+	pub name_timestamp: u64,
 
 	// Deletion
 	pub deleted: bool,
@@ -20,12 +25,14 @@ pub struct Key {
 }
 
 impl Key {
-	pub fn new(buckets: Vec<AllowedBucket>) -> Self {
-		let access_key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
-		let secret_access_key = hex::encode(&rand::random::<[u8; 32]>()[..]);
+	pub fn new(name: String, buckets: Vec<AllowedBucket>) -> Self {
+		let key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
+		let secret_key = hex::encode(&rand::random::<[u8; 32]>()[..]);
 		let mut ret = Self {
-			access_key_id,
-			secret_access_key,
+			key_id,
+			secret_key,
+			name,
+			name_timestamp: now_msec(),
 			deleted: false,
 			authorized_buckets: vec![],
 		};
@@ -35,10 +42,12 @@ impl Key {
 		}
 		ret
 	}
-	pub fn delete(access_key_id: String, secret_access_key: String) -> Self {
+	pub fn delete(key_id: String) -> Self {
 		Self {
-			access_key_id,
-			secret_access_key,
+			key_id,
+			secret_key: "".into(),
+			name: "".into(),
+			name_timestamp: now_msec(),
 			deleted: true,
 			authorized_buckets: vec![],
 		}
@@ -59,14 +68,31 @@ impl Key {
 	pub fn authorized_buckets(&self) -> &[AllowedBucket] {
 		&self.authorized_buckets[..]
 	}
+	pub fn clear_buckets(&mut self) {
+		self.authorized_buckets.clear();
+	}
+	pub fn allow_read(&self, bucket: &str) -> bool {
+		self.authorized_buckets
+			.iter()
+			.find(|x| x.bucket.as_str() == bucket)
+			.map(|x| x.allow_read)
+			.unwrap_or(false)
+	}
+	pub fn allow_write(&self, bucket: &str) -> bool {
+		self.authorized_buckets
+			.iter()
+			.find(|x| x.bucket.as_str() == bucket)
+			.map(|x| x.allow_write)
+			.unwrap_or(false)
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct AllowedBucket {
 	pub bucket: String,
 	pub timestamp: u64,
-	pub allowed_read: bool,
-	pub allowed_write: bool,
+	pub allow_read: bool,
+	pub allow_write: bool,
 }
 
 impl Entry<EmptyKey, String> for Key {
@@ -74,14 +100,20 @@ impl Entry<EmptyKey, String> for Key {
 		&EmptyKey
 	}
 	fn sort_key(&self) -> &String {
-		&self.access_key_id
+		&self.key_id
 	}
 
 	fn merge(&mut self, other: &Self) {
 		if other.deleted {
 			self.deleted = true;
+		}
+		if self.deleted {
 			self.authorized_buckets.clear();
 			return;
+		}
+		if other.name_timestamp > self.name_timestamp {
+			self.name_timestamp = other.name_timestamp;
+			self.name = other.name.clone();
 		}
 
 		for ab in other.authorized_buckets.iter() {
