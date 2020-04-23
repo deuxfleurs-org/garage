@@ -67,6 +67,7 @@ impl Error {
 		match self {
 			Error::BadRequest(_) => StatusCode::BAD_REQUEST,
 			Error::NotFound => StatusCode::NOT_FOUND,
+			Error::RPC(_) => StatusCode::SERVICE_UNAVAILABLE,
 			_ => StatusCode::INTERNAL_SERVER_ERROR,
 		}
 	}

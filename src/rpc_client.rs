@@ -41,6 +41,8 @@ pub enum RPCError {
 	RMPEncode(#[error(source)] rmp_serde::encode::Error),
 	#[error(display = "Messagepack decode error: {}", _0)]
 	RMPDecode(#[error(source)] rmp_serde::decode::Error),
+	#[error(display = "Too many errors: {:?}", _0)]
+	TooManyErrors(Vec<String>),
 }
 
 #[derive(Copy, Clone)]
@@ -222,11 +224,8 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 
 			Ok(results)
 		} else {
-			let mut msg = "Too many failures:".to_string();
-			for e in errors {
-				msg += &format!("\n{}", e);
-			}
-			Err(Error::Message(msg))
+			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
+			Err(Error::from(RPCError::TooManyErrors(errors)))
 		}
 	}
 }

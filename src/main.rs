@@ -326,7 +326,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 					cfg.tag,
 					cfg.datacenter,
 					cfg.n_tokens,
-					(now_msec() - adv.last_seen)/1000,
+					(now_msec() - adv.last_seen) / 1000,
 				);
 			}
 		}
