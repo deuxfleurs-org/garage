@@ -20,7 +20,38 @@ pub struct Object {
 	pub key: String,
 
 	// Data
-	pub versions: Vec<Box<ObjectVersion>>,
+	versions: Vec<ObjectVersion>,
+}
+
+impl Object {
+	pub fn new(bucket: String, key: String, versions: Vec<ObjectVersion>) -> Self {
+		let mut ret = Self {
+			bucket,
+			key,
+			versions: vec![],
+		};
+		for v in versions {
+			ret.add_version(v)
+				.expect("Twice the same ObjectVersion in Object constructor");
+		}
+		ret
+	}
+	/// Adds a version if it wasn't already present
+	pub fn add_version(&mut self, new: ObjectVersion) -> Result<(), ()> {
+		match self
+			.versions
+			.binary_search_by(|v| v.cmp_key().cmp(&new.cmp_key()))
+		{
+			Err(i) => {
+				self.versions.insert(i, new);
+				Ok(())
+			}
+			Ok(_) => Err(()),
+		}
+	}
+	pub fn versions(&self) -> &[ObjectVersion] {
+		&self.versions[..]
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -113,13 +144,13 @@ impl TableSchema for ObjectTable {
 					.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
 					.is_err()
 				{
-					let deleted_version = Version {
-						uuid: v.uuid,
-						deleted: true,
-						blocks: vec![],
-						bucket: old_v.bucket.clone(),
-						key: old_v.key.clone(),
-					};
+					let deleted_version = Version::new(
+						v.uuid,
+						old_v.bucket.clone(),
+						old_v.key.clone(),
+						true,
+						vec![],
+					);
 					version_table.insert(&deleted_version).await?;
 				}
 			}

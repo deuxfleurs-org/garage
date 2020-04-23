@@ -15,7 +15,44 @@ pub struct Bucket {
 	pub deleted: bool,
 
 	// Authorized keys
-	pub authorized_keys: Vec<AllowedKey>,
+	authorized_keys: Vec<AllowedKey>,
+}
+
+impl Bucket {
+	pub fn new(
+		name: String,
+		timestamp: u64,
+		deleted: bool,
+		authorized_keys: Vec<AllowedKey>,
+	) -> Self {
+		let mut ret = Bucket {
+			name,
+			timestamp,
+			deleted,
+			authorized_keys: vec![],
+		};
+		for key in authorized_keys {
+			ret.add_key(key)
+				.expect("Duplicate AllowedKey in Bucket constructor");
+		}
+		ret
+	}
+	/// Add a key only if it is not already present
+	pub fn add_key(&mut self, key: AllowedKey) -> Result<(), ()> {
+		match self
+			.authorized_keys
+			.binary_search_by(|k| k.access_key_id.cmp(&key.access_key_id))
+		{
+			Err(i) => {
+				self.authorized_keys.insert(i, key);
+				Ok(())
+			}
+			Ok(_) => Err(()),
+		}
+	}
+	pub fn authorized_keys(&self) -> &[AllowedKey] {
+		&self.authorized_keys[..]
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -39,9 +76,10 @@ impl Entry<EmptyKey, String> for Bucket {
 			*self = other.clone();
 			return;
 		}
-		if self.timestamp > other.timestamp {
+		if self.timestamp > other.timestamp || self.deleted {
 			return;
 		}
+
 		for ak in other.authorized_keys.iter() {
 			match self
 				.authorized_keys
@@ -50,9 +88,7 @@ impl Entry<EmptyKey, String> for Bucket {
 				Ok(i) => {
 					let our_ak = &mut self.authorized_keys[i];
 					if ak.timestamp > our_ak.timestamp {
-						our_ak.timestamp = ak.timestamp;
-						our_ak.allowed_read = ak.allowed_read;
-						our_ak.allowed_write = ak.allowed_write;
+						*our_ak = ak.clone();
 					}
 				}
 				Err(i) => {

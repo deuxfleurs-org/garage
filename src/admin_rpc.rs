@@ -100,12 +100,7 @@ impl AdminRpcHandler {
 				};
 				self.garage
 					.bucket_table
-					.insert(&Bucket {
-						name: query.name.clone(),
-						timestamp: new_time,
-						deleted: false,
-						authorized_keys: vec![],
-					})
+					.insert(&Bucket::new(query.name.clone(), new_time, false, vec![]))
 					.await?;
 				Ok(AdminRPC::Ok(format!("Bucket {} was created.", query.name)))
 			}
@@ -143,12 +138,12 @@ impl AdminRpcHandler {
 				}
 				self.garage
 					.bucket_table
-					.insert(&Bucket {
-						name: query.name.clone(),
-						timestamp: std::cmp::max(bucket.timestamp + 1, now_msec()),
-						deleted: true,
-						authorized_keys: vec![],
-					})
+					.insert(&Bucket::new(
+						query.name.clone(),
+						std::cmp::max(bucket.timestamp + 1, now_msec()),
+						true,
+						vec![],
+					))
 					.await?;
 				Ok(AdminRPC::Ok(format!("Bucket {} was deleted.", query.name)))
 			}
@@ -292,7 +287,7 @@ impl AdminRpcHandler {
 				.get(&version.bucket, &version.key)
 				.await?;
 			let version_exists = match object {
-				Some(o) => o.versions.iter().any(|x| x.uuid == version.uuid),
+				Some(o) => o.versions().iter().any(|x| x.uuid == version.uuid),
 				None => {
 					warn!(
 						"Repair versions: object for version {:?} not found",
@@ -305,13 +300,13 @@ impl AdminRpcHandler {
 				info!("Repair versions: marking version as deleted: {:?}", version);
 				self.garage
 					.version_table
-					.insert(&Version {
-						uuid: version.uuid,
-						deleted: true,
-						blocks: vec![],
-						bucket: version.bucket,
-						key: version.key,
-					})
+					.insert(&Version::new(
+						version.uuid,
+						version.bucket,
+						version.key,
+						true,
+						vec![],
+					))
 					.await?;
 			}
 

@@ -119,37 +119,29 @@ async fn handle_put(
 		None => return Err(Error::BadRequest(format!("Empty body"))),
 	};
 
-	let mut object = Object {
-		bucket: bucket.into(),
-		key: key.into(),
-		versions: Vec::new(),
-	};
-	object.versions.push(Box::new(ObjectVersion {
+	let mut object_version = ObjectVersion {
 		uuid: version_uuid,
 		timestamp: now_msec(),
 		mime_type: mime_type.to_string(),
 		size: first_block.len() as u64,
 		is_complete: false,
 		data: ObjectVersionData::DeleteMarker,
-	}));
+	};
 
 	if first_block.len() < INLINE_THRESHOLD {
-		object.versions[0].data = ObjectVersionData::Inline(first_block);
-		object.versions[0].is_complete = true;
+		object_version.data = ObjectVersionData::Inline(first_block);
+		object_version.is_complete = true;
+
+		let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
 		return Ok(version_uuid);
 	}
 
-	let version = Version {
-		uuid: version_uuid,
-		deleted: false,
-		blocks: Vec::new(),
-		bucket: bucket.into(),
-		key: key.into(),
-	};
+	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
 
 	let first_block_hash = hash(&first_block[..]);
-	object.versions[0].data = ObjectVersionData::FirstBlock(first_block_hash);
+	object_version.data = ObjectVersionData::FirstBlock(first_block_hash);
+	let object = Object::new(bucket.into(), key.into(), vec![object_version.clone()]);
 	garage.object_table.insert(&object).await?;
 
 	let mut next_offset = first_block.len();
@@ -175,9 +167,12 @@ async fn handle_put(
 
 	// TODO: if at any step we have an error, we should undo everything we did
 
-	object.versions[0].is_complete = true;
-	object.versions[0].size = next_offset as u64;
+	object_version.is_complete = true;
+	object_version.size = next_offset as u64;
+
+	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
+
 	Ok(version_uuid)
 }
 
@@ -187,8 +182,9 @@ async fn put_block_meta(
 	offset: u64,
 	hash: Hash,
 ) -> Result<(), Error> {
+	// TODO: don't clone, restart from empty block list ??
 	let mut version = version.clone();
-	version.blocks.push(VersionBlock { offset, hash: hash });
+	version.add_block(VersionBlock { offset, hash }).unwrap();
 
 	let block_ref = BlockRef {
 		block: hash,
@@ -250,7 +246,7 @@ async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<U
 		None => false,
 		Some(o) => {
 			let mut has_active_version = false;
-			for v in o.versions.iter() {
+			for v in o.versions().iter() {
 				if v.data != ObjectVersionData::DeleteMarker {
 					has_active_version = true;
 					break;
@@ -267,19 +263,18 @@ async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<U
 
 	let version_uuid = gen_uuid();
 
-	let mut object = Object {
-		bucket: bucket.into(),
-		key: key.into(),
-		versions: Vec::new(),
-	};
-	object.versions.push(Box::new(ObjectVersion {
-		uuid: version_uuid,
-		timestamp: now_msec(),
-		mime_type: "application/x-delete-marker".into(),
-		size: 0,
-		is_complete: true,
-		data: ObjectVersionData::DeleteMarker,
-	}));
+	let object = Object::new(
+		bucket.into(),
+		key.into(),
+		vec![ObjectVersion {
+			uuid: version_uuid,
+			timestamp: now_msec(),
+			mime_type: "application/x-delete-marker".into(),
+			size: 0,
+			is_complete: true,
+			data: ObjectVersionData::DeleteMarker,
+		}],
+	);
 
 	garage.object_table.insert(&object).await?;
 	return Ok(version_uuid);
@@ -290,7 +285,7 @@ async fn handle_get(
 	bucket: &str,
 	key: &str,
 ) -> Result<Response<BodyType>, Error> {
-	let mut object = match garage
+	let object = match garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?
@@ -300,8 +295,8 @@ async fn handle_get(
 	};
 
 	let last_v = match object
-		.versions
-		.drain(..)
+		.versions()
+		.iter()
 		.rev()
 		.filter(|v| v.is_complete)
 		.next()
@@ -311,13 +306,13 @@ async fn handle_get(
 	};
 
 	let resp_builder = Response::builder()
-		.header("Content-Type", last_v.mime_type)
+		.header("Content-Type", last_v.mime_type.to_string())
 		.status(StatusCode::OK);
 
-	match last_v.data {
+	match &last_v.data {
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),
 		ObjectVersionData::Inline(bytes) => {
-			let body: BodyType = Box::new(BytesBody::from(bytes));
+			let body: BodyType = Box::new(BytesBody::from(bytes.to_vec()));
 			Ok(resp_builder.body(body)?)
 		}
 		ObjectVersionData::FirstBlock(first_block_hash) => {
@@ -331,7 +326,7 @@ async fn handle_get(
 			};
 
 			let mut blocks = version
-				.blocks
+				.blocks()
 				.iter()
 				.map(|vb| (vb.hash, None))
 				.collect::<Vec<_>>();

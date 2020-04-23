@@ -18,12 +18,48 @@ pub struct Version {
 
 	// Actual data: the blocks for this version
 	pub deleted: bool,
-	pub blocks: Vec<VersionBlock>,
+	blocks: Vec<VersionBlock>,
 
 	// Back link to bucket+key so that we can figure if
 	// this was deleted later on
 	pub bucket: String,
 	pub key: String,
+}
+
+impl Version {
+	pub fn new(
+		uuid: UUID,
+		bucket: String,
+		key: String,
+		deleted: bool,
+		blocks: Vec<VersionBlock>,
+	) -> Self {
+		let mut ret = Self {
+			uuid,
+			deleted,
+			blocks: vec![],
+			bucket,
+			key,
+		};
+		for b in blocks {
+			ret.add_block(b)
+				.expect("Twice the same VersionBlock in Version constructor");
+		}
+		ret
+	}
+	/// Adds a block if it wasn't already present
+	pub fn add_block(&mut self, new: VersionBlock) -> Result<(), ()> {
+		match self.blocks.binary_search_by(|b| b.offset.cmp(&new.offset)) {
+			Err(i) => {
+				self.blocks.insert(i, new);
+				Ok(())
+			}
+			Ok(_) => Err(()),
+		}
+	}
+	pub fn blocks(&self) -> &[VersionBlock] {
+		&self.blocks[..]
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
