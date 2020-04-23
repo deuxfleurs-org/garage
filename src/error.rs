@@ -3,6 +3,7 @@ use hyper::StatusCode;
 use std::io;
 
 use crate::data::Hash;
+use crate::rpc_client::RPCError;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -33,7 +34,6 @@ pub enum Error {
 	RMPDecode(#[error(source)] rmp_serde::decode::Error),
 	#[error(display = "JSON error: {}", _0)]
 	JSON(#[error(source)] serde_json::error::Error),
-
 	#[error(display = "TOML decode error: {}", _0)]
 	TomlDecode(#[error(source)] toml::de::Error),
 
@@ -43,8 +43,11 @@ pub enum Error {
 	#[error(display = "Tokio join error: {}", _0)]
 	TokioJoin(#[error(source)] tokio::task::JoinError),
 
-	#[error(display = "RPC error: {} (status code {})", _0, _1)]
-	RPCError(String, StatusCode),
+	#[error(display = "RPC call error: {}", _0)]
+	RPC(#[error(source)] RPCError),
+
+	#[error(display = "Remote error: {} (status code {})", _0, _1)]
+	RemoteError(String, StatusCode),
 
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),

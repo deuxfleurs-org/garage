@@ -5,12 +5,6 @@ How are we going to test that our replication method works correctly?
 We will have to introduce lots of dummy data and then add/remove nodes many times.
 
 
-Improvements
-------------
-
-Membership: keep IP addresses of failed nodes and try to reping them regularly
-
-
 Attaining S3 compatibility
 --------------------------
 
