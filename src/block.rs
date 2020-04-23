@@ -317,7 +317,7 @@ impl BlockManager {
 								e
 							)));
 						}
-						_ => {
+						Ok(_) => {
 							return Err(Error::Message(format!(
 								"Unexpected response to NeedBlockQuery RPC"
 							)));
@@ -327,13 +327,14 @@ impl BlockManager {
 
 				if need_nodes.len() > 0 {
 					let put_block_message = self.read_block(hash).await?;
-					let put_responses = self
-						.rpc_client
-						.call_many(&need_nodes[..], put_block_message, BLOCK_RW_TIMEOUT)
-						.await;
-					for resp in put_responses {
-						resp?;
-					}
+					self.rpc_client
+						.try_call_many(
+							&need_nodes[..],
+							put_block_message,
+							RequestStrategy::with_quorum(need_nodes.len())
+								.with_timeout(BLOCK_RW_TIMEOUT),
+						)
+						.await?;
 				}
 			}
 			fs::remove_file(path).await?;
@@ -354,17 +355,20 @@ impl BlockManager {
 	pub async fn rpc_get_block(&self, hash: &Hash) -> Result<Vec<u8>, Error> {
 		let ring = self.system.ring.borrow().clone();
 		let who = ring.walk_ring(&hash, self.system.config.data_replication_factor);
-		let msg = Arc::new(Message::GetBlock(*hash));
-		let mut resp_stream = who
-			.iter()
-			.map(|to| self.rpc_client.call(to, msg.clone(), BLOCK_RW_TIMEOUT))
-			.collect::<FuturesUnordered<_>>();
+		let resps = self
+			.rpc_client
+			.try_call_many(
+				&who[..],
+				Message::GetBlock(*hash),
+				RequestStrategy::with_quorum(1)
+					.with_timeout(BLOCK_RW_TIMEOUT)
+					.interrupt_after_quorum(true),
+			)
+			.await?;
 
-		while let Some(resp) = resp_stream.next().await {
-			if let Ok(Message::PutBlock(msg)) = resp {
-				if data::hash(&msg.data[..]) == *hash {
-					return Ok(msg.data);
-				}
+		for resp in resps {
+			if let Message::PutBlock(msg) = resp {
+				return Ok(msg.data);
 			}
 		}
 		Err(Error::Message(format!(
@@ -380,8 +384,8 @@ impl BlockManager {
 			.try_call_many(
 				&who[..],
 				Message::PutBlock(PutBlockMessage { hash, data }),
-				(self.system.config.data_replication_factor + 1) / 2,
-				BLOCK_RW_TIMEOUT,
+				RequestStrategy::with_quorum((self.system.config.data_replication_factor + 1) / 2)
+					.with_timeout(BLOCK_RW_TIMEOUT),
 			)
 			.await?;
 		Ok(())

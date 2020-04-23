@@ -179,8 +179,8 @@ where
 			.try_call_many(
 				&who[..],
 				rpc,
-				self.replication.write_quorum(),
-				TABLE_RPC_TIMEOUT,
+				RequestStrategy::with_quorum(self.replication.write_quorum())
+					.with_timeout(TABLE_RPC_TIMEOUT),
 			)
 			.await?;
 		Ok(())
@@ -237,8 +237,9 @@ where
 			.try_call_many(
 				&who[..],
 				rpc,
-				self.replication.read_quorum(),
-				TABLE_RPC_TIMEOUT,
+				RequestStrategy::with_quorum(self.replication.read_quorum())
+					.with_timeout(TABLE_RPC_TIMEOUT)
+					.interrupt_after_quorum(true),
 			)
 			.await?;
 
@@ -292,8 +293,9 @@ where
 			.try_call_many(
 				&who[..],
 				rpc,
-				self.replication.read_quorum(),
-				TABLE_RPC_TIMEOUT,
+				RequestStrategy::with_quorum(self.replication.read_quorum())
+					.with_timeout(TABLE_RPC_TIMEOUT)
+					.interrupt_after_quorum(true),
 			)
 			.await?;
 
@@ -347,8 +349,7 @@ where
 			.try_call_many(
 				&who[..],
 				TableRPC::<F>::Update(vec![what_enc]),
-				who.len(),
-				TABLE_RPC_TIMEOUT,
+				RequestStrategy::with_quorum(who.len()).with_timeout(TABLE_RPC_TIMEOUT),
 			)
 			.await?;
 		Ok(())

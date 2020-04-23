@@ -12,10 +12,6 @@ Membership: keep IP addresses of failed nodes and try to reping them regularly
 
 RPC client/server: do not go through the serialization+HTTP+TLS+deserialization when doing a request to ourself.
 
-RPC requests: unify quorum + timeout in a "RequestStrategy" class,
-and add to the request strategy whether or not the request should continue in the background
-once `quorum` valid responses have been received
-
 
 Attaining S3 compatibility
 --------------------------
