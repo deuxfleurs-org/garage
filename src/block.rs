@@ -96,19 +96,27 @@ impl BlockManager {
 	}
 
 	fn register_handler(self: Arc<Self>, rpc_server: &mut RpcServer, path: String) {
+		let self2 = self.clone();
 		rpc_server.add_handler::<Message, _, _>(path, move |msg, _addr| {
-			let self2 = self.clone();
-			async move {
-				match msg {
-					Message::PutBlock(m) => self2.write_block(&m.hash, &m.data).await,
-					Message::GetBlock(h) => self2.read_block(&h).await,
-					Message::NeedBlockQuery(h) => {
-						self2.need_block(&h).await.map(Message::NeedBlockReply)
-					}
-					_ => Err(Error::BadRequest(format!("Unexpected RPC message"))),
-				}
-			}
+			let self2 = self2.clone();
+			async move { self2.handle(&msg).await }
 		});
+
+		let self2 = self.clone();
+		self.rpc_client
+			.set_local_handler(self.system.id, move |msg| {
+				let self2 = self2.clone();
+				async move { self2.handle(&msg).await }
+			});
+	}
+
+	async fn handle(self: Arc<Self>, msg: &Message) -> Result<Message, Error> {
+		match msg {
+			Message::PutBlock(m) => self.write_block(&m.hash, &m.data).await,
+			Message::GetBlock(h) => self.read_block(h).await,
+			Message::NeedBlockQuery(h) => self.need_block(h).await.map(Message::NeedBlockReply),
+			_ => Err(Error::BadRequest(format!("Unexpected RPC message"))),
+		}
 	}
 
 	pub async fn spawn_background_worker(self: Arc<Self>) {
@@ -299,7 +307,7 @@ impl BlockManager {
 				let msg = Arc::new(Message::NeedBlockQuery(*hash));
 				let who_needs_fut = who.iter().map(|to| {
 					self.rpc_client
-						.call(to, msg.clone(), NEED_BLOCK_QUERY_TIMEOUT)
+						.call_arc(*to, msg.clone(), NEED_BLOCK_QUERY_TIMEOUT)
 				});
 				let who_needs = join_all(who_needs_fut).await;
 

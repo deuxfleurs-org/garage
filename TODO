@@ -10,8 +10,6 @@ Improvements
 
 Membership: keep IP addresses of failed nodes and try to reping them regularly
 
-RPC client/server: do not go through the serialization+HTTP+TLS+deserialization when doing a request to ourself.
-
 
 Attaining S3 compatibility
 --------------------------

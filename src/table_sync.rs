@@ -457,8 +457,8 @@ where
 			.table
 			.rpc_client
 			.call(
-				&who,
-				&TableRPC::<F>::SyncRPC(SyncRPC::GetRootChecksumRange(
+				who,
+				TableRPC::<F>::SyncRPC(SyncRPC::GetRootChecksumRange(
 					partition.begin.clone(),
 					partition.end.clone(),
 				)),
@@ -496,8 +496,8 @@ where
 				.table
 				.rpc_client
 				.call(
-					&who,
-					&TableRPC::<F>::SyncRPC(SyncRPC::Checksums(step, retain)),
+					who,
+					TableRPC::<F>::SyncRPC(SyncRPC::Checksums(step, retain)),
 					TABLE_SYNC_RPC_TIMEOUT,
 				)
 				.await?;
@@ -523,7 +523,7 @@ where
 					}
 				}
 				if retain && diff_items.len() > 0 {
-					self.table.handle_update(diff_items).await?;
+					self.table.handle_update(&diff_items[..]).await?;
 				}
 				if items_to_send.len() > 0 {
 					self.send_items(who, items_to_send).await?;
@@ -555,7 +555,7 @@ where
 		let rpc_resp = self
 			.table
 			.rpc_client
-			.call(&who, &TableRPC::<F>::Update(values), TABLE_SYNC_RPC_TIMEOUT)
+			.call(who, TableRPC::<F>::Update(values), TABLE_SYNC_RPC_TIMEOUT)
 			.await?;
 		if let TableRPC::<F>::Ok = rpc_resp {
 			Ok(())

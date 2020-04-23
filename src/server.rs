@@ -35,8 +35,8 @@ pub struct Config {
 
 	pub bootstrap_peers: Vec<SocketAddr>,
 
-	#[serde(default = "default_max_concurrent_requests")]
-	pub max_concurrent_requests: usize,
+	#[serde(default = "default_max_concurrent_rpc_requests")]
+	pub max_concurrent_rpc_requests: usize,
 
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
@@ -53,7 +53,7 @@ pub struct Config {
 	pub rpc_tls: Option<TlsConfig>,
 }
 
-fn default_max_concurrent_requests() -> usize {
+fn default_max_concurrent_rpc_requests() -> usize {
 	12
 }
 fn default_block_size() -> usize {
@@ -262,7 +262,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Initializing background runner...");
 	let (send_cancel, watch_cancel) = watch::channel(false);
-	let background = BackgroundRunner::new(8, watch_cancel.clone());
+	let background = BackgroundRunner::new(16, watch_cancel.clone());
 
 	let garage = Garage::new(config, id, db, background.clone(), &mut rpc_server).await;
 

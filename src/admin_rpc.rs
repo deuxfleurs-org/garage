@@ -172,7 +172,7 @@ impl AdminRpcHandler {
 				if self
 					.rpc_client
 					.call(
-						node,
+						*node,
 						AdminRPC::LaunchRepair(opt_to_send.clone()),
 						ADMIN_RPC_TIMEOUT,
 					)

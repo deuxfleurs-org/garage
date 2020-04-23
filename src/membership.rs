@@ -297,7 +297,7 @@ impl System {
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
 		let rpc_http_client = Arc::new(
-			RpcHttpClient::new(config.max_concurrent_requests, &config.rpc_tls)
+			RpcHttpClient::new(config.max_concurrent_rpc_requests, &config.rpc_tls)
 				.expect("Could not create RPC client"),
 		);
 
@@ -633,7 +633,7 @@ impl System {
 		async move {
 			let resp = self
 				.rpc_client
-				.call(&peer, Message::PullStatus, PING_TIMEOUT)
+				.call(peer, Message::PullStatus, PING_TIMEOUT)
 				.await;
 			if let Ok(Message::AdvertiseNodesUp(nodes)) = resp {
 				let _: Result<_, _> = self.handle_advertise_nodes_up(&nodes).await;
@@ -644,7 +644,7 @@ impl System {
 	pub async fn pull_config(self: Arc<Self>, peer: UUID) {
 		let resp = self
 			.rpc_client
-			.call(&peer, Message::PullConfig, PING_TIMEOUT)
+			.call(peer, Message::PullConfig, PING_TIMEOUT)
 			.await;
 		if let Ok(Message::AdvertiseConfig(config)) = resp {
 			let _: Result<_, _> = self.handle_advertise_config(&config).await;
