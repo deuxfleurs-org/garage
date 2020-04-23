@@ -10,10 +10,12 @@ use serde_bytes::ByteBuf;
 
 use crate::data::*;
 use crate::error::Error;
-use crate::membership::{Ring, System};
-use crate::rpc_client::*;
-use crate::rpc_server::*;
-use crate::table_sync::*;
+
+use crate::rpc::membership::{Ring, System};
+use crate::rpc::rpc_client::*;
+use crate::rpc::rpc_server::*;
+
+use crate::table::table_sync::*;
 
 const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 

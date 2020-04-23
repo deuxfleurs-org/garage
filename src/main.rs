@@ -3,29 +3,18 @@
 #[macro_use]
 extern crate log;
 
+mod background;
+mod config;
 mod data;
 mod error;
 
-mod background;
-mod membership;
+mod api;
+mod rpc;
+mod store;
 mod table;
-mod table_fullcopy;
-mod table_sharded;
-mod table_sync;
-
-mod block;
-mod block_ref_table;
-mod bucket_table;
-mod object_table;
-mod version_table;
 
 mod admin_rpc;
-mod api_server;
-mod http_util;
-mod rpc_client;
-mod rpc_server;
 mod server;
-mod tls_util;
 
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -36,11 +25,12 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
+use config::TlsConfig;
 use data::*;
 use error::Error;
-use membership::*;
-use rpc_client::*;
-use server::TlsConfig;
+
+use rpc::membership::*;
+use rpc::rpc_client::*;
 
 use admin_rpc::*;
 

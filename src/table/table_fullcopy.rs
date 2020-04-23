@@ -2,7 +2,7 @@ use arc_swap::ArcSwapOption;
 use std::sync::Arc;
 
 use crate::data::*;
-use crate::membership::{Ring, System};
+use crate::rpc::membership::{Ring, System};
 use crate::table::*;
 
 #[derive(Clone)]

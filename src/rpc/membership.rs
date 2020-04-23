@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash as StdHash;
 use std::hash::Hasher;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -20,9 +20,9 @@ use tokio::sync::Mutex;
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::error::Error;
-use crate::rpc_client::*;
-use crate::rpc_server::*;
-use crate::server::Config;
+
+use crate::rpc::rpc_client::*;
+use crate::rpc::rpc_server::*;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(2);
@@ -78,8 +78,9 @@ pub struct NetworkConfigEntry {
 }
 
 pub struct System {
-	pub config: Config,
 	pub id: UUID,
+	pub data_dir: PathBuf,
+	pub rpc_local_port: u16,
 
 	pub state_info: StateInfo,
 
@@ -251,6 +252,29 @@ impl Ring {
 	}
 }
 
+fn gen_node_id(metadata_dir: &PathBuf) -> Result<UUID, Error> {
+	let mut id_file = metadata_dir.clone();
+	id_file.push("node_id");
+	if id_file.as_path().exists() {
+		let mut f = std::fs::File::open(id_file.as_path())?;
+		let mut d = vec![];
+		f.read_to_end(&mut d)?;
+		if d.len() != 32 {
+			return Err(Error::Message(format!("Corrupt node_id file")));
+		}
+
+		let mut id = [0u8; 32];
+		id.copy_from_slice(&d[..]);
+		Ok(id.into())
+	} else {
+		let id = gen_uuid();
+
+		let mut f = std::fs::File::create(id_file.as_path())?;
+		f.write_all(id.as_slice())?;
+		Ok(id)
+	}
+}
+
 fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {
 	let mut path = metadata_dir.clone();
 	path.push("network_config");
@@ -270,12 +294,15 @@ fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {
 
 impl System {
 	pub fn new(
-		config: Config,
-		id: UUID,
+		data_dir: PathBuf,
+		rpc_http_client: Arc<RpcHttpClient>,
 		background: Arc<BackgroundRunner>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
-		let net_config = match read_network_config(&config.metadata_dir) {
+		let id = gen_node_id(&data_dir).expect("Unable to read or generate node ID");
+		info!("Node ID: {}", hex::encode(&id));
+
+		let net_config = match read_network_config(&data_dir) {
 			Ok(x) => x,
 			Err(e) => {
 				info!(
@@ -309,11 +336,6 @@ impl System {
 		ring.rebuild_ring();
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
-		let rpc_http_client = Arc::new(
-			RpcHttpClient::new(config.max_concurrent_rpc_requests, &config.rpc_tls)
-				.expect("Could not create RPC client"),
-		);
-
 		let rpc_path = MEMBERSHIP_RPC_PATH.to_string();
 		let rpc_client = RpcClient::new(
 			RpcAddrClient::<Message>::new(rpc_http_client.clone(), rpc_path.clone()),
@@ -322,8 +344,9 @@ impl System {
 		);
 
 		let sys = Arc::new(System {
-			config,
 			id,
+			data_dir,
+			rpc_local_port: rpc_server.bind_addr.port(),
 			state_info,
 			rpc_http_client,
 			rpc_client,
@@ -363,7 +386,7 @@ impl System {
 	}
 
 	async fn save_network_config(self: Arc<Self>) -> Result<(), Error> {
-		let mut path = self.config.metadata_dir.clone();
+		let mut path = self.data_dir.clone();
 		path.push("network_config");
 
 		let ring = self.ring.borrow().clone();
@@ -379,7 +402,7 @@ impl System {
 		let ring = self.ring.borrow().clone();
 		Message::Ping(PingMessage {
 			id: self.id,
-			rpc_port: self.config.rpc_bind_addr.port(),
+			rpc_port: self.rpc_local_port,
 			status_hash: status.hash,
 			config_version: ring.config.version,
 			state_info: self.state_info.clone(),
@@ -397,13 +420,8 @@ impl System {
 		self.rpc_client.call_many(&to[..], msg, timeout).await;
 	}
 
-	pub async fn bootstrap(self: Arc<Self>) {
-		let bootstrap_peers = self
-			.config
-			.bootstrap_peers
-			.iter()
-			.map(|ip| (*ip, None))
-			.collect::<Vec<_>>();
+	pub async fn bootstrap(self: Arc<Self>, peers: &[SocketAddr]) {
+		let bootstrap_peers = peers.iter().map(|ip| (*ip, None)).collect::<Vec<_>>();
 		self.clone().ping_nodes(bootstrap_peers).await;
 
 		self.clone()
@@ -557,7 +575,7 @@ impl System {
 		for node in adv.iter() {
 			if node.id == self.id {
 				// learn our own ip address
-				let self_addr = SocketAddr::new(node.addr.ip(), self.config.rpc_bind_addr.port());
+				let self_addr = SocketAddr::new(node.addr.ip(), self.rpc_local_port);
 				let old_self = status.nodes.insert(
 					node.id,
 					Arc::new(StatusEntry {

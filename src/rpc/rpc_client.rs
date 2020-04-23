@@ -20,10 +20,12 @@ use tokio::sync::{watch, Semaphore};
 use crate::background::BackgroundRunner;
 use crate::data::*;
 use crate::error::Error;
-use crate::membership::Status;
-use crate::rpc_server::RpcMessage;
-use crate::server::TlsConfig;
-use crate::tls_util;
+
+use crate::rpc::membership::Status;
+use crate::rpc::rpc_server::RpcMessage;
+use crate::rpc::tls_util;
+
+use crate::config::TlsConfig;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 

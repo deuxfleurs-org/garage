@@ -11,14 +11,16 @@ use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
 use crate::data::*;
 use crate::error::Error;
-use crate::http_util::*;
+use crate::server::Garage;
+
 use crate::table::EmptyKey;
 
-use crate::block::INLINE_THRESHOLD;
-use crate::block_ref_table::*;
-use crate::object_table::*;
-use crate::server::Garage;
-use crate::version_table::*;
+use crate::store::block::INLINE_THRESHOLD;
+use crate::store::block_ref_table::*;
+use crate::store::object_table::*;
+use crate::store::version_table::*;
+
+use crate::api::http_util::*;
 
 type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
 
@@ -26,7 +28,7 @@ pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
 ) -> Result<(), Error> {
-	let addr = &garage.system.config.api_bind_addr;
+	let addr = &garage.config.api_bind_addr;
 
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
@@ -111,7 +113,7 @@ async fn handle_put(
 ) -> Result<UUID, Error> {
 	let version_uuid = gen_uuid();
 
-	let mut chunker = BodyChunker::new(body, garage.system.config.block_size);
+	let mut chunker = BodyChunker::new(body, garage.config.block_size);
 	let first_block = match chunker.next().await? {
 		Some(x) => x,
 		None => return Err(Error::BadRequest(format!("Empty body"))),

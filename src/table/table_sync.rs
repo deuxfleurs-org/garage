@@ -14,7 +14,7 @@ use tokio::sync::{mpsc, watch};
 
 use crate::data::*;
 use crate::error::Error;
-use crate::membership::Ring;
+use crate::rpc::membership::Ring;
 use crate::table::*;
 
 const MAX_DEPTH: usize = 16;

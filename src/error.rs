@@ -3,7 +3,7 @@ use hyper::StatusCode;
 use std::io;
 
 use crate::data::Hash;
-use crate::rpc_client::RPCError;
+use crate::rpc::rpc_client::RPCError;
 
 #[derive(Debug, Error)]
 pub enum Error {

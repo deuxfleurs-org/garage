@@ -16,10 +16,11 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
+use crate::config::TlsConfig;
 use crate::data::*;
 use crate::error::Error;
-use crate::server::TlsConfig;
-use crate::tls_util;
+
+use crate::rpc::tls_util;
 
 pub trait RpcMessage: Serialize + for<'de> Deserialize<'de> + Send + Sync {}
 

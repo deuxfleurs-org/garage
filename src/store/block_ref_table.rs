@@ -5,9 +5,10 @@ use std::sync::Arc;
 use crate::background::*;
 use crate::data::*;
 use crate::error::Error;
+
 use crate::table::*;
 
-use crate::block::*;
+use crate::store::block::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {

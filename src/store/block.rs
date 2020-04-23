@@ -14,11 +14,16 @@ use tokio::sync::{watch, Mutex, Notify};
 use crate::data;
 use crate::data::*;
 use crate::error::Error;
-use crate::membership::System;
-use crate::rpc_client::*;
-use crate::rpc_server::*;
 
-use crate::block_ref_table::*;
+use crate::rpc::membership::System;
+use crate::rpc::rpc_client::*;
+use crate::rpc::rpc_server::*;
+
+use crate::table::table_sharded::TableShardedReplication;
+use crate::table::TableReplication;
+
+use crate::store::block_ref_table::*;
+
 use crate::server::Garage;
 
 pub const INLINE_THRESHOLD: usize = 3072;
@@ -47,6 +52,7 @@ pub struct PutBlockMessage {
 impl RpcMessage for Message {}
 
 pub struct BlockManager {
+	pub replication: TableShardedReplication,
 	pub data_dir: PathBuf,
 	pub data_dir_lock: Mutex<()>,
 
@@ -64,6 +70,7 @@ impl BlockManager {
 	pub fn new(
 		db: &sled::Db,
 		data_dir: PathBuf,
+		replication: TableShardedReplication,
 		system: Arc<System>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
@@ -80,6 +87,7 @@ impl BlockManager {
 		let rpc_client = system.rpc_client::<Message>(rpc_path);
 
 		let block_manager = Arc::new(Self {
+			replication,
 			data_dir,
 			data_dir_lock: Mutex::new(()),
 			rc,
@@ -302,8 +310,8 @@ impl BlockManager {
 				.await?;
 			let needed_by_others = !active_refs.is_empty();
 			if needed_by_others {
-				let ring = garage.system.ring.borrow().clone();
-				let who = ring.walk_ring(&hash, garage.system.config.data_replication_factor);
+				let ring = self.system.ring.borrow().clone();
+				let who = self.replication.replication_nodes(&hash, &ring);
 				let msg = Arc::new(Message::NeedBlockQuery(*hash));
 				let who_needs_fut = who.iter().map(|to| {
 					self.rpc_client
@@ -361,8 +369,7 @@ impl BlockManager {
 	}
 
 	pub async fn rpc_get_block(&self, hash: &Hash) -> Result<Vec<u8>, Error> {
-		let ring = self.system.ring.borrow().clone();
-		let who = ring.walk_ring(&hash, self.system.config.data_replication_factor);
+		let who = self.replication.read_nodes(&hash, &self.system);
 		let resps = self
 			.rpc_client
 			.try_call_many(
@@ -386,13 +393,12 @@ impl BlockManager {
 	}
 
 	pub async fn rpc_put_block(&self, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
-		let ring = self.system.ring.borrow().clone();
-		let who = ring.walk_ring(&hash, self.system.config.data_replication_factor);
+		let who = self.replication.write_nodes(&hash, &self.system);
 		self.rpc_client
 			.try_call_many(
 				&who[..],
 				Message::PutBlock(PutBlockMessage { hash, data }),
-				RequestStrategy::with_quorum((self.system.config.data_replication_factor + 1) / 2)
+				RequestStrategy::with_quorum(self.replication.write_quorum())
 					.with_timeout(BLOCK_RW_TIMEOUT),
 			)
 			.await?;

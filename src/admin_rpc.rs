@@ -5,15 +5,18 @@ use tokio::sync::watch;
 
 use crate::data::*;
 use crate::error::Error;
-use crate::rpc_client::*;
-use crate::rpc_server::*;
 use crate::server::Garage;
-use crate::table::*;
-use crate::*;
 
-use crate::block_ref_table::*;
-use crate::bucket_table::*;
-use crate::version_table::*;
+use crate::table::*;
+
+use crate::rpc::rpc_client::*;
+use crate::rpc::rpc_server::*;
+
+use crate::store::block_ref_table::*;
+use crate::store::bucket_table::*;
+use crate::store::version_table::*;
+
+use crate::*;
 
 pub const ADMIN_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 pub const ADMIN_RPC_PATH: &str = "_admin";
