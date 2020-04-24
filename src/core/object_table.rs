@@ -158,8 +158,10 @@ impl TableSchema for ObjectTable {
 		Ok(())
 	}
 
-	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {
-		// TODO
-		true
+	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
+		entry
+			.versions
+			.iter()
+			.any(|x| x.is_complete && x.data != ObjectVersionData::DeleteMarker)
 	}
 }
