@@ -30,7 +30,7 @@ pub async fn handle_list(
 	let mut truncated = true;
 	let mut next_chunk_start = prefix.to_string();
 
-	println!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
+	debug!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
 
 	while result.len() < max_keys && truncated {
 		let objects = garage
@@ -70,7 +70,6 @@ pub async fn handle_list(
 						size: 0,
 					},
 				};
-				println!("Entry: {} {:?}", delimited_key, new_info);
 				result.insert(delimited_key, new_info);
 			}
 		}
@@ -106,7 +105,6 @@ pub async fn handle_list(
 		writeln!(&mut xml, "\t</Contents>").unwrap();
 	}
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
-	println!("{}", xml);
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
 }
