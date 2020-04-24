@@ -8,14 +8,14 @@ use futures::stream::*;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 
-use crate::data::*;
-use crate::error::Error;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::rpc::membership::{Ring, System};
-use crate::rpc::rpc_client::*;
-use crate::rpc::rpc_server::*;
+use garage_rpc::membership::{Ring, System};
+use garage_rpc::rpc_client::*;
+use garage_rpc::rpc_server::*;
 
-use crate::table::table_sync::*;
+use crate::table_sync::*;
 
 const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -78,14 +78,14 @@ impl PartitionKey for EmptyKey {
 	}
 }
 
-impl<T: AsRef<str>> PartitionKey for T {
+impl PartitionKey for String {
 	fn hash(&self) -> Hash {
-		hash(self.as_ref().as_bytes())
+		hash(self.as_bytes())
 	}
 }
-impl<T: AsRef<str>> SortKey for T {
+impl SortKey for String {
 	fn sort_key(&self) -> &[u8] {
-		self.as_ref().as_bytes()
+		self.as_bytes()
 	}
 }
 

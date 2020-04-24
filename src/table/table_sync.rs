@@ -12,10 +12,11 @@ use serde_bytes::ByteBuf;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, watch};
 
-use crate::data::*;
-use crate::error::Error;
-use crate::rpc::membership::Ring;
-use crate::table::*;
+use garage_rpc::membership::Ring;
+use garage_util::data::*;
+use garage_util::error::Error;
+
+use crate::*;
 
 const MAX_DEPTH: usize = 16;
 const SCAN_INTERVAL: Duration = Duration::from_secs(3600);

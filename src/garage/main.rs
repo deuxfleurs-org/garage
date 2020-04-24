@@ -3,17 +3,8 @@
 #[macro_use]
 extern crate log;
 
-mod background;
-mod config;
-mod data;
-mod error;
-
-mod api;
-mod rpc;
-mod store;
-mod table;
-
 mod admin_rpc;
+mod repair;
 mod server;
 
 use std::collections::HashSet;
@@ -25,12 +16,12 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use config::TlsConfig;
-use data::*;
-use error::Error;
+use garage_util::config::TlsConfig;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use rpc::membership::*;
-use rpc::rpc_client::*;
+use garage_rpc::membership::*;
+use garage_rpc::rpc_client::*;
 
 use admin_rpc::*;
 

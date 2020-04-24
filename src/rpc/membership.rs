@@ -17,12 +17,12 @@ use tokio::prelude::*;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 
-use crate::background::BackgroundRunner;
-use crate::data::*;
-use crate::error::Error;
+use garage_util::background::BackgroundRunner;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::rpc::rpc_client::*;
-use crate::rpc::rpc_server::*;
+use crate::rpc_client::*;
+use crate::rpc_server::*;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(2);

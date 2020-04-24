@@ -2,12 +2,11 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::error::Error;
-use crate::server::Garage;
-use crate::table::*;
-
-use crate::store::block_ref_table::*;
-use crate::store::version_table::*;
+use garage_core::block_ref_table::*;
+use garage_core::garage::Garage;
+use garage_core::version_table::*;
+use garage_table::*;
+use garage_util::error::Error;
 
 use crate::*;
 

@@ -2,14 +2,14 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::background::BackgroundRunner;
-use crate::data::*;
-use crate::error::Error;
+use garage_util::background::BackgroundRunner;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::table::table_sharded::*;
-use crate::table::*;
+use garage_table::table_sharded::*;
+use garage_table::*;
 
-use crate::store::block_ref_table::*;
+use crate::block_ref_table::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {

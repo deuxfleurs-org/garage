@@ -9,18 +9,18 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 
-use crate::data::*;
-use crate::error::Error;
-use crate::server::Garage;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::table::EmptyKey;
+use garage_table::EmptyKey;
 
-use crate::store::block::INLINE_THRESHOLD;
-use crate::store::block_ref_table::*;
-use crate::store::object_table::*;
-use crate::store::version_table::*;
+use garage_core::block::INLINE_THRESHOLD;
+use garage_core::block_ref_table::*;
+use garage_core::garage::Garage;
+use garage_core::object_table::*;
+use garage_core::version_table::*;
 
-use crate::api::http_util::*;
+use crate::http_util::*;
 
 type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
 

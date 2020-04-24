@@ -1,0 +1,28 @@
+[package]
+name = "garage_api"
+version = "0.1.0"
+authors = ["Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+
+[lib]
+path = "lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+garage_util = { path = "../util" }
+garage_table = { path = "../table" }
+garage_core = { path = "../core" }
+
+bytes = "0.4"
+hex = "0.3"
+log = "0.4"
+
+futures = "0.3"
+futures-util = "0.3"
+tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
+
+http = "0.2"
+hyper = "0.13"
+
+

@@ -5,7 +5,7 @@ use futures::ready;
 use futures::stream::*;
 use hyper::body::{Bytes, HttpBody};
 
-use crate::error::Error;
+use garage_util::error::Error;
 
 type StreamType = Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>;
 

@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
 use bytes::IntoBuf;
-use err_derive::Error;
 use futures::future::Future;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
@@ -17,35 +16,16 @@ use hyper::client::{Client, HttpConnector};
 use hyper::{Body, Method, Request};
 use tokio::sync::{watch, Semaphore};
 
-use crate::background::BackgroundRunner;
-use crate::data::*;
-use crate::error::Error;
+use garage_util::background::BackgroundRunner;
+use garage_util::config::TlsConfig;
+use garage_util::data::*;
+use garage_util::error::{Error, RPCError};
 
-use crate::rpc::membership::Status;
-use crate::rpc::rpc_server::RpcMessage;
-use crate::rpc::tls_util;
-
-use crate::config::TlsConfig;
+use crate::membership::Status;
+use crate::rpc_server::RpcMessage;
+use crate::tls_util;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
-
-#[derive(Debug, Error)]
-pub enum RPCError {
-	#[error(display = "Node is down: {:?}.", _0)]
-	NodeDown(UUID),
-	#[error(display = "Timeout: {}", _0)]
-	Timeout(#[error(source)] tokio::time::Elapsed),
-	#[error(display = "HTTP error: {}", _0)]
-	HTTP(#[error(source)] http::Error),
-	#[error(display = "Hyper error: {}", _0)]
-	Hyper(#[error(source)] hyper::Error),
-	#[error(display = "Messagepack encode error: {}", _0)]
-	RMPEncode(#[error(source)] rmp_serde::encode::Error),
-	#[error(display = "Messagepack decode error: {}", _0)]
-	RMPDecode(#[error(source)] rmp_serde::decode::Error),
-	#[error(display = "Too many errors: {:?}", _0)]
-	TooManyErrors(Vec<String>),
-}
 
 #[derive(Copy, Clone)]
 pub struct RequestStrategy {

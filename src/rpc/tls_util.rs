@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::TlsConnector;
 use webpki::DNSNameRef;
 
-use crate::error::Error;
+use garage_util::error::Error;
 
 pub fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
 	let certfile = fs::File::open(&filename)?;

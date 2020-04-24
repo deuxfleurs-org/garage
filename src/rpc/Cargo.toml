@@ -1,0 +1,37 @@
+[package]
+name = "garage_rpc"
+version = "0.1.0"
+authors = ["Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+
+[lib]
+path = "lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+garage_util = { path = "../util" }
+
+bytes = "0.4"
+rand = "0.7"
+hex = "0.3"
+sha2 = "0.8"
+arc-swap = "0.4"
+gethostname = "0.2"
+log = "0.4"
+
+rmp-serde = "0.14.3"
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+
+futures = "0.3"
+futures-util = "0.3"
+tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
+
+http = "0.2"
+hyper = "0.13"
+rustls = "0.17"
+tokio-rustls = "0.13"
+hyper-rustls = { version = "0.20", default-features = false }
+webpki = "0.21"
+
+

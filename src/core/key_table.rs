@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::data::*;
-use crate::error::Error;
-use crate::table::*;
+use garage_table::*;
+use garage_util::data::*;
+use garage_util::error::Error;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {

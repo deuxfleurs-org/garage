@@ -34,6 +34,13 @@ pub struct Config {
 	pub rpc_tls: Option<TlsConfig>,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct TlsConfig {
+	pub ca_cert: String,
+	pub node_cert: String,
+	pub node_key: String,
+}
+
 fn default_max_concurrent_rpc_requests() -> usize {
 	12
 }
@@ -45,13 +52,6 @@ fn default_replication_factor() -> usize {
 }
 fn default_epidemic_factor() -> usize {
 	3
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct TlsConfig {
-	pub ca_cert: String,
-	pub node_cert: String,
-	pub node_key: String,
 }
 
 pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {

@@ -11,20 +11,20 @@ use tokio::fs;
 use tokio::prelude::*;
 use tokio::sync::{watch, Mutex, Notify};
 
-use crate::data;
-use crate::data::*;
-use crate::error::Error;
+use garage_util::data;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::rpc::membership::System;
-use crate::rpc::rpc_client::*;
-use crate::rpc::rpc_server::*;
+use garage_rpc::membership::System;
+use garage_rpc::rpc_client::*;
+use garage_rpc::rpc_server::*;
 
-use crate::table::table_sharded::TableShardedReplication;
-use crate::table::TableReplication;
+use garage_table::table_sharded::TableShardedReplication;
+use garage_table::TableReplication;
 
-use crate::store::block_ref_table::*;
+use crate::block_ref_table::*;
 
-use crate::server::Garage;
+use crate::garage::Garage;
 
 pub const INLINE_THRESHOLD: usize = 3072;
 

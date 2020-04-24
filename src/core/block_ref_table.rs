@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::background::*;
-use crate::data::*;
-use crate::error::Error;
+use garage_util::background::*;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::table::*;
+use garage_table::*;
 
-use crate::store::block::*;
+use crate::block::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {

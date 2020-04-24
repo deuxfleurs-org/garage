@@ -1,3 +1,3 @@
 all:
 	cargo fmt || true
-	cargo build
+	RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build

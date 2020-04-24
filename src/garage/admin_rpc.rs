@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::data::*;
-use crate::error::Error;
-use crate::server::Garage;
+use garage_util::data::*;
+use garage_util::error::Error;
 
-use crate::table::*;
+use garage_table::*;
 
-use crate::rpc::rpc_client::*;
-use crate::rpc::rpc_server::*;
+use garage_rpc::rpc_client::*;
+use garage_rpc::rpc_server::*;
 
-use crate::store::bucket_table::*;
-use crate::store::key_table::*;
-use crate::store::repair::Repair;
+use garage_core::bucket_table::*;
+use garage_core::garage::Garage;
+use garage_core::key_table::*;
 
+use crate::repair::Repair;
 use crate::*;
 
 pub const ADMIN_RPC_TIMEOUT: Duration = Duration::from_secs(30);
