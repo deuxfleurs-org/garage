@@ -78,6 +78,7 @@ async fn handler_inner(
 	let (bucket, key) = match path.find('/') {
 		Some(i) => {
 			let (bucket, key) = path.split_at(i);
+			let key = key.trim_start_matches('/');
 			(bucket, Some(key))
 		}
 		None => (path, None),

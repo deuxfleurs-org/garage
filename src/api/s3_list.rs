@@ -55,9 +55,13 @@ pub async fn handle_list(
 						break;
 					}
 				};
-				let delimited_key = match relative_key.find(delimiter) {
-					Some(i) => relative_key.split_at(i).1,
-					None => &relative_key,
+				let delimited_key = if delimiter.len() > 0 {
+					match relative_key.find(delimiter) {
+						Some(i) => relative_key.split_at(i).0,
+						None => &relative_key,
+					}
+				} else {
+					&relative_key
 				};
 				let delimited_key = delimited_key.to_string();
 				let new_info = match result.get(&delimited_key) {
