@@ -8,10 +8,10 @@ We will have to introduce lots of dummy data and then add/remove nodes many time
 Attaining S3 compatibility
 --------------------------
 
-- api_server following the S3 semantics for get/put/delete
-- implement object listing
-- possibly other necessary endpoints ?
+- api_server following the S3 semantics for head/get/put/list/delete: verify more that it works as intended
+- multipart uploads
 - PUT requests: verify content-md5 if provided
+- possibly other necessary endpoints ?
 
 
 Lower priority
