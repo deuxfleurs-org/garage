@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use chrono::{DateTime, NaiveDateTime, Utc, SecondsFormat};
+use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use hyper::Response;
 
 use garage_util::error::Error;
@@ -99,7 +99,7 @@ pub async fn handle_list(
 		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
 		let last_modif = last_modif.to_rfc3339_opts(SecondsFormat::Millis, true);
 		writeln!(&mut xml, "\t<Contents>").unwrap();
-		writeln!(&mut xml, "\t\t<Key>{}</Key>", key).unwrap();
+		writeln!(&mut xml, "\t\t<Key>{}</Key>", xml_escape(key)).unwrap();
 		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
 		writeln!(&mut xml, "\t\t<Size>{}</Size>", info.size).unwrap();
 		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
@@ -109,4 +109,10 @@ pub async fn handle_list(
 	println!("{}", xml);
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
+}
+
+fn xml_escape(s: &str) -> String {
+	s.replace("<", "&lt;")
+		.replace(">", "&gt;")
+		.replace("\"", "&quot;")
 }
