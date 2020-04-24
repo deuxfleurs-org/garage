@@ -8,11 +8,10 @@ We will have to introduce lots of dummy data and then add/remove nodes many time
 Attaining S3 compatibility
 --------------------------
 
-- table for access keys
-- S3 request signature verification
 - api_server following the S3 semantics for get/put/delete
 - implement object listing
 - possibly other necessary endpoints ?
+- PUT requests: verify content-md5 if provided
 
 
 Lower priority

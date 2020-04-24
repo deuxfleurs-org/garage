@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::{Duration, UNIX_EPOCH};
 
 use futures::future::Future;
 use futures::stream::*;
@@ -21,6 +22,7 @@ use garage_core::object_table::*;
 use garage_core::version_table::*;
 
 use crate::http_util::*;
+use crate::signature::check_signature;
 
 type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
 
@@ -28,7 +30,7 @@ pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
 ) -> Result<(), Error> {
-	let addr = &garage.config.api_bind_addr;
+	let addr = &garage.config.s3_api.api_bind_addr;
 
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
@@ -55,12 +57,18 @@ async fn handler(
 	req: Request<Body>,
 	addr: SocketAddr,
 ) -> Result<Response<BodyType>, Error> {
-	match handler_inner(garage, req, addr).await {
-		Ok(x) => Ok(x),
+	info!("{} {} {}", addr, req.method(), req.uri());
+	debug!("{:?}", req);
+	match handler_inner(garage, req).await {
+		Ok(x) => {
+			debug!("{} {:?}", x.status(), x.headers());
+			Ok(x)
+		}
 		Err(e) => {
 			let body: BodyType = Box::new(BytesBody::from(format!("{}\n", e)));
 			let mut http_error = Response::new(body);
 			*http_error.status_mut() = e.http_status_code();
+			warn!("Response: error {}, {}", e.http_status_code(), e);
 			Ok(http_error)
 		}
 	}
@@ -69,38 +77,59 @@ async fn handler(
 async fn handler_inner(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-	addr: SocketAddr,
 ) -> Result<Response<BodyType>, Error> {
-	info!("{} {} {}", addr, req.method(), req.uri());
-
-	let bucket = req
-		.headers()
-		.get(hyper::header::HOST)
-		.map(|x| x.to_str().map_err(Error::from))
-		.unwrap_or(Err(Error::BadRequest(format!("Host: header missing"))))?
-		.to_lowercase();
-	let key = req.uri().path().to_string();
-
-	match req.method() {
-		&Method::GET => Ok(handle_get(garage, &bucket, &key).await?),
-		&Method::PUT => {
-			let mime_type = req
-				.headers()
-				.get(hyper::header::CONTENT_TYPE)
-				.map(|x| x.to_str())
-				.unwrap_or(Ok("blob"))?
-				.to_string();
-			let version_uuid =
-				handle_put(garage, &mime_type, &bucket, &key, req.into_body()).await?;
-			let response = format!("{}\n", hex::encode(version_uuid,));
-			Ok(Response::new(Box::new(BytesBody::from(response))))
+	let path = req.uri().path().to_string();
+	let path = path.trim_start_matches('/');
+	let (bucket, key) = match path.find('/') {
+		Some(i) => {
+			let (bucket, key) = path.split_at(i);
+			(bucket, Some(key))
 		}
-		&Method::DELETE => {
-			let version_uuid = handle_delete(garage, &bucket, &key).await?;
-			let response = format!("{}\n", hex::encode(version_uuid,));
-			Ok(Response::new(Box::new(BytesBody::from(response))))
+		None => (path, None),
+	};
+	if bucket.len() == 0 {
+		return Err(Error::Forbidden(format!(
+			"Operations on buckets not allowed"
+		)));
+	}
+
+	let api_key = check_signature(&garage, &req).await?;
+	let allowed = match req.method() {
+		&Method::HEAD | &Method::GET => api_key.allow_read(&bucket),
+		_ => api_key.allow_write(&bucket),
+	};
+	if !allowed {
+		return Err(Error::Forbidden(format!(
+			"Operation is not allowed for this key."
+		)));
+	}
+
+	if let Some(key) = key {
+		match req.method() {
+			&Method::HEAD => Ok(handle_head(garage, &bucket, &key).await?),
+			&Method::GET => Ok(handle_get(garage, &bucket, &key).await?),
+			&Method::PUT => {
+				let mime_type = req
+					.headers()
+					.get(hyper::header::CONTENT_TYPE)
+					.map(|x| x.to_str())
+					.unwrap_or(Ok("blob"))?
+					.to_string();
+				let version_uuid =
+					handle_put(garage, &mime_type, &bucket, &key, req.into_body()).await?;
+				let response = format!("{}\n", hex::encode(version_uuid,));
+				Ok(Response::new(Box::new(BytesBody::from(response))))
+			}
+			&Method::DELETE => {
+				let version_uuid = handle_delete(garage, &bucket, &key).await?;
+				let response = format!("{}\n", hex::encode(version_uuid,));
+				Ok(Response::new(Box::new(BytesBody::from(response))))
+			}
+			_ => Err(Error::BadRequest(format!("Invalid method"))),
 		}
-		_ => Err(Error::BadRequest(format!("Invalid method"))),
+	} else {
+		// TODO: listing buckets
+		Err(Error::Forbidden("Unimplemented".into()))
 	}
 }
 
@@ -280,6 +309,49 @@ async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<U
 	return Ok(version_uuid);
 }
 
+fn object_headers(version: &ObjectVersion) -> http::response::Builder {
+	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
+	let date_str = httpdate::fmt_http_date(date);
+
+	Response::builder()
+		.header("Content-Type", version.mime_type.to_string())
+		.header("Content-Length", format!("{}", version.size))
+		.header("Last-Modified", date_str)
+}
+
+async fn handle_head(
+	garage: Arc<Garage>,
+	bucket: &str,
+	key: &str,
+) -> Result<Response<BodyType>, Error> {
+	let object = match garage
+		.object_table
+		.get(&bucket.to_string(), &key.to_string())
+		.await?
+	{
+		None => return Err(Error::NotFound),
+		Some(o) => o,
+	};
+
+	let version = match object
+		.versions()
+		.iter()
+		.rev()
+		.filter(|v| v.is_complete && v.data != ObjectVersionData::DeleteMarker)
+		.next()
+	{
+		Some(v) => v,
+		None => return Err(Error::NotFound),
+	};
+
+	let body: BodyType = Box::new(BytesBody::from(vec![]));
+	let response = object_headers(&version)
+		.status(StatusCode::OK)
+		.body(body)
+		.unwrap();
+	Ok(response)
+}
+
 async fn handle_get(
 	garage: Arc<Garage>,
 	bucket: &str,
@@ -305,9 +377,7 @@ async fn handle_get(
 		None => return Err(Error::NotFound),
 	};
 
-	let resp_builder = Response::builder()
-		.header("Content-Type", last_v.mime_type.to_string())
-		.status(StatusCode::OK);
+	let resp_builder = object_headers(&last_v).status(StatusCode::OK);
 
 	match &last_v.data {
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),

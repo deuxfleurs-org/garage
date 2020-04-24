@@ -69,6 +69,9 @@ pub enum Error {
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
 
+	#[error(display = "Forbidden: {}", _0)]
+	Forbidden(String),
+
 	#[error(display = "Not found")]
 	NotFound,
 
@@ -84,6 +87,7 @@ impl Error {
 		match self {
 			Error::BadRequest(_) => StatusCode::BAD_REQUEST,
 			Error::NotFound => StatusCode::NOT_FOUND,
+			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::RPC(_) => StatusCode::SERVICE_UNAVAILABLE,
 			_ => StatusCode::INTERNAL_SERVER_ERROR,
 		}

@@ -17,6 +17,10 @@ garage_core = { path = "../core" }
 bytes = "0.4"
 hex = "0.3"
 log = "0.4"
+chrono = "0.4"
+sha2 = "0.8"
+hmac = "0.7"
+crypto-mac = "0.7"
 
 futures = "0.3"
 futures-util = "0.3"
@@ -24,5 +28,7 @@ tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-
 
 http = "0.2"
 hyper = "0.13"
+url = "2.1"
+httpdate = "0.3"
 
 

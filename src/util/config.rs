@@ -11,7 +11,6 @@ pub struct Config {
 	pub metadata_dir: PathBuf,
 	pub data_dir: PathBuf,
 
-	pub api_bind_addr: SocketAddr,
 	pub rpc_bind_addr: SocketAddr,
 
 	pub bootstrap_peers: Vec<SocketAddr>,
@@ -32,6 +31,8 @@ pub struct Config {
 	pub data_replication_factor: usize,
 
 	pub rpc_tls: Option<TlsConfig>,
+
+	pub s3_api: ApiConfig,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -39,6 +40,12 @@ pub struct TlsConfig {
 	pub ca_cert: String,
 	pub node_cert: String,
 	pub node_key: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ApiConfig {
+	pub api_bind_addr: SocketAddr,
+	pub s3_region: String,
 }
 
 fn default_max_concurrent_rpc_requests() -> usize {
