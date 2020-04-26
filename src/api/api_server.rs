@@ -120,6 +120,7 @@ async fn handler_inner(
 					.iter()
 					.all(|x| params.contains_key(&x.to_string()))
 				{
+					// UploadPart query
 					let part_number = params.get("partnumber").unwrap();
 					let upload_id = params.get("uploadid").unwrap();
 					Ok(handle_put_part(garage, req, &bucket, &key, part_number, upload_id).await?)
@@ -129,16 +130,23 @@ async fn handler_inner(
 				}
 			}
 			&Method::DELETE => {
-				// DeleteObject query
-				let version_uuid = handle_delete(garage, &bucket, &key).await?;
-				let response = format!("{}\n", hex::encode(version_uuid));
-				Ok(Response::new(Box::new(BytesBody::from(response))))
+				if params.contains_key(&"uploadid".to_string()) {
+					// AbortMultipartUpload query
+					let upload_id = params.get("uploadid").unwrap();
+					Ok(handle_abort_multipart_upload(garage, &bucket, &key, upload_id).await?)
+				} else {
+					// DeleteObject query
+					let version_uuid = handle_delete(garage, &bucket, &key).await?;
+					let response = format!("{}\n", hex::encode(version_uuid));
+					Ok(Response::new(Box::new(BytesBody::from(response))))
+				}
 			}
 			&Method::POST => {
 				if params.contains_key(&"uploads".to_string()) {
 					// CreateMultipartUpload call
 					Ok(handle_create_multipart_upload(garage, &req, &bucket, &key).await?)
 				} else if params.contains_key(&"uploadid".to_string()) {
+					// CompleteMultipartUpload call
 					let upload_id = params.get("uploadid").unwrap();
 					Ok(handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id).await?)
 				} else {

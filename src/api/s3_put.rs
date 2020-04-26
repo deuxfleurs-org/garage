@@ -333,6 +333,38 @@ pub async fn handle_complete_multipart_upload(
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
 }
 
+pub async fn handle_abort_multipart_upload(
+	garage: Arc<Garage>,
+	bucket: &str,
+	key: &str,
+	upload_id: &str,
+) -> Result<Response<BodyType>, Error> {
+	let version_uuid = uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
+
+	let object = garage.object_table.get(&bucket.to_string(), &key.to_string()).await?;
+	let object = match object {
+		None => return Err(Error::BadRequest(format!("Object not found"))),
+		Some(x) => x,
+	};
+	let object_version = object.versions().iter().find(|v| {
+		v.uuid == version_uuid
+			&& v.state == ObjectVersionState::Uploading
+			&& v.data == ObjectVersionData::Uploading
+	});
+	let mut object_version = match object_version {
+		None => return Err(Error::BadRequest(format!(
+			"Multipart upload does not exist or has already been completed"
+		))),
+		Some(x) => x.clone(),
+	};
+
+	object_version.state = ObjectVersionState::Aborted;
+	let final_object = Object::new(bucket.to_string(), key.to_string(), vec![object_version]);
+	garage.object_table.insert(&final_object).await?;
+
+	Ok(Response::new(Box::new(BytesBody::from(vec![]))))
+}
+
 fn get_mime_type(req: &Request<Body>) -> Result<String, Error> {
 	Ok(req
 		.headers()

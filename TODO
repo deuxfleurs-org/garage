@@ -9,7 +9,7 @@ Attaining S3 compatibility
 --------------------------
 
 - test & fix multipart uploads
-- abort multipart upload
+
 - fix sync not working in some cases ? (when starting from empty?)
 
 - api_server following the S3 semantics for head/get/put/list/delete: verify more that it works as intended
