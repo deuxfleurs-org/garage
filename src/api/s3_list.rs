@@ -9,7 +9,6 @@ use garage_util::error::Error;
 
 use garage_core::garage::Garage;
 
-use crate::api_server::BodyType;
 use crate::http_util::*;
 
 #[derive(Debug)]
@@ -114,9 +113,4 @@ pub async fn handle_list(
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
-}
-fn xml_escape(s: &str) -> String {
-	s.replace("<", "&lt;")
-		.replace(">", "&gt;")
-		.replace("\"", "&quot;")
 }

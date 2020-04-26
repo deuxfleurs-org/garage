@@ -88,6 +88,7 @@ impl ObjectVersionState {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionData {
+	Uploading,
 	DeleteMarker,
 	Inline(#[serde(with = "serde_bytes")] Vec<u8>),
 	FirstBlock(Hash),
@@ -125,6 +126,9 @@ impl Entry<String, String> for Object {
 						v.size = other_v.size;
 					}
 					v.state = v.state.max(other_v.state);
+					if v.data == ObjectVersionData::Uploading {
+						v.data = other_v.data.clone();
+					}
 				}
 				Err(i) => {
 					self.versions.insert(i, other_v.clone());

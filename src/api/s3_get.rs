@@ -12,7 +12,6 @@ use garage_table::EmptyKey;
 use garage_core::garage::Garage;
 use garage_core::object_table::*;
 
-use crate::api_server::BodyType;
 use crate::http_util::*;
 
 fn object_headers(version: &ObjectVersion) -> http::response::Builder {
@@ -86,6 +85,9 @@ pub async fn handle_get(
 	let resp_builder = object_headers(&last_v).status(StatusCode::OK);
 
 	match &last_v.data {
+		ObjectVersionData::Uploading => Err(Error::Message(format!(
+			"Version is_complete() but data is stil Uploading (internal error)"
+		))),
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),
 		ObjectVersionData::Inline(bytes) => {
 			let body: BodyType = Box::new(BytesBody::from(bytes.to_vec()));

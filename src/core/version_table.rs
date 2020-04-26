@@ -49,7 +49,7 @@ impl Version {
 	}
 	/// Adds a block if it wasn't already present
 	pub fn add_block(&mut self, new: VersionBlock) -> Result<(), ()> {
-		match self.blocks.binary_search_by(|b| b.offset.cmp(&new.offset)) {
+		match self.blocks.binary_search_by(|b| b.cmp_key().cmp(&new.cmp_key())) {
 			Err(i) => {
 				self.blocks.insert(i, new);
 				Ok(())
@@ -67,6 +67,13 @@ pub struct VersionBlock {
 	pub part_number: u64,
 	pub offset: u64,
 	pub hash: Hash,
+	pub size: u64,
+}
+
+impl VersionBlock {
+	fn cmp_key(&self) -> (u64, u64) {
+		(self.part_number, self.offset)
+	}
 }
 
 impl Entry<Hash, EmptyKey> for Version {
@@ -83,7 +90,7 @@ impl Entry<Hash, EmptyKey> for Version {
 			self.blocks.clear();
 		} else if !self.deleted {
 			for bi in other.blocks.iter() {
-				match self.blocks.binary_search_by(|x| x.offset.cmp(&bi.offset)) {
+				match self.blocks.binary_search_by(|x| x.cmp_key().cmp(&bi.cmp_key())) {
 					Ok(_) => (),
 					Err(pos) => {
 						self.blocks.insert(pos, bi.clone());

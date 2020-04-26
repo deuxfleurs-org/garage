@@ -7,6 +7,8 @@ use hyper::body::{Bytes, HttpBody};
 
 use garage_util::error::Error;
 
+pub type BodyType = Box<dyn HttpBody<Data = Bytes, Error = Error> + Send + Unpin>;
+
 type StreamType = Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>;
 
 pub struct StreamBody {
@@ -79,4 +81,10 @@ impl From<Vec<u8>> for BytesBody {
 	fn from(x: Vec<u8>) -> BytesBody {
 		Self::new(Bytes::from(x))
 	}
+}
+
+pub fn xml_escape(s: &str) -> String {
+	s.replace("<", "&lt;")
+		.replace(">", "&gt;")
+		.replace("\"", "&quot;")
 }
