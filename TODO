@@ -8,7 +8,8 @@ We will have to introduce lots of dummy data and then add/remove nodes many time
 Attaining S3 compatibility
 --------------------------
 
-- test & fix multipart uploads
+- test multipart uploads
+- get ranges
 
 - fix sync not working in some cases ? (when starting from empty?)
 
