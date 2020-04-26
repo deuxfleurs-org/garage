@@ -43,7 +43,7 @@ pub async fn handle_head(
 		.versions()
 		.iter()
 		.rev()
-		.filter(|v| v.is_complete && v.data != ObjectVersionData::DeleteMarker)
+		.filter(|v| v.is_data())
 		.next()
 	{
 		Some(v) => v,
@@ -76,7 +76,7 @@ pub async fn handle_get(
 		.versions()
 		.iter()
 		.rev()
-		.filter(|v| v.is_complete)
+		.filter(|v| v.is_complete())
 		.next()
 	{
 		Some(v) => v,

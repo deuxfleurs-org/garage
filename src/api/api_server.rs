@@ -134,10 +134,9 @@ async fn handler_inner(
 					.body(empty_body)
 					.unwrap();
 				Ok(response)
-			},
+			}
 			&Method::DELETE => Err(Error::Forbidden(
-				"Cannot delete buckets using S3 api, please talk to Garage directly"
-					.into(),
+				"Cannot delete buckets using S3 api, please talk to Garage directly".into(),
 			)),
 			&Method::GET => {
 				let mut params = HashMap::new();

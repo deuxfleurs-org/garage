@@ -33,13 +33,13 @@ pub async fn handle_put(
 		timestamp: now_msec(),
 		mime_type: mime_type.to_string(),
 		size: first_block.len() as u64,
-		is_complete: false,
+		state: ObjectVersionState::Uploading,
 		data: ObjectVersionData::DeleteMarker,
 	};
 
 	if first_block.len() < INLINE_THRESHOLD {
 		object_version.data = ObjectVersionData::Inline(first_block);
-		object_version.is_complete = true;
+		object_version.state = ObjectVersionState::Complete;
 
 		let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
@@ -54,7 +54,8 @@ pub async fn handle_put(
 	garage.object_table.insert(&object).await?;
 
 	let mut next_offset = first_block.len();
-	let mut put_curr_version_block = put_block_meta(garage.clone(), &version, 0, first_block_hash);
+	let mut put_curr_version_block =
+		put_block_meta(garage.clone(), &version, 0, 0, first_block_hash);
 	let mut put_curr_block = garage
 		.block_manager
 		.rpc_put_block(first_block_hash, first_block);
@@ -66,7 +67,7 @@ pub async fn handle_put(
 			let block_hash = hash(&block[..]);
 			let block_len = block.len();
 			put_curr_version_block =
-				put_block_meta(garage.clone(), &version, next_offset as u64, block_hash);
+				put_block_meta(garage.clone(), &version, 0, next_offset as u64, block_hash);
 			put_curr_block = garage.block_manager.rpc_put_block(block_hash, block);
 			next_offset += block_len;
 		} else {
@@ -76,7 +77,7 @@ pub async fn handle_put(
 
 	// TODO: if at any step we have an error, we should undo everything we did
 
-	object_version.is_complete = true;
+	object_version.state = ObjectVersionState::Complete;
 	object_version.size = next_offset as u64;
 
 	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
@@ -88,12 +89,19 @@ pub async fn handle_put(
 async fn put_block_meta(
 	garage: Arc<Garage>,
 	version: &Version,
+	part_number: u64,
 	offset: u64,
 	hash: Hash,
 ) -> Result<(), Error> {
 	// TODO: don't clone, restart from empty block list ??
 	let mut version = version.clone();
-	version.add_block(VersionBlock { offset, hash }).unwrap();
+	version
+		.add_block(VersionBlock {
+			part_number,
+			offset,
+			hash,
+		})
+		.unwrap();
 
 	let block_ref = BlockRef {
 		block: hash,
@@ -180,7 +188,7 @@ pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Resu
 			timestamp: now_msec(),
 			mime_type: "application/x-delete-marker".into(),
 			size: 0,
-			is_complete: true,
+			state: ObjectVersionState::Complete,
 			data: ObjectVersionData::DeleteMarker,
 		}],
 	);

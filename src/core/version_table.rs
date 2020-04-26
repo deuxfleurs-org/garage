@@ -64,6 +64,7 @@ impl Version {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct VersionBlock {
+	pub part_number: u64,
 	pub offset: u64,
 	pub hash: Hash,
 }

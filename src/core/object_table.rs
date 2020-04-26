@@ -61,9 +61,29 @@ pub struct ObjectVersion {
 
 	pub mime_type: String,
 	pub size: u64,
-	pub is_complete: bool,
+	pub state: ObjectVersionState,
 
 	pub data: ObjectVersionData,
+}
+
+#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum ObjectVersionState {
+	Uploading,
+	Complete,
+	Aborted,
+}
+
+impl ObjectVersionState {
+	fn max(self, other: Self) -> Self {
+		use ObjectVersionState::*;
+		if self == Aborted || other == Aborted {
+			Aborted
+		} else if self == Complete || other == Complete {
+			Complete
+		} else {
+			Uploading
+		}
+	}
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -74,8 +94,14 @@ pub enum ObjectVersionData {
 }
 
 impl ObjectVersion {
-	fn cmp_key(&self) -> (u64, &UUID) {
-		(self.timestamp, &self.uuid)
+	fn cmp_key(&self) -> (u64, UUID) {
+		(self.timestamp, self.uuid)
+	}
+	pub fn is_complete(&self) -> bool {
+		self.state == ObjectVersionState::Complete
+	}
+	pub fn is_data(&self) -> bool {
+		self.state == ObjectVersionState::Complete && self.data != ObjectVersionData::DeleteMarker
 	}
 }
 
@@ -98,9 +124,7 @@ impl Entry<String, String> for Object {
 					if other_v.size > v.size {
 						v.size = other_v.size;
 					}
-					if other_v.is_complete && !v.is_complete {
-						v.is_complete = true;
-					}
+					v.state = v.state.max(other_v.state);
 				}
 				Err(i) => {
 					self.versions.insert(i, other_v.clone());
@@ -112,7 +136,7 @@ impl Entry<String, String> for Object {
 			.iter()
 			.enumerate()
 			.rev()
-			.filter(|(_, v)| v.is_complete)
+			.filter(|(_, v)| v.is_complete())
 			.next()
 			.map(|(vi, _)| vi);
 
@@ -159,9 +183,6 @@ impl TableSchema for ObjectTable {
 	}
 
 	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		entry
-			.versions
-			.iter()
-			.any(|x| x.is_complete && x.data != ObjectVersionData::DeleteMarker)
+		entry.versions.iter().any(|v| v.is_data())
 	}
 }

@@ -8,7 +8,6 @@ use hyper::Response;
 use garage_util::error::Error;
 
 use garage_core::garage::Garage;
-use garage_core::object_table::*;
 
 use crate::api_server::BodyType;
 use crate::http_util::*;
@@ -44,11 +43,7 @@ pub async fn handle_list(
 			)
 			.await?;
 		for object in objects.iter() {
-			if let Some(version) = object
-				.versions()
-				.iter()
-				.find(|x| x.is_complete && x.data != ObjectVersionData::DeleteMarker)
-			{
+			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
 				if !object.key.starts_with(prefix) {
 					truncated = false;
 					break;
@@ -56,7 +51,7 @@ pub async fn handle_list(
 				let common_prefix = if delimiter.len() > 0 {
 					let relative_key = &object.key[prefix.len()..];
 					match relative_key.find(delimiter) {
-						Some(i) => Some(&object.key[..prefix.len()+i+delimiter.len()]),
+						Some(i) => Some(&object.key[..prefix.len() + i + delimiter.len()]),
 						None => None,
 					}
 				} else {
@@ -70,7 +65,9 @@ pub async fn handle_list(
 							last_modified: version.timestamp,
 							size: version.size,
 						},
-						Some(_lri) => return Err(Error::Message(format!("Duplicate key?? {}", object.key))),
+						Some(_lri) => {
+							return Err(Error::Message(format!("Duplicate key?? {}", object.key)))
+						}
 					};
 					result_keys.insert(object.key.clone(), info);
 				};
@@ -117,7 +114,7 @@ pub async fn handle_list(
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
-} 
+}
 fn xml_escape(s: &str) -> String {
 	s.replace("<", "&lt;")
 		.replace(">", "&gt;")
