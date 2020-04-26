@@ -163,11 +163,17 @@ impl TableSchema for ObjectTable {
 		if let (Some(old_v), Some(new_v)) = (old, new) {
 			// Propagate deletion of old versions
 			for v in old_v.versions.iter() {
-				if new_v
+				let newly_deleted = match new_v
 					.versions
 					.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
-					.is_err()
 				{
+					Err(_) => true,
+					Ok(i) => {
+						new_v.versions[i].state == ObjectVersionState::Aborted
+							&& v.state != ObjectVersionState::Aborted
+					}
+				};
+				if newly_deleted {
 					let deleted_version = Version::new(
 						v.uuid,
 						old_v.bucket.clone(),

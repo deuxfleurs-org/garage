@@ -4,6 +4,7 @@ use tokio::sync::watch;
 
 use garage_core::block_ref_table::*;
 use garage_core::garage::Garage;
+use garage_core::object_table::*;
 use garage_core::version_table::*;
 use garage_table::*;
 use garage_util::error::Error;
@@ -105,7 +106,10 @@ impl Repair {
 				.get(&version.bucket, &version.key)
 				.await?;
 			let version_exists = match object {
-				Some(o) => o.versions().iter().any(|x| x.uuid == version.uuid),
+				Some(o) => o
+					.versions()
+					.iter()
+					.any(|x| x.uuid == version.uuid && x.state != ObjectVersionState::Aborted),
 				None => {
 					warn!(
 						"Repair versions: object for version {:?} not found",
