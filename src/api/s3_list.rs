@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::sync::Arc;
 
@@ -26,13 +26,14 @@ pub async fn handle_list(
 	max_keys: usize,
 	prefix: &str,
 ) -> Result<Response<BodyType>, Error> {
-	let mut result = BTreeMap::<String, ListResultInfo>::new();
+	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
+	let mut result_common_prefixes = BTreeSet::<String>::new();
 	let mut truncated = true;
 	let mut next_chunk_start = prefix.to_string();
 
 	debug!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
 
-	while result.len() < max_keys && truncated {
+	while result_keys.len() + result_common_prefixes.len() < max_keys && truncated {
 		let objects = garage
 			.object_table
 			.get_range(
@@ -48,33 +49,31 @@ pub async fn handle_list(
 				.iter()
 				.find(|x| x.is_complete && x.data != ObjectVersionData::DeleteMarker)
 			{
-				let relative_key = match object.key.starts_with(prefix) {
-					true => &object.key[prefix.len()..],
-					false => {
-						truncated = false;
-						break;
-					}
-				};
-				let delimited_key = if delimiter.len() > 0 {
+				if !object.key.starts_with(prefix) {
+					truncated = false;
+					break;
+				}
+				let common_prefix = if delimiter.len() > 0 {
+					let relative_key = &object.key[prefix.len()..];
 					match relative_key.find(delimiter) {
-						Some(i) => relative_key.split_at(i).0,
-						None => &relative_key,
+						Some(i) => Some(&object.key[..prefix.len()+i+delimiter.len()]),
+						None => None,
 					}
 				} else {
-					&relative_key
+					None
 				};
-				let delimited_key = delimited_key.to_string();
-				let new_info = match result.get(&delimited_key) {
-					None => ListResultInfo {
-						last_modified: version.timestamp,
-						size: version.size,
-					},
-					Some(lri) => ListResultInfo {
-						last_modified: std::cmp::max(version.timestamp, lri.last_modified),
-						size: 0,
-					},
+				if let Some(pfx) = common_prefix {
+					result_common_prefixes.insert(pfx.to_string());
+				} else {
+					let info = match result_keys.get(&object.key) {
+						None => ListResultInfo {
+							last_modified: version.timestamp,
+							size: version.size,
+						},
+						Some(_lri) => return Err(Error::Message(format!("Duplicate key?? {}", object.key))),
+					};
+					result_keys.insert(object.key.clone(), info);
 				};
-				result.insert(delimited_key, new_info);
 			}
 		}
 		if objects.len() < max_keys {
@@ -94,10 +93,10 @@ pub async fn handle_list(
 	.unwrap();
 	writeln!(&mut xml, "\t<Bucket>{}</Bucket>", bucket).unwrap();
 	writeln!(&mut xml, "\t<Prefix>{}</Prefix>", prefix).unwrap();
-	writeln!(&mut xml, "\t<KeyCount>{}</KeyCount>", result.len()).unwrap();
+	writeln!(&mut xml, "\t<KeyCount>{}</KeyCount>", result_keys.len()).unwrap();
 	writeln!(&mut xml, "\t<MaxKeys>{}</MaxKeys>", max_keys).unwrap();
 	writeln!(&mut xml, "\t<IsTruncated>{}</IsTruncated>", truncated).unwrap();
-	for (key, info) in result.iter() {
+	for (key, info) in result_keys.iter() {
 		let last_modif = NaiveDateTime::from_timestamp(info.last_modified as i64 / 1000, 0);
 		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
 		let last_modif = last_modif.to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -108,11 +107,17 @@ pub async fn handle_list(
 		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
 		writeln!(&mut xml, "\t</Contents>").unwrap();
 	}
+	if result_common_prefixes.len() > 0 {
+		writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
+		for pfx in result_common_prefixes.iter() {
+			writeln!(&mut xml, "\t<Prefix>{}</Prefix>", xml_escape(pfx)).unwrap();
+		}
+		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
+	}
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
-}
-
+} 
 fn xml_escape(s: &str) -> String {
 	s.replace("<", "&lt;")
 		.replace(">", "&gt;")

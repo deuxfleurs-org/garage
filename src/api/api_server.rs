@@ -125,8 +125,18 @@ async fn handler_inner(
 		}
 	} else {
 		match req.method() {
-			&Method::PUT | &Method::DELETE => Err(Error::Forbidden(
-				"Cannot create or delete buckets using S3 api, please talk to Garage directly"
+			&Method::PUT | &Method::HEAD => {
+				// If PUT: corresponds to a bucket creation call
+				// If we're here, the bucket already exists, so just answer ok
+				let empty_body: BodyType = Box::new(BytesBody::from(vec![]));
+				let response = Response::builder()
+					.header("Location", format!("/{}", bucket))
+					.body(empty_body)
+					.unwrap();
+				Ok(response)
+			},
+			&Method::DELETE => Err(Error::Forbidden(
+				"Cannot delete buckets using S3 api, please talk to Garage directly"
 					.into(),
 			)),
 			&Method::GET => {
