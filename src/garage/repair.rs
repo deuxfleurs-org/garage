@@ -52,6 +52,13 @@ impl Repair {
 				.unwrap()
 				.add_full_scan()
 				.await;
+			self.garage
+				.key_table
+				.syncer
+				.load_full()
+				.unwrap()
+				.add_full_scan()
+				.await;
 		}
 
 		// TODO: wait for full sync to finish before proceeding to the rest?
