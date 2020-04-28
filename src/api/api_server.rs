@@ -226,13 +226,7 @@ async fn handler_inner(
 }
 
 fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
-	if !path.starts_with('/') {
-		return Err(Error::BadRequest(format!(
-			"Invalid path: {}, should start with a /",
-			path
-		)));
-	}
-	let path = &path[1..];
+	let path = path.trim_start_matches('/');
 
 	match path.find('/') {
 		Some(i) => Ok((&path[..i], Some(&path[i + 1..]))),

@@ -103,7 +103,8 @@ pub async fn handle_list(
 		writeln!(
 			&mut xml,
 			"\t\t<Key>{}</Key>",
-			xml_encode_key(key, urlencode_resp)
+			xml_escape(key),
+			//xml_encode_key(key, urlencode_resp)       // doesn't work with nextcloud, wtf
 		)
 		.unwrap();
 		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
@@ -117,7 +118,8 @@ pub async fn handle_list(
 			writeln!(
 				&mut xml,
 				"\t<Prefix>{}</Prefix>",
-				xml_encode_key(pfx, urlencode_resp)
+				xml_escape(pfx),
+				//xml_encode_key(pfx, urlencode_resp)
 			)
 			.unwrap();
 		}
