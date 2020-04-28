@@ -82,9 +82,3 @@ impl From<Vec<u8>> for BytesBody {
 		Self::new(Bytes::from(x))
 	}
 }
-
-pub fn xml_escape(s: &str) -> String {
-	s.replace("<", "&lt;")
-		.replace(">", "&gt;")
-		.replace("\"", "&quot;")
-}

@@ -14,6 +14,8 @@ use garage_core::garage::Garage;
 use crate::http_util::*;
 use crate::signature::check_signature;
 
+use crate::s3_copy::*;
+use crate::s3_delete::*;
 use crate::s3_get::*;
 use crate::s3_list::*;
 use crate::s3_put::*;
@@ -71,15 +73,7 @@ async fn handler_inner(
 	req: Request<Body>,
 ) -> Result<Response<BodyType>, Error> {
 	let path = req.uri().path().to_string();
-	let path = path.trim_start_matches('/');
-	let (bucket, key) = match path.find('/') {
-		Some(i) => {
-			let (bucket, key) = path.split_at(i);
-			let key = key.trim_start_matches('/');
-			(bucket, Some(key))
-		}
-		None => (path, None),
-	};
+	let (bucket, key) = parse_bucket_key(path.as_str())?;
 	if bucket.len() == 0 {
 		return Err(Error::Forbidden(format!(
 			"Operations on buckets not allowed"
@@ -116,14 +110,28 @@ async fn handler_inner(
 				Ok(handle_get(garage, &bucket, &key).await?)
 			}
 			&Method::PUT => {
-				if ["partnumber", "uploadid"]
-					.iter()
-					.all(|x| params.contains_key(&x.to_string()))
+				if params.contains_key(&"partnumber".to_string())
+					&& params.contains_key(&"uploadid".to_string())
 				{
 					// UploadPart query
 					let part_number = params.get("partnumber").unwrap();
 					let upload_id = params.get("uploadid").unwrap();
 					Ok(handle_put_part(garage, req, &bucket, &key, part_number, upload_id).await?)
+				} else if req.headers().contains_key("x-amz-copy-source") {
+					// CopyObject query
+					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
+					let (source_bucket, source_key) = parse_bucket_key(copy_source)?;
+					if !api_key.allow_read(&source_bucket) {
+						return Err(Error::Forbidden(format!(
+							"Reading from bucket {} not allowed for this key",
+							source_bucket
+						)));
+					}
+					let source_key = match source_key {
+						None => return Err(Error::BadRequest(format!("No source key specified"))),
+						Some(x) => x,
+					};
+					Ok(handle_copy(garage, &bucket, &key, &source_bucket, &source_key).await?)
 				} else {
 					// PutObject query
 					Ok(handle_put(garage, req, &bucket, &key).await?)
@@ -148,7 +156,10 @@ async fn handler_inner(
 				} else if params.contains_key(&"uploadid".to_string()) {
 					// CompleteMultipartUpload call
 					let upload_id = params.get("uploadid").unwrap();
-					Ok(handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id).await?)
+					Ok(
+						handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id)
+							.await?,
+					)
 				} else {
 					Err(Error::BadRequest(format!(
 						"Not a CreateMultipartUpload call, what is it?"
@@ -176,12 +187,9 @@ async fn handler_inner(
 				))
 			}
 			&Method::GET => {
-				if ["delimiter", "prefix"]
-					.iter()
-					.all(|x| params.contains_key(&x.to_string()))
-				{
+				if params.contains_key(&"prefix".to_string()) {
 					// ListObjects query
-					let delimiter = params.get("delimiter").unwrap();
+					let delimiter = params.get("delimiter").map(|x| x.as_str()).unwrap_or(&"");
 					let max_keys = params
 						.get("max-keys")
 						.map(|x| {
@@ -191,7 +199,21 @@ async fn handler_inner(
 						})
 						.unwrap_or(Ok(1000))?;
 					let prefix = params.get("prefix").unwrap();
-					Ok(handle_list(garage, bucket, delimiter, max_keys, prefix).await?)
+					let urlencode_resp = params
+						.get("encoding-type")
+						.map(|x| x == "url")
+						.unwrap_or(false);
+					let marker = params.get("marker").map(String::as_str);
+					Ok(handle_list(
+						garage,
+						bucket,
+						delimiter,
+						max_keys,
+						prefix,
+						marker,
+						urlencode_resp,
+					)
+					.await?)
 				} else {
 					Err(Error::BadRequest(format!(
 						"Not a list call, so what is it?"
@@ -200,5 +222,20 @@ async fn handler_inner(
 			}
 			_ => Err(Error::BadRequest(format!("Invalid method"))),
 		}
+	}
+}
+
+fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
+	if !path.starts_with('/') {
+		return Err(Error::BadRequest(format!(
+			"Invalid path: {}, should start with a /",
+			path
+		)));
+	}
+	let path = &path[1..];
+
+	match path.find('/') {
+		Some(i) => Ok((&path[..i], Some(&path[i + 1..]))),
+		None => Ok((path, None)),
 	}
 }

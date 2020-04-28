@@ -11,6 +11,8 @@ use garage_util::error::Error;
 use garage_core::garage::Garage;
 use garage_core::key_table::*;
 
+use crate::encoding::uri_encode;
+
 const SHORT_DATE: &str = "%Y%m%d";
 const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 
@@ -283,25 +285,4 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 	} else {
 		"".to_string()
 	}
-}
-
-fn uri_encode(string: &str, encode_slash: bool) -> String {
-	let mut result = String::with_capacity(string.len() * 2);
-	for c in string.chars() {
-		match c {
-			'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '~' | '.' => result.push(c),
-			'/' if encode_slash => result.push_str("%2F"),
-			'/' if !encode_slash => result.push('/'),
-			_ => {
-				result.push('%');
-				result.push_str(
-					&format!("{}", c)
-						.bytes()
-						.map(|b| format!("{:02X}", b))
-						.collect::<String>(),
-				);
-			}
-		}
-	}
-	result
 }

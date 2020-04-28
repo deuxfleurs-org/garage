@@ -9,6 +9,7 @@ use garage_util::error::Error;
 
 use garage_core::garage::Garage;
 
+use crate::encoding::*;
 use crate::http_util::*;
 
 #[derive(Debug)]
@@ -23,11 +24,13 @@ pub async fn handle_list(
 	delimiter: &str,
 	max_keys: usize,
 	prefix: &str,
+	marker: Option<&str>,
+	urlencode_resp: bool,
 ) -> Result<Response<BodyType>, Error> {
 	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
 	let mut result_common_prefixes = BTreeSet::<String>::new();
 	let mut truncated = true;
-	let mut next_chunk_start = prefix.to_string();
+	let mut next_chunk_start = marker.unwrap_or(prefix).to_string();
 
 	debug!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
 
@@ -97,7 +100,12 @@ pub async fn handle_list(
 		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
 		let last_modif = last_modif.to_rfc3339_opts(SecondsFormat::Millis, true);
 		writeln!(&mut xml, "\t<Contents>").unwrap();
-		writeln!(&mut xml, "\t\t<Key>{}</Key>", xml_escape(key)).unwrap();
+		writeln!(
+			&mut xml,
+			"\t\t<Key>{}</Key>",
+			xml_encode_key(key, urlencode_resp)
+		)
+		.unwrap();
 		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
 		writeln!(&mut xml, "\t\t<Size>{}</Size>", info.size).unwrap();
 		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
@@ -106,7 +114,12 @@ pub async fn handle_list(
 	if result_common_prefixes.len() > 0 {
 		writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
 		for pfx in result_common_prefixes.iter() {
-			writeln!(&mut xml, "\t<Prefix>{}</Prefix>", xml_escape(pfx)).unwrap();
+			writeln!(
+				&mut xml,
+				"\t<Prefix>{}</Prefix>",
+				xml_encode_key(pfx, urlencode_resp)
+			)
+			.unwrap();
 		}
 		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
 	}
