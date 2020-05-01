@@ -32,4 +32,5 @@ hyper = "0.13"
 rustls = "0.17"
 webpki = "0.21"
 
+roxmltree = "0.11"
 

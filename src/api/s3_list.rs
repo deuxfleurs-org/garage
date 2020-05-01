@@ -30,34 +30,38 @@ pub async fn handle_list(
 	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
 	let mut result_common_prefixes = BTreeSet::<String>::new();
 
-	let mut truncated = true;
 	let mut next_chunk_start = marker.unwrap_or(prefix).to_string();
 
 	debug!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
 
-	while result_keys.len() + result_common_prefixes.len() < max_keys && truncated {
+	let truncated;
+	'query_loop: loop {
 		let objects = garage
 			.object_table
 			.get_range(
 				&bucket.to_string(),
 				Some(next_chunk_start.clone()),
 				Some(()),
-				max_keys,
+				max_keys + 1,
 			)
 			.await?;
 		debug!(
 			"List: get range {} (max {}), results: {}",
 			next_chunk_start,
-			max_keys,
+			max_keys + 1,
 			objects.len()
 		);
 
 		for object in objects.iter() {
 			if !object.key.starts_with(prefix) {
 				truncated = false;
-				break;
+				break 'query_loop;
 			}
 			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
+                if result_keys.len() + result_common_prefixes.len() >= max_keys {
+                    truncated = true;
+                    break 'query_loop;
+                }
 				let common_prefix = if delimiter.len() > 0 {
 					let relative_key = &object.key[prefix.len()..];
 					match relative_key.find(delimiter) {
@@ -83,8 +87,9 @@ pub async fn handle_list(
 				};
 			}
 		}
-		if objects.len() < max_keys {
-			truncated = false;
+		if objects.len() < max_keys + 1 {
+            truncated = false;
+            break 'query_loop;
 		}
 		if objects.len() > 0 {
 			next_chunk_start = objects[objects.len() - 1].key.clone();

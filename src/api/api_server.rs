@@ -74,8 +74,7 @@ async fn handler_inner(
 ) -> Result<Response<BodyType>, Error> {
 	let path = req.uri().path().to_string();
 	let path = percent_encoding::percent_decode_str(&path)
-		.decode_utf8()
-		.map_err(|e| Error::BadRequest(format!("Invalid utf8 key ({})", e)))?;
+		.decode_utf8()?;
 
 	let (bucket, key) = parse_bucket_key(&path)?;
 	if bucket.len() == 0 {
@@ -125,10 +124,7 @@ async fn handler_inner(
 					// CopyObject query
 					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 					let copy_source = percent_encoding::percent_decode_str(&copy_source)
-						.decode_utf8()
-						.map_err(|e| {
-							Error::BadRequest(format!("Invalid utf8 copy_source ({})", e))
-						})?;
+						.decode_utf8()?;
 					let (source_bucket, source_key) = parse_bucket_key(&copy_source)?;
 					if !api_key.allow_read(&source_bucket) {
 						return Err(Error::Forbidden(format!(
@@ -153,8 +149,7 @@ async fn handler_inner(
 					Ok(handle_abort_multipart_upload(garage, &bucket, &key, upload_id).await?)
 				} else {
 					// DeleteObject query
-					let version_uuid = handle_delete(garage, &bucket, &key).await?;
-					Ok(put_response(version_uuid))
+					Ok(handle_delete(garage, &bucket, &key).await?)
 				}
 			}
 			&Method::POST => {
@@ -233,7 +228,22 @@ async fn handler_inner(
 				)
 				.await?)
 			}
-			_ => Err(Error::BadRequest(format!("Invalid method"))),
+            &Method::POST => {
+                if params.contains_key(&"delete".to_string()) {
+                    // DeleteObjects
+                    Ok(handle_delete_objects(garage, bucket, req).await?)
+                } else {
+                    println!(
+                        "Body: {}",
+                        std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
+                            .unwrap_or("<invalid utf8>")
+                    );
+                    Err(Error::BadRequest(format!("Unsupported call")))
+                }
+            }
+			_ => {
+                Err(Error::BadRequest(format!("Invalid method")))
+            }
 		}
 	}
 }

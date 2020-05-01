@@ -114,3 +114,15 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
 		Error::Message(format!("MPSC send error"))
 	}
 }
+
+impl From<std::str::Utf8Error> for Error {
+    fn from(e: std::str::Utf8Error) -> Error {
+        Error::BadRequest(format!("Invalid UTF-8: {}", e))
+    }
+}
+
+impl From<roxmltree::Error> for Error {
+    fn from(e: roxmltree::Error) -> Error {
+        Error::BadRequest(format!("Invalid XML: {}", e))
+    }
+}

@@ -1,4 +1,7 @@
 use std::sync::Arc;
+use std::fmt::Write;
+
+use hyper::{Body, Request, Response};
 
 use garage_util::data::*;
 use garage_util::error::Error;
@@ -6,7 +9,10 @@ use garage_util::error::Error;
 use garage_core::garage::Garage;
 use garage_core::object_table::*;
 
-pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<UUID, Error> {
+use crate::http_util::*;
+use crate::encoding::*;
+
+async fn handle_delete_internal(garage: &Garage, bucket: &str, key: &str) -> Result<(UUID, UUID), Error> {
 	let object = match garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
@@ -14,7 +20,7 @@ pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Resu
 	{
 		None => {
 			// No need to delete
-			return Ok([0u8; 32].into());
+			return Err(Error::NotFound);
 		}
 		Some(o) => o,
 	};
@@ -23,16 +29,19 @@ pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Resu
 		v.data != ObjectVersionData::DeleteMarker && v.state != ObjectVersionState::Aborted
 	});
 
-	let mut must_delete = false;
+	let mut must_delete = None;
 	let mut timestamp = now_msec();
 	for v in interesting_versions {
-		must_delete = true;
+        if v.timestamp + 1 > timestamp || must_delete.is_none() {
+		    must_delete = Some(v.uuid);
+        }
 		timestamp = std::cmp::max(timestamp, v.timestamp + 1);
 	}
 
-	if !must_delete {
-		return Ok([0u8; 32].into());
-	}
+    let deleted_version = match must_delete {
+        None => return Err(Error::NotFound),
+        Some(v) => v,
+    };
 
 	let version_uuid = gen_uuid();
 
@@ -50,5 +59,88 @@ pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Resu
 	);
 
 	garage.object_table.insert(&object).await?;
-	return Ok(version_uuid);
+	return Ok((deleted_version, version_uuid));
 }
+
+pub async fn handle_delete(garage: Arc<Garage>, bucket: &str, key: &str) -> Result<Response<BodyType>, Error> {
+    let (_deleted_version, delete_marker_version) = handle_delete_internal(&garage, bucket, key).await?;
+
+	Ok(Response::builder()
+		.header("x-amz-version-id", hex::encode(delete_marker_version))
+		.body(empty_body())
+		.unwrap())
+}
+
+pub async fn handle_delete_objects(garage: Arc<Garage>, bucket: &str, req: Request<Body>) -> Result<Response<BodyType>, Error> {
+    let body = hyper::body::to_bytes(req.into_body()).await?;
+    let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
+    let cmd = parse_delete_objects_xml(&cmd_xml)
+        .map_err(|e| Error::BadRequest(format!("Invald delete XML query: {}", e)))?;
+
+    let mut retxml = String::new();
+	writeln!(&mut retxml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
+	writeln!(&mut retxml, "<DeleteObjectsOutput>").unwrap();
+
+    for obj in cmd.objects.iter() {
+        match handle_delete_internal(&garage, bucket, &obj.key).await {
+            Ok((deleted_version, delete_marker_version)) => {
+                writeln!(&mut retxml, "\t<Deleted>").unwrap();
+                writeln!(&mut retxml, "\t\t<Key>{}</Key>", obj.key).unwrap();
+                writeln!(&mut retxml, "\t\t<VersionId>{}</VersionId>", hex::encode(deleted_version)).unwrap();
+                writeln!(&mut retxml, "\t\t<DeleteMarkerVersionId>{}</DeleteMarkerVersionId>", hex::encode(delete_marker_version)).unwrap();
+                writeln!(&mut retxml, "\t</Deleted>").unwrap();
+            }
+            Err(e) => {
+                writeln!(&mut retxml, "\t<Error>").unwrap();
+                writeln!(&mut retxml, "\t\t<Code>{}</Code>", e.http_status_code()).unwrap();
+                writeln!(&mut retxml, "\t\t<Key>{}</Key>", obj.key).unwrap();
+                writeln!(&mut retxml, "\t\t<Message>{}</Message>", xml_escape(&format!("{}", e))).unwrap();
+                writeln!(&mut retxml, "\t</Error>").unwrap();
+            }
+        }
+    }
+
+	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
+
+	Ok(Response::new(Box::new(BytesBody::from(retxml.into_bytes()))))
+}
+
+struct DeleteRequest {
+    objects: Vec<DeleteObject>,
+}
+
+struct DeleteObject {
+    key: String,
+}
+
+fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Result<DeleteRequest, String> {
+    let mut ret = DeleteRequest{objects: vec![]};
+
+    let root = xml.root();
+    let delete = match root.first_child() {
+        Some(del) => del,
+        None => return Err(format!("Delete tag not found")),
+    };
+    if !delete.has_tag_name("Delete") {
+        return Err(format!("Invalid root tag: {:?}", root));
+    }
+
+    for item in delete.children() {
+        if item.has_tag_name("Object") {
+            if let Some(key) = item.children().find(|e| e.has_tag_name("Key")) {
+                if let Some(key_str) = key.text() {
+                    ret.objects.push(DeleteObject{key: key_str.to_string()});
+                } else {
+                    return Err(format!("No text for key: {:?}", key));
+                }
+            } else {
+                return Err(format!("No delete key for item: {:?}", item));
+            }
+        } else {
+            return Err(format!("Invalid delete item: {:?}", item));
+        }
+    }
+
+    Ok(ret)
+}
+
