@@ -328,10 +328,11 @@ impl RpcHttpClient {
 				);
 				e
 			})?;
-		drop(slot);
 
 		let status = resp.status();
 		let body = hyper::body::to_bytes(resp.into_body()).await?;
+		drop(slot);
+
 		match rmp_serde::decode::from_read::<_, Result<M, String>>(body.into_buf())? {
 			Err(e) => Ok(Err(Error::RemoteError(e, status))),
 			Ok(x) => Ok(Ok(x)),
