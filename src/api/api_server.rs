@@ -73,7 +73,11 @@ async fn handler_inner(
 	req: Request<Body>,
 ) -> Result<Response<BodyType>, Error> {
 	let path = req.uri().path().to_string();
-	let (bucket, key) = parse_bucket_key(path.as_str())?;
+	let path = percent_encoding::percent_decode_str(&path)
+		.decode_utf8()
+		.map_err(|e| Error::BadRequest(format!("Invalid utf8 key ({})", e)))?;
+
+	let (bucket, key) = parse_bucket_key(&path)?;
 	if bucket.len() == 0 {
 		return Err(Error::Forbidden(format!(
 			"Operations on buckets not allowed"
@@ -120,7 +124,12 @@ async fn handler_inner(
 				} else if req.headers().contains_key("x-amz-copy-source") {
 					// CopyObject query
 					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
-					let (source_bucket, source_key) = parse_bucket_key(copy_source)?;
+					let copy_source = percent_encoding::percent_decode_str(&copy_source)
+						.decode_utf8()
+						.map_err(|e| {
+							Error::BadRequest(format!("Invalid utf8 copy_source ({})", e))
+						})?;
+					let (source_bucket, source_key) = parse_bucket_key(&copy_source)?;
 					if !api_key.allow_read(&source_bucket) {
 						return Err(Error::Forbidden(format!(
 							"Reading from bucket {} not allowed for this key",
@@ -145,8 +154,7 @@ async fn handler_inner(
 				} else {
 					// DeleteObject query
 					let version_uuid = handle_delete(garage, &bucket, &key).await?;
-					let response = format!("{}\n", hex::encode(version_uuid));
-					Ok(Response::new(Box::new(BytesBody::from(response))))
+					Ok(put_response(version_uuid))
 				}
 			}
 			&Method::POST => {
@@ -170,14 +178,25 @@ async fn handler_inner(
 		}
 	} else {
 		match req.method() {
-			&Method::PUT | &Method::HEAD => {
-				// If PUT: CreateBucket, if HEAD: HeadBucket
+			&Method::PUT => {
+				// CreateBucket
 				// If we're here, the bucket already exists, so just answer ok
+				println!(
+					"Body: {}",
+					std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
+						.unwrap_or("<invalid utf8>")
+				);
 				let empty_body: BodyType = Box::new(BytesBody::from(vec![]));
 				let response = Response::builder()
 					.header("Location", format!("/{}", bucket))
 					.body(empty_body)
 					.unwrap();
+				Ok(response)
+			}
+			&Method::HEAD => {
+				// HeadBucket
+				let empty_body: BodyType = Box::new(BytesBody::from(vec![]));
+				let response = Response::builder().body(empty_body).unwrap();
 				Ok(response)
 			}
 			&Method::DELETE => {
@@ -187,38 +206,32 @@ async fn handler_inner(
 				))
 			}
 			&Method::GET => {
-				if params.contains_key(&"prefix".to_string()) {
-					// ListObjects query
-					let delimiter = params.get("delimiter").map(|x| x.as_str()).unwrap_or(&"");
-					let max_keys = params
-						.get("max-keys")
-						.map(|x| {
-							x.parse::<usize>().map_err(|e| {
-								Error::BadRequest(format!("Invalid value for max-keys: {}", e))
-							})
+				// ListObjects query
+				let delimiter = params.get("delimiter").map(|x| x.as_str()).unwrap_or(&"");
+				let max_keys = params
+					.get("max-keys")
+					.map(|x| {
+						x.parse::<usize>().map_err(|e| {
+							Error::BadRequest(format!("Invalid value for max-keys: {}", e))
 						})
-						.unwrap_or(Ok(1000))?;
-					let prefix = params.get("prefix").unwrap();
-					let urlencode_resp = params
-						.get("encoding-type")
-						.map(|x| x == "url")
-						.unwrap_or(false);
-					let marker = params.get("marker").map(String::as_str);
-					Ok(handle_list(
-						garage,
-						bucket,
-						delimiter,
-						max_keys,
-						prefix,
-						marker,
-						urlencode_resp,
-					)
-					.await?)
-				} else {
-					Err(Error::BadRequest(format!(
-						"Not a list call, so what is it?"
-					)))
-				}
+					})
+					.unwrap_or(Ok(1000))?;
+				let prefix = params.get("prefix").map(|x| x.as_str()).unwrap_or(&"");
+				let urlencode_resp = params
+					.get("encoding-type")
+					.map(|x| x == "url")
+					.unwrap_or(false);
+				let marker = params.get("marker").map(String::as_str);
+				Ok(handle_list(
+					garage,
+					bucket,
+					delimiter,
+					max_keys,
+					prefix,
+					marker,
+					urlencode_resp,
+				)
+				.await?)
 			}
 			_ => Err(Error::BadRequest(format!("Invalid method"))),
 		}
@@ -229,7 +242,14 @@ fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 	let path = path.trim_start_matches('/');
 
 	match path.find('/') {
-		Some(i) => Ok((&path[..i], Some(&path[i + 1..]))),
+		Some(i) => {
+			let key = &path[i + 1..];
+			if key.len() > 0 {
+				Ok((&path[..i], Some(key)))
+			} else {
+				Ok((&path[..i], None))
+			}
+		}
 		None => Ok((path, None)),
 	}
 }

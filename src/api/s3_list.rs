@@ -29,6 +29,7 @@ pub async fn handle_list(
 ) -> Result<Response<BodyType>, Error> {
 	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
 	let mut result_common_prefixes = BTreeSet::<String>::new();
+
 	let mut truncated = true;
 	let mut next_chunk_start = marker.unwrap_or(prefix).to_string();
 
@@ -44,12 +45,19 @@ pub async fn handle_list(
 				max_keys,
 			)
 			.await?;
+		debug!(
+			"List: get range {} (max {}), results: {}",
+			next_chunk_start,
+			max_keys,
+			objects.len()
+		);
+
 		for object in objects.iter() {
+			if !object.key.starts_with(prefix) {
+				truncated = false;
+				break;
+			}
 			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
-				if !object.key.starts_with(prefix) {
-					truncated = false;
-					break;
-				}
 				let common_prefix = if delimiter.len() > 0 {
 					let relative_key = &object.key[prefix.len()..];
 					match relative_key.find(delimiter) {
@@ -117,7 +125,7 @@ pub async fn handle_list(
 		for pfx in result_common_prefixes.iter() {
 			writeln!(
 				&mut xml,
-				"\t<Prefix>{}</Prefix>",
+				"\t\t<Prefix>{}</Prefix>",
 				xml_escape(pfx),
 				//xml_encode_key(pfx, urlencode_resp)
 			)
@@ -126,6 +134,7 @@ pub async fn handle_list(
 		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
 	}
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
+	println!("{}", xml);
 
 	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
 }

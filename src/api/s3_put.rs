@@ -195,9 +195,11 @@ impl BodyChunker {
 	}
 }
 
-fn put_response(version_uuid: UUID) -> Response<BodyType> {
-	let resp_bytes = format!("{}\n", hex::encode(version_uuid));
-	Response::new(Box::new(BytesBody::from(resp_bytes)))
+pub fn put_response(version_uuid: UUID) -> Response<BodyType> {
+	Response::builder()
+		.header("x-amz-version-id", hex::encode(version_uuid))
+		.body(empty_body())
+		.unwrap()
 }
 
 pub async fn handle_create_multipart_upload(

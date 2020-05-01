@@ -82,3 +82,7 @@ impl From<Vec<u8>> for BytesBody {
 		Self::new(Bytes::from(x))
 	}
 }
+
+pub fn empty_body() -> BodyType {
+	Box::new(BytesBody::from(vec![]))
+}

@@ -30,5 +30,5 @@ http = "0.2"
 hyper = "0.13"
 url = "2.1"
 httpdate = "0.3"
-
+percent-encoding = "2.1.0"
 
