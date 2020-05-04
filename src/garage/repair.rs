@@ -112,10 +112,10 @@ impl Repair {
 					.any(|x| x.uuid == version.uuid && x.state != ObjectVersionState::Aborted),
 				None => {
 					warn!(
-						"Repair versions: object for version {:?} not found",
+						"Repair versions: object for version {:?} not found, skipping.",
 						version
 					);
-					false
+					continue;
 				}
 			};
 			if !version_exists {
@@ -158,10 +158,10 @@ impl Repair {
 				Some(v) => !v.deleted,
 				None => {
 					warn!(
-						"Block ref repair: version for block ref {:?} not found",
+						"Block ref repair: version for block ref {:?} not found, skipping.",
 						block_ref
 					);
-					false
+					continue;
 				}
 			};
 			if !ref_exists {
