@@ -58,10 +58,10 @@ pub async fn handle_list(
 				break 'query_loop;
 			}
 			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
-                if result_keys.len() + result_common_prefixes.len() >= max_keys {
-                    truncated = true;
-                    break 'query_loop;
-                }
+				if result_keys.len() + result_common_prefixes.len() >= max_keys {
+					truncated = true;
+					break 'query_loop;
+				}
 				let common_prefix = if delimiter.len() > 0 {
 					let relative_key = &object.key[prefix.len()..];
 					match relative_key.find(delimiter) {
@@ -88,8 +88,8 @@ pub async fn handle_list(
 			}
 		}
 		if objects.len() < max_keys + 1 {
-            truncated = false;
-            break 'query_loop;
+			truncated = false;
+			break 'query_loop;
 		}
 		if objects.len() > 0 {
 			next_chunk_start = objects[objects.len() - 1].key.clone();
