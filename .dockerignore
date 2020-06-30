@@ -1,0 +1,2 @@
+target/*
+!target/release/garage.stripped
