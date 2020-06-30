@@ -14,6 +14,8 @@ pub struct Config {
 	pub rpc_bind_addr: SocketAddr,
 
 	pub bootstrap_peers: Vec<SocketAddr>,
+	pub consul_host: Option<String>,
+	pub consul_service_name: Option<String>,
 
 	#[serde(default = "default_max_concurrent_rpc_requests")]
 	pub max_concurrent_rpc_requests: usize,

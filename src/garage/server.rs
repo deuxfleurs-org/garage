@@ -61,7 +61,11 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		garage
 			.system
 			.clone()
-			.bootstrap(&garage.config.bootstrap_peers[..])
+			.bootstrap(
+				&garage.config.bootstrap_peers[..],
+				garage.config.consul_host.clone(),
+				garage.config.consul_service_name.clone()
+			)
 			.map(|rv| {
 				info!("Bootstrap done");
 				Ok(rv)
