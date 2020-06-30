@@ -48,6 +48,11 @@ bootstrap_peers = [
 	"10.0.0.3:3901",
 ]
 
+# optionnal: garage can find cluster nodes automatically using a Consul server
+# garage only does lookup but does not register itself, registration should be handled externally by e.g. Nomad
+consul_host = "localhost:8500"	# optionnal: host name of a Consul server for automatic peer discovery
+consul_service_name = "garage"  # optionnal: service name to look up on Consul
+
 max_concurrent_rpc_requests = 12
 data_replication_factor = 3
 meta_replication_factor = 3
