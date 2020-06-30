@@ -24,8 +24,8 @@ pub struct Config {
 	#[serde(default = "default_replication_factor")]
 	pub meta_replication_factor: usize,
 
-	#[serde(default = "default_epidemic_factor")]
-	pub meta_epidemic_factor: usize,
+	#[serde(default = "default_epidemic_fanout")]
+	pub meta_epidemic_fanout: usize,
 
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
@@ -57,7 +57,7 @@ fn default_block_size() -> usize {
 fn default_replication_factor() -> usize {
 	3
 }
-fn default_epidemic_factor() -> usize {
+fn default_epidemic_fanout() -> usize {
 	3
 }
 

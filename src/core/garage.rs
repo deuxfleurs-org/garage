@@ -66,8 +66,8 @@ impl Garage {
 		};
 
 		let control_rep_param = TableFullReplication::new(
-			config.meta_epidemic_factor,
-			(config.meta_epidemic_factor + 1) / 2,
+			config.meta_epidemic_fanout,
+			(config.meta_epidemic_fanout + 1) / 2,
 		);
 
 		info!("Initialize block manager...");

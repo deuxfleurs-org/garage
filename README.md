@@ -48,6 +48,11 @@ bootstrap_peers = [
 	"10.0.0.3:3901",
 ]
 
+max_concurrent_rpc_requests = 12
+data_replication_factor = 3
+meta_replication_factor = 3
+meta_epidemic_fanout = 3
+
 [rpc_tls]
 # NOT RECOMMENDED: you can skip this section if you don't want to encrypt intra-cluster traffic
 # Thanks to genkeys.sh, generating the keys and certificates is easy, so there is NO REASON NOT TO DO IT.
