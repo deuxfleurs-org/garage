@@ -13,9 +13,9 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { path = "../util" }
-garage_table = { path = "../table" }
-garage_model = { path = "../model" }
+garage_util = { version = "0.1", path = "../util" }
+garage_table = { version = "0.1", path = "../table" }
+garage_model = { version = "0.1", path = "../model" }
 
 bytes = "0.4"
 hex = "0.3"

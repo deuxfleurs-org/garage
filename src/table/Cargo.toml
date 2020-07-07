@@ -13,8 +13,8 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { path = "../util" }
-garage_rpc = { path = "../rpc" }
+garage_util = { version = "0.1", path = "../util" }
+garage_rpc = { version = "0.1", path = "../rpc" }
 
 bytes = "0.4"
 rand = "0.7"
