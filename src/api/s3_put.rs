@@ -16,14 +16,13 @@ use garage_model::object_table::*;
 use garage_model::version_table::*;
 
 use crate::encoding::*;
-use crate::http_util::*;
 
 pub async fn handle_put(
 	garage: Arc<Garage>,
 	req: Request<Body>,
 	bucket: &str,
 	key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let version_uuid = gen_uuid();
 	let mime_type = get_mime_type(&req)?;
 	let body = req.into_body();
@@ -195,10 +194,10 @@ impl BodyChunker {
 	}
 }
 
-pub fn put_response(version_uuid: UUID) -> Response<BodyType> {
+pub fn put_response(version_uuid: UUID) -> Response<Body> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
-		.body(empty_body())
+		.body(Body::from(vec![]))
 		.unwrap()
 }
 
@@ -207,7 +206,7 @@ pub async fn handle_create_multipart_upload(
 	req: &Request<Body>,
 	bucket: &str,
 	key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let version_uuid = gen_uuid();
 	let mime_type = get_mime_type(req)?;
 
@@ -239,7 +238,7 @@ pub async fn handle_create_multipart_upload(
 	.unwrap();
 	writeln!(&mut xml, "</InitiateMultipartUploadResult>").unwrap();
 
-	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
+	Ok(Response::new(Body::from(xml.into_bytes())))
 }
 
 pub async fn handle_put_part(
@@ -249,7 +248,7 @@ pub async fn handle_put_part(
 	key: &str,
 	part_number_str: &str,
 	upload_id: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	// Check parameters
 	let part_number = part_number_str
 		.parse::<u64>()
@@ -299,7 +298,7 @@ pub async fn handle_put_part(
 	)
 	.await?;
 
-	Ok(Response::new(Box::new(BytesBody::from(vec![]))))
+	Ok(Response::new(Body::from(vec![])))
 }
 
 pub async fn handle_complete_multipart_upload(
@@ -308,7 +307,7 @@ pub async fn handle_complete_multipart_upload(
 	bucket: &str,
 	key: &str,
 	upload_id: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let version_uuid =
 		uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
 
@@ -374,7 +373,7 @@ pub async fn handle_complete_multipart_upload(
 	writeln!(&mut xml, "\t<Key>{}</Key>", xml_escape(&key)).unwrap();
 	writeln!(&mut xml, "</CompleteMultipartUploadResult>").unwrap();
 
-	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
+	Ok(Response::new(Body::from(xml.into_bytes())))
 }
 
 pub async fn handle_abort_multipart_upload(
@@ -382,7 +381,7 @@ pub async fn handle_abort_multipart_upload(
 	bucket: &str,
 	key: &str,
 	upload_id: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let version_uuid =
 		uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
 
@@ -412,7 +411,7 @@ pub async fn handle_abort_multipart_upload(
 	let final_object = Object::new(bucket.to_string(), key.to_string(), vec![object_version]);
 	garage.object_table.insert(&final_object).await?;
 
-	Ok(Response::new(Box::new(BytesBody::from(vec![]))))
+	Ok(Response::new(Body::from(vec![])))
 }
 
 fn get_mime_type(req: &Request<Body>) -> Result<String, Error> {

@@ -2,7 +2,7 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use chrono::{SecondsFormat, Utc};
-use hyper::Response;
+use hyper::{Body, Response};
 
 use garage_table::*;
 use garage_util::data::*;
@@ -13,15 +13,13 @@ use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
 
-use crate::http_util::*;
-
 pub async fn handle_copy(
 	garage: Arc<Garage>,
 	dest_bucket: &str,
 	dest_key: &str,
 	source_bucket: &str,
 	source_key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let source_object = match garage
 		.object_table
 		.get(&source_bucket.to_string(), &source_key.to_string())
@@ -116,5 +114,5 @@ pub async fn handle_copy(
 	writeln!(&mut xml, "\t<LastModified>{}</LastModified>", last_modified).unwrap();
 	writeln!(&mut xml, "</CopyObjectResult>").unwrap();
 
-	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
+	Ok(Response::new(Body::from(xml.into_bytes())))
 }

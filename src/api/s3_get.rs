@@ -12,8 +12,6 @@ use garage_table::EmptyKey;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
-use crate::http_util::*;
-
 fn object_headers(version: &ObjectVersion) -> http::response::Builder {
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
@@ -29,7 +27,7 @@ pub async fn handle_head(
 	garage: Arc<Garage>,
 	bucket: &str,
 	key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let object = match garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
@@ -50,7 +48,7 @@ pub async fn handle_head(
 		None => return Err(Error::NotFound),
 	};
 
-	let body: BodyType = Box::new(BytesBody::from(vec![]));
+	let body: Body = Body::from(vec![]);
 	let response = object_headers(&version)
 		.status(StatusCode::OK)
 		.body(body)
@@ -63,7 +61,7 @@ pub async fn handle_get(
 	req: &Request<Body>,
 	bucket: &str,
 	key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let object = match garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
@@ -111,7 +109,7 @@ pub async fn handle_get(
 		))),
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),
 		ObjectVersionData::Inline(bytes) => {
-			let body: BodyType = Box::new(BytesBody::from(bytes.to_vec()));
+			let body: Body = Body::from(bytes.to_vec());
 			Ok(resp_builder.body(body)?)
 		}
 		ObjectVersionData::FirstBlock(first_block_hash) => {
@@ -147,7 +145,8 @@ pub async fn handle_get(
 					}
 				})
 				.buffered(2);
-			let body: BodyType = Box::new(StreamBody::new(Box::pin(body_stream)));
+			//let body: Body = Box::new(StreamBody::new(Box::pin(body_stream)));
+            let body = hyper::body::Body::wrap_stream(body_stream);
 			Ok(resp_builder.body(body)?)
 		}
 	}
@@ -158,7 +157,7 @@ pub async fn handle_get_range(
 	version: &ObjectVersion,
 	begin: u64,
 	end: u64,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	if end > version.size {
 		return Err(Error::BadRequest(format!("Range not included in file")));
 	}
@@ -177,9 +176,9 @@ pub async fn handle_get_range(
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),
 		ObjectVersionData::Inline(bytes) => {
 			if end as usize <= bytes.len() {
-				let body: BodyType = Box::new(BytesBody::from(
+				let body: Body = Body::from(
 					bytes[begin as usize..end as usize].to_vec(),
-				));
+				);
 				Ok(resp_builder.body(body)?)
 			} else {
 				Err(Error::Message(format!("Internal error: requested range not present in inline bytes when it should have been")))
@@ -214,13 +213,14 @@ pub async fn handle_get_range(
 						} else {
 							end - block.offset
 						};
-						Ok(Bytes::from(
+						Result::<Bytes,Error>::Ok(Bytes::from(
 							data[start_in_block as usize..end_in_block as usize].to_vec(),
 						))
 					}
 				})
 				.buffered(2);
-			let body: BodyType = Box::new(StreamBody::new(Box::pin(body_stream)));
+			//let body: Body = Box::new(StreamBody::new(Box::pin(body_stream)));
+            let body = hyper::body::Body::wrap_stream(body_stream);
 			Ok(resp_builder.body(body)?)
 		}
 	}

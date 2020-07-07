@@ -11,7 +11,6 @@ use garage_util::error::Error;
 
 use garage_model::garage::Garage;
 
-use crate::http_util::*;
 use crate::signature::check_signature;
 
 use crate::s3_copy::*;
@@ -50,7 +49,7 @@ async fn handler(
 	garage: Arc<Garage>,
 	req: Request<Body>,
 	addr: SocketAddr,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	info!("{} {} {}", addr, req.method(), req.uri());
 	debug!("{:?}", req);
 	match handler_inner(garage, req).await {
@@ -59,7 +58,7 @@ async fn handler(
 			Ok(x)
 		}
 		Err(e) => {
-			let body: BodyType = Box::new(BytesBody::from(format!("{}\n", e)));
+			let body: Body = Body::from(format!("{}\n", e));
 			let mut http_error = Response::new(body);
 			*http_error.status_mut() = e.http_status_code();
 			warn!("Response: error {}, {}", e.http_status_code(), e);
@@ -71,7 +70,7 @@ async fn handler(
 async fn handler_inner(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let path = req.uri().path().to_string();
 	let path = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
@@ -180,7 +179,7 @@ async fn handler_inner(
 					std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
 						.unwrap_or("<invalid utf8>")
 				);
-				let empty_body: BodyType = Box::new(BytesBody::from(vec![]));
+				let empty_body: Body = Body::from(vec![]);
 				let response = Response::builder()
 					.header("Location", format!("/{}", bucket))
 					.body(empty_body)
@@ -189,7 +188,7 @@ async fn handler_inner(
 			}
 			&Method::HEAD => {
 				// HeadBucket
-				let empty_body: BodyType = Box::new(BytesBody::from(vec![]));
+				let empty_body: Body = Body::from(vec![]);
 				let response = Response::builder().body(empty_body).unwrap();
 				Ok(response)
 			}

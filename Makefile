@@ -3,10 +3,12 @@ DOCKER=lxpz/garage_amd64
 
 all:
 	#cargo fmt || true
-	RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build
+	#RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build
+	cargo build
 
 $(BIN):
-	RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release
+	#RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release
+	cargo build --release
 
 $(BIN).stripped: $(BIN)
 	cp $^ $@

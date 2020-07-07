@@ -3,14 +3,13 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
-use hyper::Response;
+use hyper::{Body, Response};
 
 use garage_util::error::Error;
 
 use garage_model::garage::Garage;
 
 use crate::encoding::*;
-use crate::http_util::*;
 
 #[derive(Debug)]
 struct ListResultInfo {
@@ -26,7 +25,7 @@ pub async fn handle_list(
 	prefix: &str,
 	marker: Option<&str>,
 	urlencode_resp: bool,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
 	let mut result_common_prefixes = BTreeSet::<String>::new();
 
@@ -141,5 +140,5 @@ pub async fn handle_list(
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 	println!("{}", xml);
 
-	Ok(Response::new(Box::new(BytesBody::from(xml.into_bytes()))))
+	Ok(Response::new(Body::from(xml.into_bytes())))
 }

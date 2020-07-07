@@ -10,7 +10,6 @@ use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
 use crate::encoding::*;
-use crate::http_util::*;
 
 async fn handle_delete_internal(
 	garage: &Garage,
@@ -70,13 +69,13 @@ pub async fn handle_delete(
 	garage: Arc<Garage>,
 	bucket: &str,
 	key: &str,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let (_deleted_version, delete_marker_version) =
 		handle_delete_internal(&garage, bucket, key).await?;
 
 	Ok(Response::builder()
 		.header("x-amz-version-id", hex::encode(delete_marker_version))
-		.body(empty_body())
+		.body(Body::from(vec![]))
 		.unwrap())
 }
 
@@ -84,7 +83,7 @@ pub async fn handle_delete_objects(
 	garage: Arc<Garage>,
 	bucket: &str,
 	req: Request<Body>,
-) -> Result<Response<BodyType>, Error> {
+) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
 	let cmd = parse_delete_objects_xml(&cmd_xml)
@@ -130,9 +129,9 @@ pub async fn handle_delete_objects(
 
 	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
 
-	Ok(Response::new(Box::new(BytesBody::from(
+	Ok(Response::new(Body::from(
 		retxml.into_bytes(),
-	))))
+	)))
 }
 
 struct DeleteRequest {
