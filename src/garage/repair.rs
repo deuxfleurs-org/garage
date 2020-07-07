@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use garage_core::block_ref_table::*;
-use garage_core::garage::Garage;
-use garage_core::object_table::*;
-use garage_core::version_table::*;
+use garage_model::block_ref_table::*;
+use garage_model::garage::Garage;
+use garage_model::object_table::*;
+use garage_model::version_table::*;
 use garage_table::*;
 use garage_util::error::Error;
 

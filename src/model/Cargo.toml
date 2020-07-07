@@ -1,5 +1,5 @@
 [package]
-name = "garage_core"
+name = "garage_model"
 version = "0.1.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"

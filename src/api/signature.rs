@@ -8,8 +8,8 @@ use sha2::{Digest, Sha256};
 use garage_table::*;
 use garage_util::error::Error;
 
-use garage_core::garage::Garage;
-use garage_core::key_table::*;
+use garage_model::garage::Garage;
+use garage_model::key_table::*;
 
 use crate::encoding::uri_encode;
 

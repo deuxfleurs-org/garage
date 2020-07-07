@@ -12,7 +12,7 @@ path = "lib.rs"
 [dependencies]
 garage_util = { path = "../util" }
 garage_table = { path = "../table" }
-garage_core = { path = "../core" }
+garage_model = { path = "../model" }
 
 bytes = "0.4"
 hex = "0.3"

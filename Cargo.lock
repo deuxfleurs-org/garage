@@ -339,7 +339,7 @@ dependencies = [
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "garage_api 0.1.0",
- "garage_core 0.1.0",
+ "garage_model 0.1.0",
  "garage_rpc 0.1.0",
  "garage_table 0.1.0",
  "garage_util 0.1.0",
@@ -365,7 +365,7 @@ dependencies = [
  "crypto-mac 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_core 0.1.0",
+ "garage_model 0.1.0",
  "garage_table 0.1.0",
  "garage_util 0.1.0",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -383,7 +383,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "garage_core"
+name = "garage_model"
 version = "0.1.0"
 dependencies = [
  "arc-swap 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -3,7 +3,7 @@ members = [
 	"src/util",
 	"src/rpc",
 	"src/table",
-	"src/core",
+	"src/model",
 	"src/api",
 	"src/garage",
 ]

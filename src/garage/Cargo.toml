@@ -14,7 +14,7 @@ path = "main.rs"
 garage_util = { path = "../util" }
 garage_rpc = { path = "../rpc" }
 garage_table = { path = "../table" }
-garage_core = { path = "../core" }
+garage_model = { path = "../model" }
 garage_api = { path = "../api" }
 
 bytes = "0.4"

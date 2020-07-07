@@ -9,7 +9,7 @@ use hyper::{Body, Method, Request, Response, Server};
 
 use garage_util::error::Error;
 
-use garage_core::garage::Garage;
+use garage_model::garage::Garage;
 
 use crate::http_util::*;
 use crate::signature::check_signature;

@@ -10,9 +10,9 @@ use garage_table::*;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
-use garage_core::bucket_table::*;
-use garage_core::garage::Garage;
-use garage_core::key_table::*;
+use garage_model::bucket_table::*;
+use garage_model::garage::Garage;
+use garage_model::key_table::*;
 
 use crate::repair::Repair;
 use crate::*;

@@ -9,11 +9,11 @@ use garage_table::*;
 use garage_util::data::*;
 use garage_util::error::Error;
 
-use garage_core::block::INLINE_THRESHOLD;
-use garage_core::block_ref_table::*;
-use garage_core::garage::Garage;
-use garage_core::object_table::*;
-use garage_core::version_table::*;
+use garage_model::block::INLINE_THRESHOLD;
+use garage_model::block_ref_table::*;
+use garage_model::garage::Garage;
+use garage_model::object_table::*;
+use garage_model::version_table::*;
 
 use crate::encoding::*;
 use crate::http_util::*;

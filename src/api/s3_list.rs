@@ -7,7 +7,7 @@ use hyper::Response;
 
 use garage_util::error::Error;
 
-use garage_core::garage::Garage;
+use garage_model::garage::Garage;
 
 use crate::encoding::*;
 use crate::http_util::*;
