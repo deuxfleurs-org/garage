@@ -3,6 +3,9 @@ name = "garage_table"
 version = "0.1.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
+license = "GPL-3.0"
+description = "Table sharding and replication engine (DynamoDB-like) for the Garage object store"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 
 [lib]
 path = "lib.rs"
