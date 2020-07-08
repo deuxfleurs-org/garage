@@ -12,12 +12,19 @@ use garage_table::EmptyKey;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
-fn object_headers(version: &ObjectVersion, version_meta: &ObjectVersionMeta) -> http::response::Builder {
+fn object_headers(
+	version: &ObjectVersion,
+	version_meta: &ObjectVersionMeta,
+) -> http::response::Builder {
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
 
 	Response::builder()
-		.header("Content-Type", version_meta.headers.content_type.to_string())
+		.header(
+			"Content-Type",
+			version_meta.headers.content_type.to_string(),
+		)
+        // TODO: other headers
 		.header("Content-Length", format!("{}", version_meta.size))
 		.header("ETag", version_meta.etag.to_string())
 		.header("Last-Modified", date_str)
@@ -48,11 +55,11 @@ pub async fn handle_head(
 		Some(v) => v,
 		None => return Err(Error::NotFound),
 	};
-    let version_meta = match &version.state {
-        ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
-        ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta,
-        _ => unreachable!(),
-    };
+	let version_meta = match &version.state {
+		ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
+		ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta,
+		_ => unreachable!(),
+	};
 
 	let body: Body = Body::from(vec![]);
 	let response = object_headers(&version, version_meta)
@@ -87,15 +94,15 @@ pub async fn handle_get(
 		Some(v) => v,
 		None => return Err(Error::NotFound),
 	};
-    let last_v_data = match &last_v.state {
-        ObjectVersionState::Complete(x) => x,
-        _ => unreachable!(),
-    };
-    let last_v_meta = match last_v_data {
-        ObjectVersionData::DeleteMarker => return Err(Error::NotFound),
-        ObjectVersionData::Inline(meta, _) => meta,
-        ObjectVersionData::FirstBlock(meta, _) => meta,
-    };
+	let last_v_data = match &last_v.state {
+		ObjectVersionState::Complete(x) => x,
+		_ => unreachable!(),
+	};
+	let last_v_meta = match last_v_data {
+		ObjectVersionData::DeleteMarker => return Err(Error::NotFound),
+		ObjectVersionData::Inline(meta, _) => meta,
+		ObjectVersionData::FirstBlock(meta, _) => meta,
+	};
 
 	let range = match req.headers().get("range") {
 		Some(range) => {
@@ -113,7 +120,15 @@ pub async fn handle_get(
 		None => None,
 	};
 	if let Some(range) = range {
-		return handle_get_range(garage, last_v, last_v_data, last_v_meta, range.start, range.start + range.length).await;
+		return handle_get_range(
+			garage,
+			last_v,
+			last_v_data,
+			last_v_meta,
+			range.start,
+			range.start + range.length,
+		)
+		.await;
 	}
 
 	let resp_builder = object_headers(&last_v, last_v_meta).status(StatusCode::OK);
@@ -167,8 +182,8 @@ pub async fn handle_get(
 pub async fn handle_get_range(
 	garage: Arc<Garage>,
 	version: &ObjectVersion,
-    version_data: &ObjectVersionData,
-    version_meta: &ObjectVersionMeta,
+	version_data: &ObjectVersionData,
+	version_meta: &ObjectVersionMeta,
 	begin: u64,
 	end: u64,
 ) -> Result<Response<Body>, Error> {

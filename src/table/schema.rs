@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use garage_util::data::*;
 use garage_util::error::Error;
 
-
 pub trait PartitionKey {
 	fn hash(&self) -> Hash;
 }
@@ -64,11 +63,11 @@ pub trait TableSchema: Send + Sync {
 	type E: Entry<Self::P, Self::S>;
 	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
-    // Action to take if not able to decode current version:
-    // try loading from an older version
-    fn try_migrate(_bytes: &[u8]) -> Option<Self::E> {
-        None
-    }
+	// Action to take if not able to decode current version:
+	// try loading from an older version
+	fn try_migrate(_bytes: &[u8]) -> Option<Self::E> {
+		None
+	}
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error>;
 	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {

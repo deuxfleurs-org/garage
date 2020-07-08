@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -75,23 +75,21 @@ pub enum ObjectVersionState {
 impl ObjectVersionState {
 	fn merge(&mut self, other: &Self) {
 		use ObjectVersionState::*;
-        match other {
-            Aborted => {
-                *self = Aborted;
-            }
-            Complete(b) => {
-                match self {
-                    Aborted => {},
-                    Complete(a) => {
-                        a.merge(b);
-                    }
-                    Uploading(_) => {
-                        *self = Complete(b.clone());
-                    }
-                }
-            }
-            Uploading(_) => {}
-        }
+		match other {
+			Aborted => {
+				*self = Aborted;
+			}
+			Complete(b) => match self {
+				Aborted => {}
+				Complete(a) => {
+					a.merge(b);
+				}
+				Uploading(_) => {
+					*self = Complete(b.clone());
+				}
+			},
+			Uploading(_) => {}
+		}
 	}
 }
 
@@ -104,47 +102,50 @@ pub enum ObjectVersionData {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersionMeta {
-    pub headers: ObjectVersionHeaders,
+	pub headers: ObjectVersionHeaders,
 	pub size: u64,
-    pub etag: String,
+	pub etag: String,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersionHeaders {
-    pub content_type: String,
-    pub other: BTreeMap<String, String>,
+	pub content_type: String,
+	pub other: BTreeMap<String, String>,
 }
 
 impl ObjectVersionData {
-    fn merge(&mut self, b: &Self) {
-        if *self != *b {
-            warn!("Inconsistent object version data: {:?} (local) vs {:?} (remote)", self, b);
-        }
-    }
+	fn merge(&mut self, b: &Self) {
+		if *self != *b {
+			warn!(
+				"Inconsistent object version data: {:?} (local) vs {:?} (remote)",
+				self, b
+			);
+		}
+	}
 }
 
 impl ObjectVersion {
 	fn cmp_key(&self) -> (u64, UUID) {
 		(self.timestamp, self.uuid)
 	}
-    pub fn is_uploading(&self) -> bool {
-        match self.state {
-            ObjectVersionState::Uploading(_) => true,
-            _ => false,
-        }
-    }
+	pub fn is_uploading(&self) -> bool {
+		match self.state {
+			ObjectVersionState::Uploading(_) => true,
+			_ => false,
+		}
+	}
 	pub fn is_complete(&self) -> bool {
-        match self.state {
-            ObjectVersionState::Complete(_) => true,
-            _ => false,
-        }
+		match self.state {
+			ObjectVersionState::Complete(_) => true,
+			_ => false,
+		}
 	}
 	pub fn is_data(&self) -> bool {
-        match self.state {
-            ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,
-            ObjectVersionState::Complete(_) => true,
-            _ => false,
-        }
+		match self.state {
+			ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,
+			ObjectVersionState::Complete(_) => true,
+			_ => false,
+		}
 	}
 }
 
@@ -163,7 +164,7 @@ impl Entry<String, String> for Object {
 				.binary_search_by(|v| v.cmp_key().cmp(&other_v.cmp_key()))
 			{
 				Ok(i) => {
-                    self.versions[i].state.merge(&other_v.state);
+					self.versions[i].state.merge(&other_v.state);
 				}
 				Err(i) => {
 					self.versions.insert(i, other_v.clone());
@@ -231,50 +232,54 @@ impl TableSchema for ObjectTable {
 		entry.versions.iter().any(|v| v.is_data())
 	}
 
-    fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-        let old = match rmp_serde::decode::from_read_ref::<_, prev::Object>(bytes) {
-            Ok(x) => x,
-            Err(_) => return None,
-        };
-        let new_v = old.versions().iter()
-            .map(migrate_version)
-            .collect::<Vec<_>>();
-        let new = Object::new(old.bucket.clone(), old.key.clone(), new_v);
-        Some(new)
-    }
+	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
+		let old = match rmp_serde::decode::from_read_ref::<_, prev::Object>(bytes) {
+			Ok(x) => x,
+			Err(_) => return None,
+		};
+		let new_v = old
+			.versions()
+			.iter()
+			.map(migrate_version)
+			.collect::<Vec<_>>();
+		let new = Object::new(old.bucket.clone(), old.key.clone(), new_v);
+		Some(new)
+	}
 }
 
 fn migrate_version(old: &prev::ObjectVersion) -> ObjectVersion {
-    let headers = ObjectVersionHeaders{
-        content_type: old.mime_type.clone(),
-        other: BTreeMap::new(),
-    };
-    let meta = ObjectVersionMeta{
-        headers: headers.clone(),
-        size: old.size,
-        etag: "".to_string(),
-    };
-    let state = match old.state {
-        prev::ObjectVersionState::Uploading => ObjectVersionState::Uploading(headers),
-        prev::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
-        prev::ObjectVersionState::Complete => {
-            match &old.data {
-                prev::ObjectVersionData::Uploading => ObjectVersionState::Uploading(headers),
-                prev::ObjectVersionData::DeleteMarker => ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
-                prev::ObjectVersionData::Inline(x) => ObjectVersionState::Complete(ObjectVersionData::Inline(meta, x.clone())),
-                prev::ObjectVersionData::FirstBlock(h) => {
-                    let mut hash = [0u8; 32];
-                    hash.copy_from_slice(h.as_ref());
-                    ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, Hash::from(hash)))
-                }
-            }
-        }
-    };
-    let mut uuid = [0u8; 32];
-    uuid.copy_from_slice(old.uuid.as_ref());
-    ObjectVersion{
-        uuid: UUID::from(uuid),
-        timestamp: old.timestamp,
-        state,
-    }
+	let headers = ObjectVersionHeaders {
+		content_type: old.mime_type.clone(),
+		other: BTreeMap::new(),
+	};
+	let meta = ObjectVersionMeta {
+		headers: headers.clone(),
+		size: old.size,
+		etag: "".to_string(),
+	};
+	let state = match old.state {
+		prev::ObjectVersionState::Uploading => ObjectVersionState::Uploading(headers),
+		prev::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
+		prev::ObjectVersionState::Complete => match &old.data {
+			prev::ObjectVersionData::Uploading => ObjectVersionState::Uploading(headers),
+			prev::ObjectVersionData::DeleteMarker => {
+				ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+			}
+			prev::ObjectVersionData::Inline(x) => {
+				ObjectVersionState::Complete(ObjectVersionData::Inline(meta, x.clone()))
+			}
+			prev::ObjectVersionData::FirstBlock(h) => {
+				let mut hash = [0u8; 32];
+				hash.copy_from_slice(h.as_ref());
+				ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, Hash::from(hash)))
+			}
+		},
+	};
+	let mut uuid = [0u8; 32];
+	uuid.copy_from_slice(old.uuid.as_ref());
+	ObjectVersion {
+		uuid: UUID::from(uuid),
+		timestamp: old.timestamp,
+		state,
+	}
 }

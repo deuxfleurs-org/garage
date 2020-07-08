@@ -39,16 +39,16 @@ pub async fn handle_copy(
 		Some(v) => v,
 		None => return Err(Error::NotFound),
 	};
-    let source_last_state = match &source_last_v.state {
-        ObjectVersionState::Complete(x) => x,
-        _ => unreachable!(),
-    };
+	let source_last_state = match &source_last_v.state {
+		ObjectVersionState::Complete(x) => x,
+		_ => unreachable!(),
+	};
 
 	let new_uuid = gen_uuid();
 	let dest_object_version = ObjectVersion {
 		uuid: new_uuid,
 		timestamp: now_msec(),
-        state: ObjectVersionState::Complete(source_last_state.clone()),
+		state: ObjectVersionState::Complete(source_last_state.clone()),
 	};
 
 	match &source_last_state {

@@ -14,8 +14,8 @@ use garage_rpc::membership::{Ring, System};
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
-use crate::table_sync::*;
 use crate::schema::*;
+use crate::table_sync::*;
 
 const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -47,7 +47,6 @@ pub enum TableRPC<F: TableSchema> {
 }
 
 impl<F: TableSchema> RpcMessage for TableRPC<F> {}
-
 
 pub trait TableReplication: Send + Sync {
 	// See examples in table_sharded.rs and table_fullcopy.rs
@@ -456,15 +455,13 @@ where
 		ret
 	}
 
-    fn decode_entry(bytes: &[u8]) -> Result<F::E, Error> {
-         match rmp_serde::decode::from_read_ref::<_, F::E>(bytes) {
-             Ok(x) => Ok(x),
-             Err(e) => {
-                 match F::try_migrate(bytes) {
-                     Some(x) => Ok(x),
-                     None => Err(e.into()),
-                 }   
-             }
-         }
-    }
+	fn decode_entry(bytes: &[u8]) -> Result<F::E, Error> {
+		match rmp_serde::decode::from_read_ref::<_, F::E>(bytes) {
+			Ok(x) => Ok(x),
+			Err(e) => match F::try_migrate(bytes) {
+				Some(x) => Ok(x),
+				None => Err(e.into()),
+			},
+		}
+	}
 }

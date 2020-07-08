@@ -9,5 +9,5 @@ pub mod table_fullcopy;
 pub mod table_sharded;
 pub mod table_sync;
 
-pub use table::*;
 pub use schema::*;
+pub use table::*;
