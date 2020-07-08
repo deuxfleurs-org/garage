@@ -91,6 +91,9 @@ pub async fn check_signature(garage: &Garage, request: &Request<Body>) -> Result
 	let signature = hex::encode(hmac.result().code());
 
 	if authorization.signature != signature {
+		trace!("Canonical request: ``{}``", canonical_request);
+		trace!("String to sign: ``{}``", string_to_sign);
+		trace!("Expected: {}, got: {}", signature, authorization.signature);
 		return Err(Error::Forbidden(format!("Invalid signature")));
 	}
 

@@ -67,10 +67,7 @@ async fn handler(
 	}
 }
 
-async fn handler_inner(
-	garage: Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
 	let path = req.uri().path().to_string();
 	let path = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 

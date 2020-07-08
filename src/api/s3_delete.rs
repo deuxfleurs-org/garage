@@ -129,9 +129,7 @@ pub async fn handle_delete_objects(
 
 	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
 
-	Ok(Response::new(Body::from(
-		retxml.into_bytes(),
-	)))
+	Ok(Response::new(Body::from(retxml.into_bytes())))
 }
 
 struct DeleteRequest {

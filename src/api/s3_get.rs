@@ -146,7 +146,7 @@ pub async fn handle_get(
 				})
 				.buffered(2);
 			//let body: Body = Box::new(StreamBody::new(Box::pin(body_stream)));
-            let body = hyper::body::Body::wrap_stream(body_stream);
+			let body = hyper::body::Body::wrap_stream(body_stream);
 			Ok(resp_builder.body(body)?)
 		}
 	}
@@ -176,9 +176,7 @@ pub async fn handle_get_range(
 		ObjectVersionData::DeleteMarker => Err(Error::NotFound),
 		ObjectVersionData::Inline(bytes) => {
 			if end as usize <= bytes.len() {
-				let body: Body = Body::from(
-					bytes[begin as usize..end as usize].to_vec(),
-				);
+				let body: Body = Body::from(bytes[begin as usize..end as usize].to_vec());
 				Ok(resp_builder.body(body)?)
 			} else {
 				Err(Error::Message(format!("Internal error: requested range not present in inline bytes when it should have been")))
@@ -213,14 +211,14 @@ pub async fn handle_get_range(
 						} else {
 							end - block.offset
 						};
-						Result::<Bytes,Error>::Ok(Bytes::from(
+						Result::<Bytes, Error>::Ok(Bytes::from(
 							data[start_in_block as usize..end_in_block as usize].to_vec(),
 						))
 					}
 				})
 				.buffered(2);
 			//let body: Body = Box::new(StreamBody::new(Box::pin(body_stream)));
-            let body = hyper::body::Body::wrap_stream(body_stream);
+			let body = hyper::body::Body::wrap_stream(body_stream);
 			Ok(resp_builder.body(body)?)
 		}
 	}
