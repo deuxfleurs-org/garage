@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -66,7 +67,7 @@ pub struct ObjectVersion {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionState {
-	Uploading,
+	Uploading(ObjectVersionHeaders),
 	Complete(ObjectVersionData),
 	Aborted,
 }
@@ -84,12 +85,12 @@ impl ObjectVersionState {
                     Complete(a) => {
                         a.merge(b);
                     }
-                    Uploading => {
+                    Uploading(_) => {
                         *self = Complete(b.clone());
                     }
                 }
             }
-            Uploading => {}
+            Uploading(_) => {}
         }
 	}
 }
@@ -103,9 +104,15 @@ pub enum ObjectVersionData {
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersionMeta {
-	pub mime_type: String,
+    pub headers: ObjectVersionHeaders,
 	pub size: u64,
     pub etag: String,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct ObjectVersionHeaders {
+    pub content_type: String,
+    pub other: BTreeMap<String, String>,
 }
 
 impl ObjectVersionData {
@@ -120,6 +127,12 @@ impl ObjectVersion {
 	fn cmp_key(&self) -> (u64, UUID) {
 		(self.timestamp, self.uuid)
 	}
+    pub fn is_uploading(&self) -> bool {
+        match self.state {
+            ObjectVersionState::Uploading(_) => true,
+            _ => false,
+        }
+    }
 	pub fn is_complete(&self) -> bool {
         match self.state {
             ObjectVersionState::Complete(_) => true,
@@ -232,17 +245,21 @@ impl TableSchema for ObjectTable {
 }
 
 fn migrate_version(old: &prev::ObjectVersion) -> ObjectVersion {
+    let headers = ObjectVersionHeaders{
+        content_type: old.mime_type.clone(),
+        other: BTreeMap::new(),
+    };
     let meta = ObjectVersionMeta{
+        headers: headers.clone(),
         size: old.size,
-        mime_type: old.mime_type.clone(),
         etag: "".to_string(),
     };
     let state = match old.state {
-        prev::ObjectVersionState::Uploading => ObjectVersionState::Uploading,
+        prev::ObjectVersionState::Uploading => ObjectVersionState::Uploading(headers),
         prev::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
         prev::ObjectVersionState::Complete => {
             match &old.data {
-                prev::ObjectVersionData::Uploading => ObjectVersionState::Uploading,
+                prev::ObjectVersionData::Uploading => ObjectVersionState::Uploading(headers),
                 prev::ObjectVersionData::DeleteMarker => ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
                 prev::ObjectVersionData::Inline(x) => ObjectVersionState::Complete(ObjectVersionData::Inline(meta, x.clone())),
                 prev::ObjectVersionData::FirstBlock(h) => {
