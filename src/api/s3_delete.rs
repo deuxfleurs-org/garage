@@ -29,7 +29,11 @@ async fn handle_delete_internal(
 	};
 
 	let interesting_versions = object.versions().iter().filter(|v| {
-		v.data != ObjectVersionData::DeleteMarker && v.state != ObjectVersionState::Aborted
+        match v.state {
+            ObjectVersionState::Aborted => false,
+            ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,
+            _ => true,
+        }
 	});
 
 	let mut must_delete = None;
@@ -54,10 +58,7 @@ async fn handle_delete_internal(
 		vec![ObjectVersion {
 			uuid: version_uuid,
 			timestamp: now_msec(),
-			mime_type: "application/x-delete-marker".into(),
-			size: 0,
-			state: ObjectVersionState::Complete,
-			data: ObjectVersionData::DeleteMarker,
+			state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
 		}],
 	);
 

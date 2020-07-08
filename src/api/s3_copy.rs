@@ -39,27 +39,23 @@ pub async fn handle_copy(
 		Some(v) => v,
 		None => return Err(Error::NotFound),
 	};
+    let source_last_state = match &source_last_v.state {
+        ObjectVersionState::Complete(x) => x,
+        _ => unreachable!(),
+    };
 
 	let new_uuid = gen_uuid();
 	let dest_object_version = ObjectVersion {
 		uuid: new_uuid,
 		timestamp: now_msec(),
-		mime_type: source_last_v.mime_type.clone(),
-		size: source_last_v.size,
-		state: ObjectVersionState::Complete,
-		data: source_last_v.data.clone(),
+        state: ObjectVersionState::Complete(source_last_state.clone()),
 	};
 
-	match &source_last_v.data {
-		ObjectVersionData::Uploading => {
-			return Err(Error::Message(format!(
-				"Version is_complete() but data is stil Uploading (internal error)"
-			)));
-		}
+	match &source_last_state {
 		ObjectVersionData::DeleteMarker => {
 			return Err(Error::NotFound);
 		}
-		ObjectVersionData::Inline(_bytes) => {
+		ObjectVersionData::Inline(_meta, _bytes) => {
 			let dest_object = Object::new(
 				dest_bucket.to_string(),
 				dest_key.to_string(),
@@ -67,7 +63,7 @@ pub async fn handle_copy(
 			);
 			garage.object_table.insert(&dest_object).await?;
 		}
-		ObjectVersionData::FirstBlock(_first_block_hash) => {
+		ObjectVersionData::FirstBlock(_meta, _first_block_hash) => {
 			let source_version = garage
 				.version_table
 				.get(&source_last_v.uuid, &EmptyKey)

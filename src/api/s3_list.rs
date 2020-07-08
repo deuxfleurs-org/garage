@@ -8,6 +8,7 @@ use hyper::{Body, Response};
 use garage_util::error::Error;
 
 use garage_model::garage::Garage;
+use garage_model::object_table::*;
 
 use crate::encoding::*;
 
@@ -73,10 +74,15 @@ pub async fn handle_list(
 				if let Some(pfx) = common_prefix {
 					result_common_prefixes.insert(pfx.to_string());
 				} else {
+                    let size = match &version.state {
+                        ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta.size,
+                        ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta.size,
+                        _ => unreachable!(),
+                    };
 					let info = match result_keys.get(&object.key) {
 						None => ListResultInfo {
 							last_modified: version.timestamp,
-							size: version.size,
+							size,
 						},
 						Some(_lri) => {
 							return Err(Error::Message(format!("Duplicate key?? {}", object.key)))
