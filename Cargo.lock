@@ -340,15 +340,15 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_api 0.1.0",
- "garage_model 0.1.0",
+ "garage_api 0.1.1",
+ "garage_model 0.1.1",
  "garage_rpc 0.1.0",
- "garage_table 0.1.0",
+ "garage_table 0.1.1",
  "garage_util 0.1.0",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -365,15 +365,15 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "crypto-mac 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_model 0.1.0",
- "garage_table 0.1.0",
+ "garage_model 0.1.1",
+ "garage_table 0.1.1",
  "garage_util 0.1.0",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hmac 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -392,14 +392,39 @@ dependencies = [
 [[package]]
 name = "garage_model"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_rpc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_table 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rmp-serde 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.114 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_bytes 0.11.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sled 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "garage_model"
+version = "0.1.1"
+dependencies = [
+ "arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_model 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "garage_rpc 0.1.0",
- "garage_table 0.1.0",
+ "garage_table 0.1.1",
  "garage_util 0.1.0",
  "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -439,8 +464,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "garage_rpc"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gethostname 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "http 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper-rustls 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rmp-serde 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustls 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.114 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.56 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-rustls 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webpki 0.21.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "garage_table"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_rpc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rmp-serde 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.114 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_bytes 0.11.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sled 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "garage_table"
+version = "0.1.1"
 dependencies = [
  "arc-swap 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "async-trait 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -462,6 +536,31 @@ dependencies = [
 [[package]]
 name = "garage_util"
 version = "0.1.0"
+dependencies = [
+ "err-derive 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "http 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rmp-serde 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "roxmltree 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustls 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.114 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.56 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sled 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webpki 0.21.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "garage_util"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "err-derive 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1629,6 +1728,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum futures-task 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "bdb66b5f09e22019b1ab0830f7785bcea8e7a42148683f99214f73f8ec21a626"
 "checksum futures-util 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "8764574ff08b701a084482c3c7031349104b07ac897393010494beaa18ce32c6"
 "checksum fxhash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+"checksum garage_model 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b6403312b28077fd585e5f96184d2d56142f10eb42709d2893294d70a892d73f"
+"checksum garage_rpc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0ef794407808c89f300f73457bdc567c953b323d7fe30534aba686a28ebb4a0d"
+"checksum garage_table 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "567d7e9f791a1d65d26e36840aa0570b3a2144302c32f62b5e63a39f147cbf57"
+"checksum garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77de76a4167c041094f3f3415c6d3d773373e0326668fbce70dfd3b024788800"
 "checksum generator 0.6.21 (registry+https://github.com/rust-lang/crates.io-index)" = "add72f17bb81521258fcc8a7a3245b1e184e916bfbe34f0ea89558f440df5c68"
 "checksum generic-array 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c68f0274ae0e023facc3c97b2e00f076be70e254bc851d972503b328db79b2ec"
 "checksum gethostname 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e692e296bfac1d2533ef168d0b60ff5897b8b70a4009276834014dd8924cc028"

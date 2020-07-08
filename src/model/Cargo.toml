@@ -1,6 +1,6 @@
 [package]
 name = "garage_model"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -15,7 +15,8 @@ path = "lib.rs"
 [dependencies]
 garage_util = { version = "0.1", path = "../util" }
 garage_rpc = { version = "0.1", path = "../rpc" }
-garage_table = { version = "0.1", path = "../table" }
+garage_table = { version = "0.1.1", path = "../table" }
+model010 = { package = "garage_model", version = "0.1.0" }
 
 bytes = "0.4"
 rand = "0.7"
