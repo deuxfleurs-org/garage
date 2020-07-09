@@ -19,16 +19,21 @@ fn object_headers(
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
 
-	Response::builder()
+	let mut resp = Response::builder()
 		.header(
 			"Content-Type",
 			version_meta.headers.content_type.to_string(),
 		)
-        // TODO: other headers
 		.header("Content-Length", format!("{}", version_meta.size))
 		.header("ETag", version_meta.etag.to_string())
 		.header("Last-Modified", date_str)
-		.header("Accept-Ranges", format!("bytes"))
+		.header("Accept-Ranges", format!("bytes"));
+
+    for (k, v) in version_meta.headers.other.iter() {
+        resp = resp.header(k, v.to_string());
+    }
+
+    resp
 }
 
 pub async fn handle_head(

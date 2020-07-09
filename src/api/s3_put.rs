@@ -24,10 +24,7 @@ pub async fn handle_put(
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let version_uuid = gen_uuid();
-	let headers = ObjectVersionHeaders {
-		content_type: get_mime_type(&req)?,
-		other: BTreeMap::new(), // TODO
-	};
+	let headers = get_headers(&req)?;
 
 	let body = req.into_body();
 
@@ -221,10 +218,7 @@ pub async fn handle_create_multipart_upload(
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let version_uuid = gen_uuid();
-	let headers = ObjectVersionHeaders {
-		content_type: get_mime_type(&req)?,
-		other: BTreeMap::new(), // TODO
-	};
+	let headers = get_headers(req)?;
 
 	let object_version = ObjectVersion {
 		uuid: version_uuid,
@@ -442,6 +436,29 @@ fn get_mime_type(req: &Request<Body>) -> Result<String, Error> {
 		.map(|x| x.to_str())
 		.unwrap_or(Ok("blob"))?
 		.to_string())
+}
+
+fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
+	let content_type = get_mime_type(req)?;
+	let other_headers = vec![
+		hyper::header::CACHE_CONTROL,
+		hyper::header::CONTENT_DISPOSITION,
+		hyper::header::CONTENT_ENCODING,
+		hyper::header::CONTENT_LANGUAGE,
+		hyper::header::EXPIRES,
+	];
+	let mut other = BTreeMap::new();
+	for h in other_headers.iter() {
+		if let Some(v) = req.headers().get(h) {
+			if let Ok(v_str) = v.to_str() {
+				other.insert(h.to_string(), v_str.to_string());
+			}
+		}
+	}
+	Ok(ObjectVersionHeaders {
+		content_type,
+		other: BTreeMap::new(),
+	})
 }
 
 fn uuid_from_str(id: &str) -> Result<UUID, ()> {
