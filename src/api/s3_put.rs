@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Write;
 use std::sync::Arc;
 
+use md5::{Md5, Digest};
 use futures::stream::*;
 use hyper::{Body, Request, Response};
 
@@ -41,18 +42,22 @@ pub async fn handle_put(
 	};
 
 	if first_block.len() < INLINE_THRESHOLD {
+        let mut md5sum = Md5::new();
+        md5sum.update(&first_block[..]);
+        let etag = hex::encode(md5sum.finalize());
+
 		object_version.state = ObjectVersionState::Complete(ObjectVersionData::Inline(
 			ObjectVersionMeta {
 				headers,
 				size: first_block.len() as u64,
-				etag: "".to_string(), // TODO
+				etag: etag.clone(),
 			},
 			first_block,
 		));
 
 		let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
-		return Ok(put_response(version_uuid));
+		return Ok(put_response(version_uuid, etag));
 	}
 
 	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
@@ -61,7 +66,7 @@ pub async fn handle_put(
 	let object = Object::new(bucket.into(), key.into(), vec![object_version.clone()]);
 	garage.object_table.insert(&object).await?;
 
-	let total_size = read_and_put_blocks(
+	let (total_size, etag) = read_and_put_blocks(
 		&garage,
 		version,
 		1,
@@ -77,7 +82,7 @@ pub async fn handle_put(
 		ObjectVersionMeta {
 			headers,
 			size: total_size,
-			etag: "".to_string(), // TODO
+			etag: etag.clone(),
 		},
 		first_block_hash,
 	));
@@ -85,7 +90,7 @@ pub async fn handle_put(
 	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 
-	Ok(put_response(version_uuid))
+	Ok(put_response(version_uuid, etag))
 }
 
 async fn read_and_put_blocks(
@@ -95,7 +100,10 @@ async fn read_and_put_blocks(
 	first_block: Vec<u8>,
 	first_block_hash: Hash,
 	chunker: &mut BodyChunker,
-) -> Result<u64, Error> {
+) -> Result<(u64, String), Error> {
+    let mut md5sum = Md5::new();
+    md5sum.update(&first_block[..]);
+
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block = put_block_meta(
 		garage.clone(),
@@ -113,6 +121,7 @@ async fn read_and_put_blocks(
 		let (_, _, next_block) =
 			futures::try_join!(put_curr_block, put_curr_version_block, chunker.next())?;
 		if let Some(block) = next_block {
+            md5sum.update(&block[..]);
 			let block_hash = hash(&block[..]);
 			let block_len = block.len();
 			put_curr_version_block = put_block_meta(
@@ -130,7 +139,9 @@ async fn read_and_put_blocks(
 		}
 	}
 
-	Ok(next_offset as u64)
+    let total_size = next_offset as u64;
+    let md5sum = hex::encode(md5sum.finalize());
+	Ok((total_size, md5sum))
 }
 
 async fn put_block_meta(
@@ -203,9 +214,10 @@ impl BodyChunker {
 	}
 }
 
-pub fn put_response(version_uuid: UUID) -> Response<Body> {
+pub fn put_response(version_uuid: UUID, etag: String) -> Response<Body> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
+		.header("ETag", etag)
 		// TODO ETag
 		.body(Body::from(vec![]))
 		.unwrap()
