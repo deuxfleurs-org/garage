@@ -82,6 +82,7 @@ pub async fn handle_put(
 	)
 	.await?;
 
+	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != sha256sum {
 			return Err(Error::Message(format!(
@@ -351,17 +352,17 @@ pub async fn handle_put_part(
 	)
 	.await?;
 
-	if let Some(expected_md5) = content_md5 {
-		if expected_md5.trim_matches('"') != md5sum {
-			return Err(Error::Message(format!("Unable to validate content-md5")));
-		}
-	}
-
+	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != sha256sum {
 			return Err(Error::Message(format!(
 				"Unable to validate x-amz-content-sha256"
 			)));
+		}
+	}
+	if let Some(expected_md5) = content_md5 {
+		if expected_md5.trim_matches('"') != md5sum {
+			return Err(Error::Message(format!("Unable to validate content-md5")));
 		}
 	}
 
@@ -413,6 +414,8 @@ pub async fn handle_complete_multipart_upload(
 	};
 
 	// TODO: check that all the parts that they pretend they gave us are indeed there
+	// TODO: when we read the XML from _req, remember to check the sha256 sum of the payload
+	//       against the signed x-amz-content-sha256
 	// TODO: check MD5 sum of all uploaded parts? but that would mean we have to store them somewhere...
 
 	let total_size = version
