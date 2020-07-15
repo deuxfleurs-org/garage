@@ -29,11 +29,11 @@ fn object_headers(
 		.header("Last-Modified", date_str)
 		.header("Accept-Ranges", format!("bytes"));
 
-    for (k, v) in version_meta.headers.other.iter() {
-        resp = resp.header(k, v.to_string());
-    }
+	for (k, v) in version_meta.headers.other.iter() {
+		resp = resp.header(k, v.to_string());
+	}
 
-    resp
+	resp
 }
 
 pub async fn handle_head(

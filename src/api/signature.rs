@@ -6,6 +6,7 @@ use hyper::{Body, Method, Request};
 use sha2::{Digest, Sha256};
 
 use garage_table::*;
+use garage_util::data::Hash;
 use garage_util::error::Error;
 
 use garage_model::garage::Garage;
@@ -18,7 +19,10 @@ const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 
 type HmacSha256 = Hmac<Sha256>;
 
-pub async fn check_signature(garage: &Garage, request: &Request<Body>) -> Result<Key, Error> {
+pub async fn check_signature(
+	garage: &Garage,
+	request: &Request<Body>,
+) -> Result<(Key, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
 	for (key, val) in request.headers() {
 		headers.insert(key.to_string(), val.to_str()?.to_string());
@@ -97,7 +101,21 @@ pub async fn check_signature(garage: &Garage, request: &Request<Body>) -> Result
 		return Err(Error::Forbidden(format!("Invalid signature")));
 	}
 
-	Ok(key)
+	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
+		None
+	} else {
+		let bytes = hex::decode(authorization.content_sha256).or(Err(Error::BadRequest(
+			format!("Invalid content sha256 hash"),
+		)))?;
+		let mut hash = [0u8; 32];
+		if bytes.len() != 32 {
+			return Err(Error::BadRequest(format!("Invalid content sha256 hash")));
+		}
+		hash.copy_from_slice(&bytes[..]);
+		Some(Hash::from(hash))
+	};
+
+	Ok((key, content_sha256))
 }
 
 struct Authorization {
@@ -193,13 +211,17 @@ fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Author
 		.ok_or(Error::BadRequest(format!(
 			"X-Amz-Signature not found in query parameters"
 		)))?;
+	let content_sha256 = headers
+		.get("x-amz-content-sha256")
+		.map(|x| x.as_str())
+		.unwrap_or("UNSIGNED-PAYLOAD");
 
 	Ok(Authorization {
 		key_id,
 		scope,
 		signed_headers: signed_headers.to_string(),
 		signature: signature.to_string(),
-		content_sha256: "UNSIGNED-PAYLOAD".to_string(),
+		content_sha256: content_sha256.to_string(),
 	})
 }
 

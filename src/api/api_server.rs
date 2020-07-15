@@ -78,7 +78,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		)));
 	}
 
-	let api_key = check_signature(&garage, &req).await?;
+	let (api_key, content_sha256) = check_signature(&garage, &req).await?;
 	let allowed = match req.method() {
 		&Method::HEAD | &Method::GET => api_key.allow_read(&bucket),
 		_ => api_key.allow_write(&bucket),
@@ -114,7 +114,16 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					// UploadPart query
 					let part_number = params.get("partnumber").unwrap();
 					let upload_id = params.get("uploadid").unwrap();
-					Ok(handle_put_part(garage, req, &bucket, &key, part_number, upload_id).await?)
+					Ok(handle_put_part(
+						garage,
+						req,
+						&bucket,
+						&key,
+						part_number,
+						upload_id,
+						content_sha256,
+					)
+					.await?)
 				} else if req.headers().contains_key("x-amz-copy-source") {
 					// CopyObject query
 					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
@@ -134,7 +143,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					Ok(handle_copy(garage, &bucket, &key, &source_bucket, &source_key).await?)
 				} else {
 					// PutObject query
-					Ok(handle_put(garage, req, &bucket, &key).await?)
+					Ok(handle_put(garage, req, &bucket, &key, content_sha256).await?)
 				}
 			}
 			&Method::DELETE => {
