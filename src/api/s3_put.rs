@@ -88,11 +88,15 @@ pub async fn handle_put(
 			return Err(Error::Message(format!(
 				"Unable to validate x-amz-content-sha256"
 			)));
+		} else {
+			trace!("Successfully validated x-amz-content-sha256");
 		}
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != md5sum {
 			return Err(Error::Message(format!("Unable to validate content-md5")));
+		} else {
+			trace!("Successfully validated content-md5");
 		}
 	}
 
@@ -358,11 +362,15 @@ pub async fn handle_put_part(
 			return Err(Error::Message(format!(
 				"Unable to validate x-amz-content-sha256"
 			)));
+		} else {
+			trace!("Successfully validated x-amz-content-sha256");
 		}
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != md5sum {
 			return Err(Error::Message(format!("Unable to validate content-md5")));
+		} else {
+			trace!("Successfully validated content-md5");
 		}
 	}
 
