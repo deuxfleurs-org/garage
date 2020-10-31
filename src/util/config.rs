@@ -35,6 +35,8 @@ pub struct Config {
 	pub rpc_tls: Option<TlsConfig>,
 
 	pub s3_api: ApiConfig,
+
+	pub s3_web: WebConfig,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -48,6 +50,11 @@ pub struct TlsConfig {
 pub struct ApiConfig {
 	pub api_bind_addr: SocketAddr,
 	pub s3_region: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebConfig {
+	pub website_bind_addr: SocketAddr,
 }
 
 fn default_max_concurrent_rpc_requests() -> usize {
