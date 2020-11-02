@@ -1,0 +1,43 @@
+[package]
+name = "garage_web"
+version = "0.1.0"
+authors = ["Alex Auvolat <alex@adnab.me>", "Quentin Dufour <quentin@dufour.io>"]
+edition = "2018"
+license = "GPL-3.0"
+description = "Utility crate for the Garage object store"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+
+[lib]
+path = "lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+garage_util = { version = "0.1", path = "../util" }
+garage_table = { version = "0.1.1", path = "../table" }
+garage_model = { version = "0.1.1", path = "../model" }
+
+rand = "0.7"
+hex = "0.3"
+sha2 = "0.8"
+err-derive = "0.2.3"
+log = "0.4"
+
+sled = "0.31"
+
+toml = "0.5"
+rmp-serde = "0.14.3"
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+serde_json = "1.0"
+
+futures = "0.3"
+futures-util = "0.3"
+tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
+
+http = "0.2"
+hyper = "0.13"
+rustls = "0.17"
+webpki = "0.21"
+
+roxmltree = "0.11"
+
