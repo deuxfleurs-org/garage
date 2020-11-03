@@ -409,6 +409,7 @@ dependencies = [
  "garage_rpc 0.1.0",
  "garage_table 0.1.1",
  "garage_util 0.1.0",
+ "garage_web",
  "hex",
  "log",
  "pretty_env_logger",
