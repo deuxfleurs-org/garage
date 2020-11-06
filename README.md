@@ -18,9 +18,9 @@ Our main use case is to provide a distributed storage layer for small-scale self
 
 ## Development
 
-	1. Setup a rust/cargo environment
-	2. Run `cargo build` to build the project
-	3. Run `RUST_BACKTRACE=1 RUST_LOG=garage=debug ./target/debug/garage server -c ./config.dev.toml` to launch a garage test instance (data will be saved in `/tmp`, no encryption, only one instance)
+  1. Setup a rust/cargo environment
+  2. Run `cargo build` to build the project
+  3. Run `RUST_BACKTRACE=1 RUST_LOG=garage=debug ./target/debug/garage server -c ./config.dev.toml` to launch a garage test instance (data will be saved in `/tmp`, no encryption, only one instance)
 
 ## Setting up Garage
 
