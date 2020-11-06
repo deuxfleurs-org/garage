@@ -67,7 +67,10 @@ node_key = "/path/to/garage/pki/garage.key"
 
 [s3_api]
 api_bind_addr = "[::1]:3900"	# the S3 API port, HTTP without TLS. Add a reverse proxy for the TLS part.
-region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
+s3_region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
+
+[s3_web]
+web_bind_addr = "[::1]:3902"
 ```
 
 Build Garage using `cargo build --release`.
