@@ -276,9 +276,9 @@ mod tests {
 
 	#[test]
 	fn parse_bucket_with_key() -> Result<(), Error> {
-		let (bucket,key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
+		let (bucket, key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
 		assert_eq!(bucket, "my_bucket");
-	  assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
 		Ok(())
 	}
 }
