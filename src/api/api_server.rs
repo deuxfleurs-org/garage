@@ -275,10 +275,21 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn parse_bucket_with_key() -> Result<(), Error> {
+	fn parse_bucket_containing_a_key() -> Result<(), Error> {
 		let (bucket, key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
 		assert_eq!(bucket, "my_bucket");
 		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+		Ok(())
+	}	
+
+	#[test]
+	fn parse_bucket_containing_no_key() -> Result<(), Error> {
+		let (bucket, key) = parse_bucket_key("/my_bucket/")?;
+		assert_eq!(bucket, "my_bucket");
+		assert!(key.is_none());
+		let (bucket, key) = parse_bucket_key("/my_bucket")?;
+		assert_eq!(bucket, "my_bucket");
+		assert!(key.is_none());
 		Ok(())
 	}
 }
