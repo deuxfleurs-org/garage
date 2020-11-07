@@ -250,6 +250,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 }
 
+/// Extract the bucket name and the key name from an HTTP path
+///
+/// S3 internally manages only buckets and keys. This function splits
+/// an HTTP path to get the corresponding bucket name and key.
 fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 	let path = path.trim_start_matches('/');
 
@@ -263,5 +267,18 @@ fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 			}
 		}
 		None => Ok((path, None)),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn parse_bucket_with_key() -> Result<(), Error> {
+		let (bucket,key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
+		assert_eq!(bucket, "my_bucket");
+	  assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+		Ok(())
 	}
 }
