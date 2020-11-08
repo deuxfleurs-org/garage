@@ -7,12 +7,12 @@ use sha2::{Digest, Sha256};
 
 use garage_table::*;
 use garage_util::data::Hash;
-use garage_util::error::Error;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::encoding::uri_encode;
+use crate::error::*;
 
 const SHORT_DATE: &str = "%Y%m%d";
 const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
@@ -42,9 +42,9 @@ pub async fn check_signature(
 
 	let date = headers
 		.get("x-amz-date")
-		.ok_or(Error::BadRequest("Missing X-Amz-Date field".into()))?;
+		.ok_or_bad_request("Missing X-Amz-Date field")?;
 	let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
-		.map_err(|e| Error::BadRequest(format!("Invalid date: {}", e)))?
+		.ok_or_bad_request("Invalid date")?
 		.into();
 	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
 
@@ -90,7 +90,7 @@ pub async fn check_signature(
 		&garage.config.s3_api.s3_region,
 		"s3",
 	)
-	.map_err(|e| Error::Message(format!("Unable to build signing HMAC: {}", e)))?;
+	.ok_or_internal_error("Unable to build signing HMAC")?;
 	hmac.input(string_to_sign.as_bytes());
 	let signature = hex::encode(hmac.result().code());
 
@@ -104,9 +104,8 @@ pub async fn check_signature(
 	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
 		None
 	} else {
-		let bytes = hex::decode(authorization.content_sha256).or(Err(Error::BadRequest(
-			format!("Invalid content sha256 hash"),
-		)))?;
+		let bytes = hex::decode(authorization.content_sha256)
+			.ok_or_bad_request("Invalid content sha256 hash")?;
 		let mut hash = [0u8; 32];
 		if bytes.len() != 32 {
 			return Err(Error::BadRequest(format!("Invalid content sha256 hash")));
@@ -132,7 +131,7 @@ fn parse_authorization(
 ) -> Result<Authorization, Error> {
 	let first_space = authorization
 		.find(' ')
-		.ok_or(Error::BadRequest("Authorization field too short".into()))?;
+		.ok_or_bad_request("Authorization field to short")?;
 	let (auth_kind, rest) = authorization.split_at(first_space);
 
 	if auth_kind != "AWS4-HMAC-SHA256" {
@@ -142,41 +141,32 @@ fn parse_authorization(
 	let mut auth_params = HashMap::new();
 	for auth_part in rest.split(',') {
 		let auth_part = auth_part.trim();
-		let eq = auth_part.find('=').ok_or(Error::BadRequest(format!(
-			"Missing =value in authorization field {}",
-			auth_part
-		)))?;
+		let eq = auth_part
+			.find('=')
+			.ok_or_bad_request("Field without value in authorization header")?;
 		let (key, value) = auth_part.split_at(eq);
 		auth_params.insert(key.to_string(), value.trim_start_matches('=').to_string());
 	}
 
 	let cred = auth_params
 		.get("Credential")
-		.ok_or(Error::BadRequest(format!(
-			"Could not find Credential in Authorization field"
-		)))?;
+		.ok_or_bad_request("Could not find Credential in Authorization field")?;
 	let (key_id, scope) = parse_credential(cred)?;
 
 	let content_sha256 = headers
 		.get("x-amz-content-sha256")
-		.ok_or(Error::BadRequest(
-			"Missing X-Amz-Content-Sha256 field".into(),
-		))?;
+		.ok_or_bad_request("Missing X-Amz-Content-Sha256 field")?;
 
 	let auth = Authorization {
 		key_id,
 		scope,
 		signed_headers: auth_params
 			.get("SignedHeaders")
-			.ok_or(Error::BadRequest(format!(
-				"Could not find SignedHeaders in Authorization field"
-			)))?
+			.ok_or_bad_request("Could not find SignedHeaders in Authorization field")?
 			.to_string(),
 		signature: auth_params
 			.get("Signature")
-			.ok_or(Error::BadRequest(format!(
-				"Could not find Signature in Authorization field"
-			)))?
+			.ok_or_bad_request("Could not find Signature in Authorization field")?
 			.to_string(),
 		content_sha256: content_sha256.to_string(),
 	};
@@ -186,9 +176,7 @@ fn parse_authorization(
 fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Authorization, Error> {
 	let algo = headers
 		.get("x-amz-algorithm")
-		.ok_or(Error::BadRequest(format!(
-			"X-Amz-Algorithm not found in query parameters"
-		)))?;
+		.ok_or_bad_request("X-Amz-Algorithm not found in query parameters")?;
 	if algo != "AWS4-HMAC-SHA256" {
 		return Err(Error::BadRequest(format!(
 			"Unsupported authorization method"
@@ -197,20 +185,14 @@ fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Author
 
 	let cred = headers
 		.get("x-amz-credential")
-		.ok_or(Error::BadRequest(format!(
-			"X-Amz-Credential not found in query parameters"
-		)))?;
+		.ok_or_bad_request("X-Amz-Credential not found in query parameters")?;
 	let (key_id, scope) = parse_credential(cred)?;
 	let signed_headers = headers
 		.get("x-amz-signedheaders")
-		.ok_or(Error::BadRequest(format!(
-			"X-Amz-SignedHeaders not found in query parameters"
-		)))?;
+		.ok_or_bad_request("X-Amz-SignedHeaders not found in query parameters")?;
 	let signature = headers
 		.get("x-amz-signature")
-		.ok_or(Error::BadRequest(format!(
-			"X-Amz-Signature not found in query parameters"
-		)))?;
+		.ok_or_bad_request("X-Amz-Signature not found in query parameters")?;
 	let content_sha256 = headers
 		.get("x-amz-content-sha256")
 		.map(|x| x.as_str())
@@ -226,9 +208,9 @@ fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Author
 }
 
 fn parse_credential(cred: &str) -> Result<(String, String), Error> {
-	let first_slash = cred.find('/').ok_or(Error::BadRequest(format!(
-		"Credentials does not contain / in authorization field"
-	)))?;
+	let first_slash = cred
+		.find('/')
+		.ok_or_bad_request("Credentials does not contain / in authorization field")?;
 	let (key_id, scope) = cred.split_at(first_slash);
 	Ok((
 		key_id.to_string(),

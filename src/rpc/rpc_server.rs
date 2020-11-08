@@ -61,7 +61,10 @@ where
 			let err_str = format!("{}", e);
 			let rep_bytes = rmp_to_vec_all_named::<Result<M, String>>(&Err(err_str))?;
 			let mut err_response = Response::new(Body::from(rep_bytes));
-			*err_response.status_mut() = e.http_status_code();
+			*err_response.status_mut() = match e {
+				Error::BadRPC(_) => StatusCode::BAD_REQUEST,
+				_ => StatusCode::INTERNAL_SERVER_ERROR,
+			};
 			warn!(
 				"RPC error ({}): {} ({} ms)",
 				name,

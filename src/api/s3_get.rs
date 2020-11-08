@@ -5,12 +5,12 @@ use futures::stream::*;
 use hyper::body::Bytes;
 use hyper::{Body, Request, Response, StatusCode};
 
-use garage_util::error::Error;
-
 use garage_table::EmptyKey;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
+
+use crate::error::*;
 
 fn object_headers(
 	version: &ObjectVersion,
@@ -111,11 +111,8 @@ pub async fn handle_get(
 
 	let range = match req.headers().get("range") {
 		Some(range) => {
-			let range_str = range
-				.to_str()
-				.map_err(|e| Error::BadRequest(format!("Invalid range header: {}", e)))?;
-			let mut ranges = http_range::HttpRange::parse(range_str, last_v_meta.size)
-				.map_err(|_e| Error::BadRequest(format!("Invalid range")))?;
+			let range_str = range.to_str()?;
+			let mut ranges = http_range::HttpRange::parse(range_str, last_v_meta.size)?;
 			if ranges.len() > 1 {
 				return Err(Error::BadRequest(format!("Multiple ranges not supported")));
 			} else {
@@ -210,7 +207,9 @@ pub async fn handle_get_range(
 				let body: Body = Body::from(bytes[begin as usize..end as usize].to_vec());
 				Ok(resp_builder.body(body)?)
 			} else {
-				Err(Error::Message(format!("Internal error: requested range not present in inline bytes when it should have been")))
+				None.ok_or_internal_error(
+					"Requested range not present in inline bytes when it should have been",
+				)
 			}
 		}
 		ObjectVersionData::FirstBlock(_meta, _first_block_hash) => {

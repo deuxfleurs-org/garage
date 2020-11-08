@@ -55,7 +55,7 @@ impl AdminRpcHandler {
 					AdminRPC::BucketOperation(bo) => self2.handle_bucket_cmd(bo).await,
 					AdminRPC::KeyOperation(ko) => self2.handle_key_cmd(ko).await,
 					AdminRPC::LaunchRepair(opt) => self2.handle_launch_repair(opt).await,
-					_ => Err(Error::BadRequest(format!("Invalid RPC"))),
+					_ => Err(Error::BadRPC(format!("Invalid RPC"))),
 				}
 			}
 		});
@@ -81,7 +81,7 @@ impl AdminRpcHandler {
 			BucketOperation::Create(query) => {
 				let bucket = self.garage.bucket_table.get(&EmptyKey, &query.name).await?;
 				if bucket.as_ref().filter(|b| !b.deleted).is_some() {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::BadRPC(format!(
 						"Bucket {} already exists",
 						query.name
 					)));
@@ -104,13 +104,10 @@ impl AdminRpcHandler {
 					.get_range(&query.name, None, Some(()), 10)
 					.await?;
 				if !objects.is_empty() {
-					return Err(Error::BadRequest(format!(
-						"Bucket {} is not empty",
-						query.name
-					)));
+					return Err(Error::BadRPC(format!("Bucket {} is not empty", query.name)));
 				}
 				if !query.yes {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::BadRPC(format!(
 						"Add --yes flag to really perform this operation"
 					)));
 				}
@@ -199,7 +196,7 @@ impl AdminRpcHandler {
 			KeyOperation::Delete(query) => {
 				let key = self.get_existing_key(&query.key_id).await?;
 				if !query.yes {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::BadRPC(format!(
 						"Add --yes flag to really perform this operation"
 					)));
 				}
@@ -233,7 +230,7 @@ impl AdminRpcHandler {
 			.await?
 			.filter(|b| !b.deleted)
 			.map(Ok)
-			.unwrap_or(Err(Error::BadRequest(format!(
+			.unwrap_or(Err(Error::BadRPC(format!(
 				"Bucket {} does not exist",
 				bucket
 			))))
@@ -246,7 +243,7 @@ impl AdminRpcHandler {
 			.await?
 			.filter(|k| !k.deleted)
 			.map(Ok)
-			.unwrap_or(Err(Error::BadRequest(format!("Key {} does not exist", id))))
+			.unwrap_or(Err(Error::BadRPC(format!("Key {} does not exist", id))))
 	}
 
 	async fn update_bucket_key(
@@ -306,7 +303,7 @@ impl AdminRpcHandler {
 
 	async fn handle_launch_repair(self: &Arc<Self>, opt: RepairOpt) -> Result<AdminRPC, Error> {
 		if !opt.yes {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::BadRPC(format!(
 				"Please provide the --yes flag to initiate repair operations."
 			)));
 		}

@@ -373,7 +373,7 @@ impl System {
 					Message::AdvertiseNodesUp(adv) => self2.handle_advertise_nodes_up(&adv).await,
 					Message::AdvertiseConfig(adv) => self2.handle_advertise_config(&adv).await,
 
-					_ => Err(Error::BadRequest(format!("Unexpected RPC message"))),
+					_ => Err(Error::BadRPC(format!("Unexpected RPC message"))),
 				}
 			}
 		});
