@@ -72,11 +72,6 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	let path = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
 	let (bucket, key) = parse_bucket_key(&path)?;
-	if bucket.len() == 0 {
-		return Err(Error::Forbidden(format!(
-			"Operations on buckets not allowed"
-		)));
-	}
 
 	let (api_key, content_sha256) = check_signature(&garage, &req).await?;
 	let allowed = match req.method() {
@@ -250,18 +245,60 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 }
 
+/// Extract the bucket name and the key name from an HTTP path
+///
+/// S3 internally manages only buckets and keys. This function splits
+/// an HTTP path to get the corresponding bucket name and key.
 fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 	let path = path.trim_start_matches('/');
 
-	match path.find('/') {
+	let (bucket, key) = match path.find('/') {
 		Some(i) => {
 			let key = &path[i + 1..];
 			if key.len() > 0 {
-				Ok((&path[..i], Some(key)))
+				(&path[..i], Some(key))
 			} else {
-				Ok((&path[..i], None))
+				(&path[..i], None)
 			}
 		}
-		None => Ok((path, None)),
+		None => (path, None),
+	};
+	if bucket.len() == 0 {
+		return Err(Error::BadRequest(format!("No bucket specified")));
+	}
+	Ok((bucket, key))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn parse_bucket_containing_a_key() -> Result<(), Error> {
+		let (bucket, key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
+		assert_eq!(bucket, "my_bucket");
+		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+		Ok(())
+	}
+
+	#[test]
+	fn parse_bucket_containing_no_key() -> Result<(), Error> {
+		let (bucket, key) = parse_bucket_key("/my_bucket/")?;
+		assert_eq!(bucket, "my_bucket");
+		assert!(key.is_none());
+		let (bucket, key) = parse_bucket_key("/my_bucket")?;
+		assert_eq!(bucket, "my_bucket");
+		assert!(key.is_none());
+		Ok(())
+	}
+
+	#[test]
+	fn parse_bucket_containing_no_bucket() {
+		let parsed = parse_bucket_key("");
+		assert!(parsed.is_err());
+		let parsed = parse_bucket_key("/");
+		assert!(parsed.is_err());
+		let parsed = parse_bucket_key("////");
+		assert!(parsed.is_err());
 	}
 }
