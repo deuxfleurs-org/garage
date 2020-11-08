@@ -6,12 +6,13 @@ use hyper::{Body, Response};
 
 use garage_table::*;
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
+
+use crate::error::*;
 
 pub async fn handle_copy(
 	garage: Arc<Garage>,

@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate log;
 
+pub mod error;
+
 pub mod encoding;
 
 pub mod api_server;

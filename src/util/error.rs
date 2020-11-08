@@ -54,9 +54,6 @@ pub enum Error {
 	#[error(display = "TOML decode error: {}", _0)]
 	TomlDecode(#[error(source)] toml::de::Error),
 
-	#[error(display = "Timeout: {}", _0)]
-	RPCTimeout(#[error(source)] tokio::time::Elapsed),
-
 	#[error(display = "Tokio join error: {}", _0)]
 	TokioJoin(#[error(source)] tokio::task::JoinError),
 
@@ -66,32 +63,14 @@ pub enum Error {
 	#[error(display = "Remote error: {} (status code {})", _0, _1)]
 	RemoteError(String, StatusCode),
 
-	#[error(display = "Bad request: {}", _0)]
-	BadRequest(String),
-
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
-
-	#[error(display = "Not found")]
-	NotFound,
+	#[error(display = "Bad RPC: {}", _0)]
+	BadRPC(String),
 
 	#[error(display = "Corrupt data: does not match hash {:?}", _0)]
 	CorruptData(Hash),
 
 	#[error(display = "{}", _0)]
 	Message(String),
-}
-
-impl Error {
-	pub fn http_status_code(&self) -> StatusCode {
-		match self {
-			Error::BadRequest(_) => StatusCode::BAD_REQUEST,
-			Error::NotFound => StatusCode::NOT_FOUND,
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::RPC(_) => StatusCode::SERVICE_UNAVAILABLE,
-			_ => StatusCode::INTERNAL_SERVER_ERROR,
-		}
-	}
 }
 
 impl From<sled::TransactionError<Error>> for Error {
@@ -112,17 +91,5 @@ impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
 	fn from(_e: tokio::sync::mpsc::error::SendError<T>) -> Error {
 		Error::Message(format!("MPSC send error"))
-	}
-}
-
-impl From<std::str::Utf8Error> for Error {
-	fn from(e: std::str::Utf8Error) -> Error {
-		Error::BadRequest(format!("Invalid UTF-8: {}", e))
-	}
-}
-
-impl From<roxmltree::Error> for Error {
-	fn from(e: roxmltree::Error) -> Error {
-		Error::BadRequest(format!("Invalid XML: {}", e))
 	}
 }

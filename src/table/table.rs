@@ -329,7 +329,7 @@ where
 					.await?;
 				Ok(TableRPC::SyncRPC(response))
 			}
-			_ => Err(Error::BadRequest(format!("Unexpected table RPC"))),
+			_ => Err(Error::BadRPC(format!("Unexpected table RPC"))),
 		}
 	}
 

@@ -474,7 +474,7 @@ where
 				todo.push_back(root_ck);
 			}
 		} else {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::Message(format!(
 				"Invalid respone to GetRootChecksumRange RPC: {}",
 				debug_serialize(root_cks_resp)
 			)));
@@ -530,7 +530,7 @@ where
 					self.send_items(who, items_to_send).await?;
 				}
 			} else {
-				return Err(Error::BadRequest(format!(
+				return Err(Error::Message(format!(
 					"Unexpected response to sync RPC checksums: {}",
 					debug_serialize(&rpc_resp)
 				)));

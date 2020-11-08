@@ -4,12 +4,12 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response};
 
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
 use crate::encoding::*;
+use crate::error::*;
 
 async fn handle_delete_internal(
 	garage: &Garage,
@@ -85,8 +85,7 @@ pub async fn handle_delete_objects(
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
-	let cmd = parse_delete_objects_xml(&cmd_xml)
-		.map_err(|e| Error::BadRequest(format!("Invald delete XML query: {}", e)))?;
+	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;
 
 	let mut retxml = String::new();
 	writeln!(&mut retxml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
