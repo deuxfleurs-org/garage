@@ -52,8 +52,8 @@ async fn handler(
 	info!("authority is {}", authority);
 
 	// Get HTTP domain/ip from host
-	//let domain = host.to_socket_
-
+	let host = authority_to_host(authority)?;
+	info!("host is {}", host);
 
 	Ok(Response::new(Body::from("hello world\n")))
 }
