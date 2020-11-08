@@ -58,7 +58,15 @@ async fn handler(
 	Ok(Response::new(Body::from("hello world\n")))
 }
 
+/// Extract host from the authority section given by the HTTP host header
+///
+/// The HTTP host contains both a host and a port.
+/// Extracting the port is more complex than just finding the colon (:) symbol.
+/// An example of a case where it does not work: [::1]:3902
+/// Instead, we use the Uri module provided by Hyper that correctl parses this "authority" section
 fn authority_to_host(authority: &str) -> Result<String, Error> {
+	// Hyper can not directly parse authority section so we build a fake URL
+	// that contains our authority section
 	let mut uri_str: String = "fake://".to_owned();
 	uri_str.push_str(authority);
 
@@ -66,7 +74,7 @@ fn authority_to_host(authority: &str) -> Result<String, Error> {
 		Ok(uri) => {
 			let host = uri
 				.host()
-				.ok_or(Error::BadRequest(format!("Unable to extract host from authority as string")))?;
+				.ok_or(Error::BadRequest(format!("Unable to extract host from authority")))?;
 			Ok(String::from(host))
 		}
 		_ => Err(Error::BadRequest(format!("Unable to parse authority (host HTTP header)"))),
