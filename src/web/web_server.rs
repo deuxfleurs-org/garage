@@ -20,7 +20,6 @@ pub async fn run_web_server(
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
 		let client_addr = conn.remote_addr();
-		info!("{:?}", client_addr);
 		async move {
 			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
@@ -58,7 +57,7 @@ async fn handler(
 	let path = req.uri().path().to_string();
 	let key = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
-	info!("Selected bucket: {}, selected key: {}", bucket, key);
+	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
 	Ok(Response::new(Body::from("hello world\n")))
 }
