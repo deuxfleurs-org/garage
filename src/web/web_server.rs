@@ -66,21 +66,24 @@ async fn handler(
 ///
 /// The HTTP host contains both a host and a port.
 /// Extracting the port is more complex than just finding the colon (:) symbol due to IPv6
-/// we do not use the collect pattern as there is no way in std rust to collect over a stack allocated value
+/// We do not use the collect pattern as there is no way in std rust to collect over a stack allocated value
 /// check here: https://docs.rs/collect_slice/1.2.0/collect_slice/
 fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	let mut iter = authority.chars().enumerate();
-	let split = match iter.next() {
-		Some((_, '[')) => {
-			let mut niter = iter.skip_while(|(_, c)| c != &']');
-			niter.next().ok_or(Error::BadRequest(format!(
+	let (_, first_char) = iter
+		.next()
+		.ok_or(Error::BadRequest(format!("Authority is empty")))?;
+
+	let split = match first_char {
+		'[' => {
+			let mut iter = iter.skip_while(|(_, c)| c != &']');
+			iter.next().ok_or(Error::BadRequest(format!(
 				"Authority {} has an illegal format",
 				authority
 			)))?;
-			niter.next()
+			iter.next()
 		}
-		Some((_, _)) => iter.skip_while(|(_, c)| c != &':').next(),
-		None => return Err(Error::BadRequest(format!("Authority is empty"))),
+		_ => iter.skip_while(|(_, c)| c != &':').next(),
 	};
 
 	match split {
