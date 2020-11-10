@@ -93,6 +93,12 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	}
 }
 
+/// Host to bucket
+///
+/// Convert a host, like "bucket.garage-site.tld" or "john.doe.com"
+/// to the corresponding bucket, resp. "bucket" and "john.doe.com"
+/// considering that ".garage-site.tld" is the "root domain".
+/// This behavior has been chosen to follow AWS S3 semantic.
 fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 	if root.len() >= host.len() || !host.ends_with(root) {
 		return host;
