@@ -9,9 +9,9 @@ use garage_util::config::*;
 use garage_util::error::Error;
 
 use garage_api::api_server;
-use garage_web::web_server;
 use garage_model::garage::Garage;
 use garage_rpc::rpc_server::RpcServer;
+use garage_web::web_server;
 
 use crate::admin_rpc::*;
 

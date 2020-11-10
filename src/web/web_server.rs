@@ -1,15 +1,15 @@
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use futures::future::Future;
 
-use hyper::server::conn::AddrStream;
-use hyper::{Body,Request,Response,Server,Uri};
 use hyper::header::HOST;
+use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server, Uri};
 
-use garage_util::error::Error;
 use garage_model::garage::Garage;
+use garage_util::error::Error;
 
 pub async fn run_web_server(
 	garage: Arc<Garage>,
@@ -21,7 +21,7 @@ pub async fn run_web_server(
 		let garage = garage.clone();
 		let client_addr = conn.remote_addr();
 		info!("{:?}", client_addr);
-	  async move {
+		async move {
 			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
 				handler(garage, req, client_addr)
@@ -42,7 +42,6 @@ async fn handler(
 	req: Request<Body>,
 	addr: SocketAddr,
 ) -> Result<Response<Body>, Error> {
-
 	// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 	let authority = req
 		.headers()
@@ -52,13 +51,13 @@ async fn handler(
 
 	// Get bucket
 	let host = authority_to_host(authority)?;
-  let root = &garage.config.s3_web.root_domain;
-  let bucket = host_to_bucket(&host, root); 
+	let root = &garage.config.s3_web.root_domain;
+	let bucket = host_to_bucket(&host, root);
 
 	// Get path
 	let path = req.uri().path().to_string();
 	let key = percent_encoding::percent_decode_str(&path).decode_utf8()?;
-	
+
 	info!("host: {}, bucket: {}, key: {}", host, bucket, key);
 
 	Ok(Response::new(Body::from("hello world\n")))
@@ -78,12 +77,14 @@ fn authority_to_host(authority: &str) -> Result<String, Error> {
 
 	match uri_str.parse::<Uri>() {
 		Ok(uri) => {
-			let host = uri
-				.host()
-				.ok_or(Error::BadRequest(format!("Unable to extract host from authority")))?;
+			let host = uri.host().ok_or(Error::BadRequest(format!(
+				"Unable to extract host from authority"
+			)))?;
 			Ok(String::from(host))
 		}
-		_ => Err(Error::BadRequest(format!("Unable to parse authority (host HTTP header)"))),
+		_ => Err(Error::BadRequest(format!(
+			"Unable to parse authority (host HTTP header)"
+		))),
 	}
 }
 
@@ -94,11 +95,13 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 
 	let len_diff = host.len() - root.len();
 	let missing_starting_dot = root.chars().next() != Some('.');
-  let cursor = if missing_starting_dot { len_diff - 1 } else { len_diff };
-  &host[..cursor]
+	let cursor = if missing_starting_dot {
+		len_diff - 1
+	} else {
+		len_diff
+	};
+	&host[..cursor]
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -128,28 +131,25 @@ mod tests {
 
 	#[test]
 	fn host_to_bucket_test() {
-    assert_eq!(
-			host_to_bucket("john.doe.garage.tld", ".garage.tld"),
-			"john.doe");
-
-    assert_eq!(
-			host_to_bucket("john.doe.garage.tld", "garage.tld"),
-			"john.doe");
-    
 		assert_eq!(
-			host_to_bucket("john.doe.com", "garage.tld"),
-			"john.doe.com");
-		
+			host_to_bucket("john.doe.garage.tld", ".garage.tld"),
+			"john.doe"
+		);
+
+		assert_eq!(
+			host_to_bucket("john.doe.garage.tld", "garage.tld"),
+			"john.doe"
+		);
+
+		assert_eq!(host_to_bucket("john.doe.com", "garage.tld"), "john.doe.com");
+
 		assert_eq!(
 			host_to_bucket("john.doe.com", ".garage.tld"),
-			"john.doe.com");
-		
-		assert_eq!(
-			host_to_bucket("garage.tld", "garage.tld"),
-			"garage.tld");
-		
-		assert_eq!(
-			host_to_bucket("garage.tld", ".garage.tld"),
-			"garage.tld");
+			"john.doe.com"
+		);
+
+		assert_eq!(host_to_bucket("garage.tld", "garage.tld"), "garage.tld");
+
+		assert_eq!(host_to_bucket("garage.tld", ".garage.tld"), "garage.tld");
 	}
 }
