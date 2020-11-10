@@ -6,7 +6,7 @@ use futures::future::Future;
 use hyper::header::HOST;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server, Uri};
+use hyper::{Body, Request, Response, Server};
 
 use garage_model::garage::Garage;
 use garage_util::error::Error;
@@ -58,7 +58,7 @@ async fn handler(
 	let path = req.uri().path().to_string();
 	let key = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
-	info!("host: {}, bucket: {}, key: {}", host, bucket, key);
+	info!("Selected bucket: {}, selected key: {}", bucket, key);
 
 	Ok(Response::new(Body::from("hello world\n")))
 }
@@ -66,27 +66,28 @@ async fn handler(
 /// Extract host from the authority section given by the HTTP host header
 ///
 /// The HTTP host contains both a host and a port.
-/// Extracting the port is more complex than just finding the colon (:) symbol.
-/// An example of a case where it does not work: [::1]:3902
-/// Instead, we use the Uri module provided by Hyper that correctl parses this "authority" section
-fn authority_to_host(authority: &str) -> Result<String, Error> {
-	// Hyper can not directly parse authority section so we build a fake URL
-	// that contains our authority section
-	let mut uri_str: String = "fake://".to_owned();
-	uri_str.push_str(authority);
+/// Extracting the port is more complex than just finding the colon (:) symbol due to IPv6
+/// we do not use the collect pattern as there is no way in std rust to collect over a stack allocated value
+/// check here: https://docs.rs/collect_slice/1.2.0/collect_slice/
+fn authority_to_host(authority: &str) -> Result<&str, Error> {
+	let mut iter = authority.chars().enumerate();
+	let split = match iter.next() {
+    Some((_, '[')) => {
+			let mut niter = iter.skip_while(|(_, c)| c != &']');
+			niter.next().ok_or(Error::BadRequest(format!("Authority {} has an illegal format", authority)))?;
+			niter.next()
+		}, 
+		Some((_, _)) => iter.skip_while(|(_, c)| c != &':').next(),
+		None => return Err(Error::BadRequest(format!("Authority is empty"))),
+	};
 
-	match uri_str.parse::<Uri>() {
-		Ok(uri) => {
-			let host = uri.host().ok_or(Error::BadRequest(format!(
-				"Unable to extract host from authority"
-			)))?;
-			Ok(String::from(host))
-		}
-		_ => Err(Error::BadRequest(format!(
-			"Unable to parse authority (host HTTP header)"
-		))),
+  match split {
+		Some((i, ':')) => Ok(&authority[..i]),
+		None => Ok(authority),
+		Some((_, _)) => Err(Error::BadRequest(format!("Authority {} has an illegal format", authority))),
 	}
 }
+
 
 fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 	if root.len() >= host.len() || !host.ends_with(root) {
