@@ -71,22 +71,27 @@ async fn handler(
 fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	let mut iter = authority.chars().enumerate();
 	let split = match iter.next() {
-    Some((_, '[')) => {
+		Some((_, '[')) => {
 			let mut niter = iter.skip_while(|(_, c)| c != &']');
-			niter.next().ok_or(Error::BadRequest(format!("Authority {} has an illegal format", authority)))?;
+			niter.next().ok_or(Error::BadRequest(format!(
+				"Authority {} has an illegal format",
+				authority
+			)))?;
 			niter.next()
-		}, 
+		}
 		Some((_, _)) => iter.skip_while(|(_, c)| c != &':').next(),
 		None => return Err(Error::BadRequest(format!("Authority is empty"))),
 	};
 
-  match split {
+	match split {
 		Some((i, ':')) => Ok(&authority[..i]),
 		None => Ok(authority),
-		Some((_, _)) => Err(Error::BadRequest(format!("Authority {} has an illegal format", authority))),
+		Some((_, _)) => Err(Error::BadRequest(format!(
+			"Authority {} has an illegal format",
+			authority
+		))),
 	}
 }
-
 
 fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 	if root.len() >= host.len() || !host.ends_with(root) {
