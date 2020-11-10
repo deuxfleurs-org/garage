@@ -77,10 +77,7 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	let split = match first_char {
 		'[' => {
 			let mut iter = iter.skip_while(|(_, c)| c != &']');
-			iter.next().ok_or(Error::BadRequest(format!(
-				"Authority {} has an illegal format",
-				authority
-			)))?;
+			iter.next().expect("Authority parsing logic error");
 			iter.next()
 		}
 		_ => iter.skip_while(|(_, c)| c != &':').next(),
