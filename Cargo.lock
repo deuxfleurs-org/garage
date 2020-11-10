@@ -661,6 +661,7 @@ dependencies = [
  "http",
  "hyper",
  "log",
+ "percent-encoding",
  "rand",
  "rmp-serde",
  "roxmltree",

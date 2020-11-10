@@ -15,7 +15,7 @@ pub async fn run_web_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
 ) -> Result<(), Error> {
-	let addr = &garage.config.s3_web.web_bind_addr;
+	let addr = &garage.config.s3_web.bind_addr;
 
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
@@ -43,17 +43,23 @@ async fn handler(
 	addr: SocketAddr,
 ) -> Result<Response<Body>, Error> {
 
-	// Get http authority string (eg. [::1]:3902)
+	// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 	let authority = req
 		.headers()
 		.get(HOST)
 		.ok_or(Error::BadRequest(format!("HOST header required")))?
 		.to_str()?;
-	info!("authority is {}", authority);
 
-	// Get HTTP domain/ip from host
+	// Get bucket
 	let host = authority_to_host(authority)?;
-	info!("host is {}", host);
+  let root = &garage.config.s3_web.root_domain;
+  let bucket = host_to_bucket(&host, root); 
+
+	// Get path
+	let path = req.uri().path().to_string();
+	let key = percent_encoding::percent_decode_str(&path).decode_utf8()?;
+	
+	info!("host: {}, bucket: {}, key: {}", host, bucket, key);
 
 	Ok(Response::new(Body::from("hello world\n")))
 }
@@ -81,6 +87,18 @@ fn authority_to_host(authority: &str) -> Result<String, Error> {
 	}
 }
 
+fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
+	if root.len() >= host.len() || !host.ends_with(root) {
+		return host;
+	}
+
+	let len_diff = host.len() - root.len();
+	let missing_starting_dot = root.chars().next() != Some('.');
+  let cursor = if missing_starting_dot { len_diff - 1 } else { len_diff };
+  &host[..cursor]
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -106,5 +124,32 @@ mod tests {
 		let domain3 = authority_to_host("127.0.0.1")?;
 		assert_eq!(domain3, "127.0.0.1");
 		Ok(())
+	}
+
+	#[test]
+	fn host_to_bucket_test() {
+    assert_eq!(
+			host_to_bucket("john.doe.garage.tld", ".garage.tld"),
+			"john.doe");
+
+    assert_eq!(
+			host_to_bucket("john.doe.garage.tld", "garage.tld"),
+			"john.doe");
+    
+		assert_eq!(
+			host_to_bucket("john.doe.com", "garage.tld"),
+			"john.doe.com");
+		
+		assert_eq!(
+			host_to_bucket("john.doe.com", ".garage.tld"),
+			"john.doe.com");
+		
+		assert_eq!(
+			host_to_bucket("garage.tld", "garage.tld"),
+			"garage.tld");
+		
+		assert_eq!(
+			host_to_bucket("garage.tld", ".garage.tld"),
+			"garage.tld");
 	}
 }

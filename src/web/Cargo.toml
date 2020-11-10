@@ -36,6 +36,7 @@ tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-
 
 http = "0.2"
 hyper = "0.13"
+percent-encoding = "2.1.0"
 rustls = "0.17"
 webpki = "0.21"
 

@@ -54,7 +54,8 @@ pub struct ApiConfig {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct WebConfig {
-	pub web_bind_addr: SocketAddr,
+	pub bind_addr: SocketAddr,
+	pub root_domain: String,
 }
 
 fn default_max_concurrent_rpc_requests() -> usize {
