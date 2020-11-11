@@ -19,3 +19,4 @@ s3_region = "garage"				# set this to anything. S3 API calls will fail if they a
 [s3_web]
 bind_addr = "[::1]:3902"
 root_domain = ".garage.tld"
+index = "index.html"
