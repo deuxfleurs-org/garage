@@ -66,7 +66,7 @@ pub async fn handle_list(
 					let relative_key = &object.key[prefix.len()..];
 					relative_key
 						.find(delimiter)
-						.and_then(move |i| Some(&object.key[..prefix.len() + i + delimiter.len()]))
+						.map(|i| &object.key[..prefix.len() + i + delimiter.len()])
 				} else {
 					None
 				};
