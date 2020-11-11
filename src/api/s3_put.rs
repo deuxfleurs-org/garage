@@ -37,10 +37,7 @@ pub async fn handle_put(
 	let body = req.into_body();
 
 	let mut chunker = BodyChunker::new(body, garage.config.block_size);
-	let first_block = match chunker.next().await? {
-		Some(x) => x,
-		None => vec![],
-	};
+	let first_block = chunker.next().await?.unwrap_or(vec![]);
 
 	let mut object_version = ObjectVersion {
 		uuid: version_uuid,
@@ -325,14 +322,9 @@ pub async fn handle_put_part(
 	let (object, first_block) = futures::try_join!(get_object_fut, get_first_block_fut)?;
 
 	// Check object is valid and multipart block can be accepted
-	let first_block = match first_block {
-		None => return Err(Error::BadRequest(format!("Empty body"))),
-		Some(x) => x,
-	};
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let first_block = first_block.ok_or(Error::BadRequest(format!("Empty body")))?;	
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	if !object
 		.versions()
 		.iter()
@@ -392,10 +384,8 @@ pub async fn handle_complete_multipart_upload(
 		garage.object_table.get(&bucket, &key),
 		garage.version_table.get(&version_uuid, &EmptyKey),
 	)?;
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	let object_version = object
 		.versions()
 		.iter()
@@ -408,10 +398,8 @@ pub async fn handle_complete_multipart_upload(
 		}
 		Some(x) => x.clone(),
 	};
-	let version = match version {
-		None => return Err(Error::BadRequest(format!("Version not found"))),
-		Some(x) => x,
-	};
+	let version = version.ok_or(Error::BadRequest(format!("Version not found")))?;
+
 	if version.blocks().len() == 0 {
 		return Err(Error::BadRequest(format!("No data was uploaded")));
 	}
@@ -474,10 +462,8 @@ pub async fn handle_abort_multipart_upload(
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?;
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	let object_version = object
 		.versions()
 		.iter()
