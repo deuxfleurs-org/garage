@@ -41,25 +41,20 @@ pub async fn handle_head(
 	bucket: &str,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
-	let object = match garage
+	let object = garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?
-	{
-		None => return Err(Error::NotFound),
-		Some(o) => o,
-	};
+		.ok_or(Error::NotFound)?;
 
-	let version = match object
+	let version = object
 		.versions()
 		.iter()
 		.rev()
 		.filter(|v| v.is_data())
 		.next()
-	{
-		Some(v) => v,
-		None => return Err(Error::NotFound),
-	};
+		.ok_or(Error::NotFound)?;
+
 	let version_meta = match &version.state {
 		ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
 		ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta,
@@ -80,25 +75,20 @@ pub async fn handle_get(
 	bucket: &str,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
-	let object = match garage
+	let object = garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?
-	{
-		None => return Err(Error::NotFound),
-		Some(o) => o,
-	};
+		.ok_or(Error::NotFound)?;
 
-	let last_v = match object
+	let last_v = object
 		.versions()
 		.iter()
 		.rev()
 		.filter(|v| v.is_complete())
 		.next()
-	{
-		Some(v) => v,
-		None => return Err(Error::NotFound),
-	};
+		.ok_or(Error::NotFound)?;
+
 	let last_v_data = match &last_v.state {
 		ObjectVersionState::Complete(x) => x,
 		_ => unreachable!(),
@@ -146,10 +136,7 @@ pub async fn handle_get(
 			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
 
 			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
-			let version = match version {
-				Some(v) => v,
-				None => return Err(Error::NotFound),
-			};
+			let version = version.ok_or(Error::NotFound)?;
 
 			let mut blocks = version
 				.blocks()
