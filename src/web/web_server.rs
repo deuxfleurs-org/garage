@@ -57,6 +57,13 @@ async fn handler(
 	let path = req.uri().path().to_string();
 	let key = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
+  // Get bucket descriptor
+	let object = garage
+		.object_table
+		.get(&bucket.to_string(), &key.to_string())
+		.await?
+		.ok_or(Error::NotFound)?;
+
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
 	Ok(Response::new(Body::from("hello world\n")))
