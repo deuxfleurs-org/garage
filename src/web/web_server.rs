@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -24,7 +25,7 @@ pub async fn run_web_server(
 		async move {
 			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
-				handler(garage, req, client_addr)
+				handle_request(garage, req, client_addr)
 			}))
 		}
 	});
@@ -37,11 +38,29 @@ pub async fn run_web_server(
 	Ok(())
 }
 
-async fn handler(
+async fn handle_request(
 	garage: Arc<Garage>,
 	req: Request<Body>,
 	addr: SocketAddr,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<Body>, Infallible> {
+	info!("{} {} {}", addr, req.method(), req.uri());
+	let res = serve_file(garage, req).await;
+	match &res {
+		Ok(r) => debug!("{} {:?}", r.status(), r.headers()),
+		Err(e) => warn!("Response: error {}, {}", e.http_status_code(), e),
+	}
+
+	Ok(res.unwrap_or_else(error_to_res))
+}
+
+fn error_to_res(e: Error) -> Response<Body> {
+	let body: Body = Body::from(format!("{}\n", e));
+	let mut http_error = Response::new(body);
+	*http_error.status_mut() = e.http_status_code();
+	http_error
+}
+
+async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
 	// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 	let authority = req
 		.headers()
