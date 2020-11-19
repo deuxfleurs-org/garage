@@ -37,7 +37,9 @@ api_bind_addr = "127.0.0.$count:3900"	# the S3 API port, HTTP without TLS. Add a
 s3_region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
 
 [s3_web]
-web_bind_addr = "127.0.0.$count:3902"
+bind_addr = "127.0.0.$count:3902"
+root_domain = ".garage.tld"
+index = "index.html"
 EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"
