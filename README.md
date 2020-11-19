@@ -23,14 +23,14 @@ We propose the following quickstart to setup a full dev. environment as quickly 
   1. Setup a rust/cargo environment
   2. Run `cargo build` to build the project
   3. Run `./example/dev-cluster.sh` to launch a test cluster (feel free to read the script)
-	4. Set a convenient alias `alias grg=./target/debug/garage`
-	5. Get your node IDs with `grg status`
-	6. Configure them, eg. `grg node configure -d dc1 -n 10 dd79867e0f5a9e08`
-	7. Create a bucket, eg. `grg bucket create éprouvette`
-	8. Create a key, eg. `grg key new --name opérateur`
-	9. Bind the key with the bucket, eg. `grg bucket allow éprouvette --read --write --key GK108acc0d179b13826e54442b`
-	10. Install s3cmd, eg. `dnf install s3cmd`
-	11. s3cmd example command:
+  4. Set a convenient alias `alias grg=./target/debug/garage`
+  5. Get your node IDs with `grg status`
+  6. Configure them, eg. `grg node configure -d dc1 -n 10 dd79867e0f5a9e08`
+  7. Create a bucket, eg. `grg bucket create éprouvette`
+  8. Create a key, eg. `grg key new --name opérateur`
+  9. Bind the key with the bucket, eg. `grg bucket allow éprouvette --read --write --key GK108acc0d179b13826e54442b`
+  10. Install s3cmd, eg. `dnf install s3cmd`
+  11. s3cmd example command:
 
 ```bash
 s3cmd \
