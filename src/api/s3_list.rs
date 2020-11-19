@@ -64,10 +64,9 @@ pub async fn handle_list(
 				}
 				let common_prefix = if delimiter.len() > 0 {
 					let relative_key = &object.key[prefix.len()..];
-					match relative_key.find(delimiter) {
-						Some(i) => Some(&object.key[..prefix.len() + i + delimiter.len()]),
-						None => None,
-					}
+					relative_key
+						.find(delimiter)
+						.map(|i| &object.key[..prefix.len() + i + delimiter.len()])
 				} else {
 					None
 				};

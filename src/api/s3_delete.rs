@@ -4,29 +4,23 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response};
 
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
 use crate::encoding::*;
+use crate::error::*;
 
 async fn handle_delete_internal(
 	garage: &Garage,
 	bucket: &str,
 	key: &str,
 ) -> Result<(UUID, UUID), Error> {
-	let object = match garage
+	let object = garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?
-	{
-		None => {
-			// No need to delete
-			return Err(Error::NotFound);
-		}
-		Some(o) => o,
-	};
+		.ok_or(Error::NotFound)?; // No need to delete
 
 	let interesting_versions = object.versions().iter().filter(|v| match v.state {
 		ObjectVersionState::Aborted => false,
@@ -43,10 +37,7 @@ async fn handle_delete_internal(
 		timestamp = std::cmp::max(timestamp, v.timestamp + 1);
 	}
 
-	let deleted_version = match must_delete {
-		None => return Err(Error::NotFound),
-		Some(v) => v,
-	};
+	let deleted_version = must_delete.ok_or(Error::NotFound)?;
 
 	let version_uuid = gen_uuid();
 
@@ -85,8 +76,7 @@ pub async fn handle_delete_objects(
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
-	let cmd = parse_delete_objects_xml(&cmd_xml)
-		.map_err(|e| Error::BadRequest(format!("Invald delete XML query: {}", e)))?;
+	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;
 
 	let mut retxml = String::new();
 	writeln!(&mut retxml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
@@ -143,10 +133,8 @@ fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Result<DeleteRequest, 
 	let mut ret = DeleteRequest { objects: vec![] };
 
 	let root = xml.root();
-	let delete = match root.first_child() {
-		Some(del) => del,
-		None => return Err(format!("Delete tag not found")),
-	};
+	let delete = root.first_child().ok_or(format!("Delete tag not found"))?;
+
 	if !delete.has_tag_name("Delete") {
 		return Err(format!("Invalid root tag: {:?}", root));
 	}

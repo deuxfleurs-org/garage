@@ -9,8 +9,9 @@ use sha2::{Digest as Sha256Digest, Sha256};
 
 use garage_table::*;
 use garage_util::data::*;
-use garage_util::error::Error;
+use garage_util::error::Error as GarageError;
 
+use crate::error::*;
 use garage_model::block::INLINE_THRESHOLD;
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
@@ -36,10 +37,7 @@ pub async fn handle_put(
 	let body = req.into_body();
 
 	let mut chunker = BodyChunker::new(body, garage.config.block_size);
-	let first_block = match chunker.next().await? {
-		Some(x) => x,
-		None => vec![],
-	};
+	let first_block = chunker.next().await?.unwrap_or(vec![]);
 
 	let mut object_version = ObjectVersion {
 		uuid: version_uuid,
@@ -85,7 +83,7 @@ pub async fn handle_put(
 	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != sha256sum {
-			return Err(Error::Message(format!(
+			return Err(Error::BadRequest(format!(
 				"Unable to validate x-amz-content-sha256"
 			)));
 		} else {
@@ -94,7 +92,7 @@ pub async fn handle_put(
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != md5sum {
-			return Err(Error::Message(format!("Unable to validate content-md5")));
+			return Err(Error::BadRequest(format!("Unable to validate content-md5")));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
@@ -184,7 +182,7 @@ async fn put_block_meta(
 	offset: u64,
 	hash: Hash,
 	size: u64,
-) -> Result<(), Error> {
+) -> Result<(), GarageError> {
 	// TODO: don't clone, restart from empty block list ??
 	let mut version = version.clone();
 	version
@@ -225,7 +223,7 @@ impl BodyChunker {
 			buf: VecDeque::new(),
 		}
 	}
-	async fn next(&mut self) -> Result<Option<Vec<u8>>, Error> {
+	async fn next(&mut self) -> Result<Option<Vec<u8>>, GarageError> {
 		while !self.read_all && self.buf.len() < self.block_size {
 			if let Some(block) = self.body.next().await {
 				let bytes = block?;
@@ -305,10 +303,9 @@ pub async fn handle_put_part(
 	// Check parameters
 	let part_number = part_number_str
 		.parse::<u64>()
-		.map_err(|e| Error::BadRequest(format!("Invalid part number: {}", e)))?;
+		.ok_or_bad_request("Invalid part number")?;
 
-	let version_uuid =
-		uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
+	let version_uuid = decode_upload_id(upload_id)?;
 
 	let content_md5 = match req.headers().get("content-md5") {
 		Some(x) => Some(x.to_str()?.to_string()),
@@ -325,14 +322,9 @@ pub async fn handle_put_part(
 	let (object, first_block) = futures::try_join!(get_object_fut, get_first_block_fut)?;
 
 	// Check object is valid and multipart block can be accepted
-	let first_block = match first_block {
-		None => return Err(Error::BadRequest(format!("Empty body"))),
-		Some(x) => x,
-	};
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let first_block = first_block.ok_or(Error::BadRequest(format!("Empty body")))?;	
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	if !object
 		.versions()
 		.iter()
@@ -359,7 +351,7 @@ pub async fn handle_put_part(
 	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != sha256sum {
-			return Err(Error::Message(format!(
+			return Err(Error::BadRequest(format!(
 				"Unable to validate x-amz-content-sha256"
 			)));
 		} else {
@@ -368,7 +360,7 @@ pub async fn handle_put_part(
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != md5sum {
-			return Err(Error::Message(format!("Unable to validate content-md5")));
+			return Err(Error::BadRequest(format!("Unable to validate content-md5")));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
@@ -384,8 +376,7 @@ pub async fn handle_complete_multipart_upload(
 	key: &str,
 	upload_id: &str,
 ) -> Result<Response<Body>, Error> {
-	let version_uuid =
-		uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
+	let version_uuid = decode_upload_id(upload_id)?;
 
 	let bucket = bucket.to_string();
 	let key = key.to_string();
@@ -393,10 +384,8 @@ pub async fn handle_complete_multipart_upload(
 		garage.object_table.get(&bucket, &key),
 		garage.version_table.get(&version_uuid, &EmptyKey),
 	)?;
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	let object_version = object
 		.versions()
 		.iter()
@@ -409,10 +398,8 @@ pub async fn handle_complete_multipart_upload(
 		}
 		Some(x) => x.clone(),
 	};
-	let version = match version {
-		None => return Err(Error::BadRequest(format!("Version not found"))),
-		Some(x) => x,
-	};
+	let version = version.ok_or(Error::BadRequest(format!("Version not found")))?;
+
 	if version.blocks().len() == 0 {
 		return Err(Error::BadRequest(format!("No data was uploaded")));
 	}
@@ -469,17 +456,14 @@ pub async fn handle_abort_multipart_upload(
 	key: &str,
 	upload_id: &str,
 ) -> Result<Response<Body>, Error> {
-	let version_uuid =
-		uuid_from_str(upload_id).map_err(|_| Error::BadRequest(format!("Invalid upload ID")))?;
+	let version_uuid = decode_upload_id(upload_id)?;
 
 	let object = garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?;
-	let object = match object {
-		None => return Err(Error::BadRequest(format!("Object not found"))),
-		Some(x) => x,
-	};
+	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+
 	let object_version = object
 		.versions()
 		.iter()
@@ -532,10 +516,10 @@ fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
 	})
 }
 
-fn uuid_from_str(id: &str) -> Result<UUID, ()> {
-	let id_bin = hex::decode(id).map_err(|_| ())?;
+fn decode_upload_id(id: &str) -> Result<UUID, Error> {
+	let id_bin = hex::decode(id).ok_or_bad_request("Invalid upload ID")?;
 	if id_bin.len() != 32 {
-		return Err(());
+		return None.ok_or_bad_request("Invalid upload ID");
 	}
 	let mut uuid = [0u8; 32];
 	uuid.copy_from_slice(&id_bin[..]);

@@ -6,12 +6,13 @@ use hyper::{Body, Response};
 
 use garage_table::*;
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
+
+use crate::error::*;
 
 pub async fn handle_copy(
 	garage: Arc<Garage>,
@@ -20,25 +21,20 @@ pub async fn handle_copy(
 	source_bucket: &str,
 	source_key: &str,
 ) -> Result<Response<Body>, Error> {
-	let source_object = match garage
+	let source_object = garage
 		.object_table
 		.get(&source_bucket.to_string(), &source_key.to_string())
 		.await?
-	{
-		None => return Err(Error::NotFound),
-		Some(o) => o,
-	};
+		.ok_or(Error::NotFound)?;
 
-	let source_last_v = match source_object
+	let source_last_v = source_object
 		.versions()
 		.iter()
 		.rev()
 		.filter(|v| v.is_complete())
 		.next()
-	{
-		Some(v) => v,
-		None => return Err(Error::NotFound),
-	};
+		.ok_or(Error::NotFound)?;
+
 	let source_last_state = match &source_last_v.state {
 		ObjectVersionState::Complete(x) => x,
 		_ => unreachable!(),
@@ -68,10 +64,7 @@ pub async fn handle_copy(
 				.version_table
 				.get(&source_last_v.uuid, &EmptyKey)
 				.await?;
-			let source_version = match source_version {
-				Some(v) => v,
-				None => return Err(Error::NotFound),
-			};
+			let source_version = source_version.ok_or(Error::NotFound)?;
 
 			let dest_version = Version::new(
 				new_uuid,
