@@ -35,11 +35,11 @@ We propose the following quickstart to setup a full dev. environment as quickly 
 ```bash
 s3cmd \
   --host 127.0.0.1:3900 \
-	--access_key=GK108acc0d179b13826e54442b \
-	--secret_key=f52aac5722c48f038ddf8612d1e91e8d0a9535048f1f1cd402cd0416f9f8807f \
-	--region=garage \
-	--no-ssl \
-	ls s3://éprouvette
+  --access_key=GK108acc0d179b13826e54442b \
+  --secret_key=f52aac5722c48f038ddf8612d1e91e8d0a9535048f1f1cd402cd0416f9f8807f \
+  --region=garage \
+  --no-ssl \
+  ls s3://éprouvette
 ```
 
 Now you should be ready to start hacking on garage!
