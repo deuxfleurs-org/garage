@@ -11,12 +11,13 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 
 use garage_model::garage::Garage;
-use garage_util::error::Error;
+use garage_util::error::Error as GarageError;
+use crate::error::*;
 
 pub async fn run_web_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
-) -> Result<(), Error> {
+) -> Result<(), GarageError> {
 	let addr = &garage.config.s3_web.bind_addr;
 
 	let service = make_service_fn(|conn: &AddrStream| {

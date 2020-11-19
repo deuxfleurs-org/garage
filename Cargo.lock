@@ -430,6 +430,7 @@ dependencies = [
  "bytes 0.4.12",
  "chrono",
  "crypto-mac",
+ "err-derive",
  "futures",
  "futures-util",
  "garage_model 0.1.1",
