@@ -18,9 +18,31 @@ Our main use case is to provide a distributed storage layer for small-scale self
 
 ## Development
 
+We propose the following quickstart to setup a full dev. environment as quickly as possible:
+
   1. Setup a rust/cargo environment
   2. Run `cargo build` to build the project
-  3. Run `RUST_BACKTRACE=1 RUST_LOG=garage=debug ./target/debug/garage server -c ./config.dev.toml` to launch a garage test instance (data will be saved in `/tmp`, no encryption, only one instance)
+  3. Run `./example/dev-cluster.sh` to launch a test cluster (feel free to read the script)
+	4. Set a convenient alias `alias grg=./target/debug/garage`
+	5. Get your node IDs with `grg status`
+	6. Configure them, eg. `grg node configure -d dc1 -n 10 dd79867e0f5a9e08`
+	7. Create a bucket, eg. `grg bucket create éprouvette`
+	8. Create a key, eg. `grg key new --name opérateur`
+	9. Bind the key with the bucket, eg. `grg bucket allow éprouvette --read --write --key GK108acc0d179b13826e54442b`
+	10. Install s3cmd, eg. `dnf install s3cmd`
+	11. s3cmd example command:
+
+```bash
+s3cmd \
+  --host 127.0.0.1:3900 \
+	--access_key=GK108acc0d179b13826e54442b \
+	--secret_key=f52aac5722c48f038ddf8612d1e91e8d0a9535048f1f1cd402cd0416f9f8807f \
+	--region=garage \
+	--no-ssl \
+	ls s3://éprouvette
+```
+
+Now you should be ready to start hacking on garage!
 
 ## Setting up Garage
 
