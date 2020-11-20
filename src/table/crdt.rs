@@ -27,7 +27,7 @@ pub struct LWW<T> {
 
 impl<T> LWW<T>
 where
-	T: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + CRDT,
+	T: CRDT,
 {
 	pub fn new(value: T) -> Self {
 		Self {
@@ -52,7 +52,7 @@ where
 
 impl<T> CRDT for LWW<T>
 where
-	T: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + CRDT,
+	T: Clone + CRDT,
 {
 	fn merge(&mut self, other: &Self) {
 		if other.ts > self.ts {
@@ -96,8 +96,8 @@ pub struct LWWMap<K, V> {
 
 impl<K, V> LWWMap<K, V>
 where
-	K: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + Ord,
-	V: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + CRDT,
+	K: Ord,
+	V: CRDT,
 {
 	pub fn new() -> Self {
 		Self { vals: vec![] }
@@ -138,8 +138,8 @@ where
 
 impl<K, V> CRDT for LWWMap<K, V>
 where
-	K: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + Ord,
-	V: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + CRDT,
+	K: Clone + Ord,
+	V: Clone + CRDT,
 {
 	fn merge(&mut self, other: &Self) {
 		for (k, ts2, v2) in other.vals.iter() {
