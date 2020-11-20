@@ -5,6 +5,7 @@ extern crate log;
 
 pub mod schema;
 pub mod util;
+pub mod crdt;
 
 pub mod table;
 pub mod table_fullcopy;

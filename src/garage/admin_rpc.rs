@@ -6,6 +6,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 
 use garage_table::*;
+use garage_table::crdt::CRDT;
 
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
@@ -114,7 +115,7 @@ impl AdminRpcHandler {
 				// --- done checking, now commit ---
 				for ak in bucket.authorized_keys() {
 					if let Some(key) = self.garage.key_table.get(&EmptyKey, &ak.key_id).await? {
-						if !key.deleted {
+						if !key.deleted.get() {
 							self.update_key_bucket(key, &bucket.name, false, false)
 								.await?;
 						}
@@ -173,7 +174,7 @@ impl AdminRpcHandler {
 					.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
 					.await?
 					.iter()
-					.map(|k| (k.key_id.to_string(), k.name.to_string()))
+					.map(|k| (k.key_id.to_string(), k.name.get().clone()))
 					.collect::<Vec<_>>();
 				Ok(AdminRPC::KeyList(key_ids))
 			}
@@ -182,14 +183,13 @@ impl AdminRpcHandler {
 				Ok(AdminRPC::KeyInfo(key))
 			}
 			KeyOperation::New(query) => {
-				let key = Key::new(query.name, vec![]);
+				let key = Key::new(query.name);
 				self.garage.key_table.insert(&key).await?;
 				Ok(AdminRPC::KeyInfo(key))
 			}
 			KeyOperation::Rename(query) => {
 				let mut key = self.get_existing_key(&query.key_id).await?;
-				key.name_timestamp = std::cmp::max(key.name_timestamp + 1, now_msec());
-				key.name = query.new_name;
+				key.name.update(query.new_name);
 				self.garage.key_table.insert(&key).await?;
 				Ok(AdminRPC::KeyInfo(key))
 			}
@@ -201,16 +201,16 @@ impl AdminRpcHandler {
 					)));
 				}
 				// --- done checking, now commit ---
-				for ab in key.authorized_buckets().iter() {
+				for (ab_name, _, _) in key.authorized_buckets.items().iter() {
 					if let Some(bucket) =
-						self.garage.bucket_table.get(&EmptyKey, &ab.bucket).await?
+						self.garage.bucket_table.get(&EmptyKey, ab_name).await?
 					{
 						if !bucket.deleted {
 							self.update_bucket_key(bucket, &key.key_id, false, false)
 								.await?;
 						}
 					} else {
-						return Err(Error::Message(format!("Bucket not found: {}", ab.bucket)));
+						return Err(Error::Message(format!("Bucket not found: {}", ab_name)));
 					}
 				}
 				let del_key = Key::delete(key.key_id);
@@ -241,7 +241,7 @@ impl AdminRpcHandler {
 			.key_table
 			.get(&EmptyKey, id)
 			.await?
-			.filter(|k| !k.deleted)
+			.filter(|k| !k.deleted.get())
 			.map(Ok)
 			.unwrap_or(Err(Error::BadRPC(format!("Key {} does not exist", id))))
 	}
@@ -281,22 +281,14 @@ impl AdminRpcHandler {
 		allow_read: bool,
 		allow_write: bool,
 	) -> Result<(), Error> {
-		let timestamp = match key
-			.authorized_buckets()
-			.iter()
-			.find(|x| x.bucket == *bucket)
-		{
-			None => now_msec(),
-			Some(ab) => std::cmp::max(ab.timestamp + 1, now_msec()),
-		};
-		key.clear_buckets();
-		key.add_bucket(AllowedBucket {
-			bucket: bucket.clone(),
-			timestamp,
-			allow_read,
-			allow_write,
-		})
-		.unwrap();
+		let old_map = key.authorized_buckets.take_and_clear();
+		key.authorized_buckets.merge(
+			&old_map.update_mutator(
+				bucket.clone(),
+				PermissionSet{
+					allow_read, allow_write
+				}
+			));
 		self.garage.key_table.insert(&key).await?;
 		Ok(())
 	}
