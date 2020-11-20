@@ -24,8 +24,8 @@ data_dir = "/tmp/garage-data-$count"
 rpc_bind_addr = "127.0.0.$count:3901"		# the port other Garage nodes will use to talk to this node
 bootstrap_peers = [
   "127.0.0.1:3901",
-	"127.0.0.2:3901",
-	"127.0.0.3:3901"
+  "127.0.0.2:3901",
+  "127.0.0.3:3901"
 ]
 max_concurrent_rpc_requests = 12
 data_replication_factor = 3
@@ -37,7 +37,7 @@ api_bind_addr = "127.0.0.$count:3900"	# the S3 API port, HTTP without TLS. Add a
 s3_region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
 
 [s3_web]
-web_bind_addr = "127.0.0.$count:3902"
+bind_addr = "127.0.0.$count:3902"
 EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"
