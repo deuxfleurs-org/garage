@@ -31,14 +31,13 @@ impl Key {
 	pub fn new(name: String) -> Self {
 		let key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
 		let secret_key = hex::encode(&rand::random::<[u8; 32]>()[..]);
-		let ret = Self {
+		Self {
 			key_id,
 			secret_key,
 			name: crdt::LWW::new(name),
 			deleted: crdt::Bool::new(false),
 			authorized_buckets: crdt::LWWMap::new(),
-		};
-		ret
+		}
 	}
 	pub fn delete(key_id: String) -> Self {
 		Self {

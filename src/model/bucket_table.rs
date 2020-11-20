@@ -39,11 +39,10 @@ impl CRDT for BucketState {
 
 impl Bucket {
 	pub fn new(name: String) -> Self {
-		let ret = Bucket {
+		Bucket {
 			name,
 			state: crdt::LWW::new(BucketState::Present(crdt::LWWMap::new())),
-		};
-		ret
+		}
 	}
 	pub fn is_deleted(&self) -> bool {
 		*self.state.get() == BucketState::Deleted
