@@ -13,6 +13,9 @@ export RUST_BACKTRACE=1
 export RUST_LOG=garage=info
 MAIN_LABEL="\e[${FANCYCOLORS[0]}[main]\e[49m"
 
+WHICH_GARAGE=$(which garage || exit 1)
+echo -en "${MAIN_LABEL} Found garage at: ${WHICH_GARAGE}\n"
+
 for count in $(seq 1 3); do
 CONF_PATH="/tmp/config.$count.toml"
 LABEL="\e[${FANCYCOLORS[$count]}[$count]\e[49m"

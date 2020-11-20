@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_FOLDER="`dirname \"$0\"`"
+SCRIPT_FOLDER="`dirname \"${BASH_SOURCE[0]}\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
