@@ -25,9 +25,9 @@ We propose the following quickstart to setup a full dev. environment as quickly 
   3. Run `./script/dev-cluster.sh` to launch a test cluster (feel free to read the script)
   4. Run `./script/dev-configure.sh` to configure your test cluster with default values (same datacenter, 100 tokens)
   5. Run `./script/dev-bucket.sh` to create a bucket named `éprouvette` and an API key that will be stored in `/tmp/garage.s3`
-  6. Run `source ./script/dev-env.sh` to configure your CLI environment:
-    - `garage` to manage the cluster. Try `garage --help`.
-    - `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg put /proc/cpuinfo s3://éprouvette/cpuinfo.txt`, `s3grg ls s3://éprouvette`. `s3grg` is a wrapper on `s3cmd` configured with previous API key (the one in `/tmp/garage.s3`).
+  6. Run `source ./script/dev-env.sh` to configure your CLI environment
+  7. You can use `garage` to manage the cluster. Try `garage --help`.
+  8. You can use `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg put /proc/cpuinfo s3://éprouvette/cpuinfo.txt`, `s3grg ls s3://éprouvette`. `s3grg` is a wrapper on `s3cmd` configured with previous API key (the one in `/tmp/garage.s3`).
 
 Now you should be ready to start hacking on garage!
 
