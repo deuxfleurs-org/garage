@@ -464,6 +464,9 @@ where
 				Some(x) => Ok(x),
 				None => {
 					warn!("Unable to decode entry of {}: {}", self.name, e);
+					for line in hexdump::hexdump_iter(bytes) {
+						debug!("{}", line);
+					}
 					Err(e.into())
 				}
 			},
