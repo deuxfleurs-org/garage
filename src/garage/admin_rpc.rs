@@ -258,6 +258,7 @@ impl AdminRpcHandler {
 				"Bucket is deleted in update_bucket_key"
 			)));
 		}
+		self.garage.bucket_table.insert(&bucket).await?;
 		Ok(())
 	}
 

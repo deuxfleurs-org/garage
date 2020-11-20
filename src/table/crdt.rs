@@ -97,7 +97,7 @@ pub struct LWWMap<K, V> {
 impl<K, V> LWWMap<K, V>
 where
 	K: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + Ord,
-	V: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + Ord,
+	V: Serialize + for<'de> Deserialize<'de> + Clone + core::fmt::Debug + PartialEq + CRDT,
 {
 	pub fn new() -> Self {
 		Self { vals: vec![] }
