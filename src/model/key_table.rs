@@ -104,16 +104,17 @@ impl Entry<EmptyKey, String> for Key {
 	}
 
 	fn merge(&mut self, other: &Self) {
+		if other.name_timestamp > self.name_timestamp {
+			self.name_timestamp = other.name_timestamp;
+			self.name = other.name.clone();
+		}
+
 		if other.deleted {
 			self.deleted = true;
 		}
 		if self.deleted {
 			self.authorized_buckets.clear();
 			return;
-		}
-		if other.name_timestamp > self.name_timestamp {
-			self.name_timestamp = other.name_timestamp;
-			self.name = other.name.clone();
 		}
 
 		for ab in other.authorized_buckets.iter() {

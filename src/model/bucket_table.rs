@@ -75,7 +75,7 @@ impl Entry<EmptyKey, String> for Bucket {
 	}
 
 	fn merge(&mut self, other: &Self) {
-		if other.timestamp < self.timestamp {
+		if other.timestamp > self.timestamp {
 			*self = other.clone();
 			return;
 		}
