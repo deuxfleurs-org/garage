@@ -322,7 +322,7 @@ pub async fn handle_put_part(
 	let (object, first_block) = futures::try_join!(get_object_fut, get_first_block_fut)?;
 
 	// Check object is valid and multipart block can be accepted
-	let first_block = first_block.ok_or(Error::BadRequest(format!("Empty body")))?;	
+	let first_block = first_block.ok_or(Error::BadRequest(format!("Empty body")))?;
 	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
 
 	if !object

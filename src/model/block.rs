@@ -20,7 +20,7 @@ use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
 use garage_table::table_sharded::TableShardedReplication;
-use garage_table::{TableReplication, DeletedFilter};
+use garage_table::{DeletedFilter, TableReplication};
 
 use crate::block_ref_table::*;
 

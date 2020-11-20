@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use garage_util::data::*;
 use garage_util::error::Error;
 
-use garage_table::*;
 use garage_table::crdt::CRDT;
+use garage_table::*;
 
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
@@ -80,25 +79,26 @@ impl AdminRpcHandler {
 				Ok(AdminRPC::BucketInfo(bucket))
 			}
 			BucketOperation::Create(query) => {
-				let bucket = self.garage.bucket_table.get(&EmptyKey, &query.name).await?;
-				if bucket.as_ref().filter(|b| !b.deleted).is_some() {
-					return Err(Error::BadRPC(format!(
-						"Bucket {} already exists",
-						query.name
-					)));
-				}
-				let new_time = match bucket {
-					Some(b) => std::cmp::max(b.timestamp + 1, now_msec()),
-					None => now_msec(),
+				let bucket = match self.garage.bucket_table.get(&EmptyKey, &query.name).await? {
+					Some(mut bucket) => {
+						if !bucket.is_deleted() {
+							return Err(Error::BadRPC(format!(
+								"Bucket {} already exists",
+								query.name
+							)));
+						}
+						bucket
+							.state
+							.update(BucketState::Present(crdt::LWWMap::new()));
+						bucket
+					}
+					None => Bucket::new(query.name.clone()),
 				};
-				self.garage
-					.bucket_table
-					.insert(&Bucket::new(query.name.clone(), new_time, false, vec![]))
-					.await?;
+				self.garage.bucket_table.insert(&bucket).await?;
 				Ok(AdminRPC::Ok(format!("Bucket {} was created.", query.name)))
 			}
 			BucketOperation::Delete(query) => {
-				let bucket = self.get_existing_bucket(&query.name).await?;
+				let mut bucket = self.get_existing_bucket(&query.name).await?;
 				let objects = self
 					.garage
 					.object_table
@@ -113,25 +113,18 @@ impl AdminRpcHandler {
 					)));
 				}
 				// --- done checking, now commit ---
-				for ak in bucket.authorized_keys() {
-					if let Some(key) = self.garage.key_table.get(&EmptyKey, &ak.key_id).await? {
+				for (key_id, _, _) in bucket.authorized_keys() {
+					if let Some(key) = self.garage.key_table.get(&EmptyKey, key_id).await? {
 						if !key.deleted.get() {
 							self.update_key_bucket(key, &bucket.name, false, false)
 								.await?;
 						}
 					} else {
-						return Err(Error::Message(format!("Key not found: {}", ak.key_id)));
+						return Err(Error::Message(format!("Key not found: {}", key_id)));
 					}
 				}
-				self.garage
-					.bucket_table
-					.insert(&Bucket::new(
-						query.name.clone(),
-						std::cmp::max(bucket.timestamp + 1, now_msec()),
-						true,
-						vec![],
-					))
-					.await?;
+				bucket.state.update(BucketState::Deleted);
+				self.garage.bucket_table.insert(&bucket).await?;
 				Ok(AdminRPC::Ok(format!("Bucket {} was deleted.", query.name)))
 			}
 			BucketOperation::Allow(query) => {
@@ -202,10 +195,8 @@ impl AdminRpcHandler {
 				}
 				// --- done checking, now commit ---
 				for (ab_name, _, _) in key.authorized_buckets.items().iter() {
-					if let Some(bucket) =
-						self.garage.bucket_table.get(&EmptyKey, ab_name).await?
-					{
-						if !bucket.deleted {
+					if let Some(bucket) = self.garage.bucket_table.get(&EmptyKey, ab_name).await? {
+						if !bucket.is_deleted() {
 							self.update_bucket_key(bucket, &key.key_id, false, false)
 								.await?;
 						}
@@ -228,7 +219,7 @@ impl AdminRpcHandler {
 			.bucket_table
 			.get(&EmptyKey, bucket)
 			.await?
-			.filter(|b| !b.deleted)
+			.filter(|b| !b.is_deleted())
 			.map(Ok)
 			.unwrap_or(Err(Error::BadRPC(format!(
 				"Bucket {} does not exist",
@@ -253,24 +244,20 @@ impl AdminRpcHandler {
 		allow_read: bool,
 		allow_write: bool,
 	) -> Result<(), Error> {
-		let timestamp = match bucket
-			.authorized_keys()
-			.iter()
-			.find(|x| x.key_id == *key_id)
-		{
-			None => now_msec(),
-			Some(ab) => std::cmp::max(ab.timestamp + 1, now_msec()),
-		};
-		bucket.clear_keys();
-		bucket
-			.add_key(AllowedKey {
-				key_id: key_id.clone(),
-				timestamp,
-				allow_read,
-				allow_write,
-			})
-			.unwrap();
-		self.garage.bucket_table.insert(&bucket).await?;
+		if let BucketState::Present(ak) = bucket.state.get_mut() {
+			let old_ak = ak.take_and_clear();
+			ak.merge(&old_ak.update_mutator(
+				key_id.to_string(),
+				PermissionSet {
+					allow_read,
+					allow_write,
+				},
+			));
+		} else {
+			return Err(Error::Message(format!(
+				"Bucket is deleted in update_bucket_key"
+			)));
+		}
 		Ok(())
 	}
 
@@ -282,13 +269,13 @@ impl AdminRpcHandler {
 		allow_write: bool,
 	) -> Result<(), Error> {
 		let old_map = key.authorized_buckets.take_and_clear();
-		key.authorized_buckets.merge(
-			&old_map.update_mutator(
-				bucket.clone(),
-				PermissionSet{
-					allow_read, allow_write
-				}
-			));
+		key.authorized_buckets.merge(&old_map.update_mutator(
+			bucket.clone(),
+			PermissionSet {
+				allow_read,
+				allow_write,
+			},
+		));
 		self.garage.key_table.insert(&key).await?;
 		Ok(())
 	}

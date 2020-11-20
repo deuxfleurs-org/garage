@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use garage_table::*;
 use garage_table::crdt::CRDT;
+use garage_table::*;
 
 use garage_util::error::Error;
 
@@ -24,7 +24,6 @@ pub struct Key {
 
 	// Authorized keys
 	pub authorized_buckets: crdt::LWWMap<String, PermissionSet>,
-
 	// CRDT interaction: deleted implies authorized_buckets is empty
 }
 
@@ -125,10 +124,11 @@ impl TableSchema for KeyTable {
 			let it = crdt::LWWMap::migrate_from_raw_item(
 				ab.bucket.clone(),
 				ab.timestamp,
-				PermissionSet{
+				PermissionSet {
 					allow_read: ab.allow_read,
 					allow_write: ab.allow_write,
-				});
+				},
+			);
 			new.authorized_buckets.merge(&it);
 		}
 		Some(new)
