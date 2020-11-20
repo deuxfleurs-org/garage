@@ -10,6 +10,8 @@ use garage_util::error::Error;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
+use garage_table::DeletedFilter;
+
 use crate::encoding::*;
 
 #[derive(Debug)]
@@ -41,7 +43,7 @@ pub async fn handle_list(
 			.get_range(
 				&bucket.to_string(),
 				Some(next_chunk_start.clone()),
-				Some(()),
+				Some(DeletedFilter::NotDeleted),
 				max_keys + 1,
 			)
 			.await?;

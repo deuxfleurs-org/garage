@@ -47,7 +47,7 @@ impl TableSchema for BlockRefTable {
 	type P = Hash;
 	type S = UUID;
 	type E = BlockRef;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
@@ -62,7 +62,7 @@ impl TableSchema for BlockRefTable {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		!entry.deleted
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		filter.apply(entry.deleted)
 	}
 }

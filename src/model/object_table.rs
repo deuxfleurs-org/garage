@@ -196,7 +196,7 @@ impl TableSchema for ObjectTable {
 	type P = String;
 	type S = String;
 	type E = Object;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let version_table = self.version_table.clone();
@@ -228,8 +228,9 @@ impl TableSchema for ObjectTable {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		entry.versions.iter().any(|v| v.is_data())
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		let deleted = !entry.versions.iter().any(|v| v.is_data());
+		filter.apply(deleted)
 	}
 
 	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {

@@ -142,13 +142,13 @@ impl TableSchema for KeyTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		!entry.deleted
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		filter.apply(entry.deleted)
 	}
 }

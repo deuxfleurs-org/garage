@@ -67,7 +67,7 @@ impl AdminRpcHandler {
 				let bucket_names = self
 					.garage
 					.bucket_table
-					.get_range(&EmptyKey, None, Some(()), 10000)
+					.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
 					.await?
 					.iter()
 					.map(|b| b.name.to_string())
@@ -101,7 +101,7 @@ impl AdminRpcHandler {
 				let objects = self
 					.garage
 					.object_table
-					.get_range(&query.name, None, Some(()), 10)
+					.get_range(&query.name, None, Some(DeletedFilter::NotDeleted), 10)
 					.await?;
 				if !objects.is_empty() {
 					return Err(Error::BadRPC(format!("Bucket {} is not empty", query.name)));
@@ -170,7 +170,7 @@ impl AdminRpcHandler {
 				let key_ids = self
 					.garage
 					.key_table
-					.get_range(&EmptyKey, None, Some(()), 10000)
+					.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
 					.await?
 					.iter()
 					.map(|k| (k.key_id.to_string(), k.name.to_string()))

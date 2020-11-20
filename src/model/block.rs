@@ -20,7 +20,7 @@ use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
 use garage_table::table_sharded::TableShardedReplication;
-use garage_table::TableReplication;
+use garage_table::{TableReplication, DeletedFilter};
 
 use crate::block_ref_table::*;
 
@@ -306,7 +306,7 @@ impl BlockManager {
 			let garage = self.garage.load_full().unwrap();
 			let active_refs = garage
 				.block_ref_table
-				.get_range(&hash, None, Some(()), 1)
+				.get_range(&hash, None, Some(DeletedFilter::NotDeleted), 1)
 				.await?;
 			let needed_by_others = !active_refs.is_empty();
 			if needed_by_others {

@@ -104,18 +104,19 @@ impl Entry<EmptyKey, String> for Bucket {
 
 pub struct BucketTable;
 
+
 #[async_trait]
 impl TableSchema for BucketTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Bucket;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		!entry.deleted
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		filter.apply(entry.deleted)
 	}
 }

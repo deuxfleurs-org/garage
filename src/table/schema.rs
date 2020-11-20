@@ -8,9 +8,35 @@ pub trait PartitionKey {
 	fn hash(&self) -> Hash;
 }
 
+impl PartitionKey for String {
+	fn hash(&self) -> Hash {
+		hash(self.as_bytes())
+	}
+}
+
+impl PartitionKey for Hash {
+	fn hash(&self) -> Hash {
+		self.clone()
+	}
+}
+
+
 pub trait SortKey {
 	fn sort_key(&self) -> &[u8];
 }
+
+impl SortKey for String {
+	fn sort_key(&self) -> &[u8] {
+		self.as_bytes()
+	}
+}
+
+impl SortKey for Hash {
+	fn sort_key(&self) -> &[u8] {
+		self.as_slice()
+	}
+}
+
 
 pub trait Entry<P: PartitionKey, S: SortKey>:
 	PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
@@ -21,40 +47,6 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 	fn merge(&mut self, other: &Self);
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EmptyKey;
-impl SortKey for EmptyKey {
-	fn sort_key(&self) -> &[u8] {
-		&[]
-	}
-}
-impl PartitionKey for EmptyKey {
-	fn hash(&self) -> Hash {
-		[0u8; 32].into()
-	}
-}
-
-impl PartitionKey for String {
-	fn hash(&self) -> Hash {
-		hash(self.as_bytes())
-	}
-}
-impl SortKey for String {
-	fn sort_key(&self) -> &[u8] {
-		self.as_bytes()
-	}
-}
-
-impl PartitionKey for Hash {
-	fn hash(&self) -> Hash {
-		self.clone()
-	}
-}
-impl SortKey for Hash {
-	fn sort_key(&self) -> &[u8] {
-		self.as_slice()
-	}
-}
 
 #[async_trait]
 pub trait TableSchema: Send + Sync {
@@ -74,3 +66,4 @@ pub trait TableSchema: Send + Sync {
 		true
 	}
 }
+
