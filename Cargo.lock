@@ -661,6 +661,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
+ "idna",
  "log",
  "percent-encoding",
  "rand",

@@ -10,6 +10,8 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 
+use idna::domain_to_unicode;
+
 use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
 use crate::error::*;
@@ -70,7 +72,7 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.to_str()?;
 
 	// Get bucket
-	let host = authority_to_host(authority)?;
+	let (host, _) = domain_to_unicode(authority_to_host(authority)?);
 	let root = &garage.config.s3_web.root_domain;
 	let bucket = host_to_bucket(&host, root);
 
