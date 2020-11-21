@@ -43,6 +43,7 @@ impl Error {
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,
+			Error::ApiError(e) => e.http_status_code(),
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::InternalError(GarageError::RPC(_)) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) | Error::Hyper(_) | Error::HTTP(_) => {
