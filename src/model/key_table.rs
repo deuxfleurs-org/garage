@@ -104,16 +104,17 @@ impl Entry<EmptyKey, String> for Key {
 	}
 
 	fn merge(&mut self, other: &Self) {
+		if other.name_timestamp > self.name_timestamp {
+			self.name_timestamp = other.name_timestamp;
+			self.name = other.name.clone();
+		}
+
 		if other.deleted {
 			self.deleted = true;
 		}
 		if self.deleted {
 			self.authorized_buckets.clear();
 			return;
-		}
-		if other.name_timestamp > self.name_timestamp {
-			self.name_timestamp = other.name_timestamp;
-			self.name = other.name.clone();
 		}
 
 		for ab in other.authorized_buckets.iter() {
@@ -142,13 +143,13 @@ impl TableSchema for KeyTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		!entry.deleted
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		filter.apply(entry.deleted)
 	}
 }

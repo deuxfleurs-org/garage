@@ -117,7 +117,7 @@ impl TableSchema for VersionTable {
 	type P = Hash;
 	type S = EmptyKey;
 	type E = Version;
-	type Filter = ();
+	type Filter = DeletedFilter;
 
 	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
 		let block_ref_table = self.block_ref_table.clone();
@@ -139,7 +139,7 @@ impl TableSchema for VersionTable {
 		Ok(())
 	}
 
-	fn matches_filter(entry: &Self::E, _filter: &Self::Filter) -> bool {
-		!entry.deleted
+	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
+		filter.apply(entry.deleted)
 	}
 }

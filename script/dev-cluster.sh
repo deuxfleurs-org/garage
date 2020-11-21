@@ -13,6 +13,9 @@ export RUST_BACKTRACE=1
 export RUST_LOG=garage=info
 MAIN_LABEL="\e[${FANCYCOLORS[0]}[main]\e[49m"
 
+WHICH_GARAGE=$(which garage || exit 1)
+echo -en "${MAIN_LABEL} Found garage at: ${WHICH_GARAGE}\n"
+
 for count in $(seq 1 3); do
 CONF_PATH="/tmp/config.$count.toml"
 LABEL="\e[${FANCYCOLORS[$count]}[$count]\e[49m"
@@ -24,8 +27,8 @@ data_dir = "/tmp/garage-data-$count"
 rpc_bind_addr = "127.0.0.$count:3901"		# the port other Garage nodes will use to talk to this node
 bootstrap_peers = [
   "127.0.0.1:3901",
-	"127.0.0.2:3901",
-	"127.0.0.3:3901"
+  "127.0.0.2:3901",
+  "127.0.0.3:3901"
 ]
 max_concurrent_rpc_requests = 12
 data_replication_factor = 3
