@@ -6,13 +6,10 @@ GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
 PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
 
-ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f1`
-SECRET_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
+export AWS_ACCESS_KEY_ID=`cat /tmp/garage.s3 |cut -d' ' -f1`
+export AWS_SECRET_ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
+export AWS_DEFAULT_REGION='garage'
 
-alias s3grg="s3cmd \
-  --host 127.0.0.1:3900 \
-  --access_key=$ACCESS_KEY \
-  --secret_key=$SECRET_KEY \
-  --region=garage \
-  --no-ssl"
+alias s3grg="aws s3 \
+  --endpoint-url http://127.0.0.1:3900"
 
