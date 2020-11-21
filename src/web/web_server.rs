@@ -152,17 +152,29 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 /// which is also AWS S3 behavior.
 fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(&path).decode_utf8()?;
+	
+	if path_utf8.chars().next() != Some('/') {
+		return Err(Error::BadRequest(format!(
+			"Path must start with a / (slash)"
+		)))
+	}
+
 	match path_utf8.chars().last() {
 		None => Err(Error::BadRequest(format!(
 			"Path must have at least a character"
 		))),
 		Some('/') => {
 			let mut key = String::with_capacity(path_utf8.len() + index.len());
-			key.push_str(&path_utf8);
+			key.push_str(&path_utf8[1..]);
 			key.push_str(index);
 			Ok(key.into())
 		}
-		Some(_) => Ok(path_utf8.into()),
+		Some(_) => {
+			match path_utf8 {
+				Cow::Borrowed(pu8) => Ok((&pu8[1..]).into()),
+				Cow::Owned(pu8) => Ok((&pu8[1..]).to_string().into()),
+			}
+		}
 	}
 }
 
@@ -218,10 +230,12 @@ mod tests {
 
 	#[test]
 	fn path_to_key_test() -> Result<(), Error> {
-		assert_eq!(path_to_key("/file%20.jpg", "index.html")?, "/file .jpg");
-		assert_eq!(path_to_key("/%20t/", "index.html")?, "/ t/index.html");
-		assert_eq!(path_to_key("/", "index.html")?, "/index.html");
+		assert_eq!(path_to_key("/file%20.jpg", "index.html")?, "file .jpg");
+		assert_eq!(path_to_key("/%20t/", "index.html")?, " t/index.html");
+		assert_eq!(path_to_key("/", "index.html")?, "index.html");
+		assert_eq!(path_to_key("/hello", "index.html")?, "hello");
 		assert!(path_to_key("", "index.html").is_err());
+		assert!(path_to_key("i/am/relative", "index.html").is_err());
 		Ok(())
 	}
 }
