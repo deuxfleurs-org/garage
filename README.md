@@ -27,7 +27,7 @@ We propose the following quickstart to setup a full dev. environment as quickly 
   5. Run `./script/dev-bucket.sh` to create a bucket named `eprouvette` and an API key that will be stored in `/tmp/garage.s3`
   6. Run `source ./script/dev-env.sh` to configure your CLI environment
   7. You can use `garage` to manage the cluster. Try `garage --help`.
-  8. You can use `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg cp /proc/cpuinfo s3://eprouvette/cpuinfo.txt`, `s3grg ls s3://eprouvette`. `s3grg` is a wrapper on `s3cmd` configured with the previously generated API key (the one in `/tmp/garage.s3`).
+  8. You can use `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg cp /proc/cpuinfo s3://eprouvette/cpuinfo.txt`, `s3grg ls s3://eprouvette`. `s3grg` is a wrapper on the `aws s3` subcommand configured with the previously generated API key (the one in `/tmp/garage.s3`).
 
 Now you should be ready to start hacking on garage!
 
