@@ -6,13 +6,13 @@ use hyper::{
 	header::HOST,
 	server::conn::AddrStream,
 	service::{make_service_fn, service_fn},
-	Body, Request, Response, Server,
+	Body, Method, Request, Response, Server,
 };
 
 use idna::domain_to_unicode;
 
 use crate::error::*;
-use garage_api::s3_get::handle_get;
+use garage_api::s3_get::{handle_get, handle_head};
 use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
 
@@ -83,9 +83,13 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
-	let r = handle_get(garage, &req, bucket, &key).await?;
+	let res = match req.method() {
+		&Method::HEAD => handle_head(garage, &bucket, &key).await?,
+		&Method::GET => handle_get(garage, &req, bucket, &key).await?,
+		_ => return Err(Error::BadRequest(format!("HTTP method not supported"))),
+	};
 
-	Ok(r)
+	Ok(res)
 }
 
 /// Extract host from the authority section given by the HTTP host header
