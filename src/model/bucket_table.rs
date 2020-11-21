@@ -1,69 +1,58 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use garage_table::crdt::CRDT;
 use garage_table::*;
+
 use garage_util::error::Error;
+
+use crate::key_table::PermissionSet;
+
+use model010::bucket_table as prev;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
 	// Primary key
 	pub name: String,
 
-	// Timestamp and deletion
-	// Upon version increment, all info is replaced
-	pub timestamp: u64,
-	pub deleted: bool,
-
-	// Authorized keys
-	authorized_keys: Vec<AllowedKey>,
-}
-
-impl Bucket {
-	pub fn new(
-		name: String,
-		timestamp: u64,
-		deleted: bool,
-		authorized_keys: Vec<AllowedKey>,
-	) -> Self {
-		let mut ret = Bucket {
-			name,
-			timestamp,
-			deleted,
-			authorized_keys: vec![],
-		};
-		for key in authorized_keys {
-			ret.add_key(key)
-				.expect("Duplicate AllowedKey in Bucket constructor");
-		}
-		ret
-	}
-	/// Add a key only if it is not already present
-	pub fn add_key(&mut self, key: AllowedKey) -> Result<(), ()> {
-		match self
-			.authorized_keys
-			.binary_search_by(|k| k.key_id.cmp(&key.key_id))
-		{
-			Err(i) => {
-				self.authorized_keys.insert(i, key);
-				Ok(())
-			}
-			Ok(_) => Err(()),
-		}
-	}
-	pub fn authorized_keys(&self) -> &[AllowedKey] {
-		&self.authorized_keys[..]
-	}
-	pub fn clear_keys(&mut self) {
-		self.authorized_keys.clear();
-	}
+	pub state: crdt::LWW<BucketState>,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct AllowedKey {
-	pub key_id: String,
-	pub timestamp: u64,
-	pub allow_read: bool,
-	pub allow_write: bool,
+pub enum BucketState {
+	Deleted,
+	Present(crdt::LWWMap<String, PermissionSet>),
+}
+
+impl CRDT for BucketState {
+	fn merge(&mut self, o: &Self) {
+		match o {
+			BucketState::Deleted => *self = BucketState::Deleted,
+			BucketState::Present(other_ak) => {
+				if let BucketState::Present(ak) = self {
+					ak.merge(other_ak);
+				}
+			}
+		}
+	}
+}
+
+impl Bucket {
+	pub fn new(name: String) -> Self {
+		Bucket {
+			name,
+			state: crdt::LWW::new(BucketState::Present(crdt::LWWMap::new())),
+		}
+	}
+	pub fn is_deleted(&self) -> bool {
+		*self.state.get() == BucketState::Deleted
+	}
+	pub fn authorized_keys(&self) -> &[(String, u64, PermissionSet)] {
+		match self.state.get() {
+			BucketState::Deleted => &[],
+			BucketState::Present(ak) => ak.items(),
+		}
+	}
 }
 
 impl Entry<EmptyKey, String> for Bucket {
@@ -75,35 +64,11 @@ impl Entry<EmptyKey, String> for Bucket {
 	}
 
 	fn merge(&mut self, other: &Self) {
-		if other.timestamp > self.timestamp {
-			*self = other.clone();
-			return;
-		}
-		if self.timestamp > other.timestamp || self.deleted {
-			return;
-		}
-
-		for ak in other.authorized_keys.iter() {
-			match self
-				.authorized_keys
-				.binary_search_by(|our_ak| our_ak.key_id.cmp(&ak.key_id))
-			{
-				Ok(i) => {
-					let our_ak = &mut self.authorized_keys[i];
-					if ak.timestamp > our_ak.timestamp {
-						*our_ak = ak.clone();
-					}
-				}
-				Err(i) => {
-					self.authorized_keys.insert(i, ak.clone());
-				}
-			}
-		}
+		self.state.merge(&other.state);
 	}
 }
 
 pub struct BucketTable;
-
 
 #[async_trait]
 impl TableSchema for BucketTable {
@@ -117,6 +82,35 @@ impl TableSchema for BucketTable {
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
-		filter.apply(entry.deleted)
+		filter.apply(entry.is_deleted())
+	}
+
+	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
+		let old = match rmp_serde::decode::from_read_ref::<_, prev::Bucket>(bytes) {
+			Ok(x) => x,
+			Err(_) => return None,
+		};
+		if old.deleted {
+			Some(Bucket {
+				name: old.name,
+				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Deleted),
+			})
+		} else {
+			let mut keys = crdt::LWWMap::new();
+			for ak in old.authorized_keys() {
+				keys.merge(&crdt::LWWMap::migrate_from_raw_item(
+					ak.key_id.clone(),
+					ak.timestamp,
+					PermissionSet {
+						allow_read: ak.allow_read,
+						allow_write: ak.allow_write,
+					},
+				));
+			}
+			Some(Bucket {
+				name: old.name,
+				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Present(keys)),
+			})
+		}
 	}
 }

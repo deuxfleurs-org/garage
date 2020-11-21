@@ -68,7 +68,7 @@ pub async fn check_signature(
 		.key_table
 		.get(&EmptyKey, &authorization.key_id)
 		.await?
-		.filter(|k| !k.deleted)
+		.filter(|k| !k.deleted.get())
 		.ok_or(Error::Forbidden(format!(
 			"No such key: {}",
 			authorization.key_id
