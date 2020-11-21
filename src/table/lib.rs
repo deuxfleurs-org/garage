@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate log;
 
+pub mod crdt;
 pub mod schema;
 pub mod util;
 
