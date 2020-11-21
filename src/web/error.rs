@@ -5,6 +5,9 @@ use garage_util::error::Error as GarageError;
 
 #[derive(Debug, Error)]
 pub enum Error {
+	#[error(display = "API error: {}", _0)]
+	ApiError(#[error(source)] garage_api::error::Error),
+
 	// Category: internal error
 	#[error(display = "Internal error: {}", _0)]
 	InternalError(#[error(source)] GarageError),

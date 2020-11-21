@@ -104,7 +104,6 @@ impl Entry<EmptyKey, String> for Bucket {
 
 pub struct BucketTable;
 
-
 #[async_trait]
 impl TableSchema for BucketTable {
 	type P = EmptyKey;

@@ -20,7 +20,6 @@ impl PartitionKey for Hash {
 	}
 }
 
-
 pub trait SortKey {
 	fn sort_key(&self) -> &[u8];
 }
@@ -37,7 +36,6 @@ impl SortKey for Hash {
 	}
 }
 
-
 pub trait Entry<P: PartitionKey, S: SortKey>:
 	PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
 {
@@ -46,7 +44,6 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 
 	fn merge(&mut self, other: &Self);
 }
-
 
 #[async_trait]
 pub trait TableSchema: Send + Sync {
@@ -66,4 +63,3 @@ pub trait TableSchema: Send + Sync {
 		true
 	}
 }
-

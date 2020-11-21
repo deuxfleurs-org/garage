@@ -655,6 +655,7 @@ dependencies = [
  "err-derive",
  "futures",
  "futures-util",
+ "garage_api",
  "garage_model 0.1.1",
  "garage_table 0.1.1",
  "garage_util 0.1.0",

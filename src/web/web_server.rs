@@ -1,26 +1,20 @@
-use std::borrow::Cow;
-use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::{Duration, UNIX_EPOCH};
+use std::{borrow::Cow, convert::Infallible, net::SocketAddr, sync::Arc};
 
 use futures::future::Future;
-use futures::stream::*;
 
 use hyper::{
 	header::HOST,
-	body::Bytes,
 	server::conn::AddrStream,
 	service::{make_service_fn, service_fn},
-	Body, Request, Response, Server, StatusCode};
+	Body, Request, Response, Server,
+};
 
 use idna::domain_to_unicode;
 
-use garage_model::garage::Garage;
-use garage_model::object_table::*;
-use garage_table::EmptyKey;
-use garage_util::error::Error as GarageError;
 use crate::error::*;
+use garage_api::s3_get::handle_get;
+use garage_model::garage::Garage;
+use garage_util::error::Error as GarageError;
 
 pub async fn run_web_server(
 	garage: Arc<Garage>,
@@ -89,109 +83,9 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
-	// Get bucket descriptor
-	let object = garage
-		.object_table
-		.get(&bucket.to_string(), &key.to_string())
-		.await?
-		.ok_or(Error::NotFound)?;
+	let r = handle_get(garage, &req, bucket, &key).await?;
 
-	// Get last complete version descriptor
-	let last_v = object
-		.versions()
-		.iter()
-		.rev()
-		.filter(|v| v.is_complete())
-		.next()
-		.ok_or(Error::NotFound)?;
-
-	// Unwrap version
-	let last_v_data = match &last_v.state {
-		ObjectVersionState::Complete(x) => x,
-		_ => unreachable!(),
-	};
-
-	// Get metadata from version
-	let last_v_meta = match last_v_data {
-		ObjectVersionData::DeleteMarker => return Err(Error::NotFound),
-		ObjectVersionData::Inline(meta, _) => meta,
-		ObjectVersionData::FirstBlock(meta, _) => meta,
-	};
-
-	// @FIXME Support range
-	
-
-	// Set headers
-	let resp_builder = object_headers(&last_v, last_v_meta).status(StatusCode::OK);
-
-
-	// Stream body
-	match &last_v_data {
-		ObjectVersionData::DeleteMarker => unreachable!(),
-		ObjectVersionData::Inline(_, bytes) => {
-			let body: Body = Body::from(bytes.to_vec());
-			Ok(resp_builder.body(body)?)
-		}
-		ObjectVersionData::FirstBlock(_, first_block_hash) => {
-			let read_first_block = garage.block_manager.rpc_get_block(&first_block_hash);
-			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
-
-			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
-			let version = version.ok_or(Error::NotFound)?;
-
-			let mut blocks = version
-				.blocks()
-				.iter()
-				.map(|vb| (vb.hash, None))
-				.collect::<Vec<_>>();
-			blocks[0].1 = Some(first_block);
-
-			let body_stream = futures::stream::iter(blocks)
-				.map(move |(hash, data_opt)| {
-					let garage = garage.clone();
-					async move {
-						if let Some(data) = data_opt {
-							Ok(Bytes::from(data))
-						} else {
-							garage
-								.block_manager
-								.rpc_get_block(&hash)
-								.await
-								.map(Bytes::from)
-						}
-					}
-				})
-				.buffered(2);
-			//let body: Body = Box::new(StreamBody::new(Box::pin(body_stream)));
-			let body = hyper::body::Body::wrap_stream(body_stream);
-			Ok(resp_builder.body(body)?)
-		}
-	}
-}
-
-// Copied from api/s3_get.rs
-fn object_headers(
-	version: &ObjectVersion,
-	version_meta: &ObjectVersionMeta,
-) -> http::response::Builder {
-	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
-	let date_str = httpdate::fmt_http_date(date);
-
-	let mut resp = Response::builder()
-		.header(
-			"Content-Type",
-			version_meta.headers.content_type.to_string(),
-		)
-		.header("Content-Length", format!("{}", version_meta.size))
-		.header("ETag", version_meta.etag.to_string())
-		.header("Last-Modified", date_str)
-		.header("Accept-Ranges", format!("bytes"));
-
-	for (k, v) in version_meta.headers.other.iter() {
-		resp = resp.header(k, v.to_string());
-	}
-
-	resp
+	Ok(r)
 }
 
 /// Extract host from the authority section given by the HTTP host header
@@ -253,11 +147,11 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 /// which is also AWS S3 behavior.
 fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(&path).decode_utf8()?;
-	
+
 	if path_utf8.chars().next() != Some('/') {
 		return Err(Error::BadRequest(format!(
 			"Path must start with a / (slash)"
-		)))
+		)));
 	}
 
 	match path_utf8.chars().last() {
@@ -270,12 +164,10 @@ fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 			key.push_str(index);
 			Ok(key.into())
 		}
-		Some(_) => {
-			match path_utf8 {
-				Cow::Borrowed(pu8) => Ok((&pu8[1..]).into()),
-				Cow::Owned(pu8) => Ok((&pu8[1..]).to_string().into()),
-			}
-		}
+		Some(_) => match path_utf8 {
+			Cow::Borrowed(pu8) => Ok((&pu8[1..]).into()),
+			Cow::Owned(pu8) => Ok((&pu8[1..]).to_string().into()),
+		},
 	}
 }
 
