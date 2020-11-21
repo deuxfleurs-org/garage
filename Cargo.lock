@@ -660,6 +660,7 @@ dependencies = [
  "garage_util 0.1.0",
  "hex",
  "http",
+ "httpdate",
  "hyper",
  "idna",
  "log",

@@ -42,3 +42,5 @@ webpki = "0.21"
 
 roxmltree = "0.11"
 idna = "0.2"
+
+httpdate = "0.3"
