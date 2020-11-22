@@ -20,6 +20,7 @@ garage_model = { version = "0.1.1", path = "../model" }
 err-derive = "0.2.3"
 bytes = "0.4"
 hex = "0.3"
+base64 = "0.13"
 log = "0.4"
 chrono = "0.4"
 md-5 = "0.9.1"
