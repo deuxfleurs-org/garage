@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use futures::stream::*;
 use hyper::{Body, Request, Response};
-use md5::{Digest as Md5Digest, Md5};
+use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::{Digest as Sha256Digest, Sha256};
 
 use garage_table::*;
@@ -48,20 +48,21 @@ pub async fn handle_put(
 	if first_block.len() < INLINE_THRESHOLD {
 		let mut md5sum = Md5::new();
 		md5sum.update(&first_block[..]);
-		let etag = hex::encode(md5sum.finalize());
+		let md5sum_arr = md5sum.finalize();
+		let md5sum_hex = hex::encode(md5sum_arr);
 
 		object_version.state = ObjectVersionState::Complete(ObjectVersionData::Inline(
 			ObjectVersionMeta {
 				headers,
 				size: first_block.len() as u64,
-				etag: etag.clone(),
+				etag: md5sum_hex.clone(),
 			},
 			first_block,
 		));
 
 		let object = Object::new(bucket.into(), key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
-		return Ok(put_response(version_uuid, etag));
+		return Ok(put_response(version_uuid, md5sum_hex));
 	}
 
 	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
@@ -70,7 +71,7 @@ pub async fn handle_put(
 	let object = Object::new(bucket.into(), key.into(), vec![object_version.clone()]);
 	garage.object_table.insert(&object).await?;
 
-	let (total_size, md5sum, sha256sum) = read_and_put_blocks(
+	let (total_size, md5sum_arr, sha256sum) = read_and_put_blocks(
 		&garage,
 		version,
 		1,
@@ -80,7 +81,40 @@ pub async fn handle_put(
 	)
 	.await?;
 
-	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
+	ensure_checksum_matches(
+		md5sum_arr.as_slice(),
+		sha256sum,
+		content_md5.as_deref(),
+		content_sha256,
+	)?;
+
+	// TODO: if at any step we have an error, we should undo everything we did
+
+	let md5sum_hex = hex::encode(md5sum_arr);
+
+	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
+		ObjectVersionMeta {
+			headers,
+			size: total_size,
+			etag: md5sum_hex.clone(),
+		},
+		first_block_hash,
+	));
+
+	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
+	garage.object_table.insert(&object).await?;
+
+	Ok(put_response(version_uuid, md5sum_hex))
+}
+
+/// Validate MD5 sum against content-md5 header
+/// and sha256sum against signed content-sha256
+fn ensure_checksum_matches(
+	md5sum: &[u8],
+	sha256sum: garage_util::data::FixedBytes32,
+	content_md5: Option<&str>,
+	content_sha256: Option<garage_util::data::FixedBytes32>,
+) -> Result<(), Error> {
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != sha256sum {
 			return Err(Error::BadRequest(format!(
@@ -91,28 +125,13 @@ pub async fn handle_put(
 		}
 	}
 	if let Some(expected_md5) = content_md5 {
-		if expected_md5.trim_matches('"') != md5sum {
+		if expected_md5.trim_matches('"') != base64::encode(md5sum) {
 			return Err(Error::BadRequest(format!("Unable to validate content-md5")));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
 	}
-
-	// TODO: if at any step we have an error, we should undo everything we did
-
-	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-		ObjectVersionMeta {
-			headers,
-			size: total_size,
-			etag: md5sum.clone(),
-		},
-		first_block_hash,
-	));
-
-	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
-	garage.object_table.insert(&object).await?;
-
-	Ok(put_response(version_uuid, md5sum))
+	Ok(())
 }
 
 async fn read_and_put_blocks(
@@ -122,7 +141,7 @@ async fn read_and_put_blocks(
 	first_block: Vec<u8>,
 	first_block_hash: Hash,
 	chunker: &mut BodyChunker,
-) -> Result<(u64, String, Hash), Error> {
+) -> Result<(u64, GenericArray<u8, typenum::U16>, Hash), Error> {
 	let mut md5sum = Md5::new();
 	let mut sha256sum = Sha256::new();
 	md5sum.update(&first_block[..]);
@@ -165,14 +184,14 @@ async fn read_and_put_blocks(
 	}
 
 	let total_size = next_offset as u64;
-	let md5sum = hex::encode(md5sum.finalize());
+	let md5sum_arr = md5sum.finalize();
 
 	let sha256sum = sha256sum.result();
 	let mut hash = [0u8; 32];
 	hash.copy_from_slice(&sha256sum[..]);
 	let sha256sum = Hash::from(hash);
 
-	Ok((total_size, md5sum, sha256sum))
+	Ok((total_size, md5sum_arr, sha256sum))
 }
 
 async fn put_block_meta(
@@ -338,7 +357,7 @@ pub async fn handle_put_part(
 	// Copy block to store
 	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
 	let first_block_hash = hash(&first_block[..]);
-	let (_, md5sum, sha256sum) = read_and_put_blocks(
+	let (_, md5sum_arr, sha256sum) = read_and_put_blocks(
 		&garage,
 		version,
 		part_number,
@@ -348,23 +367,12 @@ pub async fn handle_put_part(
 	)
 	.await?;
 
-	// Validate MD5 sum against content-md5 header and sha256sum against signed content-sha256
-	if let Some(expected_sha256) = content_sha256 {
-		if expected_sha256 != sha256sum {
-			return Err(Error::BadRequest(format!(
-				"Unable to validate x-amz-content-sha256"
-			)));
-		} else {
-			trace!("Successfully validated x-amz-content-sha256");
-		}
-	}
-	if let Some(expected_md5) = content_md5 {
-		if expected_md5.trim_matches('"') != md5sum {
-			return Err(Error::BadRequest(format!("Unable to validate content-md5")));
-		} else {
-			trace!("Successfully validated content-md5");
-		}
-	}
+	ensure_checksum_matches(
+		md5sum_arr.as_slice(),
+		sha256sum,
+		content_md5.as_deref(),
+		content_sha256,
+	)?;
 
 	Ok(Response::new(Body::from(vec![])))
 }
