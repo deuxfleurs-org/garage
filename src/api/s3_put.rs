@@ -51,6 +51,20 @@ pub async fn handle_put(
 		let md5sum_arr = md5sum.finalize();
 		let md5sum_hex = hex::encode(md5sum_arr);
 
+		let mut sha256sum = Sha256::new();
+		sha256sum.input(&first_block[..]);
+		let sha256sum_arr = sha256sum.result();
+		let mut hash = [0u8; 32];
+		hash.copy_from_slice(&sha256sum_arr[..]);
+		let sha256sum_hash = Hash::from(hash);
+
+		ensure_checksum_matches(
+			md5sum_arr.as_slice(),
+			sha256sum_hash,
+			content_md5.as_deref(),
+			content_sha256,
+		)?;
+
 		object_version.state = ObjectVersionState::Complete(ObjectVersionData::Inline(
 			ObjectVersionMeta {
 				headers,
