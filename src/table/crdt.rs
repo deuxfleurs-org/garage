@@ -40,7 +40,22 @@ where
 
 /// Last Write Win (LWW)
 ///
-/// LWW is a very simple
+/// LWW is based on time, the most recent write wins.
+/// As multiple computers clocks are always desynchronized,
+/// when operations are close enough, it is equivalent to
+/// take one copy and drop the other one.
+/// 
+/// Given that clocks are not too desynchronized, this assumption
+/// is enough for most cases, as there is few chance that two humans
+/// coordonate themself faster than the time difference between two NTP servers.
+///
+/// As a more concret example, let's suppose you want to upload a file
+/// with the same key (path) in the same bucket at the very same time.
+/// For each request, the file will be timestamped by the receiving server
+/// and may differ from what you observed with your atomic clock!
+///
+/// This scheme is used by AWS S3 or Soundcloud and often without knowing
+/// in entreprise when reconciliating databases with ad-hoc scripts.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LWW<T> {
 	ts: u64,
@@ -51,22 +66,36 @@ impl<T> LWW<T>
 where
 	T: CRDT,
 {
+	/// Creates a new CRDT
+	///
+	/// CRDT's internal timestamp is set with current node's clock.
 	pub fn new(value: T) -> Self {
 		Self {
 			ts: now_msec(),
 			v: value,
 		}
 	}
+
+	/// Build a new CRDT from a previous non-compatible one
+	///
+	/// Compared to new, the CRDT's timestamp is not set to now
+	/// but must be set to the previous, non-compatible, CRDT's timestamp.
 	pub fn migrate_from_raw(ts: u64, value: T) -> Self {
 		Self { ts, v: value }
 	}
+
+	/// Update the LWW CRDT while keeping some causal ordering.
 	pub fn update(&mut self, new_value: T) {
 		self.ts = std::cmp::max(self.ts + 1, now_msec());
 		self.v = new_value;
 	}
+
+	/// Get the CRDT value
 	pub fn get(&self) -> &T {
 		&self.v
 	}
+
+	/// Get a mutable value for the CRDT
 	pub fn get_mut(&mut self) -> &mut T {
 		&mut self.v
 	}
