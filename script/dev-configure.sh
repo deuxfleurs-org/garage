@@ -6,6 +6,11 @@ GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
 PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
 
+until garage status 2>&1|grep -q Healthy ; do 
+	echo "cluster starting..."
+	sleep 1
+done
+
 garage status \
 	| grep UNCONFIGURED \
 	| grep -Po '^[0-9a-f]+' \

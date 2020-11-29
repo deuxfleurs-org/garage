@@ -51,12 +51,7 @@ pub async fn handle_put(
 		let md5sum_arr = md5sum.finalize();
 		let md5sum_hex = hex::encode(md5sum_arr);
 
-		let mut sha256sum = Sha256::new();
-		sha256sum.input(&first_block[..]);
-		let sha256sum_arr = sha256sum.result();
-		let mut hash = [0u8; 32];
-		hash.copy_from_slice(&sha256sum_arr[..]);
-		let sha256sum_hash = Hash::from(hash);
+		let sha256sum_hash = hash(&first_block[..]);
 
 		ensure_checksum_matches(
 			md5sum_arr.as_slice(),
@@ -253,7 +248,7 @@ impl BodyChunker {
 			body,
 			read_all: false,
 			block_size,
-			buf: VecDeque::new(),
+			buf: VecDeque::with_capacity(2 * block_size),
 		}
 	}
 	async fn next(&mut self) -> Result<Option<Vec<u8>>, GarageError> {
@@ -278,11 +273,10 @@ impl BodyChunker {
 	}
 }
 
-pub fn put_response(version_uuid: UUID, etag: String) -> Response<Body> {
+pub fn put_response(version_uuid: UUID, md5sum_hex: String) -> Response<Body> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
-		.header("ETag", etag)
-		// TODO ETag
+		.header("ETag", format!("\"{}\"", md5sum_hex))
 		.body(Body::from(vec![]))
 		.unwrap()
 }
@@ -369,7 +363,7 @@ pub async fn handle_put_part(
 	}
 
 	// Copy block to store
-	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
+	let version = Version::new(version_uuid, bucket, key, false, vec![]);
 	let first_block_hash = hash(&first_block[..]);
 	let (_, md5sum_arr, sha256sum) = read_and_put_blocks(
 		&garage,
@@ -388,7 +382,11 @@ pub async fn handle_put_part(
 		content_sha256,
 	)?;
 
-	Ok(Response::new(Body::from(vec![])))
+	let response = Response::builder()
+		.header("ETag", format!("\"{}\"", hex::encode(md5sum_arr)))
+		.body(Body::from(vec![]))
+		.unwrap();
+	Ok(response)
 }
 
 pub async fn handle_complete_multipart_upload(

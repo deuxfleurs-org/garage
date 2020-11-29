@@ -12,4 +12,3 @@ export AWS_DEFAULT_REGION='garage'
 
 alias s3grg="aws s3 \
   --endpoint-url http://127.0.0.1:3900"
-
