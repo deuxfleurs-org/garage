@@ -248,7 +248,7 @@ impl BodyChunker {
 			body,
 			read_all: false,
 			block_size,
-			buf: VecDeque::new(),
+			buf: VecDeque::with_capacity(2 * block_size),
 		}
 	}
 	async fn next(&mut self) -> Result<Option<Vec<u8>>, GarageError> {
