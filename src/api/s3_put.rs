@@ -273,10 +273,10 @@ impl BodyChunker {
 	}
 }
 
-pub fn put_response(version_uuid: UUID, etag: String) -> Response<Body> {
+pub fn put_response(version_uuid: UUID, md5sum_hex: String) -> Response<Body> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
-		.header("ETag", etag)
+		.header("ETag", format!("\"{}\"", md5sum_hex))
 		.body(Body::from(vec![]))
 		.unwrap()
 }
@@ -382,7 +382,11 @@ pub async fn handle_put_part(
 		content_sha256,
 	)?;
 
-	Ok(Response::new(Body::from(vec![])))
+	let response = Response::builder()
+		.header("ETag", format!("\"{}\"", hex::encode(md5sum_arr)))
+		.body(Body::from(vec![]))
+		.unwrap();
+	Ok(response)
 }
 
 pub async fn handle_complete_multipart_upload(
