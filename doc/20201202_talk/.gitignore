@@ -1,0 +1,9 @@
+*
+!.gitignore
+!*.svg
+!*.png
+!*.tex
+!Makefile
+!.gitignore
+!*.pdf
+
