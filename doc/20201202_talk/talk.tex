@@ -42,7 +42,7 @@
 \begin{document}
 
 \begin{frame}
-\titlepage
+	\titlepage
 \end{frame}
 
 \begin{frame}
@@ -58,82 +58,135 @@
 \begin{frame}[t]
 	\frametitle{La cour des grands}
 
-\begin{columns}[t]
-\begin{column}{0.5\textwidth}
-	{\huge Le modèle du cloud...}
- 
-\begin{center}
-	\includegraphics[scale=0.08]{img/cloud.png}
-\end{center}
-
-	+ \underline{intégrité} : plus de perte de données
-
-	+ \underline{disponibilité} : tout le temps accessible
+	\begin{columns}[t]
+	\begin{column}{0.5\textwidth}
+		{\huge Le modèle du cloud...}
+	 
+	\begin{center}
+		\includegraphics[scale=0.08]{img/cloud.png}
+	\end{center}
 	
-	+ \underline{service} : rien à gérer
-
-	\vspace{0.15cm}
-	\textbf{changement des comportements}
-\end{column}
-\pause
-\begin{column}{0.5\textwidth}
-	{\huge ...et son prix}
- 
-\begin{center}
-	\includegraphics[scale=0.07]{img/dc.jpg}
-\end{center}
-
-	- matériel couteux et polluant
-
-	- logiciels secrets
-
-	- gestion opaque
-
-	\vspace{0.2cm}
-	\textbf{prisonnier de l'écosystème}
-\end{column}
-\end{columns}
+		+ \underline{intégrité} : plus de perte de données
+	
+		+ \underline{disponibilité} : tout le temps accessible
+		
+		+ \underline{service} : rien à gérer
+	
+		\vspace{0.15cm}
+		\textbf{changement des comportements}
+	\end{column}
+	\pause
+	\begin{column}{0.5\textwidth}
+		{\huge ...et son prix}
+	 
+	\begin{center}
+		\includegraphics[scale=0.07]{img/dc.jpg}
+	\end{center}
+	
+		- matériel couteux et polluant
+	
+		- logiciels secrets
+	
+		- gestion opaque
+	
+		\vspace{0.2cm}
+		\textbf{prisonnier de l'écosystème}
+	\end{column}
+	\end{columns}
 \end{frame}
 
 \begin{frame}[t]
 	\frametitle{Garage l'imposteur}
 
-\begin{columns}[t]
-\begin{column}{0.5\textwidth}
-	{\huge Ressemble à du cloud...}
- 
-\begin{center}
-	\includegraphics[scale=0.5]{img/shh.jpg}
-\end{center}
-
-+ \underline{compatible} avec les apps existantes
-
-+ \underline{fonctionne} avec le mobile
-
-+ \underline{s'adapte} aux habitudes prises
-
-
-\end{column}
-
-\pause
-\begin{column}{0.5\textwidth}
-	{\huge ...fait du P2P}
-
-\begin{center}
-	\includegraphics[scale=1]{img/death.jpg}
-\end{center}
-
-\vspace{0.4cm}
-
-+ \underline{contrôle} de l'infrastructure
-
-+ \underline{transparent} code libre 
-
-+ \underline{sobre} fonctionne avec de vieilles machines à la maison
-\end{column}
-\end{columns}
+	\begin{columns}[t]
+	\begin{column}{0.5\textwidth}
+		{\huge Ressemble à du cloud...}
+	 
+	\begin{center}
+		\includegraphics[scale=0.5]{img/shh.jpg}
+	\end{center}
+	
+	+ \underline{compatible} avec les apps existantes
+	
+	+ \underline{fonctionne} avec le mobile
+	
+	+ \underline{s'adapte} aux habitudes prises
+	
+	
+	\end{column}
+	
+	\pause
+	\begin{column}{0.5\textwidth}
+		{\huge ...fait du P2P}
+	
+	\begin{center}
+		\includegraphics[scale=1]{img/death.jpg}
+	\end{center}
+	
+	\vspace{0.4cm}
+	
+	+ \underline{contrôle} de l'infrastructure
+	
+	+ \underline{transparent} code libre 
+	
+	+ \underline{sobre} fonctionne avec de vieilles machines à la maison
+	\end{column}
+	\end{columns}
 
 \end{frame}
+
+
+\graphicspath{{img/}}
+
+\begin{frame}
+	\frametitle{Mais donc, c'est quoi Garage ?}
+
+	\begin{columns}[t]
+	\begin{column}{0.5\textwidth}
+		\centering
+		\textbf{Un système de stockage distribué}
+		\vspace{1em}
+
+			\def\svgwidth{.7\columnwidth}
+			\input{img/garage_distributed.pdf_tex}
+	\end{column}
+	\pause
+
+	\begin{column}{0.5\textwidth}
+		\centering
+		\textbf{qui implémente l'API S3}
+		\vspace{2em}
+
+		\includegraphics[width=.7\columnwidth]{img/Amazon-S3.jpg}
+	\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Consistent Hashing (DynamoDB)}
+	\textbf{Comment répartir les fichiers sur les différentes machines ?}
+	\vspace{1em}
+
+	\centering
+
+	\only<1>{
+			\def\svgwidth{.55\columnwidth}
+			\input{img/consistent_hashing_1.pdf_tex}
+	}
+	\only<2>{
+			\def\svgwidth{.55\columnwidth}
+			\input{img/consistent_hashing_2.pdf_tex}
+	}
+	\only<3>{
+			\def\svgwidth{.55\columnwidth}
+			\input{img/consistent_hashing_3.pdf_tex}
+	}
+	\only<4>{
+			\def\svgwidth{.55\columnwidth}
+			\input{img/consistent_hashing_4.pdf_tex}
+	}
+\end{frame}
+
 \end{document}
 
 %% vim: set ts=4 sw=4 tw=0 noet spelllang=fr :

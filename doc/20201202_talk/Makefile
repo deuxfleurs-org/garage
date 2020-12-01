@@ -1,6 +1,6 @@
-talk.pdf: talk.tex
+talk.pdf: talk.tex img/garage_distributed.pdf img/consistent_hashing_1.pdf img/consistent_hashing_2.pdf img/consistent_hashing_3.pdf img/consistent_hashing_4.pdf
 	pdflatex talk.tex
 	
-fig_%.pdf: fig_%.svg
+img/%.pdf: img/%.svg
 	inkscape -D -z --file=$^ --export-pdf=$@ --export-latex
 

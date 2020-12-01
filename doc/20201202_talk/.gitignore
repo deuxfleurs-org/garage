@@ -1,9 +1,12 @@
 *
+
+!img
+
 !.gitignore
 !*.svg
 !*.png
+!*.jpg
 !*.tex
 !Makefile
 !.gitignore
-!*.pdf
-
+!talk.pdf
