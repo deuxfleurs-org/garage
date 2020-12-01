@@ -147,8 +147,7 @@
 		\textbf{Un système de stockage distribué}
 		\vspace{1em}
 
-			\def\svgwidth{.7\columnwidth}
-			\input{img/garage_distributed.pdf_tex}
+			\includegraphics[width=.7\columnwidth]{img/garage_distributed.pdf}
 	\end{column}
 	\pause
 
@@ -170,21 +169,67 @@
 	\centering
 
 	\only<1>{
-			\def\svgwidth{.55\columnwidth}
-			\input{img/consistent_hashing_1.pdf_tex}
+			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_1.pdf}
 	}
 	\only<2>{
-			\def\svgwidth{.55\columnwidth}
-			\input{img/consistent_hashing_2.pdf_tex}
+			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_2.pdf}
 	}
 	\only<3>{
-			\def\svgwidth{.55\columnwidth}
-			\input{img/consistent_hashing_3.pdf_tex}
+			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_3.pdf}
 	}
 	\only<4>{
-			\def\svgwidth{.55\columnwidth}
-			\input{img/consistent_hashing_4.pdf_tex}
+			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_4.pdf}
 	}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Garage Internals : 3 niveaux de consistent hashing}
+	\centering
+	\includegraphics[width=.85\columnwidth]{img/garage_tables.pdf}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Rust : retour d'expérience}
+
+	Garage est entièrement écrit en Rust !
+
+	\begin{columns}
+	\begin{column}{0.5\textwidth}
+		\vspace{2em}
+
+		\textbf{Points forts :}
+		\vspace{.5em}
+		\begin{itemize}
+			\item Langage compilé, très rapide
+				\vspace{.5em}
+			\item Typage fort, beaucoup de sécurités
+				\vspace{.5em}
+			\item Le meilleur de plusieurs paradigmes:
+				fonctionnel, orienté objet, impératif
+				\vspace{.5em}
+			\item Un écosytème de librairies très complet:
+				serialisation, async/await, http, ...
+				\vspace{.5em}
+		\end{itemize}
+
+	\end{column}
+	
+	\begin{column}{0.5\textwidth}
+		\begin{centering}
+		\includegraphics[width=0.55\columnwidth]{img/rustacean-flat-happy.png}
+		\end{centering}
+
+		\vspace{1em}
+		\textbf{Points faibles :}
+		\vspace{.5em}
+		\begin{itemize}
+			\item Les temps de compilation...
+				\vspace{.5em}
+			\item Compliqué à apprendre
+		\end{itemize}
+	\end{column}
+	\end{columns}
+
 \end{frame}
 
 \end{document}
