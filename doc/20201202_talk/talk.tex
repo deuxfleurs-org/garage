@@ -168,18 +168,10 @@
 
 	\centering
 
-	\only<1>{
-			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_1.pdf}
-	}
-	\only<2>{
-			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_2.pdf}
-	}
-	\only<3>{
-			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_3.pdf}
-	}
-	\only<4>{
-			\includegraphics[width=.55\columnwidth]{img/consistent_hashing_4.pdf}
-	}
+	\only<1>{\includegraphics[width=.55\columnwidth]{img/consistent_hashing_1.pdf}}%
+	\only<2>{\includegraphics[width=.55\columnwidth]{img/consistent_hashing_2.pdf}}%
+	\only<3>{\includegraphics[width=.55\columnwidth]{img/consistent_hashing_3.pdf}}%
+	\only<4>{\includegraphics[width=.55\columnwidth]{img/consistent_hashing_4.pdf}}%
 \end{frame}
 
 \begin{frame}
@@ -189,12 +181,31 @@
 \end{frame}
 
 \begin{frame}
+	\frametitle{Modèles de cohérence}
+	Garage utilise un modèle de cohérence relativement faible :
+	\vspace{1em}
+
+	\begin{itemize}
+		\item Objets répliqués 3 fois, quorum de 2 pour les lectures et les écritures\\
+			$\to$ cohérence \textbf{``read your writes''}
+			\vspace{1em}
+		\item<2-> Types de donnée CRDT + mécanisme d'anti-entropie\\
+			$\to$ cohérence \textbf{à terme} (eventual consistency)
+			\vspace{1em}
+		\item<3-> Cela s'applique pour chaque fichier individuellement :\\
+			pas de linéarisabilté ou de cohérence causale entre les opérations\\
+			sur des fichiers différents
+			\vspace{1em}
+		\item<4-> \textbf{Avantage :} convient bien à un déploiement géodistribué (multi-datacenter)
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
 	\frametitle{Rust : retour d'expérience}
 
-	Garage est entièrement écrit en Rust !
-
 	\begin{columns}
-	\begin{column}{0.5\textwidth}
+	\begin{column}{0.55\textwidth}
+		Garage est entièrement écrit en Rust !
 		\vspace{2em}
 
 		\textbf{Points forts :}
@@ -209,17 +220,15 @@
 				\vspace{.5em}
 			\item Un écosytème de librairies très complet:
 				serialisation, async/await, http, ...
-				\vspace{.5em}
 		\end{itemize}
-
 	\end{column}
 	
-	\begin{column}{0.5\textwidth}
+	\begin{column}{0.45\textwidth}
 		\begin{centering}
-		\includegraphics[width=0.55\columnwidth]{img/rustacean-flat-happy.png}
+			\hspace{2em}\includegraphics[width=0.55\columnwidth]{img/rustacean-flat-happy.png}
 		\end{centering}
 
-		\vspace{1em}
+		\vspace{2em}
 		\textbf{Points faibles :}
 		\vspace{.5em}
 		\begin{itemize}
@@ -227,6 +236,7 @@
 				\vspace{.5em}
 			\item Compliqué à apprendre
 		\end{itemize}
+		\vspace{2em}
 	\end{column}
 	\end{columns}
 
