@@ -428,6 +428,21 @@ pub async fn handle_complete_multipart_upload(
 		_ => unreachable!(),
 	};
 
+	// ETag calculation: we produce ETags that have the same form as
+	// those of S3 multipart uploads, but we don't use their actual
+	// calculation for the first part (we use random bytes). This
+	// shouldn't impact compatibility as the S3 docs specify that
+	// the ETag is an opaque value in case of a multipart upload.
+	// See also: https://teppen.io/2018/06/23/aws_s3_etags/
+	let num_parts = version.blocks().last().unwrap().part_number
+		- version.blocks().first().unwrap().part_number
+		+ 1;
+	let etag = format!(
+		"{}-{}",
+		hex::encode(&rand::random::<[u8; 16]>()[..]),
+		num_parts
+	);
+
 	// TODO: check that all the parts that they pretend they gave us are indeed there
 	// TODO: when we read the XML from _req, remember to check the sha256 sum of the payload
 	//       against the signed x-amz-content-sha256
@@ -442,7 +457,7 @@ pub async fn handle_complete_multipart_upload(
 		ObjectVersionMeta {
 			headers,
 			size: total_size,
-			etag: "".to_string(), // TODO
+			etag: etag,
 		},
 		version.blocks()[0].hash,
 	));
