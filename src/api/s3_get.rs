@@ -15,6 +15,7 @@ use crate::error::*;
 fn object_headers(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
+	partial_size: Option<u64>
 ) -> http::response::Builder {
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
@@ -24,7 +25,7 @@ fn object_headers(
 			"Content-Type",
 			version_meta.headers.content_type.to_string(),
 		)
-		.header("Content-Length", format!("{}", version_meta.size))
+		.header("Content-Length", format!("{}", partial_size.unwrap_or(version_meta.size)))
 		.header("ETag", version_meta.etag.to_string())
 		.header("Last-Modified", date_str)
 		.header("Accept-Ranges", format!("bytes"));
@@ -62,7 +63,7 @@ pub async fn handle_head(
 	};
 
 	let body: Body = Body::from(vec![]);
-	let response = object_headers(&version, version_meta)
+	let response = object_headers(&version, version_meta, None)
 		.status(StatusCode::OK)
 		.body(body)
 		.unwrap();
@@ -123,7 +124,7 @@ pub async fn handle_get(
 		.await;
 	}
 
-	let resp_builder = object_headers(&last_v, last_v_meta).status(StatusCode::OK);
+	let resp_builder = object_headers(&last_v, last_v_meta, None).status(StatusCode::OK);
 
 	match &last_v_data {
 		ObjectVersionData::DeleteMarker => unreachable!(),
@@ -180,7 +181,7 @@ pub async fn handle_get_range(
 		return Err(Error::BadRequest(format!("Range not included in file")));
 	}
 
-	let resp_builder = object_headers(version, version_meta)
+	let resp_builder = object_headers(version, version_meta, Some(end - begin))
 		.header(
 			"Content-Range",
 			format!("bytes {}-{}/{}", begin, end - 1, version_meta.size),
