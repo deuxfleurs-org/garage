@@ -15,8 +15,9 @@ source ${SCRIPT_FOLDER}/dev-env.sh
 
 dd if=/dev/urandom of=/tmp/garage.rnd bs=1M count=10
 
-s3grg put /tmp/garage.rnd s3://eprouvette/
+s3grg cp /tmp/garage.rnd s3://eprouvette/
 s3grg ls s3://eprouvette
-s3grg get s3://eprouvette/garage.rnd /tmp/garage.dl
+s3grg cp s3://eprouvette/garage.rnd /tmp/garage.dl
 
 diff /tmp/garage.rnd /tmp/garage.dl
+echo "success"
