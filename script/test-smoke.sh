@@ -18,7 +18,7 @@ garage status
 garage key list
 garage bucket list
 
-dd if=/dev/urandom of=/tmp/garage.1.rnd bs=512k count=1
+dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # < INLINE_THRESHOLD = 3072 bytes
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5
 dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10
 
