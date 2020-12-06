@@ -461,6 +461,7 @@ dependencies = [
  "log",
  "md-5",
  "percent-encoding",
+ "rand",
  "roxmltree",
  "sha2",
  "tokio",

@@ -24,9 +24,12 @@ fn object_headers(
 			"Content-Type",
 			version_meta.headers.content_type.to_string(),
 		)
-		.header("ETag", version_meta.etag.to_string())
 		.header("Last-Modified", date_str)
 		.header("Accept-Ranges", format!("bytes"));
+
+	if !version_meta.etag.is_empty() {
+		resp = resp.header("ETag", format!("\"{}\"", version_meta.etag));
+	}
 
 	for (k, v) in version_meta.headers.other.iter() {
 		resp = resp.header(k, v.to_string());
