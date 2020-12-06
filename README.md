@@ -20,16 +20,23 @@ Our main use case is to provide a distributed storage layer for small-scale self
 
 We propose the following quickstart to setup a full dev. environment as quickly as possible:
 
-  1. Setup a rust/cargo environment and install s3cmd. eg. `dnf install rust cargo s3cmd`
-  2. Run `cargo build` to build the project
-  3. Run `./script/dev-cluster.sh` to launch a test cluster (feel free to read the script)
-  4. Run `./script/dev-configure.sh` to configure your test cluster with default values (same datacenter, 100 tokens)
-  5. Run `./script/dev-bucket.sh` to create a bucket named `éprouvette` and an API key that will be stored in `/tmp/garage.s3`
-  6. Run `source ./script/dev-env.sh` to configure your CLI environment
-  7. You can use `garage` to manage the cluster. Try `garage --help`.
-  8. You can use `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg put /proc/cpuinfo s3://éprouvette/cpuinfo.txt`, `s3grg ls s3://éprouvette`. `s3grg` is a wrapper on `s3cmd` configured with the previously generated API key (the one in `/tmp/garage.s3`).
+  1. Setup a rust/cargo environment. eg. `dnf install rust cargo`
+  2. Install awscli v2 by following the guide [here](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html).
+  3. Run `cargo build` to build the project
+  4. Run `./script/dev-cluster.sh` to launch a test cluster (feel free to read the script)
+  5. Run `./script/dev-configure.sh` to configure your test cluster with default values (same datacenter, 100 tokens)
+  6. Run `./script/dev-bucket.sh` to create a bucket named `eprouvette` and an API key that will be stored in `/tmp/garage.s3`
+  7. Run `source ./script/dev-env.sh` to configure your CLI environment
+  8. You can use `garage` to manage the cluster. Try `garage --help`.
+  9. You can use the `s3grg` alias to add, remove, and delete files. Try `s3grg help`, `s3grg cp /proc/cpuinfo s3://eprouvette/cpuinfo.txt`, or `s3grg ls s3://eprouvette`. `s3grg` is a wrapper on the `aws s3` command pre-configured with the previously generated API key (the one in `/tmp/garage.s3`) and localhost as the endpoint.
 
 Now you should be ready to start hacking on garage!
+
+## S3 compatibility
+
+Only a subset of S3 is supported: adding, listing, getting and deleting files in a bucket.
+Bucket management, ACL and other advanced features are not (yet?) handled through the S3 API but through `garage` CLI.
+We primarily test `garage` against the `awscli` tool and `nextcloud`.
 
 ## Setting up Garage
 

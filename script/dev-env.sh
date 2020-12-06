@@ -11,5 +11,4 @@ export AWS_SECRET_ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
 export AWS_DEFAULT_REGION='garage'
 
 alias s3grg="aws s3 \
-  --debug \
   --endpoint-url http://127.0.0.1:3911"

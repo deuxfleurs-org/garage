@@ -13,11 +13,15 @@ ${SCRIPT_FOLDER}/dev-configure.sh
 ${SCRIPT_FOLDER}/dev-bucket.sh
 source ${SCRIPT_FOLDER}/dev-env.sh
 
-dd if=/dev/urandom of=/tmp/garage.rnd bs=1M count=10
+dd if=/dev/urandom of=/tmp/garage.1.rnd bs=512k count=1
+dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5
+dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10
 
-s3grg cp /tmp/garage.rnd s3://eprouvette/
-s3grg ls s3://eprouvette
-s3grg cp s3://eprouvette/garage.rnd /tmp/garage.dl
+for idx in $(seq 1 3); do
+  s3grg cp /tmp/garage.$idx.rnd s3://eprouvette/
+  s3grg ls s3://eprouvette
+  s3grg cp s3://eprouvette/garage.$idx.rnd /tmp/garage.$idx.dl
+  diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+done
 
-diff /tmp/garage.rnd /tmp/garage.dl
 echo "success"
