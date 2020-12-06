@@ -35,7 +35,7 @@ Now you should be ready to start hacking on garage!
 ## S3 compatibility
 
 Only a subset of S3 is supported: adding, listing, getting and deleting files in a bucket.
-Bucket management, ACL and other advanced features are not (yet?) handled through the S3 API but through `garage` CLI.
+Bucket management, ACL and other advanced features are not (yet?) handled through the S3 API but through the `garage` CLI.
 We primarily test `garage` against the `awscli` tool and `nextcloud`.
 
 ## Setting up Garage
