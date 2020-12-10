@@ -141,6 +141,21 @@ pub enum BucketOperation {
 	/// Allow key to read or write to bucket
 	#[structopt(name = "deny")]
 	Deny(PermBucketOpt),
+
+	/// Expose as website or not
+	#[structopt(name = "website")]
+	Website(WebsiteOpt),
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct WebsiteOpt {
+	/// Create
+	#[structopt(long = "create")]
+	pub create: bool,
+
+	/// Delete
+	#[structopt(long = "delete")]
+	pub delete: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

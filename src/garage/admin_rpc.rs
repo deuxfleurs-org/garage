@@ -155,6 +155,9 @@ impl AdminRpcHandler {
 					&query.key_id, &query.bucket, allow_read, allow_write
 				)))
 			}
+			BucketOperation::Website(query) => {
+				Ok(AdminRPC::Ok(format!("test")))
+			}
 		}
 	}
 
