@@ -18,6 +18,7 @@ use crate::encoding::*;
 struct ListResultInfo {
 	last_modified: u64,
 	size: u64,
+	etag: String,
 }
 
 pub async fn handle_list(
@@ -56,12 +57,12 @@ pub async fn handle_list(
 
 		for object in objects.iter() {
 			if !object.key.starts_with(prefix) {
-				truncated = false;
+				truncated = None;
 				break 'query_loop;
 			}
 			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
 				if result_keys.len() + result_common_prefixes.len() >= max_keys {
-					truncated = true;
+					truncated = Some(object.key.to_string());
 					break 'query_loop;
 				}
 				let common_prefix = if delimiter.len() > 0 {
@@ -75,19 +76,18 @@ pub async fn handle_list(
 				if let Some(pfx) = common_prefix {
 					result_common_prefixes.insert(pfx.to_string());
 				} else {
-					let size = match &version.state {
-						ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => {
-							meta.size
-						}
+					let meta = match &version.state {
+						ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
 						ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => {
-							meta.size
+							meta
 						}
 						_ => unreachable!(),
 					};
 					let info = match result_keys.get(&object.key) {
 						None => ListResultInfo {
 							last_modified: version.timestamp,
-							size,
+							size: meta.size,
+							etag: meta.etag.to_string(),
 						},
 						Some(_lri) => {
 							return Err(Error::Message(format!("Duplicate key?? {}", object.key)))
@@ -98,7 +98,7 @@ pub async fn handle_list(
 			}
 		}
 		if objects.len() < max_keys + 1 {
-			truncated = false;
+			truncated = None;
 			break 'query_loop;
 		}
 		if objects.len() > 0 {
@@ -113,11 +113,22 @@ pub async fn handle_list(
 		r#"<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
 	)
 	.unwrap();
-	writeln!(&mut xml, "\t<Bucket>{}</Bucket>", bucket).unwrap();
+	writeln!(&mut xml, "\t<Name>{}</Name>", bucket).unwrap();
 	writeln!(&mut xml, "\t<Prefix>{}</Prefix>", prefix).unwrap();
+	if let Some(mkr) = marker {
+		writeln!(&mut xml, "\t<Marker>{}</Marker>", mkr).unwrap();
+	}
 	writeln!(&mut xml, "\t<KeyCount>{}</KeyCount>", result_keys.len()).unwrap();
 	writeln!(&mut xml, "\t<MaxKeys>{}</MaxKeys>", max_keys).unwrap();
-	writeln!(&mut xml, "\t<IsTruncated>{}</IsTruncated>", truncated).unwrap();
+	writeln!(
+		&mut xml,
+		"\t<IsTruncated>{}</IsTruncated>",
+		truncated.is_some()
+	)
+	.unwrap();
+	if let Some(next_marker) = truncated {
+		writeln!(&mut xml, "\t<NextMarker>{}</NextMarker>", next_marker).unwrap();
+	}
 	for (key, info) in result_keys.iter() {
 		let last_modif = NaiveDateTime::from_timestamp(info.last_modified as i64 / 1000, 0);
 		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
@@ -132,6 +143,9 @@ pub async fn handle_list(
 		.unwrap();
 		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
 		writeln!(&mut xml, "\t\t<Size>{}</Size>", info.size).unwrap();
+		if !info.etag.is_empty() {
+			writeln!(&mut xml, "\t\t<ETag>\"{}\"</ETag>", info.etag).unwrap();
+		}
 		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
 		writeln!(&mut xml, "\t</Contents>").unwrap();
 	}

@@ -391,7 +391,8 @@ where
 			let (old_entry, new_entry) = self.store.transaction(|db| {
 				let (old_entry, new_entry) = match db.get(&tree_key)? {
 					Some(prev_bytes) => {
-						let old_entry = self.decode_entry(&prev_bytes)
+						let old_entry = self
+							.decode_entry(&prev_bytes)
 							.map_err(sled::ConflictableTransactionError::Abort)?;
 						let mut new_entry = old_entry.clone();
 						new_entry.merge(&update);

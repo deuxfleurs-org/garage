@@ -26,11 +26,17 @@ We propose the following quickstart to setup a full dev. environment as quickly 
   4. Run `./script/dev-cluster.sh` to launch a test cluster (feel free to read the script)
   5. Run `./script/dev-configure.sh` to configure your test cluster with default values (same datacenter, 100 tokens)
   6. Run `./script/dev-bucket.sh` to create a bucket named `eprouvette` and an API key that will be stored in `/tmp/garage.s3`
-  7. Run `source ./script/dev-env.sh` to configure your CLI environment
+  7. Run `source ./script/dev-env-aws.sh` to configure your CLI environment
   8. You can use `garage` to manage the cluster. Try `garage --help`.
-  9. You can use `s3grg` to add, remove, and delete files. Try `s3grg --help`, `s3grg cp /proc/cpuinfo s3://eprouvette/cpuinfo.txt`, `s3grg ls s3://eprouvette`. `s3grg` is a wrapper on the `aws s3` subcommand configured with the previously generated API key (the one in `/tmp/garage.s3`).
+  9. You can use the `awsgrg` alias to add, remove, and delete files. Try `awsgrg help`, `awsgrg cp /proc/cpuinfo s3://eprouvette/cpuinfo.txt`, or `awsgrg ls s3://eprouvette`. `awsgrg` is a wrapper on the `aws s3` command pre-configured with the previously generated API key (the one in `/tmp/garage.s3`) and localhost as the endpoint.
 
 Now you should be ready to start hacking on garage!
+
+## S3 compatibility
+
+Only a subset of S3 is supported: adding, listing, getting and deleting files in a bucket.
+Bucket management, ACL and other advanced features are not (yet?) handled through the S3 API but through the `garage` CLI.
+We primarily test `garage` against the `awscli` tool and `nextcloud`.
 
 ## Setting up Garage
 
