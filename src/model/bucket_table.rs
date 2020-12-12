@@ -8,6 +8,9 @@ use garage_util::error::Error;
 
 use crate::key_table::PermissionSet;
 
+// We import the same file but in its version 0.1.0.
+// We can then access v0.1.0 data structures.
+// We use them to perform migrations.
 use model010::bucket_table as prev;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
