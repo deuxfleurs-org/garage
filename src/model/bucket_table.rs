@@ -10,6 +10,11 @@ use crate::key_table::PermissionSet;
 
 use model010::bucket_table as prev;
 
+/// A bucket is a collection of objects
+///
+/// Its parameters are not directly accessible as:
+///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
+///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
 	// Primary key
@@ -123,9 +128,15 @@ impl TableSchema for BucketTable {
 					},
 				));
 			}
+			
+			let params = BucketParams {
+				authorized_keys: keys,
+				website: crdt::LWW::new(false)
+			};
+
 			Some(Bucket {
 				name: old.name,
-				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Present(keys)),
+				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Present(params)),
 			})
 		}
 	}
