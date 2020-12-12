@@ -21,19 +21,32 @@ pub struct Bucket {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum BucketState {
 	Deleted,
-	Present(crdt::LWWMap<String, PermissionSet>),
+	Present(BucketParams),
 }
 
 impl CRDT for BucketState {
 	fn merge(&mut self, o: &Self) {
 		match o {
 			BucketState::Deleted => *self = BucketState::Deleted,
-			BucketState::Present(other_ak) => {
-				if let BucketState::Present(ak) = self {
-					ak.merge(other_ak);
+			BucketState::Present(other_params) => {
+				if let BucketState::Present(params) = self {
+					params.merge(other_params);
 				}
 			}
 		}
+	}
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct BucketParams {
+	pub authorized_keys: crdt::LWWMap<String, PermissionSet>,
+	pub website: crdt::LWW<bool>
+}
+
+impl CRDT for BucketParams {
+	fn merge(&mut self, o: &Self) {
+		self.authorized_keys.merge(&o.authorized_keys);
+		self.website.merge(&o.website);
 	}
 }
 
@@ -41,7 +54,10 @@ impl Bucket {
 	pub fn new(name: String) -> Self {
 		Bucket {
 			name,
-			state: crdt::LWW::new(BucketState::Present(crdt::LWWMap::new())),
+			state: crdt::LWW::new(BucketState::Present(BucketParams {
+				authorized_keys: crdt::LWWMap::new(),
+				website: crdt::LWW::new(false)
+			})),
 		}
 	}
 	pub fn is_deleted(&self) -> bool {
@@ -50,7 +66,7 @@ impl Bucket {
 	pub fn authorized_keys(&self) -> &[(String, u64, PermissionSet)] {
 		match self.state.get() {
 			BucketState::Deleted => &[],
-			BucketState::Present(ak) => ak.items(),
+			BucketState::Present(state) => state.authorized_keys.items(),
 		}
 	}
 }

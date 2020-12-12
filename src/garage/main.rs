@@ -150,12 +150,12 @@ pub enum BucketOperation {
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct WebsiteOpt {
 	/// Create
-	#[structopt(long = "create")]
-	pub create: bool,
+	#[structopt(long = "allow")]
+	pub allow: bool,
 
 	/// Delete
-	#[structopt(long = "delete")]
-	pub delete: bool,
+	#[structopt(long = "deny")]
+	pub deny: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

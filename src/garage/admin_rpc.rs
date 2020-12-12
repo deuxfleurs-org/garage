@@ -156,7 +156,36 @@ impl AdminRpcHandler {
 				)))
 			}
 			BucketOperation::Website(query) => {
-				Ok(AdminRPC::Ok(format!("test")))
+				let bucket = self.get_existing_bucket(&query.bucket).await?;
+				if query.allow && query.deny {
+					return Err(Error::Message(format!("Website can not be both allowed and denied on a bucket")));
+				}
+
+				if query.allow || query.deny {
+					let exposed = query.allow;
+					if let BucketState::Present(ak) = bucket.state.get_mut() {
+						let old_ak = ak.take_and_clear();
+						ak.merge(&old_ak.update_mutator(
+							key_id.to_string(),
+							PermissionSet {
+								allow_read,
+								allow_write,
+							},
+						));
+					} else {
+						return Err(Error::Message(format!(
+							"Bucket is deleted in update_bucket_key"
+						)));
+					}
+				}
+
+				let msg = if bucket.exposed {
+					"Bucket is exposed as a website."
+				} else {
+					"Bucket is not exposed."
+				};
+
+				Ok(AdminRPC::Ok(msg))
 			}
 		}
 	}
@@ -240,6 +269,7 @@ impl AdminRpcHandler {
 			.unwrap_or(Err(Error::BadRPC(format!("Key {} does not exist", id))))
 	}
 
+	/// Update **bucket table** to inform of the new linked key 
 	async fn update_bucket_key(
 		&self,
 		mut bucket: Bucket,
@@ -265,6 +295,7 @@ impl AdminRpcHandler {
 		Ok(())
 	}
 
+	/// Update **key table** to inform of the new linked bucket
 	async fn update_key_bucket(
 		&self,
 		mut key: Key,
