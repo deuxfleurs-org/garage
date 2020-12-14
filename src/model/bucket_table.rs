@@ -55,14 +55,20 @@ impl CRDT for BucketParams {
 	}
 }
 
+impl BucketParams {
+	pub fn new() -> Self {
+		BucketParams {
+			authorized_keys: crdt::LWWMap::new(),
+			website: crdt::LWW::new(false)
+		}
+	}
+}
+
 impl Bucket {
 	pub fn new(name: String) -> Self {
 		Bucket {
 			name,
-			state: crdt::LWW::new(BucketState::Present(BucketParams {
-				authorized_keys: crdt::LWWMap::new(),
-				website: crdt::LWW::new(false)
-			})),
+			state: crdt::LWW::new(BucketState::Present(BucketParams::new())),
 		}
 	}
 	pub fn is_deleted(&self) -> bool {

@@ -89,7 +89,7 @@ impl AdminRpcHandler {
 						}
 						bucket
 							.state
-							.update(BucketState::Present(crdt::LWWMap::new()));
+							.update(BucketState::Present(BucketParams::new()));
 						bucket
 					}
 					None => Bucket::new(query.name.clone()),
@@ -157,6 +157,7 @@ impl AdminRpcHandler {
 			}
 			BucketOperation::Website(query) => {
 				/*let bucket = self.get_existing_bucket(&query.bucket).await?;
+        
 				if query.allow && query.deny {
 					return Err(Error::Message(format!("Website can not be both allowed and denied on a bucket")));
 				}
@@ -278,7 +279,8 @@ impl AdminRpcHandler {
 		allow_read: bool,
 		allow_write: bool,
 	) -> Result<(), Error> {
-		if let BucketState::Present(ak) = bucket.state.get_mut() {
+		if let BucketState::Present(params) = bucket.state.get_mut() {
+			let ak = &mut params.authorized_keys;
 			let old_ak = ak.take_and_clear();
 			ak.merge(&old_ak.update_mutator(
 				key_id.to_string(),
