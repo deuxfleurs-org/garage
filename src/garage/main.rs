@@ -156,6 +156,9 @@ pub struct WebsiteOpt {
 	/// Delete
 	#[structopt(long = "deny")]
 	pub deny: bool,
+
+	/// Bucket name
+	pub bucket: String,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

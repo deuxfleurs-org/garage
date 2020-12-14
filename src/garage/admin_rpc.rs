@@ -156,12 +156,11 @@ impl AdminRpcHandler {
 				)))
 			}
 			BucketOperation::Website(query) => {
-				/*let bucket = self.get_existing_bucket(&query.bucket).await?;
-        
+				let bucket = self.get_existing_bucket(&query.bucket).await?;
 				if query.allow && query.deny {
 					return Err(Error::Message(format!("Website can not be both allowed and denied on a bucket")));
 				}
-
+        /*
 				if query.allow || query.deny {
 					let exposed = query.allow;
 					if let BucketState::Present(state) = bucket.state.get_mut() {
