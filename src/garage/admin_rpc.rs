@@ -156,37 +156,28 @@ impl AdminRpcHandler {
 				)))
 			}
 			BucketOperation::Website(query) => {
-				let bucket = self.get_existing_bucket(&query.bucket).await?;
-				if query.allow && query.deny {
-					return Err(Error::Message(format!("Website can not be both allowed and denied on a bucket")));
+				let mut bucket = self.get_existing_bucket(&query.bucket).await?;
+
+				if !(query.allow ^ query.deny) {
+					return Err(Error::Message(format!(
+						"You must specify exactly one flag, either --allow or --deny"
+					)));
 				}
-        /*
-				if query.allow || query.deny {
-					let exposed = query.allow;
-					if let BucketState::Present(state) = bucket.state.get_mut() {
-						let ak = state.authorized_keys;
-						let old_ak = ak.take_and_clear();
-						ak.merge(&old_ak.update_mutator(
-							key_id.to_string(),
-							PermissionSet {
-								allow_read,
-								allow_write,
-							},
-						));
+
+				if let BucketState::Present(state) = bucket.state.get_mut() {
+					state.website.update(query.allow);
+					let msg = if query.allow {
+						format!("Website access allowed for {}", &query.bucket)
 					} else {
-						return Err(Error::Message(format!(
-							"Bucket is deleted in update_bucket_key"
-						)));
-					}
-				}
+						format!("Website access denied for {}", &query.bucket)
+					};
 
-				let msg = if bucket.exposed {
-					"Bucket is exposed as a website."
+					Ok(AdminRPC::Ok(msg.to_string()))
 				} else {
-					"Bucket is not exposed."
-				};*/
-
-				Ok(AdminRPC::Ok(/*msg*/"".to_string()))
+					return Err(Error::Message(format!(
+						"Bucket is deleted in update_bucket_key"
+					)));
+				}
 			}
 		}
 	}
@@ -270,7 +261,7 @@ impl AdminRpcHandler {
 			.unwrap_or(Err(Error::BadRPC(format!("Key {} does not exist", id))))
 	}
 
-	/// Update **bucket table** to inform of the new linked key 
+	/// Update **bucket table** to inform of the new linked key
 	async fn update_bucket_key(
 		&self,
 		mut bucket: Bucket,

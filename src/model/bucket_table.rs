@@ -45,7 +45,7 @@ impl CRDT for BucketState {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
 	pub authorized_keys: crdt::LWWMap<String, PermissionSet>,
-	pub website: crdt::LWW<bool>
+	pub website: crdt::LWW<bool>,
 }
 
 impl CRDT for BucketParams {
@@ -59,7 +59,7 @@ impl BucketParams {
 	pub fn new() -> Self {
 		BucketParams {
 			authorized_keys: crdt::LWWMap::new(),
-			website: crdt::LWW::new(false)
+			website: crdt::LWW::new(false),
 		}
 	}
 }
@@ -134,10 +134,10 @@ impl TableSchema for BucketTable {
 					},
 				));
 			}
-			
+
 			let params = BucketParams {
 				authorized_keys: keys,
-				website: crdt::LWW::new(false)
+				website: crdt::LWW::new(false),
 			};
 
 			Some(Bucket {
