@@ -166,6 +166,7 @@ impl AdminRpcHandler {
 
 				if let BucketState::Present(state) = bucket.state.get_mut() {
 					state.website.update(query.allow);
+					self.garage.bucket_table.insert(&bucket).await?;
 					let msg = if query.allow {
 						format!("Website access allowed for {}", &query.bucket)
 					} else {
