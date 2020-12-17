@@ -13,6 +13,8 @@ use idna::domain_to_unicode;
 
 use crate::error::*;
 use garage_api::s3_get::{handle_get, handle_head};
+use garage_table::*;
+use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
 
@@ -75,6 +77,20 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	let (host, _) = domain_to_unicode(authority_to_host(authority)?);
 	let root = &garage.config.s3_web.root_domain;
 	let bucket = host_to_bucket(&host, root);
+
+    // Check bucket is exposed as a website
+    let bucket_desc = garage
+      .bucket_table
+      .get(&EmptyKey, &bucket.to_string())
+      .await?
+      .filter(|b| !b.is_deleted())
+      .ok_or(Error::NotFound)?;
+    
+    match bucket_desc.state.get() {
+        BucketState::Deleted => Err(Error::NotFound),
+        BucketState::Present(params) if !params.website.get() => Err(Error::NotFound),
+        _ => Ok(()),
+    }?;
 
 	// Get path
 	let path = req.uri().path().to_string();
