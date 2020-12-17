@@ -46,13 +46,13 @@ impl RpcMessage for Message {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PingMessage {
-	pub id: UUID,
-	pub rpc_port: u16,
+	id: UUID,
+	rpc_port: u16,
 
-	pub status_hash: Hash,
-	pub config_version: u64,
+	status_hash: Hash,
+	config_version: u64,
 
-	pub state_info: StateInfo,
+	state_info: StateInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -81,12 +81,13 @@ pub struct NetworkConfigEntry {
 
 pub struct System {
 	pub id: UUID,
-	pub data_dir: PathBuf,
-	pub rpc_local_port: u16,
 
-	pub state_info: StateInfo,
+	metadata_dir: PathBuf,
+	rpc_local_port: u16,
 
-	pub rpc_http_client: Arc<RpcHttpClient>,
+	state_info: StateInfo,
+
+	rpc_http_client: Arc<RpcHttpClient>,
 	rpc_client: Arc<RpcClient<Message>>,
 
 	pub status: watch::Receiver<Arc<Status>>,
@@ -296,15 +297,15 @@ fn read_network_config(metadata_dir: &PathBuf) -> Result<NetworkConfig, Error> {
 
 impl System {
 	pub fn new(
-		data_dir: PathBuf,
+		metadata_dir: PathBuf,
 		rpc_http_client: Arc<RpcHttpClient>,
 		background: Arc<BackgroundRunner>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
-		let id = gen_node_id(&data_dir).expect("Unable to read or generate node ID");
+		let id = gen_node_id(&metadata_dir).expect("Unable to read or generate node ID");
 		info!("Node ID: {}", hex::encode(&id));
 
-		let net_config = match read_network_config(&data_dir) {
+		let net_config = match read_network_config(&metadata_dir) {
 			Ok(x) => x,
 			Err(e) => {
 				info!(
@@ -347,7 +348,7 @@ impl System {
 
 		let sys = Arc::new(System {
 			id,
-			data_dir,
+			metadata_dir,
 			rpc_local_port: rpc_server.bind_addr.port(),
 			state_info,
 			rpc_http_client,
@@ -388,7 +389,7 @@ impl System {
 	}
 
 	async fn save_network_config(self: Arc<Self>) -> Result<(), Error> {
-		let mut path = self.data_dir.clone();
+		let mut path = self.metadata_dir.clone();
 		path.push("network_config");
 
 		let ring = self.ring.borrow().clone();
@@ -399,7 +400,7 @@ impl System {
 		Ok(())
 	}
 
-	pub fn make_ping(&self) -> Message {
+	fn make_ping(&self) -> Message {
 		let status = self.status.borrow().clone();
 		let ring = self.ring.borrow().clone();
 		Message::Ping(PingMessage {
@@ -411,7 +412,7 @@ impl System {
 		})
 	}
 
-	pub async fn broadcast(self: Arc<Self>, msg: Message, timeout: Duration) {
+	async fn broadcast(self: Arc<Self>, msg: Message, timeout: Duration) {
 		let status = self.status.borrow().clone();
 		let to = status
 			.nodes
@@ -527,7 +528,7 @@ impl System {
 		}
 	}
 
-	pub async fn handle_ping(
+	async fn handle_ping(
 		self: Arc<Self>,
 		from: &SocketAddr,
 		ping: &PingMessage,
@@ -557,7 +558,7 @@ impl System {
 		Ok(self.make_ping())
 	}
 
-	pub fn handle_pull_status(&self) -> Result<Message, Error> {
+	fn handle_pull_status(&self) -> Result<Message, Error> {
 		let status = self.status.borrow().clone();
 		let mut mem = vec![];
 		for (node, status) in status.nodes.iter() {
@@ -577,12 +578,12 @@ impl System {
 		Ok(Message::AdvertiseNodesUp(mem))
 	}
 
-	pub fn handle_pull_config(&self) -> Result<Message, Error> {
+	fn handle_pull_config(&self) -> Result<Message, Error> {
 		let ring = self.ring.borrow().clone();
 		Ok(Message::AdvertiseConfig(ring.config.clone()))
 	}
 
-	pub async fn handle_advertise_nodes_up(
+	async fn handle_advertise_nodes_up(
 		self: Arc<Self>,
 		adv: &[AdvertisedNode],
 	) -> Result<Message, Error> {
@@ -635,7 +636,7 @@ impl System {
 		Ok(Message::Ok)
 	}
 
-	pub async fn handle_advertise_config(
+	async fn handle_advertise_config(
 		self: Arc<Self>,
 		adv: &NetworkConfig,
 	) -> Result<Message, Error> {
@@ -716,7 +717,7 @@ impl System {
 		}
 	}
 
-	pub fn pull_status(
+	fn pull_status(
 		self: Arc<Self>,
 		peer: UUID,
 	) -> impl futures::future::Future<Output = ()> + Send + 'static {
@@ -731,7 +732,7 @@ impl System {
 		}
 	}
 
-	pub async fn pull_config(self: Arc<Self>, peer: UUID) {
+	async fn pull_config(self: Arc<Self>, peer: UUID) {
 		let resp = self
 			.rpc_client
 			.call(peer, Message::PullConfig, PING_TIMEOUT)

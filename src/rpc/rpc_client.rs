@@ -61,7 +61,7 @@ pub struct RpcClient<M: RpcMessage> {
 
 	local_handler: ArcSwapOption<(UUID, LocalHandlerFn<M>)>,
 
-	pub rpc_addr_client: RpcAddrClient<M>,
+	rpc_addr_client: RpcAddrClient<M>,
 }
 
 impl<M: RpcMessage + 'static> RpcClient<M> {
@@ -215,8 +215,8 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 pub struct RpcAddrClient<M: RpcMessage> {
 	phantom: PhantomData<M>,
 
-	pub http_client: Arc<RpcHttpClient>,
-	pub path: String,
+	http_client: Arc<RpcHttpClient>,
+	path: String,
 }
 
 impl<M: RpcMessage> RpcAddrClient<M> {
