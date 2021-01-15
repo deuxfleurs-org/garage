@@ -41,6 +41,8 @@ s3_region = "garage"				# set this to anything. S3 API calls will fail if they a
 
 [s3_web]
 bind_addr = "[::]:$((3920+$count))"
+root_domain = ".garage.tld"
+index = "index.html"
 EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"

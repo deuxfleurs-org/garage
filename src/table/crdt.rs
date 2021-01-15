@@ -239,7 +239,7 @@ where
 	///
 	/// Typically, to update the value associated to a key in the map, you would do the following:
 	///
-	/// ```
+	/// ```ignore
 	/// let my_update = my_crdt.update_mutator(key_to_modify, new_value);
 	/// my_crdt.merge(&my_update);
 	/// ```
@@ -261,7 +261,7 @@ where
 	/// empty map. This is very usefull to produce in-place a new map that contains only a delta
 	/// that modifies a certain value:
 	///
-	/// ```
+	/// ```ignore
 	/// let mut a = get_my_crdt_value();
 	/// let old_a = a.take_and_clear();
 	/// a.merge(&old_a.update_mutator(key_to_modify, new_value));
@@ -273,7 +273,7 @@ where
 	/// but in the case where the map is a field in a struct for instance (as is always the case),
 	/// this becomes very handy:
 	///
-	/// ```
+	/// ```ignore
 	/// let mut a = get_my_crdt_value();
 	/// let old_a_map = a.map_field.take_and_clear();
 	/// a.map_field.merge(&old_a_map.update_mutator(key_to_modify, new_value));

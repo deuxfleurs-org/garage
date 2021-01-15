@@ -6,6 +6,7 @@ shopt -s expand_aliases
 SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 
+echo "setup"
 cargo build
 ${SCRIPT_FOLDER}/dev-clean.sh
 ${SCRIPT_FOLDER}/dev-cluster.sh > /tmp/garage.log 2>&1 &
@@ -22,6 +23,7 @@ dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # < INLINE_THRESHOLD = 307
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5
 dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10
 
+echo "s3 api testing..."
 for idx in $(seq 1 3); do
   # AWS sends	
   awsgrg cp /tmp/garage.$idx.rnd s3://eprouvette/garage.$idx.aws
@@ -55,6 +57,18 @@ for idx in $(seq 1 3); do
 done
 rm /tmp/garage.{1,2,3}.rnd
 
+echo "website testing"
+echo "<h1>hello world</h1>" > /tmp/garage-index.html
+awsgrg cp /tmp/garage-index.html s3://eprouvette/index.html
+[ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
+garage bucket website --allow eprouvette
+[ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 200 ]
+garage bucket website --deny eprouvette
+[ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
+awsgrg rm s3://eprouvette/index.html
+rm /tmp/garage-index.html
+
+echo "teardown"
 garage bucket deny --read --write eprouvette --key $AWS_ACCESS_KEY_ID
 garage bucket delete --yes eprouvette
 garage key delete --yes $AWS_ACCESS_KEY_ID

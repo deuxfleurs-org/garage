@@ -425,6 +425,7 @@ dependencies = [
  "garage_rpc 0.1.0",
  "garage_table 0.1.1",
  "garage_util 0.1.0",
+ "garage_web",
  "hex",
  "log",
  "pretty_env_logger",
@@ -664,6 +665,24 @@ dependencies = [
  "tokio",
  "toml",
  "webpki",
+]
+
+[[package]]
+name = "garage_web"
+version = "0.1.0"
+dependencies = [
+ "err-derive",
+ "futures",
+ "garage_api",
+ "garage_model 0.1.1",
+ "garage_table 0.1.1",
+ "garage_util 0.1.0",
+ "http",
+ "hyper",
+ "idna",
+ "log",
+ "percent-encoding",
+ "roxmltree",
 ]
 
 [[package]]
