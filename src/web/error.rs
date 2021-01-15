@@ -12,25 +12,12 @@ pub enum Error {
 	#[error(display = "Internal error: {}", _0)]
 	InternalError(#[error(source)] GarageError),
 
-	#[error(display = "Internal error (Hyper error): {}", _0)]
-	Hyper(#[error(source)] hyper::Error),
-
-	#[error(display = "Internal error (HTTP error): {}", _0)]
-	HTTP(#[error(source)] http::Error),
-
-	// Category: cannot process
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
-
 	#[error(display = "Not found")]
 	NotFound,
 
 	// Category: bad request
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUTF8(#[error(source)] std::str::Utf8Error),
-
-	#[error(display = "Invalid XML: {}", _0)]
-	InvalidXML(#[error(source)] roxmltree::Error),
 
 	#[error(display = "Invalid header value: {}", _0)]
 	InvalidHeader(#[error(source)] hyper::header::ToStrError),
@@ -44,11 +31,8 @@ impl Error {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::ApiError(e) => e.http_status_code(),
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::InternalError(GarageError::RPC(_)) => StatusCode::SERVICE_UNAVAILABLE,
-			Error::InternalError(_) | Error::Hyper(_) | Error::HTTP(_) => {
-				StatusCode::INTERNAL_SERVER_ERROR
-			}
+			Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			_ => StatusCode::BAD_REQUEST,
 		}
 	}
