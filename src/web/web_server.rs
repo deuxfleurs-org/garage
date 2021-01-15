@@ -87,9 +87,8 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.ok_or(Error::NotFound)?;
 
 	match bucket_desc.state.get() {
-		BucketState::Deleted => Err(Error::NotFound),
-		BucketState::Present(params) if !params.website.get() => Err(Error::NotFound),
-		_ => Ok(()),
+		BucketState::Present(params) if *params.website.get() => Ok(()),
+		_ => Err(Error::NotFound),
 	}?;
 
 	// Get path
@@ -123,8 +122,10 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	let split = match first_char {
 		'[' => {
 			let mut iter = iter.skip_while(|(_, c)| c != &']');
-			iter.next().expect("Authority parsing logic error");
-			iter.next()
+			match iter.next() {
+				Some((_, ']')) => iter.next(),
+				_ => None,
+			}
 		}
 		_ => iter.skip_while(|(_, c)| c != &':').next(),
 	};
@@ -214,6 +215,10 @@ mod tests {
 		assert_eq!(domain2, "garage.tld");
 		let domain3 = authority_to_host("127.0.0.1")?;
 		assert_eq!(domain3, "127.0.0.1");
+		let domain4 = authority_to_host("[")?;
+		assert_eq!(domain4, "[");
+		let domain5 = authority_to_host("[hello")?;
+		assert_eq!(domain5, "[hello");
 		Ok(())
 	}
 
