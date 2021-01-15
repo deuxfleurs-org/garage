@@ -4,8 +4,8 @@ members = [
 	"src/rpc",
 	"src/table",
 	"src/model",
-	"src/api",
-	"src/garage",
+	#"src/api",
+	#"src/garage",
 ]
 
 [profile.dev]
