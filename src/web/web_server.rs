@@ -176,9 +176,7 @@ fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 	}
 
 	match path_utf8.chars().last() {
-		None => Err(Error::BadRequest(format!(
-			"Path must have at least a character"
-		))),
+		None => unreachable!(),
 		Some('/') => {
 			let mut key = String::with_capacity(path_utf8.len() + index.len());
 			key.push_str(&path_utf8[1..]);
