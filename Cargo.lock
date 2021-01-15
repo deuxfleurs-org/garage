@@ -422,9 +422,9 @@ dependencies = [
  "futures-util",
  "garage_api",
  "garage_model 0.1.1",
- "garage_rpc 0.1.0",
+ "garage_rpc 0.1.1",
  "garage_table 0.1.1",
- "garage_util 0.1.0",
+ "garage_util 0.1.1",
  "garage_web",
  "hex",
  "log",
@@ -452,7 +452,7 @@ dependencies = [
  "futures-util",
  "garage_model 0.1.1",
  "garage_table 0.1.1",
- "garage_util 0.1.0",
+ "garage_util 0.1.1",
  "hex",
  "hmac",
  "http",
@@ -480,9 +480,9 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_rpc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_rpc 0.1.0",
  "garage_table 0.1.0",
- "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util 0.1.0",
  "hex",
  "log",
  "rand",
@@ -504,9 +504,9 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_model 0.1.0",
- "garage_rpc 0.1.0",
+ "garage_rpc 0.1.1",
  "garage_table 0.1.1",
- "garage_util 0.1.0",
+ "garage_util 0.1.1",
  "hex",
  "log",
  "rand",
@@ -521,6 +521,8 @@ dependencies = [
 [[package]]
 name = "garage_rpc"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ef794407808c89f300f73457bdc567c953b323d7fe30534aba686a28ebb4a0d"
 dependencies = [
  "arc-swap",
  "bytes 0.4.12",
@@ -546,15 +548,13 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ef794407808c89f300f73457bdc567c953b323d7fe30534aba686a28ebb4a0d"
+version = "0.1.1"
 dependencies = [
  "arc-swap",
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util 0.1.1",
  "gethostname",
  "hex",
  "http",
@@ -583,8 +583,8 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_rpc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_rpc 0.1.0",
+ "garage_util 0.1.0",
  "hex",
  "log",
  "rand",
@@ -604,8 +604,8 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_rpc 0.1.0",
- "garage_util 0.1.0",
+ "garage_rpc 0.1.1",
+ "garage_util 0.1.1",
  "hex",
  "hexdump",
  "log",
@@ -615,30 +615,6 @@ dependencies = [
  "serde_bytes",
  "sled",
  "tokio",
-]
-
-[[package]]
-name = "garage_util"
-version = "0.1.0"
-dependencies = [
- "err-derive",
- "futures",
- "futures-util",
- "hex",
- "http",
- "hyper",
- "log",
- "rand",
- "rmp-serde",
- "roxmltree",
- "rustls",
- "serde",
- "serde_json",
- "sha2",
- "sled",
- "tokio",
- "toml",
- "webpki",
 ]
 
 [[package]]
@@ -668,15 +644,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "garage_util"
+version = "0.1.1"
+dependencies = [
+ "err-derive",
+ "futures",
+ "futures-util",
+ "hex",
+ "http",
+ "hyper",
+ "log",
+ "rand",
+ "rmp-serde",
+ "roxmltree",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sled",
+ "tokio",
+ "toml",
+ "webpki",
+]
+
+[[package]]
 name = "garage_web"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "err-derive",
  "futures",
  "garage_api",
  "garage_model 0.1.1",
  "garage_table 0.1.1",
- "garage_util 0.1.0",
+ "garage_util 0.1.1",
  "http",
  "hyper",
  "idna",

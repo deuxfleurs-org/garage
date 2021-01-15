@@ -1,6 +1,6 @@
 [package]
 name = "garage_util"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "GPL-3.0"
