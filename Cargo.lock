@@ -421,7 +421,7 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_api",
- "garage_model 0.1.1",
+ "garage_model",
  "garage_rpc 0.1.1",
  "garage_table 0.1.1",
  "garage_util 0.1.1",
@@ -450,7 +450,7 @@ dependencies = [
  "err-derive",
  "futures",
  "futures-util",
- "garage_model 0.1.1",
+ "garage_model",
  "garage_table 0.1.1",
  "garage_util 0.1.1",
  "hex",
@@ -471,18 +471,17 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6403312b28077fd585e5f96184d2d56142f10eb42709d2893294d70a892d73f"
+version = "0.1.1"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_rpc 0.1.0",
- "garage_table 0.1.0",
- "garage_util 0.1.0",
+ "garage_model_010b",
+ "garage_rpc 0.1.1",
+ "garage_table 0.1.1",
+ "garage_util 0.1.1",
  "hex",
  "log",
  "rand",
@@ -495,18 +494,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "garage_model"
-version = "0.1.1"
+name = "garage_model_010b"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa7bd48aaf0f423a4d18e762c8c8c19a230f9fc237c63c1356ded0463a810428"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_model 0.1.0",
- "garage_rpc 0.1.1",
- "garage_table 0.1.1",
- "garage_util 0.1.1",
+ "garage_rpc 0.1.0",
+ "garage_table 0.1.0",
+ "garage_util 0.1.0",
  "hex",
  "log",
  "rand",
@@ -674,7 +674,7 @@ dependencies = [
  "err-derive",
  "futures",
  "garage_api",
- "garage_model 0.1.1",
+ "garage_model",
  "garage_table 0.1.1",
  "garage_util 0.1.1",
  "http",
