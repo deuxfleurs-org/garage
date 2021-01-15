@@ -124,7 +124,12 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 			let mut iter = iter.skip_while(|(_, c)| c != &']');
 			match iter.next() {
 				Some((_, ']')) => iter.next(),
-				_ => None,
+				_ => {
+					return Err(Error::BadRequest(format!(
+						"Authority {} has an illegal format",
+						authority
+					)))
+				}
 			}
 		}
 		_ => iter.skip_while(|(_, c)| c != &':').next(),
@@ -213,10 +218,8 @@ mod tests {
 		assert_eq!(domain2, "garage.tld");
 		let domain3 = authority_to_host("127.0.0.1")?;
 		assert_eq!(domain3, "127.0.0.1");
-		let domain4 = authority_to_host("[")?;
-		assert_eq!(domain4, "[");
-		let domain5 = authority_to_host("[hello")?;
-		assert_eq!(domain5, "[hello");
+		assert!(authority_to_host("[").is_err());
+		assert!(authority_to_host("[hello").is_err());
 		Ok(())
 	}
 
