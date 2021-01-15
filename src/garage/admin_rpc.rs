@@ -175,9 +175,7 @@ impl AdminRpcHandler {
 
 					Ok(AdminRPC::Ok(msg.to_string()))
 				} else {
-					return Err(Error::Message(format!(
-						"Bucket is deleted in update_bucket_key"
-					)));
+					unreachable!();
 				}
 			}
 		}
