@@ -173,7 +173,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			&Method::PUT => {
 				// CreateBucket
 				// If we're here, the bucket already exists, so just answer ok
-				println!(
+				debug!(
 					"Body: {}",
 					std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
 						.unwrap_or("<invalid utf8>")
@@ -229,7 +229,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					// DeleteObjects
 					Ok(handle_delete_objects(garage, bucket, req).await?)
 				} else {
-					println!(
+					debug!(
 						"Body: {}",
 						std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
 							.unwrap_or("<invalid utf8>")

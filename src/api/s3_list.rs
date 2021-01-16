@@ -150,8 +150,8 @@ pub async fn handle_list(
 		writeln!(&mut xml, "\t</Contents>").unwrap();
 	}
 	if result_common_prefixes.len() > 0 {
-		writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
 		for pfx in result_common_prefixes.iter() {
+			writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
 			writeln!(
 				&mut xml,
 				"\t\t<Prefix>{}</Prefix>",
@@ -159,11 +159,11 @@ pub async fn handle_list(
 				//xml_encode_key(pfx, urlencode_resp)
 			)
 			.unwrap();
+			writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
 		}
-		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
 	}
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
-	println!("{}", xml);
+	debug!("{}", xml);
 
 	Ok(Response::new(Body::from(xml.into_bytes())))
 }
