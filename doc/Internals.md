@@ -1,3 +1,5 @@
+**WARNING: this documentation is more a "design draft", which was written before Garage's actual implementation. The general principle is similar but details have not yet been updated.**
+
 #### Modules
 
 - `membership/`: configuration, membership management (gossip of node's presence and status), ring generation --> what about Serf (used by Consul/Nomad) : https://www.serf.io/? Seems a huge library with many features so maybe overkill/hard to integrate

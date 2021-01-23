@@ -12,7 +12,7 @@ Non-goals include:
 
 - Extremely high performance
 - Complete implementation of the S3 API
-- Erasure coding (our replication model is simply to copy the data as is on several nodes)
+- Erasure coding (our replication model is simply to copy the data as is on several nodes, in different datacenters if possible)
 
 Our main use case is to provide a distributed storage layer for small-scale self hosted services such as [Deuxfleurs](https://deuxfleurs.fr).
 
