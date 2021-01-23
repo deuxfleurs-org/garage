@@ -1,0 +1,38 @@
+## Context
+
+Data storage is critical: it can lead to data loss if done badly and/or on hardware failure.
+Filesystems + RAID can help on a single machine but a machine failure can put the whole storage offline.
+Moreover, it put a hard limit on scalability. Often this limit can be pushed back far away by buying expensive machines.
+But here we consider non specialized off the shelf machines that can be as low powered and subject to failures as a raspberry pi.
+
+Distributed storage may help to solve both availability and scalability problems on these machines.
+Many solutions were proposed, they can be categorized as block storage, file storage and object storage depending on the abstraction they provide.
+
+## Related work
+
+Block storage is the most low level one, it's like exposing your raw hard drive over the network.
+It requires very low latencies and stable network, that are often dedicated.
+However it provides disk devices that can be manipulated by the operating system with the less constraints: it can be partitioned with any filesystem, meaning that it supports even the most exotic features.
+We can cite [iSCSI](https://en.wikipedia.org/wiki/ISCSI) or [Fibre Channel](https://en.wikipedia.org/wiki/Fibre_Channel).
+Openstack Cinder proxy previous solution to provide an uniform API.
+
+File storage provides a higher abstraction, they are one filesystem among others, which means they don't necessarily have all the exotic features of every filesystem.
+Often, they relax some POSIX constraints while many applications will still be compatible without any modification.
+As an example, we are able to run MariaDB (very slowly) over GlusterFS...
+We can also mention CephFS (read [RADOS](https://ceph.com/wp-content/uploads/2016/08/weil-rados-pdsw07.pdf) whitepaper), Lustre, LizardFS, MooseFS, etc.
+OpenStack Manila proxy previous solutions to provide an uniform API.
+
+Finally object storages provide the highest level abstraction.
+They are the testimony that the POSIX filesystem API is not adapted to distributed filesystems.
+Especially, the strong concistency has been dropped in favor of eventual consistency which is way more convenient and powerful in presence of high latencies and unreliability.
+We often read about S3 that pioneered the concept that it's a filesystem for the WAN.
+Applications must be adapted to work for the desired object storage service.
+Today, the S3 HTTP REST API acts as a standard in the industry.
+However, Amazon S3 source code is not open but alternatives were proposed.
+We identified Minio, Pithos, Swift and Ceph.
+Minio/Ceph enforces a total order, so properties similar to a (relaxed) filesystem.
+Swift and Pithos are probably the most similar to AWS S3 with their consistent hashing ring.
+However Pithos is not maintained anymore. More precisely the company that published Pithos version 1 has developped a second version 2 but has not open sourced it.
+Some tests conducted by the [ACIDES project](https://acides.org/) have shown that Openstack Swift consumes way more resources (CPU+RAM) that we can afford. Furthermore, people developing Swift have not designed their software for geo-distribution.
+
+There were many attempts in research too. I am only thinking to [LBFS](https://pdos.csail.mit.edu/papers/lbfs:sosp01/lbfs.pdf) that was used as a basis for Seafile. But none of them have been effectively implemented yet.
