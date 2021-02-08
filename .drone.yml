@@ -1,0 +1,8 @@
+pipeline:
+  build:
+    image: rust:buster
+    commands:
+      - apt-get update
+      - apt-get install libsodium-dev
+      - cargo build
+
