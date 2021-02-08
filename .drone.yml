@@ -1,8 +1,44 @@
-pipeline:
-  build:
+kind: pipeline
+name: default
+
+steps:
+  - name: restore-cache
+    image: meltwater/drone-cache:dev
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: cache_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: cache_aws_secret_access_key
+    pull: true
+    settings:
+      restore: true
+      bucket: drone-cache
+      region: garage
+      mount:
+        - 'target'
+      path_style: true
+      endpoint: https://garage.deuxfleurs.fr
+
+  - name: build
     image: rust:buster
     commands:
       - apt-get update
       - apt-get install --yes libsodium-dev
       - cargo build
 
+  - name: rebuild-cache
+    image: meltwater/drone-cache:dev
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: cache_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: cache_aws_secret_access_key
+    pull: true
+    settings:
+      rebuild: true
+      bucket: drone-cache
+      region: garage
+      mount:
+        - 'target'
+      path_style: true
+      endpoint: https://garage.deuxfleurs.fr
