@@ -12,6 +12,7 @@ steps:
     pull: true
     settings:
       restore: true
+      archive_format: "gzip"
       bucket: drone-cache
       region: garage
       mount:
@@ -36,6 +37,7 @@ steps:
     pull: true
     settings:
       rebuild: true
+      archive_format: "gzip"
       bucket: drone-cache
       region: garage
       mount:
