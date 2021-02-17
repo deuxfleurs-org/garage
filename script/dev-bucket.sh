@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
