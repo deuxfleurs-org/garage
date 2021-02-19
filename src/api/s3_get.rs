@@ -16,6 +16,8 @@ fn object_headers(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
 ) -> http::response::Builder {
+	debug!("Version meta: {:?}", version_meta);
+
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
 

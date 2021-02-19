@@ -33,6 +33,8 @@ pub async fn handle_put(
 
 	// Retrieve interesting headers from request
 	let headers = get_headers(&req)?;
+	debug!("Object headers: {:?}", headers);
+
 	let content_md5 = match req.headers().get("content-md5") {
 		Some(x) => Some(x.to_str()?.to_string()),
 		None => None,
@@ -578,7 +580,7 @@ fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
 	}
 	Ok(ObjectVersionHeaders {
 		content_type,
-		other: BTreeMap::new(),
+		other,
 	})
 }
 
