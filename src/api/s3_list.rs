@@ -271,5 +271,7 @@ pub async fn handle_list(
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 	debug!("{}", xml);
 
-	Ok(Response::new(Body::from(xml.into_bytes())))
+	Ok(Response::builder()
+	   .header("Content-Type", "application/xml")
+	   .body(Body::from(xml.into_bytes()))?)
 }

@@ -86,7 +86,7 @@ pub async fn handle_delete_objects(
 		match handle_delete_internal(&garage, bucket, &obj.key).await {
 			Ok((deleted_version, delete_marker_version)) => {
 				writeln!(&mut retxml, "\t<Deleted>").unwrap();
-				writeln!(&mut retxml, "\t\t<Key>{}</Key>", obj.key).unwrap();
+				writeln!(&mut retxml, "\t\t<Key>{}</Key>", xml_escape(&obj.key)).unwrap();
 				writeln!(
 					&mut retxml,
 					"\t\t<VersionId>{}</VersionId>",
@@ -104,7 +104,7 @@ pub async fn handle_delete_objects(
 			Err(e) => {
 				writeln!(&mut retxml, "\t<Error>").unwrap();
 				writeln!(&mut retxml, "\t\t<Code>{}</Code>", e.http_status_code()).unwrap();
-				writeln!(&mut retxml, "\t\t<Key>{}</Key>", obj.key).unwrap();
+				writeln!(&mut retxml, "\t\t<Key>{}</Key>", xml_escape(&obj.key)).unwrap();
 				writeln!(
 					&mut retxml,
 					"\t\t<Message>{}</Message>",
@@ -118,7 +118,9 @@ pub async fn handle_delete_objects(
 
 	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
 
-	Ok(Response::new(Body::from(retxml.into_bytes())))
+	Ok(Response::builder()
+	   .header("Content-Type", "application/xml")
+	   .body(Body::from(retxml.into_bytes()))?)
 }
 
 struct DeleteRequest {

@@ -103,5 +103,7 @@ pub async fn handle_copy(
 	writeln!(&mut xml, "\t<LastModified>{}</LastModified>", last_modified).unwrap();
 	writeln!(&mut xml, "</CopyObjectResult>").unwrap();
 
-	Ok(Response::new(Body::from(xml.into_bytes())))
+	Ok(Response::builder()
+	   .header("Content-Type", "application/xml")
+	   .body(Body::from(xml.into_bytes()))?)
 }
