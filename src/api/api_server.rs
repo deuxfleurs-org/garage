@@ -62,7 +62,11 @@ async fn handler(
 			let body: Body = Body::from(format!("{}\n", e));
 			let mut http_error = Response::new(body);
 			*http_error.status_mut() = e.http_status_code();
-			warn!("Response: error {}, {}", e.http_status_code(), e);
+			if e.http_status_code().is_server_error() {
+				warn!("Response: error {}, {}", e.http_status_code(), e);
+			} else {
+				info!("Response: error {}, {}", e.http_status_code(), e);
+			}
 			Ok(http_error)
 		}
 	}
