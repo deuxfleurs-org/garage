@@ -4,6 +4,7 @@
 
 Implemented:
 
+- path-style URLs (`garage.tld/bucket/key`)
 - putting and getting objects in buckets
 - multipart uploads
 - listing objects
@@ -11,6 +12,7 @@ Implemented:
 
 Not implemented:
 
+- vhost-style URLs (`bucket.garage.tld/key`)
 - object-level ACL
 - encryption
 - most `x-amz-` headers
