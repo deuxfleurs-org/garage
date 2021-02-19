@@ -384,9 +384,7 @@ pub async fn handle_put_part(
 		.iter()
 		.any(|v| v.uuid == version_uuid && v.is_uploading())
 	{
-		return Err(Error::BadRequest(format!(
-			"Multipart upload does not exist or is otherwise invalid"
-		)));
+		return Err(Error::NotFound);
 	}
 
 	// Copy block to store
@@ -438,11 +436,7 @@ pub async fn handle_complete_multipart_upload(
 		.iter()
 		.find(|v| v.uuid == version_uuid && v.is_uploading());
 	let mut object_version = match object_version {
-		None => {
-			return Err(Error::BadRequest(format!(
-				"Multipart upload does not exist or has already been completed"
-			)))
-		}
+		None => return Err(Error::NotFound),
 		Some(x) => x.clone(),
 	};
 
@@ -532,11 +526,7 @@ pub async fn handle_abort_multipart_upload(
 		.iter()
 		.find(|v| v.uuid == version_uuid && v.is_uploading());
 	let mut object_version = match object_version {
-		None => {
-			return Err(Error::BadRequest(format!(
-				"Multipart upload does not exist or has already been completed"
-			)))
-		}
+		None => return Err(Error::NotFound),
 		Some(x) => x.clone(),
 	};
 
