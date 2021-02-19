@@ -199,30 +199,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			}
 			&Method::GET => {
 				// ListObjects query
-				let delimiter = params.get("delimiter").map(|x| x.as_str()).unwrap_or(&"");
-				let max_keys = params
-					.get("max-keys")
-					.map(|x| {
-						x.parse::<usize>()
-							.ok_or_bad_request("Invalid value for max-keys")
-					})
-					.unwrap_or(Ok(1000))?;
-				let prefix = params.get("prefix").map(|x| x.as_str()).unwrap_or(&"");
-				let urlencode_resp = params
-					.get("encoding-type")
-					.map(|x| x == "url")
-					.unwrap_or(false);
-				let marker = params.get("marker").map(String::as_str);
-				Ok(handle_list(
-					garage,
-					bucket,
-					delimiter,
-					max_keys,
-					prefix,
-					marker,
-					urlencode_resp,
-				)
-				.await?)
+				let q = parse_list_objects_query(bucket, &params)?;
+				Ok(handle_list(garage, &q).await?)
 			}
 			&Method::POST => {
 				if params.contains_key(&"delete".to_string()) {

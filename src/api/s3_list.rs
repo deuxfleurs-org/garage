@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::sync::Arc;
 
 use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use hyper::{Body, Response};
 
-use garage_util::error::Error;
+use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
@@ -13,6 +13,20 @@ use garage_model::object_table::*;
 use garage_table::DeletedFilter;
 
 use crate::encoding::*;
+use crate::error::*;
+
+#[derive(Debug)]
+pub struct ListObjectsQuery {
+	pub is_v2: bool,
+	pub bucket: String,
+	pub delimiter: Option<String>,
+	pub max_keys: usize,
+	pub prefix: String,
+	pub marker: Option<String>,
+	pub continuation_token: Option<String>,
+	pub start_after: Option<String>,
+	pub urlencode_resp: bool,
+}
 
 #[derive(Debug)]
 struct ListResultInfo {
@@ -21,55 +35,92 @@ struct ListResultInfo {
 	etag: String,
 }
 
+pub fn parse_list_objects_query(
+	bucket: &str,
+	params: &HashMap<String, String>,
+) -> Result<ListObjectsQuery, Error> {
+	Ok(ListObjectsQuery {
+		is_v2: params.get("list-type").map(|x| x == "2").unwrap_or(false),
+		bucket: bucket.to_string(),
+		delimiter: params.get("delimiter").cloned(),
+		max_keys: params
+			.get("max-keys")
+			.map(|x| {
+				x.parse::<usize>()
+					.ok_or_bad_request("Invalid value for max-keys")
+			})
+			.unwrap_or(Ok(1000))?,
+		prefix: params.get("prefix").cloned().unwrap_or(String::new()),
+		marker: params.get("marker").cloned(),
+		continuation_token: params.get("continuation-token").cloned(),
+		start_after: params.get("start-after").cloned(),
+		urlencode_resp: params
+			.get("encoding-type")
+			.map(|x| x == "url")
+			.unwrap_or(false),
+	})
+}
+
 pub async fn handle_list(
 	garage: Arc<Garage>,
-	bucket: &str,
-	delimiter: &str,
-	max_keys: usize,
-	prefix: &str,
-	marker: Option<&str>,
-	urlencode_resp: bool,
+	query: &ListObjectsQuery,
 ) -> Result<Response<Body>, Error> {
 	let mut result_keys = BTreeMap::<String, ListResultInfo>::new();
 	let mut result_common_prefixes = BTreeSet::<String>::new();
 
-	let mut next_chunk_start = marker.unwrap_or(prefix).to_string();
+	let mut next_chunk_start = if query.is_v2 {
+		if let Some(ct) = &query.continuation_token {
+			String::from_utf8(base64::decode(ct.as_bytes())?)?
+		} else {
+			query.start_after.clone().unwrap_or(query.prefix.clone())
+		}
+	} else {
+		query.marker.clone().unwrap_or(query.prefix.clone())
+	};
 
-	debug!("List request: `{}` {} `{}`", delimiter, max_keys, prefix);
+	debug!(
+		"List request: `{:?}` {} `{}`",
+		query.delimiter, query.max_keys, query.prefix
+	);
 
 	let truncated;
 	'query_loop: loop {
 		let objects = garage
 			.object_table
 			.get_range(
-				&bucket.to_string(),
+				&query.bucket,
 				Some(next_chunk_start.clone()),
 				Some(DeletedFilter::NotDeleted),
-				max_keys + 1,
+				query.max_keys + 1,
 			)
 			.await?;
 		debug!(
 			"List: get range {} (max {}), results: {}",
 			next_chunk_start,
-			max_keys + 1,
+			query.max_keys + 1,
 			objects.len()
 		);
 
 		for object in objects.iter() {
-			if !object.key.starts_with(prefix) {
+			if !object.key.starts_with(&query.prefix) {
 				truncated = None;
 				break 'query_loop;
 			}
+
+			if query.is_v2 && query.start_after.as_ref() == Some(&object.key) {
+				continue;
+			}
+
 			if let Some(version) = object.versions().iter().find(|x| x.is_data()) {
-				if result_keys.len() + result_common_prefixes.len() >= max_keys {
+				if result_keys.len() + result_common_prefixes.len() >= query.max_keys {
 					truncated = Some(object.key.to_string());
 					break 'query_loop;
 				}
-				let common_prefix = if delimiter.len() > 0 {
-					let relative_key = &object.key[prefix.len()..];
+				let common_prefix = if let Some(delimiter) = &query.delimiter {
+					let relative_key = &object.key[query.prefix.len()..];
 					relative_key
 						.find(delimiter)
-						.map(|i| &object.key[..prefix.len() + i + delimiter.len()])
+						.map(|i| &object.key[..query.prefix.len() + i + delimiter.len()])
 				} else {
 					None
 				};
@@ -90,14 +141,17 @@ pub async fn handle_list(
 							etag: meta.etag.to_string(),
 						},
 						Some(_lri) => {
-							return Err(Error::Message(format!("Duplicate key?? {}", object.key)))
+							return Err(Error::InternalError(GarageError::Message(format!(
+								"Duplicate key?? {}",
+								object.key
+							))))
 						}
 					};
 					result_keys.insert(object.key.clone(), info);
 				};
 			}
 		}
-		if objects.len() < max_keys + 1 {
+		if objects.len() < query.max_keys + 1 {
 			truncated = None;
 			break 'query_loop;
 		}
@@ -113,22 +167,75 @@ pub async fn handle_list(
 		r#"<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
 	)
 	.unwrap();
-	writeln!(&mut xml, "\t<Name>{}</Name>", bucket).unwrap();
-	writeln!(&mut xml, "\t<Prefix>{}</Prefix>", prefix).unwrap();
-	if let Some(mkr) = marker {
-		writeln!(&mut xml, "\t<Marker>{}</Marker>", mkr).unwrap();
+
+	writeln!(&mut xml, "\t<Name>{}</Name>", query.bucket).unwrap();
+
+	// TODO: in V1, is this supposed to be urlencoded when encoding-type is URL??
+	writeln!(
+		&mut xml,
+		"\t<Prefix>{}</Prefix>",
+		xml_encode_key(&query.prefix, query.urlencode_resp),
+	)
+	.unwrap();
+
+	if let Some(delim) = &query.delimiter {
+		// TODO: in V1, is this supposed to be urlencoded when encoding-type is URL??
+		writeln!(
+			&mut xml,
+			"\t<Delimiter>{}</Delimiter>",
+			xml_encode_key(delim, query.urlencode_resp),
+		)
+		.unwrap();
 	}
-	writeln!(&mut xml, "\t<KeyCount>{}</KeyCount>", result_keys.len()).unwrap();
-	writeln!(&mut xml, "\t<MaxKeys>{}</MaxKeys>", max_keys).unwrap();
+
+	writeln!(&mut xml, "\t<MaxKeys>{}</MaxKeys>", query.max_keys).unwrap();
+	if query.urlencode_resp {
+		writeln!(&mut xml, "\t<EncodingType>url</EncodingType>").unwrap();
+	}
+
+	writeln!(
+		&mut xml,
+		"\t<KeyCount>{}</KeyCount>",
+		result_keys.len() + result_common_prefixes.len()
+	)
+	.unwrap();
 	writeln!(
 		&mut xml,
 		"\t<IsTruncated>{}</IsTruncated>",
 		truncated.is_some()
 	)
 	.unwrap();
-	if let Some(next_marker) = truncated {
-		writeln!(&mut xml, "\t<NextMarker>{}</NextMarker>", next_marker).unwrap();
+
+	if query.is_v2 {
+		if let Some(ct) = &query.continuation_token {
+			writeln!(&mut xml, "\t<ContinuationToken>{}</ContinuationToken>", ct).unwrap();
+		}
+		if let Some(sa) = &query.start_after {
+			writeln!(
+				&mut xml,
+				"\t<StartAfter>{}</StartAfter>",
+				xml_encode_key(sa, query.urlencode_resp)
+			)
+			.unwrap();
+		}
+		if let Some(nct) = truncated {
+			writeln!(
+				&mut xml,
+				"\t<NextContinuationToken>{}</NextContinuationToken>",
+				base64::encode(nct.as_bytes())
+			)
+			.unwrap();
+		}
+	} else {
+		// TODO: are these supposed to be urlencoded when encoding-type is URL??
+		if let Some(mkr) = &query.marker {
+			writeln!(&mut xml, "\t<Marker>{}</Marker>", xml_encode_key(mkr, query.urlencode_resp)).unwrap();
+		}
+		if let Some(next_marker) = truncated {
+			writeln!(&mut xml, "\t<NextMarker>{}</NextMarker>", xml_encode_key(&next_marker, query.urlencode_resp)).unwrap();
+		}
 	}
+
 	for (key, info) in result_keys.iter() {
 		let last_modif = NaiveDateTime::from_timestamp(info.last_modified as i64 / 1000, 0);
 		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
@@ -137,8 +244,7 @@ pub async fn handle_list(
 		writeln!(
 			&mut xml,
 			"\t\t<Key>{}</Key>",
-			xml_escape(key),
-			//xml_encode_key(key, urlencode_resp)       // doesn't work with nextcloud, wtf
+			xml_encode_key(key, query.urlencode_resp),
 		)
 		.unwrap();
 		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
@@ -149,19 +255,19 @@ pub async fn handle_list(
 		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
 		writeln!(&mut xml, "\t</Contents>").unwrap();
 	}
-	if result_common_prefixes.len() > 0 {
-		for pfx in result_common_prefixes.iter() {
-			writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
-			writeln!(
-				&mut xml,
-				"\t\t<Prefix>{}</Prefix>",
-				xml_escape(pfx),
-				//xml_encode_key(pfx, urlencode_resp)
-			)
-			.unwrap();
-			writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
-		}
+
+	for pfx in result_common_prefixes.iter() {
+		writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
+		//TODO: in V1, are these urlencoded when urlencode_resp is true ?? (proably)
+		writeln!(
+			&mut xml,
+			"\t\t<Prefix>{}</Prefix>",
+			xml_encode_key(pfx, query.urlencode_resp),
+		)
+		.unwrap();
+		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
 	}
+
 	writeln!(&mut xml, "</ListBucketResult>").unwrap();
 	debug!("{}", xml);
 

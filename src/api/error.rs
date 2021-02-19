@@ -24,7 +24,13 @@ pub enum Error {
 
 	// Category: bad request
 	#[error(display = "Invalid UTF-8: {}", _0)]
-	InvalidUTF8(#[error(source)] std::str::Utf8Error),
+	InvalidUTF8Str(#[error(source)] std::str::Utf8Error),
+
+	#[error(display = "Invalid UTF-8: {}", _0)]
+	InvalidUTF8String(#[error(source)] std::string::FromUtf8Error),
+
+	#[error(display = "Invalid base64: {}", _0)]
+	InvalidBase64(#[error(source)] base64::DecodeError),
 
 	#[error(display = "Invalid XML: {}", _0)]
 	InvalidXML(#[error(source)] roxmltree::Error),
