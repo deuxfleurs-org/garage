@@ -198,7 +198,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				))
 			}
 			&Method::GET => {
-				// ListObjects query
+				// ListObjects or ListObjectsV2 query
 				let q = parse_list_objects_query(bucket, &params)?;
 				Ok(handle_list(garage, &q).await?)
 			}

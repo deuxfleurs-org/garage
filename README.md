@@ -18,6 +18,8 @@ Non-goals include:
 
 Our main use case is to provide a distributed storage layer for small-scale self hosted services such as [Deuxfleurs](https://deuxfleurs.fr).
 
+Check our [compatibility page](doc/Compatibility.md) to view details of the S3 API compatibility.
+
 ## Development
 
 We propose the following quickstart to setup a full dev. environment as quickly as possible:
