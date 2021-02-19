@@ -6,7 +6,7 @@ use hyper::{Body, Method, Request};
 use sha2::{Digest, Sha256};
 
 use garage_table::*;
-use garage_util::data::Hash;
+use garage_util::data::{hash, Hash};
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
@@ -292,4 +292,12 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 	} else {
 		"".to_string()
 	}
+}
+
+pub fn verify_signed_content(content_sha256: Option<Hash>, body: &[u8]) -> Result<(), Error> {
+	let expected_sha256 = content_sha256.ok_or_bad_request("Request content hash not signed, aborting.")?;
+	if expected_sha256 != hash(body) {
+		return Err(Error::BadRequest(format!("Request content hash does not match signed hash")));
+	}
+	Ok(())
 }

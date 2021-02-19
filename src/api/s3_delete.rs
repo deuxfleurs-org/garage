@@ -10,6 +10,7 @@ use garage_model::object_table::*;
 
 use crate::encoding::*;
 use crate::error::*;
+use crate::signature::verify_signed_content;
 
 async fn handle_delete_internal(
 	garage: &Garage,
@@ -73,8 +74,11 @@ pub async fn handle_delete_objects(
 	garage: Arc<Garage>,
 	bucket: &str,
 	req: Request<Body>,
+	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
+	verify_signed_content(content_sha256, &body[..])?;
+
 	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
 	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;
 
@@ -131,33 +135,27 @@ struct DeleteObject {
 	key: String,
 }
 
-fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Result<DeleteRequest, String> {
+fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Option<DeleteRequest> {
 	let mut ret = DeleteRequest { objects: vec![] };
 
 	let root = xml.root();
-	let delete = root.first_child().ok_or(format!("Delete tag not found"))?;
+	let delete = root.first_child()?;
 
 	if !delete.has_tag_name("Delete") {
-		return Err(format!("Invalid root tag: {:?}", root));
+		return None;
 	}
 
 	for item in delete.children() {
 		if item.has_tag_name("Object") {
-			if let Some(key) = item.children().find(|e| e.has_tag_name("Key")) {
-				if let Some(key_str) = key.text() {
-					ret.objects.push(DeleteObject {
-						key: key_str.to_string(),
-					});
-				} else {
-					return Err(format!("No text for key: {:?}", key));
-				}
-			} else {
-				return Err(format!("No delete key for item: {:?}", item));
-			}
+			let key = item.children().find(|e| e.has_tag_name("Key"))?;
+			let key_str = key.text()?;
+			ret.objects.push(DeleteObject {
+				key: key_str.to_string(),
+			});
 		} else {
-			return Err(format!("Invalid delete item: {:?}", item));
+			return None;
 		}
 	}
 
-	Ok(ret)
+	Some(ret)
 }

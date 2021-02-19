@@ -11,14 +11,15 @@ use garage_table::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
-use crate::error::*;
 use garage_model::block::INLINE_THRESHOLD;
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
 
+use crate::error::*;
 use crate::encoding::*;
+use crate::signature::verify_signed_content;
 
 pub async fn handle_put(
 	garage: Arc<Garage>,
@@ -416,11 +417,19 @@ pub async fn handle_put_part(
 
 pub async fn handle_complete_multipart_upload(
 	garage: Arc<Garage>,
-	_req: Request<Body>,
+	req: Request<Body>,
 	bucket: &str,
 	key: &str,
 	upload_id: &str,
+	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
+	let body = hyper::body::to_bytes(req.into_body()).await?;
+	verify_signed_content(content_sha256, &body[..])?;
+
+	let body_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
+	let body_list_of_parts = parse_complete_multpart_upload_body(&body_xml).ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
+	debug!("CompleteMultipartUpload list of parts: {:?}", body_list_of_parts);
+
 	let version_uuid = decode_upload_id(upload_id)?;
 
 	let bucket = bucket.to_string();
@@ -450,6 +459,16 @@ pub async fn handle_complete_multipart_upload(
 		_ => unreachable!(),
 	};
 
+	// Check that the list of parts they gave us corresponds to the parts we have here
+	// TODO: check MD5 sum of all uploaded parts? but that would mean we have to store them somewhere...
+	let mut parts = version.blocks().iter().map(|x| x.part_number)
+		.collect::<Vec<_>>();
+	parts.dedup();
+	let same_parts = body_list_of_parts.iter().map(|x| &x.part_number).eq(parts.iter());
+	if !same_parts {
+		return Err(Error::BadRequest(format!("We don't have the same parts")));
+	}
+
 	// ETag calculation: we produce ETags that have the same form as
 	// those of S3 multipart uploads, but we don't use their actual
 	// calculation for the first part (we use random bytes). This
@@ -464,11 +483,6 @@ pub async fn handle_complete_multipart_upload(
 		hex::encode(&rand::random::<[u8; 16]>()[..]),
 		num_parts
 	);
-
-	// TODO: check that all the parts that they pretend they gave us are indeed there
-	// TODO: when we read the XML from _req, remember to check the sha256 sum of the payload
-	//       against the signed x-amz-content-sha256
-	// TODO: check MD5 sum of all uploaded parts? but that would mean we have to store them somewhere...
 
 	let total_size = version
 		.blocks()
@@ -582,4 +596,35 @@ fn decode_upload_id(id: &str) -> Result<UUID, Error> {
 	let mut uuid = [0u8; 32];
 	uuid.copy_from_slice(&id_bin[..]);
 	Ok(UUID::from(uuid))
+}
+
+#[derive(Debug)]
+struct CompleteMultipartUploadPart {
+	etag: String,
+	part_number: u64,
+}
+
+fn parse_complete_multpart_upload_body(xml: &roxmltree::Document) -> Option<Vec<CompleteMultipartUploadPart>> {
+	let mut parts = vec![];
+
+	let root = xml.root();
+	let cmu = root.first_child()?;
+	if !cmu.has_tag_name("CompleteMultipartUpload") {
+		return None;
+	}
+
+	for item in cmu.children() {
+		if item.has_tag_name("Part") {
+			let etag = item.children().find(|e| e.has_tag_name("ETag"))?.text()?;
+			let part_number = item.children().find(|e| e.has_tag_name("PartNumber"))?.text()?;
+			parts.push(CompleteMultipartUploadPart{
+				etag: etag.trim_matches('"').to_string(),
+				part_number: part_number.parse().ok()?,
+			});
+		} else {
+			return None;
+		}
+	}
+
+	Some(parts)
 }

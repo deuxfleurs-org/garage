@@ -157,7 +157,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					// CompleteMultipartUpload call
 					let upload_id = params.get("uploadid").unwrap();
 					Ok(
-						handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id)
+						handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id, content_sha256)
 							.await?,
 					)
 				} else {
@@ -205,7 +205,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			&Method::POST => {
 				if params.contains_key(&"delete".to_string()) {
 					// DeleteObjects
-					Ok(handle_delete_objects(garage, bucket, req).await?)
+					Ok(handle_delete_objects(garage, bucket, req, content_sha256).await?)
 				} else {
 					debug!(
 						"Body: {}",
