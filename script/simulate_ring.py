@@ -47,7 +47,7 @@ def method1(nodes):
             tokens.append((token, dc, node_id))
     tokens.sort(key=lambda tok: tok[0])
 
-    print(tokens)
+    #print(tokens)
     count_tokens_per_node(tokens)
 
     space_of_node = {}
@@ -80,14 +80,54 @@ def method2(nodes):
 
         
     def walk_ring(v, rep):
-        xxh = xxhash.xxh32()
-        xxh.update(v.encode('ascii'))
-        vh = xxh.intdigest()
-        i = vh % (2**partition_bits)
+        # xxh = xxhash.xxh32()
+        # xxh.update(v.encode('ascii'))
+        # vh = xxh.intdigest()
+        # i = vh % (2**partition_bits)
+        vh = hashlib.sha256(v.encode('ascii')).digest()
+        i = (vh[0]<<8 | vh[1]) % (2**partition_bits)
         return walk_ring_from_pos(partition_nodes, dcs, i, rep)
 
     return walk_ring
 
+
+def method3(nodes):
+    partition_bits = 10
+
+    queues = []
+    for (node_id, node_dc, n_tokens) in nodes:
+        que = [(i, hash_str(f"{node_id} {i}")) for i in range(2**partition_bits)]
+        que.sort(key=lambda x: x[1])
+        que = [x[0] for x in que]
+        queues.append((node_id, node_dc, n_tokens, que))
+
+    partitions = [None for _ in range(2**partition_bits)]
+    queues.sort(key=lambda x: hash_str(x[0]))
+
+    # Maglev
+    remaining = 2**partition_bits
+    while remaining > 0:
+        for toktok in range(100):
+            for iq in range(len(queues)):
+                node_id, node_dc, n_tokens, node_queue = queues[iq]
+                if toktok >= n_tokens:
+                    continue
+                for qi, qv in enumerate(node_queue):
+                    if partitions[qv] == None:
+                        partitions[qv] = (qv, node_dc, node_id)
+                        remaining -= 1
+                        queues[iq] = (node_id, node_dc, n_tokens, node_queue[qi+1:])
+                        break
+
+    count_tokens_per_node(partitions)
+    dcs = list(set(node_dc for _, node_dc, _ in nodes))
+
+    def walk_ring(v, rep):
+        vh = hashlib.sha256(v.encode('ascii')).digest()
+        i = (vh[0]<<8 | vh[1]) % (2**partition_bits)
+        return walk_ring_from_pos(partitions, dcs, i, rep)
+
+    return walk_ring
 
 
 def evaluate_method(walk_ring):
@@ -105,7 +145,7 @@ def evaluate_method(walk_ring):
 
 if __name__ == "__main__":
     print("------")
-    print("method 1")
+    print("method 1 (standard ring)")
     nodes = [('digitale', 'atuin', 64),
              ('drosera', 'atuin', 64),
              ('datura', 'atuin', 64),
@@ -114,10 +154,24 @@ if __name__ == "__main__":
     evaluate_method(method1_walk_ring)
 
     print("------")
-    print("method 2")
+    print("method 2 (custom ring)")
     nodes = [('digitale', 'atuin', 10),
              ('drosera', 'atuin', 10),
              ('datura', 'atuin', 10),
              ('io', 'jupiter', 20)]
     method2_walk_ring = method2(nodes)
     evaluate_method(method2_walk_ring)
+
+    print("------")
+    print("method 3 (maglev)")
+    nodes = [('digitale', 'atuin', 4),
+             ('drosera', 'atuin', 4),
+             ('datura', 'atuin', 4),
+             ('io', 'jupiter', 8),
+             #('mini', 'grog', 2),
+             #('mixi', 'grog', 2),
+             #('moxi', 'grog', 2),
+             #('modi', 'grog', 2),
+             ]
+    method3_walk_ring = method3(nodes)
+    evaluate_method(method3_walk_ring)
