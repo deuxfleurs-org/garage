@@ -1,4 +1,5 @@
-use garage_rpc::membership::{Ring, System};
+use garage_rpc::membership::{System};
+use garage_rpc::ring::Ring;
 use garage_util::data::*;
 
 use crate::*;

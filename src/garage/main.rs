@@ -21,6 +21,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 
 use garage_rpc::membership::*;
+use garage_rpc::ring::*;
 use garage_rpc::rpc_client::*;
 
 use admin_rpc::*;

@@ -12,7 +12,7 @@ use serde_bytes::ByteBuf;
 use tokio::sync::Mutex;
 use tokio::sync::{mpsc, watch};
 
-use garage_rpc::membership::Ring;
+use garage_rpc::ring::Ring;
 use garage_util::data::*;
 use garage_util::error::Error;
 

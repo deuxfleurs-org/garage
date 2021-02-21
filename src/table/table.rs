@@ -12,7 +12,8 @@ use serde_bytes::ByteBuf;
 use garage_util::data::*;
 use garage_util::error::Error;
 
-use garage_rpc::membership::{Ring, System};
+use garage_rpc::membership::System;
+use garage_rpc::ring::Ring;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
