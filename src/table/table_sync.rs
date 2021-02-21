@@ -322,7 +322,7 @@ where
 				.range(range.begin.clone()..range.end.clone())
 			{
 				let (key, value) = item?;
-				let key_hash = hash(&key[..]);
+				let key_hash = sha256sum(&key[..]);
 				if children.len() > 0
 					&& key_hash.as_slice()[0..range.level]
 						.iter()
@@ -340,7 +340,7 @@ where
 					end: vec![],
 					level: 0,
 				};
-				children.push((item_range, hash(&value[..])));
+				children.push((item_range, sha256sum(&value[..])));
 			}
 			Ok(RangeChecksum {
 				bounds: range.clone(),
@@ -378,7 +378,7 @@ where
 				}
 				let found_limit = sub_ck.found_limit.unwrap();
 
-				let actual_limit_hash = hash(&found_limit[..]);
+				let actual_limit_hash = sha256sum(&found_limit[..]);
 				if actual_limit_hash.as_slice()[0..range.level]
 					.iter()
 					.all(|x| *x == 0u8)
@@ -426,7 +426,7 @@ where
 			);
 
 			let hash = if v.children.len() > 0 {
-				Some(hash(&rmp_to_vec_all_named(&v)?[..]))
+				Some(sha256sum(&rmp_to_vec_all_named(&v)?[..]))
 			} else {
 				None
 			};

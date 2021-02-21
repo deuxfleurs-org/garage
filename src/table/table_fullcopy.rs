@@ -44,7 +44,7 @@ impl TableFullReplication {
 
 		let mut nodes = vec![];
 		for (node, _) in ring.config.members.iter() {
-			let node_ranking = hash(&[node.as_slice(), my_id.as_slice()].concat());
+			let node_ranking = sha256sum(&[node.as_slice(), my_id.as_slice()].concat());
 			nodes.push((*node, node_ranking));
 		}
 		nodes.sort_by(|(_, rank1), (_, rank2)| rank1.cmp(rank2));

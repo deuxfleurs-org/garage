@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::fmt::Write as FmtWrite;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -10,7 +11,6 @@ use futures::future::join_all;
 use futures::select;
 use futures_util::future::*;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tokio::prelude::*;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
@@ -134,16 +134,14 @@ impl Status {
 		let mut nodes = self.nodes.iter().collect::<Vec<_>>();
 		nodes.sort_unstable_by_key(|(id, _status)| *id);
 
-		let mut hasher = Sha256::new();
+		let mut nodes_txt = String::new();
 		debug!("Current set of pingable nodes: --");
 		for (id, status) in nodes {
 			debug!("{} {}", hex::encode(&id), status.addr);
-			hasher.input(format!("{} {}\n", hex::encode(&id), status.addr));
+			writeln!(&mut nodes_txt, "{} {}", hex::encode(&id), status.addr).unwrap();
 		}
 		debug!("END --");
-		self.hash
-			.as_slice_mut()
-			.copy_from_slice(&hasher.result()[..]);
+		self.hash = sha256sum(nodes_txt.as_bytes());
 	}
 }
 

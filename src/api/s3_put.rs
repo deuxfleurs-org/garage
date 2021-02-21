@@ -55,7 +55,7 @@ pub async fn handle_put(
 		let md5sum_arr = md5sum.finalize();
 		let md5sum_hex = hex::encode(md5sum_arr);
 
-		let sha256sum_hash = hash(&first_block[..]);
+		let sha256sum_hash = sha256sum(&first_block[..]);
 
 		ensure_checksum_matches(
 			md5sum_arr.as_slice(),
@@ -95,7 +95,7 @@ pub async fn handle_put(
 
 	// Initialize corresponding entry in version table
 	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
-	let first_block_hash = hash(&first_block[..]);
+	let first_block_hash = sha256sum(&first_block[..]);
 
 	// Transfer data and verify checksum
 	let tx_result = read_and_put_blocks(
@@ -180,10 +180,10 @@ async fn read_and_put_blocks(
 	first_block_hash: Hash,
 	chunker: &mut BodyChunker,
 ) -> Result<(u64, GenericArray<u8, typenum::U16>, Hash), Error> {
-	let mut md5sum = Md5::new();
-	let mut sha256sum = Sha256::new();
-	md5sum.update(&first_block[..]);
-	sha256sum.input(&first_block[..]);
+	let mut md5hasher = Md5::new();
+	let mut sha256hasher = Sha256::new();
+	md5hasher.update(&first_block[..]);
+	sha256hasher.input(&first_block[..]);
 
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block = put_block_meta(
@@ -202,9 +202,9 @@ async fn read_and_put_blocks(
 		let (_, _, next_block) =
 			futures::try_join!(put_curr_block, put_curr_version_block, chunker.next())?;
 		if let Some(block) = next_block {
-			md5sum.update(&block[..]);
-			sha256sum.input(&block[..]);
-			let block_hash = hash(&block[..]);
+			md5hasher.update(&block[..]);
+			sha256hasher.input(&block[..]);
+			let block_hash = sha256sum(&block[..]);
 			let block_len = block.len();
 			put_curr_version_block = put_block_meta(
 				garage.clone(),
@@ -222,14 +222,14 @@ async fn read_and_put_blocks(
 	}
 
 	let total_size = next_offset as u64;
-	let md5sum_arr = md5sum.finalize();
+	let md5sum_arr = md5hasher.finalize();
 
-	let sha256sum = sha256sum.result();
+	let sha256sum_arr = sha256hasher.result();
 	let mut hash = [0u8; 32];
-	hash.copy_from_slice(&sha256sum[..]);
-	let sha256sum = Hash::from(hash);
+	hash.copy_from_slice(&sha256sum_arr[..]);
+	let sha256sum_arr = Hash::from(hash);
 
-	Ok((total_size, md5sum_arr, sha256sum))
+	Ok((total_size, md5sum_arr, sha256sum_arr))
 }
 
 async fn put_block_meta(
@@ -390,7 +390,7 @@ pub async fn handle_put_part(
 
 	// Copy block to store
 	let version = Version::new(version_uuid, bucket, key, false, vec![]);
-	let first_block_hash = hash(&first_block[..]);
+	let first_block_hash = sha256sum(&first_block[..]);
 	let (_, md5sum_arr, sha256sum) = read_and_put_blocks(
 		&garage,
 		version,

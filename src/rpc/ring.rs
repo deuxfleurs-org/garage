@@ -56,7 +56,7 @@ impl Ring {
 			let datacenter_idx = datacenters.iter().enumerate().find(|(_, dc)| *dc == datacenter).unwrap().0;
 
 			for i in 0..config.n_tokens {
-				let location = hash(format!("{} {}", hex::encode(&id), i).as_bytes());
+				let location = sha256sum(format!("{} {}", hex::encode(&id), i).as_bytes());
 
 				new_ring.push(RingEntry {
 					location: location.into(),

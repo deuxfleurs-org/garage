@@ -77,7 +77,7 @@ impl FixedBytes32 {
 pub type UUID = FixedBytes32;
 pub type Hash = FixedBytes32;
 
-pub fn hash(data: &[u8]) -> Hash {
+pub fn sha256sum(data: &[u8]) -> Hash {
 	let mut hasher = Sha256::new();
 	hasher.input(data);
 	let mut hash = [0u8; 32];
