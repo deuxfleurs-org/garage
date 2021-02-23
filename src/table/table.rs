@@ -431,7 +431,7 @@ where
 
 	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
 		let removed = self.store.transaction(|txn| {
-			if let Some(cur_v) = self.store.get(k)? {
+			if let Some(cur_v) = txn.get(k)? {
 				if cur_v == v {
 					txn.remove(v)?;
 					return Ok(true);
