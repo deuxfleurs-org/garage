@@ -27,7 +27,7 @@ pub struct Table<F: TableSchema, R: TableReplication> {
 	pub replication: R,
 
 	pub name: String,
-	pub rpc_client: Arc<RpcClient<TableRPC<F>>>,
+	pub(crate) rpc_client: Arc<RpcClient<TableRPC<F>>>,
 
 	pub system: Arc<System>,
 	pub store: sled::Tree,
@@ -35,7 +35,7 @@ pub struct Table<F: TableSchema, R: TableReplication> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum TableRPC<F: TableSchema> {
+pub(crate) enum TableRPC<F: TableSchema> {
 	Ok,
 
 	ReadEntry(F::P, F::S),
@@ -415,9 +415,7 @@ where
 				}
 
 				self.instance.updated(old_entry, Some(new_entry)).await?;
-				self.system
-					.background
-					.spawn_cancellable(syncer.clone().invalidate(tree_key));
+				syncer.invalidate(&tree_key[..]);
 			}
 		}
 
@@ -431,26 +429,26 @@ where
 		Ok(())
 	}
 
-	pub async fn delete_range(&self, begin: &Hash, end: &Hash) -> Result<(), Error> {
-		let syncer = self.syncer.load_full().unwrap();
-
-		debug!("({}) Deleting range {:?} - {:?}", self.name, begin, end);
-		let mut count: usize = 0;
-		while let Some((key, _value)) = self.store.get_lt(end.as_slice())? {
-			if key.as_ref() < begin.as_slice() {
-				break;
+	pub(crate) async fn delete_if_equal(
+		self: &Arc<Self>,
+		k: &[u8],
+		v: &[u8],
+	) -> Result<bool, Error> {
+		let removed = self.store.transaction(|txn| {
+			if let Some(cur_v) = self.store.get(k)? {
+				if cur_v == v {
+					txn.remove(v)?;
+					return Ok(true);
+				}
 			}
-			if let Some(old_val) = self.store.remove(&key)? {
-				let old_entry = self.decode_entry(&old_val)?;
-				self.instance.updated(Some(old_entry), None).await?;
-				self.system
-					.background
-					.spawn_cancellable(syncer.clone().invalidate(key.to_vec()));
-				count += 1;
-			}
+			Ok(false)
+		})?;
+		if removed {
+			let old_entry = self.decode_entry(v)?;
+			self.instance.updated(Some(old_entry), None).await?;
+			self.syncer.load_full().unwrap().invalidate(k);
 		}
-		debug!("({}) {} entries deleted", self.name, count);
-		Ok(())
+		Ok(removed)
 	}
 
 	fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
