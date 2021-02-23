@@ -21,7 +21,7 @@ err-derive = "0.2.3"
 log = "0.4"
 fasthash = "0.4"
 
-sled = "0.31"
+sled = "0.34"
 
 toml = "0.5"
 rmp-serde = "0.14.3"

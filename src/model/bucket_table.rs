@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use garage_table::crdt::CRDT;
 use garage_table::*;
 
-
 use crate::key_table::PermissionSet;
 
 // We import the same file but in its version 0.1.0.

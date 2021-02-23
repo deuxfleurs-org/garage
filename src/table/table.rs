@@ -394,7 +394,7 @@ where
 					Some(prev_bytes) => {
 						let old_entry = self
 							.decode_entry(&prev_bytes)
-							.map_err(sled::ConflictableTransactionError::Abort)?;
+							.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
 						let mut new_entry = old_entry.clone();
 						new_entry.merge(&update);
 						(Some(old_entry), new_entry)
@@ -404,7 +404,7 @@ where
 
 				let new_bytes = rmp_to_vec_all_named(&new_entry)
 					.map_err(Error::RMPEncode)
-					.map_err(sled::ConflictableTransactionError::Abort)?;
+					.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
 				db.insert(tree_key.clone(), new_bytes)?;
 				Ok((old_entry, new_entry))
 			})?;
@@ -429,11 +429,7 @@ where
 		Ok(())
 	}
 
-	pub(crate) fn delete_if_equal(
-		self: &Arc<Self>,
-		k: &[u8],
-		v: &[u8],
-	) -> Result<bool, Error> {
+	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
 		let removed = self.store.transaction(|txn| {
 			if let Some(cur_v) = self.store.get(k)? {
 				if cur_v == v {

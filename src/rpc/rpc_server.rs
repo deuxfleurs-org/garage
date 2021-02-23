@@ -48,6 +48,12 @@ where
 	let begin_time = Instant::now();
 	let whole_body = hyper::body::to_bytes(req.into_body()).await?;
 	let msg = rmp_serde::decode::from_read::<_, M>(whole_body.into_buf())?;
+
+	trace!(
+		"Request message: {}",
+		serde_json::to_string(&msg).unwrap_or("<json error>".into())
+	);
+
 	match handler(msg, sockaddr).await {
 		Ok(resp) => {
 			let resp_bytes = rmp_to_vec_all_named::<Result<M, String>>(&Ok(resp))?;
@@ -112,7 +118,8 @@ impl RpcServer {
 			return Ok(bad_request);
 		}
 
-		let path = &req.uri().path()[1..];
+		let path = &req.uri().path()[1..].to_string();
+
 		let handler = match self.handlers.get(path) {
 			Some(h) => h,
 			None => {
@@ -121,6 +128,8 @@ impl RpcServer {
 				return Ok(not_found);
 			}
 		};
+
+		trace!("({}) Handling request", path);
 
 		let resp_waiter = tokio::spawn(handler(req, addr));
 		match resp_waiter.await {
@@ -131,11 +140,15 @@ impl RpcServer {
 				Ok(ise)
 			}
 			Ok(Err(err)) => {
+				trace!("({}) Request handler failed: {}", path, err);
 				let mut bad_request = Response::new(Body::from(format!("{}", err)));
 				*bad_request.status_mut() = StatusCode::BAD_REQUEST;
 				Ok(bad_request)
 			}
-			Ok(Ok(resp)) => Ok(resp),
+			Ok(Ok(resp)) => {
+				trace!("({}) Request handler succeeded", path);
+				Ok(resp)
+			}
 		}
 	}
 

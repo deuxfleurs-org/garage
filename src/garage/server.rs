@@ -40,7 +40,28 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Opening database...");
 	let mut db_path = config.metadata_dir.clone();
 	db_path.push("db");
-	let db = sled::open(db_path).expect("Unable to open DB");
+	let db = match sled::open(&db_path) {
+		Ok(db) => db,
+		Err(e) => {
+			warn!("Old DB could not be openned ({}), attempting migration.", e);
+			let old = old_sled::open(&db_path).expect("Unable to open old DB for migration");
+			let mut new_path = config.metadata_dir.clone();
+			new_path.push("db2");
+			let new = sled::open(&new_path).expect("Unable to open new DB for migration");
+			new.import(old.export());
+			if old.checksum().expect("unable to compute old db checksum")
+				!= new.checksum().expect("unable to compute new db checksum")
+			{
+				panic!("db checksums don't match after migration");
+			}
+			drop(new);
+			drop(old);
+			std::fs::remove_dir_all(&db_path).expect("Cannot remove old DB folder");
+			std::fs::rename(new_path, &db_path)
+				.expect("Cannot move new DB folder to correct place");
+			sled::open(db_path).expect("Unable to open new DB after migration")
+		}
+	};
 
 	info!("Initialize RPC server...");
 	let mut rpc_server = RpcServer::new(config.rpc_bind_addr.clone(), config.rpc_tls.clone());

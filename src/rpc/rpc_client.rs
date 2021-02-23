@@ -310,7 +310,9 @@ impl RpcHttpClient {
 			ClientMethod::HTTPS(client) => client.request(req).fuse(),
 		};
 
+		trace!("({}) Acquiring request_limiter slot...", path);
 		let slot = self.request_limiter.acquire().await;
+		trace!("({}) Got slot, doing request to {}...", path, to_addr);
 		let resp = tokio::time::timeout(timeout, resp_fut)
 			.await
 			.map_err(|e| {
@@ -330,6 +332,7 @@ impl RpcHttpClient {
 			})?;
 
 		let status = resp.status();
+		trace!("({}) Request returned, got status {}", path, status);
 		let body = hyper::body::to_bytes(resp.into_body()).await?;
 		drop(slot);
 

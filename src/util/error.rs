@@ -73,11 +73,11 @@ pub enum Error {
 	Message(String),
 }
 
-impl From<sled::TransactionError<Error>> for Error {
-	fn from(e: sled::TransactionError<Error>) -> Error {
+impl From<sled::transaction::TransactionError<Error>> for Error {
+	fn from(e: sled::transaction::TransactionError<Error>) -> Error {
 		match e {
-			sled::TransactionError::Abort(x) => x,
-			sled::TransactionError::Storage(x) => Error::Sled(x),
+			sled::transaction::TransactionError::Abort(x) => x,
+			sled::transaction::TransactionError::Storage(x) => Error::Sled(x),
 		}
 	}
 }

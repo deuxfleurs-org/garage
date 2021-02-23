@@ -28,7 +28,8 @@ sha2 = "0.8"
 log = "0.4"
 pretty_env_logger = "0.4"
 
-sled = "0.31"
+sled = "0.34"
+old_sled = { package = "sled", version = "0.31" }
 
 structopt = { version = "0.3", default-features = false }
 toml = "0.5"

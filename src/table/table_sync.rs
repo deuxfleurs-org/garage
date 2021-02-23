@@ -385,6 +385,7 @@ where
 		must_exit: &mut watch::Receiver<bool>,
 	) -> Result<RangeChecksum, Error> {
 		assert!(range.level != 0);
+		trace!("Call range_checksum {:?}", range);
 
 		if range.level == 1 {
 			let mut children = vec![];
@@ -400,6 +401,7 @@ where
 						.iter()
 						.all(|x| *x == 0u8)
 				{
+					trace!("range_checksum {:?} returning {} items", range, children.len());
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
@@ -414,6 +416,7 @@ where
 				};
 				children.push((item_range, blake2sum(&value[..])));
 			}
+			trace!("range_checksum {:?} returning {} items", range, children.len());
 			Ok(RangeChecksum {
 				bounds: range.clone(),
 				children,
@@ -439,6 +442,7 @@ where
 				}
 
 				if sub_ck.found_limit.is_none() || sub_ck.hash.is_none() {
+					trace!("range_checksum {:?} returning {} items", range, children.len());
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
@@ -453,6 +457,7 @@ where
 					.iter()
 					.all(|x| *x == 0u8)
 				{
+					trace!("range_checksum {:?} returning {} items", range, children.len());
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
@@ -463,6 +468,7 @@ where
 
 				sub_range.begin = found_limit;
 			}
+			trace!("range_checksum {:?} exiting due to must_exit", range);
 			Err(Error::Message(format!("Exiting.")))
 		}
 	}
