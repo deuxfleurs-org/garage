@@ -435,7 +435,7 @@ where
 		let syncer = self.syncer.load_full().unwrap();
 
 		debug!("({}) Deleting range {:?} - {:?}", self.name, begin, end);
-		let mut count = 0;
+		let mut count: usize = 0;
 		while let Some((key, _value)) = self.store.get_lt(end.as_slice())? {
 			if key.as_ref() < begin.as_slice() {
 				break;
