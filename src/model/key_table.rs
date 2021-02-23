@@ -1,10 +1,7 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use garage_table::crdt::CRDT;
 use garage_table::*;
-
-use garage_util::error::Error;
 
 use model010::key_table as prev;
 
@@ -92,16 +89,11 @@ impl Entry<EmptyKey, String> for Key {
 
 pub struct KeyTable;
 
-#[async_trait]
 impl TableSchema for KeyTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;
 	type Filter = DeletedFilter;
-
-	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
-		Ok(())
-	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.deleted.get())

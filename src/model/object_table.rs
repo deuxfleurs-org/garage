@@ -1,11 +1,9 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_table::table_sharded::*;
 use garage_table::*;
@@ -191,41 +189,42 @@ pub struct ObjectTable {
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 }
 
-#[async_trait]
 impl TableSchema for ObjectTable {
 	type P = String;
 	type S = String;
 	type E = Object;
 	type Filter = DeletedFilter;
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
+	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let version_table = self.version_table.clone();
-		if let (Some(old_v), Some(new_v)) = (old, new) {
-			// Propagate deletion of old versions
-			for v in old_v.versions.iter() {
-				let newly_deleted = match new_v
-					.versions
-					.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
-				{
-					Err(_) => true,
-					Ok(i) => {
-						new_v.versions[i].state == ObjectVersionState::Aborted
-							&& v.state != ObjectVersionState::Aborted
+		self.background.spawn(async move {
+			if let (Some(old_v), Some(new_v)) = (old, new) {
+				// Propagate deletion of old versions
+				for v in old_v.versions.iter() {
+					let newly_deleted = match new_v
+						.versions
+						.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
+					{
+						Err(_) => true,
+						Ok(i) => {
+							new_v.versions[i].state == ObjectVersionState::Aborted
+								&& v.state != ObjectVersionState::Aborted
+						}
+					};
+					if newly_deleted {
+						let deleted_version = Version::new(
+							v.uuid,
+							old_v.bucket.clone(),
+							old_v.key.clone(),
+							true,
+							vec![],
+						);
+						version_table.insert(&deleted_version).await?;
 					}
-				};
-				if newly_deleted {
-					let deleted_version = Version::new(
-						v.uuid,
-						old_v.bucket.clone(),
-						old_v.key.clone(),
-						true,
-						vec![],
-					);
-					version_table.insert(&deleted_version).await?;
 				}
 			}
-		}
-		Ok(())
+			Ok(())
+		})
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {

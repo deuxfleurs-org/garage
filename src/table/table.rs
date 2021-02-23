@@ -414,7 +414,7 @@ where
 					epidemic_propagate.push(new_entry.clone());
 				}
 
-				self.instance.updated(old_entry, Some(new_entry)).await?;
+				self.instance.updated(old_entry, Some(new_entry));
 				syncer.invalidate(&tree_key[..]);
 			}
 		}
@@ -429,7 +429,7 @@ where
 		Ok(())
 	}
 
-	pub(crate) async fn delete_if_equal(
+	pub(crate) fn delete_if_equal(
 		self: &Arc<Self>,
 		k: &[u8],
 		v: &[u8],
@@ -445,7 +445,7 @@ where
 		})?;
 		if removed {
 			let old_entry = self.decode_entry(v)?;
-			self.instance.updated(Some(old_entry), None).await?;
+			self.instance.updated(Some(old_entry), None);
 			self.syncer.load_full().unwrap().invalidate(k);
 		}
 		Ok(removed)

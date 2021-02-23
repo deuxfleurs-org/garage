@@ -1,8 +1,6 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
-use garage_util::error::Error;
 
 pub trait PartitionKey {
 	fn hash(&self) -> Hash;
@@ -45,7 +43,6 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 	fn merge(&mut self, other: &Self);
 }
 
-#[async_trait]
 pub trait TableSchema: Send + Sync {
 	type P: PartitionKey + Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
@@ -58,7 +55,12 @@ pub trait TableSchema: Send + Sync {
 		None
 	}
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error>;
+	// Updated triggers some stuff downstream, but it is not supposed to block or fail,
+	// as the update itself is an unchangeable fact that will never go back
+	// due to CRDT logic. Typically errors in propagation of info should be logged
+	// to stderr.
+	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {}
+
 	fn matches_filter(_entry: &Self::E, _filter: &Self::Filter) -> bool {
 		true
 	}

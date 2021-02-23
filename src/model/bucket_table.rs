@@ -1,10 +1,8 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use garage_table::crdt::CRDT;
 use garage_table::*;
 
-use garage_util::error::Error;
 
 use crate::key_table::PermissionSet;
 
@@ -100,16 +98,11 @@ impl Entry<EmptyKey, String> for Bucket {
 
 pub struct BucketTable;
 
-#[async_trait]
 impl TableSchema for BucketTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Bucket;
 	type Filter = DeletedFilter;
-
-	async fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) -> Result<(), Error> {
-		Ok(())
-	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())

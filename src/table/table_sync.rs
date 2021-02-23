@@ -348,14 +348,8 @@ where
 		}
 
 		// All remote nodes have written those items, now we can delete them locally
-		for was_removed in join_all(
-			items
-				.iter()
-				.map(|(k, v)| self.table.delete_if_equal(&k[..], &v[..])),
-		)
-		.await
-		{
-			was_removed?;
+		for (k, v) in items.iter() {
+			self.table.delete_if_equal(&k[..], &v[..])?;
 		}
 
 		Ok(())

@@ -1,10 +1,8 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
-use garage_util::error::Error;
 
 use garage_table::table_sharded::*;
 use garage_table::*;
@@ -112,31 +110,32 @@ pub struct VersionTable {
 	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
 }
 
-#[async_trait]
 impl TableSchema for VersionTable {
 	type P = Hash;
 	type S = EmptyKey;
 	type E = Version;
 	type Filter = DeletedFilter;
 
-	async fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) -> Result<(), Error> {
+	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let block_ref_table = self.block_ref_table.clone();
-		if let (Some(old_v), Some(new_v)) = (old, new) {
-			// Propagate deletion of version blocks
-			if new_v.deleted && !old_v.deleted {
-				let deleted_block_refs = old_v
-					.blocks
-					.iter()
-					.map(|vb| BlockRef {
-						block: vb.hash,
-						version: old_v.uuid,
-						deleted: true,
-					})
-					.collect::<Vec<_>>();
-				block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+		self.background.spawn(async move {
+			if let (Some(old_v), Some(new_v)) = (old, new) {
+				// Propagate deletion of version blocks
+				if new_v.deleted && !old_v.deleted {
+					let deleted_block_refs = old_v
+						.blocks
+						.iter()
+						.map(|vb| BlockRef {
+							block: vb.hash,
+							version: old_v.uuid,
+							deleted: true,
+						})
+						.collect::<Vec<_>>();
+					block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+				}
 			}
-		}
-		Ok(())
+			Ok(())
+		})
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
