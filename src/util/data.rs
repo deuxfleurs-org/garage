@@ -1,7 +1,6 @@
 use rand::Rng;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sha2::{Digest, Sha256};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -78,11 +77,34 @@ pub type UUID = FixedBytes32;
 pub type Hash = FixedBytes32;
 
 pub fn sha256sum(data: &[u8]) -> Hash {
+	use sha2::{Digest, Sha256};
+
 	let mut hasher = Sha256::new();
 	hasher.input(data);
 	let mut hash = [0u8; 32];
 	hash.copy_from_slice(&hasher.result()[..]);
 	hash.into()
+}
+
+pub fn blake2sum(data: &[u8]) -> Hash {
+	use blake2::{Blake2b, Digest};
+
+	let mut hasher = Blake2b::new();
+	hasher.update(data);
+	let mut hash = [0u8; 32];
+	hash.copy_from_slice(&hasher.finalize()[..32]);
+	hash.into()
+}
+
+pub type FastHash = u64;
+
+pub fn fasthash(data: &[u8]) -> FastHash {
+	use std::hash::Hasher;
+	use fasthash::{xx::Hasher64, FastHasher};
+
+	let mut h = Hasher64::new();
+	h.write(data);
+	h.finish()
 }
 
 pub fn gen_uuid() -> UUID {
