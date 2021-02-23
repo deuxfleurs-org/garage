@@ -295,9 +295,12 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 }
 
 pub fn verify_signed_content(content_sha256: Option<Hash>, body: &[u8]) -> Result<(), Error> {
-	let expected_sha256 = content_sha256.ok_or_bad_request("Request content hash not signed, aborting.")?;
+	let expected_sha256 =
+		content_sha256.ok_or_bad_request("Request content hash not signed, aborting.")?;
 	if expected_sha256 != sha256sum(body) {
-		return Err(Error::BadRequest(format!("Request content hash does not match signed hash")));
+		return Err(Error::BadRequest(format!(
+			"Request content hash does not match signed hash"
+		)));
 	}
 	Ok(())
 }

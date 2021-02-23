@@ -1,7 +1,7 @@
 use arc_swap::ArcSwapOption;
 use std::sync::Arc;
 
-use garage_rpc::membership::{System};
+use garage_rpc::membership::System;
 use garage_rpc::ring::Ring;
 use garage_util::data::*;
 

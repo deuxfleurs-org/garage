@@ -104,6 +104,6 @@ pub async fn handle_copy(
 	writeln!(&mut xml, "</CopyObjectResult>").unwrap();
 
 	Ok(Response::builder()
-	   .header("Content-Type", "application/xml")
-	   .body(Body::from(xml.into_bytes()))?)
+		.header("Content-Type", "application/xml")
+		.body(Body::from(xml.into_bytes()))?)
 }

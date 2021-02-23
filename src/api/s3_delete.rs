@@ -123,8 +123,8 @@ pub async fn handle_delete_objects(
 	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
 
 	Ok(Response::builder()
-	   .header("Content-Type", "application/xml")
-	   .body(Body::from(retxml.into_bytes()))?)
+		.header("Content-Type", "application/xml")
+		.body(Body::from(retxml.into_bytes()))?)
 }
 
 struct DeleteRequest {

@@ -160,10 +160,15 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				} else if params.contains_key(&"uploadid".to_string()) {
 					// CompleteMultipartUpload call
 					let upload_id = params.get("uploadid").unwrap();
-					Ok(
-						handle_complete_multipart_upload(garage, req, &bucket, &key, upload_id, content_sha256)
-							.await?,
+					Ok(handle_complete_multipart_upload(
+						garage,
+						req,
+						&bucket,
+						&key,
+						upload_id,
+						content_sha256,
 					)
+					.await?)
 				} else {
 					Err(Error::BadRequest(format!(
 						"Not a CreateMultipartUpload call, what is it?"

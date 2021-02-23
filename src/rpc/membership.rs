@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::fmt::Write as FmtWrite;
+use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -20,9 +20,9 @@ use garage_util::data::*;
 use garage_util::error::Error;
 
 use crate::consul::get_consul_nodes;
+use crate::ring::*;
 use crate::rpc_client::*;
 use crate::rpc_server::*;
-use crate::ring::*;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
 const CONSUL_INTERVAL: Duration = Duration::from_secs(60);

@@ -17,8 +17,8 @@ use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
 
-use crate::error::*;
 use crate::encoding::*;
+use crate::error::*;
 use crate::signature::verify_signed_content;
 
 pub async fn handle_put(
@@ -427,8 +427,12 @@ pub async fn handle_complete_multipart_upload(
 	verify_signed_content(content_sha256, &body[..])?;
 
 	let body_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
-	let body_list_of_parts = parse_complete_multpart_upload_body(&body_xml).ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
-	debug!("CompleteMultipartUpload list of parts: {:?}", body_list_of_parts);
+	let body_list_of_parts = parse_complete_multpart_upload_body(&body_xml)
+		.ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
+	debug!(
+		"CompleteMultipartUpload list of parts: {:?}",
+		body_list_of_parts
+	);
 
 	let version_uuid = decode_upload_id(upload_id)?;
 
@@ -461,10 +465,16 @@ pub async fn handle_complete_multipart_upload(
 
 	// Check that the list of parts they gave us corresponds to the parts we have here
 	// TODO: check MD5 sum of all uploaded parts? but that would mean we have to store them somewhere...
-	let mut parts = version.blocks().iter().map(|x| x.part_number)
+	let mut parts = version
+		.blocks()
+		.iter()
+		.map(|x| x.part_number)
 		.collect::<Vec<_>>();
 	parts.dedup();
-	let same_parts = body_list_of_parts.iter().map(|x| &x.part_number).eq(parts.iter());
+	let same_parts = body_list_of_parts
+		.iter()
+		.map(|x| &x.part_number)
+		.eq(parts.iter());
 	if !same_parts {
 		return Err(Error::BadRequest(format!("We don't have the same parts")));
 	}
@@ -604,7 +614,9 @@ struct CompleteMultipartUploadPart {
 	part_number: u64,
 }
 
-fn parse_complete_multpart_upload_body(xml: &roxmltree::Document) -> Option<Vec<CompleteMultipartUploadPart>> {
+fn parse_complete_multpart_upload_body(
+	xml: &roxmltree::Document,
+) -> Option<Vec<CompleteMultipartUploadPart>> {
 	let mut parts = vec![];
 
 	let root = xml.root();
@@ -616,8 +628,11 @@ fn parse_complete_multpart_upload_body(xml: &roxmltree::Document) -> Option<Vec<
 	for item in cmu.children() {
 		if item.has_tag_name("Part") {
 			let etag = item.children().find(|e| e.has_tag_name("ETag"))?.text()?;
-			let part_number = item.children().find(|e| e.has_tag_name("PartNumber"))?.text()?;
-			parts.push(CompleteMultipartUploadPart{
+			let part_number = item
+				.children()
+				.find(|e| e.has_tag_name("PartNumber"))?
+				.text()?;
+			parts.push(CompleteMultipartUploadPart {
 				etag: etag.trim_matches('"').to_string(),
 				part_number: part_number.parse().ok()?,
 			});

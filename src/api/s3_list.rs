@@ -229,10 +229,20 @@ pub async fn handle_list(
 	} else {
 		// TODO: are these supposed to be urlencoded when encoding-type is URL??
 		if let Some(mkr) = &query.marker {
-			writeln!(&mut xml, "\t<Marker>{}</Marker>", xml_encode_key(mkr, query.urlencode_resp)).unwrap();
+			writeln!(
+				&mut xml,
+				"\t<Marker>{}</Marker>",
+				xml_encode_key(mkr, query.urlencode_resp)
+			)
+			.unwrap();
 		}
 		if let Some(next_marker) = truncated {
-			writeln!(&mut xml, "\t<NextMarker>{}</NextMarker>", xml_encode_key(&next_marker, query.urlencode_resp)).unwrap();
+			writeln!(
+				&mut xml,
+				"\t<NextMarker>{}</NextMarker>",
+				xml_encode_key(&next_marker, query.urlencode_resp)
+			)
+			.unwrap();
 		}
 	}
 
@@ -272,6 +282,6 @@ pub async fn handle_list(
 	debug!("{}", xml);
 
 	Ok(Response::builder()
-	   .header("Content-Type", "application/xml")
-	   .body(Body::from(xml.into_bytes()))?)
+		.header("Content-Type", "application/xml")
+		.body(Body::from(xml.into_bytes()))?)
 }

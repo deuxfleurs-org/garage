@@ -99,8 +99,8 @@ pub fn blake2sum(data: &[u8]) -> Hash {
 pub type FastHash = u64;
 
 pub fn fasthash(data: &[u8]) -> FastHash {
-	use std::hash::Hasher;
 	use fasthash::{xx::Hasher64, FastHasher};
+	use std::hash::Hasher;
 
 	let mut h = Hasher64::new();
 	h.write(data);

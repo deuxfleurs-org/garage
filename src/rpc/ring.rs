@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
 	pub members: HashMap<UUID, NetworkConfigEntry>,
@@ -13,7 +12,7 @@ pub struct NetworkConfig {
 
 impl NetworkConfig {
 	pub(crate) fn new() -> Self {
-		Self{
+		Self {
 			members: HashMap::new(),
 			version: 0,
 		}
@@ -26,7 +25,6 @@ pub struct NetworkConfigEntry {
 	pub n_tokens: u32,
 	pub tag: String,
 }
-
 
 #[derive(Clone)]
 pub struct Ring {
@@ -53,7 +51,12 @@ impl Ring {
 			if !datacenters.contains(datacenter) {
 				datacenters.push(datacenter.to_string());
 			}
-			let datacenter_idx = datacenters.iter().enumerate().find(|(_, dc)| *dc == datacenter).unwrap().0;
+			let datacenter_idx = datacenters
+				.iter()
+				.enumerate()
+				.find(|(_, dc)| *dc == datacenter)
+				.unwrap()
+				.0;
 
 			for i in 0..config.n_tokens {
 				let location = sha256sum(format!("{} {}", hex::encode(&id), i).as_bytes());
