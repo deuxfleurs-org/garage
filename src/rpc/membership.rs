@@ -141,7 +141,7 @@ impl Status {
 			writeln!(&mut nodes_txt, "{} {}", hex::encode(&id), status.addr).unwrap();
 		}
 		debug!("END --");
-		self.hash = sha256sum(nodes_txt.as_bytes());
+		self.hash = blake2sum(nodes_txt.as_bytes());
 	}
 }
 

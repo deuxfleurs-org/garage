@@ -44,7 +44,7 @@ impl TableFullReplication {
 
 		let mut nodes = vec![];
 		for (node, _) in ring.config.members.iter() {
-			let node_ranking = sha256sum(&[node.as_slice(), my_id.as_slice()].concat());
+			let node_ranking = fasthash(&[node.as_slice(), my_id.as_slice()].concat());
 			nodes.push((*node, node_ranking));
 		}
 		nodes.sort_by(|(_, rank1), (_, rank2)| rank1.cmp(rank2));
@@ -54,6 +54,7 @@ impl TableFullReplication {
 			.filter(|node| *node != my_id)
 			.take(self.write_factor)
 			.collect::<Vec<_>>();
+
 		neighbors.push(my_id);
 		self.neighbors.swap(Some(Arc::new(Neighbors {
 			ring,
