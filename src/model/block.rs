@@ -334,7 +334,7 @@ impl BlockManager {
 			}
 
 			if need_nodes.len() > 0 {
-				trace!("Block {:?} neede by {} nodes, sending", hash, need_nodes.len());
+				trace!("Block {:?} needed by {} nodes, sending", hash, need_nodes.len());
 
 				let put_block_message = Arc::new(self.read_block(hash).await?);
 				let put_resps = join_all(need_nodes.iter().map(|to| {
@@ -436,7 +436,6 @@ impl BlockManager {
 					Err(_) => continue,
 				};
 				let ent_type = data_dir_ent.file_type().await?;
-				println!("name: {}, path: {:?}", name, data_dir_ent.path().to_str());
 
 				if name.len() == 2 && hex::decode(&name).is_ok() && ent_type.is_dir() {
 					self.repair_aux_read_dir_rec(&data_dir_ent.path(), must_exit).await?;
