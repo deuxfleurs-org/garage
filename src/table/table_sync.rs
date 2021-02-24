@@ -319,7 +319,7 @@ where
 				}
 
 				counter += 1;
-				debug!("Offloading items from {:?}..{:?} ({})", begin, end, counter);
+				debug!("Offloading {} items from {:?}..{:?} ({})", items.len(), begin, end, counter);
 				self.offload_items(&items, &nodes[..]).await?;
 			} else {
 				break;
@@ -348,8 +348,15 @@ where
 		}
 
 		// All remote nodes have written those items, now we can delete them locally
+		let mut not_removed = 0;
 		for (k, v) in items.iter() {
-			self.table.delete_if_equal(&k[..], &v[..])?;
+			if !self.table.delete_if_equal(&k[..], &v[..])? {
+				not_removed += 1;
+			}
+		}
+
+		if not_removed > 0 {
+			debug!("{} items not removed during offload because they changed in between (trying again...)", not_removed);
 		}
 
 		Ok(())

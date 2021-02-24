@@ -433,7 +433,7 @@ where
 		let removed = self.store.transaction(|txn| {
 			if let Some(cur_v) = txn.get(k)? {
 				if cur_v == v {
-					txn.remove(v)?;
+					txn.remove(k)?;
 					return Ok(true);
 				}
 			}
