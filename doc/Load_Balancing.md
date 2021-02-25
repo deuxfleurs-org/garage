@@ -8,7 +8,7 @@ I have conducted a quick study of different methods to load-balance data over di
 
 - *minimal disruption*: when adding or removing a node, as few partitions as possible should have to move around
 
-- *order-agnostic*: the same set of nodes (associated with a datacenter name
+- *order-agnostic*: the same set of nodes (each associated with a datacenter name
   and a capacity) should always return the same distribution of partition
   replicas, independently of the order in which nodes were added/removed (this
   is to keep the implementation simple)
@@ -19,10 +19,12 @@ I have conducted a quick study of different methods to load-balance data over di
 
 This strategy can be used with any ring-like algorithm to make it aware of the *multi-datacenter* requirement:
 
-- the ring is a list of positions, each associated with a single node in the cluster
-- look up position of item on ring
-- select the node for that position
-- go clockwise, skipping nodes that:
+In this method, the ring is a list of positions, each associated with a single node in the cluster.
+Partitions contain all the keys between two consecutive items of the ring.
+To find the nodes that store replicas of a given partition:
+
+- select the node for the position of the partition's lower bound
+- go clockwise on the ring, skipping nodes that:
   - we halve already selected
   - are in a datacenter of a node we have selected, except if we already have nodes from all possible datacenters
 
