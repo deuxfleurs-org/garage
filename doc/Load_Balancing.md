@@ -42,7 +42,7 @@ The ring construction that selects `n_token` random positions for each nodes giv
 is not well-balanced: the space between the tokens varies a lot, and some partitions are thus bigger than others.
 This problem was demonstrated in the original Dynamo DB paper.
 
-To solve this, we want to apply a second method for partitionning our dataset:
+To solve this, we want to apply a better second method for partitionning our dataset:
 
 1. fix an initially large number of partitions (say 1024) with evenly-spaced delimiters, 
 
@@ -50,7 +50,9 @@ To solve this, we want to apply a second method for partitionning our dataset:
    proportionnal to its capacity (which `n_tokens` represented in the first
    method)
 
-I have studied two ways to do the attribution, in a way that is deterministic:
+For now we continue using the multi-DC ring walking described above.
+
+I have studied two ways to do the attribution of partitions to nodes, in a way that is deterministic:
 
 - Min-hash: for each partition, select node that minimizes `hash(node, partition_number)`
 - MagLev: see [here](https://blog.acolyer.org/2016/03/21/maglev-a-fast-and-reliable-software-network-load-balancer/)
@@ -67,7 +69,7 @@ for large values), however in both cases:
 - the disruption in case of adding/removing a node is not as low as it can be,
   as we show with the following method.
 
-A quick description of MagLev:
+A quick description of MagLev (backend = node, lookup table = ring):
 
 > The basic idea of Maglev hashing is to assign a preference list of all the
 > lookup table positions to each backend. Then all the backends take turns
@@ -143,12 +145,21 @@ removing grog moxi : 74.22% 20.61% 4.98% 0.20%
 removing grog modi : 75.98% 18.36% 5.27% 0.39%
 removing grisou geant : 46.97% 36.62% 15.04% 1.37%
 removing grisou gipsie : 49.22% 36.52% 12.79% 1.46%
-on average:  62.94% 27.89% 8.61% 0.57%                  <-- Worse than custom method
+on average:  62.94% 27.89% 8.61% 0.57%                  <-- WORSE THAN PREVIOUSLY
 ```
 
 #### The magical solution: multi-DC aware MagLev
 
-(insert algorithm description here, in the meantime refer to `method4` in the simulation script)
+Suppose we want to select three replicas for each partition (this is what we do in our simulation and in most Garage deployments).
+We apply MagLev three times consecutively, one for each replica selection.
+The first time is pretty much the same as normal MagLev, but for the following times, when a node runs through its preference
+list to select a partition to replicate, we skip partitions for which adding this node would not bring datacenter-diversity.
+More precisely, we skip a partition in the preference list if:
+
+- the node already replicates the partition (from one of the previous rounds of MagLev)
+- the node is in a datacenter where a node already replicates the partition and there are other datacenters available
+
+Refer to `method4` in the simulation script for a formal definition.
 
 ```
 ##### Multi-DC aware MagLev #####
@@ -180,5 +191,5 @@ removing grog moxi : 80.18% 19.04% 0.78% 0.00%
 removing grog modi : 79.69% 19.92% 0.39% 0.00%
 removing grisou geant : 44.63% 52.15% 3.22% 0.00%
 removing grisou gipsie : 43.55% 52.54% 3.91% 0.00%
-on average:  64.94% 33.33% 1.72% 0.01%                  <-- VERY GOOD
+on average:  64.94% 33.33% 1.72% 0.01%                  <-- VERY GOOD (VERY LOW VALUES FOR 2 AND 3 NODES)
 ```
