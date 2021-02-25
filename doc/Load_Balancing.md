@@ -2,30 +2,37 @@ I have conducted a quick study of different methods to load-balance data over di
 
 ### Requirements
 
-- good balancing: two nodes that have the same announced capacity should receive close to the same number of items
-- multi-datacenter: the replicas of a partition should be distributed over as many datacenters as possible
-- minimal disruption: when adding or removing a node, as few partitions as possible should have to move around
+- *good balancing*: two nodes that have the same announced capacity should receive close to the same number of items
+
+- *multi-datacenter*: the replicas of a partition should be distributed over as many datacenters as possible
+
+- *minimal disruption*: when adding or removing a node, as few partitions as possible should have to move around
+
+- *order-agnostic*: the same set of nodes (associated with a datacenter name
+  and a capacity) should always return the same distribution of partition
+  replicas, independently of the order in which nodes were added/removed (this
+  is to keep the implementation simple)
 
 ### Methods
 
 #### Naive multi-DC ring walking strategy
 
-This strategy can be used with any ring-linke algorithm to make it aware of the *multi-datacenter* requirement:
+This strategy can be used with any ring-like algorithm to make it aware of the *multi-datacenter* requirement:
 
 - the ring is a list of positions, each associated with a single node in the cluster
 - look up position of item on ring
 - select the node for that position
 - go clockwise, skipping nodes that:
   - we halve already selected
-  - are in a datacenter of a node we have selected, except if we already have nodes from all available datacenters
+  - are in a datacenter of a node we have selected, except if we already have nodes from all possible datacenters
 
 In this way the selected nodes will always be distributed over
 `min(n_datacenters, n_replicas)` different datacenters, which is the best we
 can do.
 
-This method was implemented in the first iteration of Garage, with the basic
-ring construction that consists in associating `n_token` random positions to
-each node.
+This method was implemented in the first version of Garage, with the basic
+ring construction from Dynamo DB that consists in associating `n_token` random positions to
+each node (I know it's not optimal, the Dynamo paper already studies this).
 
 #### Better rings
 
@@ -43,7 +50,7 @@ To solve this, we want to apply a second method for partitionning our dataset:
 
 I have studied two ways to do the attribution, in a way that is deterministic:
 
-- Custom: take `argmin_node(hash(node, partition_number))`
+- Min-hash: for each partition, select node that minimizes `hash(node, partition_number)`
 - MagLev: see [here](https://blog.acolyer.org/2016/03/21/maglev-a-fast-and-reliable-software-network-load-balancer/)
 
 MagLev provided significantly better balancing, as it guarantees that the exact
