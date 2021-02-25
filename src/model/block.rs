@@ -426,6 +426,9 @@ impl BlockManager {
 	}
 
 	fn repair_aux_read_dir_rec<'a>(&'a self, path: &'a PathBuf, must_exit: &'a watch::Receiver<bool>) -> BoxFuture<'a, Result<(), Error>> {
+		// Lists all blocks on disk and adds them to the resync queue.
+		// This allows us to find blocks we are storing but don't actually need,
+		// so that we can offload them if necessary and then delete them locally.
 		async move {
 			let mut ls_data_dir = fs::read_dir(path).await?;
 			while let Some(data_dir_ent) = ls_data_dir.next().await {
