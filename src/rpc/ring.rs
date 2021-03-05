@@ -122,9 +122,8 @@ impl Ring {
 								.iter()
 								.map(|(_id, info)| info.datacenter.as_str())
 								.collect::<HashSet<&str>>();
-							if !partitions[qv]
-								.iter()
-								.any(|(_id, i)| *i.datacenter == node_info.datacenter)
+							if (p_dcs.len() < n_datacenters
+								&& !p_dcs.contains(&node_info.datacenter.as_str()))
 								|| (p_dcs.len() == n_datacenters
 									&& !partitions[qv].iter().any(|(id, _i)| id == node_id))
 							{
