@@ -23,11 +23,11 @@ pub struct Config {
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
 
+	#[serde(default = "default_control_write_max_faults")]
+	pub control_write_max_faults: usize,
+
 	#[serde(default = "default_replication_factor")]
 	pub meta_replication_factor: usize,
-
-	#[serde(default = "default_epidemic_fanout")]
-	pub meta_epidemic_fanout: usize,
 
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
@@ -68,8 +68,8 @@ fn default_block_size() -> usize {
 fn default_replication_factor() -> usize {
 	3
 }
-fn default_epidemic_fanout() -> usize {
-	3
+fn default_control_write_max_faults() -> usize {
+	1
 }
 
 pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {

@@ -1,4 +1,3 @@
-use arc_swap::ArcSwapOption;
 use std::sync::Arc;
 
 use garage_rpc::membership::System;
@@ -9,10 +8,7 @@ use crate::*;
 
 #[derive(Clone)]
 pub struct TableFullReplication {
-	pub write_factor: usize,
-	pub write_quorum: usize,
-
-	neighbors: ArcSwapOption<Neighbors>,
+	pub max_faults: usize,
 }
 
 #[derive(Clone)]
@@ -22,45 +18,8 @@ struct Neighbors {
 }
 
 impl TableFullReplication {
-	pub fn new(write_factor: usize, write_quorum: usize) -> Self {
-		TableFullReplication {
-			write_factor,
-			write_quorum,
-			neighbors: ArcSwapOption::from(None),
-		}
-	}
-
-	fn get_neighbors(&self, system: &System) -> Vec<UUID> {
-		let neighbors = self.neighbors.load_full();
-		if let Some(n) = neighbors {
-			if Arc::ptr_eq(&n.ring, &system.ring.borrow()) {
-				return n.neighbors.clone();
-			}
-		}
-
-		// Recalculate neighbors
-		let ring = system.ring.borrow().clone();
-		let my_id = system.id;
-
-		let mut nodes = vec![];
-		for (node, _) in ring.config.members.iter() {
-			let node_ranking = fasthash(&[node.as_slice(), my_id.as_slice()].concat());
-			nodes.push((*node, node_ranking));
-		}
-		nodes.sort_by(|(_, rank1), (_, rank2)| rank1.cmp(rank2));
-		let mut neighbors = nodes
-			.drain(..)
-			.map(|(node, _)| node)
-			.filter(|node| *node != my_id)
-			.take(self.write_factor)
-			.collect::<Vec<_>>();
-
-		neighbors.push(my_id);
-		self.neighbors.swap(Some(Arc::new(Neighbors {
-			ring,
-			neighbors: neighbors.clone(),
-		})));
-		neighbors
+	pub fn new(max_faults: usize) -> Self {
+		TableFullReplication { max_faults }
 	}
 }
 
@@ -78,17 +37,14 @@ impl TableReplication for TableFullReplication {
 		1
 	}
 
-	fn write_nodes(&self, _hash: &Hash, system: &System) -> Vec<UUID> {
-		self.get_neighbors(system)
+	fn write_nodes(&self, hash: &Hash, system: &System) -> Vec<UUID> {
+		self.replication_nodes(hash, system.ring.borrow().as_ref())
 	}
-	fn write_quorum(&self) -> usize {
-		self.write_quorum
+	fn write_quorum(&self, system: &System) -> usize {
+		system.ring.borrow().config.members.len() - self.max_faults
 	}
 	fn max_write_errors(&self) -> usize {
-		self.write_factor - self.write_quorum
-	}
-	fn epidemic_writes(&self) -> bool {
-		true
+		self.max_faults
 	}
 
 	fn replication_nodes(&self, _hash: &Hash, ring: &Ring) -> Vec<UUID> {

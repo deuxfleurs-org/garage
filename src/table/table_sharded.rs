@@ -31,14 +31,11 @@ impl TableReplication for TableShardedReplication {
 		let ring = system.ring.borrow().clone();
 		ring.walk_ring(&hash, self.replication_factor)
 	}
-	fn write_quorum(&self) -> usize {
+	fn write_quorum(&self, _system: &System) -> usize {
 		self.write_quorum
 	}
 	fn max_write_errors(&self) -> usize {
 		self.replication_factor - self.write_quorum
-	}
-	fn epidemic_writes(&self) -> bool {
-		false
 	}
 
 	fn replication_nodes(&self, hash: &Hash, ring: &Ring) -> Vec<UUID> {

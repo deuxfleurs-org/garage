@@ -65,10 +65,7 @@ impl Garage {
 			read_quorum: (config.meta_replication_factor + 1) / 2,
 		};
 
-		let control_rep_param = TableFullReplication::new(
-			config.meta_epidemic_fanout,
-			(config.meta_epidemic_fanout + 1) / 2,
-		);
+		let control_rep_param = TableFullReplication::new(config.control_write_max_faults);
 
 		info!("Initialize block manager...");
 		let block_manager = BlockManager::new(

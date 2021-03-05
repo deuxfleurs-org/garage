@@ -319,7 +319,13 @@ where
 				}
 
 				counter += 1;
-				debug!("Offloading {} items from {:?}..{:?} ({})", items.len(), begin, end, counter);
+				debug!(
+					"Offloading {} items from {:?}..{:?} ({})",
+					items.len(),
+					begin,
+					end,
+					counter
+				);
 				self.offload_items(&items, &nodes[..]).await?;
 			} else {
 				break;
@@ -408,7 +414,11 @@ where
 						.iter()
 						.all(|x| *x == 0u8)
 				{
-					trace!("range_checksum {:?} returning {} items", range, children.len());
+					trace!(
+						"range_checksum {:?} returning {} items",
+						range,
+						children.len()
+					);
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
@@ -423,7 +433,11 @@ where
 				};
 				children.push((item_range, blake2sum(&value[..])));
 			}
-			trace!("range_checksum {:?} returning {} items", range, children.len());
+			trace!(
+				"range_checksum {:?} returning {} items",
+				range,
+				children.len()
+			);
 			Ok(RangeChecksum {
 				bounds: range.clone(),
 				children,
@@ -449,7 +463,11 @@ where
 				}
 
 				if sub_ck.found_limit.is_none() || sub_ck.hash.is_none() {
-					trace!("range_checksum {:?} returning {} items", range, children.len());
+					trace!(
+						"range_checksum {:?} returning {} items",
+						range,
+						children.len()
+					);
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
@@ -464,7 +482,11 @@ where
 					.iter()
 					.all(|x| *x == 0u8)
 				{
-					trace!("range_checksum {:?} returning {} items", range, children.len());
+					trace!(
+						"range_checksum {:?} returning {} items",
+						range,
+						children.len()
+					);
 					return Ok(RangeChecksum {
 						bounds: range.clone(),
 						children,
