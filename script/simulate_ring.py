@@ -262,21 +262,21 @@ if __name__ == "__main__":
 
     print("------")
     print("method 2 (custom ring)")
-    nodes = [('digitale', 'atuin', 4),
-             ('drosera', 'atuin', 4),
-             ('datura', 'atuin', 4),
-             ('io', 'jupiter', 8)]
-    nodes2 = [('digitale', 'atuin', 8),
-             ('drosera', 'atuin', 8),
-             ('datura', 'atuin', 8),
-             ('io', 'jupiter', 16),
-             ('isou', 'jupiter', 8),
-             ('mini', 'grog', 4),
-             ('mixi', 'grog', 4),
-             ('moxi', 'grog', 4),
-             ('modi', 'grog', 4),
-             ('geant', 'grisou', 16),
-             ('gipsie', 'grisou', 16),
+    nodes = [('digitale', 'atuin', 1),
+             ('drosera', 'atuin', 1),
+             ('datura', 'atuin', 1),
+             ('io', 'jupiter', 2)]
+    nodes2 = [('digitale', 'atuin', 2),
+             ('drosera', 'atuin', 2),
+             ('datura', 'atuin', 2),
+             ('io', 'jupiter', 4),
+             ('isou', 'jupiter', 2),
+             ('mini', 'grog', 1),
+             ('mixi', 'grog', 1),
+             ('moxi', 'grog', 1),
+             ('modi', 'grog', 1),
+             ('geant', 'grisou', 4),
+             ('gipsie', 'grisou', 4),
              ]
     evaluate_method(method2, nodes2)
 

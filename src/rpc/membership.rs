@@ -218,12 +218,7 @@ impl System {
 				.unwrap_or("<invalid utf-8>".to_string()),
 		};
 
-		let mut ring = Ring {
-			config: net_config,
-			ring: Vec::new(),
-			n_datacenters: 0,
-		};
-		ring.rebuild_ring();
+		let ring = Ring::new(net_config);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
 		let rpc_path = MEMBERSHIP_RPC_PATH.to_string();
@@ -531,10 +526,7 @@ impl System {
 		let ring: Arc<Ring> = self.ring.borrow().clone();
 
 		if adv.version > ring.config.version {
-			let mut ring = ring.as_ref().clone();
-
-			ring.config = adv.clone();
-			ring.rebuild_ring();
+			let ring = Ring::new(adv.clone());
 			update_lock.1.broadcast(Arc::new(ring))?;
 			drop(update_lock);
 
