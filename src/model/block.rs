@@ -176,7 +176,7 @@ impl BlockManager {
 		f.read_to_end(&mut data).await?;
 		drop(f);
 
-		if data::sha256sum(&data[..]) != *hash {
+		if data::blake2sum(&data[..]) != *hash {
 			let _lock = self.data_dir_lock.lock().await;
 			warn!("Block {:?} is corrupted. Deleting and resyncing.", hash);
 			fs::remove_file(path).await?;
