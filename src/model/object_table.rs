@@ -225,4 +225,3 @@ impl TableSchema for ObjectTable {
 		filter.apply(deleted)
 	}
 }
-

@@ -44,6 +44,7 @@ impl TableReplication for TableShardedReplication {
 	fn split_points(&self, ring: &Ring) -> Vec<Hash> {
 		let mut ret = vec![];
 
+		ret.push([0u8; 32].into());
 		for entry in ring.ring.iter() {
 			ret.push(entry.location);
 		}

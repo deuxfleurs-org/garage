@@ -18,9 +18,13 @@ use garage_util::error::Error;
 use crate::*;
 
 const MAX_DEPTH: usize = 16;
-const SCAN_INTERVAL: Duration = Duration::from_secs(3600);
-const CHECKSUM_CACHE_TIMEOUT: Duration = Duration::from_secs(1800);
 const TABLE_SYNC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
+
+// Scan & sync every 12 hours
+const SCAN_INTERVAL: Duration = Duration::from_secs(12 * 60 * 60);
+
+// Expire cache after 30 minutes
+const CHECKSUM_CACHE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
 pub struct TableSyncer<F: TableSchema, R: TableReplication> {
 	table: Arc<Table<F, R>>,
@@ -797,6 +801,10 @@ impl SyncTodo {
 		for i in 0..split_points.len() - 1 {
 			let begin = split_points[i];
 			let end = split_points[i + 1];
+			if begin == end {
+				continue;
+			}
+
 			let nodes = table.replication.replication_nodes(&begin, &ring);
 
 			let retain = nodes.contains(&my_id);

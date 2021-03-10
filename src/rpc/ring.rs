@@ -172,7 +172,7 @@ impl Ring {
 
 	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
 		if self.ring.len() != 1 << PARTITION_BITS {
-			warn!("Ring not yet ready, read/writes will be lost");
+			warn!("Ring not yet ready, read/writes will be lost!");
 			return vec![];
 		}
 

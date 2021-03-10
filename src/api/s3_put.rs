@@ -411,7 +411,9 @@ pub async fn handle_put_part(
 	// Store part etag in version
 	let data_md5sum_hex = hex::encode(data_md5sum);
 	let mut version = version;
-	version.parts_etags.put(part_number, data_md5sum_hex.clone());
+	version
+		.parts_etags
+		.put(part_number, data_md5sum_hex.clone());
 	garage.version_table.insert(&version).await?;
 
 	let response = Response::builder()
@@ -495,11 +497,7 @@ pub async fn handle_complete_multipart_upload(
 	for (_, etag) in version.parts_etags.items().iter() {
 		etag_md5_hasher.update(etag.as_bytes());
 	}
-	let etag = format!(
-		"{}-{}",
-		hex::encode(etag_md5_hasher.finalize()),
-		num_parts
-	);
+	let etag = format!("{}-{}", hex::encode(etag_md5_hasher.finalize()), num_parts);
 
 	// Calculate total size of final object
 	let total_size = version
