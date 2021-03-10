@@ -17,6 +17,7 @@ use garage_rpc::ring::Ring;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
+use crate::crdt::CRDT;
 use crate::schema::*;
 use crate::table_sync::*;
 

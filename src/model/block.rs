@@ -420,7 +420,7 @@ impl BlockManager {
 			if Some(&block_ref.block) == last_hash.as_ref() {
 				continue;
 			}
-			if !block_ref.deleted {
+			if !block_ref.deleted.get() {
 				last_hash = Some(block_ref.block);
 				self.put_to_resync(&block_ref.block, 0)?;
 			}

@@ -97,7 +97,7 @@ impl Repair {
 			pos = item_key.to_vec();
 
 			let version = rmp_serde::decode::from_read_ref::<_, Version>(item_bytes.as_ref())?;
-			if version.deleted {
+			if version.deleted.get() {
 				continue;
 			}
 			let object = self
@@ -127,7 +127,6 @@ impl Repair {
 						version.bucket,
 						version.key,
 						true,
-						vec![],
 					))
 					.await?;
 			}
@@ -146,7 +145,7 @@ impl Repair {
 			pos = item_key.to_vec();
 
 			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(item_bytes.as_ref())?;
-			if block_ref.deleted {
+			if block_ref.deleted.get() {
 				continue;
 			}
 			let version = self
@@ -155,7 +154,7 @@ impl Repair {
 				.get(&block_ref.version, &EmptyKey)
 				.await?;
 			let ref_exists = match version {
-				Some(v) => !v.deleted,
+				Some(v) => !v.deleted.get(),
 				None => {
 					warn!(
 						"Block ref repair: version for block ref {:?} not found, skipping.",
@@ -174,7 +173,7 @@ impl Repair {
 					.insert(&BlockRef {
 						block: block_ref.block,
 						version: block_ref.version,
-						deleted: true,
+						deleted: true.into(),
 					})
 					.await?;
 			}

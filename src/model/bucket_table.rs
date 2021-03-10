@@ -89,7 +89,9 @@ impl Entry<EmptyKey, String> for Bucket {
 	fn sort_key(&self) -> &String {
 		&self.name
 	}
+}
 
+impl CRDT for Bucket {
 	fn merge(&mut self, other: &Self) {
 		self.state.merge(&other.state);
 	}

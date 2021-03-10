@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use garage_table::crdt::CRDT;
+use garage_table::crdt::*;
 use garage_table::*;
 
 use model010::key_table as prev;
@@ -66,6 +66,10 @@ pub struct PermissionSet {
 	pub allow_write: bool,
 }
 
+impl AutoCRDT for PermissionSet {
+	const WARN_IF_DIFFERENT: bool = true;
+}
+
 impl Entry<EmptyKey, String> for Key {
 	fn partition_key(&self) -> &EmptyKey {
 		&EmptyKey
@@ -73,17 +77,18 @@ impl Entry<EmptyKey, String> for Key {
 	fn sort_key(&self) -> &String {
 		&self.key_id
 	}
+}
 
+impl CRDT for Key {
 	fn merge(&mut self, other: &Self) {
 		self.name.merge(&other.name);
 		self.deleted.merge(&other.deleted);
 
 		if self.deleted.get() {
 			self.authorized_buckets.clear();
-			return;
+		} else {
+			self.authorized_buckets.merge(&other.authorized_buckets);
 		}
-
-		self.authorized_buckets.merge(&other.authorized_buckets);
 	}
 }
 

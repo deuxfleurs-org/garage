@@ -94,7 +94,7 @@ pub async fn handle_put(
 	garage.object_table.insert(&object).await?;
 
 	// Initialize corresponding entry in version table
-	let version = Version::new(version_uuid, bucket.into(), key.into(), false, vec![]);
+	let version = Version::new(version_uuid, bucket.into(), key.into(), false);
 	let first_block_hash = sha256sum(&first_block[..]);
 
 	// Transfer data and verify checksum
@@ -242,19 +242,18 @@ async fn put_block_meta(
 ) -> Result<(), GarageError> {
 	// TODO: don't clone, restart from empty block list ??
 	let mut version = version.clone();
-	version
-		.add_block(VersionBlock {
+	version.blocks.put(
+		VersionBlockKey {
 			part_number,
 			offset,
-			hash,
-			size,
-		})
-		.unwrap();
+		},
+		VersionBlock { hash, size },
+	);
 
 	let block_ref = BlockRef {
 		block: hash,
 		version: version.uuid,
-		deleted: false,
+		deleted: false.into(),
 	};
 
 	futures::try_join!(
@@ -389,7 +388,7 @@ pub async fn handle_put_part(
 	}
 
 	// Copy block to store
-	let version = Version::new(version_uuid, bucket, key, false, vec![]);
+	let version = Version::new(version_uuid, bucket, key, false);
 	let first_block_hash = sha256sum(&first_block[..]);
 	let (_, md5sum_arr, sha256sum) = read_and_put_blocks(
 		&garage,
@@ -454,7 +453,7 @@ pub async fn handle_complete_multipart_upload(
 	};
 
 	let version = version.ok_or(Error::BadRequest(format!("Version not found")))?;
-	if version.blocks().len() == 0 {
+	if version.blocks.len() == 0 {
 		return Err(Error::BadRequest(format!("No data was uploaded")));
 	}
 
@@ -466,9 +465,10 @@ pub async fn handle_complete_multipart_upload(
 	// Check that the list of parts they gave us corresponds to the parts we have here
 	// TODO: check MD5 sum of all uploaded parts? but that would mean we have to store them somewhere...
 	let mut parts = version
-		.blocks()
+		.blocks
+		.items()
 		.iter()
-		.map(|x| x.part_number)
+		.map(|x| x.0.part_number)
 		.collect::<Vec<_>>();
 	parts.dedup();
 	let same_parts = body_list_of_parts
@@ -485,8 +485,8 @@ pub async fn handle_complete_multipart_upload(
 	// shouldn't impact compatibility as the S3 docs specify that
 	// the ETag is an opaque value in case of a multipart upload.
 	// See also: https://teppen.io/2018/06/23/aws_s3_etags/
-	let num_parts = version.blocks().last().unwrap().part_number
-		- version.blocks().first().unwrap().part_number
+	let num_parts = version.blocks.items().last().unwrap().0.part_number
+		- version.blocks.items().first().unwrap().0.part_number
 		+ 1;
 	let etag = format!(
 		"{}-{}",
@@ -495,17 +495,18 @@ pub async fn handle_complete_multipart_upload(
 	);
 
 	let total_size = version
-		.blocks()
+		.blocks
+		.items()
 		.iter()
-		.map(|x| x.size)
+		.map(|x| x.1.size)
 		.fold(0, |x, y| x + y);
 	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
 		ObjectVersionMeta {
 			headers,
 			size: total_size,
-			etag: etag,
+			etag,
 		},
-		version.blocks()[0].hash,
+		version.blocks.items()[0].1.hash,
 	));
 
 	let final_object = Object::new(bucket.clone(), key.clone(), vec![object_version]);

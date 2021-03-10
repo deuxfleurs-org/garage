@@ -79,7 +79,6 @@ impl Garage {
 		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
 			BlockRefTable {
-				background: background.clone(),
 				block_manager: block_manager.clone(),
 			},
 			data_rep_param.clone(),

@@ -66,25 +66,28 @@ pub async fn handle_copy(
 				.await?;
 			let source_version = source_version.ok_or(Error::NotFound)?;
 
-			let dest_version = Version::new(
+			let mut dest_version = Version::new(
 				new_uuid,
 				dest_bucket.to_string(),
 				dest_key.to_string(),
 				false,
-				source_version.blocks().to_vec(),
 			);
+			for (bk, bv) in source_version.blocks.items().iter() {
+				dest_version.blocks.put(*bk, *bv);
+			}
 			let dest_object = Object::new(
 				dest_bucket.to_string(),
 				dest_key.to_string(),
 				vec![dest_object_version],
 			);
 			let dest_block_refs = dest_version
-				.blocks()
+				.blocks
+				.items()
 				.iter()
 				.map(|b| BlockRef {
-					block: b.hash,
+					block: b.1.hash,
 					version: new_uuid,
-					deleted: false,
+					deleted: false.into(),
 				})
 				.collect::<Vec<_>>();
 			futures::try_join!(
