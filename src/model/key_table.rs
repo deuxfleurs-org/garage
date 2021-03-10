@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use garage_table::crdt::*;
 use garage_table::*;
 
-use model010::key_table as prev;
-
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
 	// Primary key
@@ -102,31 +100,5 @@ impl TableSchema for KeyTable {
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.deleted.get())
-	}
-
-	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old = match rmp_serde::decode::from_read_ref::<_, prev::Key>(bytes) {
-			Ok(x) => x,
-			Err(_) => return None,
-		};
-		let mut new = Self::E {
-			key_id: old.key_id.clone(),
-			secret_key: old.secret_key.clone(),
-			name: crdt::LWW::migrate_from_raw(old.name_timestamp, old.name.clone()),
-			deleted: crdt::Bool::new(old.deleted),
-			authorized_buckets: crdt::LWWMap::new(),
-		};
-		for ab in old.authorized_buckets() {
-			let it = crdt::LWWMap::migrate_from_raw_item(
-				ab.bucket.clone(),
-				ab.timestamp,
-				PermissionSet {
-					allow_read: ab.allow_read,
-					allow_write: ab.allow_write,
-				},
-			);
-			new.authorized_buckets.merge(&it);
-		}
-		Some(new)
 	}
 }

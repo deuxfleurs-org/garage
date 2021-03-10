@@ -195,15 +195,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cloudabi"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
-dependencies = [
- "bitflags",
-]
-
-[[package]]
 name = "crc32fast"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -214,42 +205,16 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-epoch"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "058ed274caafc1f60c4997b5fc07bf7dc7cca454af7c6e81edffe5f33f70dace"
-dependencies = [
- "autocfg",
- "cfg-if 0.1.10",
- "crossbeam-utils 0.7.2",
- "lazy_static",
- "maybe-uninit",
- "memoffset 0.5.6",
- "scopeguard",
-]
-
-[[package]]
-name = "crossbeam-epoch"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d60ab4a8dba064f2fbb5aa270c28da5cf4bbd0e72dae1140a6b0353a779dbe00"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.2",
+ "crossbeam-utils",
  "lazy_static",
  "loom",
- "memoffset 0.6.1",
+ "memoffset",
  "scopeguard",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
-dependencies = [
- "autocfg",
- "cfg-if 0.1.10",
- "lazy_static",
 ]
 
 [[package]]
@@ -518,9 +483,9 @@ dependencies = [
  "futures-util",
  "garage_api",
  "garage_model",
- "garage_rpc 0.1.1",
- "garage_table 0.1.1",
- "garage_util 0.1.1",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "garage_web",
  "hex",
  "log",
@@ -529,8 +494,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "sha2",
- "sled 0.31.0",
- "sled 0.34.6",
+ "sled",
  "structopt",
  "tokio",
  "toml",
@@ -548,8 +512,8 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_model",
- "garage_table 0.1.1",
- "garage_util 0.1.1",
+ "garage_table",
+ "garage_util",
  "hex",
  "hmac",
  "http",
@@ -575,10 +539,9 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_model_010b",
- "garage_rpc 0.1.1",
- "garage_table 0.1.1",
- "garage_util 0.1.1",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
  "log",
  "rand 0.7.3",
@@ -586,32 +549,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "sha2",
- "sled 0.34.6",
- "tokio",
-]
-
-[[package]]
-name = "garage_model_010b"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa7bd48aaf0f423a4d18e762c8c8c19a230f9fc237c63c1356ded0463a810428"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 0.4.12",
- "futures",
- "futures-util",
- "garage_rpc 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_table 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hex",
- "log",
- "rand 0.7.3",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "sha2",
- "sled 0.31.0",
+ "sled",
  "tokio",
 ]
 
@@ -623,35 +561,7 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_util 0.1.1",
- "gethostname",
- "hex",
- "http",
- "hyper",
- "hyper-rustls",
- "log",
- "rand 0.7.3",
- "rmp-serde",
- "rustls",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tokio-rustls",
- "webpki",
-]
-
-[[package]]
-name = "garage_rpc"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d374863eb8eff7a9593dbbb73e4c0ea33cd8e88ffc6ac77076ae36721bda805c"
-dependencies = [
- "arc-swap",
- "bytes 0.4.12",
- "futures",
- "futures-util",
- "garage_util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "garage_util",
  "gethostname",
  "hex",
  "http",
@@ -678,8 +588,8 @@ dependencies = [
  "bytes 0.4.12",
  "futures",
  "futures-util",
- "garage_rpc 0.1.1",
- "garage_util 0.1.1",
+ "garage_rpc",
+ "garage_util",
  "hex",
  "hexdump",
  "log",
@@ -687,31 +597,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_bytes",
- "sled 0.34.6",
- "tokio",
-]
-
-[[package]]
-name = "garage_table"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65d14bc1a342b4806a824ece64d37cb849ea5b1c015be9946695b5c163807154"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 0.4.12",
- "futures",
- "futures-util",
- "garage_rpc 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "garage_util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hex",
- "hexdump",
- "log",
- "rand 0.7.3",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "sled 0.31.0",
+ "sled",
  "tokio",
 ]
 
@@ -735,33 +621,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sled 0.34.6",
- "tokio",
- "toml",
- "webpki",
-]
-
-[[package]]
-name = "garage_util"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "393cc63d44006449fc72c15760aa2962a0e47d95ed8d9d82713aac7decb7f988"
-dependencies = [
- "err-derive",
- "futures",
- "futures-util",
- "hex",
- "http",
- "hyper",
- "log",
- "rand 0.7.3",
- "rmp-serde",
- "roxmltree",
- "rustls",
- "serde",
- "serde_json",
- "sha2",
- "sled 0.31.0",
+ "sled",
  "tokio",
  "toml",
  "webpki",
@@ -775,8 +635,8 @@ dependencies = [
  "futures",
  "garage_api",
  "garage_model",
- "garage_table 0.1.1",
- "garage_util 0.1.1",
+ "garage_table",
+ "garage_util",
  "http",
  "hyper",
  "idna",
@@ -1086,15 +946,6 @@ checksum = "89203f3fba0a3795506acaad8ebce3c80c0af93f994d5a1d7a0b1eeb23271929"
 
 [[package]]
 name = "lock_api"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4da24a77a3d8a6d4862d95f72e6fdb9c09a643ecdb402d754004a557f2bec75"
-dependencies = [
- "scopeguard",
-]
-
-[[package]]
-name = "lock_api"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd96ffd135b2fd7b973ac026d28085defbe8983df057ced3eb4f2130b0831312"
@@ -1129,12 +980,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
-name = "maybe-uninit"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
-
-[[package]]
 name = "md-5"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1150,15 +995,6 @@ name = "memchr"
 version = "2.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
-
-[[package]]
-name = "memoffset"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "043175f069eda7b85febe4a74abbaeff828d9f8b448515d3151a14a3542811aa"
-dependencies = [
- "autocfg",
-]
 
 [[package]]
 name = "memoffset"
@@ -1283,37 +1119,13 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "parking_lot"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3a704eb390aafdc107b0e392f56a82b668e3a71366993b5340f5833fd62505e"
-dependencies = [
- "lock_api 0.3.4",
- "parking_lot_core 0.7.2",
-]
-
-[[package]]
-name = "parking_lot"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d7744ac029df22dca6284efe4e898991d28e3085c706c972bcd7da4a27a15eb"
 dependencies = [
  "instant",
- "lock_api 0.4.2",
- "parking_lot_core 0.8.3",
-]
-
-[[package]]
-name = "parking_lot_core"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d58c7c768d4ba344e3e8d72518ac13e259d7c7ade24167003b8488e10b6740a3"
-dependencies = [
- "cfg-if 0.1.10",
- "cloudabi",
- "libc",
- "redox_syscall 0.1.57",
- "smallvec",
- "winapi 0.3.9",
+ "lock_api",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -1325,7 +1137,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "instant",
  "libc",
- "redox_syscall 0.2.5",
+ "redox_syscall",
  "smallvec",
  "winapi 0.3.9",
 ]
@@ -1550,12 +1362,6 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.1.57"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41cc0f7e4d5d4544e8861606a285bb08d3e70712ccc7d2b84d7c0ccfaf4b05ce"
-
-[[package]]
-name = "redox_syscall"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94341e4e44e24f6b591b59e47a8a027df12e008d73fd5672dbea9cc22f4507d9"
@@ -1748,34 +1554,18 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "sled"
-version = "0.31.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb6824dde66ad33bf20c6e8476f5b82b871bc8bc3c129a10ea2f7dae5060fa3"
-dependencies = [
- "crc32fast",
- "crossbeam-epoch 0.8.2",
- "crossbeam-utils 0.7.2",
- "fs2",
- "fxhash",
- "libc",
- "log",
- "parking_lot 0.10.2",
-]
-
-[[package]]
-name = "sled"
 version = "0.34.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d0132f3e393bcb7390c60bb45769498cf4550bcb7a21d7f95c02b69f6362cdc"
 dependencies = [
  "crc32fast",
- "crossbeam-epoch 0.9.2",
- "crossbeam-utils 0.8.2",
+ "crossbeam-epoch",
+ "crossbeam-utils",
  "fs2",
  "fxhash",
  "libc",
  "log",
- "parking_lot 0.11.1",
+ "parking_lot",
 ]
 
 [[package]]

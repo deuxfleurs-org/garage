@@ -5,11 +5,6 @@ use garage_table::*;
 
 use crate::key_table::PermissionSet;
 
-// We import the same file but in its version 0.1.0.
-// We can then access v0.1.0 data structures.
-// We use them to perform migrations.
-use model010::bucket_table as prev;
-
 /// A bucket is a collection of objects
 ///
 /// Its parameters are not directly accessible as:
@@ -107,40 +102,5 @@ impl TableSchema for BucketTable {
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())
-	}
-
-	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old = match rmp_serde::decode::from_read_ref::<_, prev::Bucket>(bytes) {
-			Ok(x) => x,
-			Err(_) => return None,
-		};
-		if old.deleted {
-			Some(Bucket {
-				name: old.name,
-				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Deleted),
-			})
-		} else {
-			let mut keys = crdt::LWWMap::new();
-			for ak in old.authorized_keys() {
-				keys.merge(&crdt::LWWMap::migrate_from_raw_item(
-					ak.key_id.clone(),
-					ak.timestamp,
-					PermissionSet {
-						allow_read: ak.allow_read,
-						allow_write: ak.allow_write,
-					},
-				));
-			}
-
-			let params = BucketParams {
-				authorized_keys: keys,
-				website: crdt::LWW::new(false),
-			};
-
-			Some(Bucket {
-				name: old.name,
-				state: crdt::LWW::migrate_from_raw(old.timestamp, BucketState::Present(params)),
-			})
-		}
 	}
 }

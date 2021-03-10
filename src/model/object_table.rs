@@ -11,8 +11,6 @@ use garage_table::*;
 
 use crate::version_table::*;
 
-use model010::object_table as prev;
-
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
 	// Primary key
@@ -226,55 +224,5 @@ impl TableSchema for ObjectTable {
 		let deleted = !entry.versions.iter().any(|v| v.is_data());
 		filter.apply(deleted)
 	}
-
-	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old = match rmp_serde::decode::from_read_ref::<_, prev::Object>(bytes) {
-			Ok(x) => x,
-			Err(_) => return None,
-		};
-		let new_v = old
-			.versions()
-			.iter()
-			.map(migrate_version)
-			.collect::<Vec<_>>();
-		let new = Object::new(old.bucket.clone(), old.key.clone(), new_v);
-		Some(new)
-	}
 }
 
-fn migrate_version(old: &prev::ObjectVersion) -> ObjectVersion {
-	let headers = ObjectVersionHeaders {
-		content_type: old.mime_type.clone(),
-		other: BTreeMap::new(),
-	};
-	let meta = ObjectVersionMeta {
-		headers: headers.clone(),
-		size: old.size,
-		etag: "".to_string(),
-	};
-	let state = match old.state {
-		prev::ObjectVersionState::Uploading => ObjectVersionState::Uploading(headers),
-		prev::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
-		prev::ObjectVersionState::Complete => match &old.data {
-			prev::ObjectVersionData::Uploading => ObjectVersionState::Uploading(headers),
-			prev::ObjectVersionData::DeleteMarker => {
-				ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
-			}
-			prev::ObjectVersionData::Inline(x) => {
-				ObjectVersionState::Complete(ObjectVersionData::Inline(meta, x.clone()))
-			}
-			prev::ObjectVersionData::FirstBlock(h) => {
-				let mut hash = [0u8; 32];
-				hash.copy_from_slice(h.as_ref());
-				ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, Hash::from(hash)))
-			}
-		},
-	};
-	let mut uuid = [0u8; 32];
-	uuid.copy_from_slice(old.uuid.as_ref());
-	ObjectVersion {
-		uuid: UUID::from(uuid),
-		timestamp: old.timestamp,
-		state,
-	}
-}
