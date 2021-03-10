@@ -10,7 +10,7 @@ pub trait PartitionKey {
 
 impl PartitionKey for String {
 	fn hash(&self) -> Hash {
-		sha256sum(self.as_bytes())
+		blake2sum(self.as_bytes())
 	}
 }
 
