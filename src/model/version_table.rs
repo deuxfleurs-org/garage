@@ -16,8 +16,11 @@ pub struct Version {
 	pub uuid: UUID,
 
 	// Actual data: the blocks for this version
+	// In the case of a multipart upload, also store the etags
+	// of individual parts and check them when doing CompleteMultipartUpload
 	pub deleted: crdt::Bool,
 	pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
+	pub parts_etags: crdt::Map<u64, String>,
 
 	// Back link to bucket+key so that we can figure if
 	// this was deleted later on
@@ -31,6 +34,7 @@ impl Version {
 			uuid,
 			deleted: deleted.into(),
 			blocks: crdt::Map::new(),
+			parts_etags: crdt::Map::new(),
 			bucket,
 			key,
 		}
@@ -82,8 +86,10 @@ impl CRDT for Version {
 
 		if self.deleted.get() {
 			self.blocks.clear();
+			self.parts_etags.clear();
 		} else {
 			self.blocks.merge(&other.blocks);
+			self.parts_etags.merge(&other.parts_etags);
 		}
 	}
 }
