@@ -98,9 +98,9 @@ pub struct ConfigureNodeOpt {
 	#[structopt(short = "d", long = "datacenter")]
 	datacenter: Option<String>,
 
-	/// Number of tokens
-	#[structopt(short = "n", long = "n-tokens")]
-	n_tokens: Option<u32>,
+	/// Capacity (in relative terms, use 1 to represent your smallest server)
+	#[structopt(short = "c", long = "capacity")]
+	capacity: Option<u32>,
 
 	/// Optionnal node tag
 	#[structopt(short = "t", long = "tag")]
@@ -360,7 +360,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
 				"{:?}\t{}\t{}\t[{}]\t{}\t{}",
-				adv.id, adv.state_info.hostname, adv.addr, cfg.tag, cfg.datacenter, cfg.n_tokens
+				adv.id, adv.state_info.hostname, adv.addr, cfg.tag, cfg.datacenter, cfg.capacity
 			);
 		} else {
 			println!(
@@ -387,7 +387,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 					adv.addr,
 					cfg.tag,
 					cfg.datacenter,
-					cfg.n_tokens,
+					cfg.capacity,
 					(now_msec() - adv.last_seen) / 1000,
 				);
 			}
@@ -396,7 +396,7 @@ async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Re
 			if !status.iter().any(|x| x.id == *id) {
 				println!(
 					"{:?}\t{}\t{}\t{}\tnever seen",
-					id, cfg.tag, cfg.datacenter, cfg.n_tokens
+					id, cfg.tag, cfg.datacenter, cfg.capacity
 				);
 			}
 		}
@@ -444,14 +444,14 @@ async fn cmd_configure(
 			datacenter: args
 				.datacenter
 				.expect("Please specifiy a datacenter with the -d flag"),
-			n_tokens: args
-				.n_tokens
-				.expect("Please specifiy a number of tokens with the -n flag"),
+			capacity: args
+				.capacity
+				.expect("Please specifiy a capacity with the -c flag"),
 			tag: args.tag.unwrap_or("".to_string()),
 		},
 		Some(old) => NetworkConfigEntry {
 			datacenter: args.datacenter.unwrap_or(old.datacenter.to_string()),
-			n_tokens: args.n_tokens.unwrap_or(old.n_tokens),
+			capacity: args.capacity.unwrap_or(old.capacity),
 			tag: args.tag.unwrap_or(old.tag.to_string()),
 		},
 	};

@@ -18,6 +18,6 @@ garage status \
 	| grep UNCONFIGURED \
 	| grep -Po '^[0-9a-f]+' \
 	| while read id; do 
-	  garage node configure -d dc1 -n 1 $id
+	  garage node configure -d dc1 -c 1 $id
 	done
 

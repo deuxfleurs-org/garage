@@ -35,7 +35,7 @@ impl NetworkConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfigEntry {
 	pub datacenter: String,
-	pub n_tokens: u32,
+	pub capacity: u32,
 	pub tag: String,
 }
 
@@ -88,10 +88,10 @@ impl Ring {
 			})
 			.collect::<Vec<_>>();
 
-		let max_toktok = config
+		let max_capacity = config
 			.members
 			.iter()
-			.map(|(_, node_info)| node_info.n_tokens)
+			.map(|(_, node_info)| node_info.capacity)
 			.fold(0, std::cmp::max);
 
 		// Fill up ring
@@ -108,9 +108,9 @@ impl Ring {
 			let mut remaining = partitions_idx.len();
 			while remaining > 0 {
 				let remaining0 = remaining;
-				for toktok in 0..max_toktok {
+				for i_round in 0..max_capacity {
 					for (node_id, node_info, q, pos) in queues.iter_mut() {
-						if toktok >= node_info.n_tokens {
+						if i_round >= node_info.capacity {
 							continue;
 						}
 						for pos2 in *pos..q.len() {
