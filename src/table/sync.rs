@@ -49,7 +49,6 @@ pub(crate) enum SyncRPC {
 	CkNoDifference,
 	GetNode(MerkleNodeKey),
 	Node(MerkleNodeKey, MerkleNode),
-	Items(Vec<Arc<ByteBuf>>),
 }
 
 struct SyncTodo {
@@ -119,7 +118,7 @@ where
 			select! {
 				new_ring_r = s_ring_recv => {
 					if new_ring_r.is_some() {
-						debug!("({}) Adding ring difference to syncer todo list", self.data.name);
+						debug!("({}) Ring changed, adding full sync to syncer todo list", self.data.name);
 						self.add_full_sync();
 					}
 				}
@@ -142,7 +141,7 @@ where
 				_ = s_timeout => {
 					if nothing_to_do_since.map(|t| Instant::now() - t >= ANTI_ENTROPY_INTERVAL).unwrap_or(false) {
 						nothing_to_do_since = None;
-						debug!("({}) Adding full sync to syncer todo list", self.data.name);
+						debug!("({}) Interval passed, adding full sync to syncer todo list", self.data.name);
 						self.add_full_sync();
 					}
 				}
@@ -330,6 +329,10 @@ where
 	}
 
 	// ======= SYNCHRONIZATION PROCEDURE -- DRIVER SIDE ======
+	// The driver side is only concerned with sending out the item it has
+	// and the other side might not have. Receiving items that differ from one
+	// side to the other will happen when the other side syncs with us,
+	// which they also do regularly.
 
 	fn get_root_ck(&self, range: PartitionRange) -> Result<RootCk, Error> {
 		let begin = u16::from_be_bytes(range.begin);
