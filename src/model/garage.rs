@@ -35,7 +35,7 @@ pub struct Garage {
 }
 
 impl Garage {
-	pub async fn new(
+	pub fn new(
 		config: Config,
 		db: sled::Db,
 		background: Arc<BackgroundRunner>,
@@ -86,8 +86,7 @@ impl Garage {
 			&db,
 			"block_ref".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize version_table...");
 		let version_table = Table::new(
@@ -100,8 +99,7 @@ impl Garage {
 			&db,
 			"version".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize object_table...");
 		let object_table = Table::new(
@@ -114,8 +112,7 @@ impl Garage {
 			&db,
 			"object".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize bucket_table...");
 		let bucket_table = Table::new(
@@ -125,8 +122,7 @@ impl Garage {
 			&db,
 			"bucket".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize key_table_table...");
 		let key_table = Table::new(
@@ -136,8 +132,7 @@ impl Garage {
 			&db,
 			"key".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize Garage...");
 		let garage = Arc::new(Self {
@@ -155,7 +150,7 @@ impl Garage {
 
 		info!("Start block manager background thread...");
 		garage.block_manager.garage.swap(Some(garage.clone()));
-		garage.block_manager.clone().spawn_background_worker().await;
+		garage.block_manager.clone().spawn_background_worker();
 
 		garage
 	}

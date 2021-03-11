@@ -106,7 +106,7 @@ where
 	F: TableSchema + 'static,
 	R: TableReplication + 'static,
 {
-	pub(crate) async fn launch(table: Arc<Table<F, R>>) -> Arc<Self> {
+	pub(crate) fn launch(table: Arc<Table<F, R>>) -> Arc<Self> {
 		let todo = SyncTodo { todo: Vec::new() };
 		let syncer = Arc::new(TableSyncer {
 			table: table.clone(),
@@ -119,24 +119,16 @@ where
 		let (busy_tx, busy_rx) = mpsc::unbounded_channel();
 
 		let s1 = syncer.clone();
-		table
-			.system
-			.background
-			.spawn_worker(
-				format!("table sync watcher for {}", table.name),
-				move |must_exit: watch::Receiver<bool>| s1.watcher_task(must_exit, busy_rx),
-			)
-			.await;
+		table.system.background.spawn_worker(
+			format!("table sync watcher for {}", table.name),
+			move |must_exit: watch::Receiver<bool>| s1.watcher_task(must_exit, busy_rx),
+		);
 
 		let s2 = syncer.clone();
-		table
-			.system
-			.background
-			.spawn_worker(
-				format!("table syncer for {}", table.name),
-				move |must_exit: watch::Receiver<bool>| s2.syncer_task(must_exit, busy_tx),
-			)
-			.await;
+		table.system.background.spawn_worker(
+			format!("table syncer for {}", table.name),
+			move |must_exit: watch::Receiver<bool>| s2.syncer_task(must_exit, busy_tx),
+		);
 
 		let s3 = syncer.clone();
 		tokio::spawn(async move {
@@ -630,7 +622,7 @@ where
 					}
 				}
 				if diff_items.len() > 0 {
-					self.table.handle_update(&diff_items[..]).await?;
+					self.table.handle_update(&diff_items[..])?;
 				}
 				if items_to_send.len() > 0 {
 					self.send_items(who, items_to_send).await?;

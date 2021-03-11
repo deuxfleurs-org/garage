@@ -350,8 +350,7 @@ impl AdminRpcHandler {
 				.background
 				.spawn_worker("Repair worker".into(), move |must_exit| async move {
 					repair.repair_worker(opt, must_exit).await
-				})
-				.await;
+				});
 			Ok(AdminRPC::Ok(format!(
 				"Repair launched on {:?}",
 				self.garage.system.id

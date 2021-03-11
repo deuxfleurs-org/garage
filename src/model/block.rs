@@ -127,18 +127,16 @@ impl BlockManager {
 		}
 	}
 
-	pub async fn spawn_background_worker(self: Arc<Self>) {
+	pub fn spawn_background_worker(self: Arc<Self>) {
 		// Launch 2 simultaneous workers for background resync loop preprocessing
-		for i in 0..2usize {
+		for i in 0..2u64 {
 			let bm2 = self.clone();
 			let background = self.system.background.clone();
 			tokio::spawn(async move {
-				tokio::time::delay_for(Duration::from_secs(10)).await;
-				background
-					.spawn_worker(format!("block resync worker {}", i), move |must_exit| {
-						bm2.resync_loop(must_exit)
-					})
-					.await;
+				tokio::time::delay_for(Duration::from_secs(10 * (i + 1))).await;
+				background.spawn_worker(format!("block resync worker {}", i), move |must_exit| {
+					bm2.resync_loop(must_exit)
+				});
 			});
 		}
 	}

@@ -319,8 +319,7 @@ impl System {
 			.background
 			.spawn_worker(format!("ping loop"), |stop_signal| {
 				self2.ping_loop(stop_signal).map(Ok)
-			})
-			.await;
+			});
 
 		if let (Some(consul_host), Some(consul_service_name)) = (consul_host, consul_service_name) {
 			let self2 = self.clone();
@@ -330,8 +329,7 @@ impl System {
 					self2
 						.consul_loop(stop_signal, consul_host, consul_service_name)
 						.map(Ok)
-				})
-				.await;
+				});
 		}
 	}
 

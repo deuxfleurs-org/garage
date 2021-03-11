@@ -12,7 +12,7 @@ steps:
     image: alpine/git
     commands:
       - mkdir -p cargo
-      - git clone https://git.deuxfleurs.fr/Deuxfleurs/garage.git
+      - git clone $DRONE_GIT_HTTP_URL
       - cd garage
       - git checkout $DRONE_COMMIT
 
@@ -34,8 +34,8 @@ steps:
         - 'garage/target'
         - 'cargo/registry/index'
         - 'cargo/registry/cache'
-        - 'cargo/git/db'
         - 'cargo/bin'
+        - 'cargo/git/db'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
 
