@@ -433,9 +433,12 @@ where
 					// We don't request those items from them, they will send them.
 					// We only bother with pushing items that differ
 				}
-				MerkleNode::Leaf(ik, _) => {
+				MerkleNode::Leaf(ik, ivhash) => {
 					// Just send that item directly
-					if let Some(val) = self.data.store.get(ik)? {
+					if let Some(val) = self.data.store.get(&ik[..])? {
+						if blake2sum(&val[..]) != ivhash {
+							warn!("Hashes differ between stored value and Merkle tree, key: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", ik);
+						}
 						todo_items.push(val.to_vec());
 					}
 				}
