@@ -61,7 +61,7 @@ pub enum MerkleNode {
 }
 
 impl MerkleUpdater {
-	pub(crate) fn new(
+	pub(crate) fn launch(
 		table_name: String,
 		background: Arc<BackgroundRunner>,
 		todo: sled::Tree,
@@ -69,22 +69,22 @@ impl MerkleUpdater {
 	) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
 
-		Arc::new(Self {
+		let ret = Arc::new(Self {
 			table_name,
 			background,
 			todo,
 			todo_notify: Notify::new(),
 			merkle_tree,
 			empty_node_hash,
-		})
-	}
+		});
 
-	pub(crate) fn launch(self: &Arc<Self>) {
-		let self2 = self.clone();
-		self.background.spawn_worker(
-			format!("Merkle tree updater for {}", self.table_name),
-			|must_exit: watch::Receiver<bool>| self2.updater_loop(must_exit),
+		let ret2 = ret.clone();
+		ret.background.spawn_worker(
+			format!("Merkle tree updater for {}", ret.table_name),
+			|must_exit: watch::Receiver<bool>| ret2.updater_loop(must_exit),
 		);
+
+		ret
 	}
 
 	async fn updater_loop(
@@ -156,28 +156,37 @@ impl MerkleUpdater {
 		new_vhash: Option<Hash>,
 	) -> ConflictableTransactionResult<Option<Hash>, Error> {
 		let i = key.prefix.len();
+
+		// Read node at current position (defined by the prefix stored in key)
+		// Calculate an update to apply to this node
+		// This update is an Option<_>, so that it is None if the update is a no-op
+		// and we can thus skip recalculating and re-storing everything
 		let mutate = match self.read_node_txn(tx, &key)? {
 			MerkleNode::Empty => {
 				if let Some(vhv) = new_vhash {
 					Some(MerkleNode::Leaf(k.to_vec(), vhv))
 				} else {
+					// Nothing to do, keep empty node
 					None
 				}
 			}
 			MerkleNode::Intermediate(mut children) => {
 				let key2 = key.next_key(khash);
 				if let Some(subhash) = self.update_item_rec(tx, k, khash, &key2, new_vhash)? {
+					// Subtree changed, update this node as well
 					if subhash == self.empty_node_hash {
 						intermediate_rm_child(&mut children, key2.prefix[i]);
 					} else {
 						intermediate_set_child(&mut children, key2.prefix[i], subhash);
 					}
+
 					if children.len() == 0 {
 						// should not happen
 						warn!("Replacing intermediate node with empty node, should not happen.");
 						Some(MerkleNode::Empty)
 					} else if children.len() == 1 {
-						// move node down to this level
+						// We now have a single node (case when the update deleted one of only two
+						// children). Move that single child to this level of the tree.
 						let key_sub = key.add_byte(children[0].0);
 						let subnode = self.read_node_txn(tx, &key_sub)?;
 						tx.remove(key_sub.encode())?;
@@ -186,19 +195,23 @@ impl MerkleUpdater {
 						Some(MerkleNode::Intermediate(children))
 					}
 				} else {
+					// Subtree not changed, nothing to do
 					None
 				}
 			}
 			MerkleNode::Leaf(exlf_key, exlf_hash) => {
 				if exlf_key == k {
+					// This leaf is for the same key that the one we are updating
 					match new_vhash {
 						Some(vhv) if vhv == exlf_hash => None,
 						Some(vhv) => Some(MerkleNode::Leaf(k.to_vec(), vhv)),
 						None => Some(MerkleNode::Empty),
 					}
 				} else {
+					// This is an only leaf for another key
 					if let Some(vhv) = new_vhash {
-						// Create two sub-nodes and replace by intermediary node
+						// Move that other key to a subnode, create another subnode for our
+						// insertion and replace current node by an intermediary node
 						let (pos1, h1) = {
 							let key2 = key.next_key(blake2sum(&exlf_key[..]));
 							let subhash =
@@ -216,6 +229,9 @@ impl MerkleUpdater {
 						intermediate_set_child(&mut int, pos2, h2);
 						Some(MerkleNode::Intermediate(int))
 					} else {
+						// Nothing to do, we don't want to insert this value because it is None,
+						// and we don't want to change the other value because it's for something
+						// else
 						None
 					}
 				}
@@ -263,6 +279,7 @@ impl MerkleUpdater {
 		}
 	}
 
+	// Access a node in the Merkle tree, used by the sync protocol
 	pub(crate) fn read_node(
 		&self,
 		k: &MerkleNodeKey,

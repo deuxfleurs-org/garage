@@ -2,7 +2,7 @@ use garage_rpc::membership::System;
 use garage_rpc::ring::Ring;
 use garage_util::data::*;
 
-use crate::*;
+use crate::replication::*;
 
 #[derive(Clone)]
 pub struct TableShardedReplication {

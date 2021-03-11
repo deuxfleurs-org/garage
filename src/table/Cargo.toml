@@ -19,7 +19,6 @@ garage_rpc = { version = "0.1.1", path = "../rpc" }
 bytes = "0.4"
 rand = "0.7"
 hex = "0.3"
-arc-swap = "0.4"
 log = "0.4"
 hexdump = "0.1"
 

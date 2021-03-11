@@ -19,8 +19,7 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
-use garage_table::table_sharded::TableShardedReplication;
-use garage_table::TableReplication;
+use garage_table::replication::{sharded::TableShardedReplication, TableReplication};
 
 use crate::block_ref_table::*;
 
@@ -412,7 +411,7 @@ impl BlockManager {
 		let garage = self.garage.load_full().unwrap();
 		let mut last_hash = None;
 		let mut i = 0usize;
-		for entry in garage.block_ref_table.store.iter() {
+		for entry in garage.block_ref_table.data.store.iter() {
 			let (_k, v_bytes) = entry?;
 			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(v_bytes.as_ref())?;
 			if Some(&block_ref.block) == last_hash.as_ref() {
