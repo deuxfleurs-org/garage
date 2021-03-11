@@ -440,9 +440,13 @@ where
 							warn!("Hashes differ between stored value and Merkle tree, key: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", ik);
 						}
 						todo_items.push(val.to_vec());
+					} else {
+						warn!("Item from Merkle tree not found in store: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", ik);
 					}
 				}
 				MerkleNode::Intermediate(l) => {
+					// Get Merkle node for this tree position at remote node
+					// and compare it with local node
 					let remote_node = match self
 						.aux
 						.rpc_client
@@ -462,7 +466,11 @@ where
 						}
 					};
 					let int_l2 = match remote_node {
+						// If they have an intermediate node at this tree position,
+						// we can compare them to find differences
 						MerkleNode::Intermediate(l2) => l2,
+						// Otherwise, treat it as if they have nothing for this subtree,
+						// which will have the consequence of sending them everything
 						_ => vec![],
 					};
 
@@ -493,20 +501,18 @@ where
 		Ok(())
 	}
 
-	async fn send_items(&self, who: UUID, item_list: Vec<Vec<u8>>) -> Result<(), Error> {
+	async fn send_items(&self, who: UUID, item_value_list: Vec<Vec<u8>>) -> Result<(), Error> {
 		info!(
 			"({}) Sending {} items to {:?}",
 			self.data.name,
-			item_list.len(),
+			item_value_list.len(),
 			who
 		);
 
-		let mut values = vec![];
-		for item in item_list.iter() {
-			if let Some(v) = self.data.store.get(&item[..])? {
-				values.push(Arc::new(ByteBuf::from(v.as_ref())));
-			}
-		}
+		let values = item_value_list.into_iter()
+			.map(|x| Arc::new(ByteBuf::from(x)))
+			.collect::<Vec<_>>();
+
 		let rpc_resp = self
 			.aux
 			.rpc_client
