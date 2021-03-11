@@ -183,7 +183,7 @@ impl Ring {
 
 		let partition_top =
 			u16::from_be_bytes(partition.location.as_slice()[0..2].try_into().unwrap());
-		assert!(partition_top & PARTITION_MASK_U16 == top & PARTITION_MASK_U16);
+		assert_eq!(partition_top & PARTITION_MASK_U16, top & PARTITION_MASK_U16);
 
 		assert!(n <= partition.nodes.len());
 		partition.nodes[..n].iter().cloned().collect::<Vec<_>>()

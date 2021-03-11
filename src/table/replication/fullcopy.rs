@@ -53,7 +53,6 @@ impl TableReplication for TableFullReplication {
 	fn split_points(&self, _ring: &Ring) -> Vec<Hash> {
 		let mut ret = vec![];
 		ret.push([0u8; 32].into());
-		ret.push([0xFFu8; 32].into());
 		ret
 	}
 }

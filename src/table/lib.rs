@@ -7,11 +7,11 @@ pub mod crdt;
 pub mod schema;
 pub mod util;
 
+pub mod data;
 pub mod merkle;
 pub mod replication;
-pub mod data;
+pub mod sync;
 pub mod table;
-pub mod table_sync;
 
 pub use schema::*;
 pub use table::*;

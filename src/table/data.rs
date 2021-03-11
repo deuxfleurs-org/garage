@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use log::warn;
-use sled::Transactional;
 use serde_bytes::ByteBuf;
+use sled::Transactional;
 
+use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::*;
-use garage_util::background::BackgroundRunner;
 
-use crate::schema::*;
-use crate::merkle::*;
 use crate::crdt::CRDT;
+use crate::merkle::*;
+use crate::schema::*;
 
 pub struct TableData<F: TableSchema> {
 	pub name: String,
@@ -20,7 +20,10 @@ pub struct TableData<F: TableSchema> {
 	pub(crate) merkle_updater: Arc<MerkleUpdater>,
 }
 
-impl<F> TableData<F> where F: TableSchema {
+impl<F> TableData<F>
+where
+	F: TableSchema,
+{
 	pub fn new(
 		name: String,
 		instance: F,
@@ -45,7 +48,7 @@ impl<F> TableData<F> where F: TableSchema {
 			merkle_tree_store,
 		);
 
-		Arc::new(Self{
+		Arc::new(Self {
 			name,
 			instance,
 			store,

@@ -25,26 +25,11 @@ impl Repair {
 
 		if todo(RepairWhat::Tables) {
 			info!("Launching a full sync of tables");
-			self.garage
-				.bucket_table
-				.syncer
-				.add_full_scan();
-			self.garage
-				.object_table
-				.syncer
-				.add_full_scan();
-			self.garage
-				.version_table
-				.syncer
-				.add_full_scan();
-			self.garage
-				.block_ref_table
-				.syncer
-				.add_full_scan();
-			self.garage
-				.key_table
-				.syncer
-				.add_full_scan();
+			self.garage.bucket_table.syncer.add_full_sync();
+			self.garage.object_table.syncer.add_full_sync();
+			self.garage.version_table.syncer.add_full_sync();
+			self.garage.block_ref_table.syncer.add_full_sync();
+			self.garage.key_table.syncer.add_full_sync();
 		}
 
 		// TODO: wait for full sync to finish before proceeding to the rest?
@@ -78,7 +63,9 @@ impl Repair {
 	async fn repair_versions(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		let mut pos = vec![];
 
-		while let Some((item_key, item_bytes)) = self.garage.version_table.data.store.get_gt(&pos)? {
+		while let Some((item_key, item_bytes)) =
+			self.garage.version_table.data.store.get_gt(&pos)?
+		{
 			pos = item_key.to_vec();
 
 			let version = rmp_serde::decode::from_read_ref::<_, Version>(item_bytes.as_ref())?;
@@ -126,7 +113,9 @@ impl Repair {
 	async fn repair_block_ref(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		let mut pos = vec![];
 
-		while let Some((item_key, item_bytes)) = self.garage.block_ref_table.data.store.get_gt(&pos)? {
+		while let Some((item_key, item_bytes)) =
+			self.garage.block_ref_table.data.store.get_gt(&pos)?
+		{
 			pos = item_key.to_vec();
 
 			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(item_bytes.as_ref())?;

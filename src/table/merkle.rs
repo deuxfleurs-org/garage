@@ -15,6 +15,19 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
 
+pub type MerklePartition = [u8; 2];
+
+pub fn hash_of_merkle_partition(p: MerklePartition) -> Hash {
+	let mut partition_pos = [0u8; 32];
+	partition_pos[0..2].copy_from_slice(&p[..]);
+	partition_pos.into()
+}
+
+pub fn hash_of_merkle_partition_opt(p: Option<MerklePartition>) -> Hash {
+	p.map(hash_of_merkle_partition)
+		.unwrap_or([0xFFu8; 32].into())
+}
+
 // This modules partitions the data in 2**16 partitions, based on the top
 // 16 bits (two bytes) of item's partition keys' hashes.
 // It builds one Merkle tree for each of these 2**16 partitions.
@@ -37,10 +50,10 @@ pub(crate) struct MerkleUpdater {
 	empty_node_hash: Hash,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MerkleNodeKey {
 	// partition: first 16 bits (two bytes) of the partition_key's hash
-	pub partition: [u8; 2],
+	pub partition: MerklePartition,
 
 	// prefix: a prefix for the hash of full keys, i.e. hash(hash(partition_key)+sort_key)
 	pub prefix: Vec<u8>,
@@ -214,8 +227,11 @@ impl MerkleUpdater {
 						// insertion and replace current node by an intermediary node
 						let (pos1, h1) = {
 							let key2 = key.next_key(blake2sum(&exlf_key[..]));
-							let subhash =
-								self.put_node_txn(tx, &key2, &MerkleNode::Leaf(exlf_key, exlf_hash))?;
+							let subhash = self.put_node_txn(
+								tx,
+								&key2,
+								&MerkleNode::Leaf(exlf_key, exlf_hash),
+							)?;
 							(key2.prefix[i], subhash)
 						};
 						let (pos2, h2) = {
@@ -280,14 +296,11 @@ impl MerkleUpdater {
 	}
 
 	// Access a node in the Merkle tree, used by the sync protocol
-	pub(crate) fn read_node(
-		&self,
-		k: &MerkleNodeKey,
-	) -> Result<MerkleNode, Error> {
+	pub(crate) fn read_node(&self, k: &MerkleNodeKey) -> Result<MerkleNode, Error> {
 		let ent = self.merkle_tree.get(k.encode())?;
 		match ent {
 			None => Ok(MerkleNode::Empty),
-			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?)
+			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),
 		}
 	}
 }
@@ -339,31 +352,77 @@ fn intermediate_rm_child(ch: &mut Vec<(u8, Hash)>, pos: u8) {
 #[test]
 fn test_intermediate_aux() {
 	let mut v = vec![];
-	
+
 	intermediate_set_child(&mut v, 12u8, [12u8; 32].into());
-	assert!(v == vec![(12u8, [12u8; 32].into())]);
-	
+	assert_eq!(v, vec![(12u8, [12u8; 32].into())]);
+
 	intermediate_set_child(&mut v, 42u8, [42u8; 32].into());
-	assert!(v == vec![(12u8, [12u8; 32].into()), (42u8, [42u8; 32].into())]);
-	
+	assert_eq!(
+		v,
+		vec![(12u8, [12u8; 32].into()), (42u8, [42u8; 32].into())]
+	);
+
 	intermediate_set_child(&mut v, 4u8, [4u8; 32].into());
-	assert!(v == vec![(4u8, [4u8; 32].into()), (12u8, [12u8; 32].into()), (42u8, [42u8; 32].into())]);
-	
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(12u8, [12u8; 32].into()),
+			(42u8, [42u8; 32].into())
+		]
+	);
+
 	intermediate_set_child(&mut v, 12u8, [8u8; 32].into());
-	assert!(v == vec![(4u8, [4u8; 32].into()), (12u8, [8u8; 32].into()), (42u8, [42u8; 32].into())]);
-	
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(12u8, [8u8; 32].into()),
+			(42u8, [42u8; 32].into())
+		]
+	);
+
 	intermediate_set_child(&mut v, 6u8, [6u8; 32].into());
-	assert!(v == vec![(4u8, [4u8; 32].into()), (6u8, [6u8; 32].into()), (12u8, [8u8; 32].into()), (42u8, [42u8; 32].into())]);
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(6u8, [6u8; 32].into()),
+			(12u8, [8u8; 32].into()),
+			(42u8, [42u8; 32].into())
+		]
+	);
 
 	intermediate_rm_child(&mut v, 42u8);
-	assert!(v == vec![(4u8, [4u8; 32].into()), (6u8, [6u8; 32].into()), (12u8, [8u8; 32].into())]);
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(6u8, [6u8; 32].into()),
+			(12u8, [8u8; 32].into())
+		]
+	);
 
 	intermediate_rm_child(&mut v, 11u8);
-	assert!(v == vec![(4u8, [4u8; 32].into()), (6u8, [6u8; 32].into()), (12u8, [8u8; 32].into())]);
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(6u8, [6u8; 32].into()),
+			(12u8, [8u8; 32].into())
+		]
+	);
 
 	intermediate_rm_child(&mut v, 6u8);
-	assert!(v == vec![(4u8, [4u8; 32].into()), (12u8, [8u8; 32].into())]);
-	
+	assert_eq!(v, vec![(4u8, [4u8; 32].into()), (12u8, [8u8; 32].into())]);
+
 	intermediate_set_child(&mut v, 6u8, [7u8; 32].into());
-	assert!(v == vec![(4u8, [4u8; 32].into()), (6u8, [7u8; 32].into()), (12u8, [8u8; 32].into())]);
+	assert_eq!(
+		v,
+		vec![
+			(4u8, [4u8; 32].into()),
+			(6u8, [7u8; 32].into()),
+			(12u8, [8u8; 32].into())
+		]
+	);
 }
