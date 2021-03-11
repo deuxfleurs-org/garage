@@ -277,6 +277,9 @@ where
 					warn!("Interrupting offload as partitions seem to have changed");
 					break;
 				}
+				if nodes.len() < self.aux.replication.write_quorum(&self.aux.system) {
+					return Err(Error::Message(format!("Not offloading as we don't have a quorum of nodes to write to.")));
+				}
 
 				counter += 1;
 				debug!(

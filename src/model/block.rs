@@ -305,6 +305,9 @@ impl BlockManager {
 			let ring = self.system.ring.borrow().clone();
 
 			let mut who = self.replication.replication_nodes(&hash, &ring);
+			if who.len() < self.replication.write_quorum(&self.system) {
+				return Err(Error::Message(format!("Not trying to offload block because we don't have a quorum of nodes to write to")));
+			}
 			who.retain(|id| *id != self.system.id);
 
 			let msg = Arc::new(Message::NeedBlockQuery(*hash));

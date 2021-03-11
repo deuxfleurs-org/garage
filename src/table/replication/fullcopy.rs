@@ -41,7 +41,12 @@ impl TableReplication for TableFullReplication {
 		self.replication_nodes(hash, system.ring.borrow().as_ref())
 	}
 	fn write_quorum(&self, system: &System) -> usize {
-		system.ring.borrow().config.members.len() - self.max_faults
+		let nmembers = system.ring.borrow().config.members.len();
+		if nmembers > self.max_faults {
+			nmembers - self.max_faults
+		} else {
+			1
+		}
 	}
 	fn max_write_errors(&self) -> usize {
 		self.max_faults
