@@ -370,6 +370,14 @@ where
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
 		let root_ck = self.get_root_ck(partition.range)?;
+		if root_ck.is_empty() {
+			debug!(
+				"({}) Sync {:?} with {:?}: partition is empty.",
+				self.data.name, partition, who
+			);
+			return Ok(())
+		}
+
 		let root_ck_hash = hash_of(&root_ck)?;
 
 		// If their root checksum has level > than us, use that as a reference
@@ -637,7 +645,7 @@ fn join_ordered<'a, K: Ord + Eq, V1, V2>(
 			ret.push((&x[i].0, Some(&x[i].1), None));
 			i += 1;
 		} else if j < y.len() && (i == x.len() || x[i].0 > y[j].0) {
-			ret.push((&x[i].0, None, Some(&y[j].1)));
+			ret.push((&y[j].0, None, Some(&y[j].1)));
 			j += 1;
 		} else {
 			unreachable!();

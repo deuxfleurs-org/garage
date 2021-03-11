@@ -50,7 +50,7 @@ pub(crate) struct MerkleUpdater {
 	empty_node_hash: Hash,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MerkleNodeKey {
 	// partition: first 16 bits (two bytes) of the partition_key's hash
 	pub partition: MerklePartition,
@@ -283,6 +283,7 @@ impl MerkleUpdater {
 		k: &MerkleNodeKey,
 		v: &MerkleNode,
 	) -> ConflictableTransactionResult<Hash, Error> {
+		trace!("Put Merkle node: {:?} => {:?}", k, v);
 		if *v == MerkleNode::Empty {
 			tx.remove(k.encode())?;
 			Ok(self.empty_node_hash)
