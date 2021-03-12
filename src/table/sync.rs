@@ -31,7 +31,7 @@ const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
 pub struct TableSyncer<F: TableSchema, R: TableReplication> {
 	data: Arc<TableData<F>>,
-	aux: Arc<TableAux<F, R>>,
+	aux: Arc<TableAux<R>>,
 
 	todo: Mutex<SyncTodo>,
 	rpc_client: Arc<RpcClient<SyncRPC>>,
@@ -78,7 +78,7 @@ where
 {
 	pub(crate) fn launch(
 		data: Arc<TableData<F>>,
-		aux: Arc<TableAux<F, R>>,
+		aux: Arc<TableAux<R>>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
 		let rpc_path = format!("table_{}/sync", data.name);
@@ -605,7 +605,7 @@ impl SyncTodo {
 	fn add_full_sync<F: TableSchema, R: TableReplication>(
 		&mut self,
 		data: &TableData<F>,
-		aux: &TableAux<F, R>,
+		aux: &TableAux<R>,
 	) {
 		let my_id = aux.system.id;
 
