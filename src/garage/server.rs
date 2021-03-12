@@ -49,6 +49,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let (send_cancel, watch_cancel) = watch::channel(false);
 	let background = BackgroundRunner::new(16, watch_cancel.clone());
 
+	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config, db, background.clone(), &mut rpc_server);
 
 	info!("Crate admin RPC handler...");

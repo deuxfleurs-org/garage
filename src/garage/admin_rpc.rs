@@ -18,6 +18,7 @@ use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::repair::Repair;
+use crate::cli::*;
 use crate::*;
 
 pub const ADMIN_RPC_TIMEOUT: Duration = Duration::from_secs(30);
