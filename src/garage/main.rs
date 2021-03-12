@@ -4,24 +4,24 @@
 extern crate log;
 
 mod admin_rpc;
+mod cli;
 mod repair;
 mod server;
-mod cli;
 
 use std::net::SocketAddr;
-use std::time::Duration;
 use std::sync::Arc;
+use std::time::Duration;
 
 use structopt::StructOpt;
 
-use garage_util::error::Error;
 use garage_util::config::TlsConfig;
+use garage_util::error::Error;
 
-use garage_rpc::rpc_client::*;
 use garage_rpc::membership::*;
+use garage_rpc::rpc_client::*;
 
-use cli::*;
 use admin_rpc::*;
+use cli::*;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]

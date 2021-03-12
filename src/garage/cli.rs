@@ -17,7 +17,6 @@ use garage_model::key_table::*;
 
 use crate::admin_rpc::*;
 
-
 #[derive(StructOpt, Debug)]
 pub enum Command {
 	/// Run Garage server
@@ -270,12 +269,12 @@ pub struct StatsOpt {
 	pub detailed: bool,
 }
 
-
 pub async fn cli_cmd(
 	cmd: Command,
 	membership_rpc_cli: RpcAddrClient<Message>,
 	admin_rpc_cli: RpcAddrClient<AdminRPC>,
-	rpc_host: SocketAddr) -> Result<(), Error> {
+	rpc_host: SocketAddr,
+) -> Result<(), Error> {
 	match cmd {
 		Command::Status => cmd_status(membership_rpc_cli, rpc_host).await,
 		Command::Node(NodeOperation::Configure(configure_opt)) => {
@@ -287,21 +286,17 @@ pub async fn cli_cmd(
 		Command::Bucket(bo) => {
 			cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::BucketOperation(bo)).await
 		}
-		Command::Key(ko) => {
-			cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::KeyOperation(ko)).await
-		}
-		Command::Repair(ro) => {
-			cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::LaunchRepair(ro)).await
-		}
-		Command::Stats(so) => {
-			cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::Stats(so)).await
-		}
+		Command::Key(ko) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::KeyOperation(ko)).await,
+		Command::Repair(ro) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::LaunchRepair(ro)).await,
+		Command::Stats(so) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::Stats(so)).await,
 		_ => unreachable!(),
 	}
 }
 
-
-pub async fn cmd_status(rpc_cli: RpcAddrClient<Message>, rpc_host: SocketAddr) -> Result<(), Error> {
+pub async fn cmd_status(
+	rpc_cli: RpcAddrClient<Message>,
+	rpc_host: SocketAddr,
+) -> Result<(), Error> {
 	let status = match rpc_cli
 		.call(&rpc_host, &Message::PullStatus, ADMIN_RPC_TIMEOUT)
 		.await??

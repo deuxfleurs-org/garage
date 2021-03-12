@@ -1,14 +1,14 @@
-use std::sync::Arc;
-use std::fmt::Write;
 use std::collections::HashMap;
+use std::fmt::Write;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use garage_util::error::Error;
 
 use garage_table::crdt::CRDT;
-use garage_table::*;
 use garage_table::replication::*;
+use garage_table::*;
 
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
@@ -17,8 +17,8 @@ use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use crate::repair::Repair;
 use crate::cli::*;
+use crate::repair::Repair;
 use crate::*;
 
 pub const ADMIN_RPC_TIMEOUT: Duration = Duration::from_secs(30);
@@ -366,7 +366,6 @@ impl AdminRpcHandler {
 
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRPC, Error> {
 		if opt.all_nodes {
-
 			let mut ret = String::new();
 			let ring = self.garage.system.ring.borrow().clone();
 
@@ -378,11 +377,7 @@ impl AdminRpcHandler {
 				writeln!(&mut ret, "Stats for node {:?}:", node).unwrap();
 				match self
 					.rpc_client
-					.call(
-						*node,
-						AdminRPC::Stats(opt),
-						ADMIN_RPC_TIMEOUT,
-					)
+					.call(*node, AdminRPC::Stats(opt), ADMIN_RPC_TIMEOUT)
 					.await
 				{
 					Ok(AdminRPC::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),
@@ -398,7 +393,12 @@ impl AdminRpcHandler {
 
 	fn gather_stats_local(&self, opt: StatsOpt) -> Result<String, Error> {
 		let mut ret = String::new();
-		writeln!(&mut ret, "\nGarage version: {}", git_version::git_version!()).unwrap();
+		writeln!(
+			&mut ret,
+			"\nGarage version: {}",
+			git_version::git_version!()
+		)
+		.unwrap();
 
 		// Gather ring statistics
 		let ring = self.garage.system.ring.borrow().clone();
@@ -423,7 +423,12 @@ impl AdminRpcHandler {
 		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
 
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
-		writeln!(&mut ret, "  resync queue length: {}", self.garage.block_manager.resync_queue.len()).unwrap();
+		writeln!(
+			&mut ret,
+			"  resync queue length: {}",
+			self.garage.block_manager.resync_queue.len()
+		)
+		.unwrap();
 
 		if opt.detailed {
 			writeln!(&mut ret, "\nDetailed stats not implemented yet.").unwrap();
@@ -432,10 +437,20 @@ impl AdminRpcHandler {
 		Ok(ret)
 	}
 
-	fn gather_table_stats<F: TableSchema, R: TableReplication>(&self, to: &mut String, t: &Arc<Table<F, R>>, _opt: &StatsOpt) -> Result<(), Error> {
+	fn gather_table_stats<F: TableSchema, R: TableReplication>(
+		&self,
+		to: &mut String,
+		t: &Arc<Table<F, R>>,
+		_opt: &StatsOpt,
+	) -> Result<(), Error> {
 		writeln!(to, "\nTable stats for {}", t.data.name).unwrap();
 		writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
-		writeln!(to, "  Merkle updater todo queue length: {}", t.data.merkle_updater.todo.len()).unwrap();
+		writeln!(
+			to,
+			"  Merkle updater todo queue length: {}",
+			t.data.merkle_updater.todo.len()
+		)
+		.unwrap();
 		Ok(())
 	}
 }
