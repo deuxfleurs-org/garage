@@ -472,8 +472,8 @@ pub async fn handle_complete_multipart_upload(
 	};
 
 	// Check that the list of parts they gave us corresponds to the parts we have here
-	println!("Expected parts from request: {:?}", body_list_of_parts);
-	println!("Parts stored in version: {:?}", version.parts_etags.items());
+	debug!("Expected parts from request: {:?}", body_list_of_parts);
+	debug!("Parts stored in version: {:?}", version.parts_etags.items());
 	let parts = version
 		.parts_etags
 		.items()

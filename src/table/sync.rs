@@ -274,7 +274,7 @@ where
 					.into_iter()
 					.collect::<Vec<_>>();
 				if nodes.contains(&self.aux.system.id) {
-					warn!("Interrupting offload as partitions seem to have changed");
+					warn!("({}) Interrupting offload as partitions seem to have changed", self.data.name);
 					break;
 				}
 				if nodes.len() < self.aux.replication.write_quorum(&self.aux.system) {
@@ -282,8 +282,9 @@ where
 				}
 
 				counter += 1;
-				debug!(
-					"Offloading {} items from {:?}..{:?} ({})",
+				info!(
+					"({}) Offloading {} items from {:?}..{:?} ({})",
+					self.data.name,
 					items.len(),
 					begin,
 					end,
@@ -325,7 +326,7 @@ where
 		}
 
 		if not_removed > 0 {
-			debug!("{} items not removed during offload because they changed in between (trying again...)", not_removed);
+			debug!("({}) {} items not removed during offload because they changed in between (trying again...)", self.data.name, not_removed);
 		}
 
 		Ok(())
@@ -448,11 +449,11 @@ where
 					// Just send that item directly
 					if let Some(val) = self.data.store.get(&ik[..])? {
 						if blake2sum(&val[..]) != ivhash {
-							warn!("Hashes differ between stored value and Merkle tree, key: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", ik);
+							warn!("({}) Hashes differ between stored value and Merkle tree, key: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", self.data.name, ik);
 						}
 						todo_items.push(val.to_vec());
 					} else {
-						warn!("Item from Merkle tree not found in store: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", ik);
+						warn!("({}) Item from Merkle tree not found in store: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", self.data.name, ik);
 					}
 				}
 				MerkleNode::Intermediate(l) => {

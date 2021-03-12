@@ -142,7 +142,7 @@ where
 
 		if let Some((old_entry, new_entry)) = changed {
 			self.instance.updated(old_entry, Some(new_entry));
-			//self.syncer.load_full().unwrap().invalidate(&tree_key[..]);
+			self.merkle_updater.todo_notify.notify();
 		}
 
 		Ok(())
@@ -163,7 +163,7 @@ where
 		if removed {
 			let old_entry = self.decode_entry(v)?;
 			self.instance.updated(Some(old_entry), None);
-			//self.syncer.load_full().unwrap().invalidate(k);
+			self.merkle_updater.todo_notify.notify();
 		}
 		Ok(removed)
 	}
