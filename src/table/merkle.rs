@@ -139,10 +139,7 @@ impl MerkleUpdater {
 		let new_vhash = if vhash_by.len() == 0 {
 			None
 		} else {
-			let vhash_by: [u8; 32] = vhash_by
-				.try_into()
-				.map_err(|_| Error::Message(format!("Invalid value in Merkle todo table")))?;
-			Some(Hash::from(vhash_by))
+			Some(Hash::try_from(&vhash_by[..]).unwrap())
 		};
 
 		let key = MerkleNodeKey {

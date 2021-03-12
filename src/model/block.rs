@@ -248,9 +248,7 @@ impl BlockManager {
 				let time_msec = u64_from_bytes(&time_bytes[0..8]);
 				let now = now_msec();
 				if now >= time_msec {
-					let mut hash = [0u8; 32];
-					hash.copy_from_slice(hash_bytes.as_ref());
-					let hash = Hash::from(hash);
+					let hash = Hash::try_from(&hash_bytes[..]).unwrap();
 
 					if let Err(e) = self.resync_iter(&hash).await {
 						warn!("Failed to resync block {:?}, retrying later: {}", hash, e);
@@ -340,15 +338,11 @@ impl BlockManager {
 					need_nodes.len()
 				);
 
-				let put_block_message = Arc::new(self.read_block(hash).await?);
-				let put_resps = join_all(need_nodes.iter().map(|to| {
-					self.rpc_client
-						.call_arc(*to, put_block_message.clone(), BLOCK_RW_TIMEOUT)
-				}))
-				.await;
-				for resp in put_resps {
-					resp?;
-				}
+				let put_block_message = self.read_block(hash).await?;
+				self.rpc_client.try_call_many(
+						&need_nodes[..],
+						put_block_message,
+						RequestStrategy::with_quorum(need_nodes.len()).with_timeout(BLOCK_RW_TIMEOUT)).await?;
 			}
 			trace!(
 				"Deleting block {:?}, offload finished ({} / {})",

@@ -18,6 +18,7 @@ use crate::data::*;
 use crate::replication::*;
 use crate::schema::*;
 use crate::sync::*;
+use crate::gc::*;
 
 const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -44,8 +45,6 @@ pub(crate) enum TableRPC<F: TableSchema> {
 	ReadRange(F::P, Option<F::S>, Option<F::Filter>, usize),
 
 	Update(Vec<Arc<ByteBuf>>),
-
-	SyncRPC(SyncRPC),
 }
 
 impl<F: TableSchema> RpcMessage for TableRPC<F> {}
@@ -76,6 +75,7 @@ where
 		});
 
 		let syncer = TableSyncer::launch(data.clone(), aux.clone(), rpc_server);
+		TableGC::launch(data.clone(), aux.clone(), rpc_server);
 
 		let table = Arc::new(Self {
 			data,
@@ -307,10 +307,6 @@ where
 			TableRPC::Update(pairs) => {
 				self.data.update_many(pairs)?;
 				Ok(TableRPC::Ok)
-			}
-			TableRPC::SyncRPC(rpc) => {
-				let response = self.syncer.handle_rpc(rpc).await?;
-				Ok(TableRPC::SyncRPC(response))
 			}
 			_ => Err(Error::BadRPC(format!("Unexpected table RPC"))),
 		}

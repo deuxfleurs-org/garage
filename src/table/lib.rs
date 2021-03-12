@@ -11,6 +11,7 @@ pub mod data;
 pub mod merkle;
 pub mod replication;
 pub mod sync;
+pub mod gc;
 pub mod table;
 
 pub use schema::*;

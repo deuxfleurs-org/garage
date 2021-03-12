@@ -197,11 +197,8 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 			if !strategy.rs_interrupt_after_quorum {
 				let wait_finished_fut = tokio::spawn(async move {
 					resp_stream.collect::<Vec<_>>().await;
-					Ok(())
 				});
-				self.background.spawn(wait_finished_fut.map(|x| {
-					x.unwrap_or_else(|e| Err(Error::Message(format!("Await failed: {}", e))))
-				}));
+				self.background.spawn(wait_finished_fut.map(|_| Ok(())));
 			}
 
 			Ok(results)

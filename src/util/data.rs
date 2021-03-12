@@ -71,6 +71,14 @@ impl FixedBytes32 {
 	pub fn to_vec(&self) -> Vec<u8> {
 		self.0.to_vec()
 	}
+	pub fn try_from(by: &[u8]) -> Option<Self> {
+		if by.len() != 32 {
+			return None;
+		}
+		let mut ret = [0u8; 32];
+		ret.copy_from_slice(by);
+		Some(Self(ret))
+	}
 }
 
 pub type UUID = FixedBytes32;

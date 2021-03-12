@@ -225,9 +225,7 @@ async fn read_and_put_blocks(
 	let data_md5sum = md5hasher.finalize();
 
 	let data_sha256sum = sha256hasher.result();
-	let mut hash = [0u8; 32];
-	hash.copy_from_slice(&data_sha256sum[..]);
-	let data_sha256sum = Hash::from(hash);
+	let data_sha256sum = Hash::try_from(&data_sha256sum[..]).unwrap();
 
 	Ok((total_size, data_md5sum, data_sha256sum))
 }

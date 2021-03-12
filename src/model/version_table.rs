@@ -78,6 +78,9 @@ impl Entry<Hash, EmptyKey> for Version {
 	fn sort_key(&self) -> &EmptyKey {
 		&EmptyKey
 	}
+	fn is_tombstone(&self) -> bool {
+		self.deleted.get()
+	}
 }
 
 impl CRDT for Version {

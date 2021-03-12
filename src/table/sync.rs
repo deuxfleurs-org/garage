@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use futures::future::join_all;
 use futures::{pin_mut, select};
 use futures_util::future::*;
 use futures_util::stream::*;
@@ -347,16 +346,11 @@ where
 		nodes: &[UUID],
 	) -> Result<(), Error> {
 		let values = items.iter().map(|(_k, v)| v.clone()).collect::<Vec<_>>();
-		let update_msg = Arc::new(SyncRPC::Items(values));
 
-		for res in join_all(nodes.iter().map(|to| {
-			self.rpc_client
-				.call_arc(*to, update_msg.clone(), TABLE_SYNC_RPC_TIMEOUT)
-		}))
-		.await
-		{
-			res?;
-		}
+		self.rpc_client.try_call_many(
+			&nodes[..],
+			SyncRPC::Items(values),
+			RequestStrategy::with_quorum(nodes.len()).with_timeout(TABLE_SYNC_RPC_TIMEOUT)).await?;
 
 		// All remote nodes have written those items, now we can delete them locally
 		let mut not_removed = 0;
@@ -577,7 +571,7 @@ where
 
 	// ======= SYNCHRONIZATION PROCEDURE -- RECEIVER SIDE ======
 
-	pub(crate) async fn handle_rpc(self: &Arc<Self>, message: &SyncRPC) -> Result<SyncRPC, Error> {
+	async fn handle_rpc(self: &Arc<Self>, message: &SyncRPC) -> Result<SyncRPC, Error> {
 		match message {
 			SyncRPC::RootCkHash(range, h) => {
 				let root_ck = self.get_root_ck(*range)?;

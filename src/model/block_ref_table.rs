@@ -27,6 +27,9 @@ impl Entry<Hash, UUID> for BlockRef {
 	fn sort_key(&self) -> &UUID {
 		&self.version
 	}
+	fn is_tombstone(&self) -> bool {
+		self.deleted.get()
+	}
 }
 
 impl CRDT for BlockRef {
