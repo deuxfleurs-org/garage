@@ -105,6 +105,7 @@ where
 		mut must_exit: watch::Receiver<bool>,
 		mut busy_rx: mpsc::UnboundedReceiver<bool>,
 	) -> Result<(), Error> {
+		let mut prev_ring: Arc<Ring> = self.aux.system.ring.borrow().clone();
 		let mut ring_recv: watch::Receiver<Arc<Ring>> = self.aux.system.ring.clone();
 		let mut nothing_to_do_since = Some(Instant::now());
 
@@ -117,9 +118,12 @@ where
 
 			select! {
 				new_ring_r = s_ring_recv => {
-					if new_ring_r.is_some() {
-						debug!("({}) Ring changed, adding full sync to syncer todo list", self.data.name);
-						self.add_full_sync();
+					if let Some(new_ring) = new_ring_r {
+						if !Arc::ptr_eq(&new_ring, &prev_ring) {
+							debug!("({}) Ring changed, adding full sync to syncer todo list", self.data.name);
+							self.add_full_sync();
+							prev_ring = new_ring;
+						}
 					}
 				}
 				busy_opt = s_busy => {
