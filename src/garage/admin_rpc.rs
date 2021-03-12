@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use std::fmt::Write;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,6 +8,7 @@ use garage_util::error::Error;
 
 use garage_table::crdt::CRDT;
 use garage_table::*;
+use garage_table::replication::*;
 
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
@@ -25,6 +28,7 @@ pub enum AdminRPC {
 	BucketOperation(BucketOperation),
 	KeyOperation(KeyOperation),
 	LaunchRepair(RepairOpt),
+	Stats(StatsOpt),
 
 	// Replies
 	Ok(String),
@@ -55,6 +59,7 @@ impl AdminRpcHandler {
 					AdminRPC::BucketOperation(bo) => self2.handle_bucket_cmd(bo).await,
 					AdminRPC::KeyOperation(ko) => self2.handle_key_cmd(ko).await,
 					AdminRPC::LaunchRepair(opt) => self2.handle_launch_repair(opt).await,
+					AdminRPC::Stats(opt) => self2.handle_stats(opt).await,
 					_ => Err(Error::BadRPC(format!("Invalid RPC"))),
 				}
 			}
@@ -356,5 +361,80 @@ impl AdminRpcHandler {
 				self.garage.system.id
 			)))
 		}
+	}
+
+	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRPC, Error> {
+		if opt.all_nodes {
+
+			let mut ret = String::new();
+			let ring = self.garage.system.ring.borrow().clone();
+
+			for node in ring.config.members.keys() {
+				let mut opt = opt.clone();
+				opt.all_nodes = false;
+
+				writeln!(&mut ret, "\n======================").unwrap();
+				writeln!(&mut ret, "Stats for node {:?}:", node).unwrap();
+				match self
+					.rpc_client
+					.call(
+						*node,
+						AdminRPC::Stats(opt),
+						ADMIN_RPC_TIMEOUT,
+					)
+					.await
+				{
+					Ok(AdminRPC::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),
+					Ok(x) => writeln!(&mut ret, "Bad answer: {:?}", x).unwrap(),
+					Err(e) => writeln!(&mut ret, "Error: {}", e).unwrap(),
+				}
+			}
+			Ok(AdminRPC::Ok(ret))
+		} else {
+			Ok(AdminRPC::Ok(self.gather_stats_local(opt)?))
+		}
+	}
+
+	fn gather_stats_local(&self, opt: StatsOpt) -> Result<String, Error> {
+		let mut ret = String::new();
+		writeln!(&mut ret, "\nGarage version: {}", git_version::git_version!()).unwrap();
+
+		// Gather ring statistics
+		let ring = self.garage.system.ring.borrow().clone();
+		let mut ring_nodes = HashMap::new();
+		for r in ring.ring.iter() {
+			for n in r.nodes.iter() {
+				if !ring_nodes.contains_key(n) {
+					ring_nodes.insert(*n, 0usize);
+				}
+				*ring_nodes.get_mut(n).unwrap() += 1;
+			}
+		}
+		writeln!(&mut ret, "\nRing nodes & partition count:").unwrap();
+		for (n, c) in ring_nodes.iter() {
+			writeln!(&mut ret, "  {:?} {}", n, c).unwrap();
+		}
+
+		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
+
+		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
+		writeln!(&mut ret, "  resync queue length: {}", self.garage.block_manager.resync_queue.len()).unwrap();
+
+		if opt.detailed {
+			writeln!(&mut ret, "\nDetailed stats not implemented yet.").unwrap();
+		}
+
+		Ok(ret)
+	}
+
+	fn gather_table_stats<F: TableSchema, R: TableReplication>(&self, to: &mut String, t: &Arc<Table<F, R>>, _opt: &StatsOpt) -> Result<(), Error> {
+		writeln!(to, "\nTable stats for {}", t.data.name).unwrap();
+		writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
+		writeln!(to, "  Merkle updater todo queue length: {}", t.data.merkle_updater.todo.len()).unwrap();
+		Ok(())
 	}
 }

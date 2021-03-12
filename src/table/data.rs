@@ -17,7 +17,7 @@ pub struct TableData<F: TableSchema> {
 	pub instance: F,
 
 	pub store: sled::Tree,
-	pub(crate) merkle_updater: Arc<MerkleUpdater>,
+	pub merkle_updater: Arc<MerkleUpdater>,
 }
 
 impl<F> TableData<F>

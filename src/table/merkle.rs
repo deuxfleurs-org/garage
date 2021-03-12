@@ -32,7 +32,7 @@ pub fn hash_of_merkle_partition_opt(p: Option<MerklePartition>) -> Hash {
 // 16 bits (two bytes) of item's partition keys' hashes.
 // It builds one Merkle tree for each of these 2**16 partitions.
 
-pub(crate) struct MerkleUpdater {
+pub struct MerkleUpdater {
 	table_name: String,
 	background: Arc<BackgroundRunner>,
 
@@ -40,7 +40,7 @@ pub(crate) struct MerkleUpdater {
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
 	// - value = the hash of the full serialized item, if present,
 	//			 or an empty vec if item is absent (deleted)
-	pub(crate) todo: sled::Tree,
+	pub todo: sled::Tree,
 	pub(crate) todo_notify: Notify,
 
 	// Content of the merkle tree: items where

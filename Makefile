@@ -4,7 +4,7 @@ DOCKER=lxpz/garage_amd64
 all:
 	#cargo fmt || true
 	#RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build
-	cargo build
+	clear; cargo build
 
 $(BIN):
 	#RUSTFLAGS="-C link-arg=-fuse-ld=lld" cargo build --release

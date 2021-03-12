@@ -69,6 +69,10 @@ pub enum Command {
 	/// Start repair of node data
 	#[structopt(name = "repair")]
 	Repair(RepairOpt),
+
+	/// Gather node statistics
+	#[structopt(name = "stats")]
+	Stats(StatsOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -281,6 +285,17 @@ pub enum RepairWhat {
 	BlockRefs,
 }
 
+#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+pub struct StatsOpt {
+	/// Gather statistics from all nodes
+	#[structopt(short = "a", long = "all-nodes")]
+	pub all_nodes: bool,
+
+	/// Gather detailed statistics (this can be long)
+	#[structopt(short = "d", long = "detailed")]
+	pub detailed: bool,
+}
+
 #[tokio::main]
 async fn main() {
 	pretty_env_logger::init();
@@ -331,6 +346,9 @@ async fn main() {
 		}
 		Command::Repair(ro) => {
 			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::LaunchRepair(ro)).await
+		}
+		Command::Stats(so) => {
+			cmd_admin(admin_rpc_cli, opt.rpc_host, AdminRPC::Stats(so)).await
 		}
 	};
 
