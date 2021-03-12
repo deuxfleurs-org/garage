@@ -15,10 +15,10 @@ use garage_rpc::rpc_server::*;
 
 use crate::crdt::CRDT;
 use crate::data::*;
+use crate::gc::*;
 use crate::replication::*;
 use crate::schema::*;
 use crate::sync::*;
-use crate::gc::*;
 
 const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 

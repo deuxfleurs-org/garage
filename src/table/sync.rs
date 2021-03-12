@@ -347,10 +347,13 @@ where
 	) -> Result<(), Error> {
 		let values = items.iter().map(|(_k, v)| v.clone()).collect::<Vec<_>>();
 
-		self.rpc_client.try_call_many(
-			&nodes[..],
-			SyncRPC::Items(values),
-			RequestStrategy::with_quorum(nodes.len()).with_timeout(TABLE_SYNC_RPC_TIMEOUT)).await?;
+		self.rpc_client
+			.try_call_many(
+				&nodes[..],
+				SyncRPC::Items(values),
+				RequestStrategy::with_quorum(nodes.len()).with_timeout(TABLE_SYNC_RPC_TIMEOUT),
+			)
+			.await?;
 
 		// All remote nodes have written those items, now we can delete them locally
 		let mut not_removed = 0;

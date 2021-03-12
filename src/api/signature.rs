@@ -106,8 +106,10 @@ pub async fn check_signature(
 	} else {
 		let bytes = hex::decode(authorization.content_sha256)
 			.ok_or_bad_request("Invalid content sha256 hash")?;
-		Some(Hash::try_from(&bytes[..])
-			 .ok_or(Error::BadRequest(format!("Invalid content sha256 hash")))?)
+		Some(
+			Hash::try_from(&bytes[..])
+				.ok_or(Error::BadRequest(format!("Invalid content sha256 hash")))?,
+		)
 	};
 
 	Ok((key, content_sha256))

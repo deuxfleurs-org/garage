@@ -42,7 +42,9 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 	fn partition_key(&self) -> &P;
 	fn sort_key(&self) -> &S;
 
-	fn is_tombstone(&self) -> bool { false }
+	fn is_tombstone(&self) -> bool {
+		false
+	}
 }
 
 pub trait TableSchema: Send + Sync {

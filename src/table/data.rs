@@ -129,31 +129,32 @@ where
 		let update = self.decode_entry(update_bytes)?;
 		let tree_key = self.tree_key(update.partition_key(), update.sort_key());
 
-		let changed = (&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
-			let (old_entry, new_entry) = match store.get(&tree_key)? {
-				Some(prev_bytes) => {
-					let old_entry = self
-						.decode_entry(&prev_bytes)
-						.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
-					let mut new_entry = old_entry.clone();
-					new_entry.merge(&update);
-					(Some(old_entry), new_entry)
-				}
-				None => (None, update.clone()),
-			};
+		let changed =
+			(&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
+				let (old_entry, new_entry) = match store.get(&tree_key)? {
+					Some(prev_bytes) => {
+						let old_entry = self
+							.decode_entry(&prev_bytes)
+							.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
+						let mut new_entry = old_entry.clone();
+						new_entry.merge(&update);
+						(Some(old_entry), new_entry)
+					}
+					None => (None, update.clone()),
+				};
 
-			if Some(&new_entry) != old_entry.as_ref() {
-				let new_bytes = rmp_to_vec_all_named(&new_entry)
-					.map_err(Error::RMPEncode)
-					.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
-				let new_bytes_hash = blake2sum(&new_bytes[..]);
-				mkl_todo.insert(tree_key.clone(), new_bytes_hash.as_slice())?;
-				store.insert(tree_key.clone(), new_bytes)?;
-				Ok(Some((old_entry, new_entry, new_bytes_hash)))
-			} else {
-				Ok(None)
-			}
-		})?;
+				if Some(&new_entry) != old_entry.as_ref() {
+					let new_bytes = rmp_to_vec_all_named(&new_entry)
+						.map_err(Error::RMPEncode)
+						.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
+					let new_bytes_hash = blake2sum(&new_bytes[..]);
+					mkl_todo.insert(tree_key.clone(), new_bytes_hash.as_slice())?;
+					store.insert(tree_key.clone(), new_bytes)?;
+					Ok(Some((old_entry, new_entry, new_bytes_hash)))
+				} else {
+					Ok(None)
+				}
+			})?;
 
 		if let Some((old_entry, new_entry, new_bytes_hash)) = changed {
 			let is_tombstone = new_entry.is_tombstone();
@@ -168,16 +169,17 @@ where
 	}
 
 	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
-		let removed = (&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
-			if let Some(cur_v) = store.get(k)? {
-				if cur_v == v {
-					store.remove(k)?;
-					mkl_todo.insert(k, vec![])?;
-					return Ok(true);
+		let removed =
+			(&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
+				if let Some(cur_v) = store.get(k)? {
+					if cur_v == v {
+						store.remove(k)?;
+						mkl_todo.insert(k, vec![])?;
+						return Ok(true);
+					}
 				}
-			}
-			Ok(false)
-		})?;
+				Ok(false)
+			})?;
 
 		if removed {
 			let old_entry = self.decode_entry(v)?;
@@ -187,17 +189,22 @@ where
 		Ok(removed)
 	}
 
-	pub(crate) fn delete_if_equal_hash(self: &Arc<Self>, k: &[u8], vhash: Hash) -> Result<bool, Error> {
-		let removed = (&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
-			if let Some(cur_v) = store.get(k)? {
-				if blake2sum(&cur_v[..]) == vhash {
-					store.remove(k)?;
-					mkl_todo.insert(k, vec![])?;
-					return Ok(Some(cur_v));
+	pub(crate) fn delete_if_equal_hash(
+		self: &Arc<Self>,
+		k: &[u8],
+		vhash: Hash,
+	) -> Result<bool, Error> {
+		let removed =
+			(&self.store, &self.merkle_updater.todo).transaction(|(store, mkl_todo)| {
+				if let Some(cur_v) = store.get(k)? {
+					if blake2sum(&cur_v[..]) == vhash {
+						store.remove(k)?;
+						mkl_todo.insert(k, vec![])?;
+						return Ok(Some(cur_v));
+					}
 				}
-			}
-			Ok(None)
-		})?;
+				Ok(None)
+			})?;
 
 		if let Some(old_v) = removed {
 			let old_entry = self.decode_entry(&old_v[..])?;

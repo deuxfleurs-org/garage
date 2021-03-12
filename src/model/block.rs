@@ -339,10 +339,14 @@ impl BlockManager {
 				);
 
 				let put_block_message = self.read_block(hash).await?;
-				self.rpc_client.try_call_many(
+				self.rpc_client
+					.try_call_many(
 						&need_nodes[..],
 						put_block_message,
-						RequestStrategy::with_quorum(need_nodes.len()).with_timeout(BLOCK_RW_TIMEOUT)).await?;
+						RequestStrategy::with_quorum(need_nodes.len())
+							.with_timeout(BLOCK_RW_TIMEOUT),
+					)
+					.await?;
 			}
 			trace!(
 				"Deleting block {:?}, offload finished ({} / {})",
