@@ -109,11 +109,17 @@ impl MerkleUpdater {
 				match x {
 					Ok((key, valhash)) => {
 						if let Err(e) = self.update_item(&key[..], &valhash[..]) {
-							warn!("({}) Error while updating Merkle tree item: {}", self.table_name, e);
+							warn!(
+								"({}) Error while updating Merkle tree item: {}",
+								self.table_name, e
+							);
 						}
 					}
 					Err(e) => {
-						warn!("({}) Error while iterating on Merkle todo tree: {}", self.table_name, e);
+						warn!(
+							"({}) Error while iterating on Merkle todo tree: {}",
+							self.table_name, e
+						);
 						tokio::time::delay_for(Duration::from_secs(10)).await;
 					}
 				}
@@ -154,8 +160,7 @@ impl MerkleUpdater {
 		if !deleted {
 			debug!(
 				"({}) Item not deleted from Merkle todo because it changed: {:?}",
-				self.table_name,
-				k
+				self.table_name, k
 			);
 		}
 		Ok(())
@@ -196,7 +201,10 @@ impl MerkleUpdater {
 
 					if children.len() == 0 {
 						// should not happen
-						warn!("({}) Replacing intermediate node with empty node, should not happen.", self.table_name);
+						warn!(
+							"({}) Replacing intermediate node with empty node, should not happen.",
+							self.table_name
+						);
 						Some(MerkleNode::Empty)
 					} else if children.len() == 1 {
 						// We now have a single node (case when the update deleted one of only two

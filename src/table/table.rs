@@ -24,7 +24,7 @@ const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 pub struct TableAux<F: TableSchema, R: TableReplication> {
 	pub system: Arc<System>,
 	pub replication: R,
-	pub(crate) rpc_client: Arc<RpcClient<TableRPC<F>>>,
+	rpc_client: Arc<RpcClient<TableRPC<F>>>,
 }
 
 pub struct Table<F: TableSchema, R: TableReplication> {
@@ -76,7 +76,7 @@ where
 			rpc_client,
 		});
 
-		let syncer = TableSyncer::launch(data.clone(), aux.clone());
+		let syncer = TableSyncer::launch(data.clone(), aux.clone(), rpc_server);
 
 		let table = Arc::new(Self { data, aux, syncer });
 
