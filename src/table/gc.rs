@@ -116,10 +116,7 @@ where
 		}
 
 		for (k, vhash) in excluded {
-			let _ = self
-				.data
-				.gc_todo
-				.compare_and_swap::<_, _, Vec<u8>>(k, Some(vhash), None)?;
+			self.todo_remove_if_equal(&k[..], vhash)?;
 		}
 
 		if entries.len() == 0 {
@@ -197,12 +194,17 @@ where
 
 		for (k, vhash) in deletes {
 			self.data.delete_if_equal_hash(&k[..], vhash)?;
-			let _ = self
-				.data
-				.gc_todo
-				.compare_and_swap::<_, _, Vec<u8>>(k, Some(vhash), None)?;
+			self.todo_remove_if_equal(&k[..], vhash)?;
 		}
 
+		Ok(())
+	}
+
+	fn todo_remove_if_equal(&self, key: &[u8], vhash: Hash) -> Result<(), Error> {
+		let _ = self
+			.data
+			.gc_todo
+			.compare_and_swap::<_, _, Vec<u8>>(key, Some(vhash), None)?;
 		Ok(())
 	}
 
@@ -232,6 +234,7 @@ where
 			GcRPC::DeleteIfEqualHash(items) => {
 				for (key, vhash) in items.iter() {
 					self.data.delete_if_equal_hash(&key[..], *vhash)?;
+					self.todo_remove_if_equal(&key[..], *vhash)?;
 				}
 				Ok(GcRPC::Ok)
 			}
