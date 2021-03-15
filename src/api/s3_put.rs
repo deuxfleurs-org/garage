@@ -10,6 +10,7 @@ use sha2::{Digest as Sha256Digest, Sha256};
 use garage_table::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
+use garage_util::time::*;
 
 use garage_model::block::INLINE_THRESHOLD;
 use garage_model::block_ref_table::*;
@@ -583,17 +584,19 @@ fn get_mime_type(req: &Request<Body>) -> Result<String, Error> {
 		.to_string())
 }
 
-fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
+pub(crate) fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
 	let content_type = get_mime_type(req)?;
-	let other_headers = vec![
+	let mut other = BTreeMap::new();
+
+	// Preserve standard headers
+	let standard_header = vec![
 		hyper::header::CACHE_CONTROL,
 		hyper::header::CONTENT_DISPOSITION,
 		hyper::header::CONTENT_ENCODING,
 		hyper::header::CONTENT_LANGUAGE,
 		hyper::header::EXPIRES,
 	];
-	let mut other = BTreeMap::new();
-	for h in other_headers.iter() {
+	for h in standard_header.iter() {
 		if let Some(v) = req.headers().get(h) {
 			match v.to_str() {
 				Ok(v_str) => {
@@ -605,6 +608,21 @@ fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, Error> {
 			}
 		}
 	}
+
+	// Preserve x-amz-meta- headers
+	for (k, v) in req.headers().iter() {
+		if k.as_str().starts_with("x-amz-meta-") {
+			match v.to_str() {
+				Ok(v_str) => {
+					other.insert(k.to_string(), v_str.to_string());
+				}
+				Err(e) => {
+					warn!("Discarding header {}, error in .to_str(): {}", k, e);
+				}
+			}
+		}
+	}
+
 	Ok(ObjectVersionHeaders {
 		content_type,
 		other,

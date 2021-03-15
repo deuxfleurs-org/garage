@@ -18,6 +18,7 @@ use tokio::sync::Mutex;
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
+use garage_util::time::*;
 
 use crate::consul::get_consul_nodes;
 use crate::ring::*;

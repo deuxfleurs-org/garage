@@ -1,11 +1,11 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
-use chrono::{SecondsFormat, Utc};
-use hyper::{Body, Response};
+use hyper::{Body, Request, Response};
 
 use garage_table::*;
 use garage_util::data::*;
+use garage_util::time::*;
 
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
@@ -13,9 +13,11 @@ use garage_model::object_table::*;
 use garage_model::version_table::*;
 
 use crate::error::*;
+use crate::s3_put::get_headers;
 
 pub async fn handle_copy(
 	garage: Arc<Garage>,
+	req: &Request<Body>,
 	dest_bucket: &str,
 	dest_key: &str,
 	source_bucket: &str,
@@ -42,25 +44,44 @@ pub async fn handle_copy(
 
 	let new_uuid = gen_uuid();
 	let new_timestamp = now_msec();
-	let dest_object_version = ObjectVersion {
-		uuid: new_uuid,
-		timestamp: new_timestamp,
-		state: ObjectVersionState::Complete(source_last_state.clone()),
-	};
-	let dest_object = Object::new(
-		dest_bucket.to_string(),
-		dest_key.to_string(),
-		vec![dest_object_version],
-	);
 
-	match source_last_state {
+	// Implement x-amz-metadata-directive: REPLACE
+	let old_meta = match source_last_state {
 		ObjectVersionData::DeleteMarker => {
 			return Err(Error::NotFound);
 		}
-		ObjectVersionData::Inline(_meta, _bytes) => {
+		ObjectVersionData::Inline(meta, _bytes) => meta,
+		ObjectVersionData::FirstBlock(meta, _fbh) => meta,
+	};
+	let new_meta = match req.headers().get("x-amz-metadata-directive") {
+		Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => ObjectVersionMeta {
+			headers: get_headers(req)?,
+			size: old_meta.size,
+			etag: old_meta.etag.clone(),
+		},
+		_ => old_meta.clone(),
+	};
+
+	// Save object copy
+	match source_last_state {
+		ObjectVersionData::DeleteMarker => unreachable!(),
+		ObjectVersionData::Inline(_meta, bytes) => {
+			let dest_object_version = ObjectVersion {
+				uuid: new_uuid,
+				timestamp: new_timestamp,
+				state: ObjectVersionState::Complete(ObjectVersionData::Inline(
+					new_meta,
+					bytes.clone(),
+				)),
+			};
+			let dest_object = Object::new(
+				dest_bucket.to_string(),
+				dest_key.to_string(),
+				vec![dest_object_version],
+			);
 			garage.object_table.insert(&dest_object).await?;
 		}
-		ObjectVersionData::FirstBlock(meta, _first_block_hash) => {
+		ObjectVersionData::FirstBlock(_meta, first_block_hash) => {
 			// Get block list from source version
 			let source_version = garage
 				.version_table
@@ -74,7 +95,7 @@ pub async fn handle_copy(
 			let tmp_dest_object_version = ObjectVersion {
 				uuid: new_uuid,
 				timestamp: new_timestamp,
-				state: ObjectVersionState::Uploading(meta.headers.clone()),
+				state: ObjectVersionState::Uploading(new_meta.headers.clone()),
 			};
 			let tmp_dest_object = Object::new(
 				dest_bucket.to_string(),
@@ -120,12 +141,24 @@ pub async fn handle_copy(
 			// it to update the modification timestamp for instance). If we did this concurrently
 			// with the stuff before, the block's reference counts could be decremented before
 			// they are incremented again for the new version, leading to data being deleted.
+			let dest_object_version = ObjectVersion {
+				uuid: new_uuid,
+				timestamp: new_timestamp,
+				state: ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
+					new_meta,
+					*first_block_hash,
+				)),
+			};
+			let dest_object = Object::new(
+				dest_bucket.to_string(),
+				dest_key.to_string(),
+				vec![dest_object_version],
+			);
 			garage.object_table.insert(&dest_object).await?;
 		}
 	}
 
-	let now = Utc::now(); // FIXME use the unix timestamp from above
-	let last_modified = now.to_rfc3339_opts(SecondsFormat::Secs, true);
+	let last_modified = msec_to_rfc3339(new_timestamp);
 	let mut xml = String::new();
 	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
 	writeln!(&mut xml, r#"<CopyObjectResult>"#).unwrap();

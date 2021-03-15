@@ -2,7 +2,6 @@ use rand::Rng;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq, Copy)]
 pub struct FixedBytes32([u8; 32]);
@@ -117,13 +116,6 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 
 pub fn gen_uuid() -> UUID {
 	rand::thread_rng().gen::<[u8; 32]>().into()
-}
-
-pub fn now_msec() -> u64 {
-	SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.expect("Fix your clock :o")
-		.as_millis() as u64
 }
 
 // RMP serialization with names of fields and variants

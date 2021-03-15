@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use garage_util::data::*;
 use garage_util::error::Error;
+use garage_util::time::*;
 
 use garage_rpc::membership::*;
 use garage_rpc::ring::*;

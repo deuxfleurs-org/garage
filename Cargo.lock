@@ -608,6 +608,7 @@ name = "garage_util"
 version = "0.1.1"
 dependencies = [
  "blake2",
+ "chrono",
  "err-derive",
  "fasthash",
  "futures",

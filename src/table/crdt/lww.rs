@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use garage_util::data::now_msec;
+use garage_util::time::now_msec;
 
 use crate::crdt::crdt::*;
 

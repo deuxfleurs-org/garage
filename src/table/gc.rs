@@ -75,16 +75,18 @@ where
 			match self.gc_loop_iter().await {
 				Ok(true) => {
 					// Stuff was done, loop imediately
+					continue;
 				}
 				Ok(false) => {
-					select! {
-						_ = tokio::time::delay_for(Duration::from_secs(10)).fuse() => (),
-						_ = must_exit.recv().fuse() => (),
-					}
+					// Nothing was done, sleep for some time (below)
 				}
 				Err(e) => {
 					warn!("({}) Error doing GC: {}", self.data.name, e);
 				}
+			}
+			select! {
+				_ = tokio::time::delay_for(Duration::from_secs(10)).fuse() => (),
+				_ = must_exit.recv().fuse() => (),
 			}
 		}
 		Ok(())

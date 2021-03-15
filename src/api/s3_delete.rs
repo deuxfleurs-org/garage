@@ -4,6 +4,7 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response};
 
 use garage_util::data::*;
+use garage_util::time::*;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;

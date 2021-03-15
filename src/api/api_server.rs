@@ -137,7 +137,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 						)));
 					}
 					let source_key = source_key.ok_or_bad_request("No source key specified")?;
-					Ok(handle_copy(garage, &bucket, &key, &source_bucket, &source_key).await?)
+					Ok(
+						handle_copy(garage, &req, &bucket, &key, &source_bucket, &source_key)
+							.await?,
+					)
 				} else {
 					// PutObject query
 					Ok(handle_put(garage, req, &bucket, &key, content_sha256).await?)

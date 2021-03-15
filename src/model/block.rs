@@ -11,9 +11,9 @@ use tokio::fs;
 use tokio::prelude::*;
 use tokio::sync::{watch, Mutex, Notify};
 
-use garage_util::data;
 use garage_util::data::*;
 use garage_util::error::Error;
+use garage_util::time::*;
 
 use garage_rpc::membership::System;
 use garage_rpc::rpc_client::*;
@@ -174,7 +174,7 @@ impl BlockManager {
 		f.read_to_end(&mut data).await?;
 		drop(f);
 
-		if data::blake2sum(&data[..]) != *hash {
+		if blake2sum(&data[..]) != *hash {
 			let _lock = self.data_dir_lock.lock().await;
 			warn!(
 				"Block {:?} is corrupted. Renaming to .corrupted and resyncing.",
