@@ -92,13 +92,24 @@ impl CRDT for Key {
 
 pub struct KeyTable;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum KeyFilter {
+	Deleted(DeletedFilter),
+	Matches(String),
+}
+
 impl TableSchema for KeyTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;
-	type Filter = DeletedFilter;
+	type Filter = KeyFilter;
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
-		filter.apply(entry.deleted.get())
+		match filter {
+			KeyFilter::Deleted(df) => df.apply(entry.deleted.get()),
+			KeyFilter::Matches(pat) => {
+				entry.key_id.starts_with(pat) || entry.name.get().to_lowercase() == pat.to_lowercase()
+			}
+		}
 	}
 }

@@ -122,7 +122,7 @@ impl AdminRpcHandler {
 				for (key_id, _, _) in bucket.authorized_keys() {
 					if let Some(key) = self.garage.key_table.get(&EmptyKey, key_id).await? {
 						if !key.deleted.get() {
-							self.update_key_bucket(key, &bucket.name, false, false)
+							self.update_key_bucket(&key, &bucket.name, false, false)
 								.await?;
 						}
 					} else {
@@ -134,31 +134,31 @@ impl AdminRpcHandler {
 				Ok(AdminRPC::Ok(format!("Bucket {} was deleted.", query.name)))
 			}
 			BucketOperation::Allow(query) => {
-				let key = self.get_existing_key(&query.key_id).await?;
+				let key = self.get_existing_key(&query.key_pattern).await?;
 				let bucket = self.get_existing_bucket(&query.bucket).await?;
 				let allow_read = query.read || key.allow_read(&query.bucket);
 				let allow_write = query.write || key.allow_write(&query.bucket);
-				self.update_key_bucket(key, &query.bucket, allow_read, allow_write)
+				self.update_key_bucket(&key, &query.bucket, allow_read, allow_write)
 					.await?;
-				self.update_bucket_key(bucket, &query.key_id, allow_read, allow_write)
+				self.update_bucket_key(bucket, &key.key_id, allow_read, allow_write)
 					.await?;
 				Ok(AdminRPC::Ok(format!(
 					"New permissions for {} on {}: read {}, write {}.",
-					&query.key_id, &query.bucket, allow_read, allow_write
+					&key.key_id, &query.bucket, allow_read, allow_write
 				)))
 			}
 			BucketOperation::Deny(query) => {
-				let key = self.get_existing_key(&query.key_id).await?;
+				let key = self.get_existing_key(&query.key_pattern).await?;
 				let bucket = self.get_existing_bucket(&query.bucket).await?;
 				let allow_read = !query.read && key.allow_read(&query.bucket);
 				let allow_write = !query.write && key.allow_write(&query.bucket);
-				self.update_key_bucket(key, &query.bucket, allow_read, allow_write)
+				self.update_key_bucket(&key, &query.bucket, allow_read, allow_write)
 					.await?;
-				self.update_bucket_key(bucket, &query.key_id, allow_read, allow_write)
+				self.update_bucket_key(bucket, &key.key_id, allow_read, allow_write)
 					.await?;
 				Ok(AdminRPC::Ok(format!(
 					"New permissions for {} on {}: read {}, write {}.",
-					&query.key_id, &query.bucket, allow_read, allow_write
+					&key.key_id, &query.bucket, allow_read, allow_write
 				)))
 			}
 			BucketOperation::Website(query) => {
@@ -193,7 +193,7 @@ impl AdminRpcHandler {
 				let key_ids = self
 					.garage
 					.key_table
-					.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
+					.get_range(&EmptyKey, None, Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)), 10000)
 					.await?
 					.iter()
 					.map(|k| (k.key_id.to_string(), k.name.get().clone()))
@@ -201,7 +201,7 @@ impl AdminRpcHandler {
 				Ok(AdminRPC::KeyList(key_ids))
 			}
 			KeyOperation::Info(query) => {
-				let key = self.get_existing_key(&query.key_id).await?;
+				let key = self.get_existing_key(&query.key_pattern).await?;
 				Ok(AdminRPC::KeyInfo(key))
 			}
 			KeyOperation::New(query) => {
@@ -210,13 +210,13 @@ impl AdminRpcHandler {
 				Ok(AdminRPC::KeyInfo(key))
 			}
 			KeyOperation::Rename(query) => {
-				let mut key = self.get_existing_key(&query.key_id).await?;
+				let mut key = self.get_existing_key(&query.key_pattern).await?;
 				key.name.update(query.new_name);
 				self.garage.key_table.insert(&key).await?;
 				Ok(AdminRPC::KeyInfo(key))
 			}
 			KeyOperation::Delete(query) => {
-				let key = self.get_existing_key(&query.key_id).await?;
+				let key = self.get_existing_key(&query.key_pattern).await?;
 				if !query.yes {
 					return Err(Error::BadRPC(format!(
 						"Add --yes flag to really perform this operation"
@@ -233,11 +233,11 @@ impl AdminRpcHandler {
 						return Err(Error::Message(format!("Bucket not found: {}", ab_name)));
 					}
 				}
-				let del_key = Key::delete(key.key_id);
+				let del_key = Key::delete(key.key_id.to_string());
 				self.garage.key_table.insert(&del_key).await?;
 				Ok(AdminRPC::Ok(format!(
 					"Key {} was deleted successfully.",
-					query.key_id
+					key.key_id
 				)))
 			}
 		}
@@ -256,14 +256,19 @@ impl AdminRpcHandler {
 			))))
 	}
 
-	async fn get_existing_key(&self, id: &String) -> Result<Key, Error> {
-		self.garage
+	async fn get_existing_key(&self, pattern: &str) -> Result<Key, Error> {
+		let candidates = self.garage
 			.key_table
-			.get(&EmptyKey, id)
+			.get_range(&EmptyKey, None, Some(KeyFilter::Matches(pattern.to_string())), 10)
 			.await?
+			.into_iter()
 			.filter(|k| !k.deleted.get())
-			.map(Ok)
-			.unwrap_or(Err(Error::BadRPC(format!("Key {} does not exist", id))))
+			.collect::<Vec<_>>();
+		if candidates.len() != 1 {
+			Err(Error::Message(format!("{} matching keys", candidates.len())))
+		} else {
+			Ok(candidates.into_iter().next().unwrap())
+		}
 	}
 
 	/// Update **bucket table** to inform of the new linked key
@@ -296,11 +301,12 @@ impl AdminRpcHandler {
 	/// Update **key table** to inform of the new linked bucket
 	async fn update_key_bucket(
 		&self,
-		mut key: Key,
+		key: &Key,
 		bucket: &String,
 		allow_read: bool,
 		allow_write: bool,
 	) -> Result<(), Error> {
+		let mut key = key.clone();
 		let old_map = key.authorized_buckets.take_and_clear();
 		key.authorized_buckets.merge(&old_map.update_mutator(
 			bucket.clone(),

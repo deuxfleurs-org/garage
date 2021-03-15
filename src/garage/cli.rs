@@ -157,9 +157,9 @@ pub struct DeleteBucketOpt {
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct PermBucketOpt {
-	/// Access key ID
+	/// Access key name or ID
 	#[structopt(long = "key")]
-	pub key_id: String,
+	pub key_pattern: String,
 
 	/// Allow/deny read operations
 	#[structopt(long = "read")]
@@ -198,8 +198,8 @@ pub enum KeyOperation {
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct KeyOpt {
-	/// ID of the key
-	pub key_id: String,
+	/// ID or name of the key
+	pub key_pattern: String,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -211,8 +211,8 @@ pub struct KeyNewOpt {
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct KeyRenameOpt {
-	/// ID of the key
-	pub key_id: String,
+	/// ID or name of the key
+	pub key_pattern: String,
 
 	/// New name of the key
 	pub new_name: String,
@@ -220,8 +220,8 @@ pub struct KeyRenameOpt {
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct KeyDeleteOpt {
-	/// ID of the key
-	pub key_id: String,
+	/// ID or name of the key
+	pub key_pattern: String,
 
 	/// Confirm deletion
 	#[structopt(long = "yes")]
