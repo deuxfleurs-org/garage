@@ -195,8 +195,7 @@ impl TableSchema for ObjectTable {
 
 	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let version_table = self.version_table.clone();
-		// TODO not cancellable
-		self.background.spawn_cancellable(async move {
+		self.background.spawn(async move {
 			if let (Some(old_v), Some(new_v)) = (old, new) {
 				// Propagate deletion of old versions
 				for v in old_v.versions.iter() {

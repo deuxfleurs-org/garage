@@ -11,9 +11,9 @@ use futures::future::join_all;
 use futures::select;
 use futures_util::future::*;
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
-use tokio::io::AsyncWriteExt;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -316,17 +316,16 @@ impl System {
 		self.clone().ping_nodes(bootstrap_peers).await;
 
 		let self2 = self.clone();
-		self.clone()
-			.background
-			.spawn_worker(format!("ping loop"), |stop_signal| self2.ping_loop(stop_signal));
+		self.background
+			.spawn_worker(format!("ping loop"), |stop_signal| {
+				self2.ping_loop(stop_signal)
+			});
 
 		if let (Some(consul_host), Some(consul_service_name)) = (consul_host, consul_service_name) {
 			let self2 = self.clone();
-			self.clone()
-				.background
+			self.background
 				.spawn_worker(format!("Consul loop"), |stop_signal| {
-					self2
-						.consul_loop(stop_signal, consul_host, consul_service_name)
+					self2.consul_loop(stop_signal, consul_host, consul_service_name)
 				});
 		}
 	}
@@ -531,7 +530,7 @@ impl System {
 					.broadcast(Message::AdvertiseConfig(adv.clone()), PING_TIMEOUT)
 					.map(Ok),
 			);
-			self.background.spawn(self.clone().save_network_config()).await;
+			self.background.spawn(self.clone().save_network_config());
 		}
 
 		Ok(Message::Ok)
@@ -568,7 +567,7 @@ impl System {
 		consul_host: String,
 		consul_service_name: String,
 	) {
-		loop {
+		while !*stop_signal.borrow() {
 			let restart_at = tokio::time::sleep(CONSUL_INTERVAL);
 
 			match get_consul_nodes(&consul_host, &consul_service_name).await {
@@ -583,11 +582,7 @@ impl System {
 
 			select! {
 				_ = restart_at.fuse() => (),
-				_ = stop_signal.changed().fuse() => {
-					if *stop_signal.borrow() {
-						return;
-					}
-				}
+				_ = stop_signal.changed().fuse() => (),
 			}
 		}
 	}

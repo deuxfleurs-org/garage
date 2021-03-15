@@ -13,9 +13,9 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_stream::wrappers::TcpListenerStream;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
+use tokio_stream::wrappers::TcpListenerStream;
 
 use garage_util::config::TlsConfig;
 use garage_util::data::*;
@@ -52,7 +52,11 @@ where
 
 	trace!(
 		"Request message: {}",
-		serde_json::to_string(&msg).unwrap_or("<json error>".into()).chars().take(100).collect::<String>()
+		serde_json::to_string(&msg)
+			.unwrap_or("<json error>".into())
+			.chars()
+			.take(100)
+			.collect::<String>()
 	);
 
 	match handler(msg, sockaddr).await {

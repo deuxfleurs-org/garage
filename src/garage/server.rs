@@ -47,10 +47,15 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Initializing background runner...");
 	let (send_cancel, watch_cancel) = watch::channel(false);
-	let background = BackgroundRunner::new(16, watch_cancel.clone());
+	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
 
 	info!("Initializing Garage main data store...");
-	let garage = Garage::new(config, db, background.clone(), &mut rpc_server);
+	let garage = Garage::new(config.clone(), db, background, &mut rpc_server);
+	let bootstrap = garage.system.clone().bootstrap(
+		&config.bootstrap_peers[..],
+		config.consul_host,
+		config.consul_service_name,
+	);
 
 	info!("Crate admin RPC handler...");
 	AdminRpcHandler::new(garage.clone()).register_handler(&mut rpc_server);
@@ -58,21 +63,13 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Initializing RPC and API servers...");
 	let run_rpc_server = Arc::new(rpc_server).run(wait_from(watch_cancel.clone()));
 	let api_server = api_server::run_api_server(garage.clone(), wait_from(watch_cancel.clone()));
-	let web_server = web_server::run_web_server(garage.clone(), wait_from(watch_cancel.clone()));
+	let web_server = web_server::run_web_server(garage, wait_from(watch_cancel.clone()));
 
 	futures::try_join!(
-		garage
-			.system
-			.clone()
-			.bootstrap(
-				&garage.config.bootstrap_peers[..],
-				garage.config.consul_host.clone(),
-				garage.config.consul_service_name.clone()
-			)
-			.map(|rv| {
-				info!("Bootstrap done");
-				Ok(rv)
-			}),
+		bootstrap.map(|rv| {
+			info!("Bootstrap done");
+			Ok(rv)
+		}),
 		run_rpc_server.map(|rv| {
 			info!("RPC server exited");
 			rv
@@ -85,9 +82,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 			info!("Web server exited");
 			rv
 		}),
-		background.run().map(|rv| {
-			info!("Background runner exited");
-			Ok(rv)
+		await_background_done.map(|rv| {
+			info!("Background runner exited: {:?}", rv);
+			Ok(())
 		}),
 		shutdown_signal(send_cancel),
 	)?;

@@ -101,10 +101,7 @@ impl MerkleUpdater {
 		ret
 	}
 
-	async fn updater_loop(
-		self: Arc<Self>,
-		mut must_exit: watch::Receiver<bool>,
-	) {
+	async fn updater_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) {
 		while !*must_exit.borrow() {
 			if let Some(x) = self.todo.iter().next() {
 				match x {

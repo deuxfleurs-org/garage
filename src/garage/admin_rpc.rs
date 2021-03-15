@@ -193,7 +193,12 @@ impl AdminRpcHandler {
 				let key_ids = self
 					.garage
 					.key_table
-					.get_range(&EmptyKey, None, Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)), 10000)
+					.get_range(
+						&EmptyKey,
+						None,
+						Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
+						10000,
+					)
 					.await?
 					.iter()
 					.map(|k| (k.key_id.to_string(), k.name.get().clone()))
@@ -257,15 +262,24 @@ impl AdminRpcHandler {
 	}
 
 	async fn get_existing_key(&self, pattern: &str) -> Result<Key, Error> {
-		let candidates = self.garage
+		let candidates = self
+			.garage
 			.key_table
-			.get_range(&EmptyKey, None, Some(KeyFilter::Matches(pattern.to_string())), 10)
+			.get_range(
+				&EmptyKey,
+				None,
+				Some(KeyFilter::Matches(pattern.to_string())),
+				10,
+			)
 			.await?
 			.into_iter()
 			.filter(|k| !k.deleted.get())
 			.collect::<Vec<_>>();
 		if candidates.len() != 1 {
-			Err(Error::Message(format!("{} matching keys", candidates.len())))
+			Err(Error::Message(format!(
+				"{} matching keys",
+				candidates.len()
+			)))
 		} else {
 			Ok(candidates.into_iter().next().unwrap())
 		}
@@ -469,12 +483,7 @@ impl AdminRpcHandler {
 			t.data.merkle_updater.merkle_tree_len()
 		)
 		.unwrap();
-		writeln!(
-			to,
-			"  GC todo queue length: {}",
-			t.data.gc_todo_len()
-		)
-		.unwrap();
+		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
 		Ok(())
 	}
 }

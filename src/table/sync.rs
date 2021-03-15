@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use futures::{select};
+use futures::select;
 use futures_util::future::*;
 use futures_util::stream::*;
 use rand::Rng;

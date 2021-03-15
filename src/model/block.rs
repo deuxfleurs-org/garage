@@ -254,18 +254,17 @@ impl BlockManager {
 		Ok(())
 	}
 
-	async fn resync_loop(
-		self: Arc<Self>,
-		mut must_exit: watch::Receiver<bool>,
-	) {
+	async fn resync_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) {
 		while !*must_exit.borrow() {
 			if let Err(e) = self.resync_iter(&mut must_exit).await {
 				warn!("Error in block resync loop: {}", e);
-				tokio::time::sleep(Duration::from_secs(10)).await;
+				select! {
+					_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => (),
+					_ = must_exit.changed().fuse() => (),
+				}
 			}
 		}
 	}
-
 
 	async fn resync_iter(&self, must_exit: &mut watch::Receiver<bool>) -> Result<(), Error> {
 		if let Some(first_item) = self.resync_queue.iter().next() {
@@ -280,7 +279,7 @@ impl BlockManager {
 					self.put_to_resync(&hash, RESYNC_RETRY_TIMEOUT)?;
 				}
 				self.resync_queue.remove(&time_bytes)?;
-				res?;	// propagate error to delay main loop
+				res?; // propagate error to delay main loop
 			} else {
 				let delay = tokio::time::sleep(Duration::from_millis(time_msec - now));
 				select! {

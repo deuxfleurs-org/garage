@@ -161,11 +161,11 @@ impl Ring {
 			})
 			.collect::<Vec<_>>();
 
-		eprintln!("RING: --");
-		for e in ring.iter() {
-			eprintln!("{:?}", e);
-		}
-		eprintln!("END --");
+		// eprintln!("RING: --");
+		// for e in ring.iter() {
+		// 	eprintln!("{:?}", e);
+		// }
+		// eprintln!("END --");
 
 		Self { config, ring }
 	}

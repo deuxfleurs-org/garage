@@ -198,7 +198,7 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 				let wait_finished_fut = tokio::spawn(async move {
 					resp_stream.collect::<Vec<_>>().await;
 				});
-				self.background.spawn(wait_finished_fut.map(|_| Ok(()))).await;
+				self.background.spawn(wait_finished_fut.map(|_| Ok(())));
 			}
 
 			Ok(results)

@@ -110,8 +110,7 @@ impl TableSchema for VersionTable {
 
 	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let block_ref_table = self.block_ref_table.clone();
-		// TODO not cancellable
-		self.background.spawn_cancellable(async move {
+		self.background.spawn(async move {
 			if let (Some(old_v), Some(new_v)) = (old, new) {
 				// Propagate deletion of version blocks
 				if new_v.deleted.get() && !old_v.deleted.get() {
