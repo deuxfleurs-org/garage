@@ -46,7 +46,7 @@ pub struct MerkleUpdater {
 	// Content of the merkle tree: items where
 	// - key = .bytes() for MerkleNodeKey
 	// - value = serialization of a MerkleNode, assumed to be MerkleNode::empty if not found
-	pub(crate) merkle_tree: sled::Tree,
+	pub merkle_tree: sled::Tree,
 	empty_node_hash: Hash,
 }
 
