@@ -42,7 +42,7 @@ pub fn parse_list_objects_query(
 	Ok(ListObjectsQuery {
 		is_v2: params.get("list-type").map(|x| x == "2").unwrap_or(false),
 		bucket: bucket.to_string(),
-		delimiter: params.get("delimiter").cloned(),
+		delimiter: params.get("delimiter").filter(|x| !x.is_empty()).cloned(),
 		max_keys: params
 			.get("max-keys")
 			.map(|x| {
