@@ -121,13 +121,13 @@ impl MerkleUpdater {
 							"({}) Error while iterating on Merkle todo tree: {}",
 							self.table_name, e
 						);
-						tokio::time::delay_for(Duration::from_secs(10)).await;
+						tokio::time::sleep(Duration::from_secs(10)).await;
 					}
 				}
 			} else {
 				select! {
 					_ = self.todo_notify.notified().fuse() => (),
-					_ = must_exit.recv().fuse() => (),
+					_ = must_exit.changed().fuse() => (),
 				}
 			}
 		}

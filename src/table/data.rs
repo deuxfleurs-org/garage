@@ -159,7 +159,7 @@ where
 		if let Some((old_entry, new_entry, new_bytes_hash)) = changed {
 			let is_tombstone = new_entry.is_tombstone();
 			self.instance.updated(old_entry, Some(new_entry));
-			self.merkle_updater.todo_notify.notify();
+			self.merkle_updater.todo_notify.notify_one();
 			if is_tombstone {
 				self.gc_todo.insert(&tree_key, new_bytes_hash.as_slice())?;
 			}
@@ -184,7 +184,7 @@ where
 		if removed {
 			let old_entry = self.decode_entry(v)?;
 			self.instance.updated(Some(old_entry), None);
-			self.merkle_updater.todo_notify.notify();
+			self.merkle_updater.todo_notify.notify_one();
 		}
 		Ok(removed)
 	}
@@ -209,7 +209,7 @@ where
 		if let Some(old_v) = removed {
 			let old_entry = self.decode_entry(&old_v[..])?;
 			self.instance.updated(Some(old_entry), None);
-			self.merkle_updater.todo_notify.notify();
+			self.merkle_updater.todo_notify.notify_one();
 			Ok(true)
 		} else {
 			Ok(false)

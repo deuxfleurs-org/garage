@@ -2,11 +2,9 @@ use core::future::Future;
 use std::pin::Pin;
 use std::sync::Mutex;
 
-use futures::future::join_all;
-use futures::select;
-use futures_util::future::*;
+use arc_swap::ArcSwapOption;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch, Notify};
+use tokio::sync::{mpsc, watch};
 
 use crate::error::Error;
 
@@ -14,12 +12,9 @@ type JobOutput = Result<(), Error>;
 type Job = Pin<Box<dyn Future<Output = JobOutput> + Send>>;
 
 pub struct BackgroundRunner {
-	n_runners: usize,
 	pub stop_signal: watch::Receiver<bool>,
 
-	queue_in: mpsc::UnboundedSender<(Job, bool)>,
-	queue_out: Mutex<mpsc::UnboundedReceiver<(Job, bool)>>,
-	job_notify: Notify,
+	queue_in: ArcSwapOption<mpsc::UnboundedSender<(Job, bool)>>,
 
 	workers: Mutex<Vec<tokio::task::JoinHandle<()>>>,
 }
@@ -27,50 +22,91 @@ pub struct BackgroundRunner {
 impl BackgroundRunner {
 	pub fn new(n_runners: usize, stop_signal: watch::Receiver<bool>) -> Arc<Self> {
 		let (queue_in, queue_out) = mpsc::unbounded_channel();
+
+		let mut workers = vec![];
+		let queue_out = Arc::new(tokio::sync::Mutex::new(queue_out));
+
+		for i in 0..n_runners {
+			let queue_out = queue_out.clone();
+			let stop_signal = stop_signal.clone();
+
+			workers.push(tokio::spawn(async move {
+				while let Some((job, cancellable)) = queue_out.lock().await.recv().await {
+					if cancellable && *stop_signal.borrow() {
+						continue;
+					}
+					if let Err(e) = job.await {
+						error!("Job failed: {}", e)
+					}
+				}
+				info!("Worker {} exiting", i);
+			}));
+		}
+
 		Arc::new(Self {
-			n_runners,
 			stop_signal,
-			queue_in,
-			queue_out: Mutex::new(queue_out),
-			job_notify: Notify::new(),
-			workers: Mutex::new(Vec::new()),
+			queue_in: ArcSwapOption::new(Some(Arc::new(queue_in))),
+			workers: Mutex::new(workers),
 		})
 	}
 
 	pub async fn run(self: Arc<Self>) {
-		let mut workers = self.workers.lock().unwrap();
-		for i in 0..self.n_runners {
-			workers.push(tokio::spawn(self.clone().runner(i)));
-		}
-		drop(workers);
-
 		let mut stop_signal = self.stop_signal.clone();
-		while let Some(exit_now) = stop_signal.recv().await {
+
+		loop {
+			let exit_now = match stop_signal.changed().await {
+				Ok(()) => *stop_signal.borrow(),
+				Err(e) => {
+					error!("Watch .changed() error: {}", e);
+					true
+				}
+			};
 			if exit_now {
-				let mut workers = self.workers.lock().unwrap();
-				let workers_vec = workers.drain(..).collect::<Vec<_>>();
-				join_all(workers_vec).await;
-				return;
+				break;
+			}
+		}
+
+		info!("Closing background job queue_in...");
+		drop(self.queue_in.swap(None));
+
+		info!("Waiting for all workers to terminate...");
+		while let Some(task) = self.workers.lock().unwrap().pop() {
+			if let Err(e) = task.await {
+				warn!("Error awaiting task: {}", e);
 			}
 		}
 	}
 
-	pub fn spawn<T>(&self, job: T)
+	// Spawn a task to be run in background
+	pub async fn spawn<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,
 	{
-		let boxed: Job = Box::pin(job);
-		let _: Result<_, _> = self.queue_in.clone().send((boxed, false));
-		self.job_notify.notify();
+		match self.queue_in.load().as_ref() {
+			Some(chan) => {
+				let boxed: Job = Box::pin(job);
+				chan.send((boxed, false)).map_err(|_| "send error").unwrap();
+			}
+			None => {
+				warn!("Doing background job now because we are exiting...");
+				if let Err(e) = job.await {
+					warn!("Task failed: {}", e);
+				}
+			}
+		}
 	}
 
 	pub fn spawn_cancellable<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,
 	{
-		let boxed: Job = Box::pin(job);
-		let _: Result<_, _> = self.queue_in.clone().send((boxed, true));
-		self.job_notify.notify();
+		match self.queue_in.load().as_ref() {
+			Some(chan) => {
+				let boxed: Job = Box::pin(job);
+				chan.send((boxed, false)).map_err(|_| "send error").unwrap();
+			}
+			None => (), // drop job if we are exiting
+		}
 	}
 
 	pub fn spawn_worker<F, T>(&self, name: String, worker: F)
@@ -84,38 +120,5 @@ impl BackgroundRunner {
 			worker(stop_signal).await;
 			info!("Worker exited: {}", name);
 		}));
-	}
-
-	async fn runner(self: Arc<Self>, i: usize) {
-		let mut stop_signal = self.stop_signal.clone();
-		loop {
-			let must_exit: bool = *stop_signal.borrow();
-			if let Some(job) = self.dequeue_job(must_exit) {
-				if let Err(e) = job.await {
-					error!("Job failed: {}", e)
-				}
-			} else {
-				if must_exit {
-					info!("Background runner {} exiting", i);
-					return;
-				}
-				select! {
-					_ = self.job_notify.notified().fuse() => (),
-					_ = stop_signal.recv().fuse() => (),
-				}
-			}
-		}
-	}
-
-	fn dequeue_job(&self, must_exit: bool) -> Option<Job> {
-		let mut queue = self.queue_out.lock().unwrap();
-		while let Ok((job, cancellable)) = queue.try_recv() {
-			if cancellable && must_exit {
-				continue;
-			} else {
-				return Some(job);
-			}
-		}
-		None
 	}
 }

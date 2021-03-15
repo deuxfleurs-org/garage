@@ -31,10 +31,10 @@ rand = "0.7"
 
 futures = "0.3"
 futures-util = "0.3"
-tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
+tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 
 http = "0.2"
-hyper = "^0.13.6"
+hyper = "0.14"
 url = "2.1"
 httpdate = "0.3"
 percent-encoding = "2.1.0"

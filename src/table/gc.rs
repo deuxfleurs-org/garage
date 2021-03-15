@@ -85,8 +85,8 @@ where
 				}
 			}
 			select! {
-				_ = tokio::time::delay_for(Duration::from_secs(10)).fuse() => (),
-				_ = must_exit.recv().fuse() => (),
+				_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => (),
+				_ = must_exit.changed().fuse() => (),
 			}
 		}
 	}

@@ -8,16 +8,22 @@ use crate::data::*;
 pub enum RPCError {
 	#[error(display = "Node is down: {:?}.", _0)]
 	NodeDown(UUID),
+
 	#[error(display = "Timeout: {}", _0)]
-	Timeout(#[error(source)] tokio::time::Elapsed),
+	Timeout(#[error(source)] tokio::time::error::Elapsed),
+
 	#[error(display = "HTTP error: {}", _0)]
 	HTTP(#[error(source)] http::Error),
+
 	#[error(display = "Hyper error: {}", _0)]
 	Hyper(#[error(source)] hyper::Error),
+
 	#[error(display = "Messagepack encode error: {}", _0)]
 	RMPEncode(#[error(source)] rmp_serde::encode::Error),
+
 	#[error(display = "Messagepack decode error: {}", _0)]
 	RMPDecode(#[error(source)] rmp_serde::decode::Error),
+
 	#[error(display = "Too many errors: {:?}", _0)]
 	TooManyErrors(Vec<String>),
 }

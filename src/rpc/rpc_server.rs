@@ -13,6 +13,7 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
+use tokio_stream::wrappers::TcpListenerStream;
 use tokio_rustls::server::TlsStream;
 use tokio_rustls::TlsAcceptor;
 
@@ -171,8 +172,8 @@ impl RpcServer {
 			config.set_single_cert([&node_certs[..], &ca_certs[..]].concat(), node_key)?;
 			let tls_acceptor = Arc::new(TlsAcceptor::from(Arc::new(config)));
 
-			let mut listener = TcpListener::bind(&self.bind_addr).await?;
-			let incoming = listener.incoming().filter_map(|socket| async {
+			let listener = TcpListener::bind(&self.bind_addr).await?;
+			let incoming = TcpListenerStream::new(listener).filter_map(|socket| async {
 				match socket {
 					Ok(stream) => match tls_acceptor.clone().accept(stream).await {
 						Ok(x) => Some(Ok::<_, hyper::Error>(x)),

@@ -21,13 +21,13 @@ async fn shutdown_signal(send_cancel: watch::Sender<bool>) -> Result<(), Error> 
 		.await
 		.expect("failed to install CTRL+C signal handler");
 	info!("Received CTRL+C, shutting down.");
-	send_cancel.broadcast(true)?;
+	send_cancel.send(true)?;
 	Ok(())
 }
 
 async fn wait_from(mut chan: watch::Receiver<bool>) -> () {
-	while let Some(exit_now) = chan.recv().await {
-		if exit_now {
+	while !*chan.borrow() {
+		if chan.changed().await.is_err() {
 			return;
 		}
 	}

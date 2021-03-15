@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use futures::{pin_mut, select};
+use futures::{select};
 use futures_util::future::*;
 use futures_util::stream::*;
 use rand::Rng;
@@ -110,7 +110,7 @@ where
 
 		let s3 = syncer.clone();
 		tokio::spawn(async move {
-			tokio::time::delay_for(Duration::from_secs(20)).await;
+			tokio::time::sleep(Duration::from_secs(20)).await;
 			s3.add_full_sync();
 		});
 
@@ -142,23 +142,16 @@ where
 		let mut nothing_to_do_since = Some(Instant::now());
 
 		while !*must_exit.borrow() {
-			let s_ring_recv = ring_recv.recv().fuse();
-			let s_busy = busy_rx.recv().fuse();
-			let s_must_exit = must_exit.recv().fuse();
-			let s_timeout = tokio::time::delay_for(Duration::from_secs(1)).fuse();
-			pin_mut!(s_ring_recv, s_busy, s_must_exit, s_timeout);
-
 			select! {
-				new_ring_r = s_ring_recv => {
-					if let Some(new_ring) = new_ring_r {
-						if !Arc::ptr_eq(&new_ring, &prev_ring) {
-							debug!("({}) Ring changed, adding full sync to syncer todo list", self.data.name);
-							self.add_full_sync();
-							prev_ring = new_ring;
-						}
+				_ = ring_recv.changed().fuse() => {
+					let new_ring = ring_recv.borrow();
+					if !Arc::ptr_eq(&new_ring, &prev_ring) {
+						debug!("({}) Ring changed, adding full sync to syncer todo list", self.data.name);
+						self.add_full_sync();
+						prev_ring = new_ring.clone();
 					}
 				}
-				busy_opt = s_busy => {
+				busy_opt = busy_rx.recv().fuse() => {
 					if let Some(busy) = busy_opt {
 						if busy {
 							nothing_to_do_since = None;
@@ -169,12 +162,8 @@ where
 						}
 					}
 				}
-				must_exit_v = s_must_exit => {
-					if must_exit_v.unwrap_or(false) {
-						break;
-					}
-				}
-				_ = s_timeout => {
+				_ = must_exit.changed().fuse() => (),
+				_ = tokio::time::sleep(Duration::from_secs(1)).fuse() => {
 					if nothing_to_do_since.map(|t| Instant::now() - t >= ANTI_ENTROPY_INTERVAL).unwrap_or(false) {
 						nothing_to_do_since = None;
 						debug!("({}) Interval passed, adding full sync to syncer todo list", self.data.name);
@@ -213,7 +202,7 @@ where
 				}
 			} else {
 				busy_tx.send(false).unwrap();
-				tokio::time::delay_for(Duration::from_secs(1)).await;
+				tokio::time::sleep(Duration::from_secs(1)).await;
 			}
 		}
 	}
