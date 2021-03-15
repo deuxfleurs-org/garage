@@ -108,7 +108,8 @@ impl TableSchema for KeyTable {
 		match filter {
 			KeyFilter::Deleted(df) => df.apply(entry.deleted.get()),
 			KeyFilter::Matches(pat) => {
-				entry.key_id.starts_with(pat) || entry.name.get().to_lowercase() == pat.to_lowercase()
+				let pat = pat.to_lowercase();
+				entry.key_id.to_lowercase().starts_with(&pat) || entry.name.get().to_lowercase() == pat
 			}
 		}
 	}
