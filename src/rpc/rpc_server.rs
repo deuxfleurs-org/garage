@@ -51,7 +51,7 @@ where
 
 	trace!(
 		"Request message: {}",
-		serde_json::to_string(&msg).unwrap_or("<json error>".into())
+		serde_json::to_string(&msg).unwrap_or("<json error>".into()).chars().take(100).collect::<String>()
 	);
 
 	match handler(msg, sockaddr).await {

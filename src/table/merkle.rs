@@ -56,6 +56,7 @@ pub struct MerkleNodeKey {
 	pub partition: MerklePartition,
 
 	// prefix: a prefix for the hash of full keys, i.e. hash(hash(partition_key)+sort_key)
+	#[serde(with = "serde_bytes")]
 	pub prefix: Vec<u8>,
 }
 
