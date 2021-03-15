@@ -76,16 +76,13 @@ impl BackgroundRunner {
 	pub fn spawn_worker<F, T>(&self, name: String, worker: F)
 	where
 		F: FnOnce(watch::Receiver<bool>) -> T + Send + 'static,
-		T: Future<Output = JobOutput> + Send + 'static,
+		T: Future<Output = ()> + Send + 'static,
 	{
 		let mut workers = self.workers.lock().unwrap();
 		let stop_signal = self.stop_signal.clone();
 		workers.push(tokio::spawn(async move {
-			if let Err(e) = worker(stop_signal).await {
-				error!("Worker stopped with error: {}, error: {}", name, e);
-			} else {
-				info!("Worker exited successfully: {}", name);
-			}
+			worker(stop_signal).await;
+			info!("Worker exited: {}", name);
 		}));
 	}
 

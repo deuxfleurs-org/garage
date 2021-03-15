@@ -70,7 +70,7 @@ where
 		gc
 	}
 
-	async fn gc_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) -> Result<(), Error> {
+	async fn gc_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) {
 		while !*must_exit.borrow() {
 			match self.gc_loop_iter().await {
 				Ok(true) => {
@@ -89,7 +89,6 @@ where
 				_ = must_exit.recv().fuse() => (),
 			}
 		}
-		Ok(())
 	}
 
 	async fn gc_loop_iter(&self) -> Result<bool, Error> {

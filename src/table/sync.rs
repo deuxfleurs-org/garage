@@ -136,7 +136,7 @@ where
 		self: Arc<Self>,
 		mut must_exit: watch::Receiver<bool>,
 		mut busy_rx: mpsc::UnboundedReceiver<bool>,
-	) -> Result<(), Error> {
+	) {
 		let mut prev_ring: Arc<Ring> = self.aux.system.ring.borrow().clone();
 		let mut ring_recv: watch::Receiver<Arc<Ring>> = self.aux.system.ring.clone();
 		let mut nothing_to_do_since = Some(Instant::now());
@@ -183,7 +183,6 @@ where
 				}
 			}
 		}
-		Ok(())
 	}
 
 	pub fn add_full_sync(&self) {
@@ -197,11 +196,11 @@ where
 		self: Arc<Self>,
 		mut must_exit: watch::Receiver<bool>,
 		busy_tx: mpsc::UnboundedSender<bool>,
-	) -> Result<(), Error> {
+	) {
 		while !*must_exit.borrow() {
 			let task = self.todo.lock().unwrap().pop_task();
 			if let Some(partition) = task {
-				busy_tx.send(true)?;
+				busy_tx.send(true).unwrap();
 				let res = self
 					.clone()
 					.sync_partition(&partition, &mut must_exit)
@@ -213,11 +212,10 @@ where
 					);
 				}
 			} else {
-				busy_tx.send(false)?;
+				busy_tx.send(false).unwrap();
 				tokio::time::delay_for(Duration::from_secs(1)).await;
 			}
 		}
-		Ok(())
 	}
 
 	async fn sync_partition(

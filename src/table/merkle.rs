@@ -104,7 +104,7 @@ impl MerkleUpdater {
 	async fn updater_loop(
 		self: Arc<Self>,
 		mut must_exit: watch::Receiver<bool>,
-	) -> Result<(), Error> {
+	) {
 		while !*must_exit.borrow() {
 			if let Some(x) = self.todo.iter().next() {
 				match x {
@@ -131,7 +131,6 @@ impl MerkleUpdater {
 				}
 			}
 		}
-		Ok(())
 	}
 
 	fn update_item(&self, k: &[u8], vhash_by: &[u8]) -> Result<(), Error> {

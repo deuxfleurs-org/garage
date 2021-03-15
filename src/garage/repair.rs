@@ -20,6 +20,16 @@ impl Repair {
 		&self,
 		opt: RepairOpt,
 		must_exit: watch::Receiver<bool>,
+	) {
+		if let Err(e) = self.repair_worker_aux(opt, must_exit).await {
+			warn!("Repair worker failed with error: {}", e);
+		}
+	}
+
+	async fn repair_worker_aux(
+		&self,
+		opt: RepairOpt,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
 		let todo = |x| opt.what.as_ref().map(|y| *y == x).unwrap_or(true);
 
