@@ -28,6 +28,7 @@ use crate::garage::Garage;
 pub const INLINE_THRESHOLD: usize = 3072;
 
 const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(42);
+const BLOCK_GC_TIMEOUT: Duration = Duration::from_secs(60);
 const NEED_BLOCK_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 const RESYNC_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -175,7 +176,10 @@ impl BlockManager {
 
 		if data::blake2sum(&data[..]) != *hash {
 			let _lock = self.data_dir_lock.lock().await;
-			warn!("Block {:?} is corrupted. Renaming to .corrupted and resyncing.", hash);
+			warn!(
+				"Block {:?} is corrupted. Renaming to .corrupted and resyncing.",
+				hash
+			);
 			let mut path2 = path.clone();
 			path2.set_extension(".corrupted");
 			fs::rename(path, path2).await?;
@@ -225,7 +229,7 @@ impl BlockManager {
 	pub fn block_decref(&self, hash: &Hash) -> Result<(), Error> {
 		let new_rc = self.rc.merge(&hash, vec![0])?;
 		if new_rc.map(|x| u64_from_bytes(&x[..]) == 0).unwrap_or(true) {
-			self.put_to_resync(&hash, Duration::from_secs(0))?;
+			self.put_to_resync(&hash, BLOCK_GC_TIMEOUT)?;
 		}
 		Ok(())
 	}
@@ -470,7 +474,7 @@ impl BlockManager {
 					};
 					let mut hash = [0u8; 32];
 					hash.copy_from_slice(&hash_bytes[..]);
-					self.put_to_resync(&hash.into(),Duration::from_secs(0))?;
+					self.put_to_resync(&hash.into(), Duration::from_secs(0))?;
 				}
 
 				if *must_exit.borrow() {

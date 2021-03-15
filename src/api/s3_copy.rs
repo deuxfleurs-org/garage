@@ -41,45 +41,64 @@ pub async fn handle_copy(
 	};
 
 	let new_uuid = gen_uuid();
+	let new_timestamp = now_msec();
 	let dest_object_version = ObjectVersion {
 		uuid: new_uuid,
-		timestamp: now_msec(),
+		timestamp: new_timestamp,
 		state: ObjectVersionState::Complete(source_last_state.clone()),
 	};
+	let dest_object = Object::new(
+		dest_bucket.to_string(),
+		dest_key.to_string(),
+		vec![dest_object_version],
+	);
 
-	match &source_last_state {
+	match source_last_state {
 		ObjectVersionData::DeleteMarker => {
 			return Err(Error::NotFound);
 		}
 		ObjectVersionData::Inline(_meta, _bytes) => {
-			let dest_object = Object::new(
-				dest_bucket.to_string(),
-				dest_key.to_string(),
-				vec![dest_object_version],
-			);
 			garage.object_table.insert(&dest_object).await?;
 		}
-		ObjectVersionData::FirstBlock(_meta, _first_block_hash) => {
+		ObjectVersionData::FirstBlock(meta, _first_block_hash) => {
+			// Get block list from source version
 			let source_version = garage
 				.version_table
 				.get(&source_last_v.uuid, &EmptyKey)
 				.await?;
 			let source_version = source_version.ok_or(Error::NotFound)?;
 
+			// Write an "uploading" marker in Object table
+			// This holds a reference to the object in the Version table
+			// so that it won't be deleted, e.g. by repair_versions.
+			let tmp_dest_object_version = ObjectVersion {
+				uuid: new_uuid,
+				timestamp: new_timestamp,
+				state: ObjectVersionState::Uploading(meta.headers.clone()),
+			};
+			let tmp_dest_object = Object::new(
+				dest_bucket.to_string(),
+				dest_key.to_string(),
+				vec![tmp_dest_object_version],
+			);
+			garage.object_table.insert(&tmp_dest_object).await?;
+
+			// Write version in the version table. Even with empty block list,
+			// this means that the BlockRef entries linked to this version cannot be
+			// marked as deleted (they are marked as deleted only if the Version
+			// doesn't exist or is marked as deleted).
 			let mut dest_version = Version::new(
 				new_uuid,
 				dest_bucket.to_string(),
 				dest_key.to_string(),
 				false,
 			);
+			garage.version_table.insert(&dest_version).await?;
+
+			// Fill in block list for version and insert block refs
 			for (bk, bv) in source_version.blocks.items().iter() {
 				dest_version.blocks.put(*bk, *bv);
 			}
-			let dest_object = Object::new(
-				dest_bucket.to_string(),
-				dest_key.to_string(),
-				vec![dest_object_version],
-			);
 			let dest_block_refs = dest_version
 				.blocks
 				.items()
@@ -91,14 +110,21 @@ pub async fn handle_copy(
 				})
 				.collect::<Vec<_>>();
 			futures::try_join!(
-				garage.object_table.insert(&dest_object),
 				garage.version_table.insert(&dest_version),
 				garage.block_ref_table.insert_many(&dest_block_refs[..]),
 			)?;
+
+			// Insert final object
+			// We do this last because otherwise there is a race condition in the case where
+			// the copy call has the same source and destination (this happens, rclone does
+			// it to update the modification timestamp for instance). If we did this concurrently
+			// with the stuff before, the block's reference counts could be decremented before
+			// they are incremented again for the new version, leading to data being deleted.
+			garage.object_table.insert(&dest_object).await?;
 		}
 	}
 
-	let now = Utc::now();
+	let now = Utc::now(); // FIXME use the unix timestamp from above
 	let last_modified = now.to_rfc3339_opts(SecondsFormat::Secs, true);
 	let mut xml = String::new();
 	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();

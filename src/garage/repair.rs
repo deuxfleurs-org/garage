@@ -82,13 +82,7 @@ impl Repair {
 					.versions()
 					.iter()
 					.any(|x| x.uuid == version.uuid && x.state != ObjectVersionState::Aborted),
-				None => {
-					warn!(
-						"Repair versions: object for version {:?} not found, skipping.",
-						version
-					);
-					continue;
-				}
+				None => false,
 			};
 			if !version_exists {
 				info!("Repair versions: marking version as deleted: {:?}", version);
@@ -127,16 +121,8 @@ impl Repair {
 				.version_table
 				.get(&block_ref.version, &EmptyKey)
 				.await?;
-			let ref_exists = match version {
-				Some(v) => !v.deleted.get(),
-				None => {
-					warn!(
-						"Block ref repair: version for block ref {:?} not found, skipping.",
-						block_ref
-					);
-					continue;
-				}
-			};
+			// The version might not exist if it has been GC'ed
+			let ref_exists = version.map(|v| !v.deleted.get()).unwrap_or(false);
 			if !ref_exists {
 				info!(
 					"Repair block ref: marking block_ref as deleted: {:?}",

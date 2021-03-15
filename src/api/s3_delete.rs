@@ -29,16 +29,16 @@ async fn handle_delete_internal(
 		_ => true,
 	});
 
-	let mut must_delete = None;
+	let mut version_to_delete = None;
 	let mut timestamp = now_msec();
 	for v in interesting_versions {
-		if v.timestamp + 1 > timestamp || must_delete.is_none() {
-			must_delete = Some(v.uuid);
+		if v.timestamp + 1 > timestamp || version_to_delete.is_none() {
+			version_to_delete = Some(v.uuid);
 		}
 		timestamp = std::cmp::max(timestamp, v.timestamp + 1);
 	}
 
-	let deleted_version = must_delete.ok_or(Error::NotFound)?;
+	let deleted_version = version_to_delete.ok_or(Error::NotFound)?;
 
 	let version_uuid = gen_uuid();
 
