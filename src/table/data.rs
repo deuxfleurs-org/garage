@@ -18,7 +18,7 @@ pub struct TableData<F: TableSchema> {
 	pub instance: F,
 
 	pub store: sled::Tree,
-	pub gc_todo: sled::Tree,
+	pub(crate) gc_todo: sled::Tree,
 	pub merkle_updater: Arc<MerkleUpdater>,
 }
 
@@ -238,5 +238,9 @@ where
 				}
 			},
 		}
+	}
+
+	pub fn gc_todo_len(&self) -> usize {
+		self.gc_todo.len()
 	}
 }

@@ -432,13 +432,13 @@ impl AdminRpcHandler {
 		writeln!(
 			&mut ret,
 			"  number of blocks: {}",
-			self.garage.block_manager.rc.len()
+			self.garage.block_manager.rc_len()
 		)
 		.unwrap();
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
-			self.garage.block_manager.resync_queue.len()
+			self.garage.block_manager.resync_queue_len()
 		)
 		.unwrap();
 
@@ -460,19 +460,19 @@ impl AdminRpcHandler {
 		writeln!(
 			to,
 			"  Merkle updater todo queue length: {}",
-			t.data.merkle_updater.todo.len()
+			t.data.merkle_updater.todo_len()
 		)
 		.unwrap();
 		writeln!(
 			to,
 			"  Merkle tree size: {}",
-			t.data.merkle_updater.merkle_tree.len()
+			t.data.merkle_updater.merkle_tree_len()
 		)
 		.unwrap();
 		writeln!(
 			to,
 			"  GC todo queue length: {}",
-			t.data.gc_todo.len()
+			t.data.gc_todo_len()
 		)
 		.unwrap();
 		Ok(())

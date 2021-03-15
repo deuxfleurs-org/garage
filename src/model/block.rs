@@ -27,6 +27,8 @@ use crate::garage::Garage;
 
 pub const INLINE_THRESHOLD: usize = 3072;
 
+pub const BACKGROUND_WORKERS: u64 = 1;
+
 const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(42);
 const BLOCK_GC_TIMEOUT: Duration = Duration::from_secs(60);
 const NEED_BLOCK_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -56,14 +58,14 @@ pub struct BlockManager {
 	pub data_dir: PathBuf,
 	pub data_dir_lock: Mutex<()>,
 
-	pub rc: sled::Tree,
+	rc: sled::Tree,
 
-	pub resync_queue: sled::Tree,
-	pub resync_notify: Notify,
+	resync_queue: sled::Tree,
+	resync_notify: Notify,
 
-	pub system: Arc<System>,
+	system: Arc<System>,
 	rpc_client: Arc<RpcClient<Message>>,
-	pub garage: ArcSwapOption<Garage>,
+	pub(crate) garage: ArcSwapOption<Garage>,
 }
 
 impl BlockManager {
@@ -128,7 +130,7 @@ impl BlockManager {
 
 	pub fn spawn_background_worker(self: Arc<Self>) {
 		// Launch 2 simultaneous workers for background resync loop preprocessing
-		for i in 0..2u64 {
+		for i in 0..BACKGROUND_WORKERS {
 			let bm2 = self.clone();
 			let background = self.system.background.clone();
 			tokio::spawn(async move {
@@ -373,7 +375,6 @@ impl BlockManager {
 			);
 
 			fs::remove_file(path).await?;
-			self.resync_queue.remove(&hash)?;
 		}
 
 		if needed && !exists {
@@ -493,6 +494,14 @@ impl BlockManager {
 			Ok(())
 		}
 		.boxed()
+	}
+
+	pub fn resync_queue_len(&self) -> usize {
+		self.resync_queue.len()
+	}
+
+	pub fn rc_len(&self) -> usize {
+		self.rc.len()
 	}
 }
 

@@ -40,13 +40,13 @@ pub struct MerkleUpdater {
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
 	// - value = the hash of the full serialized item, if present,
 	//			 or an empty vec if item is absent (deleted)
-	pub todo: sled::Tree,
+	pub(crate) todo: sled::Tree,
 	pub(crate) todo_notify: Notify,
 
 	// Content of the merkle tree: items where
 	// - key = .bytes() for MerkleNodeKey
 	// - value = serialization of a MerkleNode, assumed to be MerkleNode::empty if not found
-	pub merkle_tree: sled::Tree,
+	pub(crate) merkle_tree: sled::Tree,
 	empty_node_hash: Hash,
 }
 
@@ -310,6 +310,14 @@ impl MerkleUpdater {
 			None => Ok(MerkleNode::Empty),
 			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),
 		}
+	}
+
+	pub fn merkle_tree_len(&self) -> usize {
+		self.merkle_tree.len()
+	}
+
+	pub fn todo_len(&self) -> usize {
+		self.todo.len()
 	}
 }
 

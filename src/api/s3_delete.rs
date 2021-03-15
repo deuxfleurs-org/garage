@@ -48,7 +48,7 @@ async fn handle_delete_internal(
 		key.into(),
 		vec![ObjectVersion {
 			uuid: version_uuid,
-			timestamp: now_msec(),
+			timestamp,
 			state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
 		}],
 	);
