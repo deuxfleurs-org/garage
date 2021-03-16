@@ -33,7 +33,7 @@ pub enum Error {
 	InvalidBase64(#[error(source)] base64::DecodeError),
 
 	#[error(display = "Invalid XML: {}", _0)]
-	InvalidXML(#[error(source)] roxmltree::Error),
+	InvalidXML(String),
 
 	#[error(display = "Invalid header value: {}", _0)]
 	InvalidHeader(#[error(source)] hyper::header::ToStrError),
@@ -43,6 +43,12 @@ pub enum Error {
 
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+}
+
+impl From<roxmltree::Error> for Error {
+	fn from(err: roxmltree::Error) -> Self {
+		Self::InvalidXML(format!("{}", err))
+	}
 }
 
 impl Error {

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use futures::stream::*;
 use hyper::{Body, Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
-use sha2::{Digest as Sha256Digest, Sha256};
+use sha2::Sha256;
 
 use garage_table::*;
 use garage_util::data::*;
@@ -188,7 +188,7 @@ async fn read_and_put_blocks(
 	let mut md5hasher = Md5::new();
 	let mut sha256hasher = Sha256::new();
 	md5hasher.update(&first_block[..]);
-	sha256hasher.input(&first_block[..]);
+	sha256hasher.update(&first_block[..]);
 
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block = put_block_meta(
@@ -208,7 +208,7 @@ async fn read_and_put_blocks(
 			futures::try_join!(put_curr_block, put_curr_version_block, chunker.next())?;
 		if let Some(block) = next_block {
 			md5hasher.update(&block[..]);
-			sha256hasher.input(&block[..]);
+			sha256hasher.update(&block[..]);
 			let block_hash = blake2sum(&block[..]);
 			let block_len = block.len();
 			put_curr_version_block = put_block_meta(
@@ -229,7 +229,7 @@ async fn read_and_put_blocks(
 	let total_size = next_offset as u64;
 	let data_md5sum = md5hasher.finalize();
 
-	let data_sha256sum = sha256hasher.result();
+	let data_sha256sum = sha256hasher.finalize();
 	let data_sha256sum = Hash::try_from(&data_sha256sum[..]).unwrap();
 
 	Ok((total_size, data_md5sum, data_sha256sum))

@@ -37,7 +37,7 @@ impl BackgroundRunner {
 								None => break,
 							}
 						}
-						_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => {
+						_ = tokio::time::sleep(Duration::from_secs(5)).fuse() => {
 							if *stop_signal_2.borrow() {
 								break;
 							} else {
@@ -71,9 +71,9 @@ impl BackgroundRunner {
 									// because the sending side was dropped. Exit now.
 									None => break,
 								},
-								_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => {
+								_ = tokio::time::sleep(Duration::from_secs(5)).fuse() => {
 									if *stop_signal.borrow() {
-										// Nothing has been going on for 10 secs, and we are shutting
+										// Nothing has been going on for 5 secs, and we are shutting
 										// down. Exit now.
 										break;
 									} else {

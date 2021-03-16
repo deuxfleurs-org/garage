@@ -4,7 +4,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Instant;
 
-use bytes::IntoBuf;
 use futures::future::Future;
 use futures_util::future::*;
 use futures_util::stream::*;
@@ -48,7 +47,7 @@ where
 {
 	let begin_time = Instant::now();
 	let whole_body = hyper::body::to_bytes(req.into_body()).await?;
-	let msg = rmp_serde::decode::from_read::<_, M>(whole_body.into_buf())?;
+	let msg = rmp_serde::decode::from_read::<_, M>(&whole_body[..])?;
 
 	trace!(
 		"Request message: {}",

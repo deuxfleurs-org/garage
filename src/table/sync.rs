@@ -244,12 +244,8 @@ where
 				)));
 			}
 		} else {
-			self.offload_partition(
-				&partition.begin,
-				&partition.end,
-				must_exit,
-			)
-			.await?;
+			self.offload_partition(&partition.begin, &partition.end, must_exit)
+				.await?;
 		}
 
 		Ok(())
@@ -399,9 +395,7 @@ where
 				);
 				return Ok(());
 			}
-			SyncRPC::RootCkDifferent(true) => {
-				VecDeque::from(vec![root_ck_key])
-			}
+			SyncRPC::RootCkDifferent(true) => VecDeque::from(vec![root_ck_key]),
 			x => {
 				return Err(Error::Message(format!(
 					"Invalid respone to RootCkHash RPC: {}",
@@ -550,7 +544,7 @@ impl SyncTodo {
 			let begin = partitions[i].1;
 
 			let end = if i + 1 < partitions.len() {
-				partitions[i+1].1
+				partitions[i + 1].1
 			} else {
 				[0xFFu8; 32].into()
 			};
@@ -579,7 +573,7 @@ impl SyncTodo {
 			return None;
 		}
 
-		let i = rand::thread_rng().gen_range::<usize, _, _>(0, self.todo.len());
+		let i = rand::thread_rng().gen_range(0..self.todo.len());
 		if i == self.todo.len() - 1 {
 			self.todo.pop()
 		} else {

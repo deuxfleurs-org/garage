@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
-use bytes::IntoBuf;
 use futures::future::Future;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
@@ -333,7 +332,7 @@ impl RpcHttpClient {
 		let body = hyper::body::to_bytes(resp.into_body()).await?;
 		drop(slot);
 
-		match rmp_serde::decode::from_read::<_, Result<M, String>>(body.into_buf())? {
+		match rmp_serde::decode::from_read::<_, Result<M, String>>(&body[..])? {
 			Err(e) => Ok(Err(Error::RemoteError(e, status))),
 			Ok(x) => Ok(Ok(x)),
 		}

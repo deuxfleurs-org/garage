@@ -18,11 +18,10 @@ garage_table = { version = "0.1.1", path = "../table" }
 garage_model = { version = "0.1.1", path = "../model" }
 garage_api = { version = "0.1.1", path = "../api" }
 
-err-derive = "0.2.3"
+err-derive = "0.3"
 log = "0.4"
 futures = "0.3"
 http = "0.2"
 hyper = "0.14"
 percent-encoding = "2.1.0"
-roxmltree = "0.11"
 idna = "0.2"

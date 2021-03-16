@@ -22,7 +22,6 @@ const PARTITION_MASK_U16: u16 = ((1 << PARTITION_BITS) - 1) << (16 - PARTITION_B
 // (most deployments use a replication factor of 3, so...)
 pub const MAX_REPLICATION: usize = 3;
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
 	pub members: HashMap<UUID, NetworkConfigEntry>,

@@ -87,9 +87,9 @@ pub fn sha256sum(data: &[u8]) -> Hash {
 	use sha2::{Digest, Sha256};
 
 	let mut hasher = Sha256::new();
-	hasher.input(data);
+	hasher.update(data);
 	let mut hash = [0u8; 32];
-	hash.copy_from_slice(&hasher.result()[..]);
+	hash.copy_from_slice(&hasher.finalize()[..]);
 	hash.into()
 }
 

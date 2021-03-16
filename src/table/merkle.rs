@@ -20,7 +20,6 @@ use crate::data::*;
 use crate::replication::*;
 use crate::schema::*;
 
-
 // This modules partitions the data in 2**16 partitions, based on the top
 // 16 bits (two bytes) of item's partition keys' hashes.
 // It builds one Merkle tree for each of these 2**16 partitions.
@@ -73,10 +72,7 @@ where
 	F: TableSchema + 'static,
 	R: TableReplication + 'static,
 {
-	pub(crate) fn launch(
-		background: &BackgroundRunner,
-		data: Arc<TableData<F, R>>,
-	) -> Arc<Self> {
+	pub(crate) fn launch(background: &BackgroundRunner, data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
 
 		let ret = Arc::new(Self {
@@ -132,7 +128,10 @@ where
 		};
 
 		let key = MerkleNodeKey {
-			partition: self.data.replication.partition_of(&Hash::try_from(&k[0..32]).unwrap()),
+			partition: self
+				.data
+				.replication
+				.partition_of(&Hash::try_from(&k[0..32]).unwrap()),
 			prefix: vec![],
 		};
 		self.data
