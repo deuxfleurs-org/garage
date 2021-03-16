@@ -136,7 +136,7 @@ where
 		};
 		self.data
 			.merkle_tree
-			.transaction(|tx| self.update_item_rec(tx, k, khash, &key, new_vhash))?;
+			.transaction(|tx| self.update_item_rec(tx, k, &khash, &key, new_vhash))?;
 
 		let deleted = self
 			.data
@@ -157,7 +157,7 @@ where
 		&self,
 		tx: &TransactionalTree,
 		k: &[u8],
-		khash: Hash,
+		khash: &Hash,
 		key: &MerkleNodeKey,
 		new_vhash: Option<Hash>,
 	) -> ConflictableTransactionResult<Option<Hash>, Error> {
@@ -195,11 +195,22 @@ where
 						Some(MerkleNode::Empty)
 					} else if children.len() == 1 {
 						// We now have a single node (case when the update deleted one of only two
-						// children). Move that single child to this level of the tree.
+						// children). If that node is a leaf, move it to this level.
 						let key_sub = key.add_byte(children[0].0);
 						let subnode = self.read_node_txn(tx, &key_sub)?;
-						tx.remove(key_sub.encode())?;
-						Some(subnode)
+						match subnode {
+							MerkleNode::Empty => {
+								warn!("({}) Single subnode in tree is empty Merkle node", self.data.name);
+								Some(MerkleNode::Empty)
+							}
+							MerkleNode::Intermediate(_) => {
+								Some(MerkleNode::Intermediate(children))
+							}
+							x @ MerkleNode::Leaf(_, _) => {
+								tx.remove(key_sub.encode())?;
+								Some(x)
+							}
+						}
 					} else {
 						Some(MerkleNode::Intermediate(children))
 					}
@@ -208,37 +219,41 @@ where
 					None
 				}
 			}
-			MerkleNode::Leaf(exlf_key, exlf_hash) => {
-				if exlf_key == k {
+			MerkleNode::Leaf(exlf_k, exlf_vhash) => {
+				if exlf_k == k {
 					// This leaf is for the same key that the one we are updating
 					match new_vhash {
-						Some(vhv) if vhv == exlf_hash => None,
+						Some(vhv) if vhv == exlf_vhash => None,
 						Some(vhv) => Some(MerkleNode::Leaf(k.to_vec(), vhv)),
 						None => Some(MerkleNode::Empty),
 					}
 				} else {
 					// This is an only leaf for another key
-					if let Some(vhv) = new_vhash {
+					if new_vhash.is_some() {
 						// Move that other key to a subnode, create another subnode for our
 						// insertion and replace current node by an intermediary node
-						let (pos1, h1) = {
-							let key2 = key.next_key(blake2sum(&exlf_key[..]));
-							let subhash = self.put_node_txn(
-								tx,
-								&key2,
-								&MerkleNode::Leaf(exlf_key, exlf_hash),
-							)?;
-							(key2.prefix[i], subhash)
-						};
-						let (pos2, h2) = {
-							let key2 = key.next_key(khash);
-							let subhash =
-								self.put_node_txn(tx, &key2, &MerkleNode::Leaf(k.to_vec(), vhv))?;
-							(key2.prefix[i], subhash)
-						};
 						let mut int = vec![];
-						intermediate_set_child(&mut int, pos1, h1);
-						intermediate_set_child(&mut int, pos2, h2);
+
+						let exlf_khash = blake2sum(&exlf_k[..]);
+						assert_eq!(khash.as_slice()[..i], exlf_khash.as_slice()[..i]);
+
+						{
+							let exlf_subkey = key.next_key(&exlf_khash);
+							let exlf_sub_hash = self.update_item_rec(tx, &exlf_k[..], &exlf_khash, &exlf_subkey, Some(exlf_vhash))?.unwrap();
+							intermediate_set_child(&mut int, exlf_subkey.prefix[i], exlf_sub_hash);
+							assert_eq!(int.len(), 1);
+						}
+
+						{
+							let key2 = key.next_key(khash);
+							let subhash = self.update_item_rec(tx, k, khash, &key2, new_vhash)?.unwrap();
+							intermediate_set_child(&mut int, key2.prefix[i], subhash);
+							if exlf_khash.as_slice()[i] == khash.as_slice()[i] {
+								assert_eq!(int.len(), 1);
+							} else {
+								assert_eq!(int.len(), 2);
+							}
+						}
 						Some(MerkleNode::Intermediate(int))
 					} else {
 						// Nothing to do, we don't want to insert this value because it is None,
@@ -266,11 +281,7 @@ where
 		k: &MerkleNodeKey,
 	) -> ConflictableTransactionResult<MerkleNode, Error> {
 		let ent = tx.get(k.encode())?;
-		match ent {
-			None => Ok(MerkleNode::Empty),
-			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])
-				.map_err(|e| ConflictableTransactionError::Abort(e.into()))?),
-		}
+		MerkleNode::decode_opt(ent).map_err(ConflictableTransactionError::Abort)
 	}
 
 	fn put_node_txn(
@@ -295,10 +306,7 @@ where
 	// Access a node in the Merkle tree, used by the sync protocol
 	pub(crate) fn read_node(&self, k: &MerkleNodeKey) -> Result<MerkleNode, Error> {
 		let ent = self.data.merkle_tree.get(k.encode())?;
-		match ent {
-			None => Ok(MerkleNode::Empty),
-			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),
-		}
+		MerkleNode::decode_opt(ent)
 	}
 
 	pub fn merkle_tree_len(&self) -> usize {
@@ -318,8 +326,8 @@ impl MerkleNodeKey {
 		ret
 	}
 
-	pub fn next_key(&self, h: Hash) -> Self {
-		assert!(&h.as_slice()[0..self.prefix.len()] == &self.prefix[..]);
+	pub fn next_key(&self, h: &Hash) -> Self {
+		assert_eq!(h.as_slice()[0..self.prefix.len()], self.prefix[..]);
 		let mut s2 = self.clone();
 		s2.prefix.push(h.as_slice()[self.prefix.len()]);
 		s2
@@ -329,6 +337,19 @@ impl MerkleNodeKey {
 		let mut s2 = self.clone();
 		s2.prefix.push(b);
 		s2
+	}
+}
+
+impl MerkleNode {
+	fn decode_opt(ent: Option<sled::IVec>) -> Result<Self, Error> {
+		match ent {
+			None => Ok(MerkleNode::Empty),
+			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),
+		}
+	}
+
+	pub fn is_empty(&self) -> bool {
+		*self == MerkleNode::Empty
 	}
 }
 
@@ -342,7 +363,7 @@ fn intermediate_set_child(ch: &mut Vec<(u8, Hash)>, pos: u8, v: Hash) {
 			return;
 		}
 	}
-	ch.insert(ch.len(), (pos, v));
+	ch.push((pos, v));
 }
 
 fn intermediate_rm_child(ch: &mut Vec<(u8, Hash)>, pos: u8) {
@@ -430,10 +451,4 @@ fn test_intermediate_aux() {
 			(12u8, [8u8; 32].into())
 		]
 	);
-}
-
-impl MerkleNode {
-	pub fn is_empty(&self) -> bool {
-		*self == MerkleNode::Empty
-	}
 }
