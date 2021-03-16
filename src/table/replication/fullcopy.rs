@@ -8,19 +8,8 @@ use crate::replication::*;
 
 #[derive(Clone)]
 pub struct TableFullReplication {
+	pub system: Arc<System>,
 	pub max_faults: usize,
-}
-
-#[derive(Clone)]
-struct Neighbors {
-	ring: Arc<Ring>,
-	neighbors: Vec<UUID>,
-}
-
-impl TableFullReplication {
-	pub fn new(max_faults: usize) -> Self {
-		TableFullReplication { max_faults }
-	}
 }
 
 impl TableReplication for TableFullReplication {
@@ -30,18 +19,23 @@ impl TableReplication for TableFullReplication {
 	// Advantage: do all reads locally, extremely fast
 	// Inconvenient: only suitable to reasonably small tables
 
-	fn read_nodes(&self, _hash: &Hash, system: &System) -> Vec<UUID> {
-		vec![system.id]
+	fn partition_of(&self, _hash: &Hash) -> u16 {
+		0u16
+	}
+
+	fn read_nodes(&self, _hash: &Hash) -> Vec<UUID> {
+		vec![self.system.id]
 	}
 	fn read_quorum(&self) -> usize {
 		1
 	}
 
-	fn write_nodes(&self, hash: &Hash, system: &System) -> Vec<UUID> {
-		self.replication_nodes(hash, system.ring.borrow().as_ref())
+	fn write_nodes(&self, _hash: &Hash) -> Vec<UUID> {
+		let ring = self.system.ring.borrow();
+		ring.config.members.keys().cloned().collect::<Vec<_>>()
 	}
-	fn write_quorum(&self, system: &System) -> usize {
-		let nmembers = system.ring.borrow().config.members.len();
+	fn write_quorum(&self) -> usize {
+		let nmembers = self.system.ring.borrow().config.members.len();
 		if nmembers > self.max_faults {
 			nmembers - self.max_faults
 		} else {
@@ -52,9 +46,6 @@ impl TableReplication for TableFullReplication {
 		self.max_faults
 	}
 
-	fn replication_nodes(&self, _hash: &Hash, ring: &Ring) -> Vec<UUID> {
-		ring.config.members.keys().cloned().collect::<Vec<_>>()
-	}
 	fn split_points(&self, _ring: &Ring) -> Vec<Hash> {
 		let mut ret = vec![];
 		ret.push([0u8; 32].into());

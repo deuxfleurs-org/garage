@@ -170,6 +170,11 @@ impl Ring {
 		Self { config, ring }
 	}
 
+	pub fn partition_of(&self, from: &Hash) -> u16 {
+		let top = u16::from_be_bytes(from.as_slice()[0..2].try_into().unwrap());
+		top >> (16 - PARTITION_BITS)
+	}
+
 	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
 		if self.ring.len() != 1 << PARTITION_BITS {
 			warn!("Ring not yet ready, read/writes will be lost!");
@@ -177,8 +182,9 @@ impl Ring {
 		}
 
 		let top = u16::from_be_bytes(from.as_slice()[0..2].try_into().unwrap());
-
 		let partition_idx = (top >> (16 - PARTITION_BITS)) as usize;
+		assert_eq!(partition_idx, self.partition_of(from) as usize);
+
 		let partition = &self.ring[partition_idx];
 
 		let partition_top =

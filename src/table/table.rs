@@ -91,7 +91,7 @@ where
 
 	pub async fn insert(&self, e: &F::E) -> Result<(), Error> {
 		let hash = e.partition_key().hash();
-		let who = self.aux.replication.write_nodes(&hash, &self.aux.system);
+		let who = self.aux.replication.write_nodes(&hash);
 		//eprintln!("insert who: {:?}", who);
 
 		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
@@ -101,7 +101,7 @@ where
 			.try_call_many(
 				&who[..],
 				rpc,
-				RequestStrategy::with_quorum(self.aux.replication.write_quorum(&self.aux.system))
+				RequestStrategy::with_quorum(self.aux.replication.write_quorum())
 					.with_timeout(TABLE_RPC_TIMEOUT),
 			)
 			.await?;
@@ -113,7 +113,7 @@ where
 
 		for entry in entries.iter() {
 			let hash = entry.partition_key().hash();
-			let who = self.aux.replication.write_nodes(&hash, &self.aux.system);
+			let who = self.aux.replication.write_nodes(&hash);
 			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
 			for node in who {
 				if !call_list.contains_key(&node) {
@@ -150,7 +150,7 @@ where
 		sort_key: &F::S,
 	) -> Result<Option<F::E>, Error> {
 		let hash = partition_key.hash();
-		let who = self.aux.replication.read_nodes(&hash, &self.aux.system);
+		let who = self.aux.replication.read_nodes(&hash);
 		//eprintln!("get who: {:?}", who);
 
 		let rpc = TableRPC::<F>::ReadEntry(partition_key.clone(), sort_key.clone());
@@ -207,7 +207,7 @@ where
 		limit: usize,
 	) -> Result<Vec<F::E>, Error> {
 		let hash = partition_key.hash();
-		let who = self.aux.replication.read_nodes(&hash, &self.aux.system);
+		let who = self.aux.replication.read_nodes(&hash);
 
 		let rpc = TableRPC::<F>::ReadRange(partition_key.clone(), begin_sort_key, filter, limit);
 

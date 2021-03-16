@@ -218,10 +218,7 @@ where
 			let nodes = self
 				.aux
 				.replication
-				.write_nodes(
-					&hash_of_merkle_partition(partition.range.begin),
-					&self.aux.system,
-				)
+				.write_nodes(&hash_of_merkle_partition(partition.range.begin))
 				.into_iter()
 				.filter(|node| *node != my_id)
 				.collect::<Vec<_>>();
@@ -293,7 +290,7 @@ where
 				let nodes = self
 					.aux
 					.replication
-					.write_nodes(&begin, &self.aux.system)
+					.write_nodes(&begin)
 					.into_iter()
 					.collect::<Vec<_>>();
 				if nodes.contains(&self.aux.system.id) {
@@ -303,7 +300,7 @@ where
 					);
 					break;
 				}
-				if nodes.len() < self.aux.replication.write_quorum(&self.aux.system) {
+				if nodes.len() < self.aux.replication.write_quorum() {
 					return Err(Error::Message(format!(
 						"Not offloading as we don't have a quorum of nodes to write to."
 					)));
@@ -616,7 +613,7 @@ impl SyncTodo {
 			let begin_hash = hash_of_merkle_partition(begin);
 			let end_hash = hash_of_merkle_partition_opt(end);
 
-			let nodes = aux.replication.replication_nodes(&begin_hash, &ring);
+			let nodes = aux.replication.write_nodes(&begin_hash);
 
 			let retain = nodes.contains(&my_id);
 			if !retain {

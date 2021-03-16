@@ -54,18 +54,23 @@ impl Garage {
 		);
 
 		let data_rep_param = TableShardedReplication {
+			system: system.clone(),
 			replication_factor: config.data_replication_factor,
 			write_quorum: (config.data_replication_factor + 1) / 2,
 			read_quorum: 1,
 		};
 
 		let meta_rep_param = TableShardedReplication {
+			system: system.clone(),
 			replication_factor: config.meta_replication_factor,
 			write_quorum: (config.meta_replication_factor + 1) / 2,
 			read_quorum: (config.meta_replication_factor + 1) / 2,
 		};
 
-		let control_rep_param = TableFullReplication::new(config.control_write_max_faults);
+		let control_rep_param = TableFullReplication {
+			system: system.clone(),
+			max_faults: config.control_write_max_faults,
+		};
 
 		info!("Initialize block manager...");
 		let block_manager = BlockManager::new(

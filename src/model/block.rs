@@ -319,10 +319,8 @@ impl BlockManager {
 		if exists && !needed {
 			trace!("Offloading block {:?}", hash);
 
-			let ring = self.system.ring.borrow().clone();
-
-			let mut who = self.replication.replication_nodes(&hash, &ring);
-			if who.len() < self.replication.write_quorum(&self.system) {
+			let mut who = self.replication.write_nodes(&hash);
+			if who.len() < self.replication.write_quorum() {
 				return Err(Error::Message(format!("Not trying to offload block because we don't have a quorum of nodes to write to")));
 			}
 			who.retain(|id| *id != self.system.id);
@@ -367,7 +365,7 @@ impl BlockManager {
 					)
 					.await?;
 			}
-			trace!(
+			info!(
 				"Deleting block {:?}, offload finished ({} / {})",
 				hash,
 				need_nodes.len(),
@@ -391,7 +389,7 @@ impl BlockManager {
 	}
 
 	pub async fn rpc_get_block(&self, hash: &Hash) -> Result<Vec<u8>, Error> {
-		let who = self.replication.read_nodes(&hash, &self.system);
+		let who = self.replication.read_nodes(&hash);
 		let resps = self
 			.rpc_client
 			.try_call_many(
@@ -415,12 +413,12 @@ impl BlockManager {
 	}
 
 	pub async fn rpc_put_block(&self, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
-		let who = self.replication.write_nodes(&hash, &self.system);
+		let who = self.replication.write_nodes(&hash);
 		self.rpc_client
 			.try_call_many(
 				&who[..],
 				Message::PutBlock(PutBlockMessage { hash, data }),
-				RequestStrategy::with_quorum(self.replication.write_quorum(&self.system))
+				RequestStrategy::with_quorum(self.replication.write_quorum())
 					.with_timeout(BLOCK_RW_TIMEOUT),
 			)
 			.await?;

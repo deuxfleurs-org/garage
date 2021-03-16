@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use garage_rpc::membership::System;
 use garage_rpc::ring::Ring;
 use garage_util::data::*;
@@ -6,6 +8,7 @@ use crate::replication::*;
 
 #[derive(Clone)]
 pub struct TableShardedReplication {
+	pub system: Arc<System>,
 	pub replication_factor: usize,
 	pub read_quorum: usize,
 	pub write_quorum: usize,
@@ -19,28 +22,29 @@ impl TableReplication for TableShardedReplication {
 	// - reads are done on all of the nodes that replicate the data
 	// - writes as well
 
-	fn read_nodes(&self, hash: &Hash, system: &System) -> Vec<UUID> {
-		let ring = system.ring.borrow().clone();
+	fn partition_of(&self, hash: &Hash) -> u16 {
+		self.system.ring.borrow().partition_of(hash)
+	}
+
+	fn read_nodes(&self, hash: &Hash) -> Vec<UUID> {
+		let ring = self.system.ring.borrow().clone();
 		ring.walk_ring(&hash, self.replication_factor)
 	}
 	fn read_quorum(&self) -> usize {
 		self.read_quorum
 	}
 
-	fn write_nodes(&self, hash: &Hash, system: &System) -> Vec<UUID> {
-		let ring = system.ring.borrow().clone();
+	fn write_nodes(&self, hash: &Hash) -> Vec<UUID> {
+		let ring = self.system.ring.borrow();
 		ring.walk_ring(&hash, self.replication_factor)
 	}
-	fn write_quorum(&self, _system: &System) -> usize {
+	fn write_quorum(&self) -> usize {
 		self.write_quorum
 	}
 	fn max_write_errors(&self) -> usize {
 		self.replication_factor - self.write_quorum
 	}
 
-	fn replication_nodes(&self, hash: &Hash, ring: &Ring) -> Vec<UUID> {
-		ring.walk_ring(&hash, self.replication_factor)
-	}
 	fn split_points(&self, ring: &Ring) -> Vec<Hash> {
 		let mut ret = vec![];
 

@@ -130,7 +130,7 @@ where
 		let mut partitions = HashMap::new();
 		for (k, vhash, v) in entries {
 			let pkh = Hash::try_from(&k[..32]).unwrap();
-			let mut nodes = self.aux.replication.write_nodes(&pkh, &self.aux.system);
+			let mut nodes = self.aux.replication.write_nodes(&pkh);
 			nodes.retain(|x| *x != self.aux.system.id);
 			nodes.sort();
 
