@@ -146,6 +146,9 @@ impl Entry<String, String> for Object {
 	fn sort_key(&self) -> &String {
 		&self.key
 	}
+	fn is_tombstone(&self) -> bool {
+		self.versions.len() == 1 && self.versions[0].state == ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+	}
 }
 
 impl CRDT for Object {

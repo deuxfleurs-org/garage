@@ -259,7 +259,7 @@ impl BlockManager {
 			if let Err(e) = self.resync_iter(&mut must_exit).await {
 				warn!("Error in block resync loop: {}", e);
 				select! {
-					_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => (),
+					_ = tokio::time::sleep(Duration::from_secs(1)).fuse() => (),
 					_ = must_exit.changed().fuse() => (),
 				}
 			}
