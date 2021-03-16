@@ -3,6 +3,7 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use futures::stream::*;
+use hash_roll::{ChunkIncr, fastcdc::{FastCdc, FastCdcIncr}, gear_table::GEAR_64};
 use hyper::{Body, Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::Sha256;
@@ -268,21 +269,26 @@ async fn put_block_meta(
 struct BodyChunker {
 	body: Body,
 	read_all: bool,
-	block_size: usize,
+	max_block_size: usize,
 	buf: VecDeque<u8>,
+	chunker: FastCdcIncr<'static>,
 }
 
 impl BodyChunker {
 	fn new(body: Body, block_size: usize) -> Self {
+		let max_block_size = block_size * 2;
+		let chunker = FastCdc::new(&GEAR_64, block_size as u64 / 2, block_size as u64, max_block_size as u64);
+		let chunker = (&chunker).into();
 		Self {
 			body,
 			read_all: false,
-			block_size,
-			buf: VecDeque::with_capacity(2 * block_size),
+			max_block_size,
+			buf: VecDeque::with_capacity(2 * max_block_size),
+			chunker,
 		}
 	}
 	async fn next(&mut self) -> Result<Option<Vec<u8>>, GarageError> {
-		while !self.read_all && self.buf.len() < self.block_size {
+		while !self.read_all && self.buf.len() < self.max_block_size {
 			if let Some(block) = self.body.next().await {
 				let bytes = block?;
 				trace!("Body next: {} bytes", bytes.len());
@@ -293,11 +299,11 @@ impl BodyChunker {
 		}
 		if self.buf.len() == 0 {
 			Ok(None)
-		} else if self.buf.len() <= self.block_size {
-			let block = self.buf.drain(..).collect::<Vec<u8>>();
+		} else if let Some(index) = self.chunker.push(self.buf.make_contiguous()) {
+			let block = self.buf.drain(..index).collect::<Vec<u8>>();
 			Ok(Some(block))
 		} else {
-			let block = self.buf.drain(..self.block_size).collect::<Vec<u8>>();
+			let block = self.buf.drain(..).collect::<Vec<u8>>();
 			Ok(Some(block))
 		}
 	}
