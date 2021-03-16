@@ -38,7 +38,6 @@ pub fn hash_of_merkle_partition_opt(p: Option<MerklePartition>) -> Hash {
 
 pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 	data: Arc<TableData<F, R>>,
-	background: Arc<BackgroundRunner>,
 
 	// Content of the todo tree: items where
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
@@ -86,19 +85,18 @@ where
 	R: TableReplication + 'static,
 {
 	pub(crate) fn launch(
+		background: &BackgroundRunner,
 		data: Arc<TableData<F, R>>,
-		background: Arc<BackgroundRunner>,
 	) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
 
 		let ret = Arc::new(Self {
 			data,
-			background,
 			empty_node_hash,
 		});
 
 		let ret2 = ret.clone();
-		ret.background.spawn_worker(
+		background.spawn_worker(
 			format!("Merkle tree updater for {}", ret.data.name),
 			|must_exit: watch::Receiver<bool>| ret2.updater_loop(must_exit),
 		);

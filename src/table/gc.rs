@@ -25,8 +25,8 @@ const TABLE_GC_BATCH_SIZE: usize = 1024;
 const TABLE_GC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct TableGC<F: TableSchema, R: TableReplication> {
-	data: Arc<TableData<F, R>>,
 	system: Arc<System>,
+	data: Arc<TableData<F, R>>,
 
 	rpc_client: Arc<RpcClient<GcRPC>>,
 }
@@ -46,16 +46,16 @@ where
 	R: TableReplication + 'static,
 {
 	pub(crate) fn launch(
-		data: Arc<TableData<F, R>>,
 		system: Arc<System>,
+		data: Arc<TableData<F, R>>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
 		let rpc_path = format!("table_{}/gc", data.name);
 		let rpc_client = system.rpc_client::<GcRPC>(&rpc_path);
 
 		let gc = Arc::new(Self {
-			data: data.clone(),
 			system: system.clone(),
+			data: data.clone(),
 			rpc_client,
 		});
 

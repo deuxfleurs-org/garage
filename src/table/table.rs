@@ -66,7 +66,7 @@ where
 
 		let data = TableData::new(name, instance, replication, db);
 
-		let merkle_updater = MerkleUpdater::launch(data.clone(), system.background.clone());
+		let merkle_updater = MerkleUpdater::launch(&system.background, data.clone());
 
 		let syncer = TableSyncer::launch(
 			system.clone(),
@@ -74,7 +74,7 @@ where
 			merkle_updater.clone(),
 			rpc_server,
 		);
-		TableGC::launch(data.clone(), system.clone(), rpc_server);
+		TableGC::launch(system.clone(), data.clone(), rpc_server);
 
 		let table = Arc::new(Self {
 			system,
