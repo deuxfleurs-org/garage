@@ -64,7 +64,7 @@ where
 		let rpc_path = format!("table_{}", name);
 		let rpc_client = system.rpc_client::<TableRPC<F>>(&rpc_path);
 
-		let data = TableData::new(name, instance, replication, db);
+		let data = TableData::new(system.clone(), name, instance, replication, db);
 
 		let merkle_updater = MerkleUpdater::launch(&system.background, data.clone());
 
