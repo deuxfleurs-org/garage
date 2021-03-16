@@ -146,16 +146,19 @@ where
 				.map(|(nodes, items)| self.try_send_and_delete(nodes, items)),
 		)
 		.await;
+
+		let mut errs = vec![];
 		for resp in resps {
 			if let Err(e) = resp {
-				warn!(
-					"({}) Unable to send and delete for GC: {}",
-					self.data.name, e
-				);
+				errs.push(e);
 			}
 		}
 
-		Ok(true)
+		if errs.is_empty() {
+			Ok(true)
+		} else {
+			Err(Error::Message(errs.into_iter().map(|x| format!("{}", x)).collect::<Vec<_>>().join(", ")))
+		}
 	}
 
 	async fn try_send_and_delete(

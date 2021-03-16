@@ -443,22 +443,20 @@ impl AdminRpcHandler {
 		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
 
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
-		writeln!(
-			&mut ret,
-			"  number of blocks: {}",
-			self.garage.block_manager.rc_len()
-		)
-		.unwrap();
+		if opt.detailed {
+			writeln!(
+				&mut ret,
+				"  number of blocks: {}",
+				self.garage.block_manager.rc_len()
+			)
+			.unwrap();
+		}
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
 			self.garage.block_manager.resync_queue_len()
 		)
 		.unwrap();
-
-		if opt.detailed {
-			writeln!(&mut ret, "\nDetailed stats not implemented yet.").unwrap();
-		}
 
 		Ok(ret)
 	}
@@ -467,24 +465,26 @@ impl AdminRpcHandler {
 		&self,
 		to: &mut String,
 		t: &Arc<Table<F, R>>,
-		_opt: &StatsOpt,
+		opt: &StatsOpt,
 	) -> Result<(), Error>
 	where
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
 		writeln!(to, "\nTable stats for {}", t.data.name).unwrap();
-		writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
+		if opt.detailed {
+			writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
+			writeln!(
+				to,
+				"  Merkle tree size: {}",
+				t.merkle_updater.merkle_tree_len()
+			)
+			.unwrap();
+		}
 		writeln!(
 			to,
 			"  Merkle updater todo queue length: {}",
 			t.merkle_updater.todo_len()
-		)
-		.unwrap();
-		writeln!(
-			to,
-			"  Merkle tree size: {}",
-			t.merkle_updater.merkle_tree_len()
 		)
 		.unwrap();
 		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
