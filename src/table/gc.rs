@@ -13,20 +13,20 @@ use tokio::sync::watch;
 use garage_util::data::*;
 use garage_util::error::Error;
 
+use garage_rpc::membership::System;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
 use crate::data::*;
 use crate::replication::*;
 use crate::schema::*;
-use crate::table::*;
 
 const TABLE_GC_BATCH_SIZE: usize = 1024;
 const TABLE_GC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct TableGC<F: TableSchema, R: TableReplication> {
-	data: Arc<TableData<F>>,
-	aux: Arc<TableAux<R>>,
+	data: Arc<TableData<F, R>>,
+	system: Arc<System>,
 
 	rpc_client: Arc<RpcClient<GcRPC>>,
 }
@@ -46,23 +46,23 @@ where
 	R: TableReplication + 'static,
 {
 	pub(crate) fn launch(
-		data: Arc<TableData<F>>,
-		aux: Arc<TableAux<R>>,
+		data: Arc<TableData<F, R>>,
+		system: Arc<System>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
 		let rpc_path = format!("table_{}/gc", data.name);
-		let rpc_client = aux.system.rpc_client::<GcRPC>(&rpc_path);
+		let rpc_client = system.rpc_client::<GcRPC>(&rpc_path);
 
 		let gc = Arc::new(Self {
 			data: data.clone(),
-			aux: aux.clone(),
+			system: system.clone(),
 			rpc_client,
 		});
 
 		gc.register_handler(rpc_server, rpc_path);
 
 		let gc1 = gc.clone();
-		aux.system.background.spawn_worker(
+		system.background.spawn_worker(
 			format!("GC loop for {}", data.name),
 			move |must_exit: watch::Receiver<bool>| gc1.gc_loop(must_exit),
 		);
@@ -130,8 +130,8 @@ where
 		let mut partitions = HashMap::new();
 		for (k, vhash, v) in entries {
 			let pkh = Hash::try_from(&k[..32]).unwrap();
-			let mut nodes = self.aux.replication.write_nodes(&pkh);
-			nodes.retain(|x| *x != self.aux.system.id);
+			let mut nodes = self.data.replication.write_nodes(&pkh);
+			nodes.retain(|x| *x != self.system.id);
 			nodes.sort();
 
 			if !partitions.contains_key(&nodes) {
@@ -220,7 +220,7 @@ where
 
 		let self2 = self.clone();
 		self.rpc_client
-			.set_local_handler(self.aux.system.id, move |msg| {
+			.set_local_handler(self.system.id, move |msg| {
 				let self2 = self2.clone();
 				async move { self2.handle_rpc(&msg).await }
 			});

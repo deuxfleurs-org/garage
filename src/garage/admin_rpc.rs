@@ -463,24 +463,28 @@ impl AdminRpcHandler {
 		Ok(ret)
 	}
 
-	fn gather_table_stats<F: TableSchema, R: TableReplication>(
+	fn gather_table_stats<F, R>(
 		&self,
 		to: &mut String,
 		t: &Arc<Table<F, R>>,
 		_opt: &StatsOpt,
-	) -> Result<(), Error> {
+	) -> Result<(), Error>
+	where
+		F: TableSchema + 'static,
+		R: TableReplication + 'static,
+	{
 		writeln!(to, "\nTable stats for {}", t.data.name).unwrap();
 		writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
 		writeln!(
 			to,
 			"  Merkle updater todo queue length: {}",
-			t.data.merkle_updater.todo_len()
+			t.merkle_updater.todo_len()
 		)
 		.unwrap();
 		writeln!(
 			to,
 			"  Merkle tree size: {}",
-			t.data.merkle_updater.merkle_tree_len()
+			t.merkle_updater.merkle_tree_len()
 		)
 		.unwrap();
 		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
