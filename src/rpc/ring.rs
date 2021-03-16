@@ -5,6 +5,11 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
+// A partition number is encoded on 16 bits,
+// i.e. we have up to 2**16 partitions.
+// (in practice we have exactly 2**PARTITION_BITS partitions)
+pub type Partition = u16;
+
 // TODO: make this constant parametrizable in the config file
 // For deployments with many nodes it might make sense to bump
 // it up to 10.
@@ -16,6 +21,7 @@ const PARTITION_MASK_U16: u16 = ((1 << PARTITION_BITS) - 1) << (16 - PARTITION_B
 // TODO: make this constant paraetrizable in the config file
 // (most deployments use a replication factor of 3, so...)
 pub const MAX_REPLICATION: usize = 3;
+
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
@@ -170,9 +176,22 @@ impl Ring {
 		Self { config, ring }
 	}
 
-	pub fn partition_of(&self, from: &Hash) -> u16 {
+	pub fn partition_of(&self, from: &Hash) -> Partition {
 		let top = u16::from_be_bytes(from.as_slice()[0..2].try_into().unwrap());
 		top >> (16 - PARTITION_BITS)
+	}
+
+	pub fn partitions(&self) -> Vec<(Partition, Hash)> {
+		let mut ret = vec![];
+
+		for (i, entry) in self.ring.iter().enumerate() {
+			ret.push((i as u16, entry.location));
+		}
+		if ret.len() > 0 {
+			assert_eq!(ret[0].1, [0u8; 32].into());
+		}
+
+		ret
 	}
 
 	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {

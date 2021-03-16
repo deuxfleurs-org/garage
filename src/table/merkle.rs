@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -15,22 +14,12 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
 
+use garage_rpc::ring::*;
+
 use crate::data::*;
 use crate::replication::*;
 use crate::schema::*;
 
-pub type MerklePartition = [u8; 2];
-
-pub fn hash_of_merkle_partition(p: MerklePartition) -> Hash {
-	let mut partition_pos = [0u8; 32];
-	partition_pos[0..2].copy_from_slice(&p[..]);
-	partition_pos.into()
-}
-
-pub fn hash_of_merkle_partition_opt(p: Option<MerklePartition>) -> Hash {
-	p.map(hash_of_merkle_partition)
-		.unwrap_or([0xFFu8; 32].into())
-}
 
 // This modules partitions the data in 2**16 partitions, based on the top
 // 16 bits (two bytes) of item's partition keys' hashes.
@@ -57,8 +46,8 @@ pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MerkleNodeKey {
-	// partition: first 16 bits (two bytes) of the partition_key's hash
-	pub partition: [u8; 2],
+	// partition number
+	pub partition: Partition,
 
 	// prefix: a prefix for the hash of full keys, i.e. hash(hash(partition_key)+sort_key)
 	#[serde(with = "serde_bytes")]
@@ -143,7 +132,7 @@ where
 		};
 
 		let key = MerkleNodeKey {
-			partition: k[0..2].try_into().unwrap(),
+			partition: self.data.replication.partition_of(&Hash::try_from(&k[0..32]).unwrap()),
 			prefix: vec![],
 		};
 		self.data
@@ -325,7 +314,7 @@ where
 impl MerkleNodeKey {
 	fn encode(&self) -> Vec<u8> {
 		let mut ret = Vec::with_capacity(2 + self.prefix.len());
-		ret.extend(&self.partition[..]);
+		ret.extend(&u16::to_be_bytes(self.partition)[..]);
 		ret.extend(&self.prefix[..]);
 		ret
 	}
@@ -442,4 +431,10 @@ fn test_intermediate_aux() {
 			(12u8, [8u8; 32].into())
 		]
 	);
+}
+
+impl MerkleNode {
+	pub fn is_empty(&self) -> bool {
+		*self == MerkleNode::Empty
+	}
 }

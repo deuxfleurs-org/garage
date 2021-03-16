@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use garage_rpc::membership::System;
-use garage_rpc::ring::Ring;
+use garage_rpc::ring::*;
 use garage_util::data::*;
 
 use crate::replication::*;
@@ -22,10 +22,6 @@ impl TableReplication for TableShardedReplication {
 	// - reads are done on all of the nodes that replicate the data
 	// - writes as well
 
-	fn partition_of(&self, hash: &Hash) -> u16 {
-		self.system.ring.borrow().partition_of(hash)
-	}
-
 	fn read_nodes(&self, hash: &Hash) -> Vec<UUID> {
 		let ring = self.system.ring.borrow().clone();
 		ring.walk_ring(&hash, self.replication_factor)
@@ -45,16 +41,10 @@ impl TableReplication for TableShardedReplication {
 		self.replication_factor - self.write_quorum
 	}
 
-	fn split_points(&self, ring: &Ring) -> Vec<Hash> {
-		let mut ret = vec![];
-
-		for entry in ring.ring.iter() {
-			ret.push(entry.location);
-		}
-		if ret.len() > 0 {
-			assert_eq!(ret[0], [0u8; 32].into());
-		}
-
-		ret
+	fn partition_of(&self, hash: &Hash) -> Partition {
+		self.system.ring.borrow().partition_of(hash)
+	}
+	fn partitions(&self) -> Vec<(Partition, Hash)> {
+		self.system.ring.borrow().partitions()
 	}
 }

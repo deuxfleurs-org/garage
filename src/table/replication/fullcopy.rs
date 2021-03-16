@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use garage_rpc::membership::System;
-use garage_rpc::ring::Ring;
+use garage_rpc::ring::*;
 use garage_util::data::*;
 
 use crate::replication::*;
@@ -18,10 +18,6 @@ impl TableReplication for TableFullReplication {
 
 	// Advantage: do all reads locally, extremely fast
 	// Inconvenient: only suitable to reasonably small tables
-
-	fn partition_of(&self, _hash: &Hash) -> u16 {
-		0u16
-	}
 
 	fn read_nodes(&self, _hash: &Hash) -> Vec<UUID> {
 		vec![self.system.id]
@@ -46,9 +42,10 @@ impl TableReplication for TableFullReplication {
 		self.max_faults
 	}
 
-	fn split_points(&self, _ring: &Ring) -> Vec<Hash> {
-		let mut ret = vec![];
-		ret.push([0u8; 32].into());
-		ret
+	fn partition_of(&self, _hash: &Hash) -> Partition {
+		0u16
+	}
+	fn partitions(&self) -> Vec<(Partition, Hash)> {
+		vec![(0u16, [0u8; 32].into())]
 	}
 }
