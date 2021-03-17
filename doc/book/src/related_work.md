@@ -1,3 +1,5 @@
+# Related Work
+
 ## Context
 
 Data storage is critical: it can lead to data loss if done badly and/or on hardware failure.
@@ -8,7 +10,7 @@ But here we consider non specialized off the shelf machines that can be as low p
 Distributed storage may help to solve both availability and scalability problems on these machines.
 Many solutions were proposed, they can be categorized as block storage, file storage and object storage depending on the abstraction they provide.
 
-## Related work
+## Overview
 
 Block storage is the most low level one, it's like exposing your raw hard drive over the network.
 It requires very low latencies and stable network, that are often dedicated.
@@ -36,3 +38,19 @@ However Pithos is not maintained anymore. More precisely the company that publis
 Some tests conducted by the [ACIDES project](https://acides.org/) have shown that Openstack Swift consumes way more resources (CPU+RAM) that we can afford. Furthermore, people developing Swift have not designed their software for geo-distribution.
 
 There were many attempts in research too. I am only thinking to [LBFS](https://pdos.csail.mit.edu/papers/lbfs:sosp01/lbfs.pdf) that was used as a basis for Seafile. But none of them have been effectively implemented yet.
+
+## Existing software
+
+**[Pithos](https://github.com/exoscale/pithos) :** 
+Pithos has been abandonned and should probably not used yet, in the following we explain why we did not pick their design.
+Pithos was relying as a S3 proxy in front of Cassandra (and was working with Scylla DB too).
+From its designers' mouth, storing data in Cassandra has shown its limitations justifying the project abandonment.
+They built a closed-source version 2 that does not store blobs in the database (only metadata) but did not communicate further on it.
+We considered there v2's design but concluded that it does not fit both our *Self-contained & lightweight* and *Simple* properties. It makes the development, the deployment and the operations more complicated while reducing the flexibility.
+
+**[IPFS](https://ipfs.io/) :**
+*Not written yet*
+
+## Specific research papers
+
+*Not yet written*

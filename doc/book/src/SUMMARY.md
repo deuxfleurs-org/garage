@@ -8,19 +8,19 @@
   - [Create buckets and keys](./getting_started/bucket.md)
   - [Handle files](./getting_started/files.md)
 
-# Cookbooks
+- [Cookbooks]()
+  - [Host a website](./website.md)
+  - [Integrate as a media backend]()
+  - [Operate a cluster]()
 
-- [Host a website](./website.md)
+- [Reference Manual]()
+  - [Garage CLI]()
+  - [S3 API](./compatibility.md)
 
-# Reference Manual
+- [Design]()
+  - [Related Work](./related_work.md)
+  - [Internals](./internals.md)
 
-- [S3 API](./compatibility.md)
-
-# Design
-
-- [Related Work](./related_work.md)
-- [Internals](./internals.md)
-
-# Development
-
-- [Setup your environment](./devenv.md)
+- [Development]()
+  - [Setup your environment](./devenv.md)
+  - [Your first contribution]()
