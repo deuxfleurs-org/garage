@@ -222,10 +222,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "fmt-extra"
-version = "0.2.1"
+name = "fastcdc"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07f11f71b1f9be830047fbb1899d90601c3b21a471dc99fe1057303eee37f2b9"
+checksum = "5afa29be46b12c8c380b997def8d1ac77c2665da93eb0a768fab0bf4db79333f"
 
 [[package]]
 name = "fnv"
@@ -389,12 +389,12 @@ dependencies = [
  "chrono",
  "crypto-mac 0.10.0",
  "err-derive",
+ "fastcdc",
  "futures",
  "futures-util",
  "garage_model",
  "garage_table",
  "garage_util",
- "hash-roll",
  "hex",
  "hmac",
  "http",
@@ -598,15 +598,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
-]
-
-[[package]]
-name = "hash-roll"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9e27803a4b526df90ed2a3f60523eeec6b5ace6ba7530f9920fbee82027fa11"
-dependencies = [
- "fmt-extra",
 ]
 
 [[package]]
