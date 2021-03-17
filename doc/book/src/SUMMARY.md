@@ -2,25 +2,28 @@
 
 [The Garage Data Store](./intro.md)
 
-- [Getting Started](./getting_started.md)
+- [Getting Started](./getting_started/index.md)
   - [Installation](./getting_started/install.md)
   - [Configure a cluster](./getting_started/cluster.md)
   - [Create buckets and keys](./getting_started/bucket.md)
   - [Handle files](./getting_started/files.md)
 
-- [Cookbooks]()
-  - [Host a website](./website.md)
+- [Cookbook](./cookbook/index.md)
+  - [Host a website](./cookbook/website.md)
   - [Integrate as a media backend]()
   - [Operate a cluster]()
 
-- [Reference Manual]()
+- [Reference Manual](./reference_manual/index.md)
   - [Garage CLI]()
-  - [S3 API](./compatibility.md)
+  - [S3 API](./reference_manual/s3_compatibility.md)
 
-- [Design]()
-  - [Related Work](./related_work.md)
-  - [Internals](./internals.md)
+- [Design](./design/index.md)
+  - [Related Work](./design/related_work.md)
+  - [Internals](./design/internals.md)
 
-- [Development]()
-  - [Setup your environment](./devenv.md)
+- [Development](./development/index.md)
+  - [Setup your environment](./development/devenv.md)
   - [Your first contribution]()
+
+- [Working Documents](./working_documents/index.md)
+  - [Load Balancing Data](./working_documents/load_balancing.md)

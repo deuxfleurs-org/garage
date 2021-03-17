@@ -60,6 +60,30 @@ In a certain way, Ceph and Minio are closer togethers than they are from Garage 
 
 *More comparisons are available in our [Related Work](design/related_work.md) chapter.*
 
+## Other Resources
+
+This website is not the only source of information about Garage!
+We reference here other places on the Internet where you can learn more about Garage.
+
+### Rust API (docs.rs)
+
+If you encounter a specific bug in Garage or plan to patch it, you may jump directly to the source code documentation!
+
+  - [garage\_api](https://docs.rs/garage_api/latest/garage_api/) - contains the S3 standard API endpoint
+  - [garage\_model](https://docs.rs/garage_model/latest/garage_model/) - contains Garage's model built on the table abstraction
+  - [garage\_rpc](https://docs.rs/garage_rpc/latest/garage_rpc/) - contains Garage's federation protocol
+  - [garage\_table](https://docs.rs/garage_table/latest/garage_table/) - contains core Garage's CRDT datatypes
+  - [garage\_util](https://docs.rs/garage_util/latest/garage_util/) - contains garage entrypoints (daemon, cli)
+  - [garage\_web](https://docs.rs/garage_web/latest/garage_web/) - contains the S3 website endpoint
+
+### Talks
+
+We love to talk and hear about Garage, that's why we keep a log here:
+
+  - [(fr, 2020-12-02) Garage : jouer dans la cour des grands quand on est un hébergeur associatif](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/master/doc/20201202_talk/talk.pdf)
+
+*Did you write or talk about Garage? [Open a pull request](https://git.deuxfleurs.fr/Deuxfleurs/garage/) to add a link here!*
+
 ## Community
 
 If you want to discuss with us, you can join our Matrix channel at [#garage:deuxfleurs.fr](https://matrix.to/#/#garage:deuxfleurs.fr).
