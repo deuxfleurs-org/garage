@@ -21,8 +21,8 @@ arc-swap = "1.0"
 hex = "0.4"
 log = "0.4"
 rand = "0.8"
-
 sled = "0.34"
+zstd = "0.6.1"
 
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
