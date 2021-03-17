@@ -19,4 +19,26 @@ sudo docker pull lxpz/garage_amd64:v0.1.1d
 
 ## From source
 
+Garage is a standard Rust project.
+First, you need `rust` and `cargo`.
+On Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y rustc cargo
+```
+
+Then, you can ask cargo to install the binary for you:
+
+```bash
+cargo install garage
+```
+
+That's all, `garage` should be in `$HOME/.cargo/bin`.
+You can add this folder to your `$PATH` or copy the binary somewhere else on your system.
+For the following, we will assume you copied it in `/usr/local/bin/garage`:
+
+```bash
+sudo cp $HOME/.cargo/bin/garage /usr/local/bin/garage
+```
 

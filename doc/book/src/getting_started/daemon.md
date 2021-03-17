@@ -2,14 +2,14 @@
 
 Garage is a software that can be run only in a cluster and requires at least 3 instances.
 In our getting started guide, we document two deployment types:
-  - [Single machine deployment](#single-machine-deployment) though `docker-compose`
-  - [Multiple machine deployment](#multiple-machine-deployment) through `docker` or `systemd`
+  - [Test deployment](#test-deployment) though `docker-compose`
+  - [Real-world deployment](#real-world-deployment) through `docker` or `systemd`
 
 In any case, you first need to generate TLS certificates, as traffic is encrypted between Garage's nodes.
 
 ## Generating a TLS Certificate
 
-Next, to generate your TLS certificates, run on your machine:
+To generate your TLS certificates, run on your machine:
 
 ```
 wget https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/master/genkeys.sh
@@ -19,9 +19,18 @@ chmod +x genkeys.sh
 
 It will creates a folder named `pki` containing the keys that you will used for the cluster.
 
-### Single machine deployment
+## Test deployment
 
-Single machine deployment is only described through docker compose.
+Single machine deployment is only described through `docker-compose`.
+
+Before starting, we recommend you create a folder for our deployment:
+
+```bash
+mkdir garage-single
+cd garage-single
+```
+
+We start by creating a file named `docker-compose.yml` describing our network and our containers:
 
 ```yml
 version: '3.4'
@@ -54,7 +63,7 @@ services:
 *We define a static network here which is not considered as a best practise on Docker.
 The rational is that Garage only supports IP address and not domain names in its configuration, so we need to know the IP address in advance.*
 
-and then create the `config.toml` file as follow:
+and then create the `config.toml` file next to it as follow:
 
 ```toml
 metadata_dir = "/garage/meta"
@@ -104,7 +113,9 @@ Not found
 Not found
 ```
 
-### Multiple machine deployment
+That's all, you are ready to [configure your cluster!](./cluster.md).
+
+## Real-world deployment
 
 Before deploying garage on your infrastructure, you must inventory your machines.
 For our example, we will suppose the following infrastructure:
@@ -116,8 +127,14 @@ For our example, we will suppose the following infrastructure:
 | London   | Earth   | fc00:1::2  | 2 To       |
 | Brussels | Mars    | fc00:B::1  | 1.5 To     |
 
-First, you need to setup your machines/VMs by copying on them the `pki` folder in `/etc/garage/pki`.
-All your machines will also share the same configuration file, stored in `/etc/garage/config.toml`:
+On each machine, we will have a similar setup, especially you must consider the following folders/files:
+  - `/etc/garage/pki`: Garage certificates, must be generated on your computer and copied on the servers
+  - `/etc/garage/config.toml`: Garage daemon's configuration (defined below)
+  - `/etc/systemd/system/garage.service`: Service file to start garage at boot automatically (defined below, not required if you use docker)
+  - `/var/lib/garage/meta`: Contains Garage's metadata, put this folder on a SSD if possible
+  - `/var/lib/garage/data`: Contains Garage's data, this folder will grows and must be on a large storage, possibly big HDDs.
+
+A valid `/etc/garage/config.toml` for our cluster would be:
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
@@ -131,9 +148,9 @@ bootstrap_peers = [
 ]
 
 [rpc_tls]
-ca_cert = "/pki/garage-ca.crt"
-node_cert = "/pki/garage.crt"
-node_key = "/pki/garage.key"
+ca_cert = "/etc/garage/pki/garage-ca.crt"
+node_cert = "/etc/garage/pki/garage.crt"
+node_key = "/etc/garage/pki/garage.key"
 
 [s3_api]
 s3_region = "garage"
@@ -145,4 +162,27 @@ root_domain = ".web.garage"
 index = "index.html"
 ```
 
+Please make sure to change `bootstrap_peers` to **your** IP addresses!
 
+### For docker users
+
+On each machine, you can run the daemon with:
+
+```bash
+docker run \
+  -d \
+  --restart always \
+  --network host \
+  -v /etc/garage/pki:/etc/garage/pki \
+  -v /etc/garage/config.toml:/garage/config.toml \
+  -v /var/lib/garage/meta:/var/lib/garage/meta \
+  -v /var/lib/garage/data:/var/lib/garage/data \
+  lxpz/garage_amd64:v0.1.1d
+```
+
+It should be restart automatically at each reboot.
+Please note that we use host networking as otherwise Docker containers can no communicate with IPv6.
+
+To upgrade, simply stop and remove this container and start again the command with a new version of garage.
+
+### For systemd/raw binary users
