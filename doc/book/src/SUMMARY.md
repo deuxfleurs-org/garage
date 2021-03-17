@@ -3,7 +3,8 @@
 [The Garage Data Store](./intro.md)
 
 - [Getting Started](./getting_started/index.md)
-  - [Installation](./getting_started/install.md)
+  - [Get a binary](./getting_started/binary.md)
+  - [Configure the daemon](./getting_started/daemon.md)
   - [Configure a cluster](./getting_started/cluster.md)
   - [Create buckets and keys](./getting_started/bucket.md)
   - [Handle files](./getting_started/files.md)
