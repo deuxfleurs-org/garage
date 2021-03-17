@@ -5,6 +5,7 @@
 - [Getting Started](./getting_started/index.md)
   - [Get a binary](./getting_started/binary.md)
   - [Configure the daemon](./getting_started/daemon.md)
+  - [Control the daemon](./getting_started/control.md)
   - [Configure a cluster](./getting_started/cluster.md)
   - [Create buckets and keys](./getting_started/bucket.md)
   - [Handle files](./getting_started/files.md)
