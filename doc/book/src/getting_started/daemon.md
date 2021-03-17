@@ -171,6 +171,7 @@ On each machine, you can run the daemon with:
 ```bash
 docker run \
   -d \
+  --name garaged \
   --restart always \
   --network host \
   -v /etc/garage/pki:/etc/garage/pki \
