@@ -34,6 +34,15 @@ impl Key {
 			authorized_buckets: crdt::LWWMap::new(),
 		}
 	}
+	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Self {
+		Self {
+			key_id: key_id.to_string(),
+			secret_key: secret_key.to_string(),
+			name: crdt::LWW::new(name.to_string()),
+			deleted: crdt::Bool::new(false),
+			authorized_buckets: crdt::LWWMap::new(),
+		}
+	}
 	pub fn delete(key_id: String) -> Self {
 		Self {
 			key_id,

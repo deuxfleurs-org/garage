@@ -194,6 +194,10 @@ pub enum KeyOperation {
 	/// Delete key
 	#[structopt(name = "delete")]
 	Delete(KeyDeleteOpt),
+
+	/// Import key
+	#[structopt(name = "import")]
+	Import(KeyImportOpt),
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -226,6 +230,19 @@ pub struct KeyDeleteOpt {
 	/// Confirm deletion
 	#[structopt(long = "yes")]
 	pub yes: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyImportOpt {
+	/// Access key ID
+	pub key_id: String,
+
+	/// Secret access key
+	pub secret_key: String,
+
+	/// Key name
+	#[structopt(short = "n", default_value = "Imported key")]
+	pub name: String,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
