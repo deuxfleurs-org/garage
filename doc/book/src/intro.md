@@ -9,15 +9,15 @@
 Garage is a lightweight geo-distributed data store.
 It comes from the observation that despite numerous object stores
 many people have broken data management policies (backup/replication on a single site or none at all).
-To promote better data management policies, with focused on the following desirable properties:
+To promote better data management policies, we focused on the following desirable properties:
 
-  - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target hyperconverged infrastructures
-  - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures
-  - **Simple**: simple to understand, simple to operate, simple to debug
+  - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target hyperconverged infrastructures.
+  - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
+  - **Simple**: simple to understand, simple to operate, simple to debug.
   - **Internet enabled**: made for multi-sites (eg. datacenter, offices, etc.) interconnected through a regular internet connection.
 
 We also noted that the pursuit of some other goals are detrimental to our initial goals.
-The following have been identified has non-goals, if it matters to you, you should not use Garage:
+The following has been identified has non-goals, if these points matter to you, you should not use Garage:
 
   - **Extreme performances**: high performances constrain a lot the design and the infrastructure; we seek performances through minimalism only.
   - **Feature extensiveness**: complete implementation of the S3 API or any other API to make garage a drop-in replacement is not targeted as it could lead to decisions impacting our desirable properties.
@@ -29,7 +29,7 @@ The following have been identified has non-goals, if it matters to you, you shou
 Garage speaks (or will speak) the following protocols:
 
   - [S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) - *SUPPORTED* - Enable applications to store large blobs such as pictures, video, images, documents, etc. S3 is versatile enough to also be used to publish a static website.
-  - [IMAP](https://github.com/go-pluto/pluto) - *PLANNED* - email storage is quite complex to get good oerformances.
+  - [IMAP](https://github.com/go-pluto/pluto) - *PLANNED* - email storage is quite complex to get good performances.
 To keep performances optimals, most imap servers only support on-disk storage.
 We plan to add logic to Garage to make it a viable solution for email storage.
   - *More to come*
