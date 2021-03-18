@@ -45,6 +45,11 @@ fn try_answer_cached(
 	version_meta: &ObjectVersionMeta,
 	req: &Request<Body>,
 ) -> Option<Response<Body>> {
+	// <trinity> It is possible, and is even usually the case, [that both If-None-Match and
+	// If-Modified-Since] are present in a request. In this situation If-None-Match takes
+	// precedence and If-Modified-Since is ignored (as per 6.Precedence from rfc7232). The rational
+	// being that etag based matching is more accurate, it has no issue with sub-second precision
+	// for instance (in case of very fast updates)
 	let cached = if let Some(none_match) = req.headers().get(http::header::IF_NONE_MATCH) {
 		let none_match = none_match.to_str().ok()?;
 		let expected = format!("\"{}\"", version_meta.etag);
