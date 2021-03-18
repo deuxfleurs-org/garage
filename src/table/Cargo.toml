@@ -3,7 +3,7 @@ name = "garage_table"
 version = "0.2.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
-license = "GPL-3.0"
+license = "AGPL-3.0"
 description = "Table sharding and replication engine (DynamoDB-like) for the Garage object store"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 
@@ -13,13 +13,13 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { version = "0.2.0", path = "../util" }
 garage_rpc = { version = "0.2.0", path = "../rpc" }
+garage_util = { version = "0.2.0", path = "../util" }
 
 bytes = "1.0"
-rand = "0.8"
-log = "0.4"
 hexdump = "0.1"
+log = "0.4"
+rand = "0.8"
 
 sled = "0.34"
 

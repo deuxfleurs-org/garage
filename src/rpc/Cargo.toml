@@ -3,7 +3,7 @@ name = "garage_rpc"
 version = "0.2.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
-license = "GPL-3.0"
+license = "AGPL-3.0"
 description = "Cluster membership management and RPC protocol for the Garage object store"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 
@@ -15,10 +15,10 @@ path = "lib.rs"
 [dependencies]
 garage_util = { version = "0.2.0", path = "../util" }
 
-bytes = "1.0"
-hex = "0.4"
 arc-swap = "1.0"
+bytes = "1.0"
 gethostname = "0.2"
+hex = "0.4"
 log = "0.4"
 
 rmp-serde = "0.15"
@@ -32,9 +32,9 @@ tokio-stream = { version = "0.1", features = ["net"] }
 
 http = "0.2"
 hyper = { version = "0.14", features = ["full"] }
+hyper-rustls = { version = "0.22", default-features = false }
 rustls = "0.19"
 tokio-rustls = "0.22"
-hyper-rustls = { version = "0.22", default-features = false }
 webpki = "0.21"
 
 

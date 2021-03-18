@@ -3,7 +3,7 @@ name = "garage_web"
 version = "0.2.0"
 authors = ["Alex Auvolat <alex@adnab.me>", "Quentin Dufour <quentin@dufour.io>"]
 edition = "2018"
-license = "GPL-3.0"
+license = "AGPL-3.0"
 description = "S3-like website endpoint crate for the Garage object store"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 
@@ -13,15 +13,17 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+garage_api = { version = "0.2.0", path = "../api" }
+garage_model = { version = "0.2.0", path = "../model" }
 garage_util = { version = "0.2.0", path = "../util" }
 garage_table = { version = "0.2.0", path = "../table" }
-garage_model = { version = "0.2.0", path = "../model" }
-garage_api = { version = "0.2.0", path = "../api" }
 
 err-derive = "0.3"
+idna = "0.2"
 log = "0.4"
+percent-encoding = "2.1.0"
+
 futures = "0.3"
+
 http = "0.2"
 hyper = "0.14"
-percent-encoding = "2.1.0"
-idna = "0.2"

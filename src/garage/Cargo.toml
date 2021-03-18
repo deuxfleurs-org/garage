@@ -3,7 +3,7 @@ name = "garage"
 version = "0.2.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
-license = "GPL-3.0"
+license = "AGPL-3.0"
 description = "Garage, an S3-compatible distributed object store for self-hosted deployments"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 
@@ -14,26 +14,26 @@ path = "main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { version = "0.2.0", path = "../util" }
+garage_api = { version = "0.2.0", path = "../api" }
+garage_model = { version = "0.2.0", path = "../model" }
 garage_rpc = { version = "0.2.0", path = "../rpc" }
 garage_table = { version = "0.2.0", path = "../table" }
-garage_model = { version = "0.2.0", path = "../model" }
-garage_api = { version = "0.2.0", path = "../api" }
+garage_util = { version = "0.2.0", path = "../util" }
 garage_web = { version = "0.2.0", path = "../web" }
 
 bytes = "1.0"
-rand = "0.8"
+git-version = "0.3.4"
 hex = "0.4"
 log = "0.4"
 pretty_env_logger = "0.4"
-git-version = "0.3.4"
+rand = "0.8"
 
 sled = "0.34"
 
-structopt = { version = "0.3", default-features = false }
-toml = "0.5"
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+structopt = { version = "0.3", default-features = false }
+toml = "0.5"
 
 futures = "0.3"
 futures-util = "0.3"
