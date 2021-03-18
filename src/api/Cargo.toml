@@ -17,26 +17,25 @@ garage_util = { version = "0.1.1", path = "../util" }
 garage_table = { version = "0.1.1", path = "../table" }
 garage_model = { version = "0.1.1", path = "../model" }
 
-err-derive = "0.2.3"
-bytes = "0.4"
-hex = "0.3"
+err-derive = "0.3"
+bytes = "1.0"
+hex = "0.4"
 base64 = "0.13"
 log = "0.4"
 chrono = "0.4"
-md-5 = "0.9.1"
-sha2 = "0.8"
-hmac = "0.7"
-crypto-mac = "0.7"
-rand = "0.7"
+md-5 = "0.9"
+sha2 = "0.9"
+hmac = "0.10"
+crypto-mac = "0.10"
 
 futures = "0.3"
 futures-util = "0.3"
-tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
+tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 
 http = "0.2"
-hyper = "^0.13.6"
+hyper = "0.14"
 url = "2.1"
 httpdate = "0.3"
 percent-encoding = "2.1.0"
-roxmltree = "0.11"
+roxmltree = "0.14"
 http-range = "0.1"

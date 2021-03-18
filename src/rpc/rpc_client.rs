@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
-use bytes::IntoBuf;
 use futures::future::Future;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
@@ -197,11 +196,8 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 			if !strategy.rs_interrupt_after_quorum {
 				let wait_finished_fut = tokio::spawn(async move {
 					resp_stream.collect::<Vec<_>>().await;
-					Ok(())
 				});
-				self.background.spawn(wait_finished_fut.map(|x| {
-					x.unwrap_or_else(|e| Err(Error::Message(format!("Await failed: {}", e))))
-				}));
+				self.background.spawn(wait_finished_fut.map(|_| Ok(())));
 			}
 
 			Ok(results)
@@ -336,7 +332,7 @@ impl RpcHttpClient {
 		let body = hyper::body::to_bytes(resp.into_body()).await?;
 		drop(slot);
 
-		match rmp_serde::decode::from_read::<_, Result<M, String>>(body.into_buf())? {
+		match rmp_serde::decode::from_read::<_, Result<M, String>>(&body[..])? {
 			Err(e) => Ok(Err(Error::RemoteError(e, status))),
 			Ok(x) => Ok(Ok(x)),
 		}

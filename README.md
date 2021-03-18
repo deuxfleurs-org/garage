@@ -1,6 +1,11 @@
-# Garage
+Garage [![Build Status](https://drone.deuxfleurs.fr/api/badges/Deuxfleurs/garage/status.svg)](https://drone.deuxfleurs.fr/Deuxfleurs/garage)
+===
 
-[![Build Status](https://drone.deuxfleurs.fr/api/badges/Deuxfleurs/garage/status.svg)](https://drone.deuxfleurs.fr/Deuxfleurs/garage)
+<p align="center" style="text-align:center;">
+	<a href="https://git.deuxfleurs.fr/Deuxfleurs/garage">
+	<img alt="Garage logo" src="doc/logo/garage.png" height="200" />
+	</a>
+</p>
 
 Garage is a lightweight S3-compatible distributed object store, with the following goals:
 

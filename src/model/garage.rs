@@ -7,8 +7,8 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::RpcHttpClient;
 use garage_rpc::rpc_server::RpcServer;
 
-use garage_table::table_fullcopy::*;
-use garage_table::table_sharded::*;
+use garage_table::replication::fullcopy::*;
+use garage_table::replication::sharded::*;
 use garage_table::*;
 
 use crate::block::*;
@@ -35,7 +35,7 @@ pub struct Garage {
 }
 
 impl Garage {
-	pub async fn new(
+	pub fn new(
 		config: Config,
 		db: sled::Db,
 		background: Arc<BackgroundRunner>,
@@ -54,18 +54,23 @@ impl Garage {
 		);
 
 		let data_rep_param = TableShardedReplication {
+			system: system.clone(),
 			replication_factor: config.data_replication_factor,
 			write_quorum: (config.data_replication_factor + 1) / 2,
 			read_quorum: 1,
 		};
 
 		let meta_rep_param = TableShardedReplication {
+			system: system.clone(),
 			replication_factor: config.meta_replication_factor,
 			write_quorum: (config.meta_replication_factor + 1) / 2,
 			read_quorum: (config.meta_replication_factor + 1) / 2,
 		};
 
-		let control_rep_param = TableFullReplication::new(config.control_write_max_faults);
+		let control_rep_param = TableFullReplication {
+			system: system.clone(),
+			max_faults: config.control_write_max_faults,
+		};
 
 		info!("Initialize block manager...");
 		let block_manager = BlockManager::new(
@@ -79,7 +84,6 @@ impl Garage {
 		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
 			BlockRefTable {
-				background: background.clone(),
 				block_manager: block_manager.clone(),
 			},
 			data_rep_param.clone(),
@@ -87,8 +91,7 @@ impl Garage {
 			&db,
 			"block_ref".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize version_table...");
 		let version_table = Table::new(
@@ -101,8 +104,7 @@ impl Garage {
 			&db,
 			"version".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize object_table...");
 		let object_table = Table::new(
@@ -115,8 +117,7 @@ impl Garage {
 			&db,
 			"object".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize bucket_table...");
 		let bucket_table = Table::new(
@@ -126,8 +127,7 @@ impl Garage {
 			&db,
 			"bucket".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize key_table_table...");
 		let key_table = Table::new(
@@ -137,8 +137,7 @@ impl Garage {
 			&db,
 			"key".to_string(),
 			rpc_server,
-		)
-		.await;
+		);
 
 		info!("Initialize Garage...");
 		let garage = Arc::new(Self {
@@ -156,7 +155,7 @@ impl Garage {
 
 		info!("Start block manager background thread...");
 		garage.block_manager.garage.swap(Some(garage.clone()));
-		garage.block_manager.clone().spawn_background_worker().await;
+		garage.block_manager.clone().spawn_background_worker();
 
 		garage
 	}

@@ -2,13 +2,15 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
+use crate::crdt::CRDT;
+
 pub trait PartitionKey {
 	fn hash(&self) -> Hash;
 }
 
 impl PartitionKey for String {
 	fn hash(&self) -> Hash {
-		sha256sum(self.as_bytes())
+		blake2sum(self.as_bytes())
 	}
 }
 
@@ -35,12 +37,14 @@ impl SortKey for Hash {
 }
 
 pub trait Entry<P: PartitionKey, S: SortKey>:
-	PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
+	CRDT + PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
 {
 	fn partition_key(&self) -> &P;
 	fn sort_key(&self) -> &S;
 
-	fn merge(&mut self, other: &Self);
+	fn is_tombstone(&self) -> bool {
+		false
+	}
 }
 
 pub trait TableSchema: Send + Sync {

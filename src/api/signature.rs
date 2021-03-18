@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, Mac, NewMac};
 use hyper::{Body, Method, Request};
 use sha2::{Digest, Sha256};
 
@@ -91,8 +91,8 @@ pub async fn check_signature(
 		"s3",
 	)
 	.ok_or_internal_error("Unable to build signing HMAC")?;
-	hmac.input(string_to_sign.as_bytes());
-	let signature = hex::encode(hmac.result().code());
+	hmac.update(string_to_sign.as_bytes());
+	let signature = hex::encode(hmac.finalize().into_bytes());
 
 	if authorization.signature != signature {
 		trace!("Canonical request: ``{}``", canonical_request);
@@ -106,12 +106,10 @@ pub async fn check_signature(
 	} else {
 		let bytes = hex::decode(authorization.content_sha256)
 			.ok_or_bad_request("Invalid content sha256 hash")?;
-		let mut hash = [0u8; 32];
-		if bytes.len() != 32 {
-			return Err(Error::BadRequest(format!("Invalid content sha256 hash")));
-		}
-		hash.copy_from_slice(&bytes[..]);
-		Some(Hash::from(hash))
+		Some(
+			Hash::try_from(&bytes[..])
+				.ok_or(Error::BadRequest(format!("Invalid content sha256 hash")))?,
+		)
 	};
 
 	Ok((key, content_sha256))
@@ -220,12 +218,12 @@ fn parse_credential(cred: &str) -> Result<(String, String), Error> {
 
 fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &str) -> String {
 	let mut hasher = Sha256::default();
-	hasher.input(canonical_req.as_bytes());
+	hasher.update(canonical_req.as_bytes());
 	[
 		"AWS4-HMAC-SHA256",
 		&datetime.format(LONG_DATETIME).to_string(),
 		scope_string,
-		&hex::encode(hasher.result().as_slice()),
+		&hex::encode(hasher.finalize().as_slice()),
 	]
 	.join("\n")
 }
@@ -238,14 +236,14 @@ fn signing_hmac(
 ) -> Result<HmacSha256, crypto_mac::InvalidKeyLength> {
 	let secret = String::from("AWS4") + secret_key;
 	let mut date_hmac = HmacSha256::new_varkey(secret.as_bytes())?;
-	date_hmac.input(datetime.format(SHORT_DATE).to_string().as_bytes());
-	let mut region_hmac = HmacSha256::new_varkey(&date_hmac.result().code())?;
-	region_hmac.input(region.as_bytes());
-	let mut service_hmac = HmacSha256::new_varkey(&region_hmac.result().code())?;
-	service_hmac.input(service.as_bytes());
-	let mut signing_hmac = HmacSha256::new_varkey(&service_hmac.result().code())?;
-	signing_hmac.input(b"aws4_request");
-	let hmac = HmacSha256::new_varkey(&signing_hmac.result().code())?;
+	date_hmac.update(datetime.format(SHORT_DATE).to_string().as_bytes());
+	let mut region_hmac = HmacSha256::new_varkey(&date_hmac.finalize().into_bytes())?;
+	region_hmac.update(region.as_bytes());
+	let mut service_hmac = HmacSha256::new_varkey(&region_hmac.finalize().into_bytes())?;
+	service_hmac.update(service.as_bytes());
+	let mut signing_hmac = HmacSha256::new_varkey(&service_hmac.finalize().into_bytes())?;
+	signing_hmac.update(b"aws4_request");
+	let hmac = HmacSha256::new_varkey(&signing_hmac.finalize().into_bytes())?;
 	Ok(hmac)
 }
 

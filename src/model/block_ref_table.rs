@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use garage_util::background::*;
 use garage_util::data::*;
 
+use garage_table::crdt::CRDT;
 use garage_table::*;
 
 use crate::block::*;
@@ -17,7 +17,7 @@ pub struct BlockRef {
 	pub version: UUID,
 
 	// Keep track of deleted status
-	pub deleted: bool,
+	pub deleted: crdt::Bool,
 }
 
 impl Entry<Hash, UUID> for BlockRef {
@@ -27,16 +27,18 @@ impl Entry<Hash, UUID> for BlockRef {
 	fn sort_key(&self) -> &UUID {
 		&self.version
 	}
+	fn is_tombstone(&self) -> bool {
+		self.deleted.get()
+	}
+}
 
+impl CRDT for BlockRef {
 	fn merge(&mut self, other: &Self) {
-		if other.deleted {
-			self.deleted = true;
-		}
+		self.deleted.merge(&other.deleted);
 	}
 }
 
 pub struct BlockRefTable {
-	pub background: Arc<BackgroundRunner>,
 	pub block_manager: Arc<BlockManager>,
 }
 
@@ -48,8 +50,8 @@ impl TableSchema for BlockRefTable {
 
 	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
-		let was_before = old.as_ref().map(|x| !x.deleted).unwrap_or(false);
-		let is_after = new.as_ref().map(|x| !x.deleted).unwrap_or(false);
+		let was_before = old.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
+		let is_after = new.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
 		if is_after && !was_before {
 			if let Err(e) = self.block_manager.block_incref(block) {
 				warn!("block_incref failed for block {:?}: {}", block, e);
@@ -63,6 +65,6 @@ impl TableSchema for BlockRefTable {
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
-		filter.apply(entry.deleted)
+		filter.apply(entry.deleted.get())
 	}
 }

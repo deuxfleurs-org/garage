@@ -2,10 +2,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::sync::Arc;
 
-use chrono::{DateTime, NaiveDateTime, SecondsFormat, Utc};
 use hyper::{Body, Response};
 
 use garage_util::error::Error as GarageError;
+use garage_util::time::*;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
@@ -42,7 +42,7 @@ pub fn parse_list_objects_query(
 	Ok(ListObjectsQuery {
 		is_v2: params.get("list-type").map(|x| x == "2").unwrap_or(false),
 		bucket: bucket.to_string(),
-		delimiter: params.get("delimiter").cloned(),
+		delimiter: params.get("delimiter").filter(|x| !x.is_empty()).cloned(),
 		max_keys: params
 			.get("max-keys")
 			.map(|x| {
@@ -247,9 +247,7 @@ pub async fn handle_list(
 	}
 
 	for (key, info) in result_keys.iter() {
-		let last_modif = NaiveDateTime::from_timestamp(info.last_modified as i64 / 1000, 0);
-		let last_modif = DateTime::<Utc>::from_utc(last_modif, Utc);
-		let last_modif = last_modif.to_rfc3339_opts(SecondsFormat::Millis, true);
+		let last_modif = msec_to_rfc3339(info.last_modified);
 		writeln!(&mut xml, "\t<Contents>").unwrap();
 		writeln!(
 			&mut xml,

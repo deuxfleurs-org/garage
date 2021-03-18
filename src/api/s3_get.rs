@@ -146,9 +146,10 @@ pub async fn handle_get(
 			let version = version.ok_or(Error::NotFound)?;
 
 			let mut blocks = version
-				.blocks()
+				.blocks
+				.items()
 				.iter()
-				.map(|vb| (vb.hash, None))
+				.map(|(_, vb)| (vb.hash, None))
 				.collect::<Vec<_>>();
 			blocks[0].1 = Some(first_block);
 
@@ -219,11 +220,12 @@ pub async fn handle_get_range(
 			// file (whereas block.offset designates the offset of the block WITHIN THE PART
 			// block.part_number, which is not the same in the case of a multipart upload)
 			let mut blocks = Vec::with_capacity(std::cmp::min(
-				version.blocks().len(),
-				4 + ((end - begin) / std::cmp::max(version.blocks()[0].size as u64, 1024)) as usize,
+				version.blocks.len(),
+				4 + ((end - begin) / std::cmp::max(version.blocks.items()[0].1.size as u64, 1024))
+					as usize,
 			));
 			let mut true_offset = 0;
-			for b in version.blocks().iter() {
+			for (_, b) in version.blocks.items().iter() {
 				if true_offset >= end {
 					break;
 				}

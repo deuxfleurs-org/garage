@@ -1,12 +1,11 @@
 use core::future::Future;
 use std::pin::Pin;
-
-use futures::future::join_all;
-use futures::select;
-use futures_util::future::*;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::sync::{mpsc, watch, Notify};
+use std::time::Duration;
+
+use futures::future::*;
+use futures::select;
+use tokio::sync::{mpsc, watch, Mutex};
 
 use crate::error::Error;
 
@@ -14,54 +13,106 @@ type JobOutput = Result<(), Error>;
 type Job = Pin<Box<dyn Future<Output = JobOutput> + Send>>;
 
 pub struct BackgroundRunner {
-	n_runners: usize,
 	pub stop_signal: watch::Receiver<bool>,
 
 	queue_in: mpsc::UnboundedSender<(Job, bool)>,
-	queue_out: Mutex<mpsc::UnboundedReceiver<(Job, bool)>>,
-	job_notify: Notify,
-
-	workers: Mutex<Vec<tokio::task::JoinHandle<()>>>,
+	worker_in: mpsc::UnboundedSender<tokio::task::JoinHandle<()>>,
 }
 
 impl BackgroundRunner {
-	pub fn new(n_runners: usize, stop_signal: watch::Receiver<bool>) -> Arc<Self> {
+	pub fn new(
+		n_runners: usize,
+		stop_signal: watch::Receiver<bool>,
+	) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
+		let (worker_in, mut worker_out) = mpsc::unbounded_channel();
+
+		let stop_signal_2 = stop_signal.clone();
+		let await_all_done = tokio::spawn(async move {
+			loop {
+				let wkr = {
+					select! {
+						item = worker_out.recv().fuse() => {
+							match item {
+								Some(x) => x,
+								None => break,
+							}
+						}
+						_ = tokio::time::sleep(Duration::from_secs(5)).fuse() => {
+							if *stop_signal_2.borrow() {
+								break;
+							} else {
+								continue;
+							}
+						}
+					}
+				};
+				if let Err(e) = wkr.await {
+					error!("Error while awaiting for worker: {}", e);
+				}
+			}
+		});
+
 		let (queue_in, queue_out) = mpsc::unbounded_channel();
-		Arc::new(Self {
-			n_runners,
+		let queue_out = Arc::new(Mutex::new(queue_out));
+
+		for i in 0..n_runners {
+			let queue_out = queue_out.clone();
+			let stop_signal = stop_signal.clone();
+
+			worker_in
+				.send(tokio::spawn(async move {
+					loop {
+						let (job, cancellable) = {
+							select! {
+								item = wait_job(&queue_out).fuse() => match item {
+									// We received a task, process it
+									Some(x) => x,
+									// We received a signal that no more tasks will ever be sent
+									// because the sending side was dropped. Exit now.
+									None => break,
+								},
+								_ = tokio::time::sleep(Duration::from_secs(5)).fuse() => {
+									if *stop_signal.borrow() {
+										// Nothing has been going on for 5 secs, and we are shutting
+										// down. Exit now.
+										break;
+									} else {
+										// Nothing is going on but we don't want to exit.
+										continue;
+									}
+								}
+							}
+						};
+						if cancellable && *stop_signal.borrow() {
+							continue;
+						}
+						if let Err(e) = job.await {
+							error!("Job failed: {}", e)
+						}
+					}
+					info!("Background worker {} exiting", i);
+				}))
+				.unwrap();
+		}
+
+		let bgrunner = Arc::new(Self {
 			stop_signal,
 			queue_in,
-			queue_out: Mutex::new(queue_out),
-			job_notify: Notify::new(),
-			workers: Mutex::new(Vec::new()),
-		})
+			worker_in,
+		});
+		(bgrunner, await_all_done)
 	}
 
-	pub async fn run(self: Arc<Self>) {
-		let mut workers = self.workers.lock().await;
-		for i in 0..self.n_runners {
-			workers.push(tokio::spawn(self.clone().runner(i)));
-		}
-		drop(workers);
-
-		let mut stop_signal = self.stop_signal.clone();
-		while let Some(exit_now) = stop_signal.recv().await {
-			if exit_now {
-				let mut workers = self.workers.lock().await;
-				let workers_vec = workers.drain(..).collect::<Vec<_>>();
-				join_all(workers_vec).await;
-				return;
-			}
-		}
-	}
-
+	// Spawn a task to be run in background
 	pub fn spawn<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,
 	{
 		let boxed: Job = Box::pin(job);
-		let _: Result<_, _> = self.queue_in.clone().send((boxed, false));
-		self.job_notify.notify();
+		self.queue_in
+			.send((boxed, false))
+			.map_err(|_| "could not put job in queue")
+			.unwrap();
 	}
 
 	pub fn spawn_cancellable<T>(&self, job: T)
@@ -69,56 +120,30 @@ impl BackgroundRunner {
 		T: Future<Output = JobOutput> + Send + 'static,
 	{
 		let boxed: Job = Box::pin(job);
-		let _: Result<_, _> = self.queue_in.clone().send((boxed, true));
-		self.job_notify.notify();
+		self.queue_in
+			.send((boxed, true))
+			.map_err(|_| "could not put job in queue")
+			.unwrap();
 	}
 
-	pub async fn spawn_worker<F, T>(&self, name: String, worker: F)
+	pub fn spawn_worker<F, T>(&self, name: String, worker: F)
 	where
 		F: FnOnce(watch::Receiver<bool>) -> T + Send + 'static,
-		T: Future<Output = JobOutput> + Send + 'static,
+		T: Future<Output = ()> + Send + 'static,
 	{
-		let mut workers = self.workers.lock().await;
 		let stop_signal = self.stop_signal.clone();
-		workers.push(tokio::spawn(async move {
-			if let Err(e) = worker(stop_signal).await {
-				error!("Worker stopped with error: {}, error: {}", name, e);
-			} else {
-				info!("Worker exited successfully: {}", name);
-			}
-		}));
+		let task = tokio::spawn(async move {
+			info!("Worker started: {}", name);
+			worker(stop_signal).await;
+			info!("Worker exited: {}", name);
+		});
+		self.worker_in
+			.send(task)
+			.map_err(|_| "could not put job in queue")
+			.unwrap();
 	}
+}
 
-	async fn runner(self: Arc<Self>, i: usize) {
-		let mut stop_signal = self.stop_signal.clone();
-		loop {
-			let must_exit: bool = *stop_signal.borrow();
-			if let Some(job) = self.dequeue_job(must_exit).await {
-				if let Err(e) = job.await {
-					error!("Job failed: {}", e)
-				}
-			} else {
-				if must_exit {
-					info!("Background runner {} exiting", i);
-					return;
-				}
-				select! {
-					_ = self.job_notify.notified().fuse() => (),
-					_ = stop_signal.recv().fuse() => (),
-				}
-			}
-		}
-	}
-
-	async fn dequeue_job(&self, must_exit: bool) -> Option<Job> {
-		let mut queue = self.queue_out.lock().await;
-		while let Ok((job, cancellable)) = queue.try_recv() {
-			if cancellable && must_exit {
-				continue;
-			} else {
-				return Some(job);
-			}
-		}
-		None
-	}
+async fn wait_job(q: &Mutex<mpsc::UnboundedReceiver<(Job, bool)>>) -> Option<(Job, bool)> {
+	q.lock().await.recv().await
 }

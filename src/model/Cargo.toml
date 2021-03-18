@@ -16,23 +16,18 @@ path = "lib.rs"
 garage_util = { version = "0.1.1", path = "../util" }
 garage_rpc = { version = "0.1.1", path = "../rpc" }
 garage_table = { version = "0.1.1", path = "../table" }
-model010 = { package = "garage_model_010b", version = "0.0.1" }
 
-bytes = "0.4"
-rand = "0.7"
-hex = "0.3"
-sha2 = "0.8"
-arc-swap = "0.4"
+rand = "0.8"
+hex = "0.4"
+arc-swap = "1.0"
 log = "0.4"
 
 sled = "0.34"
 
-rmp-serde = "0.14.3"
+rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 
-async-trait = "0.1.30"
 futures = "0.3"
 futures-util = "0.3"
-tokio = { version = "0.2", default-features = false, features = ["rt-core", "rt-threaded", "io-driver", "net", "tcp", "time", "macros", "sync", "signal", "fs"] }
-
+tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }

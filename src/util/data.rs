@@ -2,7 +2,6 @@ use rand::Rng;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq, Copy)]
 pub struct FixedBytes32([u8; 32]);
@@ -71,6 +70,14 @@ impl FixedBytes32 {
 	pub fn to_vec(&self) -> Vec<u8> {
 		self.0.to_vec()
 	}
+	pub fn try_from(by: &[u8]) -> Option<Self> {
+		if by.len() != 32 {
+			return None;
+		}
+		let mut ret = [0u8; 32];
+		ret.copy_from_slice(by);
+		Some(Self(ret))
+	}
 }
 
 pub type UUID = FixedBytes32;
@@ -80,9 +87,9 @@ pub fn sha256sum(data: &[u8]) -> Hash {
 	use sha2::{Digest, Sha256};
 
 	let mut hasher = Sha256::new();
-	hasher.input(data);
+	hasher.update(data);
 	let mut hash = [0u8; 32];
-	hash.copy_from_slice(&hasher.result()[..]);
+	hash.copy_from_slice(&hasher.finalize()[..]);
 	hash.into()
 }
 
@@ -109,13 +116,6 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 
 pub fn gen_uuid() -> UUID {
 	rand::thread_rng().gen::<[u8; 32]>().into()
-}
-
-pub fn now_msec() -> u64 {
-	SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.expect("Fix your clock :o")
-		.as_millis() as u64
 }
 
 // RMP serialization with names of fields and variants

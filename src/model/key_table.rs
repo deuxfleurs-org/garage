@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use garage_table::crdt::CRDT;
+use garage_table::crdt::*;
 use garage_table::*;
-
-use model010::key_table as prev;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
@@ -32,6 +30,15 @@ impl Key {
 			key_id,
 			secret_key,
 			name: crdt::LWW::new(name),
+			deleted: crdt::Bool::new(false),
+			authorized_buckets: crdt::LWWMap::new(),
+		}
+	}
+	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Self {
+		Self {
+			key_id: key_id.to_string(),
+			secret_key: secret_key.to_string(),
+			name: crdt::LWW::new(name.to_string()),
 			deleted: crdt::Bool::new(false),
 			authorized_buckets: crdt::LWWMap::new(),
 		}
@@ -66,6 +73,10 @@ pub struct PermissionSet {
 	pub allow_write: bool,
 }
 
+impl AutoCRDT for PermissionSet {
+	const WARN_IF_DIFFERENT: bool = true;
+}
+
 impl Entry<EmptyKey, String> for Key {
 	fn partition_key(&self) -> &EmptyKey {
 		&EmptyKey
@@ -73,55 +84,43 @@ impl Entry<EmptyKey, String> for Key {
 	fn sort_key(&self) -> &String {
 		&self.key_id
 	}
+}
 
+impl CRDT for Key {
 	fn merge(&mut self, other: &Self) {
 		self.name.merge(&other.name);
 		self.deleted.merge(&other.deleted);
 
 		if self.deleted.get() {
 			self.authorized_buckets.clear();
-			return;
+		} else {
+			self.authorized_buckets.merge(&other.authorized_buckets);
 		}
-
-		self.authorized_buckets.merge(&other.authorized_buckets);
 	}
 }
 
 pub struct KeyTable;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum KeyFilter {
+	Deleted(DeletedFilter),
+	Matches(String),
+}
+
 impl TableSchema for KeyTable {
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;
-	type Filter = DeletedFilter;
+	type Filter = KeyFilter;
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
-		filter.apply(entry.deleted.get())
-	}
-
-	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old = match rmp_serde::decode::from_read_ref::<_, prev::Key>(bytes) {
-			Ok(x) => x,
-			Err(_) => return None,
-		};
-		let mut new = Self::E {
-			key_id: old.key_id.clone(),
-			secret_key: old.secret_key.clone(),
-			name: crdt::LWW::migrate_from_raw(old.name_timestamp, old.name.clone()),
-			deleted: crdt::Bool::new(old.deleted),
-			authorized_buckets: crdt::LWWMap::new(),
-		};
-		for ab in old.authorized_buckets() {
-			let it = crdt::LWWMap::migrate_from_raw_item(
-				ab.bucket.clone(),
-				ab.timestamp,
-				PermissionSet {
-					allow_read: ab.allow_read,
-					allow_write: ab.allow_write,
-				},
-			);
-			new.authorized_buckets.merge(&it);
+		match filter {
+			KeyFilter::Deleted(df) => df.apply(entry.deleted.get()),
+			KeyFilter::Matches(pat) => {
+				let pat = pat.to_lowercase();
+				entry.key_id.to_lowercase().starts_with(&pat)
+					|| entry.name.get().to_lowercase() == pat
+			}
 		}
-		Some(new)
 	}
 }

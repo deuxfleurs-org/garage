@@ -2,20 +2,9 @@ kind: pipeline
 name: default
 
 workspace:
-  base: /drone
-
-clone:
-  disable: true
+  base: /drone/garage
 
 steps:
-  - name: clone
-    image: alpine/git
-    commands:
-      - mkdir -p cargo
-      - git clone https://git.deuxfleurs.fr/Deuxfleurs/garage.git
-      - cd garage
-      - git checkout $DRONE_COMMIT
-
   - name: restore-cache
     image: meltwater/drone-cache:dev
     environment:
@@ -31,11 +20,11 @@ steps:
       cache_key: '{{ .Repo.Name }}_{{ checksum "garage/Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
-        - 'garage/target'
-        - 'cargo/registry/index'
-        - 'cargo/registry/cache'
-        - 'cargo/git/db'
-        - 'cargo/bin'
+        - 'target'
+        - '/drone/cargo/registry/index'
+        - '/drone/cargo/registry/cache'
+        - '/drone/cargo/bin'
+        - '/drone/cargo/git/db'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
 
@@ -47,7 +36,6 @@ steps:
       - apt-get update
       - apt-get install --yes libsodium-dev
       - pwd
-      - cd garage
       - cargo build
 
   - name: cargo-test
@@ -57,7 +45,6 @@ steps:
     commands:
       - apt-get update
       - apt-get install --yes libsodium-dev
-      - cd garage
       - cargo test
 
   - name: rebuild-cache
@@ -75,11 +62,11 @@ steps:
       cache_key: '{{ .Repo.Name }}_{{ checksum "garage/Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
-        - 'garage/target'
-        - 'cargo/registry/index'
-        - 'cargo/registry/cache'
-        - 'cargo/git/db'
-        - 'cargo/bin'
+        - 'target'
+        - '/drone/cargo/registry/index'
+        - '/drone/cargo/registry/cache'
+        - '/drone/cargo/git/db'
+        - '/drone/cargo/bin'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
 
@@ -91,5 +78,4 @@ steps:
       - apt-get update
       - apt-get install --yes libsodium-dev awscli python-pip
       - pip install s3cmd
-      - cd garage
       - ./script/test-smoke.sh || (cat /tmp/garage.log; false)
