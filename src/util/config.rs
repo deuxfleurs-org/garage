@@ -90,14 +90,21 @@ where
 {
 	use std::net::ToSocketAddrs;
 
-	let mut res = vec![];
-	for s in <Vec<&str>>::deserialize(deserializer)? {
-		res.push(
-			s.to_socket_addrs()
-				.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
-				.next()
-				.ok_or(de::Error::custom("could not resolve to a socket address"))?,
-		);
-	}
-	Ok(res)
+	Ok(<Vec<&str>>::deserialize(deserializer)?
+		.iter()
+		.filter_map(|&name| {
+			name.to_socket_addrs()
+				.map(|iter| (name, iter))
+				.map_err(|_| warn!("Error resolving \"{}\"", name))
+				.ok()
+		})
+		.map(|(name, iter)| {
+			let v = iter.collect::<Vec<_>>();
+			if v.is_empty() {
+				warn!("Error resolving \"{}\"", name)
+			}
+			v
+		})
+		.flatten()
+		.collect())
 }
