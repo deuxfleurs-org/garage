@@ -1,4 +1,3 @@
-use std::fmt;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -92,28 +91,13 @@ fn deserialize_addr<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
 where
 	D: de::Deserializer<'de>,
 {
-	struct AddrVisitor;
+	use std::net::ToSocketAddrs;
 
-	impl<'de> de::Visitor<'de> for AddrVisitor {
-		type Value = SocketAddr;
-
-		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-			formatter.write_str("a string representing a socket address")
-		}
-
-		fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-		where
-			E: de::Error,
-		{
-			use std::net::ToSocketAddrs;
-			s.to_socket_addrs()
-				.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
-				.next()
-				.ok_or(de::Error::custom("could not resolve to a socket address"))
-		}
-	}
-
-	deserializer.deserialize_any(AddrVisitor)
+	<&str>::deserialize(deserializer)?
+		.to_socket_addrs()
+		.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
+		.next()
+		.ok_or(de::Error::custom("could not resolve to a socket address"))
 }
 
 fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
@@ -123,7 +107,7 @@ where
 	use std::net::ToSocketAddrs;
 
 	let mut res = vec![];
-	for s in <Vec<String>>::deserialize(deserializer)? {
+	for s in <Vec<&str>>::deserialize(deserializer)? {
 		res.push(
 			s.to_socket_addrs()
 				.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
