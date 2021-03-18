@@ -1,8 +1,9 @@
+use std::fmt;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{de, Deserialize};
 
 use crate::error::Error;
 
@@ -11,8 +12,10 @@ pub struct Config {
 	pub metadata_dir: PathBuf,
 	pub data_dir: PathBuf,
 
+	#[serde(deserialize_with = "deserialize_addr")]
 	pub rpc_bind_addr: SocketAddr,
 
+	#[serde(deserialize_with = "deserialize_vec_addr")]
 	pub bootstrap_peers: Vec<SocketAddr>,
 	pub consul_host: Option<String>,
 	pub consul_service_name: Option<String>,
@@ -48,12 +51,14 @@ pub struct TlsConfig {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ApiConfig {
+	#[serde(deserialize_with = "deserialize_addr")]
 	pub api_bind_addr: SocketAddr,
 	pub s3_region: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct WebConfig {
+	#[serde(deserialize_with = "deserialize_addr")]
 	pub bind_addr: SocketAddr,
 	pub root_domain: String,
 	pub index: String,
@@ -81,4 +86,50 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	file.read_to_string(&mut config)?;
 
 	Ok(toml::from_str(&config)?)
+}
+
+fn deserialize_addr<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
+where
+	D: de::Deserializer<'de>,
+{
+	struct AddrVisitor;
+
+	impl<'de> de::Visitor<'de> for AddrVisitor {
+		type Value = SocketAddr;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+			formatter.write_str("a string representing a socket address")
+		}
+
+		fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			use std::net::ToSocketAddrs;
+			s.to_socket_addrs()
+				.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
+				.next()
+				.ok_or(de::Error::custom("could not resolve to a socket address"))
+		}
+	}
+
+	deserializer.deserialize_any(AddrVisitor)
+}
+
+fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
+where
+	D: de::Deserializer<'de>,
+{
+	use std::net::ToSocketAddrs;
+
+	let mut res = vec![];
+	for s in <Vec<String>>::deserialize(deserializer)? {
+		res.push(
+			s.to_socket_addrs()
+				.map_err(|_| de::Error::custom("could not resolve to a socket address"))?
+				.next()
+				.ok_or(de::Error::custom("could not resolve to a socket address"))?,
+		);
+	}
+	Ok(res)
 }
