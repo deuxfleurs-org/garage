@@ -124,8 +124,8 @@ For our example, we will suppose the following infrastructure:
 |----------|---------|------------|------------|
 | Paris    | Mercury | fc00:1::1  | 1 To       |
 | Paris    | Venus   | fc00:1::2  | 2 To       |
-| London   | Earth   | fc00:1::2  | 2 To       |
-| Brussels | Mars    | fc00:B::1  | 1.5 To     |
+| London   | Earth   | fc00:B::1  | 2 To       |
+| Brussels | Mars    | fc00:F::1  | 1.5 To     |
 
 On each machine, we will have a similar setup, especially you must consider the following folders/files:
   - `/etc/garage/pki`: Garage certificates, must be generated on your computer and copied on the servers
