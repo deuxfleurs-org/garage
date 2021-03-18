@@ -40,8 +40,43 @@ fn object_headers(
 	resp
 }
 
+fn try_answer_cached(
+	version: &ObjectVersion,
+	version_meta: &ObjectVersionMeta,
+	req: &Request<Body>,
+) -> Option<Response<Body>> {
+	let cached = if let Some(none_match) = req.headers().get(http::header::IF_NONE_MATCH) {
+		let none_match = none_match.to_str().ok()?;
+		let expected = format!("\"{}\"", version_meta.etag);
+		let found = none_match
+			.split(',')
+			.map(str::trim)
+			.any(|etag| etag == expected || etag == "\"*\"");
+		found
+	} else if let Some(modified_since) = req.headers().get(http::header::IF_MODIFIED_SINCE) {
+		let modified_since = modified_since.to_str().ok()?;
+		let client_date = httpdate::parse_http_date(modified_since).ok()?;
+		let server_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
+		client_date >= server_date
+	} else {
+		false
+	};
+
+	if cached {
+		Some(
+			Response::builder()
+				.status(StatusCode::NOT_MODIFIED)
+				.body(Body::empty())
+				.unwrap(),
+		)
+	} else {
+		None
+	}
+}
+
 pub async fn handle_head(
 	garage: Arc<Garage>,
+	req: &Request<Body>,
 	bucket: &str,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
@@ -65,7 +100,11 @@ pub async fn handle_head(
 		_ => unreachable!(),
 	};
 
-	let body: Body = Body::from(vec![]);
+	if let Some(cached) = try_answer_cached(&version, version_meta, req) {
+		return Ok(cached);
+	}
+
+	let body: Body = Body::empty();
 	let response = object_headers(&version, version_meta)
 		.header("Content-Length", format!("{}", version_meta.size))
 		.status(StatusCode::OK)
@@ -103,6 +142,10 @@ pub async fn handle_get(
 		ObjectVersionData::Inline(meta, _) => meta,
 		ObjectVersionData::FirstBlock(meta, _) => meta,
 	};
+
+	if let Some(cached) = try_answer_cached(&last_v, last_v_meta, req) {
+		return Ok(cached);
+	}
 
 	let range = match req.headers().get("range") {
 		Some(range) => {

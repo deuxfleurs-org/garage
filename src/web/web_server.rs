@@ -99,7 +99,7 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
 	let res = match req.method() {
-		&Method::HEAD => handle_head(garage, &bucket, &key).await?,
+		&Method::HEAD => handle_head(garage, &req, &bucket, &key).await?,
 		&Method::GET => handle_get(garage, &req, bucket, &key).await?,
 		_ => return Err(Error::BadRequest(format!("HTTP method not supported"))),
 	};
