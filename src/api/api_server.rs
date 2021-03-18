@@ -101,7 +101,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		match req.method() {
 			&Method::HEAD => {
 				// HeadObject query
-				Ok(handle_head(garage, &bucket, &key).await?)
+				Ok(handle_head(garage, &req, &bucket, &key).await?)
 			}
 			&Method::GET => {
 				// GetObject query
