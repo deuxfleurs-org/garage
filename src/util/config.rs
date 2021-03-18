@@ -2,7 +2,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde::Deserialize;
+use serde::{de, Deserialize};
 
 use crate::error::Error;
 
@@ -13,6 +13,7 @@ pub struct Config {
 
 	pub rpc_bind_addr: SocketAddr,
 
+	#[serde(deserialize_with = "deserialize_vec_addr")]
 	pub bootstrap_peers: Vec<SocketAddr>,
 	pub consul_host: Option<String>,
 	pub consul_service_name: Option<String>,
@@ -81,4 +82,29 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	file.read_to_string(&mut config)?;
 
 	Ok(toml::from_str(&config)?)
+}
+
+fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
+where
+	D: de::Deserializer<'de>,
+{
+	use std::net::ToSocketAddrs;
+
+	Ok(<Vec<&str>>::deserialize(deserializer)?
+		.iter()
+		.filter_map(|&name| {
+			name.to_socket_addrs()
+				.map(|iter| (name, iter))
+				.map_err(|_| warn!("Error resolving \"{}\"", name))
+				.ok()
+		})
+		.map(|(name, iter)| {
+			let v = iter.collect::<Vec<_>>();
+			if v.is_empty() {
+				warn!("Error resolving \"{}\"", name)
+			}
+			v
+		})
+		.flatten()
+		.collect())
 }
