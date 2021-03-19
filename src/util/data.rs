@@ -106,12 +106,11 @@ pub fn blake2sum(data: &[u8]) -> Hash {
 pub type FastHash = u64;
 
 pub fn fasthash(data: &[u8]) -> FastHash {
-	use fasthash::{xx::Hasher64, FastHasher};
-	use std::hash::Hasher;
+	use xxhash_rust::xxh3::Xxh3;
 
-	let mut h = Hasher64::new();
-	h.write(data);
-	h.finish()
+	let mut h = Xxh3::new();
+	h.update(data);
+	h.digest()
 }
 
 pub fn gen_uuid() -> UUID {
