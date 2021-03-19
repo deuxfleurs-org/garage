@@ -1,4 +1,8 @@
-![Garage's Logo](img/logo.svg)
+<p align="center" style="text-align:center;">
+	<a href="https://garagehq.deuxfleurs.fr">
+	<img alt="Garage's Logo" src="img/logo.svg" height="200" />
+	</a>
+</p>
 
 # The Garage Geo-Distributed Data Store
 

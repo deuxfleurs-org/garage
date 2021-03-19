@@ -2,7 +2,7 @@ Garage [![Build Status](https://drone.deuxfleurs.fr/api/badges/Deuxfleurs/garage
 ===
 
 <p align="center" style="text-align:center;">
-	<a href="https://git.deuxfleurs.fr/Deuxfleurs/garage">
+	<a href="https://garagehq.deuxfleurs.fr">
 	<img alt="Garage logo" src="doc/logo/garage.png" height="200" />
 	</a>
 </p>

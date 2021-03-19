@@ -79,3 +79,30 @@ steps:
       - apt-get install --yes libsodium-dev awscli python-pip
       - pip install s3cmd
       - ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+---
+kind: pipeline
+name: website
+
+steps:
+  - name: build
+    image: hrektts/mdbook
+    commands:
+      - cd doc/book
+      - mdbook build
+
+  - name: upload
+    image: plugins/s3
+    settings:
+      bucket: garagehq.deuxfleurs.fr
+      access_key:
+        from_secret: garagehq_aws_access_key_id
+      secret_key:
+        from_secret: garagehq_aws_secret_access_key
+      source: doc/book/book/**/*
+      strip_prefix: doc/book/book/
+      target: /
+      path_style: true
+      endpoint: https://garage.deuxfleurs.fr
+      region: garage
+
