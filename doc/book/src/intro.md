@@ -17,7 +17,7 @@ To promote better data management policies, we focused on the following **desira
   - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
 
 We also noted that the pursuit of some other goals are detrimental to our initial goals.
-The following has been identified has **non-goals** (if these points matter to you, you should not use Garage):
+The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):
 
   - **Extreme performances**: high performances constrain a lot the design and the infrastructure; we seek performances through minimalism only.
   - **Feature extensiveness**: complete implementation of the S3 API or any other API to make garage a drop-in replacement is not targeted as it could lead to decisions impacting our desirable properties.
@@ -36,7 +36,7 @@ We plan to add logic to Garage to make it a viable solution for email storage.
 
 ## Use Cases
 
-**[Deuxfleurs](https://deuxfleurs.fr) :** Garage is used by Deuxfleurs which is a non-profit hosting organization.
+**[Deuxfleurs](https://deuxfleurs.fr):** Garage is used by Deuxfleurs which is a non-profit hosting organization.
 Especially, it is used to host their main website, this documentation and some of its members' blogs. 
 Additionally, Garage is used as a [backend for Nextcloud](https://docs.nextcloud.com/server/20/admin_manual/configuration_files/primary_storage.html). 
 Deuxfleurs also plans to use Garage as their [Matrix's media backend](https://github.com/matrix-org/synapse-s3-storage-provider) and as the backend of [OCIS](https://github.com/owncloud/ocis).
