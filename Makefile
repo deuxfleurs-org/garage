@@ -12,6 +12,7 @@ $(BIN).stripped: $(BIN)
 	strip $@
 
 docker: $(BIN).stripped
+	docker pull archlinux:latest
 	docker build -t $(DOCKER):$(TAG) .
 	docker push $(DOCKER):$(TAG)
 	docker tag $(DOCKER):$(TAG) $(DOCKER):latest
