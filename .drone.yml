@@ -17,7 +17,7 @@ steps:
       restore: true
       archive_format: "gzip"
       bucket: drone-cache
-      cache_key: '{{ .Repo.Name }}_{{ checksum "garage/Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
+      cache_key: '{{ .Repo.Name }}_{{ checksum "Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
         - 'target'
@@ -59,7 +59,7 @@ steps:
       rebuild: true
       archive_format: "gzip"
       bucket: drone-cache
-      cache_key: '{{ .Repo.Name }}_{{ checksum "garage/Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
+      cache_key: '{{ .Repo.Name }}_{{ checksum "Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
         - 'target'
