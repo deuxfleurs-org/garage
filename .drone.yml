@@ -105,4 +105,7 @@ steps:
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
       region: garage
+    when:
+      branch:
+        - main
 
