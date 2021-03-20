@@ -1,9 +1,12 @@
+//! Module containing error types used in Garage
+#![allow(missing_docs)]
 use err_derive::Error;
 use hyper::StatusCode;
 use std::io;
 
 use crate::data::*;
 
+/// RPC related errors
 #[derive(Debug, Error)]
 pub enum RPCError {
 	#[error(display = "Node is down: {:?}.", _0)]
@@ -28,6 +31,7 @@ pub enum RPCError {
 	TooManyErrors(Vec<String>),
 }
 
+/// Regroup all Garage errors
 #[derive(Debug, Error)]
 pub enum Error {
 	#[error(display = "IO error: {}", _0)]
