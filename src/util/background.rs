@@ -21,7 +21,7 @@ pub struct BackgroundRunner {
 }
 
 impl BackgroundRunner {
-    /// Create a new BackgroundRunner
+	/// Create a new BackgroundRunner
 	pub fn new(
 		n_runners: usize,
 		stop_signal: watch::Receiver<bool>,
@@ -117,8 +117,8 @@ impl BackgroundRunner {
 			.unwrap();
 	}
 
-    /// Spawn a task to be run in background. It may get discarded before running if spawned while
-    /// the runner is stopping
+	/// Spawn a task to be run in background. It may get discarded before running if spawned while
+	/// the runner is stopping
 	pub fn spawn_cancellable<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,

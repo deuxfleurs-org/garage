@@ -63,20 +63,20 @@ impl Serialize for FixedBytes32 {
 }
 
 impl FixedBytes32 {
-    /// Access the content as a slice
+	/// Access the content as a slice
 	pub fn as_slice(&self) -> &[u8] {
 		&self.0[..]
 	}
-    /// Access the content as a mutable slice
+	/// Access the content as a mutable slice
 	pub fn as_slice_mut(&mut self) -> &mut [u8] {
 		&mut self.0[..]
 	}
-    /// Copy to a slice
+	/// Copy to a slice
 	pub fn to_vec(&self) -> Vec<u8> {
 		self.0.to_vec()
 	}
-    /// Try building a FixedBytes32 from a slice
-    /// Return None if the slice is not 32 bytes long
+	/// Try building a FixedBytes32 from a slice
+	/// Return None if the slice is not 32 bytes long
 	pub fn try_from(by: &[u8]) -> Option<Self> {
 		if by.len() != 32 {
 			return None;
@@ -151,8 +151,8 @@ pub fn debug_serialize<T: Serialize>(x: T) -> String {
 	match serde_json::to_string(&x) {
 		Ok(ss) => {
 			if ss.len() > 100 {
-                // TODO this can panic if 100 is not a codepoint boundary, but inside a 2 Bytes
-                // (or more) codepoint
+				// TODO this can panic if 100 is not a codepoint boundary, but inside a 2 Bytes
+				// (or more) codepoint
 				ss[..100].to_string()
 			} else {
 				ss

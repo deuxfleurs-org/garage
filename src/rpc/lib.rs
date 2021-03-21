@@ -1,4 +1,4 @@
-#![deny(missing_crate_level_docs, missing_docs)]
+#![warn(missing_crate_level_docs, missing_docs)]
 //! Crate containing rpc related functions and types used in Garage
 
 #[macro_use]
