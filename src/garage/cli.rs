@@ -80,7 +80,7 @@ pub struct ConfigureNodeOpt {
 	#[structopt(short = "c", long = "capacity")]
 	capacity: Option<u32>,
 
-	/// Optionnal node tag
+	/// Optional node tag
 	#[structopt(short = "t", long = "tag")]
 	tag: Option<String>,
 
