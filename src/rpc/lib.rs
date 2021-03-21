@@ -1,7 +1,10 @@
+#![deny(missing_crate_level_docs, missing_docs)]
+//! Crate containing rpc related functions and types used in Garage
+
 #[macro_use]
 extern crate log;
 
-pub mod consul;
+mod consul;
 pub(crate) mod tls_util;
 
 pub mod membership;

@@ -1,3 +1,4 @@
+//! Contains structs related to receiving RPCs
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -22,13 +23,17 @@ use garage_util::error::Error;
 
 use crate::tls_util;
 
+/// Trait for messages that can be sent as RPC
 pub trait RpcMessage: Serialize + for<'de> Deserialize<'de> + Send + Sync {}
 
 type ResponseFuture = Pin<Box<dyn Future<Output = Result<Response<Body>, Error>> + Send>>;
 type Handler = Box<dyn Fn(Request<Body>, SocketAddr) -> ResponseFuture + Send + Sync>;
 
+/// Structure handling RPCs
 pub struct RpcServer {
+	/// The address the RpcServer will bind
 	pub bind_addr: SocketAddr,
+	/// The tls configuration used for RPC
 	pub tls_config: Option<TlsConfig>,
 
 	handlers: HashMap<String, Handler>,
@@ -87,6 +92,7 @@ where
 }
 
 impl RpcServer {
+	/// Create a new RpcServer
 	pub fn new(bind_addr: SocketAddr, tls_config: Option<TlsConfig>) -> Self {
 		Self {
 			bind_addr,
@@ -95,6 +101,7 @@ impl RpcServer {
 		}
 	}
 
+	/// Add handler handling request made to `name`
 	pub fn add_handler<M, F, Fut>(&mut self, name: String, handler: F)
 	where
 		M: RpcMessage + 'static,
@@ -156,6 +163,7 @@ impl RpcServer {
 		}
 	}
 
+	/// Run the RpcServer
 	pub async fn run(
 		self: Arc<Self>,
 		shutdown_signal: impl Future<Output = ()>,
