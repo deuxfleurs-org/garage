@@ -108,4 +108,6 @@ steps:
     when:
       branch:
         - main
+      repo:
+        - Deuxfleurs/garage
 
