@@ -4,6 +4,10 @@
 	</a>
 </p>
 
+```
+This very website is hosted using Garage. In other words: the doc is the PoC!
+```
+
 # The Garage Geo-Distributed Data Store
 
 Garage is a lightweight geo-distributed data store.
