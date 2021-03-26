@@ -8,7 +8,7 @@ use garage_util::error::Error as GarageError;
 pub enum Error {
 	/// An error received from the API crate
 	#[error(display = "API error: {}", _0)]
-	ApiError(#[error(source)] garage_api::error::Error),
+	ApiError(#[error(source)] garage_api::Error),
 
 	// Category: internal error
 	/// Error internal to garage

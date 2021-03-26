@@ -1,3 +1,4 @@
+//! Function related to GET and HEAD requests
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -79,6 +80,7 @@ fn try_answer_cached(
 	}
 }
 
+/// Handle HEAD request
 pub async fn handle_head(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
@@ -118,6 +120,7 @@ pub async fn handle_head(
 	Ok(response)
 }
 
+/// Handle GET request
 pub async fn handle_get(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
@@ -224,7 +227,7 @@ pub async fn handle_get(
 	}
 }
 
-pub async fn handle_get_range(
+async fn handle_get_range(
 	garage: Arc<Garage>,
 	version: &ObjectVersion,
 	version_data: &ObjectVersionData,

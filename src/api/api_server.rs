@@ -20,6 +20,7 @@ use crate::s3_get::*;
 use crate::s3_list::*;
 use crate::s3_put::*;
 
+/// Run the S3 API server
 pub async fn run_api_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,

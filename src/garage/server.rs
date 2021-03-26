@@ -8,7 +8,7 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
 
-use garage_api::api_server;
+use garage_api::run_api_server;
 use garage_model::garage::Garage;
 use garage_rpc::rpc_server::RpcServer;
 use garage_web::run_web_server;
@@ -62,7 +62,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Initializing RPC and API servers...");
 	let run_rpc_server = Arc::new(rpc_server).run(wait_from(watch_cancel.clone()));
-	let api_server = api_server::run_api_server(garage.clone(), wait_from(watch_cancel.clone()));
+	let api_server = run_api_server(garage.clone(), wait_from(watch_cancel.clone()));
 	let web_server = run_web_server(garage, wait_from(watch_cancel.clone()));
 
 	futures::try_join!(
