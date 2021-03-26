@@ -10,7 +10,6 @@ pub struct Key {
 	pub key_id: String,
 
 	/// The secret_key associated
-	// shouldn't it be hashed or something, so it's trully secret?
 	pub secret_key: String,
 
 	/// Name for the key

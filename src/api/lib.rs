@@ -1,15 +1,20 @@
+#![deny(missing_crate_level_docs, missing_docs)]
+//! Crate for serving a S3 compatible API
 #[macro_use]
 extern crate log;
 
-pub mod error;
+mod error;
+pub use error::Error;
 
-pub mod encoding;
+mod encoding;
 
-pub mod api_server;
-pub mod signature;
+mod api_server;
+pub use api_server::run_api_server;
 
-pub mod s3_copy;
-pub mod s3_delete;
+mod signature;
+
+mod s3_copy;
+mod s3_delete;
 pub mod s3_get;
-pub mod s3_list;
-pub mod s3_put;
+mod s3_list;
+mod s3_put;
