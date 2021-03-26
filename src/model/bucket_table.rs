@@ -12,15 +12,18 @@ use crate::key_table::PermissionSet;
 ///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
-	// Primary key
+	/// Name of the bucket
 	pub name: String,
-
+	/// State, and configuration if not deleted, of the bucket
 	pub state: crdt::LWW<BucketState>,
 }
 
+/// State of a bucket
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum BucketState {
+	/// The bucket is deleted
 	Deleted,
+	/// The bucket exists
 	Present(BucketParams),
 }
 
@@ -37,9 +40,12 @@ impl CRDT for BucketState {
 	}
 }
 
+/// Configuration for a bucket
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
+	/// Map of key with access to the bucket, and what kind of access they give
 	pub authorized_keys: crdt::LWWMap<String, PermissionSet>,
+	/// Is the bucket served as http
 	pub website: crdt::LWW<bool>,
 }
 
@@ -51,6 +57,7 @@ impl CRDT for BucketParams {
 }
 
 impl BucketParams {
+	/// Create a new default `BucketParams`
 	pub fn new() -> Self {
 		BucketParams {
 			authorized_keys: crdt::LWWMap::new(),
@@ -60,15 +67,21 @@ impl BucketParams {
 }
 
 impl Bucket {
+	/// Create a new bucket
 	pub fn new(name: String) -> Self {
 		Bucket {
 			name,
 			state: crdt::LWW::new(BucketState::Present(BucketParams::new())),
 		}
 	}
+
+	/// Query if bucket is deleted
 	pub fn is_deleted(&self) -> bool {
 		*self.state.get() == BucketState::Deleted
 	}
+
+	/// Return the list of authorized keys, when each was updated, and the permission associated to
+	/// the key
 	pub fn authorized_keys(&self) -> &[(String, u64, PermissionSet)] {
 		match self.state.get() {
 			BucketState::Deleted => &[],

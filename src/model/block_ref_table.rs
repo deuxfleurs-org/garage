@@ -11,12 +11,15 @@ use crate::block::*;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {
 	// Primary key
+	/// Hash of the block
 	pub block: Hash,
 
 	// Sort key
+	// why a version on a hashed (probably immutable) piece of data?
 	pub version: UUID,
 
 	// Keep track of deleted status
+	/// Is that block deleted
 	pub deleted: crdt::Bool,
 }
 
