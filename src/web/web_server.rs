@@ -18,6 +18,7 @@ use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::error::Error as GarageError;
 
+/// Run a web server
 pub async fn run_web_server(
 	garage: Arc<Garage>,
 	shutdown_signal: impl Future<Output = ()>,
