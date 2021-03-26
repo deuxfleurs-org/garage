@@ -10,21 +10,27 @@ use garage_table::*;
 
 use crate::block_ref_table::*;
 
+/// A version of an object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
-	// Primary key
+	/// UUID of the version
 	pub uuid: UUID,
 
 	// Actual data: the blocks for this version
 	// In the case of a multipart upload, also store the etags
 	// of individual parts and check them when doing CompleteMultipartUpload
+	/// Is this version deleted
 	pub deleted: crdt::Bool,
+	/// list of blocks of data composing the version
 	pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
+	/// Etag of each part in case of a multipart upload, empty otherwise
 	pub parts_etags: crdt::Map<u64, String>,
 
 	// Back link to bucket+key so that we can figure if
 	// this was deleted later on
+	/// Bucket in which the related object is stored
 	pub bucket: String,
+	/// Key in which the related object is stored
 	pub key: String,
 }
 
@@ -43,7 +49,9 @@ impl Version {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct VersionBlockKey {
+	/// Number of the part, starting at 1
 	pub part_number: u64,
+	/// offset of the block in the file, starting at 0
 	pub offset: u64,
 }
 
@@ -61,9 +69,12 @@ impl PartialOrd for VersionBlockKey {
 	}
 }
 
+/// Informations about a single block
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct VersionBlock {
+	/// Hash of the block
 	pub hash: Hash,
+	/// Size of the block
 	pub size: u64,
 }
 
