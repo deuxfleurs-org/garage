@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
-pub mod error;
+mod error;
+pub use error::Error;
 
 pub mod web_server;

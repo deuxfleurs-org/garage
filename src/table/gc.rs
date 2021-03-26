@@ -74,7 +74,7 @@ where
 		while !*must_exit.borrow() {
 			match self.gc_loop_iter().await {
 				Ok(true) => {
-					// Stuff was done, loop imediately
+					// Stuff was done, loop immediately
 					continue;
 				}
 				Ok(false) => {

@@ -7,8 +7,8 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::RpcHttpClient;
 use garage_rpc::rpc_server::RpcServer;
 
-use garage_table::replication::fullcopy::*;
-use garage_table::replication::sharded::*;
+use garage_table::replication::TableFullReplication;
+use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::block::*;
