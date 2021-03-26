@@ -1,6 +1,8 @@
 mod parameters;
 
-pub mod fullcopy;
-pub mod sharded;
+mod fullcopy;
+mod sharded;
 
+pub use fullcopy::TableFullReplication;
 pub use parameters::*;
+pub use sharded::TableShardedReplication;

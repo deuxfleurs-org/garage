@@ -100,6 +100,10 @@ impl TableSchema for BucketTable {
 	type E = Bucket;
 	type Filter = DeletedFilter;
 
+	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {
+		// nothing to do when updated
+	}
+
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())
 	}

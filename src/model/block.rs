@@ -18,7 +18,7 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::*;
 use garage_rpc::rpc_server::*;
 
-use garage_table::replication::{sharded::TableShardedReplication, TableReplication};
+use garage_table::replication::{TableReplication, TableShardedReplication};
 
 use crate::block_ref_table::*;
 

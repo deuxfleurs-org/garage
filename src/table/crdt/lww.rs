@@ -34,7 +34,7 @@ use crate::crdt::crdt::*;
 /// and may differ from what you observed with your atomic clock!
 ///
 /// This scheme is used by AWS S3 or Soundcloud and often without knowing
-/// in entreprise when reconciliating databases with ad-hoc scripts.
+/// in enterprise when reconciliating databases with ad-hoc scripts.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LWW<T> {
 	ts: u64,

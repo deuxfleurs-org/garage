@@ -6,7 +6,7 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
 use garage_table::crdt::*;
-use garage_table::replication::sharded::*;
+use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::version_table::*;

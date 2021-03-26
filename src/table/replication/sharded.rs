@@ -6,22 +6,25 @@ use garage_util::data::*;
 
 use crate::replication::*;
 
+/// Sharded replication schema:
+/// - based on the ring of nodes, a certain set of neighbors
+///   store entries, given as a function of the position of the
+///   entry's hash in the ring
+/// - reads are done on all of the nodes that replicate the data
+/// - writes as well
 #[derive(Clone)]
 pub struct TableShardedReplication {
+	/// The membership manager of this node
 	pub system: Arc<System>,
+	/// How many time each data should be replicated
 	pub replication_factor: usize,
+	/// How many nodes to contact for a read, should be at most `replication_factor`
 	pub read_quorum: usize,
+	/// How many nodes to contact for a write, should be at most `replication_factor`
 	pub write_quorum: usize,
 }
 
 impl TableReplication for TableShardedReplication {
-	// Sharded replication schema:
-	// - based on the ring of nodes, a certain set of neighbors
-	//   store entries, given as a function of the position of the
-	//   entry's hash in the ring
-	// - reads are done on all of the nodes that replicate the data
-	// - writes as well
-
 	fn read_nodes(&self, hash: &Hash) -> Vec<UUID> {
 		let ring = self.system.ring.borrow().clone();
 		ring.walk_ring(&hash, self.replication_factor)
