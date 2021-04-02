@@ -14,6 +14,7 @@
   - [Host a website](./cookbook/website.md)
   - [Integrate as a media backend]()
   - [Operate a cluster]()
+  - [Recovering from failures](./cookbook/recovering.md)
 
 - [Reference Manual](./reference_manual/index.md)
   - [Garage CLI]()
