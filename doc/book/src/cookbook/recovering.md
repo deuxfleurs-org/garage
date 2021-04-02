@@ -91,7 +91,8 @@ The ID of the lost node should be shown in `garage status` in the section for di
 Then, replace the broken node by the new one, using:
 
 ```
-garage node add --replace <old_node_id> -c <capacity> -d <datacenter> -t <node_tag> <new_node_id>
+garage node configure --replace <old_node_id> \
+		-c <capacity> -d <datacenter> -t <node_tag> <new_node_id>
 ```
 
 Garage will then start synchronizing all required data on the new node.
