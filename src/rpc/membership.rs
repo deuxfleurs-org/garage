@@ -522,7 +522,6 @@ impl System {
 					.broadcast(Message::AdvertiseConfig(adv.clone()), PING_TIMEOUT)
 					.map(Ok),
 			);
-
 			self.background.spawn(self.clone().save_network_config());
 		}
 
@@ -660,10 +659,9 @@ impl System {
 			}
 		}
 
-		let status = Arc::new(status);
 		updaters
 			.update_status
-			.send(status.clone())
+			.send(Arc::new(status))
 			.expect("Could not update internal membership status");
 	}
 }
