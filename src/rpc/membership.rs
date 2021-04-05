@@ -410,7 +410,7 @@ impl System {
 		if has_changes {
 			status.recalculate_hash();
 		}
-		self.update_status(&update_locked, status);
+		self.update_status(&update_locked, status).await;
 		drop(update_locked);
 
 		if to_advertise.len() > 0 {
@@ -434,7 +434,7 @@ impl System {
 		let status_hash = status.hash;
 		let config_version = self.ring.borrow().config.version;
 
-		self.update_status(&update_locked, status);
+		self.update_status(&update_locked, status).await;
 		drop(update_locked);
 
 		if is_new || status_hash != ping.status_hash {
@@ -502,7 +502,7 @@ impl System {
 		if has_changed {
 			status.recalculate_hash();
 		}
-		self.update_status(&update_lock, status);
+		self.update_status(&update_lock, status).await;
 		drop(update_lock);
 
 		if to_ping.len() > 0 {
@@ -650,19 +650,18 @@ impl System {
 		}
 	}
 
-	fn update_status(self: &Arc<Self>, updaters: &Updaters, status: Status) {
+	async fn update_status(self: &Arc<Self>, updaters: &Updaters, status: Status) {
+		if status.hash != self.status.borrow().hash {
+			info!("Persisting new peer list");
+			let serializable_status = status.to_serializable_membership(&self);
+			self.persist_status.save_async(&serializable_status).await
+				.expect("Unable to persist peer list");
+		}
+
 		let status = Arc::new(status);
 		updaters
 			.update_status
 			.send(status.clone())
 			.expect("Could not update internal membership status");
-		self.background
-			.spawn_cancellable(self.clone().persist_status(status));
-	}
-
-	async fn persist_status(self: Arc<Self>, status: Arc<Status>) -> Result<(), Error> {
-		let serializable_status = status.to_serializable_membership(&self);
-		self.persist_status.save_async(&serializable_status).await?;
-		Ok(())
 	}
 }
