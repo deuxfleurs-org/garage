@@ -35,7 +35,13 @@ where
 	F: TableSchema,
 	R: TableReplication,
 {
-	pub fn new(system: Arc<System>, name: String, instance: F, replication: R, db: &sled::Db) -> Arc<Self> {
+	pub fn new(
+		system: Arc<System>,
+		name: String,
+		instance: F,
+		replication: R,
+		db: &sled::Db,
+	) -> Arc<Self> {
 		let store = db
 			.open_tree(&format!("{}:table", name))
 			.expect("Unable to open DB tree");

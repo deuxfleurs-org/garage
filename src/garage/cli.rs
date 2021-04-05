@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use garage_util::error::Error;
 use garage_util::data::UUID;
+use garage_util::error::Error;
 use garage_util::time::*;
 
 use garage_rpc::membership::*;
@@ -384,7 +384,10 @@ pub async fn cmd_status(
 	Ok(())
 }
 
-pub fn find_matching_node(cand: impl std::iter::Iterator<Item=UUID>, pattern: &str) -> Result<UUID, Error> {
+pub fn find_matching_node(
+	cand: impl std::iter::Iterator<Item = UUID>,
+	pattern: &str,
+) -> Result<UUID, Error> {
 	let mut candidates = vec![];
 	for c in cand {
 		if hex::encode(&c).starts_with(&pattern) {
@@ -428,7 +431,10 @@ pub async fn cmd_configure(
 	for replaced in args.replace.iter() {
 		let replaced_node = find_matching_node(config.members.keys().cloned(), replaced)?;
 		if config.members.remove(&replaced_node).is_none() {
-			return Err(Error::Message(format!("Cannot replace node {:?} as it is not in current configuration", replaced_node)));
+			return Err(Error::Message(format!(
+				"Cannot replace node {:?} as it is not in current configuration",
+				replaced_node
+			)));
 		}
 	}
 

@@ -147,7 +147,9 @@ impl Entry<String, String> for Object {
 		&self.key
 	}
 	fn is_tombstone(&self) -> bool {
-		self.versions.len() == 1 && self.versions[0].state == ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+		self.versions.len() == 1
+			&& self.versions[0].state
+				== ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
 	}
 }
 

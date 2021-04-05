@@ -52,7 +52,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone(), db, background, &mut rpc_server);
 	let bootstrap = garage.system.clone().bootstrap(
-		&config.bootstrap_peers[..],
+		config.bootstrap_peers,
 		config.consul_host,
 		config.consul_service_name,
 	);
