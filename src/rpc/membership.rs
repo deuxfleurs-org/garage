@@ -669,7 +669,9 @@ impl System {
 			}
 
 			if list.len() > 0 {
-				self.persist_status.save_async(&list).await
+				self.persist_status
+					.save_async(&list)
+					.await
 					.expect("Unable to persist peer list");
 			}
 		}
