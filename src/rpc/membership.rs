@@ -582,7 +582,7 @@ impl System {
 					.map(|ip| (*ip, None))
 					.collect::<Vec<_>>();
 
-				match self.persist_status.load() {
+				match self.persist_status.load_async().await {
 					Ok(peers) => {
 						bp2.extend(peers.iter().map(|x| (x.addr, Some(x.id))));
 					}
@@ -653,9 +653,25 @@ impl System {
 	async fn update_status(self: &Arc<Self>, updaters: &Updaters, status: Status) {
 		if status.hash != self.status.borrow().hash {
 			info!("Persisting new peer list");
-			let serializable_status = status.to_serializable_membership(&self);
-			self.persist_status.save_async(&serializable_status).await
-				.expect("Unable to persist peer list");
+
+			let mut list = status.to_serializable_membership(&self);
+
+			// Combine with old peer list to make sure no peer is lost
+			match self.persist_status.load_async().await {
+				Ok(old_list) => {
+					for pp in old_list {
+						if !list.iter().any(|np| pp.id == np.id) {
+							list.push(pp);
+						}
+					}
+				}
+				_ => (),
+			}
+
+			if list.len() > 0 {
+				self.persist_status.save_async(&list).await
+					.expect("Unable to persist peer list");
+			}
 		}
 
 		let status = Arc::new(status);

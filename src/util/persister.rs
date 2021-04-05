@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +49,16 @@ where
 		file.write_all(&bytes[..])?;
 
 		Ok(())
+	}
+
+	pub async fn load_async(&self) -> Result<T, Error> {
+		let mut file = tokio::fs::File::open(&self.path).await?;
+
+		let mut bytes = vec![];
+		file.read_to_end(&mut bytes).await?;
+
+		let value = rmp_serde::decode::from_read_ref(&bytes[..])?;
+		Ok(value)
 	}
 
 	pub async fn save_async(&self, t: &T) -> Result<(), Error> {
