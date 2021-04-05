@@ -36,7 +36,9 @@ steps:
     commands:
       - apt-get update
       - apt-get install --yes libsodium-dev
+      - rustup component add rustfmt
       - pwd
+      - cargo fmt -- --check
       - cargo build
 
   - name: cargo-test
@@ -107,6 +109,8 @@ steps:
       endpoint: https://garage.deuxfleurs.fr
       region: garage
     when:
+      event:
+        - push
       branch:
         - main
       repo:
@@ -114,6 +118,6 @@ steps:
 
 ---
 kind: signature
-hmac: 2ecc0db1a006186c6e3b9bcb458ba40b3e8bf88493bfae40fde2fe4136d0db69
+hmac: bfe75f47e5eecdd1f6dd8fd3cf1ea359b0215243d06ac767c51a4b4e363e963e
 
 ...

@@ -200,12 +200,13 @@ where
 						let subnode = self.read_node_txn(tx, &key_sub)?;
 						match subnode {
 							MerkleNode::Empty => {
-								warn!("({}) Single subnode in tree is empty Merkle node", self.data.name);
+								warn!(
+									"({}) Single subnode in tree is empty Merkle node",
+									self.data.name
+								);
 								Some(MerkleNode::Empty)
 							}
-							MerkleNode::Intermediate(_) => {
-								Some(MerkleNode::Intermediate(children))
-							}
+							MerkleNode::Intermediate(_) => Some(MerkleNode::Intermediate(children)),
 							x @ MerkleNode::Leaf(_, _) => {
 								tx.remove(key_sub.encode())?;
 								Some(x)
@@ -239,14 +240,24 @@ where
 
 						{
 							let exlf_subkey = key.next_key(&exlf_khash);
-							let exlf_sub_hash = self.update_item_rec(tx, &exlf_k[..], &exlf_khash, &exlf_subkey, Some(exlf_vhash))?.unwrap();
+							let exlf_sub_hash = self
+								.update_item_rec(
+									tx,
+									&exlf_k[..],
+									&exlf_khash,
+									&exlf_subkey,
+									Some(exlf_vhash),
+								)?
+								.unwrap();
 							intermediate_set_child(&mut int, exlf_subkey.prefix[i], exlf_sub_hash);
 							assert_eq!(int.len(), 1);
 						}
 
 						{
 							let key2 = key.next_key(khash);
-							let subhash = self.update_item_rec(tx, k, khash, &key2, new_vhash)?.unwrap();
+							let subhash = self
+								.update_item_rec(tx, k, khash, &key2, new_vhash)?
+								.unwrap();
 							intermediate_set_child(&mut int, key2.prefix[i], subhash);
 							if exlf_khash.as_slice()[i] == khash.as_slice()[i] {
 								assert_eq!(int.len(), 1);
