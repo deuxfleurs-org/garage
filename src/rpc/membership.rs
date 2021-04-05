@@ -652,7 +652,6 @@ impl System {
 
 	async fn update_status(self: &Arc<Self>, updaters: &Updaters, status: Status) {
 		if status.hash != self.status.borrow().hash {
-			info!("Persisting new peer list");
 
 			let mut list = status.to_serializable_membership(&self);
 
@@ -669,6 +668,7 @@ impl System {
 			}
 
 			if list.len() > 0 {
+				info!("Persisting new peer list ({} peers)", list.len());
 				self.persist_status
 					.save_async(&list)
 					.await
