@@ -109,6 +109,8 @@ steps:
       endpoint: https://garage.deuxfleurs.fr
       region: garage
     when:
+      event:
+        - push
       branch:
         - main
       repo:
@@ -116,6 +118,6 @@ steps:
 
 ---
 kind: signature
-hmac: 0fd1c04714fee173821840a1b8383b105339dc2510067cbad8d16937d6dc15f4
+hmac: bfe75f47e5eecdd1f6dd8fd3cf1ea359b0215243d06ac767c51a4b4e363e963e
 
 ...
