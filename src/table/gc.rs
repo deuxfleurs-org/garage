@@ -157,7 +157,12 @@ where
 		if errs.is_empty() {
 			Ok(true)
 		} else {
-			Err(Error::Message(errs.into_iter().map(|x| format!("{}", x)).collect::<Vec<_>>().join(", ")))
+			Err(Error::Message(
+				errs.into_iter()
+					.map(|x| format!("{}", x))
+					.collect::<Vec<_>>()
+					.join(", "),
+			))
 		}
 	}
 

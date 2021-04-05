@@ -37,6 +37,7 @@ steps:
       - apt-get update
       - apt-get install --yes libsodium-dev
       - pwd
+      - cargo fmt -- --check
       - cargo build
 
   - name: cargo-test

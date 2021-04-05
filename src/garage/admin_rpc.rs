@@ -246,15 +246,13 @@ impl AdminRpcHandler {
 				)))
 			}
 			KeyOperation::Import(query) => {
-				let prev_key = self.garage.key_table.get(&EmptyKey, &query.key_id)
-					.await?;
+				let prev_key = self.garage.key_table.get(&EmptyKey, &query.key_id).await?;
 				if prev_key.is_some() {
 					return Err(Error::Message(format!("Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.", query.key_id)));
 				}
 				let imported_key = Key::import(&query.key_id, &query.secret_key, &query.name);
 				self.garage.key_table.insert(&imported_key).await?;
 				Ok(AdminRPC::KeyInfo(imported_key))
-
 			}
 		}
 	}
