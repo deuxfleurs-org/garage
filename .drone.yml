@@ -1,3 +1,4 @@
+---
 kind: pipeline
 name: default
 
@@ -111,3 +112,8 @@ steps:
       repo:
         - Deuxfleurs/garage
 
+---
+kind: signature
+hmac: 2ecc0db1a006186c6e3b9bcb458ba40b3e8bf88493bfae40fde2fe4136d0db69
+
+...
