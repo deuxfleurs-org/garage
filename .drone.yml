@@ -36,6 +36,7 @@ steps:
     commands:
       - apt-get update
       - apt-get install --yes libsodium-dev
+      - rustup component add rustfmt
       - pwd
       - cargo fmt -- --check
       - cargo build
@@ -115,6 +116,6 @@ steps:
 
 ---
 kind: signature
-hmac: 14e8b4c527f176e6219ff6bd5f6e34522fca2fad756baa62e72783247bf88d78
+hmac: 0fd1c04714fee173821840a1b8383b105339dc2510067cbad8d16937d6dc15f4
 
 ...
