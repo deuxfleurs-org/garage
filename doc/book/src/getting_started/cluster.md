@@ -11,20 +11,20 @@ As this part is not relevant for a test cluster, you can use this one-liner to c
 
 ```bash
 garagectl status | grep UNCONFIGURED | grep -Po '^[0-9a-f]+' | while read id; do 
-    garagectl node configure -d dc1 -n 10 $id
+    garagectl node configure -d dc1 -c 1 $id
 done
 ```
 
 ## Real-world cluster
 
-For our example, we will suppose we have the following infrastructure (Tokens, Identifier and Datacenter are specific values to garage described in the following):
+For our example, we will suppose we have the following infrastructure (Capacity, Identifier and Datacenter are specific values to garage described in the following):
 
-| Location | Name    | Disk Space | `Tokens` | `Identifier` | `Datacenter` |
-|----------|---------|------------|----------|--------------|--------------|
-| Paris    | Mercury | 1 To       | `100`    | `8781c5`     | `par1`       |
-| Paris    | Venus   | 2 To       | `200`    | `2a638e`     | `par1`       |
-| London   | Earth   | 2 To       | `200`    | `68143d`     | `lon1`       |
-| Brussels | Mars    | 1.5 To     | `150`    | `212f75`     | `bru1`       |
+| Location | Name    | Disk Space | `Capacity` | `Identifier` | `Datacenter` |
+|----------|---------|------------|------------|--------------|--------------|
+| Paris    | Mercury | 1 To       | `2`        | `8781c5`     | `par1`       |
+| Paris    | Venus   | 2 To       | `4`        | `2a638e`     | `par1`       |
+| London   | Earth   | 2 To       | `4`        | `68143d`     | `lon1`       |
+| Brussels | Mars    | 1.5 To     | `3`        | `212f75`     | `bru1`       |
 
 ### Identifier
 
@@ -45,14 +45,15 @@ garagectl status
 
 It will display the IP address associated with each node; from the IP address you will be able to recognize the node.
 
-### Tokens
+### Capacity
 
-Garage reasons on an arbitrary metric about disk storage that is named "tokens".
-The number of tokens must be proportional to the disk space dedicated to the node.
-Additionaly, ideally the number of tokens must be in the order of magnitude of 100
-to provide a good trade-off between data load balancing and performances (*this sentence must be verified, it may be wrong*).
+Garage reasons on an arbitrary metric about disk storage that is named the *capacity* of a node.
+The capacity configured in Garage must be proportional to the disk space dedicated to the node.
+Additionaly, the capacity values used in Garage should be as small as possible, with
+1 ideally representing the size of your smallest server.
 
-Here we chose 1 token = 10 Go but you are free to select the value that best fit your needs.
+Here we chose that 1 unit of capacity = 0.5 To, so that we can express servers of size
+1 To and 2 To, as wel as the intermediate size 1.5 To.
 
 ### Datacenter
 
@@ -65,8 +66,8 @@ Behind the scene, garage will try to store the same data on different sites to p
 Given the information above, we will configure our cluster as follow:
 
 ```
-garagectl node configure --datacenter par1 -n 100 -t mercury 8781c5
-garagectl node configure --datacenter par1 -n 200 -t venus 2a638e
-garagectl node configure --datacenter lon1 -n 200 -t earth 68143d
-garagectl node configure --datacenter bru1 -n 150 -t mars 212f75
+garagectl node configure --datacenter par1 -c 2 -t mercury 8781c5
+garagectl node configure --datacenter par1 -c 4 -t venus 2a638e
+garagectl node configure --datacenter lon1 -c 4 -t earth 68143d
+garagectl node configure --datacenter bru1 -c 3 -t mars 212f75
 ```

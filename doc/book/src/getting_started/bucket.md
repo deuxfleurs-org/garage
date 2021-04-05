@@ -40,22 +40,18 @@ garagectl key new --name nextcloud-app-key
 
 You will have the following output (this one is fake, `key_id` and `secret_key` were generated with the openssl CLI tool):
 
-```javascript
-Key { 
-  key_id: "GK3515373e4c851ebaad366558", 
-  secret_key: "7d37d093435a41f2aab8f13c19ba067d9776c90215f56614adad6ece597dbb34", 
-  name: "nextcloud-app-key", 
-  name_timestamp: 1603280506694, 
-  deleted: false, 
-  authorized_buckets: [] 
-}
+```
+Key name: nextcloud-app-key
+Key ID: GK3515373e4c851ebaad366558
+Secret key: 7d37d093435a41f2aab8f13c19ba067d9776c90215f56614adad6ece597dbb34
+Authorized buckets:
 ```
 
-Check that everything works as intended (be careful, info works only with your key identifier and not with its friendly name!):
+Check that everything works as intended:
 
 ```
 garagectl key list
-garagectl key info GK3515373e4c851ebaad366558
+garagectl key info nextcloud-app-key
 ```
 
 ## Allow a key to access a bucket
@@ -67,7 +63,7 @@ garagectl bucket allow \
   --read \
   --write 
   nextcloud-bucket \
-  --key GK3515373e4c851ebaad366558
+  --key nextcloud-app-key
 ```
 
 You can check at any times allowed keys on your bucket with:
