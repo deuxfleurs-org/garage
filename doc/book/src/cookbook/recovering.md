@@ -8,7 +8,7 @@ Fear not! For Garage is fully equipped to handle drive failures, in most common 
 
 With nodes dispersed in 3 datacenters or more, here are the guarantees Garage provides with the default replication strategy (3 copies of all data, which is the recommended value):
 
-- The cluster remains fully functionnal as long as the machines that fail are in only one datacenter. This includes a whole datacenter going down due to power/Internet outage.
+- The cluster remains fully functional as long as the machines that fail are in only one datacenter. This includes a whole datacenter going down due to power/Internet outage.
 - No data is lost as long as the machines that fail are in at most two datacenters.
 
 Of course this only works if your Garage nodes are correctly configured to be aware of the datacenter in which they are located.
