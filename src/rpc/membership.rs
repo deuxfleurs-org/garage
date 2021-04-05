@@ -652,7 +652,6 @@ impl System {
 
 	async fn update_status(self: &Arc<Self>, updaters: &Updaters, status: Status) {
 		if status.hash != self.status.borrow().hash {
-
 			let mut list = status.to_serializable_membership(&self);
 
 			// Combine with old peer list to make sure no peer is lost
