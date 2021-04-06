@@ -174,7 +174,7 @@ impl BlockManager {
 		fs::create_dir_all(&path).await?;
 		path.push(hex::encode(hash));
 		if checksum.is_some() {
-			path.set_extension("zst.b2");
+			path.set_extension("zst_b2");
 		}
 
 		let mut f = fs::File::create(path).await?;
@@ -198,7 +198,7 @@ impl BlockManager {
 				f.map(|f| (f, false)).map_err(Into::into)
 			}
 			Ok(true) => {
-				path.set_extension("zst.b2");
+				path.set_extension("zst_b2");
 				let f = fs::File::open(&path).await;
 				f.map(|f| (f, true)).map_err(Into::into)
 			}
@@ -270,7 +270,7 @@ impl BlockManager {
 
 	async fn is_block_compressed(&self, hash: &Hash) -> Result<bool, Error> {
 		let mut path = self.block_path(hash);
-		path.set_extension("zst.b2");
+		path.set_extension("zst_b2");
 		if fs::metadata(&path).await.is_ok() {
 			return Ok(true);
 		}
