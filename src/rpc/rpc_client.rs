@@ -128,7 +128,6 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 		{
 			Err(rpc_error) => {
 				node_status.num_failures.fetch_add(1, Ordering::SeqCst);
-				// TODO: Save failure info somewhere
 				Err(Error::from(rpc_error))
 			}
 			Ok(x) => x,
