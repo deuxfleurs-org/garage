@@ -302,8 +302,14 @@ impl BodyChunker {
 		if self.buf.len() == 0 {
 			Ok(None)
 		} else {
-			let mut iter = FastCDC::with_eof(self.buf.make_contiguous(), self.min_block_size, self.avg_block_size, self.max_block_size, self.read_all);
-			if let Some(Chunk {length, ..}) = iter.next() {
+			let mut iter = FastCDC::with_eof(
+				self.buf.make_contiguous(),
+				self.min_block_size,
+				self.avg_block_size,
+				self.max_block_size,
+				self.read_all,
+			);
+			if let Some(Chunk { length, .. }) = iter.next() {
 				let block = self.buf.drain(..length).collect::<Vec<u8>>();
 				Ok(Some(block))
 			} else {
