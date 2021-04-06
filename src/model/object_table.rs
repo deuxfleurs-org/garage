@@ -14,13 +14,13 @@ use crate::version_table::*;
 /// An object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
-	/// The bucket in which the object is stored
+	/// The bucket in which the object is stored, used as partition key
 	pub bucket: String,
 
-	/// The key at which the object is stored in its bucket
+	/// The key at which the object is stored in its bucket, used as sorting key
 	pub key: String,
 
-	/// The list of known versions of the object
+	/// The list of currenty stored versions of the object
 	versions: Vec<ObjectVersion>,
 }
 
@@ -53,7 +53,7 @@ impl Object {
 		}
 	}
 
-	/// Get a list of all versions known for `Object`
+	/// Get a list of currently stored versions of `Object`
 	pub fn versions(&self) -> &[ObjectVersion] {
 		&self.versions[..]
 	}
@@ -77,7 +77,7 @@ pub enum ObjectVersionState {
 	Uploading(ObjectVersionHeaders),
 	/// The version is fully received
 	Complete(ObjectVersionData),
-	/// The version was never fully received
+	/// The version uploaded containded errors or the upload was explicitly aborted
 	Aborted,
 }
 
@@ -105,7 +105,7 @@ impl CRDT for ObjectVersionState {
 /// Data about an object version
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionData {
-	/// The version is deleted
+	/// The object was deleted, this Version is a tombstone to mark it as such
 	DeleteMarker,
 	/// The object is short, it's stored inlined
 	Inline(ObjectVersionMeta, #[serde(with = "serde_bytes")] Vec<u8>),
@@ -159,7 +159,7 @@ impl ObjectVersion {
 		}
 	}
 
-	/// Is the object version available (received and not deleted)
+	/// Is the object version available (received and not a tombstone)
 	pub fn is_data(&self) -> bool {
 		match self.state {
 			ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,

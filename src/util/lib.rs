@@ -1,4 +1,3 @@
-#![warn(missing_crate_level_docs, missing_docs)]
 //! Crate containing common functions and types used in Garage
 
 #[macro_use]

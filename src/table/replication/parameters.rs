@@ -16,7 +16,6 @@ pub trait TableReplication: Send + Sync {
 	fn write_nodes(&self, hash: &Hash) -> Vec<UUID>;
 	/// Responses needed to consider a write succesfull
 	fn write_quorum(&self) -> usize;
-	// this feels like its write_nodes().len() - write_quorum()
 	fn max_write_errors(&self) -> usize;
 
 	// Accessing partitions, for Merkle tree & sync

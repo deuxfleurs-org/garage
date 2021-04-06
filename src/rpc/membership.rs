@@ -1,4 +1,4 @@
-/// Module containing structs related to membership management
+//! Module containing structs related to membership management
 use std::collections::HashMap;
 use std::fmt::Write as FmtWrite;
 use std::io::{Read, Write};
@@ -96,7 +96,7 @@ pub struct System {
 	rpc_client: Arc<RpcClient<Message>>,
 
 	pub(crate) status: watch::Receiver<Arc<Status>>,
-	/// The ring, viewed by this node
+	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
 
 	update_lock: Mutex<Updaters>,
@@ -114,9 +114,8 @@ struct Updaters {
 #[derive(Debug, Clone)]
 pub struct Status {
 	/// Mapping of each node id to its known status
-	// considering its sorted regularly, maybe it should be a btreeset?
 	pub nodes: HashMap<UUID, Arc<StatusEntry>>,
-	/// Hash of this entry
+	/// Hash of `nodes`, used to detect when nodes have different views of the cluster
 	pub hash: Hash,
 }
 
@@ -380,7 +379,7 @@ impl System {
 					id_option,
 					addr,
 					sys.rpc_client
-						.get_addr()
+						.by_addr()
 						.call(&addr, ping_msg_ref, PING_TIMEOUT)
 						.await,
 				)
@@ -418,6 +417,8 @@ impl System {
 				}
 			} else if let Some(id) = id_option {
 				if let Some(st) = status.nodes.get_mut(id) {
+					// TODO this might double-increment the value as the counter is already
+					// incremented for any kind of failure in rpc_client
 					st.num_failures.fetch_add(1, Ordering::SeqCst);
 					if !st.is_up() {
 						warn!("Node {:?} seems to be down.", id);

@@ -1,6 +1,5 @@
-#![deny(missing_crate_level_docs, missing_docs)]
 #![recursion_limit = "1024"]
-//! Garage CLI, used to interact with a running Garage instance, and to launch a Garage
+//! Garage CLI, used to interact with a running Garage instance, and to launch a Garage instance
 
 #[macro_use]
 extern crate log;

@@ -29,7 +29,7 @@ pub enum Error {
 	NotFound,
 
 	// Category: bad request
-	/// The request used an invalid path
+	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUTF8Str(#[error(source)] std::str::Utf8Error),
 
@@ -65,7 +65,7 @@ impl From<roxmltree::Error> for Error {
 }
 
 impl Error {
-	/// Convert an error into an Http status code
+	/// Get the HTTP status code that best represents the meaning of the error for the client
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,

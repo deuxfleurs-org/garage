@@ -53,6 +53,7 @@ impl RequestStrategy {
 		self
 	}
 	/// Set if requests can be dropped after quorum has been reached
+	/// In general true for read requests, and false for write
 	pub fn interrupt_after_quorum(mut self, interrupt: bool) -> Self {
 		self.rs_interrupt_after_quorum = interrupt;
 		self
@@ -103,8 +104,8 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 		self.local_handler.swap(Some(Arc::new((my_id, handler))));
 	}
 
-	/// Get the server address this client connect to
-	pub fn get_addr(&self) -> &RpcAddrClient<M> {
+	/// Get a RPC client to make calls using node's SocketAddr instead of its ID
+	pub fn by_addr(&self) -> &RpcAddrClient<M> {
 		&self.rpc_addr_client
 	}
 
@@ -166,7 +167,7 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 	}
 
 	/// Make a RPC call to multiple servers, returning either a Vec of responses, or an error if
-	/// strategy could not be respected due to to many errors
+	/// strategy could not be respected due to too many errors
 	pub async fn try_call_many(
 		self: &Arc<Self>,
 		to: &[UUID],
@@ -226,7 +227,7 @@ impl<M: RpcMessage + 'static> RpcClient<M> {
 	}
 }
 
-/// Endpoint to which send RPC
+/// Thin wrapper arround an `RpcHttpClient` specifying the path of the request
 pub struct RpcAddrClient<M: RpcMessage> {
 	phantom: PhantomData<M>,
 

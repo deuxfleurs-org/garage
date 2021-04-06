@@ -19,7 +19,7 @@ pub enum Error {
 	#[error(display = "Not found")]
 	NotFound,
 
-	/// The client requested a malformed path
+	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUTF8(#[error(source)] std::str::Utf8Error),
 

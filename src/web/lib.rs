@@ -1,4 +1,3 @@
-#![deny(missing_crate_level_docs, missing_docs)]
 //! Crate for handling web serving of s3 bucket
 #[macro_use]
 extern crate log;

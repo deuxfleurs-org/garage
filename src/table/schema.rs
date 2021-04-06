@@ -4,7 +4,7 @@ use garage_util::data::*;
 
 use crate::crdt::CRDT;
 
-/// Trait for partitionnable data
+/// Trait for field used to partition data
 pub trait PartitionKey {
 	/// Get the key used to partition
 	fn hash(&self) -> Hash;
@@ -22,7 +22,7 @@ impl PartitionKey for Hash {
 	}
 }
 
-/// Trait for sortable data
+/// Trait for field used to sort data
 pub trait SortKey {
 	/// Get the key used to sort
 	fn sort_key(&self) -> &[u8];
