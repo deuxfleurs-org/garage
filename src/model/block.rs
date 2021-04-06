@@ -57,6 +57,15 @@ pub enum BlockData {
 	Compressed(#[serde(with = "serde_bytes")] Vec<u8>),
 }
 
+impl BlockData {
+	pub fn is_compressed(&self) -> bool {
+		match self {
+			BlockData::Plain(_) => false,
+			BlockData::Compressed(_) => true,
+		}
+	}
+}
+
 impl RpcMessage for Message {}
 
 /// The block manager, handling block exchange between nodes, and block storage on local node
@@ -155,9 +164,12 @@ impl BlockManager {
 
 	/// Write a block to disk
 	pub async fn write_block(&self, hash: &Hash, data: &BlockData) -> Result<Message, Error> {
-		if self.is_block_compressed(hash).await.is_ok() {
-			return Ok(Message::Ok);
-		}
+		let clean_plain = match self.is_block_compressed(hash).await {
+			Ok(true) => return Ok(Message::Ok),
+			Ok(false) if !data.is_compressed() => return Ok(Message::Ok), // we have a plain block, and the provided block is not compressed either
+			Ok(false) => true,
+			Err(_) => false,
+		};
 
 		let mut path = self.block_dir(hash);
 
@@ -177,10 +189,15 @@ impl BlockManager {
 			path.set_extension("zst_b2");
 		}
 
-		let mut f = fs::File::create(path).await?;
+		let mut f = fs::File::create(path.clone()).await?;
 		f.write_all(&buffer).await?;
 		if let Some(checksum) = checksum {
 			f.write_all(checksum.as_slice()).await?;
+		}
+
+		if clean_plain {
+			path.set_extension("");
+			fs::remove_file(path).await?;
 		}
 		drop(f);
 
