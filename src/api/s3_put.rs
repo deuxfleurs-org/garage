@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Write;
 use std::sync::Arc;
 
+use fastcdc::{Chunk, FastCDC};
 use futures::stream::*;
 use hyper::{Body, Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
@@ -268,21 +269,28 @@ async fn put_block_meta(
 struct BodyChunker {
 	body: Body,
 	read_all: bool,
-	block_size: usize,
+	min_block_size: usize,
+	avg_block_size: usize,
+	max_block_size: usize,
 	buf: VecDeque<u8>,
 }
 
 impl BodyChunker {
 	fn new(body: Body, block_size: usize) -> Self {
+		let min_block_size = block_size / 4 * 3;
+		let avg_block_size = block_size;
+		let max_block_size = block_size * 2;
 		Self {
 			body,
 			read_all: false,
-			block_size,
-			buf: VecDeque::with_capacity(2 * block_size),
+			min_block_size,
+			avg_block_size,
+			max_block_size,
+			buf: VecDeque::with_capacity(2 * max_block_size),
 		}
 	}
 	async fn next(&mut self) -> Result<Option<Vec<u8>>, GarageError> {
-		while !self.read_all && self.buf.len() < self.block_size {
+		while !self.read_all && self.buf.len() < self.max_block_size {
 			if let Some(block) = self.body.next().await {
 				let bytes = block?;
 				trace!("Body next: {} bytes", bytes.len());
@@ -293,12 +301,20 @@ impl BodyChunker {
 		}
 		if self.buf.len() == 0 {
 			Ok(None)
-		} else if self.buf.len() <= self.block_size {
-			let block = self.buf.drain(..).collect::<Vec<u8>>();
-			Ok(Some(block))
 		} else {
-			let block = self.buf.drain(..self.block_size).collect::<Vec<u8>>();
-			Ok(Some(block))
+			let mut iter = FastCDC::with_eof(
+				self.buf.make_contiguous(),
+				self.min_block_size,
+				self.avg_block_size,
+				self.max_block_size,
+				self.read_all,
+			);
+			if let Some(Chunk { length, .. }) = iter.next() {
+				let block = self.buf.drain(..length).collect::<Vec<u8>>();
+				Ok(Some(block))
+			} else {
+				unreachable!("FastCDC returned not chunk")
+			}
 		}
 	}
 }
