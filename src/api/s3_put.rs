@@ -313,7 +313,7 @@ impl BodyChunker {
 				let block = self.buf.drain(..length).collect::<Vec<u8>>();
 				Ok(Some(block))
 			} else {
-				Ok(None)
+				unreachable!("FastCDC returned not chunk")
 			}
 		}
 	}
