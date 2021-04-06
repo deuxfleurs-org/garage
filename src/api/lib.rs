@@ -1,4 +1,3 @@
-#![deny(missing_crate_level_docs, missing_docs)]
 //! Crate for serving a S3 compatible API
 #[macro_use]
 extern crate log;

@@ -6,7 +6,7 @@ use garage_table::*;
 /// An api key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
-	/// The id of the key (immutable)
+	/// The id of the key (immutable), used as partition key
 	pub key_id: String,
 
 	/// The secret_key associated
@@ -19,6 +19,7 @@ pub struct Key {
 	pub deleted: crdt::Bool,
 
 	/// Buckets in which the key is authorized. Empty if `Key` is deleted
+	// CRDT interaction: deleted implies authorized_buckets is empty
 	pub authorized_buckets: crdt::LWWMap<String, PermissionSet>,
 }
 

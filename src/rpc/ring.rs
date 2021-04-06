@@ -1,4 +1,5 @@
 //! Module containing types related to computing nodes which should receive a copy of data blocks
+//! and metadata
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
@@ -197,7 +198,7 @@ impl Ring {
 		top >> (16 - PARTITION_BITS)
 	}
 
-	/// Get the list of partitions and
+	/// Get the list of partitions and the first hash of a partition key that would fall in it
 	pub fn partitions(&self) -> Vec<(Partition, Hash)> {
 		let mut ret = vec![];
 
@@ -211,6 +212,7 @@ impl Ring {
 		ret
 	}
 
+	// TODO rename this function as it no longer walk the ring
 	/// Walk the ring to find the n servers in which data should be replicated
 	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
 		if self.ring.len() != 1 << PARTITION_BITS {

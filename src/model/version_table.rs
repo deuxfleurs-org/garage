@@ -13,7 +13,7 @@ use crate::block_ref_table::*;
 /// A version of an object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
-	/// UUID of the version
+	/// UUID of the version, used as partition key
 	pub uuid: UUID,
 
 	// Actual data: the blocks for this version
@@ -49,9 +49,9 @@ impl Version {
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct VersionBlockKey {
-	/// Number of the part, starting at 1
+	/// Number of the part
 	pub part_number: u64,
-	/// offset of the block in the file, starting at 0
+	/// Offset of this sub-segment in its part
 	pub offset: u64,
 }
 

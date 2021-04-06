@@ -157,7 +157,7 @@ impl BlockManager {
 	}
 
 	/// Write a block to disk
-	pub async fn write_block(&self, hash: &Hash, data: &[u8]) -> Result<Message, Error> {
+	async fn write_block(&self, hash: &Hash, data: &[u8]) -> Result<Message, Error> {
 		let _lock = self.data_dir_lock.lock().await;
 
 		let mut path = self.block_dir(hash);
@@ -176,7 +176,7 @@ impl BlockManager {
 	}
 
 	/// Read block from disk, verifying it's integrity
-	pub async fn read_block(&self, hash: &Hash) -> Result<Message, Error> {
+	async fn read_block(&self, hash: &Hash) -> Result<Message, Error> {
 		let path = self.block_path(hash);
 
 		let mut f = match fs::File::open(&path).await {
@@ -208,7 +208,7 @@ impl BlockManager {
 	}
 
 	/// Check if this node should have a block, but don't actually have it
-	pub async fn need_block(&self, hash: &Hash) -> Result<bool, Error> {
+	async fn need_block(&self, hash: &Hash) -> Result<bool, Error> {
 		let needed = self
 			.rc
 			.get(hash.as_ref())?

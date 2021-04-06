@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 #![recursion_limit = "1024"]
 
 #[macro_use]

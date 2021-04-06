@@ -1,5 +1,4 @@
 //! Module containing error types used in Garage
-#![allow(missing_docs)]
 use err_derive::Error;
 use hyper::StatusCode;
 use std::io;
