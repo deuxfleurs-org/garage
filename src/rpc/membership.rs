@@ -417,8 +417,8 @@ impl System {
 				}
 			} else if let Some(id) = id_option {
 				if let Some(st) = status.nodes.get_mut(id) {
-					// TODO this might double-increment the value as the counter is already
-					// incremented for any kind of failure in rpc_client
+					// we need to increment failure counter as call was done using by_addr so the
+					// counter was not auto-incremented
 					st.num_failures.fetch_add(1, Ordering::SeqCst);
 					if !st.is_up() {
 						warn!("Node {:?} seems to be down.", id);
