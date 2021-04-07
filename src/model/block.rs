@@ -250,7 +250,6 @@ impl BlockManager {
 	}
 
 	/// Decrement the number of time a block is used
-	// when counter reach 0, it seems not put to resync which I assume put it to gc?
 	pub fn block_decref(&self, hash: &Hash) -> Result<(), Error> {
 		let new_rc = self.rc.update_and_fetch(&hash, |old| {
 			let old_v = old.map(u64_from_be_bytes).unwrap_or(0);

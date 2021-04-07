@@ -125,10 +125,6 @@ impl TableSchema for KeyTable {
 	type E = Key;
 	type Filter = KeyFilter;
 
-	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {
-		// nothing to do when updated
-	}
-
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		match filter {
 			KeyFilter::Deleted(df) => df.apply(entry.deleted.get()),

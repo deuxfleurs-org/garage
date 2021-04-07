@@ -57,7 +57,7 @@ impl CRDT for BucketParams {
 }
 
 impl BucketParams {
-	/// Create a new default `BucketParams`
+	/// Initializes a new instance of the Bucket struct
 	pub fn new() -> Self {
 		BucketParams {
 			authorized_keys: crdt::LWWMap::new(),
@@ -75,7 +75,7 @@ impl Bucket {
 		}
 	}
 
-	/// Query if bucket is deleted
+	/// Returns true if this represents a deleted bucket
 	pub fn is_deleted(&self) -> bool {
 		*self.state.get() == BucketState::Deleted
 	}
@@ -112,10 +112,6 @@ impl TableSchema for BucketTable {
 	type S = String;
 	type E = Bucket;
 	type Filter = DeletedFilter;
-
-	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {
-		// nothing to do when updated
-	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())

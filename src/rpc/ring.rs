@@ -28,7 +28,7 @@ const PARTITION_MASK_U16: u16 = ((1 << PARTITION_BITS) - 1) << (16 - PARTITION_B
 /// The maximum number of time an object might get replicated
 pub const MAX_REPLICATION: usize = 3;
 
-/// The versionned configurations of all nodes known in the network
+/// The user-defined configuration of the cluster's nodes
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
 	/// Map of each node's id to it's configuration
