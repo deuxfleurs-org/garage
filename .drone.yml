@@ -124,6 +124,6 @@ steps:
 
 ---
 kind: signature
-hmac: bfe75f47e5eecdd1f6dd8fd3cf1ea359b0215243d06ac767c51a4b4e363e963e
+hmac: 39f293cab9824270b0e7aac4f6cbaaca57727fdc8feb2b822942cc82b3f7a64a
 
 ...
