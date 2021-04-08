@@ -28,42 +28,31 @@ steps:
       cache_key: '{{ .Repo.Name }}_{{ checksum "Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
-        - 'target'
-        - '/drone/cargo/registry/index'
-        - '/drone/cargo/registry/cache'
-        - '/drone/cargo/bin'
-        - '/drone/cargo/git/db'
+        - '/drone/cargo'
+        #- 'target'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
-    when:
-      branch:
-        - nonexistent_skip_this_step
 
   - name: build
-    image: rust:buster
+    image: lxpz/garage_builder_amd64:1
     volumes:
     - name: cargo_home
       path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
-      - apt-get update
-      - apt-get install --yes libsodium-dev
-      - rustup component add rustfmt
       - pwd
       - cargo fmt -- --check
       - cargo build
 
   - name: cargo-test
-    image: rust:buster
+    image: lxpz/garage_builder_amd64:1
     volumes:
     - name: cargo_home
       path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
-      - apt-get update
-      - apt-get install --yes libsodium-dev
       - cargo test
 
   - name: rebuild-cache
@@ -84,28 +73,19 @@ steps:
       cache_key: '{{ .Repo.Name }}_{{ checksum "Cargo.lock" }}_{{ arch }}_{{ os }}_gzip'
       region: garage
       mount:
-        - 'target'
-        - '/drone/cargo/registry/index'
-        - '/drone/cargo/registry/cache'
-        - '/drone/cargo/git/db'
-        - '/drone/cargo/bin'
+        - '/drone/cargo'
+        #- 'target'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
-    when:
-      branch:
-        - nonexistent_skip_this_step
 
   - name: smoke-test
-    image: rust:buster
+    image: lxpz/garage_builder_amd64:1
     volumes:
     - name: cargo_home
       path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
-      - apt-get update
-      - apt-get install --yes libsodium-dev awscli python-pip
-      - pip install s3cmd
       - ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 ---
@@ -143,6 +123,6 @@ steps:
 
 ---
 kind: signature
-hmac: f16004516ebe576dd60b561738b707e34d258dc137b12c63715fdde4c86b7d58
+hmac: af2fc8228c885d0f9a3326bf6f1e21cb85aef494a57a70608487ad47161ab1d2
 
 ...
