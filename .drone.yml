@@ -5,9 +5,16 @@ name: default
 workspace:
   base: /drone/garage
 
+volumes:
+- name: cargo_home
+  temp: {}
+
 steps:
   - name: restore-cache
     image: meltwater/drone-cache:dev
+    volumes:
+    - name: cargo_home
+      path: /drone/cargo
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: cache_aws_access_key_id
@@ -34,6 +41,9 @@ steps:
 
   - name: build
     image: rust:buster
+    volumes:
+    - name: cargo_home
+      path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
@@ -46,6 +56,9 @@ steps:
 
   - name: cargo-test
     image: rust:buster
+    volumes:
+    - name: cargo_home
+      path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
@@ -55,6 +68,9 @@ steps:
 
   - name: rebuild-cache
     image: meltwater/drone-cache:dev
+    volumes:
+    - name: cargo_home
+      path: /drone/cargo
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: cache_aws_access_key_id
@@ -81,6 +97,9 @@ steps:
 
   - name: smoke-test
     image: rust:buster
+    volumes:
+    - name: cargo_home
+      path: /drone/cargo
     environment:
       CARGO_HOME: /drone/cargo
     commands:
