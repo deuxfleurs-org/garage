@@ -25,7 +25,7 @@ pub struct Object {
 }
 
 impl Object {
-	/// Create an object from parts
+	/// Initialize an Object struct from parts
 	pub fn new(bucket: String, key: String, versions: Vec<ObjectVersion>) -> Self {
 		let mut ret = Self {
 			bucket,
@@ -102,7 +102,7 @@ impl CRDT for ObjectVersionState {
 	}
 }
 
-/// Data about an object version
+/// Data stored in object version
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionData {
 	/// The object was deleted, this Version is a tombstone to mark it as such

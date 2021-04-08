@@ -72,7 +72,7 @@ impl PartialOrd for VersionBlockKey {
 /// Informations about a single block
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct VersionBlock {
-	/// Hash of the block
+	/// Blake2 sum of the block
 	pub hash: Hash,
 	/// Size of the block
 	pub size: u64,

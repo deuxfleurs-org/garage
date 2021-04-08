@@ -24,7 +24,7 @@ pub struct Key {
 }
 
 impl Key {
-	/// Create a new key
+	/// Initialize a new Key, generating a random identifier and associated secret key
 	pub fn new(name: String) -> Self {
 		let key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
 		let secret_key = hex::encode(&rand::random::<[u8; 32]>()[..]);

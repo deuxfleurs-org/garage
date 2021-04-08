@@ -10,7 +10,7 @@ use crate::block::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {
-	/// Hash of the block, used as partition key
+	/// Hash (blake2 sum) of the block, used as partition key
 	pub block: Hash,
 
 	/// Id of the Version for the object containing this block, used as sorting key

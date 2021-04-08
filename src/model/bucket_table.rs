@@ -57,7 +57,7 @@ impl CRDT for BucketParams {
 }
 
 impl BucketParams {
-	/// Initializes a new instance of the Bucket struct
+	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
 		BucketParams {
 			authorized_keys: crdt::LWWMap::new(),
@@ -67,7 +67,7 @@ impl BucketParams {
 }
 
 impl Bucket {
-	/// Create a new bucket
+	/// Initializes a new instance of the Bucket struct
 	pub fn new(name: String) -> Self {
 		Bucket {
 			name,
