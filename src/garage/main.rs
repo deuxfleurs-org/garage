@@ -1,4 +1,5 @@
 #![recursion_limit = "1024"]
+//! Garage CLI, used to interact with a running Garage instance, and to launch a Garage instance
 
 #[macro_use]
 extern crate log;
@@ -25,7 +26,7 @@ use cli::*;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]
-pub struct Opt {
+struct Opt {
 	/// RPC connect to this host to execute client operations
 	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901")]
 	pub rpc_host: SocketAddr,

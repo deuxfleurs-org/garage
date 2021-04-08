@@ -1,8 +1,10 @@
+//! Contains common types and functions related to serialization and integrity
 use rand::Rng;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
+/// An array of 32 bytes
 #[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq, Copy)]
 pub struct FixedBytes32([u8; 32]);
 
@@ -61,15 +63,20 @@ impl Serialize for FixedBytes32 {
 }
 
 impl FixedBytes32 {
+	/// Access the content as a slice
 	pub fn as_slice(&self) -> &[u8] {
 		&self.0[..]
 	}
+	/// Access the content as a mutable slice
 	pub fn as_slice_mut(&mut self) -> &mut [u8] {
 		&mut self.0[..]
 	}
+	/// Copy to a slice
 	pub fn to_vec(&self) -> Vec<u8> {
 		self.0.to_vec()
 	}
+	/// Try building a FixedBytes32 from a slice
+	/// Return None if the slice is not 32 bytes long
 	pub fn try_from(by: &[u8]) -> Option<Self> {
 		if by.len() != 32 {
 			return None;
@@ -80,9 +87,12 @@ impl FixedBytes32 {
 	}
 }
 
+/// A 32 bytes UUID
 pub type UUID = FixedBytes32;
+/// A 256 bit cryptographic hash, can be sha256 or blake2 depending on provenance
 pub type Hash = FixedBytes32;
 
+/// Compute the sha256 of a slice
 pub fn sha256sum(data: &[u8]) -> Hash {
 	use sha2::{Digest, Sha256};
 
@@ -93,6 +103,7 @@ pub fn sha256sum(data: &[u8]) -> Hash {
 	hash.into()
 }
 
+/// Compute the blake2 of a slice
 pub fn blake2sum(data: &[u8]) -> Hash {
 	use blake2::{Blake2b, Digest};
 
@@ -103,8 +114,10 @@ pub fn blake2sum(data: &[u8]) -> Hash {
 	hash.into()
 }
 
+/// A 64 bit non cryptographic hash
 pub type FastHash = u64;
 
+/// Compute a (non cryptographic) of a slice
 pub fn fasthash(data: &[u8]) -> FastHash {
 	use xxhash_rust::xxh3::Xxh3;
 
@@ -113,12 +126,14 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 	h.digest()
 }
 
+/// Generate a random 32 bytes UUID
 pub fn gen_uuid() -> UUID {
 	rand::thread_rng().gen::<[u8; 32]>().into()
 }
 
 // RMP serialization with names of fields and variants
 
+/// Serialize to MessagePack
 pub fn rmp_to_vec_all_named<T>(val: &T) -> Result<Vec<u8>, rmp_serde::encode::Error>
 where
 	T: Serialize + ?Sized,
@@ -131,10 +146,13 @@ where
 	Ok(wr)
 }
 
+/// Serialize to JSON, truncating long result
 pub fn debug_serialize<T: Serialize>(x: T) -> String {
 	match serde_json::to_string(&x) {
 		Ok(ss) => {
 			if ss.len() > 100 {
+				// TODO this can panic if 100 is not a codepoint boundary, but inside a 2 Bytes
+				// (or more) codepoint
 				ss[..100].to_string()
 			} else {
 				ss

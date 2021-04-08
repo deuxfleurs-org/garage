@@ -10,13 +10,14 @@ use crate::block::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {
-	// Primary key
+	/// Hash of the block, used as partition key
 	pub block: Hash,
 
-	// Sort key
+	/// Id of the Version for the object containing this block, used as sorting key
 	pub version: UUID,
 
 	// Keep track of deleted status
+	/// Is the Version that contains this block deleted
 	pub deleted: crdt::Bool,
 }
 

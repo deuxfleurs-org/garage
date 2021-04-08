@@ -1,3 +1,5 @@
+//! Crate containing common functions and types used in Garage
+
 #[macro_use]
 extern crate log;
 

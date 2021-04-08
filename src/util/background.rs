@@ -1,3 +1,4 @@
+//! Job runner for futures and async functions
 use core::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -12,14 +13,15 @@ use crate::error::Error;
 type JobOutput = Result<(), Error>;
 type Job = Pin<Box<dyn Future<Output = JobOutput> + Send>>;
 
+/// Job runner for futures and async functions
 pub struct BackgroundRunner {
-	pub stop_signal: watch::Receiver<bool>,
-
+	stop_signal: watch::Receiver<bool>,
 	queue_in: mpsc::UnboundedSender<(Job, bool)>,
 	worker_in: mpsc::UnboundedSender<tokio::task::JoinHandle<()>>,
 }
 
 impl BackgroundRunner {
+	/// Create a new BackgroundRunner
 	pub fn new(
 		n_runners: usize,
 		stop_signal: watch::Receiver<bool>,
@@ -103,7 +105,7 @@ impl BackgroundRunner {
 		(bgrunner, await_all_done)
 	}
 
-	// Spawn a task to be run in background
+	/// Spawn a task to be run in background
 	pub fn spawn<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,
@@ -115,6 +117,8 @@ impl BackgroundRunner {
 			.unwrap();
 	}
 
+	/// Spawn a task to be run in background. It may get discarded before running if spawned while
+	/// the runner is stopping
 	pub fn spawn_cancellable<T>(&self, job: T)
 	where
 		T: Future<Output = JobOutput> + Send + 'static,

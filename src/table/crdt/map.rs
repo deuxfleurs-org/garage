@@ -37,6 +37,7 @@ where
 		Self { vals: vec![(k, v)] }
 	}
 
+	/// Add a value to the map
 	pub fn put(&mut self, k: K, v: V) {
 		self.merge(&Self::put_mutator(k, v));
 	}

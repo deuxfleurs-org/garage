@@ -3,26 +3,28 @@ use serde::{Deserialize, Serialize};
 use garage_table::crdt::*;
 use garage_table::*;
 
+/// An api key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
-	// Primary key
+	/// The id of the key (immutable), used as partition key
 	pub key_id: String,
 
-	// Associated secret key (immutable)
+	/// The secret_key associated
 	pub secret_key: String,
 
-	// Name
+	/// Name for the key
 	pub name: crdt::LWW<String>,
 
-	// Deletion
+	/// Is the key deleted
 	pub deleted: crdt::Bool,
 
-	// Authorized keys
-	pub authorized_buckets: crdt::LWWMap<String, PermissionSet>,
+	/// Buckets in which the key is authorized. Empty if `Key` is deleted
 	// CRDT interaction: deleted implies authorized_buckets is empty
+	pub authorized_buckets: crdt::LWWMap<String, PermissionSet>,
 }
 
 impl Key {
+	/// Create a new key
 	pub fn new(name: String) -> Self {
 		let key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
 		let secret_key = hex::encode(&rand::random::<[u8; 32]>()[..]);
@@ -34,6 +36,8 @@ impl Key {
 			authorized_buckets: crdt::LWWMap::new(),
 		}
 	}
+
+	/// Import a key from it's parts
 	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Self {
 		Self {
 			key_id: key_id.to_string(),
@@ -43,6 +47,8 @@ impl Key {
 			authorized_buckets: crdt::LWWMap::new(),
 		}
 	}
+
+	/// Create a new Key which can me merged to mark an existing key deleted
 	pub fn delete(key_id: String) -> Self {
 		Self {
 			key_id,
@@ -52,13 +58,16 @@ impl Key {
 			authorized_buckets: crdt::LWWMap::new(),
 		}
 	}
-	/// Add an authorized bucket, only if it wasn't there before
+
+	/// Check if `Key` is allowed to read in bucket
 	pub fn allow_read(&self, bucket: &str) -> bool {
 		self.authorized_buckets
 			.get(&bucket.to_string())
 			.map(|x| x.allow_read)
 			.unwrap_or(false)
 	}
+
+	/// Check if `Key` is allowed to write in bucket
 	pub fn allow_write(&self, bucket: &str) -> bool {
 		self.authorized_buckets
 			.get(&bucket.to_string())
@@ -67,9 +76,12 @@ impl Key {
 	}
 }
 
+/// Permission given to a key in a bucket
 #[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct PermissionSet {
+	/// The key can be used to read the bucket
 	pub allow_read: bool,
+	/// The key can be used to write in the bucket
 	pub allow_write: bool,
 }
 

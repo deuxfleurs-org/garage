@@ -6,24 +6,26 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
 use garage_table::crdt::*;
-use garage_table::replication::sharded::*;
+use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::version_table::*;
 
+/// An object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
-	// Primary key
+	/// The bucket in which the object is stored, used as partition key
 	pub bucket: String,
 
-	// Sort key
+	/// The key at which the object is stored in its bucket, used as sorting key
 	pub key: String,
 
-	// Data
+	/// The list of currenty stored versions of the object
 	versions: Vec<ObjectVersion>,
 }
 
 impl Object {
+	/// Create an object from parts
 	pub fn new(bucket: String, key: String, versions: Vec<ObjectVersion>) -> Self {
 		let mut ret = Self {
 			bucket,
@@ -36,6 +38,7 @@ impl Object {
 		}
 		ret
 	}
+
 	/// Adds a version if it wasn't already present
 	pub fn add_version(&mut self, new: ObjectVersion) -> Result<(), ()> {
 		match self
@@ -49,23 +52,32 @@ impl Object {
 			Ok(_) => Err(()),
 		}
 	}
+
+	/// Get a list of currently stored versions of `Object`
 	pub fn versions(&self) -> &[ObjectVersion] {
 		&self.versions[..]
 	}
 }
 
+/// Informations about a version of an object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersion {
+	/// Id of the version
 	pub uuid: UUID,
+	/// Timestamp of when the object was created
 	pub timestamp: u64,
-
+	/// State of the version
 	pub state: ObjectVersionState,
 }
 
+/// State of an object version
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionState {
+	/// The version is being received
 	Uploading(ObjectVersionHeaders),
+	/// The version is fully received
 	Complete(ObjectVersionData),
+	/// The version uploaded containded errors or the upload was explicitly aborted
 	Aborted,
 }
 
@@ -90,10 +102,15 @@ impl CRDT for ObjectVersionState {
 	}
 }
 
+/// Data about an object version
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionData {
+	/// The object was deleted, this Version is a tombstone to mark it as such
 	DeleteMarker,
+	/// The object is short, it's stored inlined
 	Inline(ObjectVersionMeta, #[serde(with = "serde_bytes")] Vec<u8>),
+	/// The object is not short, Hash of first block is stored here, next segments hashes are
+	/// stored in the version table
 	FirstBlock(ObjectVersionMeta, Hash),
 }
 
@@ -101,16 +118,23 @@ impl AutoCRDT for ObjectVersionData {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
+/// Metadata about the object version
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersionMeta {
+	/// Headers to send to the client
 	pub headers: ObjectVersionHeaders,
+	/// Size of the object
 	pub size: u64,
+	/// etag of the object
 	pub etag: String,
 }
 
+/// Additional headers for an object
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersionHeaders {
+	/// Content type of the object
 	pub content_type: String,
+	/// Any other http headers to send
 	pub other: BTreeMap<String, String>,
 }
 
@@ -118,18 +142,24 @@ impl ObjectVersion {
 	fn cmp_key(&self) -> (u64, UUID) {
 		(self.timestamp, self.uuid)
 	}
+
+	/// Is the object version currently being uploaded
 	pub fn is_uploading(&self) -> bool {
 		match self.state {
 			ObjectVersionState::Uploading(_) => true,
 			_ => false,
 		}
 	}
+
+	/// Is the object version completely received
 	pub fn is_complete(&self) -> bool {
 		match self.state {
 			ObjectVersionState::Complete(_) => true,
 			_ => false,
 		}
 	}
+
+	/// Is the object version available (received and not a tombstone)
 	pub fn is_data(&self) -> bool {
 		match self.state {
 			ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,

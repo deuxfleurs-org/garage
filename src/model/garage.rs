@@ -7,8 +7,8 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::RpcHttpClient;
 use garage_rpc::rpc_server::RpcServer;
 
-use garage_table::replication::fullcopy::*;
-use garage_table::replication::sharded::*;
+use garage_table::replication::TableFullReplication;
+use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::block::*;
@@ -18,15 +18,23 @@ use crate::key_table::*;
 use crate::object_table::*;
 use crate::version_table::*;
 
+/// An entire Garage full of data
 pub struct Garage {
+	/// The parsed configuration Garage is running
 	pub config: Config,
 
+	/// The local database
 	pub db: sled::Db,
+	/// A background job runner
 	pub background: Arc<BackgroundRunner>,
+	/// The membership manager
 	pub system: Arc<System>,
+	/// The block manager
 	pub block_manager: Arc<BlockManager>,
 
+	/// Table containing informations about buckets
 	pub bucket_table: Arc<Table<BucketTable, TableFullReplication>>,
+	/// Table containing informations about api keys
 	pub key_table: Arc<Table<KeyTable, TableFullReplication>>,
 
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
@@ -35,6 +43,7 @@ pub struct Garage {
 }
 
 impl Garage {
+	/// Create and run garage
 	pub fn new(
 		config: Config,
 		db: sled::Db,

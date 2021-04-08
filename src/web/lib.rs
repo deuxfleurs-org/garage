@@ -1,6 +1,9 @@
+//! Crate for handling web serving of s3 bucket
 #[macro_use]
 extern crate log;
 
-pub mod error;
+mod error;
+pub use error::Error;
 
-pub mod web_server;
+mod web_server;
+pub use web_server::run_web_server;

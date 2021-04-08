@@ -8,10 +8,10 @@ pub mod schema;
 pub mod util;
 
 pub mod data;
-pub mod gc;
-pub mod merkle;
+mod gc;
+mod merkle;
 pub mod replication;
-pub mod sync;
+mod sync;
 pub mod table;
 
 pub use schema::*;
