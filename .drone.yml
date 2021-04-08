@@ -28,6 +28,9 @@ steps:
         - '/drone/cargo/git/db'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
+    when:
+      branch:
+        - nonexistent_skip_this_step
 
   - name: build
     image: rust:buster
@@ -72,6 +75,9 @@ steps:
         - '/drone/cargo/bin'
       path_style: true
       endpoint: https://garage.deuxfleurs.fr
+    when:
+      branch:
+        - nonexistent_skip_this_step
 
   - name: smoke-test
     image: rust:buster
