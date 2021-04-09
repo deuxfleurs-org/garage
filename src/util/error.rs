@@ -93,12 +93,12 @@ impl From<sled::transaction::TransactionError<Error>> for Error {
 
 impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {
 	fn from(_e: tokio::sync::watch::error::SendError<T>) -> Error {
-		Error::Message(format!("Watch send error"))
+		Error::Message("Watch send error".to_string())
 	}
 }
 
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
 	fn from(_e: tokio::sync::mpsc::error::SendError<T>) -> Error {
-		Error::Message(format!("MPSC send error"))
+		Error::Message("MPSC send error".to_string())
 	}
 }

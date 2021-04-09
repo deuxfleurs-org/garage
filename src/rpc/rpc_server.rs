@@ -57,7 +57,7 @@ where
 	trace!(
 		"Request message: {}",
 		serde_json::to_string(&msg)
-			.unwrap_or("<json error>".into())
+			.unwrap_or_else(|_| "<json error>".into())
 			.chars()
 			.take(100)
 			.collect::<String>()
@@ -123,7 +123,7 @@ impl RpcServer {
 		req: Request<Body>,
 		addr: SocketAddr,
 	) -> Result<Response<Body>, Error> {
-		if req.method() != &Method::POST {
+		if req.method() != Method::POST {
 			let mut bad_request = Response::default();
 			*bad_request.status_mut() = StatusCode::BAD_REQUEST;
 			return Ok(bad_request);
@@ -201,7 +201,7 @@ impl RpcServer {
 					.get_ref()
 					.0
 					.peer_addr()
-					.unwrap_or(([0, 0, 0, 0], 0).into());
+					.unwrap_or_else(|_| ([0, 0, 0, 0], 0).into());
 				let self_arc = self_arc.clone();
 				async move {
 					Ok::<_, Error>(service_fn(move |req: Request<Body>| {

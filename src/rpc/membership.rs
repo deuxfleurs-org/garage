@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Write as FmtWrite;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -198,15 +198,15 @@ impl Status {
 	}
 }
 
-fn gen_node_id(metadata_dir: &PathBuf) -> Result<UUID, Error> {
-	let mut id_file = metadata_dir.clone();
+fn gen_node_id(metadata_dir: &Path) -> Result<UUID, Error> {
+	let mut id_file = metadata_dir.to_path_buf();
 	id_file.push("node_id");
 	if id_file.as_path().exists() {
 		let mut f = std::fs::File::open(id_file.as_path())?;
 		let mut d = vec![];
 		f.read_to_end(&mut d)?;
 		if d.len() != 32 {
-			return Err(Error::Message(format!("Corrupt node_id file")));
+			return Err(Error::Message("Corrupt node_id file".to_string()));
 		}
 
 		let mut id = [0u8; 32];
@@ -256,7 +256,7 @@ impl System {
 		let state_info = StateInfo {
 			hostname: gethostname::gethostname()
 				.into_string()
-				.unwrap_or("<invalid utf-8>".to_string()),
+				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 		};
 
 		let ring = Ring::new(net_config);
@@ -296,12 +296,12 @@ impl System {
 				match msg {
 					Message::Ping(ping) => self2.handle_ping(&addr, &ping).await,
 
-					Message::PullStatus => self2.handle_pull_status(),
-					Message::PullConfig => self2.handle_pull_config(),
+					Message::PullStatus => Ok(self2.handle_pull_status()),
+					Message::PullConfig => Ok(self2.handle_pull_config()),
 					Message::AdvertiseNodesUp(adv) => self2.handle_advertise_nodes_up(&adv).await,
 					Message::AdvertiseConfig(adv) => self2.handle_advertise_config(&adv).await,
 
-					_ => Err(Error::BadRPC(format!("Unexpected RPC message"))),
+					_ => Err(Error::BadRPC("Unexpected RPC message".to_string())),
 				}
 			}
 		});
@@ -358,13 +358,13 @@ impl System {
 	) {
 		let self2 = self.clone();
 		self.background
-			.spawn_worker(format!("discovery loop"), |stop_signal| {
+			.spawn_worker("discovery loop".to_string(), |stop_signal| {
 				self2.discovery_loop(peers, consul_host, consul_service_name, stop_signal)
 			});
 
 		let self2 = self.clone();
 		self.background
-			.spawn_worker(format!("ping loop"), |stop_signal| {
+			.spawn_worker("ping loop".to_string(), |stop_signal| {
 				self2.ping_loop(stop_signal)
 			});
 	}
@@ -424,7 +424,6 @@ impl System {
 						warn!("Node {:?} seems to be down.", id);
 						if !ring.config.members.contains_key(id) {
 							info!("Removing node {:?} from status (not in config and not responding to pings anymore)", id);
-							drop(st);
 							status.nodes.remove(&id);
 							has_changes = true;
 						}
@@ -438,7 +437,7 @@ impl System {
 		self.update_status(&update_locked, status).await;
 		drop(update_locked);
 
-		if to_advertise.len() > 0 {
+		if !to_advertise.is_empty() {
 			self.broadcast(Message::AdvertiseNodesUp(to_advertise), PING_TIMEOUT)
 				.await;
 		}
@@ -474,15 +473,13 @@ impl System {
 		Ok(self.make_ping())
 	}
 
-	fn handle_pull_status(&self) -> Result<Message, Error> {
-		Ok(Message::AdvertiseNodesUp(
-			self.status.borrow().to_serializable_membership(self),
-		))
+	fn handle_pull_status(&self) -> Message {
+		Message::AdvertiseNodesUp(self.status.borrow().to_serializable_membership(self))
 	}
 
-	fn handle_pull_config(&self) -> Result<Message, Error> {
+	fn handle_pull_config(&self) -> Message {
 		let ring = self.ring.borrow().clone();
-		Ok(Message::AdvertiseConfig(ring.config.clone()))
+		Message::AdvertiseConfig(ring.config.clone())
 	}
 
 	async fn handle_advertise_nodes_up(
@@ -530,7 +527,7 @@ impl System {
 		self.update_status(&update_lock, status).await;
 		drop(update_lock);
 
-		if to_ping.len() > 0 {
+		if !to_ping.is_empty() {
 			self.background
 				.spawn_cancellable(self.clone().ping_nodes(to_ping).map(Ok));
 		}
@@ -576,8 +573,8 @@ impl System {
 			self.clone().ping_nodes(ping_addrs).await;
 
 			select! {
-				_ = restart_at.fuse() => (),
-				_ = stop_signal.changed().fuse() => (),
+				_ = restart_at.fuse() => {},
+				_ = stop_signal.changed().fuse() => {},
 			}
 		}
 	}
@@ -595,7 +592,7 @@ impl System {
 		};
 
 		while !*stop_signal.borrow() {
-			let not_configured = self.ring.borrow().config.members.len() == 0;
+			let not_configured = self.ring.borrow().config.members.is_empty();
 			let no_peers = self.status.borrow().nodes.len() < 3;
 			let bad_peers = self
 				.status
@@ -613,11 +610,8 @@ impl System {
 					.map(|ip| (*ip, None))
 					.collect::<Vec<_>>();
 
-				match self.persist_status.load_async().await {
-					Ok(peers) => {
-						ping_list.extend(peers.iter().map(|x| (x.addr, Some(x.id))));
-					}
-					_ => (),
+				if let Ok(peers) = self.persist_status.load_async().await {
+					ping_list.extend(peers.iter().map(|x| (x.addr, Some(x.id))));
 				}
 
 				if let Some((consul_host, consul_service_name)) = &consul_config {
@@ -636,12 +630,14 @@ impl System {
 
 			let restart_at = tokio::time::sleep(DISCOVERY_INTERVAL);
 			select! {
-				_ = restart_at.fuse() => (),
-				_ = stop_signal.changed().fuse() => (),
+				_ = restart_at.fuse() => {},
+				_ = stop_signal.changed().fuse() => {},
 			}
 		}
 	}
 
+	// for some reason fixing this is causing compilation error, see https://github.com/rust-lang/rust-clippy/issues/7052
+	#[allow(clippy::manual_async_fn)]
 	fn pull_status(
 		self: Arc<Self>,
 		peer: UUID,
@@ -672,18 +668,15 @@ impl System {
 			let mut list = status.to_serializable_membership(&self);
 
 			// Combine with old peer list to make sure no peer is lost
-			match self.persist_status.load_async().await {
-				Ok(old_list) => {
-					for pp in old_list {
-						if !list.iter().any(|np| pp.id == np.id) {
-							list.push(pp);
-						}
+			if let Ok(old_list) = self.persist_status.load_async().await {
+				for pp in old_list {
+					if !list.iter().any(|np| pp.id == np.id) {
+						list.push(pp);
 					}
 				}
-				_ => (),
 			}
 
-			if list.len() > 0 {
+			if !list.is_empty() {
 				info!("Persisting new peer list ({} peers)", list.len());
 				self.persist_status
 					.save_async(&list)

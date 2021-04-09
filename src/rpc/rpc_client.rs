@@ -240,7 +240,7 @@ impl<M: RpcMessage> RpcAddrClient<M> {
 	pub fn new(http_client: Arc<RpcHttpClient>, path: String) -> Self {
 		Self {
 			phantom: PhantomData::default(),
-			http_client: http_client,
+			http_client,
 			path,
 		}
 	}

@@ -72,7 +72,7 @@ impl FixedBytes32 {
 		&mut self.0[..]
 	}
 	/// Copy to a slice
-	pub fn to_vec(&self) -> Vec<u8> {
+	pub fn to_vec(self) -> Vec<u8> {
 		self.0.to_vec()
 	}
 	/// Try building a FixedBytes32 from a slice

@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -18,8 +18,8 @@ impl<T> Persister<T>
 where
 	T: Serialize + for<'de> Deserialize<'de>,
 {
-	pub fn new(base_dir: &PathBuf, file_name: &str) -> Self {
-		let mut path = base_dir.clone();
+	pub fn new(base_dir: &Path, file_name: &str) -> Self {
+		let mut path = base_dir.to_path_buf();
 		path.push(file_name);
 		Self {
 			path,

@@ -141,8 +141,7 @@ impl Ring {
 						if i_round >= node_info.capacity {
 							continue;
 						}
-						for pos2 in *pos..q.len() {
-							let qv = q[pos2];
+						for (pos2, &qv) in q.iter().enumerate().skip(*pos) {
 							if partitions[qv].len() != rep {
 								continue;
 							}
@@ -205,7 +204,7 @@ impl Ring {
 		for (i, entry) in self.ring.iter().enumerate() {
 			ret.push((i as u16, entry.location));
 		}
-		if ret.len() > 0 {
+		if !ret.is_empty() {
 			assert_eq!(ret[0].1, [0u8; 32].into());
 		}
 
@@ -234,6 +233,6 @@ impl Ring {
 		assert_eq!(partition_top & PARTITION_MASK_U16, top & PARTITION_MASK_U16);
 
 		assert!(n <= partition.nodes.len());
-		partition.nodes[..n].iter().cloned().collect::<Vec<_>>()
+		partition.nodes[..n].to_vec()
 	}
 }
