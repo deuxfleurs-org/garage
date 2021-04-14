@@ -35,6 +35,9 @@ data_replication_factor = 3
 meta_replication_factor = 3
 meta_epidemic_fanout = 3
 
+enable_compression = true
+compressin_level = 10
+
 [s3_api]
 api_bind_addr = "0.0.0.0:$((3910+$count))"	# the S3 API port, HTTP without TLS. Add a reverse proxy for the TLS part.
 s3_region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
