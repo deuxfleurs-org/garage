@@ -45,6 +45,10 @@ pub struct Config {
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
 
+	/// Zstd compression level used on data blocks
+	#[serde(default)]
+	pub compression_level: i32,
+
 	/// Configuration for RPC TLS
 	pub rpc_tls: Option<TlsConfig>,
 

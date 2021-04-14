@@ -23,39 +23,43 @@ dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # < INLINE_THRESHOLD = 307
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5
 dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10
 
+dd if=/dev/urandom bs=1k count=2  | base64 -w0 > /tmp/garage.1.b64
+dd if=/dev/urandom bs=1M count=5  | base64 -w0 > /tmp/garage.2.b64
+dd if=/dev/urandom bs=1M count=10 | base64 -w0 > /tmp/garage.3.b64
+
 echo "s3 api testing..."
-for idx in $(seq 1 3); do
+for idx in {1,2,3}.{rnd,b64}; do
   # AWS sends	
-  awsgrg cp /tmp/garage.$idx.rnd s3://eprouvette/garage.$idx.aws
+  awsgrg cp /tmp/garage.$idx s3://eprouvette/garage.$idx.aws
   
   awsgrg ls s3://eprouvette
   
   awsgrg cp s3://eprouvette/garage.$idx.aws /tmp/garage.$idx.dl
-  diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+  diff /tmp/garage.$idx /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
   
   s3grg get s3://eprouvette/garage.$idx.aws /tmp/garage.$idx.dl
-  diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+  diff /tmp/garage.$idx /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
   
   awsgrg rm s3://eprouvette/garage.$idx.aws
 
   # S3CMD sends
-  s3grg put /tmp/garage.$idx.rnd s3://eprouvette/garage.$idx.s3cmd
+  s3grg put /tmp/garage.$idx s3://eprouvette/garage.$idx.s3cmd
 
   s3grg ls s3://eprouvette
 	
   s3grg get s3://eprouvette/garage.$idx.s3cmd /tmp/garage.$idx.dl
-  diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+  diff /tmp/garage.$idx /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
   
   awsgrg cp s3://eprouvette/garage.$idx.s3cmd /tmp/garage.$idx.dl
-  diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+  diff /tmp/garage.$idx /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
 	
   s3grg rm s3://eprouvette/garage.$idx.s3cmd
 done
-rm /tmp/garage.{1,2,3}.rnd
+rm /tmp/garage.{1,2,3}.{rnd,b64}
 
 echo "website testing"
 echo "<h1>hello world</h1>" > /tmp/garage-index.html
