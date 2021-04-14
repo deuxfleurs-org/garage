@@ -196,12 +196,12 @@ impl BlockManager {
 
 		let mut f = fs::File::create(path.clone()).await?;
 		f.write_all(&buffer).await?;
+		drop(f);
 
 		if clean_plain {
 			path.set_extension("");
 			fs::remove_file(path).await?;
 		}
-		drop(f);
 
 		Ok(Message::Ok)
 	}
@@ -516,17 +516,25 @@ impl BlockManager {
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(&self, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
 		let garage = self.garage.load_full().unwrap();
-		let compressed = zstd_encode(&data[..], garage.config.compression_level);
-		let message = if compressed.is_ok() && compressed.as_ref().unwrap().len() < data.len() {
-			Message::PutBlock {
-				hash,
-				data: BlockData::Compressed(compressed.unwrap()),
-			}
+
+		let compressed = if garage.config.enable_compression {
+			zstd_encode(&data[..], garage.config.compression_level).ok()
 		} else {
-			Message::PutBlock {
+			None
+		};
+
+		// If compressed data is not less than 7/8 of the size of the original data, i.e. if we
+		// don't gain a significant margin by compressing, then we store the plain data instead
+		// so that we don't lose time decompressing it on reads.
+		let block_data = if compressed.is_some() && compressed.as_ref().unwrap().len() < (data.len() * 7) / 8 {
+			BlockData::Compressed(compressed.unwrap())
+		} else {
+			BlockData::Plain(data)
+		};
+
+		let message = Message::PutBlock {
 				hash,
-				data: BlockData::Plain(data),
-			}
+				data: block_data,
 		};
 		let who = self.replication.write_nodes(&hash);
 		self.rpc_client

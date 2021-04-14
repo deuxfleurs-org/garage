@@ -45,6 +45,9 @@ pub struct Config {
 	#[serde(default = "default_replication_factor")]
 	pub data_replication_factor: usize,
 
+	/// Enable Zstd compression of block data
+	pub enable_compression: bool,
+
 	/// Zstd compression level used on data blocks
 	#[serde(default)]
 	pub compression_level: i32,
