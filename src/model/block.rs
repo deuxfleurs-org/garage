@@ -526,15 +526,16 @@ impl BlockManager {
 		// If compressed data is not less than 7/8 of the size of the original data, i.e. if we
 		// don't gain a significant margin by compressing, then we store the plain data instead
 		// so that we don't lose time decompressing it on reads.
-		let block_data = if compressed.is_some() && compressed.as_ref().unwrap().len() < (data.len() * 7) / 8 {
-			BlockData::Compressed(compressed.unwrap())
-		} else {
-			BlockData::Plain(data)
-		};
+		let block_data =
+			if compressed.is_some() && compressed.as_ref().unwrap().len() < (data.len() * 7) / 8 {
+				BlockData::Compressed(compressed.unwrap())
+			} else {
+				BlockData::Plain(data)
+			};
 
 		let message = Message::PutBlock {
-				hash,
-				data: block_data,
+			hash,
+			data: block_data,
 		};
 		let who = self.replication.write_nodes(&hash);
 		self.rpc_client
