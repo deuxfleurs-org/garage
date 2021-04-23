@@ -33,8 +33,7 @@ pub async fn handle_copy(
 		.versions()
 		.iter()
 		.rev()
-		.filter(|v| v.is_complete())
-		.next()
+		.find(|v| v.is_complete())
 		.ok_or(Error::NotFound)?;
 
 	let source_last_state = match &source_last_v.state {

@@ -46,7 +46,7 @@ pub async fn handle_put(
 	let body = req.into_body();
 
 	let mut chunker = BodyChunker::new(body, garage.config.block_size);
-	let first_block = chunker.next().await?.unwrap_or(vec![]);
+	let first_block = chunker.next().await?.unwrap_or_default();
 
 	// If body is small enough, store it directly in the object table
 	// as "inline data". We can then return immediately.
@@ -160,16 +160,18 @@ fn ensure_checksum_matches(
 ) -> Result<(), Error> {
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != data_sha256sum {
-			return Err(Error::BadRequest(format!(
-				"Unable to validate x-amz-content-sha256"
-			)));
+			return Err(Error::BadRequest(
+				"Unable to validate x-amz-content-sha256".to_string(),
+			));
 		} else {
 			trace!("Successfully validated x-amz-content-sha256");
 		}
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != base64::encode(data_md5sum) {
-			return Err(Error::BadRequest(format!("Unable to validate content-md5")));
+			return Err(Error::BadRequest(
+				"Unable to validate content-md5".to_string(),
+			));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
@@ -291,7 +293,7 @@ impl BodyChunker {
 				self.read_all = true;
 			}
 		}
-		if self.buf.len() == 0 {
+		if self.buf.is_empty() {
 			Ok(None)
 		} else if self.buf.len() <= self.block_size {
 			let block = self.buf.drain(..).collect::<Vec<u8>>();
@@ -387,8 +389,8 @@ pub async fn handle_put_part(
 		futures::try_join!(garage.object_table.get(&bucket, &key), chunker.next(),)?;
 
 	// Check object is valid and multipart block can be accepted
-	let first_block = first_block.ok_or(Error::BadRequest(format!("Empty body")))?;
-	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+	let first_block = first_block.ok_or_else(|| Error::BadRequest("Empty body".to_string()))?;
+	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
 
 	if !object
 		.versions()
@@ -462,21 +464,21 @@ pub async fn handle_complete_multipart_upload(
 		garage.version_table.get(&version_uuid, &EmptyKey),
 	)?;
 
-	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
 	let mut object_version = object
 		.versions()
 		.iter()
 		.find(|v| v.uuid == version_uuid && v.is_uploading())
 		.cloned()
-		.ok_or(Error::BadRequest(format!("Version not found")))?;
+		.ok_or_else(|| Error::BadRequest("Version not found".to_string()))?;
 
-	let version = version.ok_or(Error::BadRequest(format!("Version not found")))?;
-	if version.blocks.len() == 0 {
-		return Err(Error::BadRequest(format!("No data was uploaded")));
+	let version = version.ok_or_else(|| Error::BadRequest("Version not found".to_string()))?;
+	if version.blocks.is_empty() {
+		return Err(Error::BadRequest("No data was uploaded".to_string()));
 	}
 
 	let headers = match object_version.state {
-		ObjectVersionState::Uploading(headers) => headers.clone(),
+		ObjectVersionState::Uploading(headers) => headers,
 		_ => unreachable!(),
 	};
 
@@ -493,7 +495,9 @@ pub async fn handle_complete_multipart_upload(
 		.map(|x| (&x.part_number, &x.etag))
 		.eq(parts);
 	if !same_parts {
-		return Err(Error::BadRequest(format!("We don't have the same parts")));
+		return Err(Error::BadRequest(
+			"We don't have the same parts".to_string(),
+		));
 	}
 
 	// Calculate etag of final object
@@ -557,7 +561,7 @@ pub async fn handle_abort_multipart_upload(
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())
 		.await?;
-	let object = object.ok_or(Error::BadRequest(format!("Object not found")))?;
+	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
 
 	let object_version = object
 		.versions()

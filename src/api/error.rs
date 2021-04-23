@@ -8,6 +8,7 @@ use garage_util::error::Error as GarageError;
 use crate::encoding::*;
 
 /// Errors of this crate
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Error)]
 pub enum Error {
 	// Category: internal error
@@ -140,7 +141,7 @@ impl<T> OkOrBadRequest for Option<T> {
 	fn ok_or_bad_request(self, reason: &'static str) -> Result<T, Error> {
 		match self {
 			Some(x) => Ok(x),
-			None => Err(Error::BadRequest(format!("{}", reason))),
+			None => Err(Error::BadRequest(reason.to_string())),
 		}
 	}
 }
@@ -172,10 +173,9 @@ impl<T> OkOrInternalError for Option<T> {
 	fn ok_or_internal_error(self, reason: &'static str) -> Result<T, Error> {
 		match self {
 			Some(x) => Ok(x),
-			None => Err(Error::InternalError(GarageError::Message(format!(
-				"{}",
-				reason
-			)))),
+			None => Err(Error::InternalError(GarageError::Message(
+				reason.to_string(),
+			))),
 		}
 	}
 }

@@ -43,13 +43,12 @@ pub async fn check_signature(
 	let date = headers
 		.get("x-amz-date")
 		.ok_or_bad_request("Missing X-Amz-Date field")?;
-	let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
-		.ok_or_bad_request("Invalid date")?
-		.into();
+	let date: NaiveDateTime =
+		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
 	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
 
 	if Utc::now() - date > Duration::hours(24) {
-		return Err(Error::BadRequest(format!("Date is too old")));
+		return Err(Error::BadRequest("Date is too old".to_string()));
 	}
 
 	let scope = format!(
@@ -66,10 +65,7 @@ pub async fn check_signature(
 		.get(&EmptyKey, &authorization.key_id)
 		.await?
 		.filter(|k| !k.deleted.get())
-		.ok_or(Error::Forbidden(format!(
-			"No such key: {}",
-			authorization.key_id
-		)))?;
+		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", authorization.key_id)))?;
 
 	let canonical_request = canonical_request(
 		request.method(),
@@ -95,7 +91,7 @@ pub async fn check_signature(
 		trace!("Canonical request: ``{}``", canonical_request);
 		trace!("String to sign: ``{}``", string_to_sign);
 		trace!("Expected: {}, got: {}", signature, authorization.signature);
-		return Err(Error::Forbidden(format!("Invalid signature")));
+		return Err(Error::Forbidden("Invalid signature".to_string()));
 	}
 
 	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
@@ -105,7 +101,7 @@ pub async fn check_signature(
 			.ok_or_bad_request("Invalid content sha256 hash")?;
 		Some(
 			Hash::try_from(&bytes[..])
-				.ok_or(Error::BadRequest(format!("Invalid content sha256 hash")))?,
+				.ok_or_else(|| Error::BadRequest("Invalid content sha256 hash".to_string()))?,
 		)
 	};
 
@@ -173,9 +169,9 @@ fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Author
 		.get("x-amz-algorithm")
 		.ok_or_bad_request("X-Amz-Algorithm not found in query parameters")?;
 	if algo != "AWS4-HMAC-SHA256" {
-		return Err(Error::BadRequest(format!(
-			"Unsupported authorization method"
-		)));
+		return Err(Error::BadRequest(
+			"Unsupported authorization method".to_string(),
+		));
 	}
 
 	let cred = headers
@@ -293,9 +289,9 @@ pub fn verify_signed_content(content_sha256: Option<Hash>, body: &[u8]) -> Resul
 	let expected_sha256 =
 		content_sha256.ok_or_bad_request("Request content hash not signed, aborting.")?;
 	if expected_sha256 != sha256sum(body) {
-		return Err(Error::BadRequest(format!(
-			"Request content hash does not match signed hash"
-		)));
+		return Err(Error::BadRequest(
+			"Request content hash does not match signed hash".to_string(),
+		));
 	}
 	Ok(())
 }

@@ -28,7 +28,7 @@ fn object_headers(
 			version_meta.headers.content_type.to_string(),
 		)
 		.header("Last-Modified", date_str)
-		.header("Accept-Ranges", format!("bytes"));
+		.header("Accept-Ranges", "bytes".to_string());
 
 	if !version_meta.etag.is_empty() {
 		resp = resp.header("ETag", format!("\"{}\"", version_meta.etag));
@@ -97,8 +97,7 @@ pub async fn handle_head(
 		.versions()
 		.iter()
 		.rev()
-		.filter(|v| v.is_data())
-		.next()
+		.find(|v| v.is_data())
 		.ok_or(Error::NotFound)?;
 
 	let version_meta = match &version.state {
@@ -137,8 +136,7 @@ pub async fn handle_get(
 		.versions()
 		.iter()
 		.rev()
-		.filter(|v| v.is_complete())
-		.next()
+		.find(|v| v.is_complete())
 		.ok_or(Error::NotFound)?;
 
 	let last_v_data = match &last_v.state {
@@ -160,7 +158,9 @@ pub async fn handle_get(
 			let range_str = range.to_str()?;
 			let mut ranges = http_range::HttpRange::parse(range_str, last_v_meta.size)?;
 			if ranges.len() > 1 {
-				return Err(Error::BadRequest(format!("Multiple ranges not supported")));
+				return Err(Error::BadRequest(
+					"Multiple ranges not supported".to_string(),
+				));
 			} else {
 				ranges.pop()
 			}
@@ -236,7 +236,7 @@ async fn handle_get_range(
 	end: u64,
 ) -> Result<Response<Body>, Error> {
 	if end > version_meta.size {
-		return Err(Error::BadRequest(format!("Range not included in file")));
+		return Err(Error::BadRequest("Range not included in file".to_string()));
 	}
 
 	let resp_builder = object_headers(version, version_meta)
@@ -282,7 +282,7 @@ async fn handle_get_range(
 				}
 				// Keep only blocks that have an intersection with the requested range
 				if true_offset < end && true_offset + b.size > begin {
-					blocks.push((b.clone(), true_offset));
+					blocks.push((*b, true_offset));
 				}
 				true_offset += b.size;
 			}
@@ -303,9 +303,9 @@ async fn handle_get_range(
 						} else {
 							end - true_offset
 						};
-						Result::<Bytes, Error>::Ok(Bytes::from(
+						Result::<Bytes, Error>::Ok(
 							data.slice(start_in_block as usize..end_in_block as usize),
-						))
+						)
 					}
 				})
 				.buffered(2);

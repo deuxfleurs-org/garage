@@ -92,9 +92,9 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		_ => api_key.allow_write(&bucket),
 	};
 	if !allowed {
-		return Err(Error::Forbidden(format!(
-			"Operation is not allowed for this key."
-		)));
+		return Err(Error::Forbidden(
+			"Operation is not allowed for this key.".to_string(),
+		));
 	}
 
 	let mut params = HashMap::new();
@@ -106,16 +106,16 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 
 	if let Some(key) = key {
-		match req.method() {
-			&Method::HEAD => {
+		match *req.method() {
+			Method::HEAD => {
 				// HeadObject query
 				Ok(handle_head(garage, &req, &bucket, &key).await?)
 			}
-			&Method::GET => {
+			Method::GET => {
 				// GetObject query
 				Ok(handle_get(garage, &req, &bucket, &key).await?)
 			}
-			&Method::PUT => {
+			Method::PUT => {
 				if params.contains_key(&"partnumber".to_string())
 					&& params.contains_key(&"uploadid".to_string())
 				{
@@ -154,7 +154,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					Ok(handle_put(garage, req, &bucket, &key, content_sha256).await?)
 				}
 			}
-			&Method::DELETE => {
+			Method::DELETE => {
 				if params.contains_key(&"uploadid".to_string()) {
 					// AbortMultipartUpload query
 					let upload_id = params.get("uploadid").unwrap();
@@ -164,7 +164,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					Ok(handle_delete(garage, &bucket, &key).await?)
 				}
 			}
-			&Method::POST => {
+			Method::POST => {
 				if params.contains_key(&"uploads".to_string()) {
 					// CreateMultipartUpload call
 					Ok(handle_create_multipart_upload(garage, &req, &bucket, &key).await?)
@@ -181,16 +181,16 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					)
 					.await?)
 				} else {
-					Err(Error::BadRequest(format!(
-						"Not a CreateMultipartUpload call, what is it?"
-					)))
+					Err(Error::BadRequest(
+						"Not a CreateMultipartUpload call, what is it?".to_string(),
+					))
 				}
 			}
-			_ => Err(Error::BadRequest(format!("Invalid method"))),
+			_ => Err(Error::BadRequest("Invalid method".to_string())),
 		}
 	} else {
-		match req.method() {
-			&Method::PUT => {
+		match *req.method() {
+			Method::PUT => {
 				// CreateBucket
 				// If we're here, the bucket already exists, so just answer ok
 				debug!(
@@ -205,19 +205,19 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					.unwrap();
 				Ok(response)
 			}
-			&Method::HEAD => {
+			Method::HEAD => {
 				// HeadBucket
 				let empty_body: Body = Body::from(vec![]);
 				let response = Response::builder().body(empty_body).unwrap();
 				Ok(response)
 			}
-			&Method::DELETE => {
+			Method::DELETE => {
 				// DeleteBucket query
 				Err(Error::Forbidden(
 					"Cannot delete buckets using S3 api, please talk to Garage directly".into(),
 				))
 			}
-			&Method::GET => {
+			Method::GET => {
 				if params.contains_key("location") {
 					// GetBucketLocation call
 					Ok(handle_get_bucket_location(garage)?)
@@ -227,7 +227,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					Ok(handle_list(garage, &q).await?)
 				}
 			}
-			&Method::POST => {
+			Method::POST => {
 				if params.contains_key(&"delete".to_string()) {
 					// DeleteObjects
 					Ok(handle_delete_objects(garage, bucket, req, content_sha256).await?)
@@ -237,10 +237,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 						std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
 							.unwrap_or("<invalid utf8>")
 					);
-					Err(Error::BadRequest(format!("Unsupported call")))
+					Err(Error::BadRequest("Unsupported call".to_string()))
 				}
 			}
-			_ => Err(Error::BadRequest(format!("Invalid method"))),
+			_ => Err(Error::BadRequest("Invalid method".to_string())),
 		}
 	}
 }
@@ -255,7 +255,7 @@ fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 	let (bucket, key) = match path.find('/') {
 		Some(i) => {
 			let key = &path[i + 1..];
-			if key.len() > 0 {
+			if !key.is_empty() {
 				(&path[..i], Some(key))
 			} else {
 				(&path[..i], None)
@@ -263,8 +263,8 @@ fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
 		}
 		None => (path, None),
 	};
-	if bucket.len() == 0 {
-		return Err(Error::BadRequest(format!("No bucket specified")));
+	if bucket.is_empty() {
+		return Err(Error::BadRequest("No bucket specified".to_string()));
 	}
 	Ok((bucket, key))
 }

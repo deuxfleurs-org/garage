@@ -50,7 +50,7 @@ pub fn parse_list_objects_query(
 					.ok_or_bad_request("Invalid value for max-keys")
 			})
 			.unwrap_or(Ok(1000))?,
-		prefix: params.get("prefix").cloned().unwrap_or(String::new()),
+		prefix: params.get("prefix").cloned().unwrap_or_default(),
 		marker: params.get("marker").cloned(),
 		continuation_token: params.get("continuation-token").cloned(),
 		start_after: params.get("start-after").cloned(),
@@ -72,10 +72,13 @@ pub async fn handle_list(
 		if let Some(ct) = &query.continuation_token {
 			String::from_utf8(base64::decode(ct.as_bytes())?)?
 		} else {
-			query.start_after.clone().unwrap_or(query.prefix.clone())
+			query
+				.start_after
+				.clone()
+				.unwrap_or_else(|| query.prefix.clone())
 		}
 	} else {
-		query.marker.clone().unwrap_or(query.prefix.clone())
+		query.marker.clone().unwrap_or_else(|| query.prefix.clone())
 	};
 
 	debug!(
@@ -155,7 +158,7 @@ pub async fn handle_list(
 			truncated = None;
 			break 'query_loop;
 		}
-		if objects.len() > 0 {
+		if !objects.is_empty() {
 			next_chunk_start = objects[objects.len() - 1].key.clone();
 		}
 	}

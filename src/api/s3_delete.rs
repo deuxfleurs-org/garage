@@ -24,10 +24,12 @@ async fn handle_delete_internal(
 		.await?
 		.ok_or(Error::NotFound)?; // No need to delete
 
-	let interesting_versions = object.versions().iter().filter(|v| match v.state {
-		ObjectVersionState::Aborted => false,
-		ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,
-		_ => true,
+	let interesting_versions = object.versions().iter().filter(|v| {
+		!matches!(
+			v.state,
+			ObjectVersionState::Aborted
+				| ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+		)
 	});
 
 	let mut version_to_delete = None;
