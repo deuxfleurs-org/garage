@@ -4,6 +4,7 @@ use hyper::StatusCode;
 use garage_util::error::Error as GarageError;
 
 /// Errors of this crate
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Error)]
 pub enum Error {
 	/// An error received from the API crate

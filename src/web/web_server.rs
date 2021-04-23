@@ -71,7 +71,7 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	let authority = req
 		.headers()
 		.get(HOST)
-		.ok_or(Error::BadRequest(format!("HOST header required")))?
+		.ok_or_else(|| Error::BadRequest("HOST header required".to_owned()))?
 		.to_str()?;
 
 	// Get bucket
@@ -99,10 +99,10 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
-	let res = match req.method() {
-		&Method::HEAD => handle_head(garage, &req, &bucket, &key).await?,
-		&Method::GET => handle_get(garage, &req, bucket, &key).await?,
-		_ => return Err(Error::BadRequest(format!("HTTP method not supported"))),
+	let res = match *req.method() {
+		Method::HEAD => handle_head(garage, &req, &bucket, &key).await?,
+		Method::GET => handle_get(garage, &req, bucket, &key).await?,
+		_ => return Err(Error::BadRequest("HTTP method not supported".to_string())),
 	};
 
 	Ok(res)
@@ -118,7 +118,7 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 	let mut iter = authority.chars().enumerate();
 	let (_, first_char) = iter
 		.next()
-		.ok_or(Error::BadRequest(format!("Authority is empty")))?;
+		.ok_or_else(|| Error::BadRequest("Authority is empty".to_string()))?;
 
 	let split = match first_char {
 		'[' => {
@@ -133,7 +133,7 @@ fn authority_to_host(authority: &str) -> Result<&str, Error> {
 				}
 			}
 		}
-		_ => iter.skip_while(|(_, c)| c != &':').next(),
+		_ => iter.find(|(_, c)| *c == ':'),
 	};
 
 	match split {
@@ -158,7 +158,7 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 	}
 
 	let len_diff = host.len() - root.len();
-	let missing_starting_dot = root.chars().next() != Some('.');
+	let missing_starting_dot = !root.starts_with('.');
 	let cursor = if missing_starting_dot {
 		len_diff - 1
 	} else {
@@ -175,10 +175,10 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(&path).decode_utf8()?;
 
-	if path_utf8.chars().next() != Some('/') {
-		return Err(Error::BadRequest(format!(
-			"Path must start with a / (slash)"
-		)));
+	if !path_utf8.starts_with('/') {
+		return Err(Error::BadRequest(
+			"Path must start with a / (slash)".to_string(),
+		));
 	}
 
 	match path_utf8.chars().last() {
