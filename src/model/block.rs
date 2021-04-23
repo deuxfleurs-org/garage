@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -137,7 +137,7 @@ impl BlockManager {
 			Message::PutBlock(m) => self.write_block(&m.hash, &m.data).await,
 			Message::GetBlock(h) => self.read_block(h).await,
 			Message::NeedBlockQuery(h) => self.need_block(h).await.map(Message::NeedBlockReply),
-			_ => Err(Error::BadRPC(format!("Unexpected RPC message"))),
+			_ => Err(Error::BadRPC("Unexpected RPC message".to_string())),
 		}
 	}
 
@@ -280,8 +280,8 @@ impl BlockManager {
 			if let Err(e) = self.resync_iter(&mut must_exit).await {
 				warn!("Error in block resync loop: {}", e);
 				select! {
-					_ = tokio::time::sleep(Duration::from_secs(1)).fuse() => (),
-					_ = must_exit.changed().fuse() => (),
+					_ = tokio::time::sleep(Duration::from_secs(1)).fuse() => {},
+					_ = must_exit.changed().fuse() => {},
 				}
 			}
 		}
@@ -304,15 +304,15 @@ impl BlockManager {
 			} else {
 				let delay = tokio::time::sleep(Duration::from_millis(time_msec - now));
 				select! {
-					_ = delay.fuse() => (),
-					_ = self.resync_notify.notified().fuse() => (),
-					_ = must_exit.changed().fuse() => (),
+					_ = delay.fuse() => {},
+					_ = self.resync_notify.notified().fuse() => {},
+					_ = must_exit.changed().fuse() => {},
 				}
 			}
 		} else {
 			select! {
-				_ = self.resync_notify.notified().fuse() => (),
-				_ = must_exit.changed().fuse() => (),
+				_ = self.resync_notify.notified().fuse() => {},
+				_ = must_exit.changed().fuse() => {},
 			}
 		}
 		Ok(())
@@ -342,7 +342,7 @@ impl BlockManager {
 
 			let mut who = self.replication.write_nodes(&hash);
 			if who.len() < self.replication.write_quorum() {
-				return Err(Error::Message(format!("Not trying to offload block because we don't have a quorum of nodes to write to")));
+				return Err(Error::Message("Not trying to offload block because we don't have a quorum of nodes to write to".to_string()));
 			}
 			who.retain(|id| *id != self.system.id);
 
@@ -362,14 +362,14 @@ impl BlockManager {
 						}
 					}
 					_ => {
-						return Err(Error::Message(format!(
-							"Unexpected response to NeedBlockQuery RPC"
-						)));
+						return Err(Error::Message(
+							"Unexpected response to NeedBlockQuery RPC".to_string(),
+						));
 					}
 				}
 			}
 
-			if need_nodes.len() > 0 {
+			if !need_nodes.is_empty() {
 				trace!(
 					"Block {:?} needed by {} nodes, sending",
 					hash,
@@ -478,7 +478,7 @@ impl BlockManager {
 
 	fn repair_aux_read_dir_rec<'a>(
 		&'a self,
-		path: &'a PathBuf,
+		path: &'a Path,
 		must_exit: &'a watch::Receiver<bool>,
 	) -> BoxFuture<'a, Result<(), Error>> {
 		// Lists all blocks on disk and adds them to the resync queue.

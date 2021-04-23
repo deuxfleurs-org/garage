@@ -49,13 +49,6 @@ pub struct BucketParams {
 	pub website: crdt::LWW<bool>,
 }
 
-impl CRDT for BucketParams {
-	fn merge(&mut self, o: &Self) {
-		self.authorized_keys.merge(&o.authorized_keys);
-		self.website.merge(&o.website);
-	}
-}
-
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
@@ -63,6 +56,19 @@ impl BucketParams {
 			authorized_keys: crdt::LWWMap::new(),
 			website: crdt::LWW::new(false),
 		}
+	}
+}
+
+impl CRDT for BucketParams {
+	fn merge(&mut self, o: &Self) {
+		self.authorized_keys.merge(&o.authorized_keys);
+		self.website.merge(&o.website);
+	}
+}
+
+impl Default for BucketParams {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 

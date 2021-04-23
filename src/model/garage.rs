@@ -95,7 +95,7 @@ impl Garage {
 			BlockRefTable {
 				block_manager: block_manager.clone(),
 			},
-			data_rep_param.clone(),
+			data_rep_param,
 			system.clone(),
 			&db,
 			"block_ref".to_string(),
@@ -121,7 +121,7 @@ impl Garage {
 				background: background.clone(),
 				version_table: version_table.clone(),
 			},
-			meta_rep_param.clone(),
+			meta_rep_param,
 			system.clone(),
 			&db,
 			"object".to_string(),
@@ -141,7 +141,7 @@ impl Garage {
 		info!("Initialize key_table_table...");
 		let key_table = Table::new(
 			KeyTable,
-			control_rep_param.clone(),
+			control_rep_param,
 			system.clone(),
 			&db,
 			"key".to_string(),
@@ -152,9 +152,9 @@ impl Garage {
 		let garage = Arc::new(Self {
 			config,
 			db,
-			system: system.clone(),
-			block_manager,
 			background,
+			system,
+			block_manager,
 			bucket_table,
 			key_table,
 			object_table,

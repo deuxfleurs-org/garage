@@ -40,6 +40,7 @@ impl Object {
 	}
 
 	/// Adds a version if it wasn't already present
+	#[allow(clippy::result_unit_err)]
 	pub fn add_version(&mut self, new: ObjectVersion) -> Result<(), ()> {
 		match self
 			.versions
@@ -145,18 +146,12 @@ impl ObjectVersion {
 
 	/// Is the object version currently being uploaded
 	pub fn is_uploading(&self) -> bool {
-		match self.state {
-			ObjectVersionState::Uploading(_) => true,
-			_ => false,
-		}
+		matches!(self.state, ObjectVersionState::Uploading(_))
 	}
 
 	/// Is the object version completely received
 	pub fn is_complete(&self) -> bool {
-		match self.state {
-			ObjectVersionState::Complete(_) => true,
-			_ => false,
-		}
+		matches!(self.state, ObjectVersionState::Complete(_))
 	}
 
 	/// Is the object version available (received and not a tombstone)
@@ -207,8 +202,7 @@ impl CRDT for Object {
 			.iter()
 			.enumerate()
 			.rev()
-			.filter(|(_, v)| v.is_complete())
-			.next()
+			.find(|(_, v)| v.is_complete())
 			.map(|(vi, _)| vi);
 
 		if let Some(last_vi) = last_complete {
