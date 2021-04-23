@@ -294,7 +294,7 @@ pub struct StatsOpt {
 pub async fn cli_cmd(
 	cmd: Command,
 	membership_rpc_cli: RpcAddrClient<Message>,
-	admin_rpc_cli: RpcAddrClient<AdminRPC>,
+	admin_rpc_cli: RpcAddrClient<AdminRpc>,
 	rpc_host: SocketAddr,
 ) -> Result<(), Error> {
 	match cmd {
@@ -306,11 +306,11 @@ pub async fn cli_cmd(
 			cmd_remove(membership_rpc_cli, rpc_host, remove_opt).await
 		}
 		Command::Bucket(bo) => {
-			cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::BucketOperation(bo)).await
+			cmd_admin(admin_rpc_cli, rpc_host, AdminRpc::BucketOperation(bo)).await
 		}
-		Command::Key(ko) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::KeyOperation(ko)).await,
-		Command::Repair(ro) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::LaunchRepair(ro)).await,
-		Command::Stats(so) => cmd_admin(admin_rpc_cli, rpc_host, AdminRPC::Stats(so)).await,
+		Command::Key(ko) => cmd_admin(admin_rpc_cli, rpc_host, AdminRpc::KeyOperation(ko)).await,
+		Command::Repair(ro) => cmd_admin(admin_rpc_cli, rpc_host, AdminRpc::LaunchRepair(ro)).await,
+		Command::Stats(so) => cmd_admin(admin_rpc_cli, rpc_host, AdminRpc::Stats(so)).await,
 		_ => unreachable!(),
 	}
 }
@@ -446,12 +446,14 @@ pub async fn cmd_configure(
 			capacity: args
 				.capacity
 				.expect("Please specifiy a capacity with the -c flag"),
-			tag: args.tag.unwrap_or("".to_string()),
+			tag: args.tag.unwrap_or_default(),
 		},
 		Some(old) => NetworkConfigEntry {
-			datacenter: args.datacenter.unwrap_or(old.datacenter.to_string()),
+			datacenter: args
+				.datacenter
+				.unwrap_or_else(|| old.datacenter.to_string()),
 			capacity: args.capacity.unwrap_or(old.capacity),
-			tag: args.tag.unwrap_or(old.tag.to_string()),
+			tag: args.tag.unwrap_or_else(|| old.tag.to_string()),
 		},
 	};
 
@@ -504,30 +506,30 @@ pub async fn cmd_remove(
 }
 
 pub async fn cmd_admin(
-	rpc_cli: RpcAddrClient<AdminRPC>,
+	rpc_cli: RpcAddrClient<AdminRpc>,
 	rpc_host: SocketAddr,
-	args: AdminRPC,
+	args: AdminRpc,
 ) -> Result<(), Error> {
 	match rpc_cli.call(&rpc_host, args, ADMIN_RPC_TIMEOUT).await?? {
-		AdminRPC::Ok(msg) => {
+		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}
-		AdminRPC::BucketList(bl) => {
+		AdminRpc::BucketList(bl) => {
 			println!("List of buckets:");
 			for bucket in bl {
 				println!("{}", bucket);
 			}
 		}
-		AdminRPC::BucketInfo(bucket) => {
+		AdminRpc::BucketInfo(bucket) => {
 			print_bucket_info(&bucket);
 		}
-		AdminRPC::KeyList(kl) => {
+		AdminRpc::KeyList(kl) => {
 			println!("List of keys:");
 			for key in kl {
 				println!("{}\t{}", key.0, key.1);
 			}
 		}
-		AdminRPC::KeyInfo(key) => {
+		AdminRpc::KeyInfo(key) => {
 			print_key_info(&key);
 		}
 		r => {

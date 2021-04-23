@@ -25,7 +25,7 @@ async fn shutdown_signal(send_cancel: watch::Sender<bool>) -> Result<(), Error> 
 	Ok(())
 }
 
-async fn wait_from(mut chan: watch::Receiver<bool>) -> () {
+async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {
 		if chan.changed().await.is_err() {
 			return;
@@ -48,7 +48,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.expect("Unable to open sled DB");
 
 	info!("Initialize RPC server...");
-	let mut rpc_server = RpcServer::new(config.rpc_bind_addr.clone(), config.rpc_tls.clone());
+	let mut rpc_server = RpcServer::new(config.rpc_bind_addr, config.rpc_tls.clone());
 
 	info!("Initializing background runner...");
 	let (send_cancel, watch_cancel) = watch::channel(false);
@@ -71,9 +71,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let web_server = run_web_server(garage, wait_from(watch_cancel.clone()));
 
 	futures::try_join!(
-		bootstrap.map(|rv| {
+		bootstrap.map(|()| {
 			info!("Bootstrap done");
-			Ok(rv)
+			Ok(())
 		}),
 		run_rpc_server.map(|rv| {
 			info!("RPC server exited");
