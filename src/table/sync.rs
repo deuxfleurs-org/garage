@@ -150,14 +150,12 @@ where
 					if let Some(busy) = busy_opt {
 						if busy {
 							nothing_to_do_since = None;
-						} else {
-							if nothing_to_do_since.is_none() {
-								nothing_to_do_since = Some(Instant::now());
-							}
+						} else if nothing_to_do_since.is_none() {
+							nothing_to_do_since = Some(Instant::now());
 						}
 					}
 				}
-				_ = must_exit.changed().fuse() => (),
+				_ = must_exit.changed().fuse() => {},
 				_ = tokio::time::sleep(Duration::from_secs(1)).fuse() => {
 					if nothing_to_do_since.map(|t| Instant::now() - t >= ANTI_ENTROPY_INTERVAL).unwrap_or(false) {
 						nothing_to_do_since = None;
@@ -277,7 +275,7 @@ where
 				}
 			}
 
-			if items.len() > 0 {
+			if !items.is_empty() {
 				let nodes = self
 					.data
 					.replication
@@ -292,9 +290,10 @@ where
 					break;
 				}
 				if nodes.len() < self.data.replication.write_quorum() {
-					return Err(Error::Message(format!(
+					return Err(Error::Message(
 						"Not offloading as we don't have a quorum of nodes to write to."
-					)));
+							.to_string(),
+					));
 				}
 
 				counter += 1;
@@ -317,14 +316,14 @@ where
 
 	async fn offload_items(
 		self: &Arc<Self>,
-		items: &Vec<(Vec<u8>, Arc<ByteBuf>)>,
+		items: &[(Vec<u8>, Arc<ByteBuf>)],
 		nodes: &[UUID],
 	) -> Result<(), Error> {
 		let values = items.iter().map(|(_k, v)| v.clone()).collect::<Vec<_>>();
 
 		self.rpc_client
 			.try_call_many(
-				&nodes[..],
+				nodes,
 				SyncRPC::Items(values),
 				RequestStrategy::with_quorum(nodes.len()).with_timeout(TABLE_SYNC_RPC_TIMEOUT),
 			)
@@ -467,7 +466,7 @@ where
 			}
 
 			if todo_items.len() >= 256 {
-				self.send_items(who, std::mem::replace(&mut todo_items, vec![]))
+				self.send_items(who, std::mem::take(&mut todo_items))
 					.await?;
 			}
 		}
@@ -523,7 +522,7 @@ where
 				self.data.update_many(items)?;
 				Ok(SyncRPC::Ok)
 			}
-			_ => Err(Error::Message(format!("Unexpected sync RPC"))),
+			_ => Err(Error::Message("Unexpected sync RPC".to_string())),
 		}
 	}
 }

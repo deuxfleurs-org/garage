@@ -111,8 +111,8 @@ where
 				}
 			} else {
 				select! {
-					_ = self.data.merkle_todo_notify.notified().fuse() => (),
-					_ = must_exit.changed().fuse() => (),
+					_ = self.data.merkle_todo_notify.notified().fuse() => {},
+					_ = must_exit.changed().fuse() => {},
 				}
 			}
 		}
@@ -121,10 +121,10 @@ where
 	fn update_item(&self, k: &[u8], vhash_by: &[u8]) -> Result<(), Error> {
 		let khash = blake2sum(k);
 
-		let new_vhash = if vhash_by.len() == 0 {
+		let new_vhash = if vhash_by.is_empty() {
 			None
 		} else {
-			Some(Hash::try_from(&vhash_by[..]).unwrap())
+			Some(Hash::try_from(vhash_by).unwrap())
 		};
 
 		let key = MerkleNodeKey {
@@ -168,14 +168,7 @@ where
 		// This update is an Option<_>, so that it is None if the update is a no-op
 		// and we can thus skip recalculating and re-storing everything
 		let mutate = match self.read_node_txn(tx, &key)? {
-			MerkleNode::Empty => {
-				if let Some(vhv) = new_vhash {
-					Some(MerkleNode::Leaf(k.to_vec(), vhv))
-				} else {
-					// Nothing to do, keep empty node
-					None
-				}
-			}
+			MerkleNode::Empty => new_vhash.map(|vhv| MerkleNode::Leaf(k.to_vec(), vhv)),
 			MerkleNode::Intermediate(mut children) => {
 				let key2 = key.next_key(khash);
 				if let Some(subhash) = self.update_item_rec(tx, k, khash, &key2, new_vhash)? {
@@ -186,7 +179,7 @@ where
 						intermediate_set_child(&mut children, key2.prefix[i], subhash);
 					}
 
-					if children.len() == 0 {
+					if children.is_empty() {
 						// should not happen
 						warn!(
 							"({}) Replacing intermediate node with empty node, should not happen.",

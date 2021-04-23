@@ -52,10 +52,8 @@ where
 				*self = other.clone();
 			}
 			warn!("Making an arbitrary choice: {:?}", self);
-		} else {
-			if other > self {
-				*self = other.clone();
-			}
+		} else if other > self {
+			*self = other.clone();
 		}
 	}
 }

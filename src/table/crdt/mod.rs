@@ -10,6 +10,7 @@
 //! Learn more about CRDT [on Wikipedia](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type)
 
 mod bool;
+#[allow(clippy::module_inception)]
 mod crdt;
 mod lww;
 mod lww_map;

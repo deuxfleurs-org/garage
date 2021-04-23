@@ -109,17 +109,14 @@ where
 	}
 
 	pub async fn insert_many(&self, entries: &[F::E]) -> Result<(), Error> {
-		let mut call_list = HashMap::new();
+		let mut call_list: HashMap<_, Vec<_>> = HashMap::new();
 
 		for entry in entries.iter() {
 			let hash = entry.partition_key().hash();
 			let who = self.data.replication.write_nodes(&hash);
 			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
 			for node in who {
-				if !call_list.contains_key(&node) {
-					call_list.insert(node, vec![]);
-				}
-				call_list.get_mut(&node).unwrap().push(e_enc.clone());
+				call_list.entry(node).or_default().push(e_enc.clone());
 			}
 		}
 
@@ -183,7 +180,7 @@ where
 					}
 				}
 			} else {
-				return Err(Error::Message(format!("Invalid return value to read")));
+				return Err(Error::Message("Invalid return value to read".to_string()));
 			}
 		}
 		if let Some(ret_entry) = &ret {
@@ -268,7 +265,7 @@ where
 		let what_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(&what)?));
 		self.rpc_client
 			.try_call_many(
-				&who[..],
+				who,
 				TableRPC::<F>::Update(vec![what_enc]),
 				RequestStrategy::with_quorum(who.len()).with_timeout(TABLE_RPC_TIMEOUT),
 			)
@@ -307,7 +304,7 @@ where
 				self.data.update_many(pairs)?;
 				Ok(TableRPC::Ok)
 			}
-			_ => Err(Error::BadRPC(format!("Unexpected table RPC"))),
+			_ => Err(Error::BadRPC("Unexpected table RPC".to_string())),
 		}
 	}
 }

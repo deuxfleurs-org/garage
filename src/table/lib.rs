@@ -1,4 +1,5 @@
 #![recursion_limit = "1024"]
+#![allow(clippy::comparison_chain, clippy::upper_case_acronyms)]
 
 #[macro_use]
 extern crate log;

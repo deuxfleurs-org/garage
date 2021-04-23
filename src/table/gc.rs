@@ -85,8 +85,8 @@ where
 				}
 			}
 			select! {
-				_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => (),
-				_ = must_exit.changed().fuse() => (),
+				_ = tokio::time::sleep(Duration::from_secs(10)).fuse() => {},
+				_ = must_exit.changed().fuse() => {},
 			}
 		}
 	}
@@ -120,7 +120,7 @@ where
 			self.todo_remove_if_equal(&k[..], vhash)?;
 		}
 
-		if entries.len() == 0 {
+		if entries.is_empty() {
 			// Nothing to do in this iteration
 			return Ok(false);
 		}
@@ -247,7 +247,7 @@ where
 				}
 				Ok(GcRPC::Ok)
 			}
-			_ => Err(Error::Message(format!("Unexpected GC RPC"))),
+			_ => Err(Error::Message("Unexpected GC RPC".to_string())),
 		}
 	}
 }

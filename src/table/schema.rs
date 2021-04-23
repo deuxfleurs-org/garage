@@ -18,7 +18,7 @@ impl PartitionKey for String {
 
 impl PartitionKey for Hash {
 	fn hash(&self) -> Hash {
-		self.clone()
+		*self
 	}
 }
 

@@ -62,6 +62,11 @@ where
 	pub fn len(&self) -> usize {
 		self.vals.len()
 	}
+
+	/// Returns true if the map is empty
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
 }
 
 impl<K, V> CRDT for Map<K, V>
@@ -80,5 +85,15 @@ where
 				}
 			}
 		}
+	}
+}
+
+impl<K, V> Default for Map<K, V>
+where
+	K: Clone + Ord,
+	V: Clone + CRDT,
+{
+	fn default() -> Self {
+		Self::new()
 	}
 }

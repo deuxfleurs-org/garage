@@ -94,7 +94,7 @@ where
 	/// put_my_crdt_value(a);
 	/// ```
 	pub fn take_and_clear(&mut self) -> Self {
-		let vals = std::mem::replace(&mut self.vals, vec![]);
+		let vals = std::mem::take(&mut self.vals);
 		Self { vals }
 	}
 	/// Removes all values from the map
@@ -113,9 +113,15 @@ where
 	pub fn items(&self) -> &[(K, u64, V)] {
 		&self.vals[..]
 	}
+
 	/// Returns the number of items in the map
 	pub fn len(&self) -> usize {
 		self.vals.len()
+	}
+
+	/// Returns true if the map is empty
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
 	}
 }
 
@@ -141,5 +147,15 @@ where
 				}
 			}
 		}
+	}
+}
+
+impl<K, V> Default for LWWMap<K, V>
+where
+	K: Ord,
+	V: CRDT,
+{
+	fn default() -> Self {
+		Self::new()
 	}
 }
