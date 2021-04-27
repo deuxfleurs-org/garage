@@ -2,7 +2,8 @@
 
 /// Escape &str for xml inclusion
 pub fn xml_escape(s: &str) -> String {
-	s.replace("<", "&lt;")
+	s.replace("&", "&amp;")
+		.replace("<", "&lt;")
 		.replace(">", "&gt;")
 		.replace("\"", "&quot;")
 }
