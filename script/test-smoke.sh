@@ -3,6 +3,8 @@
 set -ex
 shopt -s expand_aliases
 
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
 SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 
@@ -19,41 +21,45 @@ garage status
 garage key list
 garage bucket list
 
-dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # < INLINE_THRESHOLD = 3072 bytes
-dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5
-dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10
+dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # No multipart, inline storage (< INLINE_THRESHOLD = 3072 bytes)
+dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5 # No multipart but file will be chunked
+dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10 # by default, AWS starts using multipart at 8MB
 
 echo "s3 api testing..."
+awsgrg --version
+s3cmd --version
+python3 --version
+
 for idx in $(seq 1 3); do
-  # AWS sends	
-  awsgrg cp /tmp/garage.$idx.rnd s3://eprouvette/garage.$idx.aws
-  
+  # AWS sends
+  awsgrg cp "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.aws"
+
   awsgrg ls s3://eprouvette
-  
-  awsgrg cp s3://eprouvette/garage.$idx.aws /tmp/garage.$idx.dl
+
+  awsgrg cp "s3://eprouvette/&+-é\"/garage.$idx.aws" "/tmp/garage.$idx.dl"
   diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
-  
-  s3grg get s3://eprouvette/garage.$idx.aws /tmp/garage.$idx.dl
+
+  s3grg get "s3://eprouvette/&+-é\"/garage.$idx.aws" "/tmp/garage.$idx.dl"
   diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
-  
-  awsgrg rm s3://eprouvette/garage.$idx.aws
+
+  awsgrg rm "s3://eprouvette/&+-é\"/garage.$idx.aws"
 
   # S3CMD sends
-  s3grg put /tmp/garage.$idx.rnd s3://eprouvette/garage.$idx.s3cmd
+  s3grg put "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
 
   s3grg ls s3://eprouvette
 	
-  s3grg get s3://eprouvette/garage.$idx.s3cmd /tmp/garage.$idx.dl
+  s3grg get "s3://eprouvette/&+-é\"/garage.$idx.s3cmd" "/tmp/garage.$idx.dl"
   diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
-  
-  awsgrg cp s3://eprouvette/garage.$idx.s3cmd /tmp/garage.$idx.dl
+
+  awsgrg cp "s3://eprouvette/&+-é\"/garage.$idx.s3cmd" "/tmp/garage.$idx.dl"
   diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
   rm /tmp/garage.$idx.dl
 	
-  s3grg rm s3://eprouvette/garage.$idx.s3cmd
+  s3grg rm "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
 done
 rm /tmp/garage.{1,2,3}.rnd
 
