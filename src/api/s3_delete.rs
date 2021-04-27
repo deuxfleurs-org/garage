@@ -85,11 +85,18 @@ pub async fn handle_delete_objects(
 
 	let mut retxml = String::new();
 	writeln!(&mut retxml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(&mut retxml, "<DeleteObjectsOutput>").unwrap();
+	writeln!(
+		&mut retxml,
+		r#"<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
+	)
+	.unwrap();
 
 	for obj in cmd.objects.iter() {
 		match handle_delete_internal(&garage, bucket, &obj.key).await {
 			Ok((deleted_version, delete_marker_version)) => {
+				if cmd.quiet {
+					continue;
+				}
 				writeln!(&mut retxml, "\t<Deleted>").unwrap();
 				writeln!(&mut retxml, "\t\t<Key>{}</Key>", xml_escape(&obj.key)).unwrap();
 				writeln!(
@@ -121,7 +128,7 @@ pub async fn handle_delete_objects(
 		}
 	}
 
-	writeln!(&mut retxml, "</DeleteObjectsOutput>").unwrap();
+	writeln!(&mut retxml, "</DeleteResult>").unwrap();
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
@@ -129,6 +136,7 @@ pub async fn handle_delete_objects(
 }
 
 struct DeleteRequest {
+	quiet: bool,
 	objects: Vec<DeleteObject>,
 }
 
@@ -137,7 +145,10 @@ struct DeleteObject {
 }
 
 fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Option<DeleteRequest> {
-	let mut ret = DeleteRequest { objects: vec![] };
+	let mut ret = DeleteRequest {
+		quiet: false,
+		objects: vec![],
+	};
 
 	let root = xml.root();
 	let delete = root.first_child()?;
@@ -153,6 +164,12 @@ fn parse_delete_objects_xml(xml: &roxmltree::Document) -> Option<DeleteRequest> 
 			ret.objects.push(DeleteObject {
 				key: key_str.to_string(),
 			});
+		} else if item.has_tag_name("Quiet") {
+			if item.text()? == "true" {
+				ret.quiet = true;
+			} else {
+				ret.quiet = false;
+			}
 		} else {
 			return None;
 		}

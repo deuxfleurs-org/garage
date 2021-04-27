@@ -12,6 +12,7 @@ pub use api_server::run_api_server;
 
 mod signature;
 
+mod s3_bucket;
 mod s3_copy;
 mod s3_delete;
 pub mod s3_get;

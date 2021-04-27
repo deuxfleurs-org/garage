@@ -1,7 +1,11 @@
+use std::fmt::Write;
+
 use err_derive::Error;
 use hyper::StatusCode;
 
 use garage_util::error::Error as GarageError;
+
+use crate::encoding::*;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -23,6 +27,10 @@ pub enum Error {
 	/// No proper api key was used, or the signature was invalid
 	#[error(display = "Forbidden: {}", _0)]
 	Forbidden(String),
+
+	/// Authorization Header Malformed
+	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
+	AuthorizationHeaderMalformed(String),
 
 	/// The object requested don't exists
 	#[error(display = "Not found")]
@@ -76,6 +84,29 @@ impl Error {
 			}
 			_ => StatusCode::BAD_REQUEST,
 		}
+	}
+
+	pub fn aws_code(&self) -> &'static str {
+		match self {
+			Error::NotFound => "NoSuchKey",
+			Error::Forbidden(_) => "AccessDenied",
+			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
+			Error::InternalError(GarageError::RPC(_)) => "ServiceUnavailable",
+			Error::InternalError(_) | Error::Hyper(_) | Error::HTTP(_) => "InternalError",
+			_ => "InvalidRequest",
+		}
+	}
+
+	pub fn aws_xml(&self, garage_region: &str, path: &str) -> String {
+		let mut xml = String::new();
+		writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
+		writeln!(&mut xml, "<Error>").unwrap();
+		writeln!(&mut xml, "\t<Code>{}</Code>", self.aws_code()).unwrap();
+		writeln!(&mut xml, "\t<Message>{}</Message>", self).unwrap();
+		writeln!(&mut xml, "\t<Resource>{}</Resource>", xml_escape(path)).unwrap();
+		writeln!(&mut xml, "\t<Region>{}</Region>", garage_region).unwrap();
+		writeln!(&mut xml, "</Error>").unwrap();
+		xml
 	}
 }
 

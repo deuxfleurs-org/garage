@@ -14,6 +14,7 @@ use garage_model::garage::Garage;
 use crate::error::*;
 use crate::signature::check_signature;
 
+use crate::s3_bucket::*;
 use crate::s3_copy::*;
 use crate::s3_delete::*;
 use crate::s3_get::*;
@@ -52,17 +53,21 @@ async fn handler(
 	req: Request<Body>,
 	addr: SocketAddr,
 ) -> Result<Response<Body>, GarageError> {
-	info!("{} {} {}", addr, req.method(), req.uri());
+	let uri = req.uri().clone();
+	info!("{} {} {}", addr, req.method(), uri);
 	debug!("{:?}", req);
-	match handler_inner(garage, req).await {
+	match handler_inner(garage.clone(), req).await {
 		Ok(x) => {
 			debug!("{} {:?}", x.status(), x.headers());
 			Ok(x)
 		}
 		Err(e) => {
-			let body: Body = Body::from(format!("{}\n", e));
-			let mut http_error = Response::new(body);
-			*http_error.status_mut() = e.http_status_code();
+			let body: Body = Body::from(e.aws_xml(&garage.config.s3_api.s3_region, uri.path()));
+			let http_error = Response::builder()
+				.status(e.http_status_code())
+				.header("Content-Type", "application/xml")
+				.body(body)?;
+
 			if e.http_status_code().is_server_error() {
 				warn!("Response: error {}, {}", e.http_status_code(), e);
 			} else {
@@ -211,9 +216,14 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				))
 			}
 			&Method::GET => {
-				// ListObjects or ListObjectsV2 query
-				let q = parse_list_objects_query(bucket, &params)?;
-				Ok(handle_list(garage, &q).await?)
+				if params.contains_key("location") {
+					// GetBucketLocation call
+					Ok(handle_get_bucket_location(garage)?)
+				} else {
+					// ListObjects or ListObjectsV2 query
+					let q = parse_list_objects_query(bucket, &params)?;
+					Ok(handle_list(garage, &q).await?)
+				}
 			}
 			&Method::POST => {
 				if params.contains_key(&"delete".to_string()) {

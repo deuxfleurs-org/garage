@@ -58,10 +58,7 @@ pub async fn check_signature(
 		garage.config.s3_api.s3_region
 	);
 	if authorization.scope != scope {
-		return Err(Error::BadRequest(format!(
-			"Invalid scope in authorization field, expected: {}",
-			scope
-		)));
+		return Err(Error::AuthorizationHeaderMalformed(scope.to_string()));
 	}
 
 	let key = garage
@@ -101,7 +98,9 @@ pub async fn check_signature(
 		return Err(Error::Forbidden(format!("Invalid signature")));
 	}
 
-	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
+	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD"
+		|| authorization.content_sha256 == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+	{
 		None
 	} else {
 		let bytes = hex::decode(authorization.content_sha256)
