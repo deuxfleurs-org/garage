@@ -47,6 +47,21 @@ EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"
 
+if [ -z "$SKIP_HTTPS" ]; then
+  echo -en "$LABEL Starting dummy HTTPS reverse proxy\n"
+  mkdir -p /tmp/garagessl
+  openssl req \
+    -new \
+    -x509 \
+    -keyout /tmp/garagessl/test.key \
+    -out /tmp/garagessl/test.crt \
+    -nodes  \
+    -subj "/C=XX/ST=XX/L=XX/O=XX/OU=XX/CN=localhost/emailAddress=X@X.XX" \
+    -addext "subjectAltName = DNS:localhost, IP:127.0.0.1"
+  cat /tmp/garagessl/test.key /tmp/garagessl/test.crt > /tmp/garagessl/test.pem
+  socat openssl-listen:4443,reuseaddr,fork,cert=/tmp/garagessl/test.pem,verify=0 tcp4-connect:localhost:3911 &
+fi
+
 (garage server -c /tmp/config.$count.toml 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
 done
 

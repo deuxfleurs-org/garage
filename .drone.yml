@@ -37,7 +37,7 @@ steps:
       - nonexistent_skip_this_step
 
   - name: build
-    image: lxpz/garage_builder_amd64:1
+    image: superboum/garage_builder_amd64:3
     volumes:
     - name: cargo_home
       path: /drone/cargo
@@ -49,7 +49,7 @@ steps:
       - cargo build
 
   - name: cargo-test
-    image: lxpz/garage_builder_amd64:1
+    image: superboum/garage_builder_amd64:3
     volumes:
     - name: cargo_home
       path: /drone/cargo
@@ -85,7 +85,7 @@ steps:
       - nonexistent_skip_this_step
 
   - name: smoke-test
-    image: lxpz/garage_builder_amd64:1
+    image: superboum/garage_builder_amd64:3
     volumes:
     - name: cargo_home
       path: /drone/cargo
@@ -129,6 +129,6 @@ steps:
 
 ---
 kind: signature
-hmac: de82026387bd09e547dbc9cc5d232fd865204b4f393d32508c50b58f8e60611d
+hmac: d584c2a15ede6d5702fbe27ae5ae2b2bf7a04461ae7aed2d53cbda83b7fd503e
 
 ...
