@@ -1,0 +1,70 @@
+\documentclass[compress]{beamer}
+
+\input{header.tex}
+
+%% Metadata %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Distributed object storage is centralised}
+\subtitle{A quest for autonomy in the modern hosting ecology}
+\author{Adrien Luxey}
+\date{Wednesday, 28th April, 2021}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Begin document %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+%% Title page %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+{
+\setbeamertemplate{footline}{} 
+\setbeamertemplate{headline}{} 
+\begin{frame}
+\titlepage
+\end{frame}
+}
+
+%% Contents %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{introduction.tex}
+\input{sota.tex}
+\input{escaping_the_cloud.tex}
+\input{garage.tex}
+\input{conclusion.tex}
+
+
+%% Bibliography %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{frame}
+% \large
+% \raggedright
+% Références
+
+% \printbibliography
+% \end{frame}
+
+%% Ending %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+{
+\setbeamertemplate{footline}{} 
+\setbeamertemplate{headline}{} 
+\begin{frame}
+\centering
+
+\vspace{1cm}
+\Large Thank you for your attention.
+
+\vspace{2cm}
+\large Now let's chat!
+
+\vspace{1cm}
+\raggedleft
+\includegraphics[width=.2\textwidth]{figures/m_proxy_gray.pdf}
+\end{frame}
+}
+
+%% Appendices %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \appendix
+% \input{sprinkler_appendix.tex}
+% \input{cascade_appendix.tex}
+% \input{spores_appendix.tex}
+
+
+\end{document}

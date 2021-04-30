@@ -1,0 +1,10 @@
+*.bbl
+*.aux
+*.bcf
+*.blg
+*.log
+*.run.xml
+*.synctex.gz
+build/
+main.pdf
+figures/crdt.pdf

@@ -1,0 +1,124 @@
+\section{Escaping the cloud}
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \begin{frame}{Down to Earth with home-hosting}
+
+
+% \todo{Stanley Parabole reference?}
+
+% \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Why?}
+
+\begin{itemize}
+	\item \textbf{Privacy}: no prying eyes besides your ISP
+	\item \textbf{Control} of your infrastructure
+	\item \textbf{Ecology}: reuse old hardware
+\end{itemize}
+
+\vfill
+\begin{block}{\emph{Tim Berners-Lee} (1994)}
+``Now, if someone tries to monopolize the Web, for example pushes proprietary variations on network protocols, then that would make me unhappy.''
+\end{block}
+
+\begin{itemize}
+	\item Make Tim Berners-Lee happy
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{What?}
+
+\centering\Large
+A data store for commodity hardware on heterogenous household connections. 
+
+
+\vfill\raggedright\normalsize
+
+
+\begin{block}{Targetting user-facing services}
+\begin{itemize}
+	\item Static sites 
+	\item E-mails
+	\item Instant communication
+	%\item Video streaming % No need for a data store
+	\item Collaboration 
+\end{itemize}
+\end{block}
+\vfill
+
+Nothing fancy like sensors data streams, AI or IoT.
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{What?}
+
+
+\begin{block}{Requirements}
+\begin{itemize}
+	\item \textbf{No single point of failure} / flat hierarchy: 
+
+	Any node can die for extended periods of time.
+	\item \textbf{Multi-site}: cluster spans regions/countries.
+	\item \textbf{Acceptable performance}.
+	\item \textbf{Lightweight}: targets legacy hardware.
+	\item \textbf{Conceptually simple}: built for low-tech organisations.
+
+	Adding/maintaining cluster nodes should be easy.
+\end{itemize}
+\end{block}
+\vfill 
+
+\begin{block}{Non-goals}
+\begin{itemize}
+	\item \textbf{Super badass performance}.
+	\item \textbf{NAT traversal} etc.: we require full-mesh connectivity.
+\end{itemize}
+\end{block}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{How?}
+
+\begin{itemize}
+	\item Theoretically possible with object storage \& CRDTs.
+	\vfill
+	\item Household uplinks are getting decent (optical fibers).
+\end{itemize}
+
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}{Research Questions}
+
+\begin{itemize}
+	\item Decent performance despite bad inter-node connectivity.
+	\vfill
+
+	\item Tailoring workloads as a function of nodes' capabilities:
+
+	\begin{itemize}
+		\item Make use of low-end nodes (e.g. Raspberry Pis),
+		\item Avoid impeding global performance because of low-end nodes.
+	\end{itemize}
+	\vfill
+
+	\item Building CRDTs for target use-cases:
+
+	\begin{itemize}
+		\item Software engineering: DSL or native code?
+		\item Provide APIs to data store users? Risky?
+	\end{itemize}
+	\vfill
+
+	\item Cluster management: effortless UX, low perf. overhead.
+\end{itemize}
+\end{frame}
