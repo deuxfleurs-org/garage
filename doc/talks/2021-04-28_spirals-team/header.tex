@@ -1,0 +1,134 @@
+%% Imports %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage{csquotes} % Elegant quotes (must be loaded before babel)
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+% \usepackage{amsfonts}
+% \usepackage{amssymb}
+%\usepackage{lmodern}
+\usepackage{iwona}
+\usepackage{color}
+\usepackage{xspace}
+\usepackage{amsmath}
+\usepackage{hanging}
+\usepackage{listings}
+\lstset{basicstyle=\scriptsize}
+\usepackage{tikz}
+\usepackage{tikzsymbols} % For emojis
+%\usepackage{setspace} % Activation disables footnoes
+\usepackage{perpage} % Reset footnote counter every page
+\MakePerPage{footnote}
+\usepackage{nameref} % For printing the sections' name
+\usepackage{hyperref}
+
+%% Biblio %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[style=alphabetic,giveninits=true,sorting=none,hyperref,backend=biber,maxnames=3]{biblatex}
+\addbibresource{bibliography.bib}
+
+%% Templating %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{pgf}
+\usepackage{xifthen, tikz}
+
+\usetheme{default} 
+
+\makeatletter
+
+
+%%% colors
+\definecolor{bleuroi}{RGB}{0, 8, 88}
+\definecolor{vertemeraude}{RGB}{0, 64, 44}
+\definecolor{lightgray}{RGB}{245,245,245}
+\definecolor{encre_de_chine}{RGB}{9,36,53}
+\definecolor{im_lost_in_your_eyes}{RGB}{110,138,159}
+\definecolor{metallic_grey}{RGB}{209,219,221}
+\definecolor{metallic_white}{RGB}{229,239,241}
+\definecolor{boss}{RGB}{229,72,27}
+\definecolor{toon_eyes}{RGB}{3,4,6}
+
+\setbeamercolor{frametitle}{bg=bleuroi,fg=white}
+\setbeamercolor*{normal text}{fg=toon_eyes,bg=white} 
+\setbeamercolor*{block title}{fg=white,bg=vertemeraude}
+\setbeamercolor*{block body}{fg=toon_eyes,bg=vertemeraude!5}
+\setbeamercolor{alerted text}{fg=vertemeraude}
+\setbeamercolor*{example text}{fg=toon_eyes,bg=white} 
+\setbeamercolor*{structure}{fg=bleuroi,bg=white}
+% sectionnavigation:
+\setbeamercolor*{section in head/foot}{fg=bleuroi,bg=white}
+
+% \let\oldtextbf\textbf
+% \renewcommand{\textbf}[1]{\textcolor{bleuroi}{\oldtextbf{#1}}}
+
+%%% Rounded boxes with no shading
+\pgfdeclareverticalshading[lower.bg,upper.bg]{bmb@transition}{200cm}{%
+  color(0pt)=(upper.bg); color(2pt)=(upper.bg); color(4pt)=(upper.bg)}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+
+%%% Who on Earth uses navigation bars?
+\setbeamertemplate{navigation symbols}{}
+
+
+%%% Headline with sections
+\setbeamertemplate{headline}
+{%
+  \begin{beamercolorbox}[wd=\paperwidth,dp=.5ex,ht=2ex]{section in head/foot}
+    \insertsectionnavigationhorizontal{\paperwidth}{\hskip0pt plus1fill}{\hskip0pt plus1fill}\par % Centered
+    %\insertsectionnavigationhorizontal{\paperwidth}{}{\hfill\hfill} % Left aligned
+  \end{beamercolorbox}%
+}
+% Set the colors of the section bar
+\usesectionheadtemplate
+  {\colorbox{fg}{\color{bg} \insertsectionhead}}
+  {\color{fg!40!bg} \insertsectionhead}
+
+% \newlength\lpg@linewd
+% \setbox0=\hbox{\strut}
+% \newlength\strutht \strutht\ht0
+% \newlength\strutdp \strutdp\dp0
+
+\setbeamertemplate{frametitle}
+{
+  \begin{beamercolorbox}[wd=\paperwidth,dp=1ex,ht=2.6ex,leftskip=.7cm,rightskip=.7cm]{frametitle}
+    %\vskip-1ex
+    %[wd=\lpg@linewd, ht=\strutht, dp=\strutdp]{frametitle}
+    %\vskip-.8ex\hskip0.7cm
+    %\vskip-.8ex
+    \usebeamerfont{frametitle}\strut\insertframetitle
+    \ifx\insertframesubtitle\@empty
+    \else
+    \hfill \usebeamerfont{framesubtitle}\strut\insertframesubtitle
+    \fi%
+  \end{beamercolorbox}
+}
+
+
+%%% Page numbering in footline
+\setbeamertemplate{footline}{
+\hbox{\begin{beamercolorbox}[wd=1\paperwidth,ht=2.5ex,dp=1ex,right]{framenumber in head/foot}%
+    \usebeamerfont{framenumber in head/foot}%
+    %\insertframenumber\space/\space\inserttotalframenumber\hspace{0.3em}
+    \insertframenumber\hspace{0.5em}
+\end{beamercolorbox}}}
+
+%%% Reduce foot citation size
+\renewcommand{\footnotesize}{\tiny}
+
+%%% Display footnotes (not working, still no footnotes)
+% \setbeamertemplate{footnote}{%
+%   \hangpara{2em}{1}%
+%   \makebox[2em][l]{\insertfootnotemark}\footnotesize\insertfootnotetext\par%
+% }
+
+
+\makeatother
+
+%% Commentaires %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\annote}[3]{{
+    \colorbox{#3}{\bfseries\sffamily\footnotesize\textcolor{white}{#2}}
+    \color{#3}
+    $\blacktriangleright$\textit{#1}$\blacktriangleleft$}
+}
+%% Uncomment for final version (removes notes)
+%\renewcommand{\annote}[3]{}
+
+\newcommand{\todo}[1]{\annote{#1}{TODO}{green}}

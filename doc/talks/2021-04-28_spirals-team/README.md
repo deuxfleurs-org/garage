@@ -1,0 +1,1 @@
+Presentation of Garage by Adrien on April, 28th 2021, for his research team [Spirals](https://team.inria.fr/spirals/).
