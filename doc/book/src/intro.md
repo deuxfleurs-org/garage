@@ -89,9 +89,9 @@ If you encounter a specific bug in Garage or plan to patch it, you may jump dire
 
 We love to talk and hear about Garage, that's why we keep a log here:
 
-  - [(en, 2021-04-28) Distributed object storage is centralised](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/talks/doc/main/2021-04-28_spirals-team/talk.pdf)
+  - [(en, 2021-04-28) Distributed object storage is centralised](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2021-04-28_spirals-team/talk.pdf)
 
-  - [(fr, 2020-12-02) Garage : jouer dans la cour des grands quand on est un hébergeur associatif](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/main/doc/talks/2020-12-02_wide-team/talk.pdf)
+  - [(fr, 2020-12-02) Garage : jouer dans la cour des grands quand on est un hébergeur associatif](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2020-12-02_wide-team/talk.pdf)
 
 *Did you write or talk about Garage? [Open a pull request](https://git.deuxfleurs.fr/Deuxfleurs/garage/) to add a link here!*
 
