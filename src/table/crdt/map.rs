@@ -22,7 +22,7 @@ pub struct Map<K, V> {
 impl<K, V> Map<K, V>
 where
 	K: Clone + Ord,
-	V: Clone + CRDT,
+	V: Clone + Crdt,
 {
 	/// Create a new empty map CRDT
 	pub fn new() -> Self {
@@ -69,10 +69,10 @@ where
 	}
 }
 
-impl<K, V> CRDT for Map<K, V>
+impl<K, V> Crdt for Map<K, V>
 where
 	K: Clone + Ord,
-	V: Clone + CRDT,
+	V: Clone + Crdt,
 {
 	fn merge(&mut self, other: &Self) {
 		for (k, v2) in other.vals.iter() {
@@ -91,7 +91,7 @@ where
 impl<K, V> Default for Map<K, V>
 where
 	K: Clone + Ord,
-	V: Clone + CRDT,
+	V: Clone + Crdt,
 {
 	fn default() -> Self {
 		Self::new()

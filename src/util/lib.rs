@@ -1,4 +1,3 @@
-#![allow(clippy::upper_case_acronyms)]
 //! Crate containing common functions and types used in Garage
 
 #[macro_use]

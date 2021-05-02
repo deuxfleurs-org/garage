@@ -36,14 +36,14 @@ use crate::crdt::crdt::*;
 /// This scheme is used by AWS S3 or Soundcloud and often without knowing
 /// in enterprise when reconciliating databases with ad-hoc scripts.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct LWW<T> {
+pub struct Lww<T> {
 	ts: u64,
 	v: T,
 }
 
-impl<T> LWW<T>
+impl<T> Lww<T>
 where
-	T: CRDT,
+	T: Crdt,
 {
 	/// Creates a new CRDT
 	///
@@ -99,9 +99,9 @@ where
 	}
 }
 
-impl<T> CRDT for LWW<T>
+impl<T> Crdt for Lww<T>
 where
-	T: Clone + CRDT,
+	T: Clone + Crdt,
 {
 	fn merge(&mut self, other: &Self) {
 		if other.ts > self.ts {

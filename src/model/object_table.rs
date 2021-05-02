@@ -64,7 +64,7 @@ impl Object {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersion {
 	/// Id of the version
-	pub uuid: UUID,
+	pub uuid: Uuid,
 	/// Timestamp of when the object was created
 	pub timestamp: u64,
 	/// State of the version
@@ -82,7 +82,7 @@ pub enum ObjectVersionState {
 	Aborted,
 }
 
-impl CRDT for ObjectVersionState {
+impl Crdt for ObjectVersionState {
 	fn merge(&mut self, other: &Self) {
 		use ObjectVersionState::*;
 		match other {
@@ -115,7 +115,7 @@ pub enum ObjectVersionData {
 	FirstBlock(ObjectVersionMeta, Hash),
 }
 
-impl AutoCRDT for ObjectVersionData {
+impl AutoCrdt for ObjectVersionData {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
@@ -140,7 +140,7 @@ pub struct ObjectVersionHeaders {
 }
 
 impl ObjectVersion {
-	fn cmp_key(&self) -> (u64, UUID) {
+	fn cmp_key(&self) -> (u64, Uuid) {
 		(self.timestamp, self.uuid)
 	}
 
@@ -178,7 +178,7 @@ impl Entry<String, String> for Object {
 	}
 }
 
-impl CRDT for Object {
+impl Crdt for Object {
 	fn merge(&mut self, other: &Self) {
 		// Merge versions from other into here
 		for other_v in other.versions.iter() {

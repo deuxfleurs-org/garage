@@ -8,12 +8,12 @@ pub trait TableReplication: Send + Sync {
 	// To understand various replication methods
 
 	/// Which nodes to send read requests to
-	fn read_nodes(&self, hash: &Hash) -> Vec<UUID>;
+	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid>;
 	/// Responses needed to consider a read succesfull
 	fn read_quorum(&self) -> usize;
 
 	/// Which nodes to send writes to
-	fn write_nodes(&self, hash: &Hash) -> Vec<UUID>;
+	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid>;
 	/// Responses needed to consider a write succesfull
 	fn write_quorum(&self) -> usize;
 	fn max_write_errors(&self) -> usize;

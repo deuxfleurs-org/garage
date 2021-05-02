@@ -8,7 +8,6 @@ use garage_util::error::Error as GarageError;
 use crate::encoding::*;
 
 /// Errors of this crate
-#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Error)]
 pub enum Error {
 	// Category: internal error
@@ -22,7 +21,7 @@ pub enum Error {
 
 	/// Error related to HTTP
 	#[error(display = "Internal error (HTTP error): {}", _0)]
-	HTTP(#[error(source)] http::Error),
+	Http(#[error(source)] http::Error),
 
 	// Category: cannot process
 	/// No proper api key was used, or the signature was invalid
@@ -40,11 +39,11 @@ pub enum Error {
 	// Category: bad request
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
-	InvalidUTF8Str(#[error(source)] std::str::Utf8Error),
+	InvalidUtf8Str(#[error(source)] std::str::Utf8Error),
 
 	/// The request used an invalid path
 	#[error(display = "Invalid UTF-8: {}", _0)]
-	InvalidUTF8String(#[error(source)] std::string::FromUtf8Error),
+	InvalidUtf8String(#[error(source)] std::string::FromUtf8Error),
 
 	/// Some base64 encoded data was badly encoded
 	#[error(display = "Invalid base64: {}", _0)]
@@ -52,7 +51,7 @@ pub enum Error {
 
 	/// The client sent invalid XML data
 	#[error(display = "Invalid XML: {}", _0)]
-	InvalidXML(String),
+	InvalidXml(String),
 
 	/// The client sent a header with invalid value
 	#[error(display = "Invalid header value: {}", _0)]
@@ -69,13 +68,13 @@ pub enum Error {
 
 impl From<roxmltree::Error> for Error {
 	fn from(err: roxmltree::Error) -> Self {
-		Self::InvalidXML(format!("{}", err))
+		Self::InvalidXml(format!("{}", err))
 	}
 }
 
 impl From<quick_xml::de::DeError> for Error {
 	fn from(err: quick_xml::de::DeError) -> Self {
-		Self::InvalidXML(format!("{}", err))
+		Self::InvalidXml(format!("{}", err))
 	}
 }
 
@@ -85,8 +84,8 @@ impl Error {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::InternalError(GarageError::RPC(_)) => StatusCode::SERVICE_UNAVAILABLE,
-			Error::InternalError(_) | Error::Hyper(_) | Error::HTTP(_) => {
+			Error::InternalError(GarageError::Rpc(_)) => StatusCode::SERVICE_UNAVAILABLE,
+			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
 				StatusCode::INTERNAL_SERVER_ERROR
 			}
 			_ => StatusCode::BAD_REQUEST,
@@ -98,8 +97,8 @@ impl Error {
 			Error::NotFound => "NoSuchKey",
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
-			Error::InternalError(GarageError::RPC(_)) => "ServiceUnavailable",
-			Error::InternalError(_) | Error::Hyper(_) | Error::HTTP(_) => "InternalError",
+			Error::InternalError(GarageError::Rpc(_)) => "ServiceUnavailable",
+			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => "InternalError",
 			_ => "InvalidRequest",
 		}
 	}

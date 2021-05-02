@@ -137,7 +137,7 @@ impl BlockManager {
 			Message::PutBlock(m) => self.write_block(&m.hash, &m.data).await,
 			Message::GetBlock(h) => self.read_block(h).await,
 			Message::NeedBlockQuery(h) => self.need_block(h).await.map(Message::NeedBlockReply),
-			_ => Err(Error::BadRPC("Unexpected RPC message".to_string())),
+			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
 		}
 	}
 

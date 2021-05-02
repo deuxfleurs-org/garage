@@ -14,7 +14,7 @@ use crate::block_ref_table::*;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
 	/// UUID of the version, used as partition key
-	pub uuid: UUID,
+	pub uuid: Uuid,
 
 	// Actual data: the blocks for this version
 	// In the case of a multipart upload, also store the etags
@@ -35,7 +35,7 @@ pub struct Version {
 }
 
 impl Version {
-	pub fn new(uuid: UUID, bucket: String, key: String, deleted: bool) -> Self {
+	pub fn new(uuid: Uuid, bucket: String, key: String, deleted: bool) -> Self {
 		Self {
 			uuid,
 			deleted: deleted.into(),
@@ -78,7 +78,7 @@ pub struct VersionBlock {
 	pub size: u64,
 }
 
-impl AutoCRDT for VersionBlock {
+impl AutoCrdt for VersionBlock {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
@@ -94,7 +94,7 @@ impl Entry<Hash, EmptyKey> for Version {
 	}
 }
 
-impl CRDT for Version {
+impl Crdt for Version {
 	fn merge(&mut self, other: &Self) {
 		self.deleted.merge(&other.deleted);
 

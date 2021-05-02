@@ -32,7 +32,7 @@ pub const MAX_REPLICATION: usize = 3;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
 	/// Map of each node's id to it's configuration
-	pub members: HashMap<UUID, NetworkConfigEntry>,
+	pub members: HashMap<Uuid, NetworkConfigEntry>,
 	/// Version of this config
 	pub version: u64,
 }
@@ -73,7 +73,7 @@ pub struct RingEntry {
 	/// The prefix of the Hash of object which should use this entry
 	pub location: Hash,
 	/// The nodes in which a matching object should get stored
-	pub nodes: [UUID; MAX_REPLICATION],
+	pub nodes: [Uuid; MAX_REPLICATION],
 }
 
 impl Ring {
@@ -92,7 +92,7 @@ impl Ring {
 		let n_datacenters = datacenters.len();
 
 		// Prepare ring
-		let mut partitions: Vec<Vec<(&UUID, &NetworkConfigEntry)>> = partitions_idx
+		let mut partitions: Vec<Vec<(&Uuid, &NetworkConfigEntry)>> = partitions_idx
 			.iter()
 			.map(|_i| Vec::new())
 			.collect::<Vec<_>>();
@@ -180,7 +180,7 @@ impl Ring {
 				let top = (i as u16) << (16 - PARTITION_BITS);
 				let mut hash = [0u8; 32];
 				hash[0..2].copy_from_slice(&u16::to_be_bytes(top)[..]);
-				let nodes = nodes.iter().map(|(id, _info)| **id).collect::<Vec<UUID>>();
+				let nodes = nodes.iter().map(|(id, _info)| **id).collect::<Vec<Uuid>>();
 				RingEntry {
 					location: hash.into(),
 					nodes: nodes.try_into().unwrap(),
@@ -213,7 +213,7 @@ impl Ring {
 
 	// TODO rename this function as it no longer walk the ring
 	/// Walk the ring to find the n servers in which data should be replicated
-	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<UUID> {
+	pub fn walk_ring(&self, from: &Hash, n: usize) -> Vec<Uuid> {
 		if self.ring.len() != 1 << PARTITION_BITS {
 			warn!("Ring not yet ready, read/writes will be lost!");
 			return vec![];

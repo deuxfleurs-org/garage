@@ -22,14 +22,14 @@ use crate::crdt::crdt::*;
 /// the serialization cost `O(n)` would still have to be paid at each modification, so we are
 /// actually not losing anything here.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct LWWMap<K, V> {
+pub struct LwwMap<K, V> {
 	vals: Vec<(K, u64, V)>,
 }
 
-impl<K, V> LWWMap<K, V>
+impl<K, V> LwwMap<K, V>
 where
 	K: Ord,
-	V: CRDT,
+	V: Crdt,
 {
 	/// Create a new empty map CRDT
 	pub fn new() -> Self {
@@ -125,10 +125,10 @@ where
 	}
 }
 
-impl<K, V> CRDT for LWWMap<K, V>
+impl<K, V> Crdt for LwwMap<K, V>
 where
 	K: Clone + Ord,
-	V: Clone + CRDT,
+	V: Clone + Crdt,
 {
 	fn merge(&mut self, other: &Self) {
 		for (k, ts2, v2) in other.vals.iter() {
@@ -150,10 +150,10 @@ where
 	}
 }
 
-impl<K, V> Default for LWWMap<K, V>
+impl<K, V> Default for LwwMap<K, V>
 where
 	K: Ord,
-	V: CRDT,
+	V: Crdt,
 {
 	fn default() -> Self {
 		Self::new()

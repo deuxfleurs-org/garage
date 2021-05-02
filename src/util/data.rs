@@ -88,7 +88,7 @@ impl FixedBytes32 {
 }
 
 /// A 32 bytes UUID
-pub type UUID = FixedBytes32;
+pub type Uuid = FixedBytes32;
 /// A 256 bit cryptographic hash, can be sha256 or blake2 depending on provenance
 pub type Hash = FixedBytes32;
 
@@ -127,7 +127,7 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 }
 
 /// Generate a random 32 bytes UUID
-pub fn gen_uuid() -> UUID {
+pub fn gen_uuid() -> Uuid {
 	rand::thread_rng().gen::<[u8; 32]>().into()
 }
 

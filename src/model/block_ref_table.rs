@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use garage_util::data::*;
 
-use garage_table::crdt::CRDT;
+use garage_table::crdt::Crdt;
 use garage_table::*;
 
 use crate::block::*;
@@ -14,18 +14,18 @@ pub struct BlockRef {
 	pub block: Hash,
 
 	/// Id of the Version for the object containing this block, used as sorting key
-	pub version: UUID,
+	pub version: Uuid,
 
 	// Keep track of deleted status
 	/// Is the Version that contains this block deleted
 	pub deleted: crdt::Bool,
 }
 
-impl Entry<Hash, UUID> for BlockRef {
+impl Entry<Hash, Uuid> for BlockRef {
 	fn partition_key(&self) -> &Hash {
 		&self.block
 	}
-	fn sort_key(&self) -> &UUID {
+	fn sort_key(&self) -> &Uuid {
 		&self.version
 	}
 	fn is_tombstone(&self) -> bool {
@@ -33,7 +33,7 @@ impl Entry<Hash, UUID> for BlockRef {
 	}
 }
 
-impl CRDT for BlockRef {
+impl Crdt for BlockRef {
 	fn merge(&mut self, other: &Self) {
 		self.deleted.merge(&other.deleted);
 	}
@@ -45,7 +45,7 @@ pub struct BlockRefTable {
 
 impl TableSchema for BlockRefTable {
 	type P = Hash;
-	type S = UUID;
+	type S = Uuid;
 	type E = BlockRef;
 	type Filter = DeletedFilter;
 

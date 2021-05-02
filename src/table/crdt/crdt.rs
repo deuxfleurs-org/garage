@@ -18,7 +18,7 @@ use garage_util::data::*;
 /// Moreover, the relationship `≥` defined by `a ≥ b ⇔ ∃c. a = b ⊔ c` must be a partial order.
 /// This implies a few properties such as: if `a ⊔ b ≠ a`, then there is no `c` such that `(a ⊔ b) ⊔ c = a`,
 /// as this would imply a cycle in the partial order.
-pub trait CRDT {
+pub trait Crdt {
 	/// Merge the two datastructures according to the CRDT rules.
 	/// `self` is modified to contain the merged CRDT value. `other` is not modified.
 	///
@@ -31,16 +31,16 @@ pub trait CRDT {
 /// All types that implement `Ord` (a total order) can also implement a trivial CRDT
 /// defined by the merge rule: `a ⊔ b = max(a, b)`. Implement this trait for your type
 /// to enable this behavior.
-pub trait AutoCRDT: Ord + Clone + std::fmt::Debug {
+pub trait AutoCrdt: Ord + Clone + std::fmt::Debug {
 	/// WARN_IF_DIFFERENT: emit a warning when values differ. Set this to true if
 	/// different values in your application should never happen. Set this to false
 	/// if you are actually relying on the semantics of `a ⊔ b = max(a, b)`.
 	const WARN_IF_DIFFERENT: bool;
 }
 
-impl<T> CRDT for T
+impl<T> Crdt for T
 where
-	T: AutoCRDT,
+	T: AutoCrdt,
 {
 	fn merge(&mut self, other: &Self) {
 		if Self::WARN_IF_DIFFERENT && self != other {
@@ -58,14 +58,14 @@ where
 	}
 }
 
-impl AutoCRDT for String {
+impl AutoCrdt for String {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
-impl AutoCRDT for bool {
+impl AutoCrdt for bool {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
-impl AutoCRDT for FixedBytes32 {
+impl AutoCrdt for FixedBytes32 {
 	const WARN_IF_DIFFERENT: bool = true;
 }

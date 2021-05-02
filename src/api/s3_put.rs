@@ -305,7 +305,7 @@ impl BodyChunker {
 	}
 }
 
-pub fn put_response(version_uuid: UUID, md5sum_hex: String) -> Response<Body> {
+pub fn put_response(version_uuid: Uuid, md5sum_hex: String) -> Response<Body> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
 		.header("ETag", format!("\"{}\"", md5sum_hex))
@@ -633,14 +633,14 @@ pub(crate) fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, E
 	})
 }
 
-fn decode_upload_id(id: &str) -> Result<UUID, Error> {
+fn decode_upload_id(id: &str) -> Result<Uuid, Error> {
 	let id_bin = hex::decode(id).ok_or_bad_request("Invalid upload ID")?;
 	if id_bin.len() != 32 {
 		return None.ok_or_bad_request("Invalid upload ID");
 	}
 	let mut uuid = [0u8; 32];
 	uuid.copy_from_slice(&id_bin[..]);
-	Ok(UUID::from(uuid))
+	Ok(Uuid::from(uuid))
 }
 
 #[derive(Debug)]

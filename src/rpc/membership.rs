@@ -56,7 +56,7 @@ impl RpcMessage for Message {}
 /// A ping, containing informations about status and config
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PingMessage {
-	id: UUID,
+	id: Uuid,
 	rpc_port: u16,
 
 	status_hash: Hash,
@@ -69,7 +69,7 @@ pub struct PingMessage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AdvertisedNode {
 	/// Id of the node this advertisement relates to
-	pub id: UUID,
+	pub id: Uuid,
 	/// IP and port of the node
 	pub addr: SocketAddr,
 
@@ -84,7 +84,7 @@ pub struct AdvertisedNode {
 /// This node's membership manager
 pub struct System {
 	/// The id of this node
-	pub id: UUID,
+	pub id: Uuid,
 
 	persist_config: Persister<NetworkConfig>,
 	persist_status: Persister<Vec<AdvertisedNode>>,
@@ -114,7 +114,7 @@ struct Updaters {
 #[derive(Debug, Clone)]
 pub struct Status {
 	/// Mapping of each node id to its known status
-	pub nodes: HashMap<UUID, Arc<StatusEntry>>,
+	pub nodes: HashMap<Uuid, Arc<StatusEntry>>,
 	/// Hash of `nodes`, used to detect when nodes have different views of the cluster
 	pub hash: Hash,
 }
@@ -198,7 +198,7 @@ impl Status {
 	}
 }
 
-fn gen_node_id(metadata_dir: &Path) -> Result<UUID, Error> {
+fn gen_node_id(metadata_dir: &Path) -> Result<Uuid, Error> {
 	let mut id_file = metadata_dir.to_path_buf();
 	id_file.push("node_id");
 	if id_file.as_path().exists() {
@@ -301,7 +301,7 @@ impl System {
 					Message::AdvertiseNodesUp(adv) => self2.handle_advertise_nodes_up(&adv).await,
 					Message::AdvertiseConfig(adv) => self2.handle_advertise_config(&adv).await,
 
-					_ => Err(Error::BadRPC("Unexpected RPC message".to_string())),
+					_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
 				}
 			}
 		});
@@ -369,7 +369,7 @@ impl System {
 			});
 	}
 
-	async fn ping_nodes(self: Arc<Self>, peers: Vec<(SocketAddr, Option<UUID>)>) {
+	async fn ping_nodes(self: Arc<Self>, peers: Vec<(SocketAddr, Option<Uuid>)>) {
 		let ping_msg = self.make_ping();
 		let ping_resps = join_all(peers.iter().map(|(addr, id_option)| {
 			let sys = self.clone();
@@ -640,7 +640,7 @@ impl System {
 	#[allow(clippy::manual_async_fn)]
 	fn pull_status(
 		self: Arc<Self>,
-		peer: UUID,
+		peer: Uuid,
 	) -> impl futures::future::Future<Output = ()> + Send + 'static {
 		async move {
 			let resp = self
@@ -653,7 +653,7 @@ impl System {
 		}
 	}
 
-	async fn pull_config(self: Arc<Self>, peer: UUID) {
+	async fn pull_config(self: Arc<Self>, peer: Uuid) {
 		let resp = self
 			.rpc_client
 			.call(peer, Message::PullConfig, PING_TIMEOUT)

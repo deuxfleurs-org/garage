@@ -11,7 +11,7 @@ use garage_util::error::*;
 
 use garage_rpc::membership::System;
 
-use crate::crdt::CRDT;
+use crate::crdt::Crdt;
 use crate::replication::*;
 use crate::schema::*;
 
@@ -151,7 +151,7 @@ where
 
 			if Some(&new_entry) != old_entry.as_ref() {
 				let new_bytes = rmp_to_vec_all_named(&new_entry)
-					.map_err(Error::RMPEncode)
+					.map_err(Error::RmpEncode)
 					.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
 				let new_bytes_hash = blake2sum(&new_bytes[..]);
 				mkl_todo.insert(tree_key.clone(), new_bytes_hash.as_slice())?;

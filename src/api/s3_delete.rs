@@ -17,7 +17,7 @@ async fn handle_delete_internal(
 	garage: &Garage,
 	bucket: &str,
 	key: &str,
-) -> Result<(UUID, UUID), Error> {
+) -> Result<(Uuid, Uuid), Error> {
 	let object = garage
 		.object_table
 		.get(&bucket.to_string(), &key.to_string())

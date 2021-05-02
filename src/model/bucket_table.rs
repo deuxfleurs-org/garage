@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use garage_table::crdt::CRDT;
+use garage_table::crdt::Crdt;
 use garage_table::*;
 
 use crate::key_table::PermissionSet;
@@ -15,7 +15,7 @@ pub struct Bucket {
 	/// Name of the bucket
 	pub name: String,
 	/// State, and configuration if not deleted, of the bucket
-	pub state: crdt::LWW<BucketState>,
+	pub state: crdt::Lww<BucketState>,
 }
 
 /// State of a bucket
@@ -27,7 +27,7 @@ pub enum BucketState {
 	Present(BucketParams),
 }
 
-impl CRDT for BucketState {
+impl Crdt for BucketState {
 	fn merge(&mut self, o: &Self) {
 		match o {
 			BucketState::Deleted => *self = BucketState::Deleted,
@@ -44,22 +44,22 @@ impl CRDT for BucketState {
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
 	/// Map of key with access to the bucket, and what kind of access they give
-	pub authorized_keys: crdt::LWWMap<String, PermissionSet>,
+	pub authorized_keys: crdt::LwwMap<String, PermissionSet>,
 	/// Is the bucket served as http
-	pub website: crdt::LWW<bool>,
+	pub website: crdt::Lww<bool>,
 }
 
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
 		BucketParams {
-			authorized_keys: crdt::LWWMap::new(),
-			website: crdt::LWW::new(false),
+			authorized_keys: crdt::LwwMap::new(),
+			website: crdt::Lww::new(false),
 		}
 	}
 }
 
-impl CRDT for BucketParams {
+impl Crdt for BucketParams {
 	fn merge(&mut self, o: &Self) {
 		self.authorized_keys.merge(&o.authorized_keys);
 		self.website.merge(&o.website);
@@ -77,7 +77,7 @@ impl Bucket {
 	pub fn new(name: String) -> Self {
 		Bucket {
 			name,
-			state: crdt::LWW::new(BucketState::Present(BucketParams::new())),
+			state: crdt::Lww::new(BucketState::Present(BucketParams::new())),
 		}
 	}
 
@@ -105,7 +105,7 @@ impl Entry<EmptyKey, String> for Bucket {
 	}
 }
 
-impl CRDT for Bucket {
+impl Crdt for Bucket {
 	fn merge(&mut self, other: &Self) {
 		self.state.merge(&other.state);
 	}

@@ -13,14 +13,14 @@ pub struct Key {
 	pub secret_key: String,
 
 	/// Name for the key
-	pub name: crdt::LWW<String>,
+	pub name: crdt::Lww<String>,
 
 	/// Is the key deleted
 	pub deleted: crdt::Bool,
 
 	/// Buckets in which the key is authorized. Empty if `Key` is deleted
 	// CRDT interaction: deleted implies authorized_buckets is empty
-	pub authorized_buckets: crdt::LWWMap<String, PermissionSet>,
+	pub authorized_buckets: crdt::LwwMap<String, PermissionSet>,
 }
 
 impl Key {
@@ -31,9 +31,9 @@ impl Key {
 		Self {
 			key_id,
 			secret_key,
-			name: crdt::LWW::new(name),
+			name: crdt::Lww::new(name),
 			deleted: crdt::Bool::new(false),
-			authorized_buckets: crdt::LWWMap::new(),
+			authorized_buckets: crdt::LwwMap::new(),
 		}
 	}
 
@@ -42,9 +42,9 @@ impl Key {
 		Self {
 			key_id: key_id.to_string(),
 			secret_key: secret_key.to_string(),
-			name: crdt::LWW::new(name.to_string()),
+			name: crdt::Lww::new(name.to_string()),
 			deleted: crdt::Bool::new(false),
-			authorized_buckets: crdt::LWWMap::new(),
+			authorized_buckets: crdt::LwwMap::new(),
 		}
 	}
 
@@ -53,9 +53,9 @@ impl Key {
 		Self {
 			key_id,
 			secret_key: "".into(),
-			name: crdt::LWW::new("".to_string()),
+			name: crdt::Lww::new("".to_string()),
 			deleted: crdt::Bool::new(true),
-			authorized_buckets: crdt::LWWMap::new(),
+			authorized_buckets: crdt::LwwMap::new(),
 		}
 	}
 
@@ -85,7 +85,7 @@ pub struct PermissionSet {
 	pub allow_write: bool,
 }
 
-impl AutoCRDT for PermissionSet {
+impl AutoCrdt for PermissionSet {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
@@ -98,7 +98,7 @@ impl Entry<EmptyKey, String> for Key {
 	}
 }
 
-impl CRDT for Key {
+impl Crdt for Key {
 	fn merge(&mut self, other: &Self) {
 		self.name.merge(&other.name);
 		self.deleted.merge(&other.deleted);

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
-use crate::crdt::CRDT;
+use crate::crdt::Crdt;
 
 /// Trait for field used to partition data
 pub trait PartitionKey {
@@ -42,7 +42,7 @@ impl SortKey for Hash {
 
 /// Trait for an entry in a table. It must be sortable and partitionnable.
 pub trait Entry<P: PartitionKey, S: SortKey>:
-	CRDT + PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
+	Crdt + PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
 {
 	/// Get the key used to partition
 	fn partition_key(&self) -> &P;

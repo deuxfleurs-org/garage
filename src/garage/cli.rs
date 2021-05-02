@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use garage_util::data::UUID;
+use garage_util::data::Uuid;
 use garage_util::error::Error;
 use garage_util::time::*;
 
@@ -385,9 +385,9 @@ pub async fn cmd_status(
 }
 
 pub fn find_matching_node(
-	cand: impl std::iter::Iterator<Item = UUID>,
+	cand: impl std::iter::Iterator<Item = Uuid>,
 	pattern: &str,
-) -> Result<UUID, Error> {
+) -> Result<Uuid, Error> {
 	let mut candidates = vec![];
 	for c in cand {
 		if hex::encode(&c).starts_with(&pattern) {

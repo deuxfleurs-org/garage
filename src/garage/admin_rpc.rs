@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::error::Error;
 
-use garage_table::crdt::CRDT;
+use garage_table::crdt::Crdt;
 use garage_table::replication::*;
 use garage_table::*;
 
@@ -61,7 +61,7 @@ impl AdminRpcHandler {
 					AdminRpc::KeyOperation(ko) => self2.handle_key_cmd(ko).await,
 					AdminRpc::LaunchRepair(opt) => self2.handle_launch_repair(opt).await,
 					AdminRpc::Stats(opt) => self2.handle_stats(opt).await,
-					_ => Err(Error::BadRPC("Invalid RPC".to_string())),
+					_ => Err(Error::BadRpc("Invalid RPC".to_string())),
 				}
 			}
 		});
@@ -88,7 +88,7 @@ impl AdminRpcHandler {
 				let bucket = match self.garage.bucket_table.get(&EmptyKey, &query.name).await? {
 					Some(mut bucket) => {
 						if !bucket.is_deleted() {
-							return Err(Error::BadRPC(format!(
+							return Err(Error::BadRpc(format!(
 								"Bucket {} already exists",
 								query.name
 							)));
@@ -111,10 +111,10 @@ impl AdminRpcHandler {
 					.get_range(&query.name, None, Some(DeletedFilter::NotDeleted), 10)
 					.await?;
 				if !objects.is_empty() {
-					return Err(Error::BadRPC(format!("Bucket {} is not empty", query.name)));
+					return Err(Error::BadRpc(format!("Bucket {} is not empty", query.name)));
 				}
 				if !query.yes {
-					return Err(Error::BadRPC(
+					return Err(Error::BadRpc(
 						"Add --yes flag to really perform this operation".to_string(),
 					));
 				}
@@ -223,7 +223,7 @@ impl AdminRpcHandler {
 			KeyOperation::Delete(query) => {
 				let key = self.get_existing_key(&query.key_pattern).await?;
 				if !query.yes {
-					return Err(Error::BadRPC(
+					return Err(Error::BadRpc(
 						"Add --yes flag to really perform this operation".to_string(),
 					));
 				}
@@ -265,7 +265,7 @@ impl AdminRpcHandler {
 			.await?
 			.filter(|b| !b.is_deleted())
 			.map(Ok)
-			.unwrap_or_else(|| Err(Error::BadRPC(format!("Bucket {} does not exist", bucket))))
+			.unwrap_or_else(|| Err(Error::BadRpc(format!("Bucket {} does not exist", bucket))))
 	}
 
 	async fn get_existing_key(&self, pattern: &str) -> Result<Key, Error> {
@@ -342,7 +342,7 @@ impl AdminRpcHandler {
 
 	async fn handle_launch_repair(self: &Arc<Self>, opt: RepairOpt) -> Result<AdminRpc, Error> {
 		if !opt.yes {
-			return Err(Error::BadRPC(
+			return Err(Error::BadRpc(
 				"Please provide the --yes flag to initiate repair operations.".to_string(),
 			));
 		}

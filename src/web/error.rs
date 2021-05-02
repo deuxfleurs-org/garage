@@ -4,7 +4,6 @@ use hyper::StatusCode;
 use garage_util::error::Error as GarageError;
 
 /// Errors of this crate
-#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Error)]
 pub enum Error {
 	/// An error received from the API crate
@@ -22,7 +21,7 @@ pub enum Error {
 
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
-	InvalidUTF8(#[error(source)] std::str::Utf8Error),
+	InvalidUtf8(#[error(source)] std::str::Utf8Error),
 
 	/// The client send a header with invalid value
 	#[error(display = "Invalid header value: {}", _0)]
@@ -39,7 +38,7 @@ impl Error {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::ApiError(e) => e.http_status_code(),
-			Error::InternalError(GarageError::RPC(_)) => StatusCode::SERVICE_UNAVAILABLE,
+			Error::InternalError(GarageError::Rpc(_)) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			_ => StatusCode::BAD_REQUEST,
 		}

@@ -25,7 +25,7 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
-	fn read_nodes(&self, hash: &Hash) -> Vec<UUID> {
+	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
 		let ring = self.system.ring.borrow().clone();
 		ring.walk_ring(&hash, self.replication_factor)
 	}
@@ -33,7 +33,7 @@ impl TableReplication for TableShardedReplication {
 		self.read_quorum
 	}
 
-	fn write_nodes(&self, hash: &Hash) -> Vec<UUID> {
+	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid> {
 		let ring = self.system.ring.borrow();
 		ring.walk_ring(&hash, self.replication_factor)
 	}

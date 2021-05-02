@@ -27,7 +27,7 @@ impl From<bool> for Bool {
 	}
 }
 
-impl CRDT for Bool {
+impl Crdt for Bool {
 	fn merge(&mut self, other: &Self) {
 		self.0 = self.0 || other.0;
 	}

@@ -34,7 +34,7 @@ struct DisplayName {
 	pub body: String,
 }
 #[derive(Debug, Serialize, PartialEq)]
-struct ID {
+struct Id {
 	#[serde(rename = "$value")]
 	pub body: String,
 }
@@ -43,7 +43,7 @@ struct Owner {
 	#[serde(rename = "DisplayName")]
 	display_name: DisplayName,
 	#[serde(rename = "ID")]
-	id: ID,
+	id: Id,
 }
 #[derive(Debug, Serialize, PartialEq)]
 struct BucketList {
@@ -80,7 +80,7 @@ pub fn handle_list_buckets(api_key: &Key) -> Result<Response<Body>, Error> {
 			display_name: DisplayName {
 				body: api_key.name.get().to_string(),
 			},
-			id: ID {
+			id: Id {
 				body: api_key.key_id.to_string(),
 			},
 		},

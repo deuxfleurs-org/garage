@@ -19,14 +19,14 @@ pub struct TableFullReplication {
 }
 
 impl TableReplication for TableFullReplication {
-	fn read_nodes(&self, _hash: &Hash) -> Vec<UUID> {
+	fn read_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		vec![self.system.id]
 	}
 	fn read_quorum(&self) -> usize {
 		1
 	}
 
-	fn write_nodes(&self, _hash: &Hash) -> Vec<UUID> {
+	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		let ring = self.system.ring.borrow();
 		ring.config.members.keys().cloned().collect::<Vec<_>>()
 	}
