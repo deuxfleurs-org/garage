@@ -72,6 +72,12 @@ impl From<roxmltree::Error> for Error {
 	}
 }
 
+impl From<quick_xml::de::DeError> for Error {
+	fn from(err: quick_xml::de::DeError) -> Self {
+		Self::InvalidXML(format!("{}", err))
+	}
+}
+
 impl Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	pub fn http_status_code(&self) -> StatusCode {

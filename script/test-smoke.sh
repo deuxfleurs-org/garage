@@ -32,6 +32,7 @@ echo "🧪 S3 API testing..."
 if [ -z "$SKIP_AWS" ]; then
   echo "🛠️ Testing with awscli"
   source ${SCRIPT_FOLDER}/dev-env-aws.sh
+  aws s3 ls
   for idx in $(seq 1 3); do
     aws s3 cp "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.aws"
     aws s3 ls s3://eprouvette
@@ -46,6 +47,7 @@ fi
 if [ -z "$SKIP_S3CMD" ]; then
   echo "🛠️ Testing with s3cmd"
   source ${SCRIPT_FOLDER}/dev-env-s3cmd.sh
+  s3cmd ls
   for idx in $(seq 1 3); do
     s3cmd put "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
     s3cmd ls s3://eprouvette
@@ -60,6 +62,7 @@ fi
 if [ -z "$SKIP_MC" ]; then
   echo "🛠️ Testing with mc (minio client)"
   source ${SCRIPT_FOLDER}/dev-env-mc.sh
+  mc ls garage/
   for idx in $(seq 1 3); do
     mc cp "/tmp/garage.$idx.rnd" "garage/eprouvette/&+-é\"/garage.$idx.mc"
     mc ls garage/eprouvette
@@ -74,6 +77,7 @@ fi
 if [ -z "$SKIP_RCLONE" ]; then
   echo "🛠️ Testing with rclone"
   source ${SCRIPT_FOLDER}/dev-env-rclone.sh
+  rclone lsd garage:
   for idx in $(seq 1 3); do
     cp /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
     rclone copy "/tmp/garage.$idx.dl" "garage:eprouvette/&+-é\"/"

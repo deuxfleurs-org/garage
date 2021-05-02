@@ -81,10 +81,12 @@ async fn handler(
 async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
 	let path = req.uri().path().to_string();
 	let path = percent_encoding::percent_decode_str(&path).decode_utf8()?;
+	let (api_key, content_sha256) = check_signature(&garage, &req).await?;
+	if path == "/" {
+		return handle_list_buckets(&api_key);
+	}
 
 	let (bucket, key) = parse_bucket_key(&path)?;
-
-	let (api_key, content_sha256) = check_signature(&garage, &req).await?;
 	let allowed = match req.method() {
 		&Method::HEAD | &Method::GET => api_key.allow_read(&bucket),
 		_ => api_key.allow_write(&bucket),

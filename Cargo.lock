@@ -397,7 +397,9 @@ dependencies = [
  "log",
  "md-5",
  "percent-encoding",
+ "quick-xml",
  "roxmltree",
+ "serde",
  "sha2",
  "tokio",
  "url",
@@ -1033,6 +1035,16 @@ name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
+
+[[package]]
+name = "quick-xml"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0452695941410a58c8ce4391707ba9bad26a247173bd9886a05a5e8a8babec75"
+dependencies = [
+ "memchr",
+ "serde",
+]
 
 [[package]]
 name = "quote"
