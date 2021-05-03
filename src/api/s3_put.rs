@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::fmt::Write;
 use std::sync::Arc;
 
 use futures::stream::*;
@@ -18,8 +17,8 @@ use garage_model::garage::Garage;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
 
-use crate::encoding::*;
 use crate::error::*;
+use crate::s3_xml;
 use crate::signature::verify_signed_content;
 
 pub async fn handle_put(
@@ -339,22 +338,13 @@ pub async fn handle_create_multipart_upload(
 	garage.version_table.insert(&version).await?;
 
 	// Send success response
-	let mut xml = String::new();
-	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(
-		&mut xml,
-		r#"<InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
-	)
-	.unwrap();
-	writeln!(&mut xml, "\t<Bucket>{}</Bucket>", bucket).unwrap();
-	writeln!(&mut xml, "\t<Key>{}</Key>", xml_escape(key)).unwrap();
-	writeln!(
-		&mut xml,
-		"\t<UploadId>{}</UploadId>",
-		hex::encode(version_uuid)
-	)
-	.unwrap();
-	writeln!(&mut xml, "</InitiateMultipartUploadResult>").unwrap();
+	let result = s3_xml::InitiateMultipartUploadResult {
+		xmlns: (),
+		bucket: s3_xml::Value(bucket.to_string()),
+		key: s3_xml::Value(key.to_string()),
+		upload_id: s3_xml::Value(hex::encode(version_uuid)),
+	};
+	let xml = s3_xml::to_xml_with_header(&result)?;
 
 	Ok(Response::new(Body::from(xml.into_bytes())))
 }
@@ -520,7 +510,7 @@ pub async fn handle_complete_multipart_upload(
 		ObjectVersionMeta {
 			headers,
 			size: total_size,
-			etag,
+			etag: etag.clone(),
 		},
 		version.blocks.items()[0].1.hash,
 	));
@@ -529,22 +519,14 @@ pub async fn handle_complete_multipart_upload(
 	garage.object_table.insert(&final_object).await?;
 
 	// Send response saying ok we're done
-	let mut xml = String::new();
-	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(
-		&mut xml,
-		r#"<CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
-	)
-	.unwrap();
-	writeln!(
-		&mut xml,
-		"\t<Location>{}</Location>",
-		garage.config.s3_api.s3_region
-	)
-	.unwrap();
-	writeln!(&mut xml, "\t<Bucket>{}</Bucket>", bucket).unwrap();
-	writeln!(&mut xml, "\t<Key>{}</Key>", xml_escape(&key)).unwrap();
-	writeln!(&mut xml, "</CompleteMultipartUploadResult>").unwrap();
+	let result = s3_xml::CompleteMultipartUploadResult {
+		xmlns: (),
+		location: None,
+		bucket: s3_xml::Value(bucket),
+		key: s3_xml::Value(key),
+		etag: s3_xml::Value(etag),
+	};
+	let xml = s3_xml::to_xml_with_header(&result)?;
 
 	Ok(Response::new(Body::from(xml.into_bytes())))
 }

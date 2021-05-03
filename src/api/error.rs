@@ -1,11 +1,9 @@
-use std::fmt::Write;
-
 use err_derive::Error;
 use hyper::StatusCode;
 
 use garage_util::error::Error as GarageError;
 
-use crate::encoding::*;
+use crate::s3_xml;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -104,15 +102,22 @@ impl Error {
 	}
 
 	pub fn aws_xml(&self, garage_region: &str, path: &str) -> String {
-		let mut xml = String::new();
-		writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-		writeln!(&mut xml, "<Error>").unwrap();
-		writeln!(&mut xml, "\t<Code>{}</Code>", self.aws_code()).unwrap();
-		writeln!(&mut xml, "\t<Message>{}</Message>", self).unwrap();
-		writeln!(&mut xml, "\t<Resource>{}</Resource>", xml_escape(path)).unwrap();
-		writeln!(&mut xml, "\t<Region>{}</Region>", garage_region).unwrap();
-		writeln!(&mut xml, "</Error>").unwrap();
-		xml
+		let error = s3_xml::Error {
+			code: s3_xml::Value(self.aws_code().to_string()),
+			message: s3_xml::Value(format!("{}", self)),
+			resource: Some(s3_xml::Value(path.to_string())),
+			region: Some(s3_xml::Value(garage_region.to_string())),
+		};
+		s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
+			r#"
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+	<Code>InternalError</Code>
+	<Message>XML encoding of error failed</Message>
+</Error>
+			"#
+			.into()
+		})
 	}
 }
 

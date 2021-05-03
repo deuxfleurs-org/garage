@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fmt::Write;
 use std::sync::Arc;
 
 use hyper::{Body, Response};
@@ -14,6 +13,7 @@ use garage_table::DeletedFilter;
 
 use crate::encoding::*;
 use crate::error::*;
+use crate::s3_xml;
 
 #[derive(Debug)]
 pub struct ListObjectsQuery {
@@ -163,126 +163,81 @@ pub async fn handle_list(
 		}
 	}
 
-	let mut xml = String::new();
-	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(
-		&mut xml,
-		r#"<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
-	)
-	.unwrap();
+	let mut result = s3_xml::ListBucketResult {
+		xmlns: (),
+		name: s3_xml::Value(query.bucket.to_string()),
+		prefix: uriencode_maybe(&query.prefix, query.urlencode_resp),
+		marker: None,
+		next_marker: None,
+		start_after: None,
+		continuation_token: None,
+		next_continuation_token: None,
+		max_keys: s3_xml::IntValue(query.max_keys as i64),
+		delimiter: query
+			.delimiter
+			.as_ref()
+			.map(|x| uriencode_maybe(x, query.urlencode_resp)),
+		encoding_type: match query.urlencode_resp {
+			true => Some(s3_xml::Value("url".to_string())),
+			false => None,
+		},
 
-	writeln!(&mut xml, "\t<Name>{}</Name>", query.bucket).unwrap();
-
-	// TODO: in V1, is this supposed to be urlencoded when encoding-type is URL??
-	writeln!(
-		&mut xml,
-		"\t<Prefix>{}</Prefix>",
-		xml_encode_key(&query.prefix, query.urlencode_resp),
-	)
-	.unwrap();
-
-	if let Some(delim) = &query.delimiter {
-		// TODO: in V1, is this supposed to be urlencoded when encoding-type is URL??
-		writeln!(
-			&mut xml,
-			"\t<Delimiter>{}</Delimiter>",
-			xml_encode_key(delim, query.urlencode_resp),
-		)
-		.unwrap();
-	}
-
-	writeln!(&mut xml, "\t<MaxKeys>{}</MaxKeys>", query.max_keys).unwrap();
-	if query.urlencode_resp {
-		writeln!(&mut xml, "\t<EncodingType>url</EncodingType>").unwrap();
-	}
-
-	writeln!(
-		&mut xml,
-		"\t<KeyCount>{}</KeyCount>",
-		result_keys.len() + result_common_prefixes.len()
-	)
-	.unwrap();
-	writeln!(
-		&mut xml,
-		"\t<IsTruncated>{}</IsTruncated>",
-		truncated.is_some()
-	)
-	.unwrap();
+		key_count: Some(s3_xml::IntValue(
+			result_keys.len() as i64 + result_common_prefixes.len() as i64,
+		)),
+		is_truncated: s3_xml::Value(format!("{}", truncated.is_some())),
+		contents: vec![],
+		common_prefixes: vec![],
+	};
 
 	if query.is_v2 {
 		if let Some(ct) = &query.continuation_token {
-			writeln!(&mut xml, "\t<ContinuationToken>{}</ContinuationToken>", ct).unwrap();
+			result.continuation_token = Some(s3_xml::Value(ct.to_string()));
 		}
 		if let Some(sa) = &query.start_after {
-			writeln!(
-				&mut xml,
-				"\t<StartAfter>{}</StartAfter>",
-				xml_encode_key(sa, query.urlencode_resp)
-			)
-			.unwrap();
+			result.start_after = Some(uriencode_maybe(sa, query.urlencode_resp));
 		}
 		if let Some(nct) = truncated {
-			writeln!(
-				&mut xml,
-				"\t<NextContinuationToken>{}</NextContinuationToken>",
-				base64::encode(nct.as_bytes())
-			)
-			.unwrap();
+			result.next_continuation_token = Some(s3_xml::Value(base64::encode(nct.as_bytes())));
 		}
 	} else {
 		// TODO: are these supposed to be urlencoded when encoding-type is URL??
 		if let Some(mkr) = &query.marker {
-			writeln!(
-				&mut xml,
-				"\t<Marker>{}</Marker>",
-				xml_encode_key(mkr, query.urlencode_resp)
-			)
-			.unwrap();
+			result.marker = Some(uriencode_maybe(mkr, query.urlencode_resp));
 		}
 		if let Some(next_marker) = truncated {
-			writeln!(
-				&mut xml,
-				"\t<NextMarker>{}</NextMarker>",
-				xml_encode_key(&next_marker, query.urlencode_resp)
-			)
-			.unwrap();
+			result.next_marker = Some(uriencode_maybe(&next_marker, query.urlencode_resp));
 		}
 	}
 
 	for (key, info) in result_keys.iter() {
-		let last_modif = msec_to_rfc3339(info.last_modified);
-		writeln!(&mut xml, "\t<Contents>").unwrap();
-		writeln!(
-			&mut xml,
-			"\t\t<Key>{}</Key>",
-			xml_encode_key(key, query.urlencode_resp),
-		)
-		.unwrap();
-		writeln!(&mut xml, "\t\t<LastModified>{}</LastModified>", last_modif).unwrap();
-		writeln!(&mut xml, "\t\t<Size>{}</Size>", info.size).unwrap();
-		if !info.etag.is_empty() {
-			writeln!(&mut xml, "\t\t<ETag>\"{}\"</ETag>", info.etag).unwrap();
-		}
-		writeln!(&mut xml, "\t\t<StorageClass>STANDARD</StorageClass>").unwrap();
-		writeln!(&mut xml, "\t</Contents>").unwrap();
+		result.contents.push(s3_xml::ListBucketItem {
+			key: uriencode_maybe(key, query.urlencode_resp),
+			last_modified: s3_xml::Value(msec_to_rfc3339(info.last_modified)),
+			size: s3_xml::IntValue(info.size as i64),
+			etag: s3_xml::Value(info.etag.to_string()),
+			storage_class: s3_xml::Value("STANDARD".to_string()),
+		});
 	}
 
 	for pfx in result_common_prefixes.iter() {
-		writeln!(&mut xml, "\t<CommonPrefixes>").unwrap();
 		//TODO: in V1, are these urlencoded when urlencode_resp is true ?? (proably)
-		writeln!(
-			&mut xml,
-			"\t\t<Prefix>{}</Prefix>",
-			xml_encode_key(pfx, query.urlencode_resp),
-		)
-		.unwrap();
-		writeln!(&mut xml, "\t</CommonPrefixes>").unwrap();
+		result.common_prefixes.push(s3_xml::CommonPrefix {
+			prefix: uriencode_maybe(pfx, query.urlencode_resp),
+		});
 	}
 
-	writeln!(&mut xml, "</ListBucketResult>").unwrap();
-	debug!("{}", xml);
+	let xml = s3_xml::to_xml_with_header(&result)?;
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
 		.body(Body::from(xml.into_bytes()))?)
+}
+
+fn uriencode_maybe(s: &str, yes: bool) -> s3_xml::Value {
+	if yes {
+		s3_xml::Value(uri_encode(s, true))
+	} else {
+		s3_xml::Value(s.to_string())
+	}
 }

@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::sync::Arc;
 
 use hyper::{Body, Request, Response};
@@ -14,6 +13,7 @@ use garage_model::version_table::*;
 
 use crate::error::*;
 use crate::s3_put::get_headers;
+use crate::s3_xml;
 
 pub async fn handle_copy(
 	garage: Arc<Garage>,
@@ -60,6 +60,8 @@ pub async fn handle_copy(
 		},
 		_ => old_meta.clone(),
 	};
+
+	let etag = new_meta.etag.to_string();
 
 	// Save object copy
 	match source_last_state {
@@ -158,13 +160,13 @@ pub async fn handle_copy(
 	}
 
 	let last_modified = msec_to_rfc3339(new_timestamp);
-	let mut xml = String::new();
-	writeln!(&mut xml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(&mut xml, r#"<CopyObjectResult>"#).unwrap();
-	writeln!(&mut xml, "\t<LastModified>{}</LastModified>", last_modified).unwrap();
-	writeln!(&mut xml, "</CopyObjectResult>").unwrap();
+	let result = s3_xml::CopyObjectResult {
+		last_modified: s3_xml::Value(last_modified),
+		etag: s3_xml::Value(etag),
+	};
+	let xml = s3_xml::to_xml_with_header(&result)?;
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(Body::from(xml))?)
 }

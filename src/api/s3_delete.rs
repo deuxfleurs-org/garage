@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::sync::Arc;
 
 use hyper::{Body, Request, Response};
@@ -9,8 +8,8 @@ use garage_util::time::*;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
 
-use crate::encoding::*;
 use crate::error::*;
+use crate::s3_xml;
 use crate::signature::verify_signed_content;
 
 async fn handle_delete_internal(
@@ -85,13 +84,8 @@ pub async fn handle_delete_objects(
 	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
 	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;
 
-	let mut retxml = String::new();
-	writeln!(&mut retxml, r#"<?xml version="1.0" encoding="UTF-8"?>"#).unwrap();
-	writeln!(
-		&mut retxml,
-		r#"<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#
-	)
-	.unwrap();
+	let mut ret_deleted = Vec::new();
+	let mut ret_errors = Vec::new();
 
 	for obj in cmd.objects.iter() {
 		match handle_delete_internal(&garage, bucket, &obj.key).await {
@@ -99,42 +93,32 @@ pub async fn handle_delete_objects(
 				if cmd.quiet {
 					continue;
 				}
-				writeln!(&mut retxml, "\t<Deleted>").unwrap();
-				writeln!(&mut retxml, "\t\t<Key>{}</Key>", xml_escape(&obj.key)).unwrap();
-				writeln!(
-					&mut retxml,
-					"\t\t<VersionId>{}</VersionId>",
-					hex::encode(deleted_version)
-				)
-				.unwrap();
-				writeln!(
-					&mut retxml,
-					"\t\t<DeleteMarkerVersionId>{}</DeleteMarkerVersionId>",
-					hex::encode(delete_marker_version)
-				)
-				.unwrap();
-				writeln!(&mut retxml, "\t</Deleted>").unwrap();
+				ret_deleted.push(s3_xml::Deleted {
+					key: s3_xml::Value(obj.key.clone()),
+					version_id: s3_xml::Value(hex::encode(deleted_version)),
+					delete_marker_version_id: s3_xml::Value(hex::encode(delete_marker_version)),
+				});
 			}
 			Err(e) => {
-				writeln!(&mut retxml, "\t<Error>").unwrap();
-				writeln!(&mut retxml, "\t\t<Code>{}</Code>", e.http_status_code()).unwrap();
-				writeln!(&mut retxml, "\t\t<Key>{}</Key>", xml_escape(&obj.key)).unwrap();
-				writeln!(
-					&mut retxml,
-					"\t\t<Message>{}</Message>",
-					xml_escape(&format!("{}", e))
-				)
-				.unwrap();
-				writeln!(&mut retxml, "\t</Error>").unwrap();
+				ret_errors.push(s3_xml::DeleteError {
+					code: s3_xml::Value(e.aws_code().to_string()),
+					key: Some(s3_xml::Value(obj.key.clone())),
+					message: s3_xml::Value(format!("{}", e)),
+					version_id: None,
+				});
 			}
 		}
 	}
 
-	writeln!(&mut retxml, "</DeleteResult>").unwrap();
+	let xml = s3_xml::to_xml_with_header(&s3_xml::DeleteResult {
+		xmlns: (),
+		deleted: ret_deleted,
+		errors: ret_errors,
+	})?;
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(retxml.into_bytes()))?)
+		.body(Body::from(xml))?)
 }
 
 struct DeleteRequest {
