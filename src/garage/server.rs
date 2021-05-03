@@ -40,7 +40,12 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Opening database...");
 	let mut db_path = config.metadata_dir.clone();
 	db_path.push("db");
-	let db = sled::open(&db_path).expect("Unable to open sled DB");
+	let db = sled::Config::default()
+		.path(&db_path)
+		.cache_capacity(config.sled_cache_capacity)
+		.flush_every_ms(Some(config.sled_flush_every_ms))
+		.open()
+		.expect("Unable to open sled DB");
 
 	info!("Initialize RPC server...");
 	let mut rpc_server = RpcServer::new(config.rpc_bind_addr.clone(), config.rpc_tls.clone());
