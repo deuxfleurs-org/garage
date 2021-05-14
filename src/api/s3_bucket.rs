@@ -21,6 +21,19 @@ pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<Body>,
 		.body(Body::from(xml.into_bytes()))?)
 }
 
+pub fn handle_get_bucket_versioning() -> Result<Response<Body>, Error> {
+	let versioning = s3_xml::VersioningConfiguration {
+		xmlns: (),
+		status: None,
+	};
+
+	let xml = s3_xml::to_xml_with_header(&versioning)?;
+
+	Ok(Response::builder()
+		.header("Content-Type", "application/xml")
+		.body(Body::from(xml.into_bytes()))?)
+}
+
 pub fn handle_list_buckets(api_key: &Key) -> Result<Response<Body>, Error> {
 	let list_buckets = s3_xml::ListAllMyBucketsResult {
 		owner: s3_xml::Owner {

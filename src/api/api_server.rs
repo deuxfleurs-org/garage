@@ -221,6 +221,9 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				if params.contains_key("location") {
 					// GetBucketLocation call
 					Ok(handle_get_bucket_location(garage)?)
+				} else if params.contains_key("versioning") {
+					// GetBucketVersioning
+					Ok(handle_get_bucket_versioning()?)
 				} else {
 					// ListObjects or ListObjectsV2 query
 					let q = parse_list_objects_query(bucket, &params)?;

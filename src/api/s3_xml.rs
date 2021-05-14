@@ -195,6 +195,14 @@ pub struct ListBucketResult {
 	pub common_prefixes: Vec<CommonPrefix>,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct VersioningConfiguration {
+	#[serde(serialize_with = "xmlns_tag")]
+	pub xmlns: (),
+	#[serde(rename = "Status")]
+	pub status: Option<Value>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -276,6 +284,30 @@ mod tests {
 			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
 <LocationConstraint xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">garage</LocationConstraint>"
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn get_bucket_versioning_result() -> Result<(), ApiError> {
+		let get_bucket_versioning = VersioningConfiguration {
+			xmlns: (),
+			status: None,
+		};
+		assert_eq!(
+			to_xml_with_header(&get_bucket_versioning)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"/>"
+		);
+		let get_bucket_versioning2 = VersioningConfiguration {
+			xmlns: (),
+			status: Some(Value("Suspended".to_string())),
+		};
+		assert_eq!(
+			to_xml_with_header(&get_bucket_versioning2)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>Suspended</Status></VersioningConfiguration>"
+		);
+
 		Ok(())
 	}
 
