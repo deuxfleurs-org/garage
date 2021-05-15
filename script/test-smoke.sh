@@ -10,6 +10,9 @@ GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
 PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
 
+# @FIXME Duck is not ready for testing, we have a bug
+SKIP_DUCK=1
+
 echo "⏳ Setup"
 cargo build
 ${SCRIPT_FOLDER}/dev-clean.sh
@@ -87,6 +90,22 @@ if [ -z "$SKIP_RCLONE" ]; then
     diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     rclone delete "garage:eprouvette/&+-é\"/garage.$idx.dl"
+  done
+fi
+
+# Duck (aka Cyberduck CLI)
+if [ -z "$SKIP_DUCK" ]; then
+  echo "🛠️ Testing with duck (aka cyberduck cli)"
+  source ${SCRIPT_FOLDER}/dev-env-duck.sh
+  duck --list garage:/
+  duck --mkdir "garage:/eprouvette/duck"
+  for idx in $(seq 1 3); do
+    duck --verbose --upload "garage:/eprouvette/duck/" "/tmp/garage.$idx.rnd" 
+    duck --list garage:/eprouvette/duck/
+    duck --download "garage:/eprouvette/duck/garage.$idx.rnd" "/tmp/garage.$idx.dl"
+    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    rm /tmp/garage.$idx.dl
+    duck --delete "garage:/eprouvette/duck/garage.$idx.dk"
   done
 fi
 
