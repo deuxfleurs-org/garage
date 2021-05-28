@@ -350,16 +350,16 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "futures",
  "futures-util",
  "garage_api",
  "garage_model",
- "garage_rpc",
+ "garage_rpc 0.3.0",
  "garage_table",
- "garage_util",
+ "garage_util 0.3.0",
  "garage_web",
  "git-version",
  "hex",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "base64",
  "bytes",
@@ -387,7 +387,7 @@ dependencies = [
  "futures-util",
  "garage_model",
  "garage_table",
- "garage_util",
+ "garage_util 0.3.0",
  "hex",
  "hmac",
  "http",
@@ -407,14 +407,14 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "arc-swap",
  "futures",
  "futures-util",
- "garage_rpc",
+ "garage_rpc 0.3.0",
  "garage_table",
- "garage_util",
+ "garage_util 0.3.0",
  "hex",
  "log",
  "rand",
@@ -428,12 +428,40 @@ dependencies = [
 [[package]]
 name = "garage_rpc"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48c182633cebe4abed9594afb14770fc45402513765d38a4b19659ae0ccb2a2f"
 dependencies = [
  "arc-swap",
  "bytes",
  "futures",
  "futures-util",
- "garage_util",
+ "garage_util 0.2.1",
+ "gethostname",
+ "hex",
+ "http",
+ "hyper",
+ "hyper-rustls",
+ "log",
+ "rmp-serde",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-rustls",
+ "tokio-stream",
+ "webpki",
+]
+
+[[package]]
+name = "garage_rpc"
+version = "0.3.0"
+dependencies = [
+ "arc-swap",
+ "bytes",
+ "futures",
+ "futures-util",
+ "garage_rpc 0.2.1",
+ "garage_util 0.3.0",
  "gethostname",
  "hex",
  "http",
@@ -452,13 +480,13 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "futures",
  "futures-util",
- "garage_rpc",
- "garage_util",
+ "garage_rpc 0.3.0",
+ "garage_util 0.3.0",
  "hexdump",
  "log",
  "rand",
@@ -472,6 +500,33 @@ dependencies = [
 [[package]]
 name = "garage_util"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef76d3779e406a16fdcaffe8d86b8ae2943a549d2b33f2c20930838764464c0"
+dependencies = [
+ "blake2",
+ "chrono",
+ "err-derive",
+ "futures",
+ "hex",
+ "http",
+ "hyper",
+ "log",
+ "rand",
+ "rmp-serde",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sled",
+ "tokio",
+ "toml",
+ "webpki",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "garage_util"
+version = "0.3.0"
 dependencies = [
  "blake2",
  "chrono",
@@ -496,14 +551,14 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "err-derive",
  "futures",
  "garage_api",
  "garage_model",
  "garage_table",
- "garage_util",
+ "garage_util 0.3.0",
  "http",
  "hyper",
  "idna",

@@ -38,6 +38,31 @@ impl NetworkConfig {
 			version: 0,
 		}
 	}
+
+	pub(crate) fn migrate_from_021(old: garage_rpc_021::ring::NetworkConfig) -> Self {
+		let members = old
+			.members
+			.into_iter()
+			.map(|(id, conf)| {
+				(
+					Hash::try_from(id.as_slice()).unwrap(),
+					NetworkConfigEntry {
+						zone: conf.datacenter,
+						capacity: if conf.capacity == 0 {
+							None
+						} else {
+							Some(conf.capacity)
+						},
+						tag: conf.tag,
+					},
+				)
+			})
+			.collect();
+		Self {
+			members,
+			version: old.version,
+		}
+	}
 }
 
 /// The overall configuration of one (possibly remote) node
@@ -178,8 +203,7 @@ impl Ring {
 								.iter()
 								.map(|(_id, info)| info.zone.as_str())
 								.collect::<HashSet<&str>>();
-							if (p_zns.len() < n_zones
-								&& !p_zns.contains(&node_info.zone.as_str()))
+							if (p_zns.len() < n_zones && !p_zns.contains(&node_info.zone.as_str()))
 								|| (p_zns.len() == n_zones
 									&& !partitions[qv].iter().any(|(id, _i)| id == node_id))
 							{

@@ -467,9 +467,7 @@ pub async fn cmd_configure(
 						"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
 			};
 			NetworkConfigEntry {
-				zone: args
-					.zone
-					.expect("Please specifiy a zone with the -z flag"),
+				zone: args.zone.expect("Please specifiy a zone with the -z flag"),
 				capacity,
 				tag: args.tag.unwrap_or_default(),
 			}
@@ -481,9 +479,7 @@ pub async fn cmd_configure(
 				_ => old.capacity,
 			};
 			NetworkConfigEntry {
-				zone: args
-					.zone
-					.unwrap_or_else(|| old.zone.to_string()),
+				zone: args.zone.unwrap_or_else(|| old.zone.to_string()),
 				capacity,
 				tag: args.tag.unwrap_or_else(|| old.tag.to_string()),
 			}

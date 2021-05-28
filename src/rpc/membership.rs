@@ -240,11 +240,21 @@ impl System {
 		let net_config = match persist_config.load() {
 			Ok(x) => x,
 			Err(e) => {
-				info!(
-					"No valid previous network configuration stored ({}), starting fresh.",
-					e
-				);
-				NetworkConfig::new()
+				match Persister::<garage_rpc_021::ring::NetworkConfig>::new(
+					&metadata_dir,
+					"network_config",
+				)
+				.load()
+				{
+					Ok(old_config) => NetworkConfig::migrate_from_021(old_config),
+					Err(e2) => {
+						info!(
+							"No valid previous network configuration stored ({}, {}), starting fresh.",
+							e, e2
+						);
+						NetworkConfig::new()
+					}
+				}
 			}
 		};
 
