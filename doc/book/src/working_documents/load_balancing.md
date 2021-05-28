@@ -1,8 +1,8 @@
-## Load Balancing Data (planned for version 0.2)
+# Load Balancing Data (planned for version 0.2)
 
 I have conducted a quick study of different methods to load-balance data over different Garage nodes using consistent hashing.
 
-### Requirements
+## Requirements
 
 - *good balancing*: two nodes that have the same announced capacity should receive close to the same number of items
 
@@ -15,9 +15,9 @@ I have conducted a quick study of different methods to load-balance data over di
   replicas, independently of the order in which nodes were added/removed (this
   is to keep the implementation simple)
 
-### Methods
+## Methods
 
-#### Naive multi-DC ring walking strategy
+### Naive multi-DC ring walking strategy
 
 This strategy can be used with any ring-like algorithm to make it aware of the *multi-datacenter* requirement:
 
@@ -38,7 +38,7 @@ This method was implemented in the first version of Garage, with the basic
 ring construction from Dynamo DB that consists in associating `n_token` random positions to
 each node (I know it's not optimal, the Dynamo paper already studies this).
 
-#### Better rings
+### Better rings
 
 The ring construction that selects `n_token` random positions for each nodes gives a ring of positions that
 is not well-balanced: the space between the tokens varies a lot, and some partitions are thus bigger than others.
@@ -150,7 +150,7 @@ removing grisou gipsie : 49.22% 36.52% 12.79% 1.46%
 on average:  62.94% 27.89% 8.61% 0.57%                  <-- WORSE THAN PREVIOUSLY
 ```
 
-#### The magical solution: multi-DC aware MagLev
+### The magical solution: multi-DC aware MagLev
 
 Suppose we want to select three replicas for each partition (this is what we do in our simulation and in most Garage deployments).
 We apply MagLev three times consecutively, one for each replica selection.

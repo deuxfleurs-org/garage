@@ -6,8 +6,9 @@ The `garage` binary has two purposes:
 
 In this section, we will see how to use the `garage` binary as a control tool for the daemon we just started.
 You first need to get a shell having access to this binary, which depends of your configuration:
-  - with `docker-compose`, run `sudo docker-compose exec g1 bash` then `/garage/garage`
-  - with `docker`, run `sudo docker exec -ti garaged bash` then `/garage/garage`
+
+  - with `docker`, run `sudo docker exec -ti garaged bash`, you will now have a shell
+    where the Garage binary is available as `/garage/garage`
   - with `systemd`, simply run `/usr/local/bin/garage` if you followed previous instructions
 
 *You can also install the binary on your machine to remotely control the cluster.*
@@ -27,14 +28,12 @@ The 3 first ones are certificates and keys needed by TLS, the last one is simply
 Because we configure garage directly from the server, we do not need to set `--rpc-host`.
 To avoid typing the 3 first options each time we want to run a command, we will create an alias.
 
-### `docker-compose` alias
+### test deployment
 
-```bash
-alias garagectl='/garage/garage \
-  --ca-cert /pki/garage-ca.crt \
-  --client-cert /pki/garage.crt \
-  --client-key /pki/garage.key'
-```
+If you have simply deployed Garage on your local machine, without TLS, you can invoke
+`garage` directly without any of these parameters and without making a `garagectl` alias
+(replace mentions of `garagectl` in the next sections by `garage`).
+
 
 ### `docker` alias
 
@@ -44,7 +43,6 @@ alias garagectl='/garage/garage \
   --client-cert /etc/garage/pki/garage.crt \
   --client-key /etc/garage/pki/garage.key'
 ```
-
 
 ### raw binary alias
 
@@ -74,4 +72,4 @@ Healthy nodes:
 8781c50c410a41b3…	758338dde686	[::ffff:172.20.0.102]:3901	UNCONFIGURED/REMOVED
 ```
 
-...which means that you are ready to configure your cluster!
+...which means that you are ready to [configure your cluster](05_cluster.md)!

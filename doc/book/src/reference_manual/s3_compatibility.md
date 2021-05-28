@@ -1,6 +1,6 @@
-## S3 Compatibility status
+# S3 Compatibility status
 
-### Global S3 features
+## Global S3 features
 
 Implemented:
 
@@ -18,7 +18,7 @@ Not implemented:
 - most `x-amz-` headers
 
 
-### Endpoint implementation
+## Endpoint implementation
 
 All APIs that are not mentionned are not implemented and will return a 400 bad request.
 

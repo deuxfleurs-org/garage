@@ -4,6 +4,9 @@ We recommend the use of MinIO Client to interact with Garage files (`mc`).
 Instructions to install it and use it are provided on the [MinIO website](https://docs.min.io/docs/minio-client-quickstart-guide.html).
 Before reading the following, you need a working `mc` command on your path.
 
+Note that on certain Linux distributions such as Arch Linux, the Minio client binary
+is called `mcli` instead of `mc` (to avoid name clashes with the Midnight Commander).
+
 ## Configure `mc`
 
 You need your access key and secret key created in the [previous section](bucket.md).
