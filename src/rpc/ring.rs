@@ -45,7 +45,7 @@ impl NetworkConfig {
 pub struct NetworkConfigEntry {
 	/// Datacenter at which this entry belong. This infromation might be used to perform a better
 	/// geodistribution
-	pub datacenter: String,
+	pub zone: String,
 	/// The (relative) capacity of the node
 	/// If this is set to None, the node does not participate in storing data for the system
 	/// and is only active as an API gateway to other nodes
@@ -109,13 +109,13 @@ impl Ring {
 		// Create a vector of partition indices (0 to 2**PARTITION_BITS-1)
 		let partitions_idx = (0usize..(1usize << PARTITION_BITS)).collect::<Vec<_>>();
 
-		let datacenters = config
+		let zones = config
 			.members
 			.iter()
 			.filter(|(_id, info)| info.capacity.is_some())
-			.map(|(_id, info)| info.datacenter.as_str())
+			.map(|(_id, info)| info.zone.as_str())
 			.collect::<HashSet<&str>>();
-		let n_datacenters = datacenters.len();
+		let n_zones = zones.len();
 
 		// Prepare ring
 		let mut partitions: Vec<Vec<(&Uuid, &NetworkConfigEntry)>> = partitions_idx
@@ -174,13 +174,13 @@ impl Ring {
 							if partitions[qv].len() != rep {
 								continue;
 							}
-							let p_dcs = partitions[qv]
+							let p_zns = partitions[qv]
 								.iter()
-								.map(|(_id, info)| info.datacenter.as_str())
+								.map(|(_id, info)| info.zone.as_str())
 								.collect::<HashSet<&str>>();
-							if (p_dcs.len() < n_datacenters
-								&& !p_dcs.contains(&node_info.datacenter.as_str()))
-								|| (p_dcs.len() == n_datacenters
+							if (p_zns.len() < n_zones
+								&& !p_zns.contains(&node_info.zone.as_str()))
+								|| (p_zns.len() == n_zones
 									&& !partitions[qv].iter().any(|(id, _i)| id == node_id))
 							{
 								partitions[qv].push((node_id, node_info));

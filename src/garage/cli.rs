@@ -72,9 +72,9 @@ pub struct ConfigureNodeOpt {
 	/// Node to configure (prefix of hexadecimal node id)
 	node_id: String,
 
-	/// Location (datacenter) of the node
-	#[structopt(short = "d", long = "datacenter")]
-	datacenter: Option<String>,
+	/// Location (zone or datacenter) of the node
+	#[structopt(short = "z", long = "zone")]
+	zone: Option<String>,
 
 	/// Capacity (in relative terms, use 1 to represent your smallest server)
 	#[structopt(short = "c", long = "capacity")]
@@ -347,7 +347,7 @@ pub async fn cmd_status(
 				adv.state_info.hostname,
 				adv.addr,
 				cfg.tag,
-				cfg.datacenter,
+				cfg.zone,
 				cfg.capacity_string()
 			);
 		} else {
@@ -374,7 +374,7 @@ pub async fn cmd_status(
 					adv.state_info.hostname,
 					adv.addr,
 					cfg.tag,
-					cfg.datacenter,
+					cfg.zone,
 					cfg.capacity_string(),
 					(now_msec() - adv.last_seen) / 1000,
 				);
@@ -386,7 +386,7 @@ pub async fn cmd_status(
 					"{:?}\t{}\t{}\t{}\tnever seen",
 					id,
 					cfg.tag,
-					cfg.datacenter,
+					cfg.zone,
 					cfg.capacity_string(),
 				);
 			}
@@ -467,9 +467,9 @@ pub async fn cmd_configure(
 						"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
 			};
 			NetworkConfigEntry {
-				datacenter: args
-					.datacenter
-					.expect("Please specifiy a datacenter with the -d flag"),
+				zone: args
+					.zone
+					.expect("Please specifiy a zone with the -z flag"),
 				capacity,
 				tag: args.tag.unwrap_or_default(),
 			}
@@ -481,9 +481,9 @@ pub async fn cmd_configure(
 				_ => old.capacity,
 			};
 			NetworkConfigEntry {
-				datacenter: args
-					.datacenter
-					.unwrap_or_else(|| old.datacenter.to_string()),
+				zone: args
+					.zone
+					.unwrap_or_else(|| old.zone.to_string()),
 				capacity,
 				tag: args.tag.unwrap_or_else(|| old.tag.to_string()),
 			}
