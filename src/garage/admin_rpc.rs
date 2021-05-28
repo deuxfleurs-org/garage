@@ -430,8 +430,8 @@ impl AdminRpcHandler {
 		// Gather ring statistics
 		let ring = self.garage.system.ring.borrow().clone();
 		let mut ring_nodes = HashMap::new();
-		for r in ring.ring.iter() {
-			for n in r.nodes.iter() {
+		for (_i, loc) in ring.partitions().iter() {
+			for n in ring.get_nodes(loc, ring.replication_factor).iter() {
 				if !ring_nodes.contains_key(n) {
 					ring_nodes.insert(*n, 0usize);
 				}

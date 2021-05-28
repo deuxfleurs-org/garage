@@ -31,9 +31,7 @@ bootstrap_peers = [
   "127.0.0.1:3903"
 ]
 max_concurrent_rpc_requests = 12
-data_replication_factor = 3
-meta_replication_factor = 3
-meta_epidemic_fanout = 3
+replication_mode = "3"
 
 [s3_api]
 api_bind_addr = "0.0.0.0:$((3910+$count))"	# the S3 API port, HTTP without TLS. Add a reverse proxy for the TLS part.

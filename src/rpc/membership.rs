@@ -95,6 +95,7 @@ pub struct System {
 	rpc_http_client: Arc<RpcHttpClient>,
 	rpc_client: Arc<RpcClient<Message>>,
 
+	replication_factor: usize,
 	pub(crate) status: watch::Receiver<Arc<Status>>,
 	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
@@ -228,6 +229,7 @@ impl System {
 		rpc_http_client: Arc<RpcHttpClient>,
 		background: Arc<BackgroundRunner>,
 		rpc_server: &mut RpcServer,
+		replication_factor: usize,
 	) -> Arc<Self> {
 		let id = gen_node_id(&metadata_dir).expect("Unable to read or generate node ID");
 		info!("Node ID: {}", hex::encode(&id));
@@ -259,7 +261,7 @@ impl System {
 				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 		};
 
-		let ring = Ring::new(net_config);
+		let ring = Ring::new(net_config, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
 		let rpc_path = MEMBERSHIP_RPC_PATH.to_string();
@@ -277,6 +279,7 @@ impl System {
 			state_info,
 			rpc_http_client,
 			rpc_client,
+			replication_factor,
 			status,
 			ring,
 			update_lock: Mutex::new(Updaters {
@@ -543,7 +546,7 @@ impl System {
 		let ring: Arc<Ring> = self.ring.borrow().clone();
 
 		if adv.version > ring.config.version {
-			let ring = Ring::new(adv.clone());
+			let ring = Ring::new(adv.clone(), self.replication_factor);
 			update_lock.update_ring.send(Arc::new(ring))?;
 			drop(update_lock);
 

@@ -80,6 +80,10 @@ pub struct ConfigureNodeOpt {
 	#[structopt(short = "c", long = "capacity")]
 	capacity: Option<u32>,
 
+	/// Gateway-only node
+	#[structopt(short = "g", long = "gateway")]
+	gateway: bool,
+
 	/// Optional node tag
 	#[structopt(short = "t", long = "tag")]
 	tag: Option<String>,
@@ -339,7 +343,12 @@ pub async fn cmd_status(
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
 				"{:?}\t{}\t{}\t[{}]\t{}\t{}",
-				adv.id, adv.state_info.hostname, adv.addr, cfg.tag, cfg.datacenter, cfg.capacity
+				adv.id,
+				adv.state_info.hostname,
+				adv.addr,
+				cfg.tag,
+				cfg.datacenter,
+				cfg.capacity_string()
 			);
 		} else {
 			println!(
@@ -366,7 +375,7 @@ pub async fn cmd_status(
 					adv.addr,
 					cfg.tag,
 					cfg.datacenter,
-					cfg.capacity,
+					cfg.capacity_string(),
 					(now_msec() - adv.last_seen) / 1000,
 				);
 			}
@@ -375,7 +384,10 @@ pub async fn cmd_status(
 			if !status.iter().any(|x| x.id == *id) {
 				println!(
 					"{:?}\t{}\t{}\t{}\tnever seen",
-					id, cfg.tag, cfg.datacenter, cfg.capacity
+					id,
+					cfg.tag,
+					cfg.datacenter,
+					cfg.capacity_string(),
 				);
 			}
 		}
@@ -438,23 +450,44 @@ pub async fn cmd_configure(
 		}
 	}
 
+	if args.capacity.is_some() && args.gateway {
+		return Err(Error::Message(
+				"-c and -g are mutually exclusive, please configure node either with c>0 to act as a storage node or with -g to act as a gateway node".into()));
+	}
+	if args.capacity == Some(0) {
+		return Err(Error::Message("Invalid capacity value: 0".into()));
+	}
+
 	let new_entry = match config.members.get(&added_node) {
-		None => NetworkConfigEntry {
-			datacenter: args
-				.datacenter
-				.expect("Please specifiy a datacenter with the -d flag"),
-			capacity: args
-				.capacity
-				.expect("Please specifiy a capacity with the -c flag"),
-			tag: args.tag.unwrap_or_default(),
-		},
-		Some(old) => NetworkConfigEntry {
-			datacenter: args
-				.datacenter
-				.unwrap_or_else(|| old.datacenter.to_string()),
-			capacity: args.capacity.unwrap_or(old.capacity),
-			tag: args.tag.unwrap_or_else(|| old.tag.to_string()),
-		},
+		None => {
+			let capacity = match args.capacity {
+				Some(c) => Some(c),
+				None if args.gateway => None,
+				_ => return Err(Error::Message(
+						"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
+			};
+			NetworkConfigEntry {
+				datacenter: args
+					.datacenter
+					.expect("Please specifiy a datacenter with the -d flag"),
+				capacity,
+				tag: args.tag.unwrap_or_default(),
+			}
+		}
+		Some(old) => {
+			let capacity = match args.capacity {
+				Some(c) => Some(c),
+				None if args.gateway => None,
+				_ => old.capacity,
+			};
+			NetworkConfigEntry {
+				datacenter: args
+					.datacenter
+					.unwrap_or_else(|| old.datacenter.to_string()),
+				capacity,
+				tag: args.tag.unwrap_or_else(|| old.tag.to_string()),
+			}
+		}
 	};
 
 	config.members.insert(added_node, new_entry);

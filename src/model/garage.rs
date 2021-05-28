@@ -7,6 +7,7 @@ use garage_rpc::membership::System;
 use garage_rpc::rpc_client::RpcHttpClient;
 use garage_rpc::rpc_server::RpcServer;
 
+use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
@@ -50,6 +51,9 @@ impl Garage {
 		background: Arc<BackgroundRunner>,
 		rpc_server: &mut RpcServer,
 	) -> Arc<Self> {
+		let replication_mode = ReplicationMode::parse(&config.replication_mode)
+			.expect("Invalid replication_mode in config file.");
+
 		info!("Initialize membership management system...");
 		let rpc_http_client = Arc::new(
 			RpcHttpClient::new(config.max_concurrent_rpc_requests, &config.rpc_tls)
@@ -60,32 +64,33 @@ impl Garage {
 			rpc_http_client,
 			background.clone(),
 			rpc_server,
+			replication_mode.replication_factor(),
 		);
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),
-			replication_factor: config.data_replication_factor,
-			write_quorum: (config.data_replication_factor + 1) / 2,
+			replication_factor: replication_mode.replication_factor(),
+			write_quorum: replication_mode.write_quorum(),
 			read_quorum: 1,
 		};
 
 		let meta_rep_param = TableShardedReplication {
 			system: system.clone(),
-			replication_factor: config.meta_replication_factor,
-			write_quorum: (config.meta_replication_factor + 1) / 2,
-			read_quorum: (config.meta_replication_factor + 1) / 2,
+			replication_factor: replication_mode.replication_factor(),
+			write_quorum: replication_mode.write_quorum(),
+			read_quorum: replication_mode.read_quorum(),
 		};
 
 		let control_rep_param = TableFullReplication {
 			system: system.clone(),
-			max_faults: config.control_write_max_faults,
+			max_faults: replication_mode.control_write_max_faults(),
 		};
 
 		info!("Initialize block manager...");
 		let block_manager = BlockManager::new(
 			&db,
 			config.data_dir.clone(),
-			data_rep_param.clone(),
+			data_rep_param,
 			system.clone(),
 			rpc_server,
 		);
@@ -95,7 +100,7 @@ impl Garage {
 			BlockRefTable {
 				block_manager: block_manager.clone(),
 			},
-			data_rep_param,
+			meta_rep_param.clone(),
 			system.clone(),
 			&db,
 			"block_ref".to_string(),

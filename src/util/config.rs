@@ -15,6 +15,17 @@ pub struct Config {
 	/// Path where to store data. Can be slower, but need higher volume
 	pub data_dir: PathBuf,
 
+	/// Size of data blocks to save to disk
+	#[serde(default = "default_block_size")]
+	pub block_size: usize,
+
+	/// Replication mode. Supported values:
+	/// - none, 1 -> no replication
+	/// - 2 -> 2-way replication
+	/// - 3 -> 3-way replication
+	// (we can add more aliases for this later)
+	pub replication_mode: String,
+
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
 
@@ -26,6 +37,13 @@ pub struct Config {
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
 
+	/// Configuration for RPC TLS
+	pub rpc_tls: Option<TlsConfig>,
+
+	/// Max number of concurrent RPC request
+	#[serde(default = "default_max_concurrent_rpc_requests")]
+	pub max_concurrent_rpc_requests: usize,
+
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]
 	pub sled_cache_capacity: u64,
@@ -33,28 +51,6 @@ pub struct Config {
 	/// Sled flush interval in milliseconds
 	#[serde(default = "default_sled_flush_every_ms")]
 	pub sled_flush_every_ms: u64,
-
-	/// Max number of concurrent RPC request
-	#[serde(default = "default_max_concurrent_rpc_requests")]
-	pub max_concurrent_rpc_requests: usize,
-
-	/// Size of data blocks to save to disk
-	#[serde(default = "default_block_size")]
-	pub block_size: usize,
-
-	#[serde(default = "default_control_write_max_faults")]
-	pub control_write_max_faults: usize,
-
-	/// How many nodes should hold a copy of meta data
-	#[serde(default = "default_replication_factor")]
-	pub meta_replication_factor: usize,
-
-	/// How many nodes should hold a copy of data
-	#[serde(default = "default_replication_factor")]
-	pub data_replication_factor: usize,
-
-	/// Configuration for RPC TLS
-	pub rpc_tls: Option<TlsConfig>,
 
 	/// Configuration for S3 api
 	pub s3_api: ApiConfig,
@@ -105,12 +101,6 @@ fn default_max_concurrent_rpc_requests() -> usize {
 }
 fn default_block_size() -> usize {
 	1048576
-}
-fn default_replication_factor() -> usize {
-	3
-}
-fn default_control_write_max_faults() -> usize {
-	1
 }
 
 /// Read and parse configuration
