@@ -11,7 +11,7 @@ As this part is not relevant for a test cluster, you can use this three-liner to
 
 ```bash
 garagectl status | grep UNCONFIGURED | grep -Po '^[0-9a-f]+' | while read id; do 
-    garagectl node configure -d dc1 -c 1 $id
+    garagectl node configure -z dc1 -c 1 $id
 done
 ```
 

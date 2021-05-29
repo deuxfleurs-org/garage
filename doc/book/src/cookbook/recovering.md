@@ -92,7 +92,7 @@ Then, replace the broken node by the new one, using:
 
 ```
 garage node configure --replace <old_node_id> \
-		-c <capacity> -d <datacenter> -t <node_tag> <new_node_id>
+		-c <capacity> -z <zone> -t <node_tag> <new_node_id>
 ```
 
 Garage will then start synchronizing all required data on the new node.

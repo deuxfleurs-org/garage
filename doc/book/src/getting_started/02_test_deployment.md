@@ -72,7 +72,7 @@ Use the following command to start Garage in a docker container:
 ```
 docker run -d \
 		-p 3901:3901 -p 3902:3902 -p 3900:3900 \
-		-v ./config.toml:/garage/config.toml \
+		-v $PWD/garage.toml:/garage/garage.toml \
 		lxpz/garage_amd64:v0.3.0
 ```
 
@@ -82,7 +82,7 @@ at launch time. For instance:
 ```
 docker run -d \
 		-p 3901:3901 -p 3902:3902 -p 3900:3900 \
-		-v ./config.toml:/garage/config.toml \
+		-v $PWD/garage.toml:/garage/garage.toml \
 		-e RUST_LOG=garage=info \
 		lxpz/garage_amd64:v0.3.0
 ```

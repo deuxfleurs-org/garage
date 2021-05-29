@@ -12,7 +12,7 @@ You first need to generate TLS certificates to encrypt traffic between Garage no
 To generate your TLS certificates, run on your machine:
 
 ```
-wget https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/master/genkeys.sh
+wget https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/main/genkeys.sh
 chmod +x genkeys.sh
 ./genkeys.sh
 ```
@@ -49,13 +49,13 @@ For our example, we will suppose the following infrastructure with IPv6 connecti
 On each machine, we will have a similar setup,
 especially you must consider the following folders/files:
 
-  - `/etc/garage/config.toml`: Garage daemon's configuration (see below)
+  - `/etc/garage/garage.toml`: Garage daemon's configuration (see below)
   - `/etc/garage/pki/`: Folder containing Garage certificates, must be generated on your computer and copied on the servers
   - `/var/lib/garage/meta/`: Folder containing Garage's metadata, put this folder on a SSD if possible
   - `/var/lib/garage/data/`: Folder containing Garage's data, this folder will grows and must be on a large storage, possibly big HDDs.
   - `/etc/systemd/system/garage.service`: Service file to start garage at boot automatically (defined below, not required if you use docker)
 
-A valid `/etc/garage/config.toml` for our cluster would be:
+A valid `/etc/garage/garage.toml` for our cluster would be:
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
@@ -103,7 +103,7 @@ docker run \
   --restart always \
   --network host \
   -v /etc/garage/pki:/etc/garage/pki \
-  -v /etc/garage/config.toml:/garage/config.toml \
+  -v /etc/garage/garage.toml:/garage/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
   lxpz/garage_amd64:v0.3.0
@@ -130,7 +130,7 @@ Wants=network-online.target
 
 [Service]
 Environment='RUST_LOG=garage=info' 'RUST_BACKTRACE=1'
-ExecStart=/usr/local/bin/garage server -c /etc/garage/config.toml
+ExecStart=/usr/local/bin/garage server -c /etc/garage/garage.toml
 
 [Install]
 WantedBy=multi-user.target

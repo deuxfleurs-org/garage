@@ -125,7 +125,7 @@ pub enum BucketOperation {
 	#[structopt(name = "allow")]
 	Allow(PermBucketOpt),
 
-	/// Allow key to read or write to bucket
+	/// Deny key from reading or writing to bucket
 	#[structopt(name = "deny")]
 	Deny(PermBucketOpt),
 

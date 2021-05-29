@@ -279,9 +279,13 @@ impl RpcHttpClient {
 		tls_config: &Option<TlsConfig>,
 	) -> Result<Self, Error> {
 		let method = if let Some(cf) = tls_config {
-			let ca_certs = tls_util::load_certs(&cf.ca_cert)?;
-			let node_certs = tls_util::load_certs(&cf.node_cert)?;
-			let node_key = tls_util::load_private_key(&cf.node_key)?;
+			let ca_certs = tls_util::load_certs(&cf.ca_cert).map_err(|e| {
+				Error::Message(format!("Failed to open CA certificate file: {:?}", e))
+			})?;
+			let node_certs = tls_util::load_certs(&cf.node_cert)
+				.map_err(|e| Error::Message(format!("Failed to open certificate file: {:?}", e)))?;
+			let node_key = tls_util::load_private_key(&cf.node_key)
+				.map_err(|e| Error::Message(format!("Failed to open private key file: {:?}", e)))?;
 
 			let mut config = rustls::ClientConfig::new();
 
