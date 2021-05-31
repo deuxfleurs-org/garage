@@ -65,11 +65,10 @@ your data to be persisted properly.
 Use the following command to launch the Garage server with our configuration file:
 
 ```
-garage server -c garage.toml
+RUST_LOG=garage=info garage server -c garage.toml
 ```
 
-By default, Garage displays almost no output. You can tune Garage's verbosity as follows
-(from less verbose to more verbose):
+You can tune Garage's verbosity as follows (from less verbose to more verbose):
 
 ```
 RUST_LOG=garage=info garage server -c garage.toml
@@ -262,5 +261,5 @@ The following tools can also be used to send and recieve files from/to Garage:
 - [Cyberduck](https://cyberduck.io/)
 - [`s3cmd`](https://s3tools.org/s3cmd)
 
-Refer to the ["configuring clients"](../cookbook/clients.md) to learn how to configure
+Refer to the ["configuring clients"](../cookbook/clients.md) page to learn how to configure
 these clients to interact with a Garage server.

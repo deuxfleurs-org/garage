@@ -14,6 +14,7 @@ Not implemented:
 
 - vhost-style URLs (`bucket.garage.tld/key`)
 - object-level ACL
+- object versioning
 - encryption
 - most `x-amz-` headers
 
@@ -54,6 +55,15 @@ Implemented.
 
 Implemented.
 
+#### GetBucketLocation
+
+Implemented.
+
+#### GetBucketVersioning
+
+Stub implementation (Garage does not yet support versionning so this always returns
+"versionning not enabled").
+
 #### GetObject
 
 Implemented.
@@ -63,6 +73,10 @@ Implemented.
 Implemented.
 
 #### HeadObject
+
+Implemented.
+
+#### ListBuckets
 
 Implemented.
 

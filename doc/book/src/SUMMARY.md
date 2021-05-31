@@ -17,7 +17,7 @@
 - [Reference Manual](./reference_manual/index.md)
   - [Garage configuration file](./reference_manual/configuration.md)
   - [Garage CLI](./reference_manual/cli.md)
-  - [S3 API](./reference_manual/s3_compatibility.md)
+  - [S3 compatibility status](./reference_manual/s3_compatibility.md)
 
 - [Design](./design/index.md)
   - [Related Work](./design/related_work.md)
