@@ -1,3 +1,3 @@
-# Host a website
+# Hosting a website
 
 TODO
