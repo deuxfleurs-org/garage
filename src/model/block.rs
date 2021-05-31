@@ -599,11 +599,19 @@ impl BlockManager {
 					Err(_) => continue,
 				};
 				let ent_type = data_dir_ent.file_type().await?;
+				let mut iter_name = name.split('.');
+				let name = iter_name
+					.next()
+					.expect("split always contain at least one item");
+				let corrupted = iter_name
+					.last()
+					.map(|ext| ext == "corrupted")
+					.unwrap_or(false);
 
 				if name.len() == 2 && hex::decode(&name).is_ok() && ent_type.is_dir() {
 					self.repair_aux_read_dir_rec(&data_dir_ent.path(), must_exit)
 						.await?;
-				} else if name.len() == 64 {
+				} else if name.len() == 64 && !corrupted {
 					let hash_bytes = match hex::decode(&name) {
 						Ok(h) => h,
 						Err(_) => continue,
