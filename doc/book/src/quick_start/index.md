@@ -40,7 +40,9 @@ replication_mode = "none"
 
 rpc_bind_addr = "[::]:3901"
 
-bootstrap_peers = []
+bootstrap_peers = [
+	"127.0.0.1:3901",
+]
 
 [s3_api]
 s3_region = "garage"

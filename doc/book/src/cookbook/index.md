@@ -5,7 +5,7 @@ Similarly, Garage's cookbook contains a collection of recipes that are known to 
 This chapter could also be referred as "Tutorials" or "Best practices".
 
 - **[Deploying Garage](real_world.md):** This page will walk you through all of the necessary
-  steps to deploy Garaage in a real-world setting.
+  steps to deploy Garage in a real-world setting.
 
 - **[Configuring S3 clients](clients.md):** This page will explain how to configure
   popular S3 clients to interact with a Garage server.

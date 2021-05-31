@@ -6,13 +6,17 @@ Fear not! For Garage is fully equipped to handle drive failures, in most common 
 
 ## A note on availability of Garage
 
-With nodes dispersed in 3 datacenters or more, here are the guarantees Garage provides with the default replication strategy (3 copies of all data, which is the recommended value):
+With nodes dispersed in 3 zones or more, here are the guarantees Garage provides with the 3-way replication strategy (3 copies of all data, which is the recommended replication mode):
 
-- The cluster remains fully functional as long as the machines that fail are in only one datacenter. This includes a whole datacenter going down due to power/Internet outage.
-- No data is lost as long as the machines that fail are in at most two datacenters.
+- The cluster remains fully functional as long as the machines that fail are in only one zone. This includes a whole zone going down due to power/Internet outage.
+- No data is lost as long as the machines that fail are in at most two zones.
 
-Of course this only works if your Garage nodes are correctly configured to be aware of the datacenter in which they are located.
+Of course this only works if your Garage nodes are correctly configured to be aware of the zone in which they are located.
 Make sure this is the case using `garage status` to check on the state of your cluster's configuration.
+
+In case of temporarily disconnected nodes, Garage should automatically re-synchronize
+when the nodes come back up. This guide will deal with recovering from disk failures
+that caused the loss of the data of a node.
 
 
 ## First option: removing a node
