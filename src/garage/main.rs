@@ -28,7 +28,7 @@ use cli::*;
 #[structopt(name = "garage")]
 struct Opt {
 	/// RPC connect to this host to execute client operations
-	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901")]
+	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901", parse(try_from_str = parse_address))]
 	pub rpc_host: SocketAddr,
 
 	#[structopt(long = "ca-cert")]
@@ -86,4 +86,13 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let admin_rpc_cli = RpcAddrClient::new(rpc_http_cli.clone(), ADMIN_RPC_PATH.to_string());
 
 	cli_cmd(opt.cmd, membership_rpc_cli, admin_rpc_cli, opt.rpc_host).await
+}
+
+fn parse_address(address: &str) -> Result<SocketAddr, String> {
+	use std::net::ToSocketAddrs;
+	address
+		.to_socket_addrs()
+		.map_err(|_| format!("Could not resolve {}", address))?
+		.next()
+		.ok_or_else(|| format!("Could not resolve {}", address))
 }
