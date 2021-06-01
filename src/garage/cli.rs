@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -338,22 +339,45 @@ pub async fn cmd_status(
 		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	};
 
+	let (hostname_len, addr_len, tag_len, zone_len) = status
+		.iter()
+		.map(|adv| (adv, config.members.get(&adv.id)))
+		.map(|(adv, cfg)| {
+			(
+				adv.state_info.hostname.len(),
+				adv.addr.to_string().len(),
+				cfg.map(|c| c.tag.len()).unwrap_or(0),
+				cfg.map(|c| c.zone.len()).unwrap_or(0),
+			)
+		})
+		.fold((0, 0, 0, 0), |(h, a, t, z), (mh, ma, mt, mz)| {
+			(max(h, mh), max(a, ma), max(t, mt), max(z, mz))
+		});
+
 	println!("Healthy nodes:");
 	for adv in status.iter().filter(|x| x.is_up) {
 		if let Some(cfg) = config.members.get(&adv.id) {
 			println!(
-				"{:?}\t{}\t{}\t[{}]\t{}\t{}",
-				adv.id,
-				adv.state_info.hostname,
-				adv.addr,
-				cfg.tag,
-				cfg.zone,
-				cfg.capacity_string()
+				"{id:?}\t{host}{h_pad}\t{addr}{a_pad}\t[{tag}]{t_pad}\t{zone}{z_pad}\t{capacity}",
+				id = adv.id,
+				host = adv.state_info.hostname,
+				addr = adv.addr,
+				tag = cfg.tag,
+				zone = cfg.zone,
+				capacity = cfg.capacity_string(),
+				h_pad = " ".repeat(hostname_len - adv.state_info.hostname.len()),
+				a_pad = " ".repeat(addr_len - adv.addr.to_string().len()),
+				t_pad = " ".repeat(tag_len - cfg.tag.len()),
+				z_pad = " ".repeat(zone_len - cfg.zone.len()),
 			);
 		} else {
 			println!(
-				"{:?}\t{}\t{}\tUNCONFIGURED/REMOVED",
-				adv.id, adv.state_info.hostname, adv.addr
+				"{id:?}\t{h}{h_pad}\t{addr}{a_pad}\tUNCONFIGURED/REMOVED",
+				id = adv.id,
+				h = adv.state_info.hostname,
+				addr = adv.addr,
+				h_pad = " ".repeat(hostname_len - adv.state_info.hostname.len()),
+				a_pad = " ".repeat(addr_len - adv.addr.to_string().len()),
 			);
 		}
 	}
@@ -369,25 +393,38 @@ pub async fn cmd_status(
 		for adv in status.iter().filter(|x| !x.is_up) {
 			if let Some(cfg) = config.members.get(&adv.id) {
 				println!(
-					"{:?}\t{}\t{}\t[{}]\t{}\t{}\tlast seen: {}s ago",
-					adv.id,
-					adv.state_info.hostname,
-					adv.addr,
-					cfg.tag,
-					cfg.zone,
-					cfg.capacity_string(),
-					(now_msec() - adv.last_seen) / 1000,
+					"{id:?}\t{host}{h_pad}\t{addr}{a_pad}\t[{tag}]{t_pad}\t{zone}{z_pad}\t{capacity}\tlast seen: {last_seen}s ago",
+					id=adv.id,
+					host=adv.state_info.hostname,
+					addr=adv.addr,
+					tag=cfg.tag,
+					zone=cfg.zone,
+					capacity=cfg.capacity_string(),
+					last_seen=(now_msec() - adv.last_seen) / 1000,
+					h_pad=" ".repeat(hostname_len - adv.state_info.hostname.len()),
+					a_pad=" ".repeat(addr_len - adv.addr.to_string().len()),
+					t_pad=" ".repeat(tag_len - cfg.tag.len()),
+					z_pad=" ".repeat(zone_len - cfg.zone.len()),
 				);
 			}
 		}
+		let (tag_len, zone_len) = config
+			.members
+			.iter()
+			.filter(|(&id, _)| !status.iter().any(|x| x.id == id))
+			.map(|(_, cfg)| (cfg.tag.len(), cfg.zone.len()))
+			.fold((0, 0), |(t, z), (mt, mz)| (max(t, mt), max(z, mz)));
+
 		for (id, cfg) in config.members.iter() {
 			if !status.iter().any(|x| x.id == *id) {
 				println!(
-					"{:?}\t{}\t{}\t{}\tnever seen",
-					id,
-					cfg.tag,
-					cfg.zone,
-					cfg.capacity_string(),
+					"{id:?}\t{tag}{t_pad}\t{zone}{z_pad}\t{capacity}\tnever seen",
+					id = id,
+					tag = cfg.tag,
+					zone = cfg.zone,
+					capacity = cfg.capacity_string(),
+					t_pad = " ".repeat(tag_len - cfg.tag.len()),
+					z_pad = " ".repeat(zone_len - cfg.zone.len()),
 				);
 			}
 		}
