@@ -141,7 +141,10 @@ impl StatusEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateInfo {
+	/// Hostname of the node
 	pub hostname: String,
+	/// Replication factor configured on the node
+	pub replication_factor: Option<usize>, // TODO Option is just for retrocompatibility. It should become a simple usize at some point
 }
 
 impl Status {
@@ -269,6 +272,7 @@ impl System {
 			hostname: gethostname::gethostname()
 				.into_string()
 				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
+			replication_factor: Some(replication_factor),
 		};
 
 		let ring = Ring::new(net_config, replication_factor);
@@ -504,6 +508,7 @@ impl System {
 		let update_lock = self.update_lock.lock().await;
 		let mut status: Status = self.status.borrow().as_ref().clone();
 		let mut has_changed = false;
+		let mut max_replication_factor = 0;
 
 		for node in adv.iter() {
 			if node.id == self.id {
@@ -529,10 +534,21 @@ impl System {
 					// Case 2: the node might have changed address
 					Some(our_node) => node.is_up && !our_node.is_up() && our_node.addr != node.addr,
 				};
+				max_replication_factor = std::cmp::max(
+					max_replication_factor,
+					node.state_info.replication_factor.unwrap_or_default(),
+				);
 				if ping_them {
 					to_ping.push((node.addr, Some(node.id)));
 				}
 			}
+		}
+
+		if self.replication_factor < max_replication_factor {
+			error!("Some node have a higher replication factor ({}) than this one ({}). This is not supported and might lead to bugs", 
+					max_replication_factor,
+					self.replication_factor);
+			std::process::exit(1);
 		}
 		if has_changed {
 			status.recalculate_hash();
