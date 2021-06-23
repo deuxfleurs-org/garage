@@ -282,6 +282,13 @@ pub enum RepairWhat {
 	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
 	#[structopt(name = "block_refs")]
 	BlockRefs,
+	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
+	#[structopt(name = "blocks_integrity")]
+	BlockIntegrity {
+		/// Limit on i/o speed, in B/s
+		#[structopt(name = "limit")]
+		limit: Option<usize>,
+	},
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
