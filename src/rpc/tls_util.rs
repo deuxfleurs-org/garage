@@ -38,15 +38,16 @@ pub fn load_certs(filename: &str) -> Result<Vec<rustls::Certificate>, Error> {
 }
 
 pub fn load_private_key(filename: &str) -> Result<rustls::PrivateKey, Error> {
-	let keyfile = fs::File::open(&filename)?;
-	let mut reader = io::BufReader::new(keyfile);
+	let keydata = fs::read_to_string(filename)?;
 
-	let keys = pemfile::rsa_private_keys(&mut reader).map_err(|_| {
-		Error::Message(format!(
-			"Could not decode private key from file: {}",
-			filename
-		))
-	})?;
+	let mut buf1 = keydata.as_bytes();
+	let rsa_keys = pemfile::rsa_private_keys(&mut buf1).unwrap_or_default();
+
+	let mut buf2 = keydata.as_bytes();
+	let pkcs8_keys = pemfile::pkcs8_private_keys(&mut buf2).unwrap_or_default();
+
+	let mut keys = rsa_keys;
+	keys.extend(pkcs8_keys.into_iter());
 
 	if keys.len() != 1 {
 		return Err(Error::Message(format!(
