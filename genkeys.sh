@@ -11,7 +11,7 @@ cd pki
 # the RPC protocol will use to authenticate the other side.
 if [ ! -f garage-ca.key ]; then
     echo "Generating Garage CA keys..."
-	openssl genrsa -out garage-ca.key 4096
+	openssl genpkey -algorithm ED25519 -out garage-ca.key
 	openssl req -x509 -new -nodes -key garage-ca.key -sha256 -days 3650 -out garage-ca.crt -subj "/C=FR/O=Garage"
 fi
 
@@ -22,7 +22,7 @@ fi
 if [ ! -f garage.crt ]; then
 	echo "Generating Garage agent keys..."
 	if [ ! -f garage.key ]; then
-		openssl genrsa -out garage.key 4096
+		openssl genpkey -algorithm ED25519 -out garage.key
 	fi
 	openssl req -new -sha256 -key garage.key -subj "/C=FR/O=Garage/CN=garage" \
 		-out garage.csr
@@ -56,7 +56,7 @@ fi
 if [ ! -f garage-client.crt ]; then
 	echo "Generating Garage client keys..."
 	if [ ! -f garage-client.key ]; then
-		openssl genrsa -out garage-client.key 4096
+		openssl genpkey -algorithm ED25519 -out garage-client.key
 	fi
 	openssl req -new -sha256 -key garage-client.key -subj "/C=FR/O=Garage" \
 		-out garage-client.csr
