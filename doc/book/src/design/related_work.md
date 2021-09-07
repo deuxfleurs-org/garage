@@ -41,12 +41,33 @@ There were many attempts in research too. I am only thinking to [LBFS](https://p
 
 ## Existing software
 
-**[Pithos](https://github.com/exoscale/pithos) :** 
+**[MinIO](https://min.io/):** MinIO shares our *Self-contained & lightweight* goal but selected two of our non-goals: *Storage optimizations* through erasure coding and *POSIX/Filesystem compatibility* through strong consistency.
+However, by pursuing these two non-goals, MinIO do not reach our desirable properties.
+Firstly, it fails on the *Simple* property: due to the erasure coding, MinIO has severe limitations on how drives can be added or deleted from a cluster.
+Secondly, it fails on the *Internet enabled* property: due to its strong consistency, MinIO is latency sensitive.
+Furthermore, MinIO has no knowledge of "sites" and thus can not distribute data to minimize the failure of a given site.
+
+**[Openstack Swift](https://docs.openstack.org/swift/latest/):**
+OpenStack Swift at least fails on the *Self-contained & lightweight* goal.
+Starting it requires around 8GB of RAM, which is too much especially in an hyperconverged infrastructure.
+We also do not classify Swift as *Simple*.
+
+**[Ceph](https://ceph.io/ceph-storage/object-storage/):**
+This review holds for the whole Ceph stack, including the RADOS paper, Ceph Object Storage module, the RADOS Gateway, etc.
+At its core, Ceph has been designed to provide *POSIX/Filesystem compatibility* which requires strong consistency, which in turn
+makes Ceph latency-sensitive and fails our *Internet enabled* goal. 
+Due to its industry oriented design, Ceph is also far from being *Simple* to operate and from being *Self-contained & lightweight* which makes it hard to integrate it in an hyperconverged infrastructure.
+In a certain way, Ceph and MinIO are closer together than they are from Garage or OpenStack Swift.
+
+**[Pithos](https://github.com/exoscale/pithos)** 
 Pithos has been abandonned and should probably not used yet, in the following we explain why we did not pick their design.
 Pithos was relying as a S3 proxy in front of Cassandra (and was working with Scylla DB too).
 From its designers' mouth, storing data in Cassandra has shown its limitations justifying the project abandonment.
 They built a closed-source version 2 that does not store blobs in the database (only metadata) but did not communicate further on it.
 We considered there v2's design but concluded that it does not fit both our *Self-contained & lightweight* and *Simple* properties. It makes the development, the deployment and the operations more complicated while reducing the flexibility.
+
+**[Riak CS](https://docs.riak.com/riak/cs/2.1.1/index.html)**
+*Not written yet*
 
 **[IPFS](https://ipfs.io/) :**
 *Not written yet*

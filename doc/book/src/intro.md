@@ -12,11 +12,10 @@
 	]
 </p>
 
-```
-This very website is hosted using Garage. In other words: the doc is the PoC!
-```
 
-# The Garage Geo-Distributed Data Store
+# Data resiliency for everyone
+
+OLD
 
 Garage is a lightweight geo-distributed data store that implements the
 [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
@@ -31,70 +30,67 @@ policies (backup/replication on a single site or none at all).  To promote
 better data management policies, we focused on the following **desirable
 properties**:
 
-  - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
-  - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
-  - **Simple**: simple to understand, simple to operate, simple to debug.
-  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
-
-We also noted that the pursuit of some other goals are detrimental to our initial goals.
-The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):
+Non-goals:
 
   - **Extreme performances**: high performances constrain a lot the design and the infrastructure; we seek performances through minimalism only.
   - **Feature extensiveness**: complete implementation of the S3 API or any other API to make Garage a drop-in replacement is not targeted as it could lead to decisions impacting our desirable properties.
   - **Storage optimizations**: erasure coding or any other coding technique both increase the difficulty of placing data and synchronizing; we limit ourselves to duplication.
   - **POSIX/Filesystem compatibility**: we do not aim at being POSIX compatible or to emulate any kind of filesystem. Indeed, in a distributed environment, such synchronizations are translated in network messages that impose severe constraints on the deployment.
 
-## Use Cases
+Use-cases:
 
-**[Deuxfleurs](https://deuxfleurs.fr):** Garage is used by Deuxfleurs which
-is a non-profit hosting organization.  Especially, it is used to host their
-main website, this documentation and some of its members' blogs.
-Deuxfleurs also uses Garage as their [Matrix's media
-backend](https://github.com/matrix-org/synapse-s3-storage-provider).
-Deuxfleurs also uses it in its continuous integration platform to store
-Drone's job logs and a Nix binary cache.
+- **[Deuxfleurs](https://deuxfleurs.fr):** Garage is used by Deuxfleurs which
+  is a non-profit hosting organization.  Especially, it is used to host their
+  main website, this documentation and some of its members' blogs.
+  Deuxfleurs also uses Garage as their [Matrix's media
+  backend](https://github.com/matrix-org/synapse-s3-storage-provider).
+  Deuxfleurs also uses it in its continuous integration platform to store
+  Drone's job logs and a Nix binary cache.
 
-*Are you using Garage? [Open a pull request](https://git.deuxfleurs.fr/Deuxfleurs/garage/) to add your organization here!*
+ENDOLD
 
-## Comparison to existing software
 
-**[MinIO](https://min.io/):** MinIO shares our *Self-contained & lightweight* goal but selected two of our non-goals: *Storage optimizations* through erasure coding and *POSIX/Filesystem compatibility* through strong consistency.
-However, by pursuing these two non-goals, MinIO do not reach our desirable properties.
-Firstly, it fails on the *Simple* property: due to the erasure coding, MinIO has severe limitations on how drives can be added or deleted from a cluster.
-Secondly, it fails on the *Internet enabled* property: due to its strong consistency, MinIO is latency sensitive.
-Furthermore, MinIO has no knowledge of "sites" and thus can not distribute data to minimize the failure of a given site.
+Garage is an **open-source** distributed **storage service** you can **self-host** to fullfill many needs.
 
-**[Openstack Swift](https://docs.openstack.org/swift/latest/):**
-OpenStack Swift at least fails on the *Self-contained & lightweight* goal.
-Starting it requires around 8GB of RAM, which is too much especially in an hyperconverged infrastructure.
-We also do not classify Swift as *Simple*.
+<p align="center" style="text-align:center; margin-bottom: 5rem;">
+<img alt="Summary of the possible usages with a related icon: host a website, store media and backup target" src="img/usage.svg" />
+</p>
 
-**[Ceph](https://ceph.io/ceph-storage/object-storage/):**
-This review holds for the whole Ceph stack, including the RADOS paper, Ceph Object Storage module, the RADOS Gateway, etc.
-At its core, Ceph has been designed to provide *POSIX/Filesystem compatibility* which requires strong consistency, which in turn
-makes Ceph latency-sensitive and fails our *Internet enabled* goal.
-Due to its industry oriented design, Ceph is also far from being *Simple* to operate and from being *Self-contained & lightweight* which makes it hard to integrate it in an hyperconverged infrastructure.
-In a certain way, Ceph and MinIO are closer together than they are from Garage or OpenStack Swift.
+Garage implements the **[Amazon S3 API](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)** and thus is already **compatible** with many applications.
 
-*More comparisons are available in our [Related Work](design/related_work.md) chapter.*
+<p align="center" style="text-align:center; margin-bottom: 8rem;">
+<img alt="Garage is already compatible with Nextcloud, Mastodon, Matrix Synapse, Cyberduck, RClone and Peertube" src="img/software.svg" />
+</p>
 
-## Other Resources
 
-This website is not the only source of information about Garage!
-We reference here other places on the Internet where you can learn more about Garage.
+Garage provides **data resiliency** by **replicating** data 3x over **distant** servers.
 
-### Rust API (docs.rs)
+<p align="center" style="text-align:center; margin-bottom: 5rem;">
+<img alt="An example deployment on a map with servers in 5 zones: UK, France, Belgium, Germany and Switzerland. Each chunk of data is replicated in 3 of these 5 zones." src="img/map.svg" />
+</p>
 
-If you encounter a specific bug in Garage or plan to patch it, you may jump directly to the source code's documentation!
+Did you notice that *this website* is hosted and served by Garage?
 
-  - [garage\_api](https://docs.rs/garage_api/latest/garage_api/) - contains the S3 standard API endpoint
-  - [garage\_model](https://docs.rs/garage_model/latest/garage_model/) - contains Garage's model built on the table abstraction
-  - [garage\_rpc](https://docs.rs/garage_rpc/latest/garage_rpc/) - contains Garage's federation protocol
-  - [garage\_table](https://docs.rs/garage_table/latest/garage_table/) - contains core Garage's CRDT datatypes
-  - [garage\_util](https://docs.rs/garage_util/latest/garage_util/) - contains garage helpers
-  - [garage\_web](https://docs.rs/garage_web/latest/garage_web/) - contains the S3 website endpoint
+## Keeping requirements low
 
-### Talks
+We worked hard to keep requirements as low as possible as we target the largest possible public.
+
+  * **CPU:** any x86\_64 CPU from the last 10 years, ARMv7 or ARMv8.
+  * **RAM:** 1GB
+  * **Disk Space:** at least 16GB
+  * **Network:** 200ms or less, 50 Mbps or more
+
+*For the network, as we do not use consensus algorithms like Paxos or Raft, Garage is not as latency sensitive.*
+*Thanks to Rust and its zero-cost abstractions, we keep CPU and memory low.*
+
+## Built on the shoulder of giants
+
+  - [Dynamo: Amazon’s Highly Available Key-value Store ](https://dl.acm.org/doi/abs/10.1145/1323293.1294281) by DeCandia et al.
+  - [Conflict-Free Replicated Data Types](https://link.springer.com/chapter/10.1007/978-3-642-24550-3_29) by Shapiro et al.
+  - [Maglev: A Fast and Reliable Software Network Load Balancer](https://www.usenix.org/conference/nsdi16/technical-sessions/presentation/eisenbud) by Eisenbud et al.
+  - [Merkle Search Trees: Efficient State-Based CRDTs in Open Networks](https://ieeexplore.ieee.org/document/9049566) by Auvolat and Taïani
+
+## Talks
 
 We love to talk and hear about Garage, that's why we keep a log here:
 
@@ -116,7 +112,7 @@ Our code repository and issue tracker, which is the place where you should repor
 Garage's source code, is released under the [AGPL v3 License](https://www.gnu.org/licenses/agpl-3.0.en.html).
 Please note that if you patch Garage and then use it to provide any service over a network, you must share your code!
 
-# Funding
+# Sponsors and funding
 
 The Deuxfleurs association has received a grant from [NGI POINTER](https://pointer.ngi.eu/), to fund 3 people working on Garage full-time for a year: from October 2021 to September 2022.
 
