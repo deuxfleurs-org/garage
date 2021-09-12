@@ -1,0 +1,147 @@
+%\nonstopmode
+\documentclass[aspectratio=169]{beamer}
+\usepackage[utf8]{inputenc}
+% \usepackage[frenchb]{babel}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{breqn}
+\usepackage{multirow}
+\usetheme{boxes}
+\usepackage{graphicx}
+%\useoutertheme[footline=authortitle,subsection=false]{miniframes}
+
+\beamertemplatenavigationsymbolsempty
+
+\usepackage{tabu}
+\usepackage{multicol}
+\usepackage{vwcol}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+
+\usepackage[normalem]{ulem}
+
+\title{Presentation of the Garage project}
+\subtitle{NGI pointer kickoff meeting}
+\author{Deuxfleurs Association}
+\date{2021-09-13}
+
+\begin{document}
+
+\begin{frame}
+	\centering
+	\includegraphics[width=.3\linewidth]{../../sticker/Garage.pdf}
+	\vspace{1em}
+
+	{\large\bf Deuxfleurs Association}
+	\vspace{1em}
+
+	\url{https://deuxfleurs.fr/}
+
+	\url{https://garagehq.deuxfleurs.fr/}
+
+	Matrix channel: \texttt{\#garage:deuxfleurs.fr}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Our objective at Deuxfleurs}
+	
+	\begin{center}
+		\textbf{Promote self-hosting and small-scale hosting\\
+			as an alternative to large cloud providers}
+	\end{center}
+	\vspace{2em}
+	\visible<2->{
+		Why is it hard?
+	}
+	\visible<3->{
+		\vspace{2em}
+		\begin{center}
+			\textbf{\underline{Resilience}}\\
+			{\footnotesize (we want good uptime/availability with low supervision)}
+		\end{center}
+	}
+\end{frame}
+
+\begin{frame}
+	\frametitle{How to be resilient (the hard way)}
+
+	Entreprise-grade systems typically employ:
+	\vspace{1em}
+	\begin{itemize}
+		\item Redundant Internet connections
+		\item Redundant electricity
+		\item UPSes
+		\item RAID
+		\item ... 
+	\end{itemize}
+	\vspace{1em}
+	$\to$ it's costly and only worth it at DC scale
+\end{frame}
+
+\begin{frame}
+	\frametitle{How to be resilient (the \underline{\textbf{cheap}} way)}
+
+	Instead, we use:
+	\vspace{1em}
+	\begin{itemize}
+		\item Commodity hardware (e.g. old desktop PCs)
+			\vspace{.5em}
+		\item<2-> Commodity Internet (e.g. FTTH) and electricity
+			\vspace{.5em}
+		\item<3-> \textbf{Geographical redundancy} (multi-site replication)
+			\vspace{.5em}
+		\item<4-> \textbf{Fault-tolerant distributed algorithms}
+	\end{itemize}
+	\vspace{1em}
+	\visible<5->{
+		\centering
+		\underline{\textbf{This is how we build Garage.}}
+	}
+\end{frame}
+
+\begin{frame}
+	\frametitle{But what is Garage, exactly?}
+	\textbf{Garage is a self-hosted drop-in replacement for the Amazon S3 object store}\\
+	\vspace{.5em}
+	that implements resilience through geographical redundancy on commodity hardware
+
+	\vspace{1em}
+	\visible<2->{
+		\begin{center}
+				Current status: technical preview\\
+				Our goal: release a stable v1.0
+		\end{center}
+	}
+
+	\vspace{1em}
+	\visible<3->{
+		\textbf{Comming up next: an e-mail server based on the same principles}
+	}
+
+	\vspace{1em}
+	\visible<4->{
+		\begin{center}
+				Current status: just an idea\\
+				Our goal: at least a PoC, maybe more
+		\end{center}
+	}
+\end{frame}
+
+\begin{frame}
+	\centering
+	\includegraphics[width=.3\linewidth]{../../sticker/Garage.pdf}
+	\vspace{1em}
+
+	{\large\bf Deuxfleurs Association}
+	\vspace{1em}
+
+	\url{https://deuxfleurs.fr/}
+
+	\url{https://garagehq.deuxfleurs.fr/}
+
+	Matrix channel: \texttt{\#garage:deuxfleurs.fr}
+\end{frame}
+
+\end{document}
+
+%% vim: set ts=4 sw=4 tw=0 noet spelllang=fr :
