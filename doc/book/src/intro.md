@@ -70,7 +70,7 @@ We also do not classify Swift as *Simple*.
 **[Ceph](https://ceph.io/ceph-storage/object-storage/):**
 This review holds for the whole Ceph stack, including the RADOS paper, Ceph Object Storage module, the RADOS Gateway, etc.
 At its core, Ceph has been designed to provide *POSIX/Filesystem compatibility* which requires strong consistency, which in turn
-makes Ceph latency-sensitive and fails our *Internet enabled* goal. 
+makes Ceph latency-sensitive and fails our *Internet enabled* goal.
 Due to its industry oriented design, Ceph is also far from being *Simple* to operate and from being *Self-contained & lightweight* which makes it hard to integrate it in an hyperconverged infrastructure.
 In a certain way, Ceph and MinIO are closer together than they are from Garage or OpenStack Swift.
 
@@ -111,3 +111,12 @@ Our code repository and issue tracker, which is the place where you should repor
 
 Garage's source code, is released under the [AGPL v3 License](https://www.gnu.org/licenses/agpl-3.0.en.html).
 Please note that if you patch Garage and then use it to provide any service over a network, you must share your code!
+
+# Funding
+
+The Deuxfleurs association has recieved a grant promise to fund 3 people working on Garage for a year, from October 2021 to September 2022.
+
+<img href="https://pointer.ngi.eu/" src="img/ngi-logo.png" alt="NGI Pointer logo">
+<img src="img/eu-flag-logo.png" alt="EU flag logo">
+
+_This project has received funding from the European Union’s Horizon 2020 research and innovation programme within the framework of the NGI-POINTER Project funded under grant agreement No 871528._
