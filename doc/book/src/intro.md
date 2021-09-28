@@ -114,9 +114,15 @@ Please note that if you patch Garage and then use it to provide any service over
 
 # Funding
 
-The Deuxfleurs association has recieved a grant promise to fund 3 people working on Garage for a year, from October 2021 to September 2022.
+The Deuxfleurs association has received a grant promise to fund 3 people working on Garage for a year, from October 2021 to September 2022.
 
-<img href="https://pointer.ngi.eu/" src="img/ngi-logo.png" alt="NGI Pointer logo">
-<img src="img/eu-flag-logo.png" alt="EU flag logo">
+<div style="display: flex; justify-content: space-around">
+  <a href="https://pointer.ngi.eu/">
+    <img style="height:100px" src="img/ngi-logo.png" alt="NGI Pointer logo">
+  </a>
+  <a href="https://ec.europa.eu/programmes/horizon2020/what-horizon-2020">
+    <img style="height:100px" src="img/eu-flag-logo.png" alt="EU flag logo">
+  </a>
+</div>
 
 _This project has received funding from the European Union’s Horizon 2020 research and innovation programme within the framework of the NGI-POINTER Project funded under grant agreement No 871528._
