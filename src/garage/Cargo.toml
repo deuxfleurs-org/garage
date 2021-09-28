@@ -27,6 +27,7 @@ garage_rpc = { version = "0.6.0", path = "../rpc" }
 garage_table = { version = "0.6.0", path = "../table" }
 garage_util = { version = "0.6.0", path = "../util" }
 garage_web = { version = "0.6.0", path = "../web" }
+garage_admin = { version = "0.6.0", path = "../admin" }
 
 bytes = "1.0"
 git-version = "0.3.4"

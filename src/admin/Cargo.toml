@@ -1,0 +1,28 @@
+[package]
+name = "garage_admin"
+version = "0.6.0"
+authors = ["Maximilien Richer <code@mricher.fr>"]
+edition = "2018"
+license = "AGPL-3.0"
+description = "Administration and metrics REST HTTP server for Garage"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+
+[lib]
+path = "lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+garage_model = { version = "0.6.0", path = "../model" }
+garage_util = { version = "0.6.0", path = "../util" }
+
+futures = "0.3"
+futures-util = "0.3"
+http = "0.2"
+hyper = "0.14"
+log = "0.4"
+
+opentelemetry = "0.17"
+opentelemetry-prometheus = "0.10"
+prometheus = "0.13"
+lazy_static = "1.4"

@@ -6,6 +6,7 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
 
+use garage_admin::metrics::*;
 use garage_api::run_api_server;
 use garage_model::garage::Garage;
 use garage_web::run_web_server;
@@ -34,6 +35,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.open()
 		.expect("Unable to open sled DB");
 
+	info!("Configure and run admin web server...");
+	let admin_server_init = AdminServer::init();
+
 	info!("Initializing background runner...");
 	let watch_cancel = netapp::util::watch_ctrl_c();
 	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
@@ -43,7 +47,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
 
-	info!("Crate admin RPC handler...");
+	info!("Create admin RPC handler...");
 	AdminRpcHandler::new(garage.clone());
 
 	info!("Initializing API server...");
@@ -58,6 +62,10 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		wait_from(watch_cancel.clone()),
 	));
 
+	info!("Configure and run admin web server...");
+	let admin_server =
+		tokio::spawn(admin_server_init.run(garage.clone(), wait_from(watch_cancel.clone())));
+
 	// Stuff runs
 
 	// When a cancel signal is sent, stuff stops
@@ -66,6 +74,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	}
 	if let Err(e) = web_server.await? {
 		warn!("Web server exited with error: {}", e);
+	}
+	if let Err(e) = admin_server.await? {
+		warn!("Admin web server exited with error: {}", e);
 	}
 
 	// Remove RPC handlers for system to break reference cycles
