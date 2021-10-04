@@ -25,7 +25,8 @@
 
 - [Development](./development/index.md)
   - [Setup your environment](./development/devenv.md)
-  - [Your first contribution]()
+  - [Development scripts](./development/scripts.md)
+  - [Release process](./development/release_process.md)
 
 - [Working Documents](./working_documents/index.md)
   - [Load Balancing Data](./working_documents/load_balancing.md)

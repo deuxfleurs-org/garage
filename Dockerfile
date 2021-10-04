@@ -1,10 +1,7 @@
-FROM archlinux:latest
+FROM scratch
 
-RUN mkdir -p /garage/meta
-RUN mkdir -p /garage/data
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=garage=info
 
-COPY target/release/garage.stripped /garage/garage
-
-CMD /garage/garage server -c /garage/config.toml
+COPY result/bin/garage /
+CMD [ "/garage", "server", "-c", "config.toml"]

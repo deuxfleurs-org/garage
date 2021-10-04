@@ -6,7 +6,8 @@ SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
-PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
+NIX_RELEASE="${REPO_FOLDER}/result/bin/"
+PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 FANCYCOLORS=("41m" "42m" "44m" "45m" "100m" "104m")
 
 export RUST_BACKTRACE=1 
@@ -63,7 +64,13 @@ fi
 (garage server -c /tmp/config.$count.toml 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
 done
 
+RETRY=120
 until garage status 2>&1|grep -q Healthy ; do 
+  (( RETRY-- ))
+  if (( RETRY <= 0 )); then 
+    echo -en "${MAIN_LABEL} Garage did not start"
+    exit 1
+  fi
 	echo -en "${MAIN_LABEL} cluster starting...\n"
 	sleep 1
 done

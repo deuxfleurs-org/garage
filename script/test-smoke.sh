@@ -8,13 +8,13 @@ SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
-PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
+NIX_RELEASE="${REPO_FOLDER}/result/bin/"
+PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 
 # @FIXME Duck is not ready for testing, we have a bug
 SKIP_DUCK=1
 
 echo "⏳ Setup"
-cargo build
 ${SCRIPT_FOLDER}/dev-clean.sh
 ${SCRIPT_FOLDER}/dev-cluster.sh > /tmp/garage.log 2>&1 &
 ${SCRIPT_FOLDER}/dev-configure.sh

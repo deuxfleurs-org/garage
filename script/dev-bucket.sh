@@ -6,7 +6,8 @@ SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
-PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:$PATH"
+NIX_RELEASE="${REPO_FOLDER}/result/bin/"
+PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 
 garage bucket create eprouvette
 KEY_INFO=`garage key new --name opérateur`
