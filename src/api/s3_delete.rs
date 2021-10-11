@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request, Response, StatusCode};
 
 use garage_util::data::*;
 use garage_util::time::*;
@@ -68,6 +68,7 @@ pub async fn handle_delete(
 
 	Ok(Response::builder()
 		.header("x-amz-version-id", hex::encode(delete_marker_version))
+		.status(StatusCode::NO_CONTENT)
 		.body(Body::from(vec![]))
 		.unwrap())
 }
