@@ -423,7 +423,11 @@ impl AdminRpcHandler {
 		writeln!(
 			&mut ret,
 			"\nGarage version: {}",
-			git_version::git_version!()
+			git_version::git_version!(
+				prefix = "git:",
+				cargo_prefix = "cargo:",
+				fallback = "unknown"
+			)
 		)
 		.unwrap();
 
