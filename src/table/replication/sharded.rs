@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use garage_rpc::membership::System;
 use garage_rpc::ring::*;
+use garage_rpc::system::System;
+use garage_rpc::NodeID;
 use garage_util::data::*;
 
 use crate::replication::*;
@@ -25,7 +26,7 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
-	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
+	fn read_nodes(&self, hash: &Hash) -> Vec<NodeID> {
 		let ring = self.system.ring.borrow();
 		ring.get_nodes(&hash, self.replication_factor)
 	}
@@ -33,7 +34,7 @@ impl TableReplication for TableShardedReplication {
 		self.read_quorum
 	}
 
-	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid> {
+	fn write_nodes(&self, hash: &Hash) -> Vec<NodeID> {
 		let ring = self.system.ring.borrow();
 		ring.get_nodes(&hash, self.replication_factor)
 	}

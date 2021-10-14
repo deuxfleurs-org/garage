@@ -27,6 +27,8 @@ hex = "0.4"
 log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.8"
+async-trait = "0.1.7"
+sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 
 sled = "0.34"
 
@@ -38,3 +40,5 @@ toml = "0.5"
 futures = "0.3"
 futures-util = "0.3"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+
+netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }

@@ -3,7 +3,10 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
+
+use netapp::NodeID;
 
 use crate::error::Error;
 
@@ -26,19 +29,19 @@ pub struct Config {
 	// (we can add more aliases for this later)
 	pub replication_mode: String,
 
+	/// RPC secret key: 32 bytes hex encoded
+	pub rpc_secret: String,
+
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
 
 	/// Bootstrap peers RPC address
 	#[serde(deserialize_with = "deserialize_vec_addr")]
-	pub bootstrap_peers: Vec<SocketAddr>,
+	pub bootstrap_peers: Vec<(NodeID, SocketAddr)>,
 	/// Consule host to connect to to discover more peers
 	pub consul_host: Option<String>,
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
-
-	/// Configuration for RPC TLS
-	pub rpc_tls: Option<TlsConfig>,
 
 	/// Max number of concurrent RPC request
 	#[serde(default = "default_max_concurrent_rpc_requests")]
@@ -57,17 +60,6 @@ pub struct Config {
 
 	/// Configuration for serving files as normal web server
 	pub s3_web: WebConfig,
-}
-
-/// Configuration for RPC TLS
-#[derive(Deserialize, Debug, Clone)]
-pub struct TlsConfig {
-	/// Path to certificate autority used for all nodes
-	pub ca_cert: String,
-	/// Path to public certificate for this node
-	pub node_cert: String,
-	/// Path to private key for this node
-	pub node_key: String,
 }
 
 /// Configuration for S3 api
@@ -115,27 +107,32 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	Ok(toml::from_str(&config)?)
 }
 
-fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
+fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<(NodeID, SocketAddr)>, D::Error>
 where
 	D: de::Deserializer<'de>,
 {
 	use std::net::ToSocketAddrs;
 
-	Ok(<Vec<&str>>::deserialize(deserializer)?
-		.iter()
-		.filter_map(|&name| {
-			name.to_socket_addrs()
-				.map(|iter| (name, iter))
-				.map_err(|_| warn!("Error resolving \"{}\"", name))
-				.ok()
-		})
-		.map(|(name, iter)| {
-			let v = iter.collect::<Vec<_>>();
-			if v.is_empty() {
-				warn!("Error resolving \"{}\"", name)
-			}
-			v
-		})
-		.flatten()
-		.collect())
+	let mut ret = vec![];
+
+	for peer in <Vec<&str>>::deserialize(deserializer)? {
+		let delim = peer
+			.find('@')
+			.ok_or_else(|| D::Error::custom("Invalid bootstrap peer: public key not specified"))?;
+		let (key, host) = peer.split_at(delim);
+		let pubkey = NodeID::from_slice(&hex::decode(&key).map_err(D::Error::custom)?)
+			.ok_or_else(|| D::Error::custom("Invalid bootstrap peer public key"))?;
+		let hosts = host[1..]
+			.to_socket_addrs()
+			.map_err(D::Error::custom)?
+			.collect::<Vec<_>>();
+		if hosts.is_empty() {
+			return Err(D::Error::custom(format!("Error resolving {}", &host[1..])));
+		}
+		for host in hosts {
+			ret.push((pubkey.clone(), host));
+		}
+	}
+
+	Ok(ret)
 }

@@ -1,5 +1,5 @@
 use garage_rpc::ring::*;
-
+use garage_rpc::NodeID;
 use garage_util::data::*;
 
 /// Trait to describe how a table shall be replicated
@@ -8,12 +8,12 @@ pub trait TableReplication: Send + Sync {
 	// To understand various replication methods
 
 	/// Which nodes to send read requests to
-	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid>;
+	fn read_nodes(&self, hash: &Hash) -> Vec<NodeID>;
 	/// Responses needed to consider a read succesfull
 	fn read_quorum(&self) -> usize;
 
 	/// Which nodes to send writes to
-	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid>;
+	fn write_nodes(&self, hash: &Hash) -> Vec<NodeID>;
 	/// Responses needed to consider a write succesfull
 	fn write_quorum(&self) -> usize;
 	fn max_write_errors(&self) -> usize;

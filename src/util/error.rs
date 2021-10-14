@@ -11,8 +11,8 @@ pub enum RpcError {
 	#[error(display = "Node is down: {:?}.", _0)]
 	NodeDown(Uuid),
 
-	#[error(display = "Timeout: {}", _0)]
-	Timeout(#[error(source)] tokio::time::error::Elapsed),
+	#[error(display = "Timeout")]
+	Timeout,
 
 	#[error(display = "HTTP error: {}", _0)]
 	Http(#[error(source)] http::Error),
@@ -45,11 +45,8 @@ pub enum Error {
 	#[error(display = "Invalid HTTP header value: {}", _0)]
 	HttpHeader(#[error(source)] http::header::ToStrError),
 
-	#[error(display = "TLS error: {}", _0)]
-	Tls(#[error(source)] rustls::TLSError),
-
-	#[error(display = "PKI error: {}", _0)]
-	Pki(#[error(source)] webpki::Error),
+	#[error(display = "Netapp error: {}", _0)]
+	Netapp(#[error(source)] netapp::error::Error),
 
 	#[error(display = "Sled error: {}", _0)]
 	Sled(#[error(source)] sled::Error),

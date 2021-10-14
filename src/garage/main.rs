@@ -10,16 +10,16 @@ mod repair;
 mod server;
 
 use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
 
 use structopt::StructOpt;
 
-use garage_util::config::TlsConfig;
+use netapp::util::parse_peer_addr;
+use netapp::NetworkKey;
+
 use garage_util::error::Error;
 
-use garage_rpc::membership::*;
-use garage_rpc::rpc_client::*;
+use garage_rpc::system::*;
+use garage_rpc::*;
 
 use admin_rpc::*;
 use cli::*;
@@ -27,16 +27,14 @@ use cli::*;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "garage")]
 struct Opt {
-	/// RPC connect to this host to execute client operations
-	#[structopt(short = "h", long = "rpc-host", default_value = "127.0.0.1:3901", parse(try_from_str = parse_address))]
-	pub rpc_host: SocketAddr,
+	/// Host to connect to for admin operations, in the format:
+	/// <public-key>@<ip>:<port>
+	#[structopt(short = "h", long = "rpc-host")]
+	pub rpc_host: Option<String>,
 
-	#[structopt(long = "ca-cert")]
-	pub ca_cert: Option<String>,
-	#[structopt(long = "client-cert")]
-	pub client_cert: Option<String>,
-	#[structopt(long = "client-key")]
-	pub client_key: Option<String>,
+	/// RPC secret network key for admin operations
+	#[structopt(short = "s", long = "rpc-secret")]
+	pub rpc_secret: Option<String>,
 
 	#[structopt(subcommand)]
 	cmd: Command,
@@ -66,33 +64,20 @@ async fn main() {
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
-	let tls_config = match (opt.ca_cert, opt.client_cert, opt.client_key) {
-		(Some(ca_cert), Some(client_cert), Some(client_key)) => Some(TlsConfig {
-			ca_cert,
-			node_cert: client_cert,
-			node_key: client_key,
-		}),
-		(None, None, None) => None,
-		_ => {
-			warn!("Missing one of: --ca-cert, --node-cert, --node-key. Not using TLS.");
-			None
-		}
-	};
+	let net_key_hex_str = &opt.rpc_secret.expect("No RPC secret provided");
+	let network_key = NetworkKey::from_slice(
+		&hex::decode(net_key_hex_str).expect("Invalid RPC secret key (bad hex)")[..],
+	)
+	.expect("Invalid RPC secret provided (wrong length)");
+	let (_pk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
 
-	let rpc_http_cli =
-		Arc::new(RpcHttpClient::new(8, &tls_config).expect("Could not create RPC client"));
-	let membership_rpc_cli =
-		RpcAddrClient::new(rpc_http_cli.clone(), MEMBERSHIP_RPC_PATH.to_string());
-	let admin_rpc_cli = RpcAddrClient::new(rpc_http_cli.clone(), ADMIN_RPC_PATH.to_string());
+	let netapp = NetApp::new(network_key, sk);
+	let (id, addr) =
+		parse_peer_addr(&opt.rpc_host.expect("No RPC host provided")).expect("Invalid RPC host");
+	netapp.clone().try_connect(addr, id).await?;
 
-	cli_cmd(opt.cmd, membership_rpc_cli, admin_rpc_cli, opt.rpc_host).await
-}
+	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
+	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
 
-fn parse_address(address: &str) -> Result<SocketAddr, String> {
-	use std::net::ToSocketAddrs;
-	address
-		.to_socket_addrs()
-		.map_err(|_| format!("Could not resolve {}", address))?
-		.next()
-		.ok_or_else(|| format!("Could not resolve {}", address))
+	cli_cmd(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await
 }
