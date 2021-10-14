@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use garage_rpc::membership::System;
 use garage_rpc::ring::*;
+use garage_rpc::system::System;
+use garage_rpc::NodeID;
 use garage_util::data::*;
 
 use crate::replication::*;
@@ -19,16 +20,20 @@ pub struct TableFullReplication {
 }
 
 impl TableReplication for TableFullReplication {
-	fn read_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
+	fn read_nodes(&self, _hash: &Hash) -> Vec<NodeID> {
 		vec![self.system.id]
 	}
 	fn read_quorum(&self) -> usize {
 		1
 	}
 
-	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
+	fn write_nodes(&self, _hash: &Hash) -> Vec<NodeID> {
 		let ring = self.system.ring.borrow();
-		ring.config.members.keys().cloned().collect::<Vec<_>>()
+		ring.config
+			.members
+			.keys()
+			.map(|id| NodeID::from_slice(id.as_slice()).unwrap())
+			.collect::<Vec<_>>()
 	}
 	fn write_quorum(&self) -> usize {
 		let nmembers = self.system.ring.borrow().config.members.len();

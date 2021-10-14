@@ -1,6 +1,6 @@
 [package]
 name = "garage_rpc"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -13,7 +13,7 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { version = "0.3.0", path = "../util" }
+garage_util = { version = "0.4.0", path = "../util" }
 
 garage_rpc_021 = { package = "garage_rpc", version = "0.2.1" }
 
@@ -22,7 +22,10 @@ bytes = "1.0"
 gethostname = "0.2"
 hex = "0.4"
 log = "0.4"
+rand = "0.8"
+sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 
+async-trait = "0.1.7"
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_json = "1.0"
@@ -32,11 +35,6 @@ futures-util = "0.3"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 
-http = "0.2"
-hyper = { version = "0.14", features = ["full"] }
-hyper-rustls = { version = "0.22", default-features = false }
-rustls = "0.19"
-tokio-rustls = "0.22"
-webpki = "0.21"
-
+netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }
+hyper = "0.14"
 

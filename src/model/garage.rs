@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
+use netapp::NetworkKey;
+
 use garage_util::background::*;
 use garage_util::config::*;
 
-use garage_rpc::membership::System;
-use garage_rpc::rpc_client::RpcHttpClient;
-use garage_rpc::rpc_server::RpcServer;
+use garage_rpc::system::System;
 
 use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
@@ -45,26 +45,25 @@ pub struct Garage {
 
 impl Garage {
 	/// Create and run garage
-	pub fn new(
-		config: Config,
-		db: sled::Db,
-		background: Arc<BackgroundRunner>,
-		rpc_server: &mut RpcServer,
-	) -> Arc<Self> {
+	pub fn new(config: Config, db: sled::Db, background: Arc<BackgroundRunner>) -> Arc<Self> {
+		let network_key = NetworkKey::from_slice(
+			&hex::decode(&config.rpc_secret).expect("Invalid RPC secret key")[..],
+		)
+		.expect("Invalid RPC secret key");
+
 		let replication_mode = ReplicationMode::parse(&config.replication_mode)
 			.expect("Invalid replication_mode in config file.");
 
 		info!("Initialize membership management system...");
-		let rpc_http_client = Arc::new(
-			RpcHttpClient::new(config.max_concurrent_rpc_requests, &config.rpc_tls)
-				.expect("Could not create RPC client"),
-		);
 		let system = System::new(
+			network_key,
 			config.metadata_dir.clone(),
-			rpc_http_client,
 			background.clone(),
-			rpc_server,
 			replication_mode.replication_factor(),
+			config.rpc_bind_addr,
+			config.bootstrap_peers.clone(),
+			config.consul_host.clone(),
+			config.consul_service_name.clone(),
 		);
 
 		let data_rep_param = TableShardedReplication {
@@ -87,13 +86,8 @@ impl Garage {
 		};
 
 		info!("Initialize block manager...");
-		let block_manager = BlockManager::new(
-			&db,
-			config.data_dir.clone(),
-			data_rep_param,
-			system.clone(),
-			rpc_server,
-		);
+		let block_manager =
+			BlockManager::new(&db, config.data_dir.clone(), data_rep_param, system.clone());
 
 		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
@@ -104,7 +98,6 @@ impl Garage {
 			system.clone(),
 			&db,
 			"block_ref".to_string(),
-			rpc_server,
 		);
 
 		info!("Initialize version_table...");
@@ -117,7 +110,6 @@ impl Garage {
 			system.clone(),
 			&db,
 			"version".to_string(),
-			rpc_server,
 		);
 
 		info!("Initialize object_table...");
@@ -130,7 +122,6 @@ impl Garage {
 			system.clone(),
 			&db,
 			"object".to_string(),
-			rpc_server,
 		);
 
 		info!("Initialize bucket_table...");
@@ -140,7 +131,6 @@ impl Garage {
 			system.clone(),
 			&db,
 			"bucket".to_string(),
-			rpc_server,
 		);
 
 		info!("Initialize key_table_table...");
@@ -150,7 +140,6 @@ impl Garage {
 			system.clone(),
 			&db,
 			"key".to_string(),
-			rpc_server,
 		);
 
 		info!("Initialize Garage...");

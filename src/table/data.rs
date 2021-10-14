@@ -9,7 +9,7 @@ use tokio::sync::Notify;
 use garage_util::data::*;
 use garage_util::error::*;
 
-use garage_rpc::membership::System;
+use garage_rpc::system::System;
 
 use crate::crdt::Crdt;
 use crate::replication::*;

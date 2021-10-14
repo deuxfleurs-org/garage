@@ -4,10 +4,10 @@
 extern crate log;
 
 mod consul;
-pub(crate) mod tls_util;
 
-pub mod membership;
 pub mod ring;
+pub mod system;
 
-pub mod rpc_client;
-pub mod rpc_server;
+pub mod rpc_helper;
+
+pub use rpc_helper::*;
