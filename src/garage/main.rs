@@ -9,8 +9,6 @@ mod cli;
 mod repair;
 mod server;
 
-use std::net::SocketAddr;
-
 use structopt::StructOpt;
 
 use netapp::util::parse_peer_addr;
@@ -43,6 +41,7 @@ struct Opt {
 #[tokio::main]
 async fn main() {
 	pretty_env_logger::init();
+	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
 	let opt = Opt::from_args();
 

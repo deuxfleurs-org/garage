@@ -71,8 +71,14 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	// Remove RPC handlers for system to break reference cycles
 	garage.system.netapp.drop_all_handlers();
 
-	// Await for last parts to end
+	// Await for netapp RPC system to end
 	run_system.await?;
+
+	// Break last reference cycles so that stuff can terminate properly
+	garage.break_reference_cycles();
+	drop(garage);
+
+	// Await for all background tasks to end
 	await_background_done.await?;
 
 	info!("Cleaning up...");

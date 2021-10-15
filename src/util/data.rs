@@ -87,6 +87,18 @@ impl FixedBytes32 {
 	}
 }
 
+impl From<netapp::NodeID> for FixedBytes32 {
+	fn from(node_id: netapp::NodeID) -> FixedBytes32 {
+		FixedBytes32::try_from(node_id.as_ref()).unwrap()
+	}
+}
+
+impl Into<netapp::NodeID> for FixedBytes32 {
+	fn into(self) -> netapp::NodeID {
+		netapp::NodeID::from_slice(self.as_slice()).unwrap()
+	}
+}
+
 /// A 32 bytes UUID
 pub type Uuid = FixedBytes32;
 /// A 256 bit cryptographic hash, can be sha256 or blake2 depending on provenance

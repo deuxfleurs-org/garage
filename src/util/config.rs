@@ -7,6 +7,7 @@ use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
 
 use netapp::NodeID;
+use netapp::util::parse_and_resolve_peer_addr;
 
 use crate::error::Error;
 
@@ -34,6 +35,8 @@ pub struct Config {
 
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
+	/// Public IP address of this node
+	pub rpc_public_addr: Option<SocketAddr>,
 
 	/// Bootstrap peers RPC address
 	#[serde(deserialize_with = "deserialize_vec_addr")]
@@ -111,26 +114,13 @@ fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<(NodeID, SocketAd
 where
 	D: de::Deserializer<'de>,
 {
-	use std::net::ToSocketAddrs;
-
 	let mut ret = vec![];
 
 	for peer in <Vec<&str>>::deserialize(deserializer)? {
-		let delim = peer
-			.find('@')
-			.ok_or_else(|| D::Error::custom("Invalid bootstrap peer: public key not specified"))?;
-		let (key, host) = peer.split_at(delim);
-		let pubkey = NodeID::from_slice(&hex::decode(&key).map_err(D::Error::custom)?)
-			.ok_or_else(|| D::Error::custom("Invalid bootstrap peer public key"))?;
-		let hosts = host[1..]
-			.to_socket_addrs()
-			.map_err(D::Error::custom)?
-			.collect::<Vec<_>>();
-		if hosts.is_empty() {
-			return Err(D::Error::custom(format!("Error resolving {}", &host[1..])));
-		}
-		for host in hosts {
-			ret.push((pubkey.clone(), host));
+		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer)
+			.ok_or_else(|| D::Error::custom(format!("Unable to parse or resolve peer: {}", peer)))?;
+		for ip in addrs {
+			ret.push((pubkey.clone(), ip));
 		}
 	}
 

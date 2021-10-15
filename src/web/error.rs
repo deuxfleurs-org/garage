@@ -38,7 +38,9 @@ impl Error {
 		match self {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::ApiError(e) => e.http_status_code(),
-			Error::InternalError(GarageError::Rpc(_)) => StatusCode::SERVICE_UNAVAILABLE,
+			Error::InternalError(
+				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::TooManyErrors(_),
+			) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			_ => StatusCode::BAD_REQUEST,
 		}

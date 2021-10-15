@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 
 use hyper::client::Client;
@@ -5,20 +6,24 @@ use hyper::StatusCode;
 use hyper::{Body, Method, Request};
 use serde::Deserialize;
 
+use netapp::NodeID;
+
 use garage_util::error::Error;
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 struct ConsulEntry {
 	#[serde(alias = "Address")]
 	address: String,
 	#[serde(alias = "ServicePort")]
 	service_port: u16,
+	#[serde(alias = "NodeMeta")]
+	node_meta: HashMap<String, String>,
 }
 
 pub async fn get_consul_nodes(
 	consul_host: &str,
 	consul_service_name: &str,
-) -> Result<Vec<SocketAddr>, Error> {
+) -> Result<Vec<(NodeID, SocketAddr)>, Error> {
 	let url = format!(
 		"http://{}/v1/catalog/service/{}",
 		consul_host, consul_service_name
@@ -40,11 +45,22 @@ pub async fn get_consul_nodes(
 
 	let mut ret = vec![];
 	for ent in entries {
-		let ip = ent
-			.address
-			.parse::<IpAddr>()
-			.map_err(|e| Error::Message(format!("Could not parse IP address: {}", e)))?;
-		ret.push(SocketAddr::new(ip, ent.service_port));
+		let ip = ent.address.parse::<IpAddr>().ok();
+		let pubkey = ent
+			.node_meta
+			.get("pubkey")
+			.map(|k| hex::decode(&k).ok())
+			.flatten()
+			.map(|k| NodeID::from_slice(&k[..]))
+			.flatten();
+		if let (Some(ip), Some(pubkey)) = (ip, pubkey) {
+			ret.push((pubkey, SocketAddr::new(ip, ent.service_port)));
+		} else {
+			warn!(
+				"Could not process node spec from Consul: {:?} (invalid IP or public key)",
+				ent
+			);
+		}
 	}
 	debug!("Got nodes from Consul: {:?}", ret);
 

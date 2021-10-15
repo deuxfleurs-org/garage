@@ -36,11 +36,10 @@ enum GcRpc {
 	Update(Vec<ByteBuf>),
 	DeleteIfEqualHash(Vec<(ByteBuf, Hash)>),
 	Ok,
-	Error(String),
 }
 
-impl Message for GcRpc {
-	type Response = GcRpc;
+impl Rpc for GcRpc {
+	type Response = Result<GcRpc, Error>;
 }
 
 impl<F, R> TableGc<F, R>
@@ -168,7 +167,7 @@ where
 
 	async fn try_send_and_delete(
 		&self,
-		nodes: Vec<NodeID>,
+		nodes: Vec<Uuid>,
 		items: Vec<(ByteBuf, Hash, ByteBuf)>,
 	) -> Result<(), Error> {
 		let n_items = items.len();
@@ -224,8 +223,15 @@ where
 			.compare_and_swap::<_, _, Vec<u8>>(key, Some(vhash), None)?;
 		Ok(())
 	}
+}
 
-	async fn handle_rpc(&self, message: &GcRpc) -> Result<GcRpc, Error> {
+#[async_trait]
+impl<F, R> EndpointHandler<GcRpc> for TableGc<F, R>
+where
+	F: TableSchema + 'static,
+	R: TableReplication + 'static,
+{
+	async fn handle(self: &Arc<Self>, message: &GcRpc, _from: NodeID) -> Result<GcRpc, Error> {
 		match message {
 			GcRpc::Update(items) => {
 				self.data.update_many(items)?;
@@ -240,18 +246,5 @@ where
 			}
 			_ => Err(Error::Message("Unexpected GC RPC".to_string())),
 		}
-	}
-}
-
-#[async_trait]
-impl<F, R> EndpointHandler<GcRpc> for TableGc<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
-	async fn handle(self: &Arc<Self>, message: &GcRpc, _from: NodeID) -> GcRpc {
-		self.handle_rpc(message)
-			.await
-			.unwrap_or_else(|e| GcRpc::Error(format!("{}", e)))
 	}
 }
