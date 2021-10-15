@@ -35,7 +35,7 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 http = "0.2"
 httpdate = "0.3"
 http-range = "0.1"
-hyper = "0.14"
+hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
 percent-encoding = "2.1.0"
 roxmltree = "0.14"
 serde = { version = "1.0", features = ["derive"] }

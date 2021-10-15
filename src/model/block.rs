@@ -38,7 +38,6 @@ const RESYNC_RETRY_TIMEOUT: Duration = Duration::from_secs(10);
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BlockRpc {
 	Ok,
-	Error(String),
 	/// Message to ask for a block of data, by hash
 	GetBlock(Hash),
 	/// Message to send a block of data, either because requested, of for first delivery of new
@@ -61,8 +60,8 @@ pub struct PutBlockMessage {
 	pub data: Vec<u8>,
 }
 
-impl Message for BlockRpc {
-	type Response = BlockRpc;
+impl Rpc for BlockRpc {
+	type Response = Result<BlockRpc, Error>;
 }
 
 /// The block manager, handling block exchange between nodes, and block storage on local node
@@ -115,15 +114,6 @@ impl BlockManager {
 		block_manager.endpoint.set_handler(block_manager.clone());
 
 		block_manager
-	}
-
-	async fn handle_rpc(self: Arc<Self>, msg: &BlockRpc) -> Result<BlockRpc, Error> {
-		match msg {
-			BlockRpc::PutBlock(m) => self.write_block(&m.hash, &m.data).await,
-			BlockRpc::GetBlock(h) => self.read_block(h).await,
-			BlockRpc::NeedBlockQuery(h) => self.need_block(h).await.map(BlockRpc::NeedBlockReply),
-			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
-		}
 	}
 
 	pub fn spawn_background_worker(self: Arc<Self>) {
@@ -532,11 +522,17 @@ impl BlockManager {
 
 #[async_trait]
 impl EndpointHandler<BlockRpc> for BlockManager {
-	async fn handle(self: &Arc<Self>, message: &BlockRpc, _from: NodeID) -> BlockRpc {
-		self.clone()
-			.handle_rpc(message)
-			.await
-			.unwrap_or_else(|e| BlockRpc::Error(format!("{}", e)))
+	async fn handle(
+		self: &Arc<Self>,
+		message: &BlockRpc,
+		_from: NodeID,
+	) -> Result<BlockRpc, Error> {
+		match message {
+			BlockRpc::PutBlock(m) => self.write_block(&m.hash, &m.data).await,
+			BlockRpc::GetBlock(h) => self.read_block(h).await,
+			BlockRpc::NeedBlockQuery(h) => self.need_block(h).await.map(BlockRpc::NeedBlockReply),
+			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
+		}
 	}
 }
 

@@ -61,6 +61,7 @@ impl Garage {
 			background.clone(),
 			replication_mode.replication_factor(),
 			config.rpc_bind_addr,
+			config.rpc_public_addr,
 			config.bootstrap_peers.clone(),
 			config.consul_host.clone(),
 			config.consul_service_name.clone(),
@@ -161,5 +162,10 @@ impl Garage {
 		garage.block_manager.clone().spawn_background_worker();
 
 		garage
+	}
+
+	/// Use this for shutdown
+	pub fn break_reference_cycles(&self) {
+		self.block_manager.garage.swap(None);
 	}
 }

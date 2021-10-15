@@ -31,15 +31,14 @@ pub enum AdminRpc {
 
 	// Replies
 	Ok(String),
-	Error(String),
 	BucketList(Vec<String>),
 	BucketInfo(Bucket),
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key),
 }
 
-impl Message for AdminRpc {
-	type Response = AdminRpc;
+impl Rpc for AdminRpc {
+	type Response = Result<AdminRpc, Error>;
 }
 
 pub struct AdminRpcHandler {
@@ -341,17 +340,20 @@ impl AdminRpcHandler {
 			let mut failures = vec![];
 			let ring = self.garage.system.ring.borrow().clone();
 			for node in ring.config.members.keys() {
-				let node = NodeID::from_slice(node.as_slice()).unwrap();
-				if self
+				let node = (*node).into();
+				let resp = self
 					.endpoint
 					.call(
 						&node,
 						&AdminRpc::LaunchRepair(opt_to_send.clone()),
 						PRIO_NORMAL,
 					)
-					.await
-					.is_err()
-				{
+					.await;
+				let is_err = match resp {
+					Ok(Ok(_)) => false,
+					_ => true,
+				};
+				if is_err {
 					failures.push(node);
 				}
 			}
@@ -386,17 +388,17 @@ impl AdminRpcHandler {
 			let ring = self.garage.system.ring.borrow().clone();
 
 			for node in ring.config.members.keys() {
-				let node = NodeID::from_slice(node.as_slice()).unwrap();
-
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 
 				writeln!(&mut ret, "\n======================").unwrap();
 				writeln!(&mut ret, "Stats for node {:?}:", node).unwrap();
+
+				let node_id = (*node).into();
 				match self
 					.endpoint
-					.call(&node, &AdminRpc::Stats(opt), PRIO_NORMAL)
-					.await
+					.call(&node_id, &AdminRpc::Stats(opt), PRIO_NORMAL)
+					.await?
 				{
 					Ok(AdminRpc::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),
 					Ok(x) => writeln!(&mut ret, "Bad answer: {:?}", x).unwrap(),
@@ -486,23 +488,21 @@ impl AdminRpcHandler {
 		.unwrap();
 		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
 	}
+}
 
-	async fn handle_rpc(self: &Arc<Self>, msg: &AdminRpc) -> Result<AdminRpc, Error> {
-		match msg {
+#[async_trait]
+impl EndpointHandler<AdminRpc> for AdminRpcHandler {
+	async fn handle(
+		self: &Arc<Self>,
+		message: &AdminRpc,
+		_from: NodeID,
+	) -> Result<AdminRpc, Error> {
+		match message {
 			AdminRpc::BucketOperation(bo) => self.handle_bucket_cmd(bo).await,
 			AdminRpc::KeyOperation(ko) => self.handle_key_cmd(ko).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			_ => Err(Error::BadRpc("Invalid RPC".to_string())),
 		}
-	}
-}
-
-#[async_trait]
-impl EndpointHandler<AdminRpc> for AdminRpcHandler {
-	async fn handle(self: &Arc<Self>, message: &AdminRpc, _from: NodeID) -> AdminRpc {
-		self.handle_rpc(message)
-			.await
-			.unwrap_or_else(|e| AdminRpc::Error(format!("{}", e)))
 	}
 }

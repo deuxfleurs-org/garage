@@ -45,11 +45,10 @@ pub(crate) enum SyncRpc {
 	Node(MerkleNodeKey, MerkleNode),
 	Items(Vec<Arc<ByteBuf>>),
 	Ok,
-	Error(String),
 }
 
-impl Message for SyncRpc {
-	type Response = SyncRpc;
+impl Rpc for SyncRpc {
+	type Response = Result<SyncRpc, Error>;
 }
 
 struct SyncTodo {
@@ -305,7 +304,7 @@ where
 	async fn offload_items(
 		self: &Arc<Self>,
 		items: &[(Vec<u8>, Arc<ByteBuf>)],
-		nodes: &[NodeID],
+		nodes: &[Uuid],
 	) -> Result<(), Error> {
 		let values = items.iter().map(|(_k, v)| v.clone()).collect::<Vec<_>>();
 
@@ -354,7 +353,7 @@ where
 	async fn do_sync_with(
 		self: Arc<Self>,
 		partition: TodoPartition,
-		who: NodeID,
+		who: Uuid,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
 		let (root_ck_key, root_ck) = self.get_root_ck(partition.partition)?;
@@ -480,7 +479,7 @@ where
 		Ok(())
 	}
 
-	async fn send_items(&self, who: NodeID, item_value_list: Vec<Vec<u8>>) -> Result<(), Error> {
+	async fn send_items(&self, who: Uuid, item_value_list: Vec<Vec<u8>>) -> Result<(), Error> {
 		info!(
 			"({}) Sending {} items to {:?}",
 			self.data.name,
@@ -513,9 +512,17 @@ where
 			)))
 		}
 	}
+}
 
-	// ======= SYNCHRONIZATION PROCEDURE -- RECEIVER SIDE ======
-	async fn handle_rpc(self: &Arc<Self>, message: &SyncRpc) -> Result<SyncRpc, Error> {
+// ======= SYNCHRONIZATION PROCEDURE -- RECEIVER SIDE ======
+
+#[async_trait]
+impl<F, R> EndpointHandler<SyncRpc> for TableSyncer<F, R>
+where
+	F: TableSchema + 'static,
+	R: TableReplication + 'static,
+{
+	async fn handle(self: &Arc<Self>, message: &SyncRpc, _from: NodeID) -> Result<SyncRpc, Error> {
 		match message {
 			SyncRpc::RootCkHash(range, h) => {
 				let (_root_ck_key, root_ck) = self.get_root_ck(*range)?;
@@ -532,19 +539,6 @@ where
 			}
 			_ => Err(Error::Message("Unexpected sync RPC".to_string())),
 		}
-	}
-}
-
-#[async_trait]
-impl<F, R> EndpointHandler<SyncRpc> for TableSyncer<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
-	async fn handle(self: &Arc<Self>, message: &SyncRpc, _from: NodeID) -> SyncRpc {
-		self.handle_rpc(message)
-			.await
-			.unwrap_or_else(|e| SyncRpc::Error(format!("{}", e)))
 	}
 }
 

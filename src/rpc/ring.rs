@@ -3,8 +3,6 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
-use netapp::NodeID;
-
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
@@ -38,31 +36,6 @@ impl NetworkConfig {
 		Self {
 			members: HashMap::new(),
 			version: 0,
-		}
-	}
-
-	pub(crate) fn migrate_from_021(old: garage_rpc_021::ring::NetworkConfig) -> Self {
-		let members = old
-			.members
-			.into_iter()
-			.map(|(id, conf)| {
-				(
-					Hash::try_from(id.as_slice()).unwrap(),
-					NetworkConfigEntry {
-						zone: conf.datacenter,
-						capacity: if conf.capacity == 0 {
-							None
-						} else {
-							Some(conf.capacity)
-						},
-						tag: conf.tag,
-					},
-				)
-			})
-			.collect();
-		Self {
-			members,
-			version: old.version,
 		}
 	}
 }
@@ -100,7 +73,7 @@ pub struct Ring {
 	pub config: NetworkConfig,
 
 	// Internal order of nodes used to make a more compact representation of the ring
-	nodes: Vec<NodeID>,
+	nodes: Vec<Uuid>,
 
 	// The list of entries in the ring
 	ring: Vec<RingEntry>,
@@ -262,11 +235,6 @@ impl Ring {
 			})
 			.collect::<Vec<_>>();
 
-		let nodes = nodes
-			.iter()
-			.map(|id| NodeID::from_slice(id.as_slice()).unwrap())
-			.collect::<Vec<_>>();
-
 		Self {
 			replication_factor,
 			config,
@@ -298,7 +266,7 @@ impl Ring {
 	}
 
 	/// Walk the ring to find the n servers in which data should be replicated
-	pub fn get_nodes(&self, position: &Hash, n: usize) -> Vec<NodeID> {
+	pub fn get_nodes(&self, position: &Hash, n: usize) -> Vec<Uuid> {
 		if self.ring.len() != 1 << PARTITION_BITS {
 			warn!("Ring not yet ready, read/writes will be lost!");
 			return vec![];
