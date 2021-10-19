@@ -32,7 +32,6 @@ data_dir = "/tmp/garage-data-$count"
 rpc_bind_addr = "0.0.0.0:$((3900+$count))"		# the port other Garage nodes will use to talk to this node
 rpc_public_addr = "127.0.0.1:$((3900+$count))"
 bootstrap_peers = []
-max_concurrent_rpc_requests = 12
 replication_mode = "3"
 rpc_secret = "$NETWORK_SECRET"
 

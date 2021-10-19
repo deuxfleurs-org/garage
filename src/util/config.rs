@@ -46,10 +46,6 @@ pub struct Config {
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
 
-	/// Max number of concurrent RPC request
-	#[serde(default = "default_max_concurrent_rpc_requests")]
-	pub max_concurrent_rpc_requests: usize,
-
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]
 	pub sled_cache_capacity: u64,
@@ -90,9 +86,6 @@ fn default_sled_cache_capacity() -> u64 {
 }
 fn default_sled_flush_every_ms() -> u64 {
 	2000
-}
-fn default_max_concurrent_rpc_requests() -> usize {
-	12
 }
 fn default_block_size() -> usize {
 	1048576

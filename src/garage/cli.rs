@@ -356,7 +356,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	};
 
-	println!("Healthy nodes:");
+	println!("==== HEALTHY NODES ====");
 	let mut healthy_nodes = vec!["ID\tHostname\tAddress\tTag\tZone\tCapacity".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
 		if let Some(cfg) = config.members.get(&adv.id) {
@@ -387,7 +387,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 		.iter()
 		.any(|(id, _)| !status_keys.contains(id));
 	if failure_case_1 || failure_case_2 {
-		println!("\nFailed nodes:");
+		println!("\n==== FAILED NODES ====");
 		let mut failed_nodes =
 			vec!["ID\tHostname\tAddress\tTag\tZone\tCapacity\tLast seen".to_string()];
 		for adv in status.iter().filter(|adv| !adv.is_up) {
