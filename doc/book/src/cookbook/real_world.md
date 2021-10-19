@@ -16,10 +16,7 @@ To run a real-world deployment, make sure you the following conditions are met:
 - You have at least three machines with sufficient storage space available.
 
 - Each machine has a public IP address which is reachable by other machines.
-  Running behind a NAT is possible, but having several Garage nodes behind a single NAT
-  is slightly more involved as each will have to have a different RPC port number
-  (the local port number of a node must be the same as the port number exposed publicly
-  by the NAT).
+  Running behind a NAT is likely to be possible but hasn't been tested for the latest version (TODO).
 
 - Ideally, each machine should have a SSD available in addition to the HDD you are dedicating
   to Garage. This will allow for faster access to metadata and has the potential
@@ -45,32 +42,15 @@ For our example, we will suppose the following infrastructure with IPv6 connecti
 ## Get a Docker image
 
 Our docker image is currently named `lxpz/garage_amd64` and is stored on the [Docker Hub](https://hub.docker.com/r/lxpz/garage_amd64/tags?page=1&ordering=last_updated).
-We encourage you to use a fixed tag (eg. `v0.3.0`) and not the `latest` tag.
-For this example, we will use the latest published version at the time of the writing which is `v0.3.0` but it's up to you
+We encourage you to use a fixed tag (eg. `v0.4.0`) and not the `latest` tag.
+For this example, we will use the latest published version at the time of the writing which is `v0.4.0` but it's up to you
 to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/lxpz/garage_amd64/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull lxpz/garage_amd64:v0.3.0
+sudo docker pull lxpz/garage_amd64:v0.4.0
 ```
-
-
-## Generating TLS certificates
-
-You first need to generate TLS certificates to encrypt traffic between Garage nodes
-(reffered to as RPC traffic).
-
-To generate your TLS certificates, run on your machine:
-
-```
-wget https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/main/genkeys.sh
-chmod +x genkeys.sh
-./genkeys.sh
-```
-
-It will creates a folder named `pki/` containing the keys that you will used for the cluster.
-These files will have to be copied to all of your cluster nodes, as explained below.
 
 
 ## Deploying and configuring Garage
@@ -78,11 +58,7 @@ These files will have to be copied to all of your cluster nodes, as explained be
 On each machine, we will have a similar setup,
 especially you must consider the following folders/files:
 
-- `/etc/garage/garage.toml`: Garage daemon's configuration (see below)
-
-- `/etc/garage/pki/`: Folder containing Garage certificates,
-  must be generated on your computer and copied on the servers.
-  Only the files `garage-ca.crt`, `garage.crt` and `garage.key` are necessary.
+- `/etc/garage.toml`: Garage daemon's configuration (see below)
 
 - `/var/lib/garage/meta/`: Folder containing Garage's metadata,
   put this folder on a SSD if possible
@@ -91,7 +67,7 @@ especially you must consider the following folders/files:
   this folder will be your main data storage and must be on a large storage (e.g. large HDD)
 
 
-A valid `/etc/garage/garage.toml` for our cluster would be:
+A valid `/etc/garage/garage.toml` for our cluster would look as follows:
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
@@ -100,18 +76,12 @@ data_dir = "/var/lib/garage/data"
 replication_mode = "3"
 
 rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "<this node's public IP>:3901"
+rpc_secret = "<RPC secret>"
 
 bootstrap_peers = [
-  "[fc00:1::1]:3901",
-  "[fc00:1::2]:3901",
-  "[fc00:B::1]:3901",
-  "[fc00:F::1]:3901",
+    # We will fill this in later
 ]
-
-[rpc_tls]
-ca_cert = "/etc/garage/pki/garage-ca.crt"
-node_cert = "/etc/garage/pki/garage.crt"
-node_key = "/etc/garage/pki/garage.key"
 
 [s3_api]
 s3_region = "garage"
@@ -123,7 +93,37 @@ root_domain = ".web.garage"
 index = "index.html"
 ```
 
-Please make sure to change `bootstrap_peers` to **your** IP addresses!
+Check the following for your configuration files:
+
+- Make sure `rpc_public_addr` contains the public IP address of the node you are configuring.
+  This parameter is optional but recommended: if your nodes have trouble communicating with
+  one another, consider adding it.
+
+- Make sure `rpc_secret` is the same value on all nodes. It should be a 32-bytes hex-encoded secret key.
+  You can generate such a key with `openssl rand -hex 32`.
+
+You will now have to run `garage node-id` on all nodes to generate node keys.
+This will print keys as follows:
+
+```bash
+Mercury$ garage node-id
+563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901
+
+Venus$ garage node-id
+86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332[fc00:1::2]:3901
+
+etc.
+```
+
+You can then add these nodes to the `bootstrap_peers` list of at least one of your nodes:
+
+```toml
+bootstrap_peers = [
+    "563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901",
+    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332[fc00:1::2]:3901",
+    ...
+]
+```
 
 Check the [configuration file reference documentation](../reference_manual/configuration.md)
 to learn more about all available configuration options.
@@ -139,11 +139,10 @@ docker run \
   --name garaged \
   --restart always \
   --network host \
-  -v /etc/garage/pki:/etc/garage/pki \
-  -v /etc/garage/garage.toml:/garage/garage.toml \
+  -v /etc/garage.toml:/etc/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
-  lxpz/garage_amd64:v0.3.0
+  lxpz/garage_amd64:v0.4.0
 ```
 
 It should be restarted automatically at each reboot.
@@ -159,65 +158,27 @@ start again the command with a new version of Garage.
 ## Controling the daemon
 
 The `garage` binary has two purposes:
-  - it acts as a daemon when launched with `garage server ...`
+  - it acts as a daemon when launched with `garage server`
   - it acts as a control tool for the daemon when launched with any other command
 
-In this section, we will see how to use the `garage` binary as a control tool for the daemon we just started.
-You first need to get a shell having access to this binary. For instance, enter the Docker container with:
+Ensure an appropriate `garage` binary (the same version as your Docker image) is available in your path.
+If your configuration file is at `/etc/garage.toml`, the `garage` binary should work with no further change.
 
-```bash
-sudo docker exec -ti garaged bash
-```
-
-You will now have a shell where the Garage binary is available as `/garage/garage`
-
-*You can also install the binary on your machine to remotely control the cluster.*
-
-## Talk to the daemon and create an alias
-
-`garage` requires 4 options to talk with the daemon:
+You can test your `garage` CLI utility by running a simple command such as:
 
 ```
---ca-cert <ca-cert>            
---client-cert <client-cert>    
---client-key <client-key>      
--h, --rpc-host <rpc-host>
-```
-
-The 3 first ones are certificates and keys needed by TLS, the last one is simply the address of Garage's RPC endpoint.
-
-If you are invoking `garage` from a server node directly, you do not need to set `--rpc-host`
-as the default value `127.0.0.1:3901` will allow it to contact Garage correctly.
-
-To avoid typing the 3 first options each time we want to run a command,
-you can use the following alias:
-
-```bash
-alias garagectl='/garage/garage \
-  --ca-cert /etc/garage/pki/garage-ca.crt \
-  --client-cert /etc/garage/pki/garage.crt \
-  --client-key /etc/garage/pki/garage.key'
-```
-
-You can now use all of the commands presented in the [quick start guide](../quick_start/index.md),
-simply replace occurences of `garage` by `garagectl`.
-
-#### Test the alias
-
-You can test your alias by running a simple command such as:
-
-```
-garagectl status
+garage status
 ```
 
 You should get something like that as result:
 
 ```
-Healthy nodes:
-8781c50c410a41b3…	Mercury	[fc00:1::1]:3901	UNCONFIGURED/REMOVED
-2a638ed6c775b69a…	Venus	[fc00:1::2]:3901	UNCONFIGURED/REMOVED
-68143d720f20c89d…	Earth	[fc00:B::1]:3901	UNCONFIGURED/REMOVED
-212f7572f0c89da9…	Mars	[fc00:F::1]:3901	UNCONFIGURED/REMOVED
+==== HEALTHY NODES ====
+ID                  Hostname  Address           Tag                   Zone  Capacity
+563e1ac825ee3323…   Mercury   [fc00:1::1]:3901  NO ROLE ASSIGNED
+86f0f26ae4afbd59…   Venus     [fc00:1::2]:3901  NO ROLE ASSIGNED
+68143d720f20c89d…   Earth     [fc00:B::1]:3901  NO ROLE ASSIGNED
+212f7572f0c89da9…   Mars      [fc00:F::1]:3901  NO ROLE ASSIGNED
 ```
 
 
@@ -230,26 +191,26 @@ For our example, we will suppose we have the following infrastructure (Capacity,
 
 | Location | Name    | Disk Space | `Capacity` | `Identifier` | `Zone` |
 |----------|---------|------------|------------|--------------|--------------|
-| Paris    | Mercury | 1 To       | `2`        | `8781c5`     | `par1`       |
-| Paris    | Venus   | 2 To       | `4`        | `2a638e`     | `par1`       |
-| London   | Earth   | 2 To       | `4`        | `68143d`     | `lon1`       |
-| Brussels | Mars    | 1.5 To     | `3`        | `212f75`     | `bru1`       |
+| Paris    | Mercury | 1 To       | `2`        | `563e`     | `par1`       |
+| Paris    | Venus   | 2 To       | `4`        | `86f0`     | `par1`       |
+| London   | Earth   | 2 To       | `4`        | `6814`     | `lon1`       |
+| Brussels | Mars    | 1.5 To     | `3`        | `212f`     | `bru1`       |
 
 #### Node identifiers
 
 After its first launch, Garage generates a random and unique identifier for each nodes, such as:
 
 ```
-8781c50c410a41b363167e9d49cc468b6b9e4449b6577b64f15a249a149bdcbc
+563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d
 ```
 
-Often a shorter form can be used, containing only the beginning of the identifier, like `8781c5`,
+Often a shorter form can be used, containing only the beginning of the identifier, like `563e`,
 which identifies the server "Mercury" located in "Paris" according to our previous table.
 
 The most simple way to match an identifier to a node is to run:
 
 ```
-garagectl status
+garage status
 ```
 
 It will display the IP address associated with each node;
@@ -287,16 +248,16 @@ have 66% chance of being stored by Venus and 33% chance of being stored by Mercu
 Given the information above, we will configure our cluster as follow:
 
 ```
-garagectl node configure -z par1 -c 2 -t mercury 8781c5
-garagectl node configure -z par1 -c 4 -t venus 2a638e
-garagectl node configure -z lon1 -c 4 -t earth 68143d
-garagectl node configure -z bru1 -c 3 -t mars 212f75
+garage node configure -z par1 -c 2 -t mercury 563e
+garage node configure -z par1 -c 4 -t venus 86f0
+garage node configure -z lon1 -c 4 -t earth 6814
+garage node configure -z bru1 -c 3 -t mars 212f
 ```
 
 
 ## Using your Garage cluster
 
-Creating buckets and managing keys is done using the `garagectl` CLI,
+Creating buckets and managing keys is done using the `garage` CLI,
 and is covered in the [quick start guide](../quick_start/index.md).
 Remember also that the CLI is self-documented thanks to the `--help` flag and
 the `help` subcommand (e.g. `garage help`, `garage key --help`).

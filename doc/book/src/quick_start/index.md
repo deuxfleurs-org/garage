@@ -105,7 +105,7 @@ This should show something like this:
 ```
 ==== HEALTHY NODES ====
 ID                 Hostname  Address         Tag                   Zone  Capacity
-563e1ac825ee3323…  linuxbox  127.0.0.1:3901  UNCONFIGURED/REMOVED
+563e1ac825ee3323…  linuxbox  127.0.0.1:3901  NO ROLE ASSIGNED
 ```
 
 ## Configuring your Garage node

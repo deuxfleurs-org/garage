@@ -371,7 +371,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			));
 		} else {
 			healthy_nodes.push(format!(
-				"{id:?}\t{h}\t{addr}\tUNCONFIGURED/REMOVED",
+				"{id:?}\t{h}\t{addr}\tNO ROLE ASSIGNED",
 				id = adv.id,
 				h = adv.status.hostname,
 				addr = adv.addr,

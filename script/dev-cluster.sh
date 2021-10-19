@@ -76,7 +76,7 @@ for count in $(seq 1 3); do
 done
 
 RETRY=120
-until garage -c /tmp/config.1.toml status 2>&1|grep -q Healthy ; do 
+until garage -c /tmp/config.1.toml status 2>&1|grep -q HEALTHY ; do 
   (( RETRY-- ))
   if (( RETRY <= 0 )); then 
     echo -en "${MAIN_LABEL} Garage did not start"
