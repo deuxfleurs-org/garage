@@ -67,7 +67,7 @@ fi
 done
 # >>>>>>>>>>>>>>>> END FOR LOOP ON NODES
 
-sleep 5
+sleep 3
 # Establish connections between nodes
 for count in $(seq 1 3); do
 	NODE=$(garage -c /tmp/config.$count.toml node-id -q)

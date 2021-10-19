@@ -67,6 +67,7 @@ async fn main() {
 
 	if let Err(e) = res {
 		error!("{}", e);
+		std::process::exit(1);
 	}
 }
 

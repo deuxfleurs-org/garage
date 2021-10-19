@@ -17,6 +17,7 @@ SKIP_DUCK=1
 echo "⏳ Setup"
 ${SCRIPT_FOLDER}/dev-clean.sh
 ${SCRIPT_FOLDER}/dev-cluster.sh > /tmp/garage.log 2>&1 &
+sleep 6
 ${SCRIPT_FOLDER}/dev-configure.sh
 ${SCRIPT_FOLDER}/dev-bucket.sh
 
@@ -116,9 +117,9 @@ if [ -z "$SKIP_AWS" ]; then
   echo "<h1>hello world</h1>" > /tmp/garage-index.html
   aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
   [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
-  garage bucket website --allow eprouvette
+  garage -c /tmp/config.1.toml bucket website --allow eprouvette
   [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 200 ]
-  garage bucket website --deny eprouvette
+  garage -c /tmp/config.1.toml bucket website --deny eprouvette
   [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
   aws s3 rm s3://eprouvette/index.html
   rm /tmp/garage-index.html
@@ -127,8 +128,8 @@ fi
 echo "🏁 Teardown"
 AWS_ACCESS_KEY_ID=`cat /tmp/garage.s3 |cut -d' ' -f1`
 AWS_SECRET_ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
-garage bucket deny --read --write eprouvette --key $AWS_ACCESS_KEY_ID
-garage bucket delete --yes eprouvette
-garage key delete --yes $AWS_ACCESS_KEY_ID
+garage -c /tmp/config.1.toml bucket deny --read --write eprouvette --key $AWS_ACCESS_KEY_ID
+garage -c /tmp/config.1.toml bucket delete --yes eprouvette
+garage -c /tmp/config.1.toml key delete --yes $AWS_ACCESS_KEY_ID
 
 echo "✅ Success"
