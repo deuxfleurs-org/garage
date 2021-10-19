@@ -14,8 +14,8 @@ pub use netapp::proto::*;
 pub use netapp::{NetApp, NodeID};
 
 use garage_util::background::BackgroundRunner;
-use garage_util::error::Error;
 use garage_util::data::Uuid;
+use garage_util::error::Error;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 

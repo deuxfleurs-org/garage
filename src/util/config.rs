@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
 
-use netapp::NodeID;
 use netapp::util::parse_and_resolve_peer_addr;
+use netapp::NodeID;
 
 use crate::error::Error;
 
@@ -117,8 +117,9 @@ where
 	let mut ret = vec![];
 
 	for peer in <Vec<&str>>::deserialize(deserializer)? {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer)
-			.ok_or_else(|| D::Error::custom(format!("Unable to parse or resolve peer: {}", peer)))?;
+		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer).ok_or_else(|| {
+			D::Error::custom(format!("Unable to parse or resolve peer: {}", peer))
+		})?;
 		for ip in addrs {
 			ret.push((pubkey.clone(), ip));
 		}

@@ -18,8 +18,8 @@ use tokio::sync::Mutex;
 use netapp::endpoint::{Endpoint, EndpointHandler};
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
 use netapp::proto::*;
-use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 use netapp::util::parse_and_resolve_peer_addr;
+use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::Uuid;
@@ -110,7 +110,7 @@ pub struct KnownNodeInfo {
 	pub status: NodeStatus,
 }
 
-fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
+pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 	let mut key_file = metadata_dir.to_path_buf();
 	key_file.push("node_key");
 	if key_file.as_path().exists() {
@@ -246,8 +246,12 @@ impl System {
 	}
 
 	async fn handle_connect(&self, node: &str) -> Result<SystemRpc, Error> {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(node)
-			.ok_or_else(|| Error::Message(format!("Unable to parse or resolve node specification: {}", node)))?;
+		let (pubkey, addrs) = parse_and_resolve_peer_addr(node).ok_or_else(|| {
+			Error::Message(format!(
+				"Unable to parse or resolve node specification: {}",
+				node
+			))
+		})?;
 		let mut errors = vec![];
 		for ip in addrs.iter() {
 			match self.netapp.clone().try_connect(*ip, pubkey).await {
@@ -257,7 +261,10 @@ impl System {
 				}
 			}
 		}
-		return Err(Error::Message(format!("Could not connect to specified peers. Errors: {:?}", errors)));
+		return Err(Error::Message(format!(
+			"Could not connect to specified peers. Errors: {:?}",
+			errors
+		)));
 	}
 
 	fn handle_pull_config(&self) -> SystemRpc {
@@ -267,23 +274,25 @@ impl System {
 
 	fn handle_get_known_nodes(&self) -> SystemRpc {
 		let node_status = self.node_status.read().unwrap();
-		let known_nodes =
-			self.fullmesh
-				.get_peer_list()
-				.iter()
-				.map(|n| KnownNodeInfo {
-					id: n.id.into(),
-					addr: n.addr,
-					is_up: n.is_up(),
-					status: node_status.get(&n.id.into()).cloned().map(|(_, st)| st).unwrap_or(
-						NodeStatus {
-							hostname: "?".to_string(),
-							replication_factor: 0,
-							config_version: 0,
-						},
-					),
-				})
-				.collect::<Vec<_>>();
+		let known_nodes = self
+			.fullmesh
+			.get_peer_list()
+			.iter()
+			.map(|n| KnownNodeInfo {
+				id: n.id.into(),
+				addr: n.addr,
+				is_up: n.is_up(),
+				status: node_status
+					.get(&n.id.into())
+					.cloned()
+					.map(|(_, st)| st)
+					.unwrap_or(NodeStatus {
+						hostname: "?".to_string(),
+						replication_factor: 0,
+						config_version: 0,
+					}),
+			})
+			.collect::<Vec<_>>();
 		SystemRpc::ReturnKnownNodes(known_nodes)
 	}
 
@@ -330,14 +339,14 @@ impl System {
 			drop(update_ring);
 
 			let self2 = self.clone();
-			let adv2 = adv.clone();
+			let adv = adv.clone();
 			self.background.spawn_cancellable(async move {
 				self2
 					.rpc
 					.broadcast(
 						&self2.system_endpoint,
-						SystemRpc::AdvertiseConfig(adv2),
-						RequestStrategy::with_priority(PRIO_NORMAL),
+						SystemRpc::AdvertiseConfig(adv),
+						RequestStrategy::with_priority(PRIO_HIGH),
 					)
 					.await;
 				Ok(())

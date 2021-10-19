@@ -21,9 +21,9 @@ ${SCRIPT_FOLDER}/dev-configure.sh
 ${SCRIPT_FOLDER}/dev-bucket.sh
 
 which garage
-garage status
-garage key list
-garage bucket list
+garage -c /tmp/config.1.toml status
+garage -c /tmp/config.1.toml key list
+garage -c /tmp/config.1.toml bucket list
 
 dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # No multipart, inline storage (< INLINE_THRESHOLD = 3072 bytes)
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5 # No multipart but file will be chunked

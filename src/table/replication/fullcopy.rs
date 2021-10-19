@@ -28,11 +28,7 @@ impl TableReplication for TableFullReplication {
 
 	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		let ring = self.system.ring.borrow();
-		ring.config
-			.members
-			.keys()
-			.cloned()
-			.collect::<Vec<_>>()
+		ring.config.members.keys().cloned().collect::<Vec<_>>()
 	}
 	fn write_quorum(&self) -> usize {
 		let nmembers = self.system.ring.borrow().config.members.len();

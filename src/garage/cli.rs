@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
@@ -21,7 +20,12 @@ use crate::admin_rpc::*;
 pub enum Command {
 	/// Run Garage server
 	#[structopt(name = "server")]
-	Server(ServerOpt),
+	Server,
+
+	/// Print identifier (public key) of this garage node.
+	/// Generates a new keypair if necessary.
+	#[structopt(name = "node-id")]
+	NodeId(NodeIdOpt),
 
 	/// Get network status
 	#[structopt(name = "status")]
@@ -49,13 +53,6 @@ pub enum Command {
 }
 
 #[derive(StructOpt, Debug)]
-pub struct ServerOpt {
-	/// Configuration file
-	#[structopt(short = "c", long = "config", default_value = "./config.toml")]
-	pub config_file: PathBuf,
-}
-
-#[derive(StructOpt, Debug)]
 pub enum NodeOperation {
 	/// Connect to Garage node that is currently isolated from the system
 	#[structopt(name = "connect")]
@@ -68,6 +65,13 @@ pub enum NodeOperation {
 	/// Remove Garage node from cluster
 	#[structopt(name = "remove")]
 	Remove(RemoveNodeOpt),
+}
+
+#[derive(StructOpt, Debug)]
+pub struct NodeIdOpt {
+	/// Do not print usage instructions to stderr
+	#[structopt(short = "q", long = "quiet")]
+	pub(crate) quiet: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -384,7 +388,8 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 		.any(|(id, _)| !status_keys.contains(id));
 	if failure_case_1 || failure_case_2 {
 		println!("\nFailed nodes:");
-		let mut failed_nodes = vec!["ID\tHostname\tAddress\tTag\tZone\tCapacity\tLast seen".to_string()];
+		let mut failed_nodes =
+			vec!["ID\tHostname\tAddress\tTag\tZone\tCapacity\tLast seen".to_string()];
 		for adv in status.iter().filter(|adv| !adv.is_up) {
 			if let Some(cfg) = config.members.get(&adv.id) {
 				failed_nodes.push(format!(
@@ -421,14 +426,15 @@ pub async fn cmd_connect(
 	rpc_host: NodeID,
 	args: ConnectNodeOpt,
 ) -> Result<(), Error> {
-	match rpc_cli.call(&rpc_host, &SystemRpc::Connect(args.node), PRIO_NORMAL).await?? {
+	match rpc_cli
+		.call(&rpc_host, &SystemRpc::Connect(args.node), PRIO_NORMAL)
+		.await??
+	{
 		SystemRpc::Ok => {
 			println!("Success.");
 			Ok(())
 		}
-		r => {
-			Err(Error::BadRpc(format!("Unexpected response: {:?}", r)))
-		}
+		r => Err(Error::BadRpc(format!("Unexpected response: {:?}", r))),
 	}
 }
 
@@ -654,4 +660,3 @@ pub fn find_matching_node(
 		Ok(candidates[0])
 	}
 }
-
