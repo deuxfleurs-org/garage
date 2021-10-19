@@ -5,7 +5,6 @@ use structopt::StructOpt;
 
 use garage_util::data::Uuid;
 use garage_util::error::Error;
-use garage_util::time::*;
 
 use garage_rpc::ring::*;
 use garage_rpc::system::*;
@@ -400,7 +399,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					tag = cfg.tag,
 					zone = cfg.zone,
 					capacity = cfg.capacity_string(),
-					last_seen = (now_msec() - 0) / 1000,
+					last_seen = "FIXME", // FIXME was (now_msec() - adv.last_seen) / 1000,
 				));
 			}
 		}

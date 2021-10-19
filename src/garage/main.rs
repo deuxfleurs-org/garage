@@ -145,12 +145,12 @@ fn node_id_command(config_file: PathBuf, quiet: bool) -> Result<(), Error> {
 	};
 
 	if !quiet {
-		eprintln!("");
+		eprintln!();
 		eprintln!(
 			"To instruct a node to connect to this node, run the following command on that node:"
 		);
 		eprintln!("    garage [-c <config file path>] node connect {}", idstr);
-		eprintln!("");
+		eprintln!();
 		eprintln!("Or instruct them to connect from here by running:");
 		eprintln!(
 			"    garage -c {} -h <remote node> node connect {}",
@@ -160,12 +160,13 @@ fn node_id_command(config_file: PathBuf, quiet: bool) -> Result<(), Error> {
 		eprintln!(
 			"where <remote_node> is their own node identifier in the format: <pubkey>@<ip>:<port>"
 		);
-		eprintln!("");
+		eprintln!();
 		eprintln!("This node identifier can also be added as a bootstrap node in other node's garage.toml files:");
 		eprintln!("    bootstrap_peers = [");
 		eprintln!("        \"{}\",", idstr);
 		eprintln!("        ...");
 		eprintln!("    ]");
+		eprintln!();
 	}
 
 	Ok(())

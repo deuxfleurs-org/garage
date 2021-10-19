@@ -93,9 +93,9 @@ impl From<netapp::NodeID> for FixedBytes32 {
 	}
 }
 
-impl Into<netapp::NodeID> for FixedBytes32 {
-	fn into(self) -> netapp::NodeID {
-		netapp::NodeID::from_slice(self.as_slice()).unwrap()
+impl From<FixedBytes32> for netapp::NodeID {
+	fn from(bytes: FixedBytes32) -> netapp::NodeID {
+		netapp::NodeID::from_slice(bytes.as_slice()).unwrap()
 	}
 }
 

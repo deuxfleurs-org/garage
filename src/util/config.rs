@@ -114,7 +114,7 @@ where
 			D::Error::custom(format!("Unable to parse or resolve peer: {}", peer))
 		})?;
 		for ip in addrs {
-			ret.push((pubkey.clone(), ip));
+			ret.push((pubkey, ip));
 		}
 	}
 

@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
@@ -22,6 +22,7 @@ use netapp::util::parse_and_resolve_peer_addr;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
 use garage_util::background::BackgroundRunner;
+use garage_util::config::Config;
 use garage_util::data::Uuid;
 use garage_util::error::Error;
 use garage_util::persister::Persister;
@@ -137,19 +138,15 @@ impl System {
 	/// Create this node's membership manager
 	pub fn new(
 		network_key: NetworkKey,
-		metadata_dir: PathBuf,
 		background: Arc<BackgroundRunner>,
 		replication_factor: usize,
-		rpc_listen_addr: SocketAddr,
-		rpc_public_address: Option<SocketAddr>,
-		bootstrap_peers: Vec<(NodeID, SocketAddr)>,
-		consul_host: Option<String>,
-		consul_service_name: Option<String>,
+		config: &Config,
 	) -> Arc<Self> {
-		let node_key = gen_node_key(&metadata_dir).expect("Unable to read or generate node ID");
+		let node_key =
+			gen_node_key(&config.metadata_dir).expect("Unable to read or generate node ID");
 		info!("Node public key: {}", hex::encode(&node_key.public_key()));
 
-		let persist_config = Persister::new(&metadata_dir, "network_config");
+		let persist_config = Persister::new(&config.metadata_dir, "network_config");
 
 		let net_config = match persist_config.load() {
 			Ok(x) => x,
@@ -166,14 +163,14 @@ impl System {
 			hostname: gethostname::gethostname()
 				.into_string()
 				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
-			replication_factor: replication_factor,
+			replication_factor,
 			config_version: net_config.version,
 		};
 
 		let ring = Ring::new(net_config, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
-		if let Some(addr) = rpc_public_address {
+		if let Some(addr) = config.rpc_public_addr {
 			println!("{}@{}", hex::encode(&node_key.public_key()), addr);
 		} else {
 			println!("{}", hex::encode(&node_key.public_key()));
@@ -182,8 +179,8 @@ impl System {
 		let netapp = NetApp::new(network_key, node_key);
 		let fullmesh = FullMeshPeeringStrategy::new(
 			netapp.clone(),
-			bootstrap_peers.clone(),
-			rpc_public_address,
+			config.bootstrap_peers.clone(),
+			config.rpc_public_addr,
 		);
 
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
@@ -196,18 +193,18 @@ impl System {
 			netapp: netapp.clone(),
 			fullmesh: fullmesh.clone(),
 			rpc: RpcHelper {
-				fullmesh: fullmesh.clone(),
+				fullmesh,
 				background: background.clone(),
 			},
 			system_endpoint,
 			replication_factor,
-			rpc_listen_addr,
-			bootstrap_peers,
-			consul_host,
-			consul_service_name,
+			rpc_listen_addr: config.rpc_bind_addr,
+			bootstrap_peers: config.bootstrap_peers.clone(),
+			consul_host: config.consul_host.clone(),
+			consul_service_name: config.consul_service_name.clone(),
 			ring,
 			update_ring: Mutex::new(update_ring),
-			background: background.clone(),
+			background,
 		});
 		sys.system_endpoint.set_handler(sys.clone());
 		sys
