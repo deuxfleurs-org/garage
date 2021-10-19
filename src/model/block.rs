@@ -98,7 +98,9 @@ impl BlockManager {
 			.open_tree("block_local_resync_queue")
 			.expect("Unable to open block_local_resync_queue tree");
 
-		let endpoint = system.netapp.endpoint(format!("garage_model/block.rs/Rpc"));
+		let endpoint = system
+			.netapp
+			.endpoint("garage_model/block.rs/Rpc".to_string());
 
 		let block_manager = Arc::new(Self {
 			replication,

@@ -30,3 +30,4 @@
 
 - [Working Documents](./working_documents/index.md)
   - [Load Balancing Data](./working_documents/load_balancing.md)
+  - [Migrating from 0.3 to 0.4](./working_documents/migration_04.md)

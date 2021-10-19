@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
 
-use netapp::NodeID;
 use netapp::util::parse_and_resolve_peer_addr;
+use netapp::NodeID;
 
 use crate::error::Error;
 
@@ -45,10 +45,6 @@ pub struct Config {
 	pub consul_host: Option<String>,
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
-
-	/// Max number of concurrent RPC request
-	#[serde(default = "default_max_concurrent_rpc_requests")]
-	pub max_concurrent_rpc_requests: usize,
 
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]
@@ -91,9 +87,6 @@ fn default_sled_cache_capacity() -> u64 {
 fn default_sled_flush_every_ms() -> u64 {
 	2000
 }
-fn default_max_concurrent_rpc_requests() -> usize {
-	12
-}
 fn default_block_size() -> usize {
 	1048576
 }
@@ -117,10 +110,11 @@ where
 	let mut ret = vec![];
 
 	for peer in <Vec<&str>>::deserialize(deserializer)? {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer)
-			.ok_or_else(|| D::Error::custom(format!("Unable to parse or resolve peer: {}", peer)))?;
+		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer).ok_or_else(|| {
+			D::Error::custom(format!("Unable to parse or resolve peer: {}", peer))
+		})?;
 		for ip in addrs {
-			ret.push((pubkey.clone(), ip));
+			ret.push((pubkey, ip));
 		}
 	}
 

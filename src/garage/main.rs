@@ -4,22 +4,24 @@
 #[macro_use]
 extern crate log;
 
-mod admin_rpc;
+mod admin;
 mod cli;
 mod repair;
 mod server;
 
+use std::path::PathBuf;
+
 use structopt::StructOpt;
 
-use netapp::util::parse_peer_addr;
+use netapp::util::parse_and_resolve_peer_addr;
 use netapp::NetworkKey;
 
-use garage_util::error::Error;
+use garage_util::error::*;
 
 use garage_rpc::system::*;
 use garage_rpc::*;
 
-use admin_rpc::*;
+use admin::*;
 use cli::*;
 
 #[derive(StructOpt, Debug)]
@@ -34,6 +36,10 @@ struct Opt {
 	#[structopt(short = "s", long = "rpc-secret")]
 	pub rpc_secret: Option<String>,
 
+	/// Configuration file (garage.toml)
+	#[structopt(short = "c", long = "config", default_value = "/etc/garage.toml")]
+	pub config_file: PathBuf,
+
 	#[structopt(subcommand)]
 	cmd: Command,
 }
@@ -45,38 +51,68 @@ async fn main() {
 
 	let opt = Opt::from_args();
 
-	let res = if let Command::Server(server_opt) = opt.cmd {
-		// Abort on panic (same behavior as in Go)
-		std::panic::set_hook(Box::new(|panic_info| {
-			error!("{}", panic_info.to_string());
-			std::process::abort();
-		}));
+	let res = match opt.cmd {
+		Command::Server => {
+			// Abort on panic (same behavior as in Go)
+			std::panic::set_hook(Box::new(|panic_info| {
+				error!("{}", panic_info.to_string());
+				std::process::abort();
+			}));
 
-		server::run_server(server_opt.config_file).await
-	} else {
-		cli_command(opt).await
+			server::run_server(opt.config_file).await
+		}
+		Command::NodeId(node_id_opt) => node_id_command(opt.config_file, node_id_opt.quiet),
+		_ => cli_command(opt).await,
 	};
 
 	if let Err(e) = res {
-		error!("{}", e);
+		eprintln!("Error: {}", e);
+		std::process::exit(1);
 	}
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
-	let net_key_hex_str = &opt.rpc_secret.expect("No RPC secret provided");
+	let config = if opt.rpc_secret.is_none() || opt.rpc_host.is_none() {
+		Some(garage_util::config::read_config(opt.config_file.clone())
+			.err_context(format!("Unable to read configuration file {}. Configuration file is needed because -h or -s is not provided on the command line.", opt.config_file.to_string_lossy()))?)
+	} else {
+		None
+	};
+
+	// Find and parse network RPC secret
+	let net_key_hex_str = opt
+		.rpc_secret
+		.as_ref()
+		.or_else(|| config.as_ref().map(|c| &c.rpc_secret))
+		.ok_or("No RPC secret provided")?;
 	let network_key = NetworkKey::from_slice(
-		&hex::decode(net_key_hex_str).expect("Invalid RPC secret key (bad hex)")[..],
+		&hex::decode(net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
 	)
-	.expect("Invalid RPC secret provided (wrong length)");
+	.ok_or("Invalid RPC secret provided (wrong length)")?;
+
+	// Generate a temporary keypair for our RPC client
 	let (_pk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
 
 	let netapp = NetApp::new(network_key, sk);
-	let (id, addr) =
-		parse_peer_addr(&opt.rpc_host.expect("No RPC host provided")).expect("Invalid RPC host");
-	netapp.clone().try_connect(addr, id).await?;
+
+	// Find and parse the address of the target host
+	let (id, addr) = if let Some(h) = opt.rpc_host {
+		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <pubkey>@<IP or hostname>:<port>.", h))?;
+		(id, addrs[0])
+	} else if let Some(a) = config.as_ref().map(|c| c.rpc_public_addr).flatten() {
+		let node_id = garage_rpc::system::read_node_id(&config.unwrap().metadata_dir)
+			.err_context(READ_KEY_ERROR)?;
+		(node_id, a)
+	} else {
+		return Err(Error::Message("No RPC host provided".into()));
+	};
+
+	// Connect to target host
+	netapp.clone().try_connect(addr, id).await
+		.err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct public key.")?;
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
 	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
 
-	cli_cmd(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await
+	cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await
 }

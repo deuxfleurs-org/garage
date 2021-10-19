@@ -10,8 +10,6 @@ Following this guide is recommended before moving on to
 
 Note that this kind of deployment should not be used in production, as it provides
 no redundancy for your data!
-We will also skip intra-cluster TLS configuration, meaning that if you add nodes
-to your cluster, communication between them will not be secure.
 
 ## Get a binary
 
@@ -30,7 +28,10 @@ you can [build Garage from source](../cookbook/from_source.md).
 ## Writing a first configuration file
 
 This first configuration file should allow you to get started easily with the simplest
-possible Garage deployment:
+possible Garage deployment.
+**Save it as `/etc/garage.toml`.**
+You can also store it somewhere else, but you will have to specify `-c path/to/garage.toml`
+at each invocation of the `garage` binary (for example: `garage -c ./garage.toml server`, `garage -c ./garage.toml status`).
 
 ```toml
 metadata_dir = "/tmp/meta"
@@ -39,10 +40,10 @@ data_dir = "/tmp/data"
 replication_mode = "none"
 
 rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "1799bccfd7411eddcf9ebd316bc1f5287ad12a68094e1c6ac6abde7e6feae1ec"
 
-bootstrap_peers = [
-	"127.0.0.1:3901",
-]
+bootstrap_peers = []
 
 [s3_api]
 s3_region = "garage"
@@ -54,7 +55,10 @@ root_domain = ".web.garage"
 index = "index.html"
 ```
 
-Save your configuration file as `garage.toml`.
+The `rpc_secret` value provided above is just an example. It will work, but in
+order to secure your cluster you will need to use another one. You can generate
+such a value with `openssl rand -hex 32`.
+
 
 As you can see in the `metadata_dir` and `data_dir` parameters, we are saving Garage's data
 in `/tmp` which gets erased when your system reboots. This means that data stored on this
@@ -67,15 +71,15 @@ your data to be persisted properly.
 Use the following command to launch the Garage server with our configuration file:
 
 ```
-RUST_LOG=garage=info garage server -c garage.toml
+RUST_LOG=garage=info garage server
 ```
 
 You can tune Garage's verbosity as follows (from less verbose to more verbose):
 
 ```
-RUST_LOG=garage=info garage server -c garage.toml
-RUST_LOG=garage=debug garage server -c garage.toml
-RUST_LOG=garage=trace garage server -c garage.toml
+RUST_LOG=garage=info garage server
+RUST_LOG=garage=debug garage server
+RUST_LOG=garage=trace garage server
 ```
 
 Log level `info` is recommended for most use cases.
@@ -85,11 +89,12 @@ Log level `debug` can help you check why your S3 API calls are not working.
 ## Checking that Garage runs correctly
 
 The `garage` utility is also used as a CLI tool to configure your Garage deployment.
-It tries to connect to a Garage server through the RPC protocol, by default looking
-for a Garage server at `localhost:3901`.
+It uses values from the TOML configuration file to find the Garage daemon running on the
+local node, therefore if your configuration file is not at `/etc/garage.toml` you will
+again have to specify `-c path/to/garage.toml`.
 
-Since our deployment already binds to port 3901, the following command should be sufficient
-to show Garage's status:
+If the `garage` CLI is able to correctly detect the parameters of your local Garage node,
+the following command should be enough to show the status of your cluster:
 
 ```
 garage status
@@ -98,8 +103,9 @@ garage status
 This should show something like this:
 
 ```
-Healthy nodes:
-2a638ed6c775b69a…	linuxbox	127.0.0.1:3901	UNCONFIGURED/REMOVED
+==== HEALTHY NODES ====
+ID                 Hostname  Address         Tag                   Zone  Capacity
+563e1ac825ee3323…  linuxbox  127.0.0.1:3901  NO ROLE ASSIGNED
 ```
 
 ## Configuring your Garage node
@@ -117,7 +123,7 @@ garage node configure -z dc1 -c 1 <node_id>
 
 where `<node_id>` corresponds to the identifier of the node shown by `garage status` (first column).
 You can enter simply a prefix of that identifier.
-For instance here you could write just `garage node configure -z dc1 -c 1 2a63`.
+For instance here you could write just `garage node configure -z dc1 -c 1 563e`.
 
 
 

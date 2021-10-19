@@ -874,7 +874,7 @@ dependencies = [
 [[package]]
 name = "netapp"
 version = "0.3.0"
-source = "git+https://git.deuxfleurs.fr/lx/netapp#9b64c27da68f7ac9049e02e26da918e871a63f07"
+source = "git+https://git.deuxfleurs.fr/lx/netapp#c20d36892bcccae580603249706ba60d54a46d7f"
 dependencies = [
  "arc-swap",
  "async-trait",

@@ -349,11 +349,7 @@ impl AdminRpcHandler {
 						PRIO_NORMAL,
 					)
 					.await;
-				let is_err = match resp {
-					Ok(Ok(_)) => false,
-					_ => true,
-				};
-				if is_err {
+				if !matches!(resp, Ok(Ok(_))) {
 					failures.push(node);
 				}
 			}

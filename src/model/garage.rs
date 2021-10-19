@@ -57,14 +57,9 @@ impl Garage {
 		info!("Initialize membership management system...");
 		let system = System::new(
 			network_key,
-			config.metadata_dir.clone(),
 			background.clone(),
 			replication_mode.replication_factor(),
-			config.rpc_bind_addr,
-			config.rpc_public_addr,
-			config.bootstrap_peers.clone(),
-			config.consul_host.clone(),
-			config.consul_service_name.clone(),
+			&config,
 		);
 
 		let data_rep_param = TableShardedReplication {
