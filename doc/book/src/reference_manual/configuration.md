@@ -10,31 +10,26 @@ block_size = 1048576
 
 replication_mode = "3"
 
+rpc_secret = "4425f5c26c5e11581d3223904324dcb5b5d5dfb14e5e7f35e38c595424f5f1e6"
 rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "[fc00:1::1]:3901"
 
 bootstrap_peers = [
-  "[fc00:1::1]:3901",
-  "[fc00:1::2]:3901",
-  "[fc00:B::1]:3901",
-  "[fc00:F::1]:3901",
+    "563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901",
+    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332[fc00:1::2]:3901",
+    "681456ab91350f92242e80a531a3ec9392cb7c974f72640112f90a600d7921a4@[fc00:B::1]:3901",
+    "212fd62eeaca72c122b45a7f4fa0f55e012aa5e24ac384a72a3016413fa724ff@[fc00:F::1]:3901",
 ]
 
 consul_host = "consul.service"
 consul_service_name = "garage-daemon"
 
-max_concurrent_rpc_requests = 12
-
 sled_cache_capacity = 134217728
 sled_flush_every_ms = 2000
 
-[rpc_tls]
-ca_cert = "/etc/garage/pki/garage-ca.crt"
-node_cert = "/etc/garage/pki/garage.crt"
-node_key = "/etc/garage/pki/garage.key"
-
 [s3_api]
-s3_region = "garage"
 api_bind_addr = "[::]:3900"
+s3_region = "garage"
 
 [s3_web]
 bind_addr = "[::]:3902"
@@ -63,10 +58,15 @@ when [configuring it](../getting_started/05_cluster.md).
 
 #### `block_size`
 
-Garage splits stored objects in consecutive chunks of size `block_size` (except the last
-one which might be standard). The default size is 1MB and should work in most cases.
-If you are interested in tuning this, feel free to do so (and remember to report your
-findings to us!)
+Garage splits stored objects in consecutive chunks of size `block_size`
+(except the last one which might be smaller). The default size is 1MB and
+should work in most cases.  If you are interested in tuning this, feel free
+to do so (and remember to report your findings to us!). If this value is
+changed for a running Garage installation, only files newly uploaded will be
+affected. Previously uploaded files will remain available. This however
+means that chunks from existing files will not be deduplicated with chunks
+from newly uploaded files, meaning you might use more storage space that is
+optimally possible.
 
 #### `replication_mode`
 
@@ -97,6 +97,14 @@ Never run a Garage cluster where that is not the case.**
 Changing the `replication_mode` of a cluster might work (make sure to shut down all nodes
 and changing it everywhere at the time), but is not officially supported.
 
+#### `rpc_secret`
+
+Garage uses a secret key that is shared between all nodes of the cluster
+in order to identify these nodes and allow them to communicate together.
+This key should be specified here in the form of a 32-byte hex-encoded
+random string. Such a string can be generated with a command
+such as `openssl rand -hex 32`.
+
 #### `rpc_bind_addr`
 
 The address and port on which to bind for inter-cluster communcations
@@ -106,10 +114,28 @@ the node, even in the case of a NAT: the NAT should be configured to forward the
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
 
+#### `rpc_public_addr`
+
+The address and port that other nodes need to use to contact this node for
+RPC calls.  **This parameter is optional but recommended.** In case you have
+a NAT that binds the RPC port to a port that is different on your public IP,
+this field might help making it work.
+
 #### `bootstrap_peers`
 
-A list of IPs and ports on which to contact other Garage peers of this cluster.
-This should correspond to the RPC ports set up with `rpc_bind_addr`.
+A list of peer identifiers on which to contact other Garage peers of this cluster.
+These peer identifiers have the following syntax:
+
+```
+<node public key>@<node public IP or hostname>:<port>
+```
+
+In the case where `rpc_public_addr` is correctly specified in the
+configuration file, the full identifier of a node including IP and port can
+be obtained by running `garage node-id` and then included directly in the
+`bootstrap_peers` list of other nodes.  Otherwise, only the node's public
+key will be returned by `garage node-id` and you will have to add the IP
+yourself.
 
 #### `consul_host` and `consul_service_name`
 
@@ -120,12 +146,6 @@ as Garage is not able to announce itself.
 The `consul_host` parameter should be set to the hostname of the Consul server,
 and `consul_service_name` should be set to the service name under which Garage's
 RPC ports are announced.
-
-#### `max_concurrent_rpc_requests`
-
-Garage implements rate limiting for RPC requests: no more than
-`max_concurrent_rpc_requests` concurrent outbound RPC requests will be made
-by a Garage node (additionnal requests will be put in a waiting queue).
 
 #### `sled_cache_capacity`
 
@@ -141,21 +161,6 @@ This parameters can be used to tune the flushing interval of sled.
 Increase this if sled is thrashing your SSD, at the risk of losing more data in case
 of a power outage (though this should not matter much as data is replicated on other
 nodes). The default value, 2000ms, should be appropriate for most use cases.
-
-
-## The `[rpc_tls]` section
-
-This section should be used to configure the TLS certificates used to encrypt
-intra-cluster traffic (RPC traffic). The following parameters should be set:
-
-- `ca_cert`: the certificate of the CA that is allowed to sign individual node certificates
-- `node_cert`: the node certificate for the current node
-- `node_key`: the key associated with the node certificate
-
-Note tha several nodes may use the same node certificate, as long as it is signed
-by the CA.
-
-If this section is absent, TLS is not used to encrypt intra-cluster traffic.
 
 
 ## The `[s3_api]` section
