@@ -28,7 +28,7 @@ use garage_util::error::Error;
 use garage_util::persister::Persister;
 use garage_util::time::*;
 
-use crate::consul::get_consul_nodes;
+use crate::consul::*;
 use crate::ring::*;
 use crate::rpc_helper::*;
 
@@ -80,6 +80,7 @@ pub struct System {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
+	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<(NodeID, SocketAddr)>,
 	consul_host: Option<String>,
 	consul_service_name: Option<String>,
@@ -199,6 +200,7 @@ impl System {
 			system_endpoint,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
+			rpc_public_addr: config.rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			consul_host: config.consul_host.clone(),
 			consul_service_name: config.consul_service_name.clone(),
@@ -223,6 +225,32 @@ impl System {
 	}
 
 	// ---- INTERNALS ----
+
+	async fn advertise_to_consul(self: Arc<Self>) -> Result<(), Error> {
+		let (consul_host, consul_service_name) =
+			match (&self.consul_host, &self.consul_service_name) {
+				(Some(ch), Some(csn)) => (ch, csn),
+				_ => return Ok(()),
+			};
+
+		let rpc_public_addr = match self.rpc_public_addr {
+			Some(addr) => addr,
+			None => {
+				warn!("Not advertising to Consul because rpc_public_addr is not defined in config file.");
+				return Ok(());
+			}
+		};
+
+		publish_consul_service(
+			consul_host,
+			consul_service_name,
+			self.netapp.id,
+			&self.local_status.load_full().hostname,
+			rpc_public_addr,
+		)
+		.await
+		.map_err(|e| Error::Message(format!("Error while publishing Consul service: {}", e)))
+	}
 
 	/// Save network configuration to disc
 	async fn save_network_config(self: Arc<Self>) -> Result<(), Error> {
@@ -375,7 +403,7 @@ impl System {
 		}
 	}
 
-	async fn discovery_loop(&self, mut stop_signal: watch::Receiver<bool>) {
+	async fn discovery_loop(self: &Arc<Self>, mut stop_signal: watch::Receiver<bool>) {
 		let consul_config = match (&self.consul_host, &self.consul_service_name) {
 			(Some(ch), Some(csn)) => Some((ch.clone(), csn.clone())),
 			_ => None,
@@ -418,6 +446,8 @@ impl System {
 					tokio::spawn(self.netapp.clone().try_connect(node_addr, node_id));
 				}
 			}
+
+			self.background.spawn(self.clone().advertise_to_consul());
 
 			let restart_at = tokio::time::sleep(DISCOVERY_INTERVAL);
 			select! {

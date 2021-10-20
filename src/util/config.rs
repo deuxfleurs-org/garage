@@ -41,7 +41,7 @@ pub struct Config {
 	/// Bootstrap peers RPC address
 	#[serde(deserialize_with = "deserialize_vec_addr")]
 	pub bootstrap_peers: Vec<(NodeID, SocketAddr)>,
-	/// Consule host to connect to to discover more peers
+	/// Consul host to connect to to discover more peers
 	pub consul_host: Option<String>,
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
