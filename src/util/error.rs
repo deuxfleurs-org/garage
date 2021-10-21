@@ -48,12 +48,13 @@ pub enum Error {
 	Timeout,
 
 	#[error(
-		display = "Could not reach quorum. {} of {} request succeeded, others returned errors: {:?}",
+		display = "Could not reach quorum of {}. {} of {} request succeeded, others returned errors: {:?}",
 		_0,
 		_1,
-		_2
+		_2,
+		_3
 	)]
-	Quorum(usize, usize, Vec<String>),
+	Quorum(usize, usize, usize, Vec<String>),
 
 	#[error(display = "Bad RPC: {}", _0)]
 	BadRpc(String),
@@ -110,11 +111,7 @@ where
 	fn err_context<C: std::borrow::Borrow<str>>(self, ctx: C) -> Result<T, Error> {
 		match self {
 			Ok(x) => Ok(x),
-			Err(e) => Err(Error::Message(format!(
-				"{}\nOriginal error: {}",
-				ctx.borrow(),
-				e
-			))),
+			Err(e) => Err(Error::Message(format!("{}\n{}", ctx.borrow(), e))),
 		}
 	}
 }

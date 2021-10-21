@@ -203,7 +203,7 @@ impl RpcHelper {
 			Ok(results)
 		} else {
 			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
-			Err(Error::Quorum(results.len(), to.len(), errors))
+			Err(Error::Quorum(quorum, results.len(), to.len(), errors))
 		}
 	}
 }

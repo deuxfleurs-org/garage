@@ -83,7 +83,9 @@ impl Error {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::InternalError(
-				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(_, _, _),
+				GarageError::Timeout
+				| GarageError::RemoteError(_)
+				| GarageError::Quorum(_, _, _, _),
 			) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
 				StatusCode::INTERNAL_SERVER_ERROR
@@ -98,7 +100,9 @@ impl Error {
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::InternalError(
-				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(_, _, _),
+				GarageError::Timeout
+				| GarageError::RemoteError(_)
+				| GarageError::Quorum(_, _, _, _),
 			) => "ServiceUnavailable",
 			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => "InternalError",
 			_ => "InvalidRequest",
