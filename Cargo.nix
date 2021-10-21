@@ -246,7 +246,7 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "95059428f66df56b63431fdb4e1947ed2190586af5c5a8a8b71122bdf5a7f469"; };
     dependencies = {
-      ${ if hostPlatform.config == "aarch64-apple-darwin" || hostPlatform.parsed.cpu.name == "aarch64" && hostPlatform.parsed.kernel.name == "linux" then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.103" { inherit profileName; };
+      ${ if hostPlatform.parsed.cpu.name == "aarch64" && hostPlatform.parsed.kernel.name == "linux" || hostPlatform.config == "aarch64-apple-darwin" then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.103" { inherit profileName; };
     };
   });
   
@@ -1236,7 +1236,7 @@ in
       url = https://git.deuxfleurs.fr/lx/netapp;
       name = "netapp";
       version = "0.3.0";
-      rev = "de981aace0e47a1fa65b38212ac21d91e52f7c15";};
+      rev = "57327f10e2536a89004f3a1def83ed16243c1a3e";};
     features = builtins.concatLists [
       [ "default" ]
     ];
