@@ -24,7 +24,7 @@ use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 use garage_util::background::BackgroundRunner;
 use garage_util::config::Config;
 use garage_util::data::Uuid;
-use garage_util::error::Error;
+use garage_util::error::*;
 use garage_util::persister::Persister;
 use garage_util::time::*;
 
@@ -38,6 +38,8 @@ const PING_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
+
+pub const CONNECT_ERROR_MESSAGE: &str = "Error establishing RPC connection to remote node. This can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret";
 
 /// RPC messages related to membership
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -113,6 +115,22 @@ pub struct KnownNodeInfo {
 	pub status: NodeStatus,
 }
 
+pub fn read_node_id(metadata_dir: &Path) -> Result<NodeID, Error> {
+	let mut pubkey_file = metadata_dir.to_path_buf();
+	pubkey_file.push("node_key.pub");
+
+	let mut f = std::fs::File::open(pubkey_file.as_path())?;
+	let mut d = vec![];
+	f.read_to_end(&mut d)?;
+	if d.len() != 32 {
+		return Err(Error::Message("Corrupt node_key.pub file".to_string()));
+	}
+
+	let mut key = [0u8; 32];
+	key.copy_from_slice(&d[..]);
+	Ok(NodeID::from_slice(&key[..]).unwrap())
+}
+
 pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 	let mut key_file = metadata_dir.to_path_buf();
 	key_file.push("node_key");
@@ -128,10 +146,30 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 		key.copy_from_slice(&d[..]);
 		Ok(NodeKey::from_slice(&key[..]).unwrap())
 	} else {
-		let (_, key) = ed25519::gen_keypair();
+		if !metadata_dir.exists() {
+			info!("Metadata directory does not exist, creating it.");
+			std::fs::create_dir(&metadata_dir)?;
+		}
 
-		let mut f = std::fs::File::create(key_file.as_path())?;
-		f.write_all(&key[..])?;
+		info!("Generating new node key pair.");
+		let (pubkey, key) = ed25519::gen_keypair();
+
+		{
+			use std::os::unix::fs::PermissionsExt;
+			let mut f = std::fs::File::create(key_file.as_path())?;
+			let mut perm = f.metadata()?.permissions();
+			perm.set_mode(0o600);
+			std::fs::set_permissions(key_file.as_path(), perm)?;
+			f.write_all(&key[..])?;
+		}
+
+		{
+			let mut pubkey_file = metadata_dir.to_path_buf();
+			pubkey_file.push("node_key.pub");
+			let mut f2 = std::fs::File::create(pubkey_file.as_path())?;
+			f2.write_all(&pubkey[..])?;
+		}
+
 		Ok(key)
 	}
 }
@@ -252,7 +290,7 @@ impl System {
 			rpc_public_addr,
 		)
 		.await
-		.map_err(|e| Error::Message(format!("Error while publishing Consul service: {}", e)))
+		.err_context("Error while publishing Consul service")
 	}
 
 	/// Save network configuration to disc
@@ -282,7 +320,13 @@ impl System {
 		})?;
 		let mut errors = vec![];
 		for ip in addrs.iter() {
-			match self.netapp.clone().try_connect(*ip, pubkey).await {
+			match self
+				.netapp
+				.clone()
+				.try_connect(*ip, pubkey)
+				.await
+				.err_context(CONNECT_ERROR_MESSAGE)
+			{
 				Ok(()) => return Ok(SystemRpc::Ok),
 				Err(e) => {
 					errors.push((*ip, e));
@@ -445,7 +489,12 @@ impl System {
 				}
 
 				for (node_id, node_addr) in ping_list {
-					tokio::spawn(self.netapp.clone().try_connect(node_addr, node_id));
+					tokio::spawn(
+						self.netapp
+							.clone()
+							.try_connect(node_addr, node_id)
+							.map(|r| r.err_context(CONNECT_ERROR_MESSAGE)),
+					);
 				}
 			}
 

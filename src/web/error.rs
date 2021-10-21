@@ -39,7 +39,7 @@ impl Error {
 			Error::NotFound => StatusCode::NOT_FOUND,
 			Error::ApiError(e) => e.http_status_code(),
 			Error::InternalError(
-				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::TooManyErrors(_),
+				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(_, _, _),
 			) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			_ => StatusCode::BAD_REQUEST,

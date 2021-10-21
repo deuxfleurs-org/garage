@@ -10,7 +10,7 @@ use garage_api::run_api_server;
 use garage_model::garage::Garage;
 use garage_web::run_web_server;
 
-use crate::admin_rpc::*;
+use crate::admin::*;
 
 async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {

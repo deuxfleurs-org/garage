@@ -47,8 +47,13 @@ pub enum Error {
 	#[error(display = "Timeout")]
 	Timeout,
 
-	#[error(display = "Too many errors: {:?}", _0)]
-	TooManyErrors(Vec<String>),
+	#[error(
+		display = "Could not reach quorum. {} of {} request succeeded, others returned errors: {:?}",
+		_0,
+		_1,
+		_2
+	)]
+	Quorum(usize, usize, Vec<String>),
 
 	#[error(display = "Bad RPC: {}", _0)]
 	BadRpc(String),
@@ -78,6 +83,39 @@ impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
 	fn from(_e: tokio::sync::mpsc::error::SendError<T>) -> Error {
 		Error::Message("MPSC send error".to_string())
+	}
+}
+
+impl<'a> From<&'a str> for Error {
+	fn from(v: &'a str) -> Error {
+		Error::Message(v.to_string())
+	}
+}
+
+impl From<String> for Error {
+	fn from(v: String) -> Error {
+		Error::Message(v)
+	}
+}
+
+pub trait ErrorContext<T, E> {
+	fn err_context<C: std::borrow::Borrow<str>>(self, ctx: C) -> Result<T, Error>;
+}
+
+impl<T, E> ErrorContext<T, E> for Result<T, E>
+where
+	E: std::fmt::Display,
+{
+	#[inline]
+	fn err_context<C: std::borrow::Borrow<str>>(self, ctx: C) -> Result<T, Error> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(e) => Err(Error::Message(format!(
+				"{}\nOriginal error: {}",
+				ctx.borrow(),
+				e
+			))),
+		}
 	}
 }
 
