@@ -47,6 +47,10 @@ EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"
 
+(garage -c /tmp/config.$count.toml server 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
+done
+# >>>>>>>>>>>>>>>> END FOR LOOP ON NODES
+
 if [ -z "$SKIP_HTTPS" ]; then
   echo -en "$LABEL Starting dummy HTTPS reverse proxy\n"
   mkdir -p /tmp/garagessl
@@ -61,10 +65,6 @@ if [ -z "$SKIP_HTTPS" ]; then
   cat /tmp/garagessl/test.key /tmp/garagessl/test.crt > /tmp/garagessl/test.pem
   socat openssl-listen:4443,reuseaddr,fork,cert=/tmp/garagessl/test.pem,verify=0 tcp4-connect:localhost:3911 &
 fi
-
-(garage -c /tmp/config.$count.toml server 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
-done
-# >>>>>>>>>>>>>>>> END FOR LOOP ON NODES
 
 sleep 3
 # Establish connections between nodes
