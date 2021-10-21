@@ -69,6 +69,7 @@ pub struct System {
 	pub id: Uuid,
 
 	persist_config: Persister<NetworkConfig>,
+	persist_peer_list: Persister<Vec<(Uuid, SocketAddr)>>,
 
 	local_status: ArcSwap<NodeStatus>,
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
@@ -148,6 +149,7 @@ impl System {
 		info!("Node public key: {}", hex::encode(&node_key.public_key()));
 
 		let persist_config = Persister::new(&config.metadata_dir, "network_config");
+		let persist_peer_list = Persister::new(&config.metadata_dir, "peer_list");
 
 		let net_config = match persist_config.load() {
 			Ok(x) => x,
@@ -189,6 +191,7 @@ impl System {
 		let sys = Arc::new(System {
 			id: netapp.id.into(),
 			persist_config,
+			persist_peer_list,
 			local_status: ArcSwap::new(Arc::new(local_status)),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
@@ -424,13 +427,12 @@ impl System {
 
 				let mut ping_list = self.bootstrap_peers.clone();
 
-				/*
-				 *TODO bring this back: persisted list of peers
-				if let Ok(peers) = self.persist_status.load_async().await {
-					ping_list.extend(peers.iter().map(|x| (x.addr, Some(x.id))));
+				// Add peer list from list stored on disk
+				if let Ok(peers) = self.persist_peer_list.load_async().await {
+					ping_list.extend(peers.iter().map(|(id, addr)| ((*id).into(), *addr)))
 				}
-				*/
 
+				// Fetch peer list from Consul
 				if let Some((consul_host, consul_service_name)) = &consul_config {
 					match get_consul_nodes(consul_host, consul_service_name).await {
 						Ok(node_list) => {
@@ -445,6 +447,16 @@ impl System {
 				for (node_id, node_addr) in ping_list {
 					tokio::spawn(self.netapp.clone().try_connect(node_addr, node_id));
 				}
+			}
+
+			let peer_list = self
+				.fullmesh
+				.get_peer_list()
+				.iter()
+				.map(|n| (n.id.into(), n.addr))
+				.collect::<Vec<_>>();
+			if let Err(e) = self.persist_peer_list.save_async(&peer_list).await {
+				warn!("Could not save peer list to file: {}", e);
 			}
 
 			self.background.spawn(self.clone().advertise_to_consul());
