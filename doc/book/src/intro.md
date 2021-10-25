@@ -5,7 +5,8 @@
 </p>
 
 <p align="center" style="text-align:center;">
-	[ <a href="https://git.deuxfleurs.fr/Deuxfleurs/garage">Git repository</a>
+	[ <a href="https://garagehq.deuxfleurs.fr/_releases.html">Download</a>
+	| <a href="https://git.deuxfleurs.fr/Deuxfleurs/garage">Git repository</a>
 	| <a href="https://matrix.to/#/%23garage:deuxfleurs.fr">Matrix channel</a>
 	| <a href="https://drone.deuxfleurs.fr/Deuxfleurs/garage">Drone CI</a>
 	]
