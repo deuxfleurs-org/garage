@@ -11,26 +11,17 @@ with import ./nix/common.nix;
 let
   crossSystem = { config = target; };
 in let
-
   pkgs = import pkgsSrc {
     inherit system crossSystem;
-    overlays = [ cargo2nixOverlay rustOverlay ];
+    overlays = [ cargo2nixOverlay ];
   };
-  rustDist = pkgs.buildPackages.rust-bin.stable.latest.default;
 
   /*
    The following complexity should be abstracted by makePackageSet' (note the final quote).
    However its code uses deprecated features of rust-overlay that can lead to bug.
    Instead, we build our own rustChannel object with the recommended API of rust-overlay.
    */
-  rustChannel = rustDist // {
-    cargo = rustDist;
-    rustc = rustDist.override {
-      targets = [
-        (pkgs.rustBuilder.rustLib.realHostTriple pkgs.stdenv.targetPlatform)
-      ];
-    };
-  };
+  rustChannel = pkgs.rustPlatform.rust;
 
   overrides = pkgs.buildPackages.rustBuilder.overrides.all ++ [
     (pkgs.rustBuilder.rustLib.makeOverride {

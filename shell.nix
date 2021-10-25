@@ -1,6 +1,5 @@
 {
   system ? builtins.currentSystem,
-  crossSystem ? null,
   rust ? true,
   integration ? true,
   release ? true,
@@ -10,10 +9,9 @@ with import ./nix/common.nix;
 
 let
   pkgs = import pkgsSrc {
-    inherit system crossSystem;
-    overlays = [ cargo2nixOverlay rustOverlay ];
+    inherit system;
+    overlays = [ cargo2nixOverlay ];
   };
-  rustDist = pkgs.buildPackages.rust-bin.stable.latest.default;
   kaniko = (import ./nix/kaniko.nix) pkgs;
 
 in
@@ -60,7 +58,13 @@ function refresh_index {
   '';
 
   nativeBuildInputs = 
-   (if rust then [ rustDist (pkgs.callPackage cargo2nix {}).package ] else [])
+   (if rust then [
+     pkgs.rustPlatform.rust.rustc
+     pkgs.rustPlatform.rust.cargo
+     pkgs.clippy
+     pkgs.rustfmt
+     /*(pkgs.callPackage cargo2nix {}).package*/
+    ] else [])
    ++
    (if integration then [ pkgs.s3cmd pkgs.awscli2 pkgs.minio-client pkgs.rclone pkgs.socat pkgs.psmisc pkgs.which ] else [])
    ++

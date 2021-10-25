@@ -12,16 +12,10 @@ rec {
     url = "https://github.com/superboum/cargo2nix";
     rev = "1364752cd784764db2ef5b1e1248727cebfae2ce";
   };
-  rustOverlaySrc = fetchGit {
-    # As of 2021-10-05
-    url = "https://github.com/oxalica/rust-overlay";
-    rev = "9c2fc6a62ccbc6f420d71ecac6bf0b84dbbee64f";
-  };
 
   /*
    * Shared objects
    */
-  rustOverlay = import rustOverlaySrc;
   cargo2nix = import cargo2nixSrc;
   cargo2nixOverlay = import "${cargo2nixSrc}/overlay";
 }
