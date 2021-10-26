@@ -626,7 +626,7 @@ in
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       sodiumoxide = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; };
       log = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.14" { inherit profileName; };
-      netapp = rustPackages."git+https://git.deuxfleurs.fr/lx/netapp".netapp."0.3.0" { inherit profileName; };
+      netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.3.0" { inherit profileName; };
       pretty_env_logger = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pretty_env_logger."0.4.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.4" { inherit profileName; };
       rmp_serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; };
@@ -687,7 +687,7 @@ in
       garage_util = rustPackages."unknown".garage_util."0.4.0" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       log = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.14" { inherit profileName; };
-      netapp = rustPackages."git+https://git.deuxfleurs.fr/lx/netapp".netapp."0.3.0" { inherit profileName; };
+      netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.3.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.4" { inherit profileName; };
       rmp_serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.130" { inherit profileName; };
@@ -714,7 +714,7 @@ in
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.13" { inherit profileName; };
       sodiumoxide = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; };
       log = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.14" { inherit profileName; };
-      netapp = rustPackages."git+https://git.deuxfleurs.fr/lx/netapp".netapp."0.3.0" { inherit profileName; };
+      netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.3.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.4" { inherit profileName; };
       rmp_serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.130" { inherit profileName; };
@@ -761,7 +761,7 @@ in
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.5" { inherit profileName; };
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.13" { inherit profileName; };
       log = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.14" { inherit profileName; };
-      netapp = rustPackages."git+https://git.deuxfleurs.fr/lx/netapp".netapp."0.3.0" { inherit profileName; };
+      netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.3.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.4" { inherit profileName; };
       rmp_serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.130" { inherit profileName; };
@@ -1228,15 +1228,11 @@ in
     };
   });
   
-  "git+https://git.deuxfleurs.fr/lx/netapp".netapp."0.3.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".netapp."0.3.0" = overridableMkRustCrate (profileName: rec {
     name = "netapp";
     version = "0.3.0";
-    registry = "git+https://git.deuxfleurs.fr/lx/netapp";
-    src = fetchCrateGit {
-      url = https://git.deuxfleurs.fr/lx/netapp;
-      name = "netapp";
-      version = "0.3.0";
-      rev = "9b64c27da68f7ac9049e02e26da918e871a63f07";};
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo { inherit name version; sha256 = "d202ff23744499a8e5d89a3199ca7b9a8aef9980a23b1b09d6508a8db2a118d2"; };
     features = builtins.concatLists [
       [ "default" ]
     ];

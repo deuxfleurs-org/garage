@@ -874,7 +874,8 @@ dependencies = [
 [[package]]
 name = "netapp"
 version = "0.3.0"
-source = "git+https://git.deuxfleurs.fr/lx/netapp#c20d36892bcccae580603249706ba60d54a46d7f"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d202ff23744499a8e5d89a3199ca7b9a8aef9980a23b1b09d6508a8db2a118d2"
 dependencies = [
  "arc-swap",
  "async-trait",
