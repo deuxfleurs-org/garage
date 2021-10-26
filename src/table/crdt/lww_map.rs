@@ -103,7 +103,7 @@ where
 	}
 	/// Get a reference to the value assigned to a key
 	pub fn get(&self, k: &K) -> Option<&V> {
-		match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(&k)) {
+		match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(k)) {
 			Ok(i) => Some(&self.vals[i].2),
 			Err(_) => None,
 		}
@@ -132,14 +132,14 @@ where
 {
 	fn merge(&mut self, other: &Self) {
 		for (k, ts2, v2) in other.vals.iter() {
-			match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(&k)) {
+			match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(k)) {
 				Ok(i) => {
 					let (_, ts1, _v1) = &self.vals[i];
 					if ts2 > ts1 {
 						self.vals[i].1 = *ts2;
 						self.vals[i].2 = v2.clone();
 					} else if ts1 == ts2 {
-						self.vals[i].2.merge(&v2);
+						self.vals[i].2.merge(v2);
 					}
 				}
 				Err(i) => {

@@ -543,7 +543,7 @@ impl EndpointHandler<SystemRpc> for System {
 			SystemRpc::Connect(node) => self.handle_connect(node).await,
 			SystemRpc::PullConfig => Ok(self.handle_pull_config()),
 			SystemRpc::AdvertiseStatus(adv) => self.handle_advertise_status(from.into(), adv).await,
-			SystemRpc::AdvertiseConfig(adv) => self.clone().handle_advertise_config(&adv).await,
+			SystemRpc::AdvertiseConfig(adv) => self.clone().handle_advertise_config(adv).await,
 			SystemRpc::GetKnownNodes => Ok(self.handle_get_known_nodes()),
 			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
 		}

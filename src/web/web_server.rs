@@ -36,7 +36,7 @@ pub async fn run_web_server(
 		}
 	});
 
-	let server = Server::bind(&addr).serve(service);
+	let server = Server::bind(addr).serve(service);
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
 	info!("Web server listening on http://{}", addr);
 
@@ -95,12 +95,12 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	// Get path
 	let path = req.uri().path().to_string();
 	let index = &garage.config.s3_web.index;
-	let key = path_to_key(&path, &index)?;
+	let key = path_to_key(&path, index)?;
 
 	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
 
 	let res = match *req.method() {
-		Method::HEAD => handle_head(garage, &req, &bucket, &key).await?,
+		Method::HEAD => handle_head(garage, &req, bucket, &key).await?,
 		Method::GET => handle_get(garage, &req, bucket, &key).await?,
 		_ => return Err(Error::BadRequest("HTTP method not supported".to_string())),
 	};
@@ -173,7 +173,7 @@ fn host_to_bucket<'a>(host: &'a str, root: &str) -> &'a str {
 /// When a path ends with "/", we append the index name to match traditional web server behavior
 /// which is also AWS S3 behavior.
 fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
-	let path_utf8 = percent_encoding::percent_decode_str(&path).decode_utf8()?;
+	let path_utf8 = percent_encoding::percent_decode_str(path).decode_utf8()?;
 
 	if !path_utf8.starts_with('/') {
 		return Err(Error::BadRequest(

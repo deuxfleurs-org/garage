@@ -70,7 +70,7 @@ pub async fn check_signature(
 	let canonical_request = canonical_request(
 		request.method(),
 		&request.uri().path().to_string(),
-		&canonical_query_string(&request.uri()),
+		&canonical_query_string(request.uri()),
 		&headers,
 		&authorization.signed_headers,
 		&authorization.content_sha256,
@@ -252,7 +252,7 @@ fn canonical_request(
 		method.as_str(),
 		url_path,
 		canonical_query_string,
-		&canonical_header_string(&headers, signed_headers),
+		&canonical_header_string(headers, signed_headers),
 		"",
 		signed_headers,
 		content_sha256,

@@ -39,7 +39,7 @@ pub async fn run_api_server(
 		}
 	});
 
-	let server = Server::bind(&addr).serve(service);
+	let server = Server::bind(addr).serve(service);
 
 	let graceful = server.with_graceful_shutdown(shutdown_signal);
 	info!("API server listening on http://{}", addr);
@@ -88,8 +88,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let (bucket, key) = parse_bucket_key(&path)?;
 	let allowed = match req.method() {
-		&Method::HEAD | &Method::GET => api_key.allow_read(&bucket),
-		_ => api_key.allow_write(&bucket),
+		&Method::HEAD | &Method::GET => api_key.allow_read(bucket),
+		_ => api_key.allow_write(bucket),
 	};
 	if !allowed {
 		return Err(Error::Forbidden(
@@ -109,11 +109,11 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		match *req.method() {
 			Method::HEAD => {
 				// HeadObject query
-				Ok(handle_head(garage, &req, &bucket, &key).await?)
+				Ok(handle_head(garage, &req, bucket, key).await?)
 			}
 			Method::GET => {
 				// GetObject query
-				Ok(handle_get(garage, &req, &bucket, &key).await?)
+				Ok(handle_get(garage, &req, bucket, key).await?)
 			}
 			Method::PUT => {
 				if params.contains_key(&"partnumber".to_string())
@@ -125,8 +125,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					Ok(handle_put_part(
 						garage,
 						req,
-						&bucket,
-						&key,
+						bucket,
+						key,
 						part_number,
 						upload_id,
 						content_sha256,
@@ -136,46 +136,43 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					// CopyObject query
 					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 					let copy_source =
-						percent_encoding::percent_decode_str(&copy_source).decode_utf8()?;
+						percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 					let (source_bucket, source_key) = parse_bucket_key(&copy_source)?;
-					if !api_key.allow_read(&source_bucket) {
+					if !api_key.allow_read(source_bucket) {
 						return Err(Error::Forbidden(format!(
 							"Reading from bucket {} not allowed for this key",
 							source_bucket
 						)));
 					}
 					let source_key = source_key.ok_or_bad_request("No source key specified")?;
-					Ok(
-						handle_copy(garage, &req, &bucket, &key, &source_bucket, &source_key)
-							.await?,
-					)
+					Ok(handle_copy(garage, &req, bucket, key, source_bucket, source_key).await?)
 				} else {
 					// PutObject query
-					Ok(handle_put(garage, req, &bucket, &key, content_sha256).await?)
+					Ok(handle_put(garage, req, bucket, key, content_sha256).await?)
 				}
 			}
 			Method::DELETE => {
 				if params.contains_key(&"uploadid".to_string()) {
 					// AbortMultipartUpload query
 					let upload_id = params.get("uploadid").unwrap();
-					Ok(handle_abort_multipart_upload(garage, &bucket, &key, upload_id).await?)
+					Ok(handle_abort_multipart_upload(garage, bucket, key, upload_id).await?)
 				} else {
 					// DeleteObject query
-					Ok(handle_delete(garage, &bucket, &key).await?)
+					Ok(handle_delete(garage, bucket, key).await?)
 				}
 			}
 			Method::POST => {
 				if params.contains_key(&"uploads".to_string()) {
 					// CreateMultipartUpload call
-					Ok(handle_create_multipart_upload(garage, &req, &bucket, &key).await?)
+					Ok(handle_create_multipart_upload(garage, &req, bucket, key).await?)
 				} else if params.contains_key(&"uploadid".to_string()) {
 					// CompleteMultipartUpload call
 					let upload_id = params.get("uploadid").unwrap();
 					Ok(handle_complete_multipart_upload(
 						garage,
 						req,
-						&bucket,
-						&key,
+						bucket,
+						key,
 						upload_id,
 						content_sha256,
 					)

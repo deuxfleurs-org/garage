@@ -36,7 +36,7 @@ steps:
       path: /etc/nix
     commands:
       - nix-shell --arg release false --run "cargo fmt -- --check"
-      - nix-shell --arg release false --run "cargo clippy -- --allow clippy::needless_borrow --allow  clippy::needless-return --deny warnings"
+      - nix-shell --arg release false --run "cargo clippy -- --deny warnings"
 
   - name: build
     image: nixpkgs/nix:nixos-21.05

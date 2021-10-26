@@ -167,7 +167,7 @@ where
 		// Calculate an update to apply to this node
 		// This update is an Option<_>, so that it is None if the update is a no-op
 		// and we can thus skip recalculating and re-storing everything
-		let mutate = match self.read_node_txn(tx, &key)? {
+		let mutate = match self.read_node_txn(tx, key)? {
 			MerkleNode::Empty => new_vhash.map(|vhv| MerkleNode::Leaf(k.to_vec(), vhv)),
 			MerkleNode::Intermediate(mut children) => {
 				let key2 = key.next_key(khash);
@@ -270,7 +270,7 @@ where
 		};
 
 		if let Some(new_node) = mutate {
-			let hash = self.put_node_txn(tx, &key, &new_node)?;
+			let hash = self.put_node_txn(tx, key, &new_node)?;
 			Ok(Some(hash))
 		} else {
 			Ok(None)

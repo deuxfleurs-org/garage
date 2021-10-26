@@ -55,7 +55,8 @@ async fn handle_delete_internal(
 	);
 
 	garage.object_table.insert(&object).await?;
-	return Ok((deleted_version, version_uuid));
+
+	Ok((deleted_version, version_uuid))
 }
 
 pub async fn handle_delete(
@@ -82,7 +83,7 @@ pub async fn handle_delete_objects(
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	verify_signed_content(content_sha256, &body[..])?;
 
-	let cmd_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
+	let cmd_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
 	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;
 
 	let mut ret_deleted = Vec::new();

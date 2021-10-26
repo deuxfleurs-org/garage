@@ -193,8 +193,8 @@ async fn read_and_put_blocks(
 
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block = put_block_meta(
-		&garage,
-		&version,
+		garage,
+		version,
 		part_number,
 		0,
 		first_block_hash,
@@ -213,8 +213,8 @@ async fn read_and_put_blocks(
 			let block_hash = blake2sum(&block[..]);
 			let block_len = block.len();
 			put_curr_version_block = put_block_meta(
-				&garage,
-				&version,
+				garage,
+				version,
 				part_number,
 				next_offset as u64,
 				block_hash,
@@ -437,7 +437,7 @@ pub async fn handle_complete_multipart_upload(
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	verify_signed_content(content_sha256, &body[..])?;
 
-	let body_xml = roxmltree::Document::parse(&std::str::from_utf8(&body)?)?;
+	let body_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
 	let body_list_of_parts = parse_complete_multpart_upload_body(&body_xml)
 		.ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
 	debug!(

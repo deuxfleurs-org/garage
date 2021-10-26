@@ -129,7 +129,7 @@ impl BlockManager {
 
 	/// Ask nodes that might have a block for it
 	pub async fn rpc_get_block(&self, hash: &Hash) -> Result<Vec<u8>, Error> {
-		let who = self.replication.read_nodes(&hash);
+		let who = self.replication.read_nodes(hash);
 		let resps = self
 			.system
 			.rpc
@@ -224,7 +224,7 @@ impl BlockManager {
 		})?;
 		let old_rc = old_rc.map(u64_from_be_bytes).unwrap_or(0);
 		if old_rc == 0 {
-			self.put_to_resync(&hash, BLOCK_RW_TIMEOUT)?;
+			self.put_to_resync(hash, BLOCK_RW_TIMEOUT)?;
 		}
 		Ok(())
 	}
@@ -240,7 +240,7 @@ impl BlockManager {
 			}
 		})?;
 		if new_rc.is_none() {
-			self.put_to_resync(&hash, BLOCK_GC_TIMEOUT)?;
+			self.put_to_resync(hash, BLOCK_GC_TIMEOUT)?;
 		}
 		Ok(())
 	}
@@ -406,7 +406,7 @@ impl BlockManager {
 		if exists && !needed {
 			trace!("Offloading block {:?}", hash);
 
-			let mut who = self.replication.write_nodes(&hash);
+			let mut who = self.replication.write_nodes(hash);
 			if who.len() < self.replication.write_quorum() {
 				return Err(Error::Message("Not trying to offload block because we don't have a quorum of nodes to write to".to_string()));
 			}
@@ -478,7 +478,7 @@ impl BlockManager {
 			// TODO find a way to not do this if they are sending it to us
 			// Let's suppose this isn't an issue for now with the BLOCK_RW_TIMEOUT delay
 			// between the RC being incremented and this part being called.
-			let block_data = self.rpc_get_block(&hash).await?;
+			let block_data = self.rpc_get_block(hash).await?;
 			self.write_block(hash, &block_data[..]).await?;
 		}
 
@@ -600,7 +600,7 @@ impl BlockManagerLocked {
 		let mut path2 = path.clone();
 		path2.set_extension(".corrupted");
 		fs::rename(path, path2).await?;
-		mgr.put_to_resync(&hash, Duration::from_millis(0))?;
+		mgr.put_to_resync(hash, Duration::from_millis(0))?;
 		Ok(())
 	}
 

@@ -54,7 +54,7 @@ pub fn format_table(data: Vec<String>) {
 			out.push_str(col);
 			(0..col_len - col.chars().count() + 2).for_each(|_| out.push(' '));
 		}
-		out.push_str(&row[row.len() - 1]);
+		out.push_str(row[row.len() - 1]);
 		out.push('\n');
 	}
 

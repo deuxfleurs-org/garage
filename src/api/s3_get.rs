@@ -106,12 +106,12 @@ pub async fn handle_head(
 		_ => unreachable!(),
 	};
 
-	if let Some(cached) = try_answer_cached(&version, version_meta, req) {
+	if let Some(cached) = try_answer_cached(version, version_meta, req) {
 		return Ok(cached);
 	}
 
 	let body: Body = Body::empty();
-	let response = object_headers(&version, version_meta)
+	let response = object_headers(version, version_meta)
 		.header("Content-Length", format!("{}", version_meta.size))
 		.status(StatusCode::OK)
 		.body(body)
@@ -149,7 +149,7 @@ pub async fn handle_get(
 		ObjectVersionData::FirstBlock(meta, _) => meta,
 	};
 
-	if let Some(cached) = try_answer_cached(&last_v, last_v_meta, req) {
+	if let Some(cached) = try_answer_cached(last_v, last_v_meta, req) {
 		return Ok(cached);
 	}
 
@@ -179,7 +179,7 @@ pub async fn handle_get(
 		.await;
 	}
 
-	let resp_builder = object_headers(&last_v, last_v_meta)
+	let resp_builder = object_headers(last_v, last_v_meta)
 		.header("Content-Length", format!("{}", last_v_meta.size))
 		.status(StatusCode::OK);
 
@@ -190,7 +190,7 @@ pub async fn handle_get(
 			Ok(resp_builder.body(body)?)
 		}
 		ObjectVersionData::FirstBlock(_, first_block_hash) => {
-			let read_first_block = garage.block_manager.rpc_get_block(&first_block_hash);
+			let read_first_block = garage.block_manager.rpc_get_block(first_block_hash);
 			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
 
 			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;

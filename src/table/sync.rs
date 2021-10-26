@@ -266,7 +266,7 @@ where
 				let nodes = self
 					.data
 					.replication
-					.write_nodes(&begin)
+					.write_nodes(begin)
 					.into_iter()
 					.collect::<Vec<_>>();
 				if nodes.contains(&self.system.id) {
@@ -530,7 +530,7 @@ where
 				Ok(SyncRpc::RootCkDifferent(hash != *h))
 			}
 			SyncRpc::GetNode(k) => {
-				let node = self.merkle.read_node(&k)?;
+				let node = self.merkle.read_node(k)?;
 				Ok(SyncRpc::Node(k.clone(), node))
 			}
 			SyncRpc::Items(items) => {

@@ -49,7 +49,7 @@ where
 
 	/// Get a reference to the value assigned to a key
 	pub fn get(&self, k: &K) -> Option<&V> {
-		match self.vals.binary_search_by(|(k2, _)| k2.cmp(&k)) {
+		match self.vals.binary_search_by(|(k2, _)| k2.cmp(k)) {
 			Ok(i) => Some(&self.vals[i].1),
 			Err(_) => None,
 		}
@@ -76,9 +76,9 @@ where
 {
 	fn merge(&mut self, other: &Self) {
 		for (k, v2) in other.vals.iter() {
-			match self.vals.binary_search_by(|(k2, _)| k2.cmp(&k)) {
+			match self.vals.binary_search_by(|(k2, _)| k2.cmp(k)) {
 				Ok(i) => {
-					self.vals[i].1.merge(&v2);
+					self.vals[i].1.merge(v2);
 				}
 				Err(i) => {
 					self.vals.insert(i, (k.clone(), v2.clone()));
