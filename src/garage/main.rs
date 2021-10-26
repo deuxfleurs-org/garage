@@ -9,6 +9,7 @@ mod cli;
 mod repair;
 mod server;
 
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use structopt::StructOpt;
@@ -46,6 +47,9 @@ struct Opt {
 
 #[tokio::main]
 async fn main() {
+	if std::env::var("RUST_LOG").is_err() {
+		std::env::set_var("RUST_LOG", "garage=info")
+	}
 	pretty_env_logger::init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
@@ -99,12 +103,23 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let (id, addr) = if let Some(h) = opt.rpc_host {
 		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <pubkey>@<IP or hostname>:<port>.", h))?;
 		(id, addrs[0])
-	} else if let Some(a) = config.as_ref().map(|c| c.rpc_public_addr).flatten() {
-		let node_id = garage_rpc::system::read_node_id(&config.unwrap().metadata_dir)
-			.err_context(READ_KEY_ERROR)?;
-		(node_id, a)
 	} else {
-		return Err(Error::Message("No RPC host provided".into()));
+		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
+			.err_context(READ_KEY_ERROR)?;
+		if let Some(a) = config.as_ref().map(|c| c.rpc_public_addr).flatten() {
+			(node_id, a)
+		} else {
+			let default_addr = SocketAddr::new(
+				"127.0.0.1".parse().unwrap(),
+				config.as_ref().unwrap().rpc_bind_addr.port(),
+			);
+			warn!(
+				"Trying to contact Garage node at default address {}",
+				default_addr
+			);
+			warn!("If this doesn't work, consider adding rpc_public_addr in your config file or specifying the -h command line parameter.");
+			(node_id, default_addr)
+		}
 	};
 
 	// Connect to target host
