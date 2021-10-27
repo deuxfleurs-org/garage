@@ -27,50 +27,38 @@ impl Repair {
 		opt: RepairOpt,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		let todo = |x| opt.what.as_ref().map(|y| *y == x).unwrap_or(true);
-
-		if todo(RepairWhat::Tables) {
-			info!("Launching a full sync of tables");
-			self.garage.bucket_table.syncer.add_full_sync();
-			self.garage.object_table.syncer.add_full_sync();
-			self.garage.version_table.syncer.add_full_sync();
-			self.garage.block_ref_table.syncer.add_full_sync();
-			self.garage.key_table.syncer.add_full_sync();
+		match opt.what {
+			RepairWhat::Tables => {
+				info!("Launching a full sync of tables");
+				self.garage.bucket_table.syncer.add_full_sync();
+				self.garage.object_table.syncer.add_full_sync();
+				self.garage.version_table.syncer.add_full_sync();
+				self.garage.block_ref_table.syncer.add_full_sync();
+				self.garage.key_table.syncer.add_full_sync();
+			}
+			RepairWhat::Versions => {
+				info!("Repairing the versions table");
+				self.repair_versions(&must_exit).await?;
+			}
+			RepairWhat::BlockRefs => {
+				info!("Repairing the block refs table");
+				self.repair_block_ref(&must_exit).await?;
+			}
+			RepairWhat::Blocks => {
+				info!("Repairing the stored blocks");
+				self.garage
+					.block_manager
+					.repair_data_store(&must_exit)
+					.await?;
+			}
+			RepairWhat::Scrub { limit } => {
+				info!("Verifying integrity of stored blocks");
+				self.garage
+					.block_manager
+					.scrub_data_store(&must_exit, limit)
+					.await?;
+			}
 		}
-
-		// TODO: wait for full sync to finish before proceeding to the rest?
-
-		if todo(RepairWhat::Versions) {
-			info!("Repairing the versions table");
-			self.repair_versions(&must_exit).await?;
-		}
-
-		if todo(RepairWhat::BlockRefs) {
-			info!("Repairing the block refs table");
-			self.repair_block_ref(&must_exit).await?;
-		}
-
-		if opt.what.is_none() {
-			info!("Repairing the RC");
-			self.repair_rc(&must_exit).await?;
-		}
-
-		if todo(RepairWhat::Blocks) {
-			info!("Repairing the stored blocks");
-			self.garage
-				.block_manager
-				.repair_data_store(&must_exit)
-				.await?;
-		}
-
-		if let Some(RepairWhat::BlockIntegrity { limit }) = opt.what {
-			info!("Verifying integrity of stored blocks");
-			self.garage
-				.block_manager
-				.verify_data_store_integrity(&must_exit, limit)
-				.await?;
-		}
-
 		Ok(())
 	}
 
@@ -156,12 +144,6 @@ impl Repair {
 				break;
 			}
 		}
-		Ok(())
-	}
-
-	async fn repair_rc(&self, _must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
-		// TODO
-		warn!("repair_rc: not implemented");
 		Ok(())
 	}
 }

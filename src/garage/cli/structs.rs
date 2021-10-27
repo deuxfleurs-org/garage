@@ -265,7 +265,7 @@ pub struct RepairOpt {
 	pub yes: bool,
 
 	#[structopt(subcommand)]
-	pub what: Option<RepairWhat>,
+	pub what: RepairWhat,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
@@ -283,8 +283,8 @@ pub enum RepairWhat {
 	#[structopt(name = "block_refs")]
 	BlockRefs,
 	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
-	#[structopt(name = "blocks_integrity")]
-	BlockIntegrity {
+	#[structopt(name = "scrub")]
+	Scrub {
 		/// Limit on i/o speed, in B/s
 		#[structopt(name = "limit")]
 		limit: Option<usize>,
