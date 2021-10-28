@@ -92,10 +92,21 @@ caching our development dependencies.
 *Currently there is no automatic garbage collection of the cache: we should monitor its growth.
 Hopefully, we can erase it totally without breaking any build, the next build will only be slower.*
 
+In practise, we concluded that we do not want to cache all the compilation dependencies.
+Instead, we want to cache the toolchain we use to build Garage each time we change it.
+So we removed from Drone any automatic update of the cache and instead handle them manually with:
+
+```
+source ~/.awsrc
+nix-shell --run 'refresh_toolchain'
+```
+
+Internally, it will run `nix-build` on  `nix/toolchain.nix` and send the output plus its depedencies to the cache.
+
 To erase the cache:
 
 ```
-mc rm --recursive --force 'garage/nix/*'
+mc rm --recursive --force 'garage/nix/'
 ```
 
 ### Publishing Garage

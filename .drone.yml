@@ -80,38 +80,6 @@ steps:
       - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
       - nix-shell --arg release false --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
-  - name: update cache
-    image: nixpkgs/nix:nixos-21.05
-    environment:
-      AWS_ACCESS_KEY_ID:
-        from_secret: cache_aws_access_key_id
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: cache_aws_secret_access_key
-      NIX_PRIV_KEY:
-        from_secret: nix_priv_key
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
-    commands:
-      - (umask 377 && echo $NIX_PRIV_KEY > /etc/nix/signing-key.sec)
-      - |
-        nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-          $(nix-store -qR --include-outputs \
-            $(nix-build --no-out-link shell.nix --arg release false -A inputDerivation))
-      - |
-        nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-          $(nix-store -qR --include-outputs \
-            $(nix-instantiate --argstr target x86_64-unknown-linux-musl --argstr compileMode test))
-      - |
-        nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-          $(nix-store -qR --include-outputs \
-            $(nix-instantiate --argstr target x86_64-unknown-linux-musl --arg release false))
-    when:
-      event:
-      - cron
-
 trigger:
   event:
   - custom
@@ -212,27 +180,6 @@ steps:
     commands:
       - nix-shell --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
-  - name: update cache
-    image: nixpkgs/nix:nixos-21.05
-    environment:
-      AWS_ACCESS_KEY_ID:
-        from_secret: cache_aws_access_key_id
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: cache_aws_secret_access_key
-      NIX_PRIV_KEY:
-        from_secret: nix_priv_key
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
-    commands:
-      - (umask 377 && echo $NIX_PRIV_KEY > /etc/nix/signing-key.sec)
-      - |
-        nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-          $(nix-store -qR --include-outputs \
-            $(nix-instantiate --argstr target $TARGET --arg release true))
-
   - name: push static binary
     image: nixpkgs/nix:nixos-21.05
     volumes:
@@ -276,115 +223,94 @@ trigger:
 node:
   nix: 1
 
-# ---
-# kind: pipeline
-# type: docker
-# name: release-linux-i686
-# 
-# volumes:
-# - name: nix_store
-#   host:
-#     path: /var/lib/drone/nix
-# - name: nix_config
-#   temp: {}
-# 
-# environment:
-#   TARGET: i686-unknown-linux-musl
-# 
-# steps:
-#   - name: setup nix
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - cp nix/nix.conf /etc/nix/nix.conf
-#       - nix-build --no-build-output --no-out-link shell.nix -A inputDerivation
-# 
-#   - name: build
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
-# 
-#   - name: integration
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - nix-shell --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
-# 
-#   - name: update cache
-#     image: nixpkgs/nix:nixos-21.05
-#     environment:
-#       AWS_ACCESS_KEY_ID:
-#         from_secret: cache_aws_access_key_id
-#       AWS_SECRET_ACCESS_KEY:
-#         from_secret: cache_aws_secret_access_key
-#       NIX_PRIV_KEY:
-#         from_secret: nix_priv_key
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - (umask 377 && echo $NIX_PRIV_KEY > /etc/nix/signing-key.sec)
-#       - |
-#         nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-#           $(nix-store -qR --include-outputs \
-#             $(nix-instantiate --argstr target $TARGET --arg release true))
-# 
-#   - name: push static binary
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     environment:
-#       AWS_ACCESS_KEY_ID:
-#         from_secret: garagehq_aws_access_key_id
-#       AWS_SECRET_ACCESS_KEY:
-#         from_secret: garagehq_aws_secret_access_key
-#     commands:
-#       - nix-shell --arg rust false --arg integration false --run "to_s3"
-# 
-#   - name: docker build and publish
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     environment:
-#       DOCKER_AUTH:
-#         from_secret: docker_auth
-#       DOCKER_PLATFORM: "linux/386"
-#       CONTAINER_NAME: "dxflrs/386_garage"
-#       HOME: "/kaniko"
-#     commands:
-#       - mkdir -p /kaniko/.docker
-#       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
-#       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-#       - nix-shell --arg rust false --arg integration false --run "to_docker"
-# 
-# trigger:
-#   event:
-#   - promote
-#   - cron
-# 
-# node:
-#   nix: 1
+---
+kind: pipeline
+type: docker
+name: release-linux-i686
+
+volumes:
+- name: nix_store
+  host:
+    path: /var/lib/drone/nix
+- name: nix_config
+  temp: {}
+
+environment:
+  TARGET: i686-unknown-linux-musl
+
+steps:
+  - name: setup nix
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    commands:
+      - cp nix/nix.conf /etc/nix/nix.conf
+      - nix-build --no-build-output --no-out-link shell.nix -A inputDerivation
+
+  - name: build
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    commands:
+      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+
+  - name: integration
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    commands:
+      - nix-shell --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+  - name: push static binary
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
+    commands:
+      - nix-shell --arg rust false --arg integration false --run "to_s3"
+
+  - name: docker build and publish
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    environment:
+      DOCKER_AUTH:
+        from_secret: docker_auth
+      DOCKER_PLATFORM: "linux/386"
+      CONTAINER_NAME: "dxflrs/386_garage"
+      HOME: "/kaniko"
+    commands:
+      - mkdir -p /kaniko/.docker
+      - echo $DOCKER_AUTH > /kaniko/.docker/config.json
+      - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
+      - nix-shell --arg rust false --arg integration false --run "to_docker"
+
+trigger:
+  event:
+  - promote
+  - cron
+
+node:
+  nix: 1
 
 ---
 kind: pipeline
@@ -422,27 +348,6 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
-
-  - name: update cache
-    image: nixpkgs/nix:nixos-21.05
-    environment:
-      AWS_ACCESS_KEY_ID:
-        from_secret: cache_aws_access_key_id
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: cache_aws_secret_access_key
-      NIX_PRIV_KEY:
-        from_secret: nix_priv_key
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
-    commands:
-      - (umask 377 && echo $NIX_PRIV_KEY > /etc/nix/signing-key.sec)
-      - |
-        nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-          $(nix-store -qR --include-outputs \
-            $(nix-instantiate --argstr target $TARGET --arg release true))
 
   - name: push static binary
     image: nixpkgs/nix:nixos-21.05
@@ -486,105 +391,84 @@ trigger:
 node:
   nix: 1
 
-# ---
-# kind: pipeline
-# type: docker
-# name: release-linux-armv6l
-# 
-# volumes:
-# - name: nix_store
-#   host:
-#     path: /var/lib/drone/nix
-# - name: nix_config
-#   temp: {}
-# 
-# environment:
-#   TARGET: armv6l-unknown-linux-musleabihf
-# 
-# steps:
-#   - name: setup nix
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - cp nix/nix.conf /etc/nix/nix.conf
-#       - nix-build --no-build-output --no-out-link --arg rust false --arg integration false -A inputDerivation
-# 
-#   - name: build
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
-# 
-#   - name: update cache
-#     image: nixpkgs/nix:nixos-21.05
-#     environment:
-#       AWS_ACCESS_KEY_ID:
-#         from_secret: cache_aws_access_key_id
-#       AWS_SECRET_ACCESS_KEY:
-#         from_secret: cache_aws_secret_access_key
-#       NIX_PRIV_KEY:
-#         from_secret: nix_priv_key
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     commands:
-#       - (umask 377 && echo $NIX_PRIV_KEY > /etc/nix/signing-key.sec)
-#       - |
-#         nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-#           $(nix-store -qR --include-outputs \
-#             $(nix-instantiate --argstr target $TARGET --arg release true))
-# 
-#   - name: push static binary
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     environment:
-#       AWS_ACCESS_KEY_ID:
-#         from_secret: garagehq_aws_access_key_id
-#       AWS_SECRET_ACCESS_KEY:
-#         from_secret: garagehq_aws_secret_access_key
-#     commands:
-#       - nix-shell --arg integration false --arg rust false --run "to_s3"
-# 
-#   - name: docker build and publish
-#     image: nixpkgs/nix:nixos-21.05
-#     volumes:
-#     - name: nix_store
-#       path: /nix
-#     - name: nix_config
-#       path: /etc/nix
-#     environment:
-#       DOCKER_AUTH:
-#         from_secret: docker_auth
-#       DOCKER_PLATFORM: "linux/arm"
-#       CONTAINER_NAME: "dxflrs/arm_garage"
-#       HOME: "/kaniko"
-#     commands:
-#       - mkdir -p /kaniko/.docker
-#       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
-#       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-#       - nix-shell --arg rust false --arg integration false --run "to_docker"
-# 
-# trigger:
-#   event:
-#   - promote
-#   - cron
-# 
-# node:
-#   nix: 1
+---
+kind: pipeline
+type: docker
+name: release-linux-armv6l
+
+volumes:
+- name: nix_store
+  host:
+    path: /var/lib/drone/nix
+- name: nix_config
+  temp: {}
+
+environment:
+  TARGET: armv6l-unknown-linux-musleabihf
+
+steps:
+  - name: setup nix
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    commands:
+      - cp nix/nix.conf /etc/nix/nix.conf
+      - nix-build --no-build-output --no-out-link --arg rust false --arg integration false -A inputDerivation
+
+  - name: build
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    commands:
+      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+
+  - name: push static binary
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
+    commands:
+      - nix-shell --arg integration false --arg rust false --run "to_s3"
+
+  - name: docker build and publish
+    image: nixpkgs/nix:nixos-21.05
+    volumes:
+    - name: nix_store
+      path: /nix
+    - name: nix_config
+      path: /etc/nix
+    environment:
+      DOCKER_AUTH:
+        from_secret: docker_auth
+      DOCKER_PLATFORM: "linux/arm"
+      CONTAINER_NAME: "dxflrs/arm_garage"
+      HOME: "/kaniko"
+    commands:
+      - mkdir -p /kaniko/.docker
+      - echo $DOCKER_AUTH > /kaniko/.docker/config.json
+      - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
+      - nix-shell --arg rust false --arg integration false --run "to_docker"
+
+trigger:
+  event:
+  - promote
+  - cron
+
+node:
+  nix: 1
 
 ---
 kind: pipeline
@@ -613,9 +497,9 @@ steps:
 
 depends_on:
   - release-linux-x86_64
-  #- release-linux-i686
+  - release-linux-i686
   - release-linux-aarch64
-  #- release-linux-armv6l
+  - release-linux-armv6l
 
 trigger:
   event:

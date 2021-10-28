@@ -55,6 +55,13 @@ function refresh_index {
       result \
       s3://garagehq.deuxfleurs.fr/_releases.html
 }
+
+function refresh_toolchain {
+  nix copy \
+    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
+    $(nix-store -qR \
+      $(nix-build --quiet --no-build-output --no-out-link nix/toolchain.nix))
+}
   '';
 
   nativeBuildInputs = 
@@ -66,8 +73,21 @@ function refresh_index {
      /*(pkgs.callPackage cargo2nix {}).package*/
     ] else [])
    ++
-   (if integration then [ pkgs.s3cmd pkgs.awscli2 pkgs.minio-client pkgs.rclone pkgs.socat pkgs.psmisc pkgs.which ] else [])
+   (if integration then [ 
+     pkgs.s3cmd
+     pkgs.awscli2
+     pkgs.minio-client
+     pkgs.rclone
+     pkgs.socat
+     pkgs.psmisc
+     pkgs.which
+     pkgs.openssl
+     pkgs.curl
+    ] else [])
    ++
-   (if release then [ pkgs.awscli2 kaniko ] else [])
+   (if release then [ 
+     pkgs.awscli2
+     kaniko 
+    ] else [])
    ;
 }
