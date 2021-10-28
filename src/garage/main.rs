@@ -30,15 +30,20 @@ use cli::*;
 struct Opt {
 	/// Host to connect to for admin operations, in the format:
 	/// <public-key>@<ip>:<port>
-	#[structopt(short = "h", long = "rpc-host")]
+	#[structopt(short = "h", long = "rpc-host", env = "GARAGE_RPC_HOST")]
 	pub rpc_host: Option<String>,
 
 	/// RPC secret network key for admin operations
-	#[structopt(short = "s", long = "rpc-secret")]
+	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
 	pub rpc_secret: Option<String>,
 
 	/// Configuration file (garage.toml)
-	#[structopt(short = "c", long = "config", default_value = "/etc/garage.toml")]
+	#[structopt(
+		short = "c",
+		long = "config",
+		env = "GARAGE_CONFIG_FILE",
+		default_value = "/etc/garage.toml"
+	)]
 	pub config_file: PathBuf,
 
 	#[structopt(subcommand)]
