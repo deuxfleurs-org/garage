@@ -12,6 +12,7 @@ use garage_util::error::*;
 use garage_rpc::system::System;
 
 use crate::crdt::Crdt;
+use crate::gc::GcTodoEntry;
 use crate::replication::*;
 use crate::schema::*;
 
@@ -176,7 +177,7 @@ where
 				let pk_hash = Hash::try_from(&tree_key[..32]).unwrap();
 				let nodes = self.replication.write_nodes(&pk_hash);
 				if nodes.first() == Some(&self.system.id) {
-					self.gc_todo.insert(&tree_key, new_bytes_hash.as_slice())?;
+					GcTodoEntry::new(tree_key, new_bytes_hash).save(&self.gc_todo)?;
 				}
 			}
 		}
