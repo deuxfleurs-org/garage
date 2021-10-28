@@ -8,8 +8,7 @@ pub enum Command {
 	#[structopt(name = "server")]
 	Server,
 
-	/// Print identifier (public key) of this garage node.
-	/// Generates a new keypair if necessary.
+	/// Print identifier (public key) of this Garage node
 	#[structopt(name = "node-id")]
 	NodeId(NodeIdOpt),
 

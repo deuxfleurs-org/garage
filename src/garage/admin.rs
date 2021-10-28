@@ -446,7 +446,7 @@ impl AdminRpcHandler {
 		if opt.detailed {
 			writeln!(
 				&mut ret,
-				"  number of blocks: {}",
+				"  number of RC entries (~= number of blocks): {}",
 				self.garage.block_manager.rc_len()
 			)
 			.unwrap();
