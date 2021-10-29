@@ -1,4 +1,4 @@
-# Configuring S3 clients to interact with Garage
+# Connect it to
 
 To configure an S3 client to interact with Garage, you will need the following
 parameters:
@@ -28,78 +28,11 @@ provided that you follow the following guidelines:
   Garage should normally redirect your client to the correct region,
   but in case your client does not support this you might have to configure it manually.
 
-We will now provide example configurations for the most common S3 clients.
+We will now provide example configurations for the most common clients per category:
 
-## AWS CLI
+  - [Apps](./apps.md)
+  - [Websites](./websites.md)
+  - [Repositories](./repositories.md)
+  - [CLI tools](./cli.md)
+  - [Your code](./code.md)
 
-Export the following environment variables:
-
-```bash
-export AWS_ACCESS_KEY_ID=<access key>
-export AWS_SECRET_ACCESS_KEY=<secret key>
-export AWS_DEFAULT_REGION=<region>
-```
-
-Now invoke `aws` as follows:
-
-```bash
-aws --endpoint-url <endpoint> s3 <command...>
-```
-
-For instance: `aws --endpoint-url http://127.0.0.1:3901 s3 ls s3://my-bucket/`.
-
-## Minio client
-
-Use the following command to set an "alias", i.e. define a new S3 server to be
-used by the Minio client:
-
-```bash
-mc alias set \
-  garage \
-  <endpoint> \
-  <access key> \
-  <secret key> \
-  --api S3v4
-```
-
-Remember that `mc` is sometimes called `mcli` (such as on Arch Linux), to avoid conflicts
-with the Midnight Commander.
-
-
-## `rclone`
-
-`rclone` can be configured using the interactive assistant invoked using `rclone configure`.
-
-You can also configure `rclone` by writing directly its configuration file.
-Here is a template `rclone.ini` configuration file:
-
-```ini
-[garage]
-type = s3
-provider = Other
-env_auth = false
-access_key_id = <access key>
-secret_access_key = <secret key>
-region = <region>
-endpoint = <endpoint>
-force_path_style = true
-acl = private
-bucket_acl = private
-```
-
-## Cyberduck
-
-TODO
-
-## `s3cmd`
-
-Here is a template for the `s3cmd.cfg` file to talk with Garage:
-
-```ini
-[default]
-access_key = <access key>
-secret_key = <secret key>
-host_base = <endpoint without http(s)://>
-host_bucket = <same as host_base>
-use_https = False | True
-```

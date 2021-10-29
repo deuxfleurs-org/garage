@@ -5,14 +5,19 @@
 - [Quick start](./quick_start/index.md)
 
 - [Cookbook](./cookbook/index.md)
-  - [Deploying Garage](./cookbook/real_world.md)
-  - [Configuring S3 clients](./cookbook/clients.md)
-  - [Hosting a website](./cookbook/website.md)
-  - [Recovering from failures](./cookbook/recovering.md)
   - [Building from source](./cookbook/from_source.md)
-  - [Starting with Systemd](./cookbook/systemd.md)
-  - [Integrate as a media backend]()
-  - [Operate a cluster]()
+  - [Integration with systemd](./cookbook/systemd.md)
+  - [Configuring a reverse proxy](./cookbook/reverse_proxy.md)
+  - [Production Deployment](./cookbook/real_world.md)
+  - [Recovering from failures](./cookbook/recovering.md)
+
+- [Integrations](./connect/index.md)
+  - [Apps (Nextcloud, Peertube...)](./connect/apps.md)
+  - [Websites (Hugo, Jekyll, Publii...)](./connect/websites.md)
+  - [Repositories (Docker, Nix...)](./connect/repositories.md)
+  - [CLI tools (rclone, awscli, mc...)](./connect/cli.md)
+  - [Your code (PHP, JS, Go...)](./connect/code.md)
+
 
 - [Reference Manual](./reference_manual/index.md)
   - [Garage configuration file](./reference_manual/configuration.md)
