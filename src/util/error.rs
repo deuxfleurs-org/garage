@@ -41,6 +41,9 @@ pub enum Error {
 	#[error(display = "Tokio join error: {}", _0)]
 	TokioJoin(#[error(source)] tokio::task::JoinError),
 
+	#[error(display = "Tokio semaphore acquire error: {}", _0)]
+	TokioSemAcquire(#[error(source)] tokio::sync::AcquireError),
+
 	#[error(display = "Remote error: {}", _0)]
 	RemoteError(String),
 

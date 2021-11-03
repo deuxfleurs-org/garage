@@ -235,10 +235,7 @@ impl System {
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
 			fullmesh: fullmesh.clone(),
-			rpc: RpcHelper {
-				fullmesh,
-				background: background.clone(),
-			},
+			rpc: RpcHelper::new(fullmesh, background.clone()),
 			system_endpoint,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
