@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -422,7 +423,7 @@ impl BlockManager {
 
 	async fn resync_iter(&self, must_exit: &mut watch::Receiver<bool>) -> Result<bool, Error> {
 		if let Some((time_bytes, hash_bytes)) = self.resync_queue.pop_min()? {
-			let time_msec = u64_from_be_bytes(&time_bytes[0..8]);
+			let time_msec = u64::from_be_bytes(time_bytes[0..8].try_into().unwrap());
 			let now = now_msec();
 			if now >= time_msec {
 				let hash = Hash::try_from(&hash_bytes[..]).unwrap();
@@ -703,13 +704,6 @@ impl BlockManagerLocked {
 		}
 		Ok(())
 	}
-}
-
-fn u64_from_be_bytes<T: AsRef<[u8]>>(bytes: T) -> u64 {
-	assert!(bytes.as_ref().len() == 8);
-	let mut x8 = [0u8; 8];
-	x8.copy_from_slice(bytes.as_ref());
-	u64::from_be_bytes(x8)
 }
 
 /// Describes the state of the reference counter for a block

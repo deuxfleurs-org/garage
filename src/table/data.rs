@@ -55,7 +55,7 @@ where
 			.expect("Unable to open DB Merkle TODO tree");
 
 		let gc_todo = db
-			.open_tree(&format!("{}:gc_todo", name))
+			.open_tree(&format!("{}:gc_todo_v2", name))
 			.expect("Unable to open DB tree");
 
 		Arc::new(Self {
