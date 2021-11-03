@@ -500,13 +500,7 @@ impl System {
 				}
 			}
 
-			let peer_list = self
-				.fullmesh
-				.get_peer_list()
-				.iter()
-				.map(|n| (n.id.into(), n.addr))
-				.collect::<Vec<_>>();
-			if let Err(e) = self.persist_peer_list.save_async(&peer_list).await {
+			if let Err(e) = self.save_peer_list().await {
 				warn!("Could not save peer list to file: {}", e);
 			}
 
@@ -518,6 +512,28 @@ impl System {
 				_ = stop_signal.changed().fuse() => {},
 			}
 		}
+	}
+
+	async fn save_peer_list(&self) -> Result<(), Error> {
+		// Prepare new peer list to save to file
+		// It is a vec of tuples (node ID as Uuid, node SocketAddr)
+		let mut peer_list = self
+			.fullmesh
+			.get_peer_list()
+			.iter()
+			.map(|n| (n.id.into(), n.addr))
+			.collect::<Vec<_>>();
+
+		// Before doing it, we read the current peer list file (if it exists)
+		// and append it to the list we are about to save,
+		// so that no peer ID gets lost in the process.
+		if let Ok(mut prev_peer_list) = self.persist_peer_list.load_async().await {
+			prev_peer_list.retain(|(id, _ip)| peer_list.iter().all(|(id2, _ip2)| id2 != id));
+			peer_list.extend(prev_peer_list);
+		}
+
+		// Save new peer list to file
+		self.persist_peer_list.save_async(&peer_list).await
 	}
 
 	async fn pull_config(self: Arc<Self>, peer: Uuid) {
