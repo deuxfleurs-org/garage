@@ -51,11 +51,11 @@ impl Repair {
 					.repair_data_store(&must_exit)
 					.await?;
 			}
-			RepairWhat::Scrub { limit } => {
+			RepairWhat::Scrub { tranquility } => {
 				info!("Verifying integrity of stored blocks");
 				self.garage
 					.block_manager
-					.scrub_data_store(&must_exit, limit)
+					.scrub_data_store(&must_exit, tranquility)
 					.await?;
 			}
 		}

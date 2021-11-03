@@ -285,9 +285,9 @@ pub enum RepairWhat {
 	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
 	#[structopt(name = "scrub")]
 	Scrub {
-		/// Limit on i/o speed, in B/s
-		#[structopt(name = "limit")]
-		limit: Option<usize>,
+		/// Tranquility factor (see tranquilizer documentation)
+		#[structopt(name = "tranquility", default_value = "2")]
+		tranquility: u32,
 	},
 }
 
