@@ -346,13 +346,114 @@ https://docs.joinmastodon.org/admin/config/#cdn
 
 ## Matrix
 
-### synapse-s3-storage-provider
+Matrix is a chat communication protocol. Its main stable server implementation, [Synapse](https://matrix-org.github.io/synapse/latest/), provides a module to store media on a S3 backend. Additionally, a server independent media store supporting S3 has been developped by the community, it has been made possible thanks to how the matrix API has been designed and will work with implementations like Conduit, Dendrite, etc.
 
-https://github.com/matrix-org/synapse-s3-storage-provider
+### synapse-s3-storage-provider (synapse only)
 
-### matrix-media-repo
+Supposing you have a working synapse installation, you can add the module with pip:
 
-https://github.com/turt2live/matrix-media-repo
+```bash
+ pip3 install --user git+https://github.com/matrix-org/synapse-s3-storage-provider.git
+```
+
+Now create a bucket and a key for your matrix instance (note your Key ID and Secret Key somewhere, they will be needed later):
+
+```bash
+garage key new --name matrix-key
+garage bucket create matrix
+garage bucket allow matrix --read --write --key matrix-key
+```
+
+Then you must edit your server configuration (eg. `/etc/matrix-synapse/homeserver.yaml`) and add the `media_storage_providers` root key:
+
+```yaml
+media_storage_providers:
+- module: s3_storage_provider.S3StorageProviderBackend
+  store_local: True    # do we want to store on S3 media created by our users?
+  store_remote: True   # do we want to store on S3 media created
+                       # by users of others servers federated to ours?
+  store_synchronous: True  # do we want to wait that the file has been written before returning?
+  config:
+    bucket: matrix       # the name of our bucket, we chose matrix earlier
+    region_name: garage  # only "garage" is supported for the region field
+    endpoint_url: http://localhost:3900 # the path to the S3 endpoint
+    access_key_id: "GKxxx" # your Key ID
+    secret_access_key: "xxxx" # your Secret Key
+```
+
+Note that uploaded media will also be stored locally and this behavior can not be deactivated, it is even required for
+some operations like resizing images.
+In fact, your local filesysem is considered as a cache but without any automated way to garbage collect it.
+
+We can build our garbage collector with `s3_media_upload`, a tool provided with the module.
+If you installed the module with the command provided before, you should be able to bring it in your path:
+
+```
+PATH=$HOME/.local/bin/:$PATH
+command -v s3_media_upload
+```
+
+Now we can write a simple script (eg `~/.local/bin/matrix-cache-gc`):
+
+```bash
+#!/bin/bash
+
+## CONFIGURATION ##
+AWS_ACCESS_KEY_ID=GKxxx
+AWS_SECRET_ACCESS_KEY=xxxx
+S3_ENDPOINT=http://localhost:3900
+S3_BUCKET=matrix
+MEDIA_STORE=/var/lib/matrix-synapse/media
+PG_USER=matrix
+PG_PASS=xxxx
+PG_DB=synapse
+PG_HOST=localhost
+PG_PORT=5432
+
+## CODE ##
+PATH=$HOME/.local/bin/:$PATH
+cat > database.yaml <<EOF 
+user: $PG_USER
+password: $PG_PASS
+database: $PG_DB
+host: $PG_HOST
+port: $PG_PORT
+EOF
+
+s3_media_upload update-db 1d
+s3_media_upload --no-progress check-deleted $MEDIA_STORE
+s3_media_upload --no-progress upload $MEDIA_STORE $S3_BUCKET --delete --endpoint-url $S3_ENDPOINT
+```
+
+This script will list all the medias that were not accessed in the 24 hours according to your database.
+It will check if, in this list, the file still exists in the local media store.
+For files that are still in the cache, it will upload them to S3 if they are not already present (in case of a crash or an initial synchronisation).
+Finally, the script will delete these files from the cache.
+
+Make this script executable and check that it works:
+
+```bash
+chmod +x $HOME/.local/bin/matrix-cache-gc
+matrix-cache-gc
+```
+
+Add it to your crontab. Open the editor with:
+
+```bash
+crontab -e
+```
+
+And add a new line. For example, to run it every 10 minutes:
+
+```cron
+*/10 * * * * $HOME/.local/bin/matrix-cache-gc
+```
+
+*External link:* [Github > matrix-org/synapse-s3-storage-provider](https://github.com/matrix-org/synapse-s3-storage-provider)
+
+### matrix-media-repo (server independent)
+
+*External link:* [matrix-media-repo Documentation > S3](https://docs.t2bot.io/matrix-media-repo/configuration/s3-datastore.html)
 
 ## Pixelfed
 
