@@ -57,17 +57,17 @@ Then a file named `~/.aws/config` and put:
 region=garage
 ```
 
-Now, supposing Garage is listening on `http://127.0.0.1:3901`, you can list your buckets with:
+Now, supposing Garage is listening on `http://127.0.0.1:3900`, you can list your buckets with:
 
 ```bash
-aws --endpoint-url http://127.0.0.1:3901 s3 ls
+aws --endpoint-url http://127.0.0.1:3900 s3 ls
 ```
 
 Passing the `--endpoint-url` parameter to each command is annoying but AWS developers do not provide a corresponding configuration entry.
 As a workaround, you can redefine the aws command by editing the file `~/.bashrc`:
 
 ```
-function aws { command aws --endpoint-url http://127.0.0.1:3911 $@ ; }
+function aws { command aws --endpoint-url http://127.0.0.1:3900 $@ ; }
 ```
 
 *Do not forget to run `source ~/.bashrc` or to start a new terminal before running the next commands.*
