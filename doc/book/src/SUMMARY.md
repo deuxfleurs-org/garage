@@ -8,6 +8,7 @@
   - [Building from source](./cookbook/from_source.md)
   - [Integration with systemd](./cookbook/systemd.md)
   - [Configuring a reverse proxy](./cookbook/reverse_proxy.md)
+  - [Exposing buckets as websites](./cookbook/exposing_websites.md)
   - [Production Deployment](./cookbook/real_world.md)
   - [Recovering from failures](./cookbook/recovering.md)
 
