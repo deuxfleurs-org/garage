@@ -7,7 +7,7 @@ use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
 use futures_util::future::FutureExt;
 use tokio::select;
-use tokio::sync::Semaphore;
+use tokio::sync::{watch, Semaphore};
 
 pub use netapp::endpoint::{Endpoint, EndpointHandler, Message as Rpc};
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
@@ -17,6 +17,8 @@ pub use netapp::{NetApp, NodeID};
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
+
+use crate::ring::Ring;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -67,22 +69,30 @@ impl RequestStrategy {
 }
 
 #[derive(Clone)]
-pub struct RpcHelper {
-	pub(crate) fullmesh: Arc<FullMeshPeeringStrategy>,
-	pub(crate) background: Arc<BackgroundRunner>,
-	request_buffer_semaphore: Arc<Semaphore>,
+pub struct RpcHelper(Arc<RpcHelperInner>);
+
+struct RpcHelperInner {
+	our_node_id: Uuid,
+	fullmesh: Arc<FullMeshPeeringStrategy>,
+	background: Arc<BackgroundRunner>,
+	ring: watch::Receiver<Arc<Ring>>,
+	request_buffer_semaphore: Semaphore,
 }
 
 impl RpcHelper {
 	pub(crate) fn new(
+		our_node_id: Uuid,
 		fullmesh: Arc<FullMeshPeeringStrategy>,
 		background: Arc<BackgroundRunner>,
+		ring: watch::Receiver<Arc<Ring>>,
 	) -> Self {
-		Self {
+		Self(Arc::new(RpcHelperInner {
+			our_node_id,
 			fullmesh,
 			background,
-			request_buffer_semaphore: Arc::new(Semaphore::new(REQUEST_BUFFER_SIZE)),
-		}
+			ring,
+			request_buffer_semaphore: Semaphore::new(REQUEST_BUFFER_SIZE),
+		}))
 	}
 
 	pub async fn call<M, H, S>(
@@ -111,7 +121,11 @@ impl RpcHelper {
 		H: EndpointHandler<M>,
 	{
 		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
-		let permit = self.request_buffer_semaphore.acquire_many(msg_size).await?;
+		let permit = self
+			.0
+			.request_buffer_semaphore
+			.acquire_many(msg_size)
+			.await?;
 
 		let node_id = to.into();
 		select! {
@@ -160,6 +174,7 @@ impl RpcHelper {
 		H: EndpointHandler<M>,
 	{
 		let to = self
+			.0
 			.fullmesh
 			.get_peer_list()
 			.iter()
@@ -168,8 +183,8 @@ impl RpcHelper {
 		self.call_many(endpoint, &to[..], msg, strat).await
 	}
 
-	/// Make a RPC call to multiple servers, returning either a Vec of responses, or an error if
-	/// strategy could not be respected due to too many errors
+	/// Make a RPC call to multiple servers, returning either a Vec of responses,
+	/// or an error if quorum could not be reached due to too many errors
 	pub async fn try_call_many<M, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
@@ -183,54 +198,146 @@ impl RpcHelper {
 		S: Send,
 	{
 		let msg = Arc::new(msg);
-		let mut resp_stream = to
-			.to_vec()
-			.into_iter()
-			.map(|to| {
-				let self2 = self.clone();
-				let msg = msg.clone();
-				let endpoint2 = endpoint.clone();
-				async move { self2.call_arc(&endpoint2, to, msg, strategy).await }
-			})
-			.collect::<FuturesUnordered<_>>();
 
-		let mut results = vec![];
-		let mut errors = vec![];
+		// Build future for each request
+		// They are not started now: they are added below in a FuturesUnordered
+		// object that will take care of polling them (see below)
+		let requests = to.iter().cloned().map(|to| {
+			let self2 = self.clone();
+			let msg = msg.clone();
+			let endpoint2 = endpoint.clone();
+			(to, async move {
+				self2.call_arc(&endpoint2, to, msg, strategy).await
+			})
+		});
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
 
-		while let Some(resp) = resp_stream.next().await {
-			match resp {
-				Ok(msg) => {
-					results.push(msg);
-					if results.len() >= quorum {
-						break;
+		// Vectors in which success results and errors will be collected
+		let mut successes = vec![];
+		let mut errors = vec![];
+
+		if strategy.rs_interrupt_after_quorum {
+			// Case 1: once quorum is reached, other requests don't matter.
+			// What we do here is only send the required number of requests
+			// to reach a quorum, priorizing nodes with the lowest latency.
+			// When there are errors, we start new requests to compensate.
+
+			// Retrieve some status variables that we will use to sort requests
+			let peer_list = self.0.fullmesh.get_peer_list();
+			let ring: Arc<Ring> = self.0.ring.borrow().clone();
+			let our_zone = match ring.config.members.get(&self.0.our_node_id) {
+				Some(pc) => &pc.zone,
+				None => "",
+			};
+
+			// Augment requests with some information used to sort them.
+			// The tuples are as follows:
+			//         (is another node?, is another zone?, latency, node ID, request future)
+			// We store all of these tuples in a vec that we can sort.
+			// By sorting this vec, we priorize ourself, then nodes in the same zone,
+			// and within a same zone we priorize nodes with the lowest latency.
+			let mut requests = requests
+				.map(|(to, fut)| {
+					let peer_zone = match ring.config.members.get(&to) {
+						Some(pc) => &pc.zone,
+						None => "",
+					};
+					let peer_avg_ping = peer_list
+						.iter()
+						.find(|x| x.id.as_ref() == to.as_slice())
+						.map(|pi| pi.avg_ping)
+						.flatten()
+						.unwrap_or_else(|| Duration::from_secs(1));
+					(
+						to != self.0.our_node_id,
+						peer_zone != our_zone,
+						peer_avg_ping,
+						to,
+						fut,
+					)
+				})
+				.collect::<Vec<_>>();
+
+			// Sort requests by (priorize ourself, priorize same zone, priorize low latency)
+			requests
+				.sort_by_key(|(diffnode, diffzone, ping, _to, _fut)| (*diffnode, *diffzone, *ping));
+
+			// Make an iterator to take requests in their sorted order
+			let mut requests = requests.into_iter();
+
+			// resp_stream will contain all of the requests that are currently in flight.
+			// (for the moment none, they will be added in the loop below)
+			let mut resp_stream = FuturesUnordered::new();
+
+			// Do some requests and collect results
+			'request_loop: while successes.len() < quorum {
+				// If the current set of requests that are running is not enough to possibly
+				// reach quorum, start some new requests.
+				while successes.len() + resp_stream.len() < quorum {
+					if let Some((_, _, _, _to, fut)) = requests.next() {
+						resp_stream.push(fut);
+					} else {
+						// If we have no request to add, we know that we won't ever
+						// reach quorum: bail out now.
+						break 'request_loop;
 					}
 				}
-				Err(e) => {
-					errors.push(e);
+				assert!(!resp_stream.is_empty()); // because of loop invariants
+
+				// Wait for one request to terminate
+				match resp_stream.next().await.unwrap() {
+					Ok(msg) => {
+						successes.push(msg);
+					}
+					Err(e) => {
+						errors.push(e);
+					}
 				}
+			}
+		} else {
+			// Case 2: all of the requests need to be sent in all cases,
+			// and need to terminate. (this is the case for writes that
+			// must be spread to n nodes)
+			// Just start all the requests in parallel and return as soon
+			// as the quorum is reached.
+			let mut resp_stream = requests
+				.map(|(_, fut)| fut)
+				.collect::<FuturesUnordered<_>>();
+
+			while let Some(resp) = resp_stream.next().await {
+				match resp {
+					Ok(msg) => {
+						successes.push(msg);
+						if successes.len() >= quorum {
+							break;
+						}
+					}
+					Err(e) => {
+						errors.push(e);
+					}
+				}
+			}
+
+			if !resp_stream.is_empty() {
+				// Continue remaining requests in background.
+				// Continue the remaining requests immediately using tokio::spawn
+				// but enqueue a task in the background runner
+				// to ensure that the process won't exit until the requests are done
+				// (if we had just enqueued the resp_stream.collect directly in the background runner,
+				// the requests might have been put on hold in the background runner's queue,
+				// in which case they might timeout or otherwise fail)
+				let wait_finished_fut = tokio::spawn(async move {
+					resp_stream.collect::<Vec<Result<_, _>>>().await;
+				});
+				self.0.background.spawn(wait_finished_fut.map(|_| Ok(())));
 			}
 		}
 
-		if results.len() >= quorum {
-			// Continue requests in background.
-			// Continue the remaining requests immediately using tokio::spawn
-			// but enqueue a task in the background runner
-			// to ensure that the process won't exit until the requests are done
-			// (if we had just enqueued the resp_stream.collect directly in the background runner,
-			// the requests might have been put on hold in the background runner's queue,
-			// in which case they might timeout or otherwise fail)
-			if !strategy.rs_interrupt_after_quorum {
-				let wait_finished_fut = tokio::spawn(async move {
-					resp_stream.collect::<Vec<_>>().await;
-				});
-				self.background.spawn(wait_finished_fut.map(|_| Ok(())));
-			}
-
-			Ok(results)
+		if successes.len() >= quorum {
+			Ok(successes)
 		} else {
 			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
-			Err(Error::Quorum(quorum, results.len(), to.len(), errors))
+			Err(Error::Quorum(quorum, successes.len(), to.len(), errors))
 		}
 	}
 }
