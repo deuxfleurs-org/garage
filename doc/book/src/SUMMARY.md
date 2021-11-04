@@ -7,6 +7,7 @@
 - [Cookbook](./cookbook/index.md)
   - [Building from source](./cookbook/from_source.md)
   - [Integration with systemd](./cookbook/systemd.md)
+  - [Gateways](./cookbook/gateways.md)
   - [Exposing buckets as websites](./cookbook/exposing_websites.md)
   - [Configuring a reverse proxy](./cookbook/reverse_proxy.md)
   - [Production Deployment](./cookbook/real_world.md)
