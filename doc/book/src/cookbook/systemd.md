@@ -1,9 +1,14 @@
-# Starting Garage with systemd instead of Docker
+# Starting Garage with systemd
 
-NOTE: This guide is incomplete. Typicall you would also want to create a separate
-Unix user to run Garage.
+We make some assumptions for this systemd deployment. 
 
-Make sure you have the Garage binary installed on your system (see [quick start](../quick_start/index.md)), e.g. at `/usr/local/bin/garage`.
+  - Your garage binary is located at `/usr/local/bin/garage`.
+
+  - Your configuration file is located at `/etc/garage.toml`.
+
+  - Your `garage.toml` must be set with  `metadata_dir=/var/lib/garage/meta` and `data_dir=/var/lib/garage/data`. This is mandatory to use `systemd` hardening feature [Dynamic User](https://0pointer.net/blog/dynamic-users-with-systemd.html). Note that in your host filesystem, Garage data will be held in `/var/lib/private/garage`.
+
+
 
 Create a file named `/etc/systemd/system/garage.service`:
 
@@ -15,11 +20,17 @@ Wants=network-online.target
 
 [Service]
 Environment='RUST_LOG=garage=info' 'RUST_BACKTRACE=1'
-ExecStart=/usr/local/bin/garage server -c /etc/garage/garage.toml
+ExecStart=/usr/local/bin/garage server
+StateDirectory=garage
+DynamicUser=true
+ProtectHome=true
+NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+*A note on hardening: garage will be run as a non privileged user, its user id is dynamically allocated by systemd. It cannot access (read or write) home folders (/home, /root and /run/user), the rest of the filesystem can only be read but not written, only the path seen as /var/lib/garage is writable as seen by the service (mapped to /var/lib/private/garage on your host). Additionnaly, the process can not gain new privileges over time.*
 
 To start the service then automatically enable it at boot:
 
