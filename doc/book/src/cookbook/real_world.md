@@ -78,6 +78,8 @@ rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "<this node's public IP>:3901"
 rpc_secret = "<RPC secret>"
 
+bootstrap_peers = []
+
 [s3_api]
 s3_region = "garage"
 api_bind_addr = "[::]:3900"
