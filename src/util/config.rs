@@ -39,7 +39,7 @@ pub struct Config {
 	pub rpc_public_addr: Option<SocketAddr>,
 
 	/// Bootstrap peers RPC address
-	#[serde(deserialize_with = "deserialize_vec_addr")]
+	#[serde(deserialize_with = "deserialize_vec_addr", default)]
 	pub bootstrap_peers: Vec<(NodeID, SocketAddr)>,
 	/// Consul host to connect to to discover more peers
 	pub consul_host: Option<String>,
