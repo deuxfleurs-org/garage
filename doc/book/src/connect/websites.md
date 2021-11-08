@@ -26,9 +26,10 @@ export AWS_ACCESS_KEY_ID=GKxxx
 export AWS_SECRET_ACCESS_KEY=xxx
 ```
 
-And finally deploy your website:
+And finally build and deploy your website:
 
 ```bsh
+hugo
 hugo deploy
 ```
 
