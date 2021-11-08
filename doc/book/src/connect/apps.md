@@ -253,35 +253,7 @@ Make sure you (will) have a corresponding DNS entry for them.
 
 Now we will configure a reverse proxy in front of Garage.
 This is required as we have no other way to serve CORS headers yet.
-For our example, we will use nginx:
-
-```nginx
-server {
-  # In production you should use TLS instead of plain HTTP
-  listen [::]:80;
-
-  server_name peertube-video.web.garage peertube-playlist.web.garage;
-
-  location / {
-    add_header Access-Control-Allow-Origin *;
-    add_header Access-Control-Max-Age 3600;
-    add_header Access-Control-Expose-Headers Content-Length;
-    add_header Access-Control-Allow-Headers Range;
-
-    # We do not forward OPTIONS request to Garage
-    # as it does not know how to interpret them.
-    # Instead, we simply answers 200.
-    if ($request_method !~ ^(GET|HEAD)$ ) {
-      return 200;
-    }
-
-    # If your do not have a Garage instance on the reverse proxy, change the URL here.
-    proxy_pass http://127.0.0.1:3902;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $host;
-  }
-}
-```
+Check the [Configuring a reverse proxy](/cookbook/reverse_proxy.html) section to know how.
 
 Now make sure that your 2 dns entries are pointing to your reverse proxy.
 

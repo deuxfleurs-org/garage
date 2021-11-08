@@ -1,4 +1,4 @@
-# Exposing websites
+# Exposing buckets as websites
 
 You can expose your bucket as a website with this simple command:
 
