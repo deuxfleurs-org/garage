@@ -29,6 +29,7 @@
 - [Design](./design/index.md)
   - [Related Work](./design/related_work.md)
   - [Internals](./design/internals.md)
+  - [Design draft](./design/design_draft.md)
 
 - [Development](./development/index.md)
   - [Setup your environment](./development/devenv.md)

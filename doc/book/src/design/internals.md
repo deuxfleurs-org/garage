@@ -1,158 +1,95 @@
-**WARNING: this documentation is more a "design draft", which was written before Garage's actual implementation. The general principle is similar but details have not yet been updated.**
+# Internals
 
-#### Modules
+## Overview
 
-- `membership/`: configuration, membership management (gossip of node's presence and status), ring generation --> what about Serf (used by Consul/Nomad) : https://www.serf.io/? Seems a huge library with many features so maybe overkill/hard to integrate
-- `metadata/`: metadata management
-- `blocks/`: block management, writing, GC and rebalancing
-- `internal/`: server to server communication (HTTP server and client that reuses connections, TLS if we want, etc)
-- `api/`: S3 API
-- `web/`: web management interface
+TODO: write this section
 
-#### Metadata tables
+- The Dynamo ring
 
-**Objects:**
+- CRDTs
 
-- *Hash key:* Bucket name (string)
-- *Sort key:* Object key (string)
-- *Sort key:* Version timestamp (int)
-- *Sort key:* Version UUID (string)
-- Complete: bool
-- Inline: bool, true for objects < threshold (say 1024)
-- Object size (int)
-- Mime type (string)
-- Data for inlined objects (blob)
-- Hash of first block otherwise (string)
+- Consistency model of Garage tables
 
-*Having only a hash key on the bucket name will lead to storing all file entries of this table for a specific bucket on a single node. At the same time, it is the only way I see to rapidly being able to list all bucket entries...*
-
-**Blocks:**
-
-- *Hash key:* Version UUID (string)
-- *Sort key:* Offset of block in total file (int)
-- Hash of data block (string)
-
-A version is defined by the existence of at least one entry in the blocks table for a certain version UUID.
-We must keep the following invariant: if a version exists in the blocks table, it has to be referenced in the objects table.
-We explicitly manage concurrent versions of an object: the version timestamp and version UUID columns are index columns, thus we may have several concurrent versions of an object.
-Important: before deleting an older version from the objects table, we must make sure that we did a successfull delete of the blocks of that version from the blocks table.
-
-Thus, the workflow for reading an object is as follows:
-
-1. Check permissions (LDAP)
-2. Read entry in object table. If data is inline, we have its data, stop here.
-   -> if several versions, take newest one and launch deletion of old ones in background
-3. Read first block from cluster. If size <= 1 block, stop here.
-4. Simultaneously with previous step, if size > 1 block: query the Blocks table for the IDs of the next blocks
-5. Read subsequent blocks from cluster
-
-Workflow for PUT:
-
-1. Check write permission (LDAP)
-2. Select a new version UUID
-3. Write a preliminary entry for the new version in the objects table with complete = false
-4. Send blocks to cluster and write entries in the blocks table
-5. Update the version with complete = true and all of the accurate information (size, etc)
-6. Return success to the user
-7. Launch a background job to check and delete older versions
-
-Workflow for DELETE:
-
-1. Check write permission (LDAP)
-2. Get current version (or versions) in object table
-3. Do the deletion of those versions NOT IN A BACKGROUND JOB THIS TIME
-4. Return succes to the user if we were able to delete blocks from the blocks table and entries from the object table
-
-To delete a version:
-
-1. List the blocks from Cassandra
-2. For each block, delete it from cluster. Don't care if some deletions fail, we can do GC.
-3. Delete all of the blocks from the blocks table
-4. Finally, delete the version from the objects table
-
-Known issue: if someone is reading from a version that we want to delete and the object is big, the read might be interrupted. I think it is ok to leave it like this, we just cut the connection if data disappears during a read.
-
-("Soit P un problème, on s'en fout est une solution à ce problème")
-
-#### Block storage on disk
-
-**Blocks themselves:**
-
-- file path = /blobs/(first 3 hex digits of hash)/(rest of hash)
-
-**Reverse index for GC & other block-level metadata:**
-
-- file path = /meta/(first 3 hex digits of hash)/(rest of hash)
-- map block hash -> set of version UUIDs where it is referenced
-
-Usefull metadata:
-
-- list of versions that reference this block in the Casandra table, so that we can do GC by checking in Cassandra that the lines still exist
-- list of other nodes that we know have acknowledged a write of this block, usefull in the rebalancing algorithm
-
-Write strategy: have a single thread that does all write IO so that it is serialized (or have several threads that manage independent parts of the hash space). When writing a blob, write it to a temporary file, close, then rename so that a concurrent read gets a consistent result (either not found or found with whole content).
-
-Read strategy: the only read operation is get(hash) that returns either the data or not found (can do a corruption check as well and return corrupted state if it is the case). Can be done concurrently with writes.
-
-**Internal API:**
-
-- get(block hash) -> ok+data/not found/corrupted
-- put(block hash & data, version uuid + offset) -> ok/error
-- put with no data(block hash, version uuid + offset) -> ok/not found plz send data/error
-- delete(block hash, version uuid + offset) -> ok/error
-
-GC: when last ref is deleted, delete block.
-Long GC procedure: check in Cassandra that version UUIDs still exist and references this block.
-
-Rebalancing: takes as argument the list of newly added nodes.
-
-- List all blocks that we have. For each block:
-- If it hits a newly introduced node, send it to them.
-  Use put with no data first to check if it has to be sent to them already or not.
-  Use a random listing order to avoid race conditions (they do no harm but we might have two nodes sending the same thing at the same time thus wasting time).
-- If it doesn't hit us anymore, delete it and its reference list.
-
-Only one balancing can be running at a same time. It can be restarted at the beginning with new parameters.
-
-#### Membership management
-
-Two sets of nodes:
-
-- set of nodes from which a ping was recently received, with status: number of stored blocks, request counters, error counters, GC%, rebalancing%
-  (eviction from this set after say 30 seconds without ping)
-- set of nodes that are part of the system, explicitly modified by the operator using the web UI (persisted to disk),
-  is a CRDT using a version number for the value of the whole set
-
-Thus, three states for nodes:
-
-- healthy: in both sets
-- missing: not pingable but part of desired cluster
-- unused/draining: currently present but not part of the desired cluster, empty = if contains nothing, draining = if still contains some blocks
-
-Membership messages between nodes:
-
-- ping with current state + hash of current membership info -> reply with same info
-- send&get back membership info (the ids of nodes that are in the two sets): used when no local membership change in a long time and membership info hash discrepancy detected with first message (passive membership fixing with full CRDT gossip)
-- inform of newly pingable node(s) -> no result, when receive new info repeat to all (reliable broadcast)
-- inform of operator membership change -> no result, when receive new info repeat to all (reliable broadcast)
-
-Ring: generated from the desired set of nodes, however when doing read/writes on the ring, skip nodes that are known to be not pingable.
-The tokens are generated in a deterministic fashion from node IDs (hash of node id + token number from 1 to K).
-Number K of tokens per node: decided by the operator & stored in the operator's list of nodes CRDT. Default value proposal: with node status information also broadcast disk total size and free space, and propose a default number of tokens equal to 80%Free space / 10Gb. (this is all user interface)
+See this presentation (in French) for some first information:
+<https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/main/doc/talks/2020-12-02_wide-team/talk.pdf>
 
 
-#### Constants
+## Garbage collection
 
-- Block size: around 1MB ? --> Exoscale use 16MB chunks
-- Number of tokens in the hash ring: one every 10Gb of allocated storage
-- Threshold for storing data directly in Cassandra objects table: 1kb bytes (maybe up to 4kb?)
-- Ping timeout (time after which a node is registered as unresponsive/missing): 30 seconds
-- Ping interval: 10 seconds
-- ??
+A faulty garbage collection procedure has been the cause of
+[critical bug #39](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/39).
+This precise bug was fixed in the code, however there are potentially more
+general issues with the garbage collector being too eager and deleting things
+too early. This has been the subject of
+[PR #135](https://git.deuxfleurs.fr/Deuxfleurs/garage/pulls/135).
+This section summarizes the discussions on this topic.
 
-#### Links
+Rationale: we want to ensure Garage's safety by making sure things don't get
+deleted from disk if they are still needed. Two aspects are involved in this.
 
-- CDC: <https://www.usenix.org/system/files/conference/atc16/atc16-paper-xia.pdf>
-- Erasure coding: <http://web.eecs.utk.edu/~jplank/plank/papers/CS-08-627.html>
-- [Openstack Storage Concepts](https://docs.openstack.org/arch-design/design-storage/design-storage-concepts.html)
-- [RADOS](https://ceph.com/wp-content/uploads/2016/08/weil-rados-pdsw07.pdf)
+### 1. Garbage collection of table entries (in `meta/` directory)
+
+The `Entry` trait used for table entries (defined in `tables/schema.rs`)
+defines a function `is_tombstone()` that returns `true` if that entry
+represents an entry that is deleted in the table. CRDT semantics by default
+keep all tombstones, because they are necessary for reconciliation: if node A
+has a tombstone that supersedes a value `x`, and node B has value `x`, A has to
+keep the tombstone in memory so that the value `x` can be properly deleted at
+node `B`. Otherwise, due to the CRDT reconciliation rule, the value `x` from B
+would flow back to A and a deleted item would reappear in the system.
+
+Here, we have some control on the nodes involved in storing Garage data.
+Therefore we have a garbage collector that is able to delete tombstones UNDER
+CERTAIN CONDITIONS. This garbage collector is implemented in `table/gc.rs`. To
+delete a tombstone, the following condition has to be met:
+
+- All nodes responsible for storing this entry are aware of the existence of
+  the tombstone, i.e. they cannot hold another version of the entry that is
+  superseeded by the tombstone. This ensures that deleting the tombstone is
+  safe and that no deleted value will come back in the system.
+
+Garage makes use of Sled's atomic operations (such as compare-and-swap and
+transactions) to ensure that only tombstones that have been correctly
+propagated to other nodes are ever deleted from the local entry tree.
+
+This GC is safe in the following sense: no non-tombstone data is ever deleted
+from Garage tables.
+
+**However**, there is an issue with the way this interacts with data
+rebalancing in the case when a partition is moving between nodes. If a node has
+some data of a partition for which it is not responsible, it has to offload it.
+However that offload process takes some time. In that interval, the GC does not
+check with that node if it has the tombstone before deleting the tombstone, so
+perhaps it doesn't have it and when the offload finally happens, old data comes
+back in the system.
+
+**PR 135 mostly fixes this** by implementing a 24-hour delay before anything is
+garbage collected in a table. This works under the assumption that rebalances
+that follow data shuffling terminate in less than 24 hours.
+
+**However**, in distributed systems, it is generally considered a bad practice
+to make assumptions that information propagates in a certain time interval:
+this consists in making a synchrony assumption, meaning that we are basically
+assuming a computing model that has much stronger properties than otherwise. To
+maximize the applicability of Garage, we would like to remove this assumption,
+and implement a system where time does not play a role. To do this, we would
+need to find a way to safely disable the GC when data is being shuffled around,
+and safely detect that the shuffling has terminated and thus the GC can be
+resumed. This introduces some complexity to the protocol and hasn't been
+tackled yet.
+
+### 2. Garbage collection of data blocks (in `data/` directory)
+
+Blocks in the data directory are reference-counted. In Garage versions before
+PR #135, blocks could get deleted from local disk as soon as their reference
+counter reached zero. We had a mechanism to not trigger this immediately at the
+rc-reaches-zero event, but the cleanup could be triggered by other means (for
+example by a block repair operation...). PR #135 added a safety measure so that
+blocks never get deleted in a 10 minute interval following the time when the RC
+reaches zero. This is a measure to make impossible race conditions such as #39.
+We would have liked to use a larger delay (e.g. 24 hours), but in the case of a
+rebalance of data, this would have led to the disk utilization to explode
+during the rebalancing, only to shrink again after 24 hours. The 10-minute
+delay is a compromise that gives good security while not having this problem of
+disk space explosion on rebalance.
+
