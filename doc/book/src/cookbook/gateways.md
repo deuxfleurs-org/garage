@@ -21,11 +21,19 @@ Currently it will not work with minio client. Follow issue [#64](https://git.deu
 The instructions are similar to a regular node, the only option that is different is while configuring the node, you must set the `--gateway` parameter:
 
 ```bash
-garage node configure --gateway --tag gw1 xxxx
+garage layout assign --gateway --tag gw1 <node_id>
+garage layout show    # review the changes you are making
+garage layout apply   # once satisfied, apply the changes
 ```
 
 Then use `http://localhost:3900` when a S3 endpoint is required:
 
 ```bash
 aws --endpoint-url http://127.0.0.1:3900 s3 ls
+```
+
+If a newly added gateway node seems to not be working, do a full table resync to ensure that bucket and key list are correctly propagated:
+
+```bash
+garage repair -a --yes tables
 ```

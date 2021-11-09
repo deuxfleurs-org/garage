@@ -5,6 +5,7 @@ extern crate log;
 
 mod consul;
 
+pub mod layout;
 pub mod ring;
 pub mod system;
 

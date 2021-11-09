@@ -5,6 +5,7 @@ extern crate log;
 
 pub mod background;
 pub mod config;
+pub mod crdt;
 pub mod data;
 pub mod error;
 pub mod persister;

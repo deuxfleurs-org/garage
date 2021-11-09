@@ -339,7 +339,7 @@ impl AdminRpcHandler {
 
 			let mut failures = vec![];
 			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.config.members.keys() {
+			for node in ring.layout.node_ids().iter() {
 				let node = (*node).into();
 				let resp = self
 					.endpoint
@@ -383,7 +383,7 @@ impl AdminRpcHandler {
 			let mut ret = String::new();
 			let ring = self.garage.system.ring.borrow().clone();
 
-			for node in ring.config.members.keys() {
+			for node in ring.layout.node_ids().iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 

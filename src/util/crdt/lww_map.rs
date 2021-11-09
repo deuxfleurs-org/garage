@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
-use garage_util::time::now_msec;
+use crate::time::now_msec;
 
 use crate::crdt::crdt::*;
 
@@ -135,11 +137,15 @@ where
 			match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(k)) {
 				Ok(i) => {
 					let (_, ts1, _v1) = &self.vals[i];
-					if ts2 > ts1 {
-						self.vals[i].1 = *ts2;
-						self.vals[i].2 = v2.clone();
-					} else if ts1 == ts2 {
-						self.vals[i].2.merge(v2);
+					match ts2.cmp(ts1) {
+						Ordering::Greater => {
+							self.vals[i].1 = *ts2;
+							self.vals[i].2 = v2.clone();
+						}
+						Ordering::Equal => {
+							self.vals[i].2.merge(v2);
+						}
+						Ordering::Less => (),
 					}
 				}
 				Err(i) => {

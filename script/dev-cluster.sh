@@ -69,7 +69,7 @@ done
 sleep 3
 # Establish connections between nodes
 for count in $(seq 1 3); do
-	NODE=$(garage -c /tmp/config.$count.toml node-id -q)
+	NODE=$(garage -c /tmp/config.$count.toml node id -q)
 	for count2 in $(seq 1 3); do
 		garage -c /tmp/config.$count2.toml node connect $NODE
 	done

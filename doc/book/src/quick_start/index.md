@@ -6,22 +6,23 @@ and how to interact with it.
 
 Our goal is to introduce you to Garage's workflows.
 Following this guide is recommended before moving on to
-[configuring a real-world deployment](../cookbook/real_world.md).
+[configuring a multi-node cluster](../cookbook/real_world.md).
 
-Note that this kind of deployment should not be used in production, as it provides
-no redundancy for your data!
+Note that this kind of deployment should not be used in production,
+as it provides no redundancy for your data!
 
 ## Get a binary
 
 Download the latest Garage binary from the release pages on our repository:
 
-<https://git.deuxfleurs.fr/Deuxfleurs/garage/releases>
+<https://garagehq.deuxfleurs.fr/_releases.html>
 
 Place this binary somewhere in your `$PATH` so that you can invoke the `garage`
 command directly (for instance you can copy the binary in `/usr/local/bin`
 or in `~/.local/bin`).
 
 If a binary of the last version is not available for your architecture,
+or if you want a build customized for your system,
 you can [build Garage from source](../cookbook/from_source.md).
 
 
@@ -109,9 +110,9 @@ ID                 Hostname  Address         Tag                   Zone  Capacit
 563e1ac825ee3323…  linuxbox  127.0.0.1:3901  NO ROLE ASSIGNED
 ```
 
-## Configuring your Garage node
+## Creating a cluster layout
 
-Configuring the nodes in a Garage deployment means informing Garage
+Creating a cluster layout for a Garage deployment means informing Garage
 of the disk space available on each node of the cluster
 as well as the zone (e.g. datacenter) each machine is located in.
 
@@ -119,14 +120,18 @@ For our test deployment, we are using only one node. The way in which we configu
 it does not matter, you can simply write:
 
 ```bash
-garage node configure -z dc1 -c 1 <node_id>
+garage layout assign -z dc1 -c 1 <node_id>
 ```
 
 where `<node_id>` corresponds to the identifier of the node shown by `garage status` (first column).
 You can enter simply a prefix of that identifier.
-For instance here you could write just `garage node configure -z dc1 -c 1 563e`.
+For instance here you could write just `garage layout assign -z dc1 -c 1 563e`.
 
+The layout then has to be applied to the cluster, using:
 
+```bash
+garage layout apply
+```
 
 
 ## Creating buckets and keys
@@ -197,7 +202,7 @@ Now that we have a bucket and a key, we need to give permissions to the key on t
 ```
 garage bucket allow \
   --read \
-  --write 
+  --write \
   nextcloud-bucket \
   --key nextcloud-app-key
 ```
@@ -270,5 +275,5 @@ The following tools can also be used to send and recieve files from/to Garage:
 - [Cyberduck](https://cyberduck.io/)
 - [`s3cmd`](https://s3tools.org/s3cmd)
 
-Refer to the ["configuring clients"](../cookbook/clients.md) page to learn how to configure
-these clients to interact with a Garage server.
+Refer to the ["Integrations" section](../connect/index.md) to learn how to
+configure application and command line utilities to integrate with Garage.

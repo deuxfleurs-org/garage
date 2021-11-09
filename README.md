@@ -3,8 +3,16 @@ Garage [![Build Status](https://drone.deuxfleurs.fr/api/badges/Deuxfleurs/garage
 
 <p align="center" style="text-align:center;">
 	<a href="https://garagehq.deuxfleurs.fr">
-	<img alt="Garage logo" src="doc/logo/garage.png" height="200" />
+	<img alt="Garage logo" src="https://garagehq.deuxfleurs.fr/img/logo.svg" height="200" />
 	</a>
+</p>
+
+<p align="center" style="text-align:center;">
+	[ <strong><a href="https://garagehq.deuxfleurs.fr/">Website and documentation</a></strong>
+	| <a href="https://garagehq.deuxfleurs.fr/_releases.html">Binary releases</a>
+	| <a href="https://git.deuxfleurs.fr/Deuxfleurs/garage">Git repository</a>
+	| <a href="https://matrix.to/#/%23garage:deuxfleurs.fr">Matrix channel</a>
+	]
 </p>
 
 Garage is a lightweight S3-compatible distributed object store, with the following goals:
@@ -22,5 +30,3 @@ Non-goals include:
 - Erasure coding (our replication model is simply to copy the data as is on several nodes, in different datacenters if possible)
 
 Our main use case is to provide a distributed storage layer for small-scale self hosted services such as [Deuxfleurs](https://deuxfleurs.fr).
-
-**[Go to the documentation](https://garagehq.deuxfleurs.fr)**

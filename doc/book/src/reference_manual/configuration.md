@@ -133,9 +133,9 @@ These peer identifiers have the following syntax:
 
 In the case where `rpc_public_addr` is correctly specified in the
 configuration file, the full identifier of a node including IP and port can
-be obtained by running `garage node-id` and then included directly in the
+be obtained by running `garage node id` and then included directly in the
 `bootstrap_peers` list of other nodes.  Otherwise, only the node's public
-key will be returned by `garage node-id` and you will have to add the IP
+key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
 #### `consul_host` and `consul_service_name`

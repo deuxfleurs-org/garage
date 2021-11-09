@@ -25,6 +25,7 @@ garage -c /tmp/config.1.toml status \
 	| grep 'NO ROLE' \
 	| grep -Po '^[0-9a-f]+' \
 	| while read id; do 
-	  garage -c /tmp/config.1.toml node configure -z dc1 -c 1 $id
+	  garage -c /tmp/config.1.toml layout assign $id -z dc1 -c 1
 	done
 
+garage -c /tmp/config.1.toml layout apply --version 1

@@ -1,5 +1,7 @@
 # Load Balancing Data (planned for version 0.2)
 
+**This is being yet improved in release 0.5. The working document has not been updated yet, it still only applies to Garage 0.2 through 0.4.**
+
 I have conducted a quick study of different methods to load-balance data over different Garage nodes using consistent hashing.
 
 ## Requirements

@@ -8,23 +8,23 @@ pub enum Command {
 	#[structopt(name = "server")]
 	Server,
 
-	/// Print identifier (public key) of this Garage node
-	#[structopt(name = "node-id")]
-	NodeId(NodeIdOpt),
-
 	/// Get network status
 	#[structopt(name = "status")]
 	Status,
 
-	/// Garage node operations
+	/// Operations on individual Garage nodes
 	#[structopt(name = "node")]
 	Node(NodeOperation),
 
-	/// Bucket operations
+	/// Operations on the assignation of node roles in the cluster layout
+	#[structopt(name = "layout")]
+	Layout(LayoutOperation),
+
+	/// Operations on buckets
 	#[structopt(name = "bucket")]
 	Bucket(BucketOperation),
 
-	/// Key operations
+	/// Operations on S3 access keys
 	#[structopt(name = "key")]
 	Key(KeyOperation),
 
@@ -39,17 +39,13 @@ pub enum Command {
 
 #[derive(StructOpt, Debug)]
 pub enum NodeOperation {
+	/// Print identifier (public key) of this Garage node
+	#[structopt(name = "id")]
+	NodeId(NodeIdOpt),
+
 	/// Connect to Garage node that is currently isolated from the system
 	#[structopt(name = "connect")]
 	Connect(ConnectNodeOpt),
-
-	/// Configure Garage node
-	#[structopt(name = "configure")]
-	Configure(ConfigureNodeOpt),
-
-	/// Remove Garage node from cluster
-	#[structopt(name = "remove")]
-	Remove(RemoveNodeOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -67,8 +63,31 @@ pub struct ConnectNodeOpt {
 }
 
 #[derive(StructOpt, Debug)]
-pub struct ConfigureNodeOpt {
-	/// Node to configure (prefix of hexadecimal node id)
+pub enum LayoutOperation {
+	/// Assign role to Garage node
+	#[structopt(name = "assign")]
+	Assign(AssignRoleOpt),
+
+	/// Remove role from Garage cluster node
+	#[structopt(name = "remove")]
+	Remove(RemoveRoleOpt),
+
+	/// Show roles currently assigned to nodes and changes staged for commit
+	#[structopt(name = "show")]
+	Show,
+
+	/// Apply staged changes to cluster layout
+	#[structopt(name = "apply")]
+	Apply(ApplyLayoutOpt),
+
+	/// Revert staged changes to cluster layout
+	#[structopt(name = "revert")]
+	Revert(RevertLayoutOpt),
+}
+
+#[derive(StructOpt, Debug)]
+pub struct AssignRoleOpt {
+	/// Node to which to assign role (prefix of hexadecimal node id)
 	pub(crate) node_id: String,
 
 	/// Location (zone or datacenter) of the node
@@ -83,9 +102,9 @@ pub struct ConfigureNodeOpt {
 	#[structopt(short = "g", long = "gateway")]
 	pub(crate) gateway: bool,
 
-	/// Optional node tag
+	/// Optional tags to add to node
 	#[structopt(short = "t", long = "tag")]
-	pub(crate) tag: Option<String>,
+	pub(crate) tags: Vec<String>,
 
 	/// Replaced node(s): list of node IDs that will be removed from the current cluster
 	#[structopt(long = "replace")]
@@ -93,13 +112,24 @@ pub struct ConfigureNodeOpt {
 }
 
 #[derive(StructOpt, Debug)]
-pub struct RemoveNodeOpt {
-	/// Node to configure (prefix of hexadecimal node id)
+pub struct RemoveRoleOpt {
+	/// Node whose role to remove (prefix of hexadecimal node id)
 	pub(crate) node_id: String,
+}
 
-	/// If this flag is not given, the node won't be removed
-	#[structopt(long = "yes")]
-	pub(crate) yes: bool,
+#[derive(StructOpt, Debug)]
+pub struct ApplyLayoutOpt {
+	/// Version number of new configuration: this command will fail if
+	/// it is not exactly 1 + the previous configuration's version
+	#[structopt(long = "version")]
+	pub(crate) version: Option<u64>,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct RevertLayoutOpt {
+	/// Version number of old configuration to which to revert
+	#[structopt(long = "version")]
+	pub(crate) version: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

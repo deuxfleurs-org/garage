@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 
-use garage_util::time::now_msec;
+use crate::time::now_msec;
 
 use crate::crdt::crdt::*;
 
@@ -104,11 +106,15 @@ where
 	T: Clone + Crdt,
 {
 	fn merge(&mut self, other: &Self) {
-		if other.ts > self.ts {
-			self.ts = other.ts;
-			self.v = other.v.clone();
-		} else if other.ts == self.ts {
-			self.v.merge(&other.v);
+		match other.ts.cmp(&self.ts) {
+			Ordering::Greater => {
+				self.ts = other.ts;
+				self.v = other.v.clone();
+			}
+			Ordering::Equal => {
+				self.v.merge(&other.v);
+			}
+			Ordering::Less => (),
 		}
 	}
 }

@@ -28,8 +28,10 @@ and you should instead use one of the methods detailed in the next sections.
 
 Removing a node is done with the following command:
 
-```
-garage node remove --yes <node_id>
+```bash
+garage layout remove <node_id>
+garage layout show    # review the changes you are making
+garage layout apply   # once satisfied, apply the changes
 ```
 
 (you can get the `node_id` of the failed node by running `garage status`)
@@ -50,7 +52,7 @@ We just need to tell Garage to get back all the data blocks and store them on th
 First, set up a new HDD to store Garage's data directory on the failed node, and restart Garage using
 the existing configuration.  Then, run:
 
-```
+```bash
 garage repair -a --yes blocks
 ```
 
@@ -58,7 +60,7 @@ This will re-synchronize blocks of data that are missing to the new HDD, reading
 
 You can check on the advancement of this process by doing the following command: 
 
-```
+```bash
 garage stats -a
 ```
 
@@ -94,9 +96,11 @@ The ID of the lost node should be shown in `garage status` in the section for di
 
 Then, replace the broken node by the new one, using:
 
-```
-garage node configure --replace <old_node_id> \
-		-c <capacity> -z <zone> -t <node_tag> <new_node_id>
+```bash
+garage layout assign <new_node_id> --replace <old_node_id> \
+		-c <capacity> -z <zone> -t <node_tag>
+garage layout show    # review the changes you are making
+garage layout apply   # once satisfied, apply the changes
 ```
 
 Garage will then start synchronizing all required data on the new node.

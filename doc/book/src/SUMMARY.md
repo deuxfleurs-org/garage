@@ -5,12 +5,12 @@
 - [Quick start](./quick_start/index.md)
 
 - [Cookbook](./cookbook/index.md)
+  - [Multi-node deployment](./cookbook/real_world.md)
   - [Building from source](./cookbook/from_source.md)
   - [Integration with systemd](./cookbook/systemd.md)
   - [Gateways](./cookbook/gateways.md)
   - [Exposing buckets as websites](./cookbook/exposing_websites.md)
   - [Configuring a reverse proxy](./cookbook/reverse_proxy.md)
-  - [Production Deployment](./cookbook/real_world.md)
   - [Recovering from failures](./cookbook/recovering.md)
 
 - [Integrations](./connect/index.md)
@@ -25,6 +25,7 @@
 
 - [Reference Manual](./reference_manual/index.md)
   - [Garage configuration file](./reference_manual/configuration.md)
+  - [Cluster layout management](./reference_manual/layout.md)
   - [Garage CLI](./reference_manual/cli.md)
   - [S3 compatibility status](./reference_manual/s3_compatibility.md)
 

@@ -41,15 +41,15 @@ For our example, we will suppose the following infrastructure with IPv6 connecti
 
 ## Get a Docker image
 
-Our docker image is currently named `lxpz/garage_amd64` and is stored on the [Docker Hub](https://hub.docker.com/r/lxpz/garage_amd64/tags?page=1&ordering=last_updated).
+Our docker image is currently named `dxflrs/amd64_garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/amd64_garage/tags?page=1&ordering=last_updated).
 We encourage you to use a fixed tag (eg. `v0.4.0`) and not the `latest` tag.
 For this example, we will use the latest published version at the time of the writing which is `v0.4.0` but it's up to you
-to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/lxpz/garage_amd64/tags?page=1&ordering=last_updated).
+to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/amd64_garage/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull lxpz/garage_amd64:v0.4.0
+sudo docker pull dxflrs/amd64_garage:v0.4.0
 ```
 
 ## Deploying and configuring Garage
@@ -144,7 +144,7 @@ At this point, nodes are not yet talking to one another.
 Your output should therefore look like follows:
 
 ```
-Mercury$ garage node-id
+Mercury$ garage status
 ==== HEALTHY NODES ====
 ID                  Hostname  Address           Tag                   Zone  Capacity
 563e1ac825ee3323…   Mercury   [fc00:1::1]:3901  NO ROLE ASSIGNED
@@ -157,14 +157,14 @@ When your Garage nodes first start, they will generate a local node identifier
 (based on a public/private key pair).
 
 To obtain the node identifier of a node, once it is generated,
-run `garage node-id`.
+run `garage node id`.
 This will print keys as follows:
 
 ```bash
-Mercury$ garage node-id
+Mercury$ garage node id
 563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901
 
-Venus$ garage node-id
+Venus$ garage node id
 86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332@[fc00:1::2]:3901
 
 etc.
@@ -191,20 +191,22 @@ ID                  Hostname  Address           Tag                   Zone  Capa
 212f7572f0c89da9…   Mars      [fc00:F::1]:3901  NO ROLE ASSIGNED
 ```
 
-## Giving roles to nodes
+## Creating a cluster layout
 
 We will now inform Garage of the disk space available on each node of the cluster
 as well as the zone (e.g. datacenter) in which each machine is located.
+This information is called the **cluster layout** and consists
+of a role that is assigned to each active cluster node.
 
 For our example, we will suppose we have the following infrastructure
 (Capacity, Identifier and Zone are specific values to Garage described in the following):
 
 | Location | Name    | Disk Space | `Capacity` | `Identifier` | `Zone` |
 |----------|---------|------------|------------|--------------|--------------|
-| Paris    | Mercury | 1 To       | `2`        | `563e`     | `par1`       |
-| Paris    | Venus   | 2 To       | `4`        | `86f0`     | `par1`       |
-| London   | Earth   | 2 To       | `4`        | `6814`     | `lon1`       |
-| Brussels | Mars    | 1.5 To     | `3`        | `212f`     | `bru1`       |
+| Paris    | Mercury | 1 To       | `10`       | `563e`     | `par1`       |
+| Paris    | Venus   | 2 To       | `20`       | `86f0`     | `par1`       |
+| London   | Earth   | 2 To       | `20`       | `6814`     | `lon1`       |
+| Brussels | Mars    | 1.5 To     | `15`       | `212f`     | `bru1`       |
 
 #### Node identifiers
 
@@ -239,13 +241,9 @@ in order to provide high availability despite failure of a zone.
 
 Garage reasons on an abstract metric about disk storage that is named the *capacity* of a node.
 The capacity configured in Garage must be proportional to the disk space dedicated to the node.
-Due to the way the Garage allocation algorithm works, capacity values must
-be **integers**, and must be **as small as possible**, for instance with
-1 representing the size of your smallest server.
 
-Here we chose that 1 unit of capacity = 0.5 To, so that we can express servers of size
-1 To and 2 To, as wel as the intermediate size 1.5 To, with the integer values 2, 4 and
-3 respectively (see table above).
+Capacity values must be **integers** but can be given any signification.
+Here we chose that 1 unit of capacity = 100 GB.
 
 Note that the amount of data stored by Garage on each server may not be strictly proportional to
 its capacity value, as Garage will priorize having 3 copies of data in different zones,
@@ -257,12 +255,28 @@ have 66% chance of being stored by Venus and 33% chance of being stored by Mercu
 
 Given the information above, we will configure our cluster as follow:
 
+```bash
+garage layout assign -z par1 -c 10 -t mercury 563e
+garage layout assign -z par1 -c 20 -t venus 86f0
+garage layout assign -z lon1 -c 20 -t earth 6814
+garage layout assign -z bru1 -c 15 -t mars 212f
 ```
-garage node configure -z par1 -c 2 -t mercury 563e
-garage node configure -z par1 -c 4 -t venus 86f0
-garage node configure -z lon1 -c 4 -t earth 6814
-garage node configure -z bru1 -c 3 -t mars 212f
+
+At this point, the changes in the cluster layout have not yet been applied.
+To show the new layout that will be applied, call:
+
+```bash
+garage layout show
 ```
+
+Once you are satisfied with your new layout, apply it with:
+
+```bash
+garage layout apply
+```
+
+**WARNING:** if you want to use the layout modification commands in a script,
+make sure to read [this page](/reference_manual/layout.html) first.
 
 
 ## Using your Garage cluster

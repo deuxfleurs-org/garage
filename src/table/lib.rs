@@ -4,7 +4,6 @@
 #[macro_use]
 extern crate log;
 
-pub mod crdt;
 pub mod schema;
 pub mod util;
 
@@ -18,3 +17,7 @@ pub mod table;
 pub use schema::*;
 pub use table::*;
 pub use util::*;
+
+pub mod crdt {
+	pub use garage_util::crdt::*;
+}

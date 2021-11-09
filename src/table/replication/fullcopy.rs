@@ -28,10 +28,10 @@ impl TableReplication for TableFullReplication {
 
 	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		let ring = self.system.ring.borrow();
-		ring.config.members.keys().cloned().collect::<Vec<_>>()
+		ring.layout.node_ids().to_vec()
 	}
 	fn write_quorum(&self) -> usize {
-		let nmembers = self.system.ring.borrow().config.members.len();
+		let nmembers = self.system.ring.borrow().layout.node_ids().len();
 		if nmembers > self.max_faults {
 			nmembers - self.max_faults
 		} else {

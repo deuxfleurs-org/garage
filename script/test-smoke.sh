@@ -116,11 +116,11 @@ if [ -z "$SKIP_AWS" ]; then
   echo "🧪 Website Testing"
   echo "<h1>hello world</h1>" > /tmp/garage-index.html
   aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
   garage -c /tmp/config.1.toml bucket website --allow eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 200 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 200 ]
   garage -c /tmp/config.1.toml bucket website --deny eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3923/ ` == 404 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
   aws s3 rm s3://eprouvette/index.html
   rm /tmp/garage-index.html
 fi

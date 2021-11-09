@@ -1,4 +1,4 @@
-use garage_util::data::*;
+use crate::data::*;
 
 /// Definition of a CRDT - all CRDT Rust types implement this.
 ///

@@ -18,10 +18,18 @@ This very website is hosted using Garage. In other words: the doc is the PoC!
 
 # The Garage Geo-Distributed Data Store
 
-Garage is a lightweight geo-distributed data store.
-It comes from the observation that despite numerous object stores
-many people have broken data management policies (backup/replication on a single site or none at all).
-To promote better data management policies, we focused on the following **desirable properties**:
+Garage is a lightweight geo-distributed data store that implements the
+[Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
+object storage protocole. It enables applications to store large blobs such
+as pictures, video, images, documents, etc., in a redundant multi-node
+setting. S3 is versatile enough to also be used to publish a static
+website.
+
+Garage comes from the observation that despite the numerous existing
+implementation of object stores, many people have broken data management
+policies (backup/replication on a single site or none at all).  To promote
+better data management policies, we focused on the following **desirable
+properties**:
 
   - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
   - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
@@ -32,26 +40,19 @@ We also noted that the pursuit of some other goals are detrimental to our initia
 The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):
 
   - **Extreme performances**: high performances constrain a lot the design and the infrastructure; we seek performances through minimalism only.
-  - **Feature extensiveness**: complete implementation of the S3 API or any other API to make garage a drop-in replacement is not targeted as it could lead to decisions impacting our desirable properties.
+  - **Feature extensiveness**: complete implementation of the S3 API or any other API to make Garage a drop-in replacement is not targeted as it could lead to decisions impacting our desirable properties.
   - **Storage optimizations**: erasure coding or any other coding technique both increase the difficulty of placing data and synchronizing; we limit ourselves to duplication.
   - **POSIX/Filesystem compatibility**: we do not aim at being POSIX compatible or to emulate any kind of filesystem. Indeed, in a distributed environment, such synchronizations are translated in network messages that impose severe constraints on the deployment.
 
-## Supported and planned protocols
-
-Garage speaks (or will speak) the following protocols:
-
-  - [S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html) - *SUPPORTED* - Enable applications to store large blobs such as pictures, video, images, documents, etc. S3 is versatile enough to also be used to publish a static website.
-  - [IMAP](https://github.com/go-pluto/pluto) - *PLANNED* - email storage is quite complex to get good performances.
-To keep performances optimal, most IMAP servers only support on-disk storage.
-We plan to add logic to Garage to make it a viable solution for email storage.
-  - *More to come*
-
 ## Use Cases
 
-**[Deuxfleurs](https://deuxfleurs.fr):** Garage is used by Deuxfleurs which is a non-profit hosting organization.
-Especially, it is used to host their main website, this documentation and some of its members' blogs. 
-Additionally, Garage is used as a [backend for Nextcloud](https://docs.nextcloud.com/server/20/admin_manual/configuration_files/primary_storage.html). 
-Deuxfleurs also plans to use Garage as their [Matrix's media backend](https://github.com/matrix-org/synapse-s3-storage-provider) and as the backend of [OCIS](https://github.com/owncloud/ocis).
+**[Deuxfleurs](https://deuxfleurs.fr):** Garage is used by Deuxfleurs which
+is a non-profit hosting organization.  Especially, it is used to host their
+main website, this documentation and some of its members' blogs.
+Deuxfleurs also uses Garage as their [Matrix's media
+backend](https://github.com/matrix-org/synapse-s3-storage-provider).
+Deuxfleurs also uses it in its continuous integration platform to store
+Drone's job logs and a Nix binary cache.
 
 *Are you using Garage? [Open a pull request](https://git.deuxfleurs.fr/Deuxfleurs/garage/) to add your organization here!*
 

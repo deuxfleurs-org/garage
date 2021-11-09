@@ -70,7 +70,9 @@ async fn main() {
 
 			server::run_server(opt.config_file).await
 		}
-		Command::NodeId(node_id_opt) => node_id_command(opt.config_file, node_id_opt.quiet),
+		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
+			node_id_command(opt.config_file, node_id_opt.quiet)
+		}
 		_ => cli_command(opt).await,
 	};
 

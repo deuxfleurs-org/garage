@@ -225,7 +225,7 @@ impl RpcHelper {
 			// Retrieve some status variables that we will use to sort requests
 			let peer_list = self.0.fullmesh.get_peer_list();
 			let ring: Arc<Ring> = self.0.ring.borrow().clone();
-			let our_zone = match ring.config.members.get(&self.0.our_node_id) {
+			let our_zone = match ring.layout.node_role(&self.0.our_node_id) {
 				Some(pc) => &pc.zone,
 				None => "",
 			};
@@ -238,7 +238,7 @@ impl RpcHelper {
 			// and within a same zone we priorize nodes with the lowest latency.
 			let mut requests = requests
 				.map(|(to, fut)| {
-					let peer_zone = match ring.config.members.get(&to) {
+					let peer_zone = match ring.layout.node_role(&to) {
 						Some(pc) => &pc.zone,
 						None => "",
 					};
