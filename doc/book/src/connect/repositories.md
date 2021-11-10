@@ -1,11 +1,57 @@
 # Repositories (Docker, Nix, Git...)
 
-## Sourcehut
+
+## Gitea
+
+You can use Garage with Gitea to store your [git LFS](https://git-lfs.github.com/) data, your users' avatar, and their attachements.
+You can configure a different target for each data type (check `[lfs]` and `[attachment]` sections of the Gitea documentation) and you can provide a default one through the `[storage]` section.
+
+Let's start by creating a key and a bucket (your key id and secret will be needed later, keep them somewhere):
+
+```bash
+garage key new --name gitea-key
+garage bucket create gitea
+garage bucket allow gitea --read --write --key gitea-key
+```
+
+Then you can edit your configuration (by default `/etc/gitea/conf/app.ini`):
+
+```ini
+[storage]
+STORAGE_TYPE=minio
+MINIO_ENDPOINT=localhost:3900
+MINIO_ACCESS_KEY_ID=GKxxx
+MINIO_SECRET_ACCESS_KEY=xxxx
+MINIO_BUCKET=gitea
+MINIO_LOCATION=garage
+MINIO_USE_SSL=false
+```
+
+You can also pass this configuration through environment variables:
+
+```bash
+GITEA__storage__STORAGE_TYPE=minio
+GITEA__storage__MINIO_ENDPOINT=localhost:3900
+GITEA__storage__MINIO_ACCESS_KEY_ID=GKxxx
+GITEA__storage__MINIO_SECRET_ACCESS_KEY=xxxx
+GITEA__storage__MINIO_BUCKET=gitea
+GITEA__storage__MINIO_LOCATION=garage
+GITEA__storage__MINIO_USE_SSL=false
+```
+
+Then restart your gitea instance and try to upload a custom avatar.
+If it worked, you should see some content in your gitea bucket (you must configure your `aws` command before):
+
+```
+$ aws s3 ls s3://gitea/avatars/
+2021-11-10 12:35:47     190034 616ba79ae2b84f565c33d72c2ec50861
+
+```
+
+
+*External link:* [Gitea Documentation > Configuration Cheat Sheet](https://docs.gitea.io/en-us/config-cheat-sheet/)
 
 ## Gitlab
-
-## Gitea & Gogs
-
 
 ## Docker
 
