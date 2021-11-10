@@ -18,7 +18,9 @@
   - [Websites (Hugo, Jekyll, Publii...)](./connect/websites.md)
   - [Repositories (Docker, Nix, Git...)](./connect/repositories.md)
   - [CLI tools (rclone, awscli, mc...)](./connect/cli.md)
+  - [Backups (restic, duplicity...)](./connect/backup.md)
   - [Your code (PHP, JS, Go...)](./connect/code.md)
+  - [FUSE (s3fs, goofys, s3backer...)](./connect/fs.md)
 
 
 - [Reference Manual](./reference_manual/index.md)

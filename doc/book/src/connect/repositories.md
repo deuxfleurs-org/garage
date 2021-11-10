@@ -1,5 +1,7 @@
 # Repositories (Docker, Nix, Git...)
 
+Whether you need to store and serve binary packages or source code, you may want to deploy a tool referred as a repository or registry.
+Garage can also help you serve this content.
 
 ## Gitea
 
@@ -45,7 +47,6 @@ If it worked, you should see some content in your gitea bucket (you must configu
 ```
 $ aws s3 ls s3://gitea/avatars/
 2021-11-10 12:35:47     190034 616ba79ae2b84f565c33d72c2ec50861
-
 ```
 
 
@@ -53,9 +54,18 @@ $ aws s3 ls s3://gitea/avatars/
 
 ## Gitlab
 
+*External link:* [Gitlab Documentation > Object storage](https://docs.gitlab.com/ee/administration/object_storage.html)
+
+
+## Private NPM Registry (Verdacio)
+
+*External link:* [Verdaccio Github Repository > aws-storage plugin](https://github.com/verdaccio/verdaccio/tree/master/packages/plugins/aws-storage)
+
 ## Docker
 
 Not yet compatible, follow [#103](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103).
+
+*External link:* [Docker Documentation > Registry storage drivers > S3 storage driver](https://docs.docker.com/registry/storage-drivers/s3/)
 
 ## Nix
 
