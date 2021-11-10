@@ -13,42 +13,6 @@ We have a simple [PR on cargo2nix](https://github.com/cargo2nix/cargo2nix/pull/2
 
 Nix has no armv7 + musl toolchains but armv7l is backward compatible with armv6l.
 
-Signing keys are generated with: 
-
-```
-nix-store --generate-binary-cache-key nix.web.deuxfleurs.fr cache-priv-key.pem cache-pub-key.pem
-```
-
-We copy the secret key in our nix folder:
-
-```
-cp cache-priv-key.pem /etc/nix/signing-key.sec
-```
-
-Manually sign
-    
-We can sign the whole store with:
-
-```
-nix sign-paths --all -k /etc/nix/signing-key.sec
-```
-
-Or simply the current package and its dependencies with:
-
-```
-nix sign-paths --recursive -k /etc/nix/signing-key.sec
-```
-
-Setting a key in `nix.conf` will do the signature at build time automatically without additional commands, edit the `nix.conf` of your builder:
-
-```toml
-secret-key-files = /etc/nix/signing-key.sec
-max-jobs = auto
-cores = 8
-```
-
-Now you are ready to build your packages: 
-
 ```bash
 cat > $HOME/.awsrc <<EOF
 export AWS_ACCESS_KEY_ID="xxx"

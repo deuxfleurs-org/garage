@@ -16,7 +16,7 @@
 - [Integrations](./connect/index.md)
   - [Apps (Nextcloud, Peertube...)](./connect/apps.md)
   - [Websites (Hugo, Jekyll, Publii...)](./connect/websites.md)
-  - [Repositories (Docker, Nix...)](./connect/repositories.md)
+  - [Repositories (Docker, Nix, Git...)](./connect/repositories.md)
   - [CLI tools (rclone, awscli, mc...)](./connect/cli.md)
   - [Your code (PHP, JS, Go...)](./connect/code.md)
 
@@ -35,6 +35,7 @@
   - [Setup your environment](./development/devenv.md)
   - [Development scripts](./development/scripts.md)
   - [Release process](./development/release_process.md)
+  - [Miscellaneous notes](./development/miscellaneous_notes.md)
 
 - [Working Documents](./working_documents/index.md)
   - [Load Balancing Data](./working_documents/load_balancing.md)
