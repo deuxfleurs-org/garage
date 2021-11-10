@@ -90,10 +90,10 @@ aws s3 cp s3/my_files/cpuinfo.txt /tmp/cpuinfo.txt
 
 ## `rclone`
 
-`rclone` can be configured using the interactive assistant invoked using `rclone configure`.
+`rclone` can be configured using the interactive assistant invoked using `rclone config`.
 
 You can also configure `rclone` by writing directly its configuration file.
-Here is a template `rclone.ini` configuration file:
+Here is a template `rclone.ini` configuration file (mine is located at `~/.config/rclone/rclone.conf`):
 
 ```ini
 [garage]
@@ -109,9 +109,25 @@ acl = private
 bucket_acl = private
 ```
 
-## Cyberduck
+Now you can run:
 
-TODO
+```bash
+# list buckets
+rclone lsd garage:
+
+# list objects of a bucket aggregated in directories
+rclone lsd garage:my-bucket
+
+# copy from your filesystem to garage
+echo hello world > /tmp/hello.txt
+rclone copy /tmp/hello.txt garage:my-bucket/
+
+# copy from garage to your filesystem
+rclone copy garage:quentin.divers/hello.txt .
+
+# see all available subcommands
+rclone help
+```
 
 ## `s3cmd`
 
@@ -123,5 +139,28 @@ access_key = <access key>
 secret_key = <secret key>
 host_base = <endpoint without http(s)://>
 host_bucket = <same as host_base>
-use_https = False | True
+use_https = <False or True>
 ```
+
+And use it as follow:
+
+```bash
+# List buckets
+s3cmd ls
+
+# s3cmd objects inside a bucket
+s3cmd ls s3://my-bucket
+
+# copy from your filesystem to garage
+echo hello world > /tmp/hello.txt
+s3cmd put /tmp/hello.txt s3://my-bucket/
+
+# copy from garage to your filesystem
+s3cmd get s3://my-bucket/hello.txt hello.txt
+```
+
+## Cyberduck & duck
+
+TODO
+
+
