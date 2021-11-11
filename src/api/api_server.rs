@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use futures::future::Future;
+use hyper::header;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server};
@@ -14,6 +15,7 @@ use garage_model::garage::Garage;
 use crate::error::*;
 use crate::signature::check_signature;
 
+use crate::helpers::*;
 use crate::s3_bucket::*;
 use crate::s3_copy::*;
 use crate::s3_delete::*;
@@ -86,7 +88,20 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		return handle_list_buckets(&api_key);
 	}
 
-	let (bucket, key) = parse_bucket_key(&path)?;
+	let authority = req
+		.headers()
+		.get(header::HOST)
+		.ok_or_else(|| Error::BadRequest("HOST header required".to_owned()))?
+		.to_str()?;
+
+	// Get bucket
+	let host = authority_to_host(authority)?;
+
+	let (bucket, key) = parse_bucket_key(
+		&path,
+		Some(&host),
+		garage.config.s3_api.root_domain.as_deref(),
+	)?;
 	let allowed = match req.method() {
 		&Method::HEAD | &Method::GET => api_key.allow_read(bucket),
 		_ => api_key.allow_write(bucket),
@@ -137,7 +152,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 					let copy_source =
 						percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
-					let (source_bucket, source_key) = parse_bucket_key(&copy_source)?;
+					let (source_bucket, source_key) = parse_bucket_key(&copy_source, None, None)?;
 					if !api_key.allow_read(source_bucket) {
 						return Err(Error::Forbidden(format!(
 							"Reading from bucket {} not allowed for this key",
@@ -249,8 +264,22 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 ///
 /// S3 internally manages only buckets and keys. This function splits
 /// an HTTP path to get the corresponding bucket name and key.
-fn parse_bucket_key(path: &str) -> Result<(&str, Option<&str>), Error> {
+fn parse_bucket_key<'a>(
+	path: &'a str,
+	host: Option<&'a str>,
+	root: Option<&str>,
+) -> Result<(&'a str, Option<&'a str>), Error> {
 	let path = path.trim_start_matches('/');
+
+	if host.and(root).is_some() {
+		if let Some(bucket) = host_to_bucket(host.unwrap(), root.unwrap()) {
+			if !path.is_empty() {
+				return Ok((bucket, Some(path)));
+			} else {
+				return Ok((bucket, None));
+			}
+		}
+	}
 
 	let (bucket, key) = match path.find('/') {
 		Some(i) => {
@@ -275,7 +304,7 @@ mod tests {
 
 	#[test]
 	fn parse_bucket_containing_a_key() -> Result<(), Error> {
-		let (bucket, key) = parse_bucket_key("/my_bucket/a/super/file.jpg")?;
+		let (bucket, key) = parse_bucket_key("/my_bucket/a/super/file.jpg", None, None)?;
 		assert_eq!(bucket, "my_bucket");
 		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
 		Ok(())
@@ -283,10 +312,10 @@ mod tests {
 
 	#[test]
 	fn parse_bucket_containing_no_key() -> Result<(), Error> {
-		let (bucket, key) = parse_bucket_key("/my_bucket/")?;
+		let (bucket, key) = parse_bucket_key("/my_bucket/", None, None)?;
 		assert_eq!(bucket, "my_bucket");
 		assert!(key.is_none());
-		let (bucket, key) = parse_bucket_key("/my_bucket")?;
+		let (bucket, key) = parse_bucket_key("/my_bucket", None, None)?;
 		assert_eq!(bucket, "my_bucket");
 		assert!(key.is_none());
 		Ok(())
@@ -294,11 +323,74 @@ mod tests {
 
 	#[test]
 	fn parse_bucket_containing_no_bucket() {
-		let parsed = parse_bucket_key("");
+		let parsed = parse_bucket_key("", None, None);
 		assert!(parsed.is_err());
-		let parsed = parse_bucket_key("/");
+		let parsed = parse_bucket_key("/", None, None);
 		assert!(parsed.is_err());
-		let parsed = parse_bucket_key("////");
+		let parsed = parse_bucket_key("////", None, None);
 		assert!(parsed.is_err());
+	}
+
+	#[test]
+	fn parse_bucket_with_vhost_and_key() -> Result<(), Error> {
+		let (bucket, key) = parse_bucket_key(
+			"/a/super/file.jpg",
+			Some("my-bucket.garage.tld"),
+			Some("garage.tld"),
+		)?;
+		assert_eq!(bucket, "my-bucket");
+		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+
+		let (bucket, key) = parse_bucket_key(
+			"/my_bucket/a/super/file.jpg",
+			Some("not-garage.tld"),
+			Some("garage.tld"),
+		)?;
+		assert_eq!(bucket, "my_bucket");
+		assert_eq!(key.expect("key must be set"), "a/super/file.jpg");
+		Ok(())
+	}
+
+	#[test]
+	fn parse_bucket_with_vhost_no_key() -> Result<(), Error> {
+		let (bucket, key) = parse_bucket_key("", Some("my-bucket.garage.tld"), Some("garage.tld"))?;
+		assert_eq!(bucket, "my-bucket");
+		assert!(key.is_none());
+		let (bucket, key) =
+			parse_bucket_key("/", Some("my-bucket.garage.tld"), Some("garage.tld"))?;
+		assert_eq!(bucket, "my-bucket");
+		assert!(key.is_none());
+		Ok(())
+	}
+
+	#[test]
+	fn parse_bucket_missmatch_vhost() {
+		let test_vec = [
+			"/my_bucket/a/super/file.jpg",
+			"/my_bucket/",
+			"/my_bucket",
+			"",
+			"/",
+			"////",
+		];
+		let eq = |l, r| match (l, r) {
+			(Ok(l), Ok(r)) => l == r,
+			(Err(_), Err(_)) => true,
+			_ => false,
+		};
+		for test in test_vec {
+			assert!(eq(
+				parse_bucket_key(test, None, None),
+				parse_bucket_key(test, Some("bucket.garage.tld"), None)
+			));
+			assert!(eq(
+				parse_bucket_key(test, None, None),
+				parse_bucket_key(test, None, Some("garage.tld"))
+			));
+			assert!(eq(
+				parse_bucket_key(test, None, None),
+				parse_bucket_key(test, Some("not-garage.tld"), Some("garage.tld"))
+			));
+		}
 	}
 }

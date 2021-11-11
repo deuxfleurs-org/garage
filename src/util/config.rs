@@ -68,6 +68,9 @@ pub struct ApiConfig {
 	pub api_bind_addr: SocketAddr,
 	/// S3 region to use
 	pub s3_region: String,
+	/// Suffix to remove from domain name to find bucket. If None,
+	/// vhost-style S3 request are disabled
+	pub root_domain: Option<String>,
 }
 
 /// Configuration for serving files as normal web server
