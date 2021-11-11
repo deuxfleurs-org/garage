@@ -30,6 +30,7 @@ sled_flush_every_ms = 2000
 [s3_api]
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
+root_domain = ".3.garage"
 
 [s3_web]
 bind_addr = "[::]:3902"
@@ -176,6 +177,13 @@ Garage will accept S3 API calls that are targetted to the S3 region defined here
 API calls targetted to other regions will fail with a AuthorizationHeaderMalformed error
 message that redirects the client to the correct region.
 
+#### `root_domain`
+
+The optionnal suffix to access bucket using vhost-style instead of path-style API calls.
+
+For instance, if `root_domain` is `s3.garage.eu`, a bucket called `deuxfleurs.fr`
+can be interacted with with hostname `deuxfleurs.fr.s3.garage.eu`. Note however you 
+can't interact with it using hostname `deuxfleurs.fr` directly.
 
 ## The `[s3_web]` section
 
