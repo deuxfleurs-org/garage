@@ -98,7 +98,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		.s3_api
 		.root_domain
 		.as_ref()
-		.and_then(|root_domain| host_to_bucket(&host, &root_domain));
+		.and_then(|root_domain| host_to_bucket(&host, root_domain));
 
 	if path == "/" && bucket.is_none() {
 		return handle_list_buckets(&api_key);
