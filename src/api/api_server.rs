@@ -263,7 +263,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 }
 
-/// Extract the bucket name and the key name from an HTTP path and possibly Host header
+/// Extract the bucket name and the key name from an HTTP path and possibly a bucket provided in
+/// the host header of the request
 ///
 /// S3 internally manages only buckets and keys. This function splits
 /// an HTTP path to get the corresponding bucket name and key.

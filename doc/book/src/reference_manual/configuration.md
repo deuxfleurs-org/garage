@@ -30,7 +30,7 @@ sled_flush_every_ms = 2000
 [s3_api]
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
-root_domain = ".3.garage"
+root_domain = ".s3.garage"
 
 [s3_web]
 bind_addr = "[::]:3902"
@@ -179,11 +179,13 @@ message that redirects the client to the correct region.
 
 #### `root_domain`
 
-The optionnal suffix to access bucket using vhost-style instead of path-style API calls.
+The optionnal suffix to access bucket using vhost-style in addition to path-style request.
+Note path-style requests are always enabled, whether or not vhost-style is configured.
+Configuring vhost-style S3 required a wildcard DNS entry, and possibly a wildcard TLS certificate,
+but might be required by softwares not supporting path-style requests.
 
-For instance, if `root_domain` is `s3.garage.eu`, a bucket called `deuxfleurs.fr`
-can be interacted with with hostname `deuxfleurs.fr.s3.garage.eu`. Note however you 
-can't interact with it using hostname `deuxfleurs.fr` directly.
+If `root_domain` is `s3.garage.eu`, a bucket called `my-bucket` can be interacted with
+using the hostname `my-bucket.s3.garage.eu`.
 
 ## The `[s3_web]` section
 

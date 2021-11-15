@@ -3,9 +3,9 @@ use idna::domain_to_unicode;
 
 /// Host to bucket
 ///
-/// Convert a host, like "bucket.garage-site.tld" or "john.doe.com"
-/// to the corresponding bucket, resp. "bucket" and "john.doe.com"
-/// considering that ".garage-site.tld" is the "root domain".
+/// Convert a host, like "bucket.garage-site.tld" to the corresponding bucket "bucket",
+/// considering that ".garage-site.tld" is the "root domain". For domains not matching
+/// the provided root domain, no bucket is returned
 /// This behavior has been chosen to follow AWS S3 semantic.
 pub fn host_to_bucket<'a>(host: &'a str, root: &str) -> Option<&'a str> {
 	let root = root.trim_start_matches('.');
