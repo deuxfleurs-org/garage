@@ -97,9 +97,11 @@ If you encounter a specific bug in Garage or plan to patch it, you may jump dire
 
 We love to talk and hear about Garage, that's why we keep a log here:
 
-  - [(en, 2021-04-28) Distributed object storage is centralised](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2021-04-28_spirals-team/talk.pdf)
+  - [(fr, 2021-11-13, video) Garage : Mille et une façons de stocker vos données](https://video.tedomum.net/w/moYKcv198dyMrT8hCS5jz9) and [slides (html)](https://rfid.deuxfleurs.fr/presentations/2021-11-13/garage/) - during [RFID#1](https://rfid.deuxfleurs.fr/programme/2021-11-13/) event
 
-  - [(fr, 2020-12-02) Garage : jouer dans la cour des grands quand on est un hébergeur associatif](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2020-12-02_wide-team/talk.pdf)
+  - [(en, 2021-04-28, pdf) Distributed object storage is centralised](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2021-04-28_spirals-team/talk.pdf)
+
+  - [(fr, 2020-12-02, pdf) Garage : jouer dans la cour des grands quand on est un hébergeur associatif](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2020-12-02_wide-team/talk.pdf)
 
 *Did you write or talk about Garage? [Open a pull request](https://git.deuxfleurs.fr/Deuxfleurs/garage/) to add a link here!*
 
