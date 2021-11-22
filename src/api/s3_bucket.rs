@@ -45,6 +45,7 @@ pub fn handle_list_buckets(api_key: &Key) -> Result<Response<Body>, Error> {
 				.authorized_buckets
 				.items()
 				.iter()
+				.filter(|(_, _, perms)| perms.allow_read || perms.allow_write)
 				.map(|(name, ts, _)| s3_xml::Bucket {
 					creation_date: s3_xml::Value(msec_to_rfc3339(*ts)),
 					name: s3_xml::Value(name.to_string()),

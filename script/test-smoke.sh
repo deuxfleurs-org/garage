@@ -125,6 +125,21 @@ if [ -z "$SKIP_AWS" ]; then
   rm /tmp/garage-index.html
 fi
 
+if [ -z "$SKIP_AWS" ]; then
+  echo "🪣 Test bucket logic "
+  AWS_ACCESS_KEY_ID=`cat /tmp/garage.s3 |cut -d' ' -f1`
+  [ $(aws s3 ls | wc -l) == 1 ]
+  garage -c /tmp/config.1.toml bucket create seau
+  garage -c /tmp/config.1.toml bucket allow --read seau --key $AWS_ACCESS_KEY_ID
+  [ $(aws s3 ls | wc -l) == 2 ]
+  garage -c /tmp/config.1.toml bucket deny --read seau --key $AWS_ACCESS_KEY_ID
+  [ $(aws s3 ls | wc -l) == 1 ]
+  garage -c /tmp/config.1.toml bucket allow --read seau --key $AWS_ACCESS_KEY_ID
+  [ $(aws s3 ls | wc -l) == 2 ]
+  garage -c /tmp/config.1.toml bucket delete --yes seau
+  [ $(aws s3 ls | wc -l) == 1 ]
+fi
+
 echo "🏁 Teardown"
 AWS_ACCESS_KEY_ID=`cat /tmp/garage.s3 |cut -d' ' -f1`
 AWS_SECRET_ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
