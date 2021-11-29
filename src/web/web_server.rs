@@ -62,6 +62,7 @@ fn error_to_res(e: Error) -> Response<Body> {
 	let body: Body = Body::from(format!("{}\n", e));
 	let mut http_error = Response::new(body);
 	*http_error.status_mut() = e.http_status_code();
+	e.add_headers(http_error.headers_mut());
 	http_error
 }
 

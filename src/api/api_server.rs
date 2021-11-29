@@ -65,10 +65,15 @@ async fn handler(
 		}
 		Err(e) => {
 			let body: Body = Body::from(e.aws_xml(&garage.config.s3_api.s3_region, uri.path()));
-			let http_error = Response::builder()
+			let mut http_error_builder = Response::builder()
 				.status(e.http_status_code())
-				.header("Content-Type", "application/xml")
-				.body(body)?;
+				.header("Content-Type", "application/xml");
+
+			if let Some(header_map) = http_error_builder.headers_mut() {
+				e.add_headers(header_map)
+			}
+
+			let http_error = http_error_builder.body(body)?;
 
 			if e.http_status_code().is_server_error() {
 				warn!("Response: error {}, {}", e.http_status_code(), e);

@@ -156,11 +156,12 @@ pub async fn handle_get(
 	let range = match req.headers().get("range") {
 		Some(range) => {
 			let range_str = range.to_str()?;
-			let mut ranges = http_range::HttpRange::parse(range_str, last_v_meta.size)?;
+			let mut ranges = http_range::HttpRange::parse(range_str, last_v_meta.size)
+				.map_err(|e| (e, last_v_meta.size))?;
 			if ranges.len() > 1 {
-				return Err(Error::BadRequest(
-					"Multiple ranges not supported".to_string(),
-				));
+				// garage does not support multi-range requests yet, so we respond with the entire
+				// object when multiple ranges are requested
+				None
 			} else {
 				ranges.pop()
 			}
@@ -235,10 +236,6 @@ async fn handle_get_range(
 	begin: u64,
 	end: u64,
 ) -> Result<Response<Body>, Error> {
-	if end > version_meta.size {
-		return Err(Error::BadRequest("Range not included in file".to_string()));
-	}
-
 	let resp_builder = object_headers(version, version_meta)
 		.header("Content-Length", format!("{}", end - begin))
 		.header(

@@ -1,5 +1,6 @@
 use err_derive::Error;
-use hyper::StatusCode;
+use hyper::header::HeaderValue;
+use hyper::{HeaderMap, StatusCode};
 
 use garage_util::error::Error as GarageError;
 
@@ -45,6 +46,14 @@ impl Error {
 			) => StatusCode::SERVICE_UNAVAILABLE,
 			Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			_ => StatusCode::BAD_REQUEST,
+		}
+	}
+
+	pub fn add_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
+		#[allow(clippy::single_match)]
+		match self {
+			Error::ApiError(e) => e.add_headers(header_map),
+			_ => (),
 		}
 	}
 }

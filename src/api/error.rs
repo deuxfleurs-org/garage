@@ -1,5 +1,8 @@
+use std::convert::TryInto;
+
 use err_derive::Error;
-use hyper::StatusCode;
+use hyper::header::HeaderValue;
+use hyper::{HeaderMap, StatusCode};
 
 use garage_util::error::Error as GarageError;
 
@@ -57,7 +60,7 @@ pub enum Error {
 
 	/// The client sent a range header with invalid value
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
-	InvalidRange(#[error(from)] http_range::HttpRangeParseError),
+	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
 
 	/// The client sent an invalid request
 	#[error(display = "Bad request: {}", _0)]
@@ -90,6 +93,7 @@ impl Error {
 			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
 				StatusCode::INTERNAL_SERVER_ERROR
 			}
+			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
 			_ => StatusCode::BAD_REQUEST,
 		}
 	}
@@ -126,6 +130,22 @@ impl Error {
 			"#
 			.into()
 		})
+	}
+
+	pub fn add_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
+		use hyper::header;
+		#[allow(clippy::single_match)]
+		match self {
+			Error::InvalidRange((_, len)) => {
+				header_map.append(
+					header::CONTENT_RANGE,
+					format!("bytes */{}", len)
+						.try_into()
+						.expect("header value only contain ascii"),
+				);
+			}
+			_ => (),
+		}
 	}
 }
 
