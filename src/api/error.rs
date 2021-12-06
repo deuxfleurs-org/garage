@@ -65,6 +65,10 @@ pub enum Error {
 	/// The client sent an invalid request
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+
+	/// The client sent a request for an action not supported by garage
+	#[error(display = "Unimplemented action: {}", _0)]
+	NotImplemented(String),
 }
 
 impl From<roxmltree::Error> for Error {
@@ -94,6 +98,7 @@ impl Error {
 				StatusCode::INTERNAL_SERVER_ERROR
 			}
 			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
+			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
 			_ => StatusCode::BAD_REQUEST,
 		}
 	}

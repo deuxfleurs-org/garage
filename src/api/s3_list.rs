@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use hyper::{Body, Response};
@@ -33,32 +33,6 @@ struct ListResultInfo {
 	last_modified: u64,
 	size: u64,
 	etag: String,
-}
-
-pub fn parse_list_objects_query(
-	bucket: &str,
-	params: &HashMap<String, String>,
-) -> Result<ListObjectsQuery, Error> {
-	Ok(ListObjectsQuery {
-		is_v2: params.get("list-type").map(|x| x == "2").unwrap_or(false),
-		bucket: bucket.to_string(),
-		delimiter: params.get("delimiter").filter(|x| !x.is_empty()).cloned(),
-		max_keys: params
-			.get("max-keys")
-			.map(|x| {
-				x.parse::<usize>()
-					.ok_or_bad_request("Invalid value for max-keys")
-			})
-			.unwrap_or(Ok(1000))?,
-		prefix: params.get("prefix").cloned().unwrap_or_default(),
-		marker: params.get("marker").cloned(),
-		continuation_token: params.get("continuation-token").cloned(),
-		start_after: params.get("start-after").cloned(),
-		urlencode_resp: params
-			.get("encoding-type")
-			.map(|x| x == "url")
-			.unwrap_or(false),
-	})
 }
 
 pub async fn handle_list(

@@ -19,4 +19,5 @@ mod s3_delete;
 pub mod s3_get;
 mod s3_list;
 mod s3_put;
+mod s3_router;
 mod s3_xml;

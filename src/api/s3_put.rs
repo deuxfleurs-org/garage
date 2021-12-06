@@ -354,15 +354,10 @@ pub async fn handle_put_part(
 	req: Request<Body>,
 	bucket: &str,
 	key: &str,
-	part_number_str: &str,
+	part_number: u64,
 	upload_id: &str,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
-	// Check parameters
-	let part_number = part_number_str
-		.parse::<u64>()
-		.ok_or_bad_request("Invalid part number")?;
-
 	let version_uuid = decode_upload_id(upload_id)?;
 
 	let content_md5 = match req.headers().get("content-md5") {

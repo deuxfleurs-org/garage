@@ -26,7 +26,7 @@ pub fn host_to_bucket<'a>(host: &'a str, root: &str) -> Option<&'a str> {
 /// The HTTP host contains both a host and a port.
 /// Extracting the port is more complex than just finding the colon (:) symbol due to IPv6
 /// We do not use the collect pattern as there is no way in std rust to collect over a stack allocated value
-/// check here: https://docs.rs/collect_slice/1.2.0/collect_slice/
+/// check here: <https://docs.rs/collect_slice/1.2.0/collect_slice/>
 pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 	let mut iter = authority.chars().enumerate();
 	let (_, first_char) = iter
