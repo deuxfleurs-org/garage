@@ -286,5 +286,5 @@ and is covered in the [quick start guide](../quick_start/index.md).
 Remember also that the CLI is self-documented thanks to the `--help` flag and
 the `help` subcommand (e.g. `garage help`, `garage key --help`).
 
-Configuring an S3 client to interact with Garage is covered
-[in the next section](clients.md).
+Configuring S3-compatible applicatiosn to interact with Garage
+is covered in the [Integrations](/connect/index.html) section.

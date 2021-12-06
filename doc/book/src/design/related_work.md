@@ -1,4 +1,4 @@
-# Related Work
+# Related work
 
 ## Context
 
@@ -55,21 +55,21 @@ We also do not classify Swift as *Simple*.
 **[Ceph](https://ceph.io/ceph-storage/object-storage/):**
 This review holds for the whole Ceph stack, including the RADOS paper, Ceph Object Storage module, the RADOS Gateway, etc.
 At its core, Ceph has been designed to provide *POSIX/Filesystem compatibility* which requires strong consistency, which in turn
-makes Ceph latency-sensitive and fails our *Internet enabled* goal. 
+makes Ceph latency-sensitive and fails our *Internet enabled* goal.
 Due to its industry oriented design, Ceph is also far from being *Simple* to operate and from being *Self-contained & lightweight* which makes it hard to integrate it in an hyperconverged infrastructure.
 In a certain way, Ceph and MinIO are closer together than they are from Garage or OpenStack Swift.
 
-**[Pithos](https://github.com/exoscale/pithos)** 
+**[Pithos](https://github.com/exoscale/pithos):**
 Pithos has been abandonned and should probably not used yet, in the following we explain why we did not pick their design.
 Pithos was relying as a S3 proxy in front of Cassandra (and was working with Scylla DB too).
 From its designers' mouth, storing data in Cassandra has shown its limitations justifying the project abandonment.
 They built a closed-source version 2 that does not store blobs in the database (only metadata) but did not communicate further on it.
 We considered there v2's design but concluded that it does not fit both our *Self-contained & lightweight* and *Simple* properties. It makes the development, the deployment and the operations more complicated while reducing the flexibility.
 
-**[Riak CS](https://docs.riak.com/riak/cs/2.1.1/index.html)**
+**[Riak CS](https://docs.riak.com/riak/cs/2.1.1/index.html):**
 *Not written yet*
 
-**[IPFS](https://ipfs.io/) :**
+**[IPFS](https://ipfs.io/):**
 *Not written yet*
 
 ## Specific research papers

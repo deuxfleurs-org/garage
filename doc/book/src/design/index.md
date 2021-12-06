@@ -1,29 +1,21 @@
 # Design
 
-The design section helps you to see Garage from a "big picture" perspective.
-It will allow you to understand if Garage is a good fit for you,
-how to better use it, how to contribute to it, what can Garage could and could not do, etc.
+The design section helps you to see Garage from a "big picture"
+perspective.  It will allow you to understand if Garage is a good fit for
+you, how to better use it, how to contribute to it, what can Garage could
+and could not do, etc.
 
-## Goals and non-goals
+- **[Goals and use cases](goals.md):** This page explains why Garage was concieved and what practical use cases it targets.
 
-Garage is an opinionated object storage solutoin, we focus on the following **desirable properties**:
+- **[Related work](related_work.md):** This pages presents the theoretical background on which Garage is built, and describes other software storage solutions and why they didn't work for us.
 
-  - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
-  - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
-  - **Simple**: simple to understand, simple to operate, simple to debug.
-  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
-
-We also noted that the pursuit of some other goals are detrimental to our initial goals.
-The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):
-
-  - **Extreme performances**: high performances constrain a lot the design and the infrastructure; we seek performances through minimalism only.
-  - **Feature extensiveness**: we do not plan to add additional features compared to the ones provided by the S3 API.
-  - **Storage optimizations**: erasure coding or any other coding technique both increase the difficulty of placing data and synchronizing; we limit ourselves to duplication.
-  - **POSIX/Filesystem compatibility**: we do not aim at being POSIX compatible or to emulate any kind of filesystem. Indeed, in a distributed environment, such synchronizations are translated in network messages that impose severe constraints on the deployment.
+- **[Internals](internals.md):** This page enters into more details on how Garage manages data internally.
 
 ## Talks
 
 We love to talk and hear about Garage, that's why we keep a log here:
+
+  - [(fr, 2021-11-13, video) Garage : Mille et une façons de stocker vos données](https://video.tedomum.net/w/moYKcv198dyMrT8hCS5jz9) and [slides (html)](https://rfid.deuxfleurs.fr/presentations/2021-11-13/garage/) - during [RFID#1](https://rfid.deuxfleurs.fr/programme/2021-11-13/) event
 
   - [(en, 2021-04-28) Distributed object storage is centralised](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/b1f60579a13d3c5eba7f74b1775c84639ea9b51a/doc/talks/2021-04-28_spirals-team/talk.pdf)
 

@@ -1,7 +1,19 @@
-# Connect it to
+# Connect it to...
 
-To configure an S3 client to interact with Garage, you will need the following
-parameters:
+Garage implements the Amazon S3 protocol, which makes it compatible with many existing software programs.
+
+In particular, you will find here instructions to connect it with:
+
+  - [web applications](./apps.md)
+  - [website hosting](./websites.md)
+  - [software repositories](./repositories.md)
+  - [CLI tools](./cli.md)
+  - [your own code](./code.md)
+
+### Generic instructions
+
+To configure S3-compatible software to interact with Garage,
+you will need the following parameters:
 
 - An **API endpoint**: this corresponds to the HTTP or HTTPS address
   used to contact the Garage server. When runing Garage locally this will usually
@@ -27,12 +39,3 @@ provided that you follow the following guidelines:
   If this is not configured explicitly, clients usually try to talk to region `us-east-1`.
   Garage should normally redirect your client to the correct region,
   but in case your client does not support this you might have to configure it manually.
-
-We will now provide example configurations for the most common clients per category:
-
-  - [Apps](./apps.md)
-  - [Websites](./websites.md)
-  - [Repositories](./repositories.md)
-  - [CLI tools](./cli.md)
-  - [Your code](./code.md)
-

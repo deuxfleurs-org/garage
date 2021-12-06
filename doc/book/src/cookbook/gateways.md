@@ -6,11 +6,11 @@ Gateways allow you to expose Garage endpoints (S3 API and websites) without stor
 
 You can configure Garage as a gateway on all nodes that will consume your S3 API, it will provide you the following benefits:
 
-  - **It removes 1 or 2 network RTT** Instead of (querying your reverse proxy then) querying a random node of the cluster that will forward your request to the nodes effectively storing the data, your local gateway will directly knows which node to query. 
+  - **It removes 1 or 2 network RTT.** Instead of (querying your reverse proxy then) querying a random node of the cluster that will forward your request to the nodes effectively storing the data, your local gateway will directly knows which node to query.
 
-  - **It ease server management** Instead of tracking in your reverse proxy and DNS what are the current Garage nodes, your gateway being part of the cluster keeps this information for you. In your software, you will always specify `http://localhost:3900`.
+  - **It eases server management.** Instead of tracking in your reverse proxy and DNS what are the current Garage nodes, your gateway being part of the cluster keeps this information for you. In your software, you will always specify `http://localhost:3900`.
 
-  - **It simplifies security** Instead of having to maintain and renew a TLS certificate, you leverage the Secret Handshake protocol we use for our cluster. The S3 API protocol will be in plain text but limited to your local machine.
+  - **It simplifies security.** Instead of having to maintain and renew a TLS certificate, you leverage the Secret Handshake protocol we use for our cluster. The S3 API protocol will be in plain text but limited to your local machine.
 
 ## Limitations
 

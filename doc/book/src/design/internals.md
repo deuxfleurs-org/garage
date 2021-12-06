@@ -4,14 +4,17 @@
 
 TODO: write this section
 
-- The Dynamo ring
+- The Dynamo ring (see [this paper](https://dl.acm.org/doi/abs/10.1145/1323293.1294281) and [that paper](https://www.usenix.org/conference/nsdi16/technical-sessions/presentation/eisenbud))
 
-- CRDTs
+- CRDTs (see [this paper](https://link.springer.com/chapter/10.1007/978-3-642-24550-3_29))
 
 - Consistency model of Garage tables
 
-See this presentation (in French) for some first information:
-<https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/main/doc/talks/2020-12-02_wide-team/talk.pdf>
+In the meantime, you can find some information at the following links:
+
+- [this presentation (in French)](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/main/doc/talks/2020-12-02_wide-team/talk.pdf)
+
+- [an old design draft](/working_documents/design_draft.md)
 
 
 ## Garbage collection

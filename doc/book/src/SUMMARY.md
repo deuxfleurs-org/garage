@@ -8,7 +8,7 @@
   - [Multi-node deployment](./cookbook/real_world.md)
   - [Building from source](./cookbook/from_source.md)
   - [Integration with systemd](./cookbook/systemd.md)
-  - [Gateways](./cookbook/gateways.md)
+  - [Configuring a gateway node](./cookbook/gateways.md)
   - [Exposing buckets as websites](./cookbook/exposing_websites.md)
   - [Configuring a reverse proxy](./cookbook/reverse_proxy.md)
   - [Recovering from failures](./cookbook/recovering.md)
@@ -30,9 +30,9 @@
   - [S3 compatibility status](./reference_manual/s3_compatibility.md)
 
 - [Design](./design/index.md)
-  - [Related Work](./design/related_work.md)
+  - [Goals and use Cases](./design/goals.md)
+  - [Related work](./design/related_work.md)
   - [Internals](./design/internals.md)
-  - [Design draft](./design/design_draft.md)
 
 - [Development](./development/index.md)
   - [Setup your environment](./development/devenv.md)
@@ -41,5 +41,6 @@
   - [Miscellaneous notes](./development/miscellaneous_notes.md)
 
 - [Working Documents](./working_documents/index.md)
-  - [Load Balancing Data](./working_documents/load_balancing.md)
+  - [Load balancing data](./working_documents/load_balancing.md)
   - [Migrating from 0.3 to 0.4](./working_documents/migration_04.md)
+  - [Design draft](./working_documents/design_draft.md)
