@@ -109,7 +109,7 @@ Do not change the `use_path_style` and `legacy_auth` entries, other configuratio
 Peertube proposes a clever integration of S3 by directly exposing its endpoint instead of proxifying requests through the application.
 In other words, Peertube is only responsible of the "control plane" and offload the "data plane" to Garage.
 In return, this system is a bit harder to configure, especially with Garage that supports less feature than other older S3 backends.
-We show that it is still possible to configure Garage with Peertube, allowing you to spread the load and the bandiwdth usage on the Garage cluster.
+We show that it is still possible to configure Garage with Peertube, allowing you to spread the load and the bandwidth usage on the Garage cluster.
 
 ### Enable path-style access by patching Peertube
 

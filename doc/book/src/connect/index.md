@@ -1,4 +1,4 @@
-# Connect it to...
+# Integrations
 
 Garage implements the Amazon S3 protocol, which makes it compatible with many existing software programs.
 

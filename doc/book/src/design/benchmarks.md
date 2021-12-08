@@ -19,7 +19,7 @@ This serie of benchmarks quantifies the impact of this design choice.
 We start with a controlled environment, all the instances are running on the same (powerful enough) machine.
 
 To control the network latency, we simulate the network with [mknet](https://git.deuxfleurs.fr/trinity-1686a/mknet) (a tool we developped, based on `tc` and the linux network stack).
-To mesure S3 endpoints latency, we use our own tool [s3lat](git.deuxfleurs.fr/quentin/s3lat/) to observe only the intra-cluster latency and not some contention on the nodes (CPU, RAM, disk I/O, network bandwidth, etc.).
+To mesure S3 endpoints latency, we use our own tool [s3lat](https://git.deuxfleurs.fr/quentin/s3lat/) to observe only the intra-cluster latency and not some contention on the nodes (CPU, RAM, disk I/O, network bandwidth, etc.).
 Compared to other benchmark tools, S3Lat sends only one (small) request at the same time and measures its latency.
 We selected 5 standard endpoints that are often in the critical path: ListBuckets, ListObjects, GetObject, PutObject and RemoveObject.
 

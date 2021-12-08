@@ -22,7 +22,7 @@ Garage is an **open-source** distributed **storage service** you can **self-host
 </p>
 
 <p align="center" style="text-align:center; margin-bottom: 5rem;">
-<a href="/design/use_cases.html">⮞ learn more about use cases ⮜</a>
+<a href="/design/goals.html#use-cases">⮞ learn more about use cases ⮜</a>
 </p>
 
 Garage implements the **[Amazon S3 API](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)** and thus is already **compatible** with many applications:
