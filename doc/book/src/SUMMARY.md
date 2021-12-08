@@ -31,6 +31,7 @@
 
 - [Design](./design/index.md)
   - [Goals and use Cases](./design/goals.md)
+  - [Benchmarks](./design/benchmarks.md)
   - [Related work](./design/related_work.md)
   - [Internals](./design/internals.md)
 
