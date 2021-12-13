@@ -34,9 +34,29 @@ We suppose that these requests on minio make transactions over Raft, involving 4
 Conversely, garage uses an architecture similar to DynamoDB and never require global cluster coordination to answer a request.
 Instead, garage can always contact the right node in charge of the requested data, and can answer in as low as one request in the case of GetObject and PutObject. We also observed that Garage latency, while often lower to minio, is more dispersed: garage is still in beta and has not received any performance optimization yet.
 
+As a conclusion, Garage performs well in such setup while minio will be hard to use, especially for interactive use cases.
+
 ### On a complex simulated network
 
-*TODO*
+This time we consider a more heterogeneous network with 6 servers spread in 3 datacenter, giving us 2 servers per datacenters.
+We consider that intra-DC communications are now very cheap with a latency of 0.5ms and without any jitter.
+The inter-DC remains costly with the same value as before (100ms +/- 20ms of jitter).
+We plot a similar graph as before:
+
+![Comparison of endpoints latency for minio and garage with 6  nodes in 3 DC](./img/endpoint-latency-dc.png)
+
+This new graph is very similar to the one before, neither minio or garage seems to benefit from this new topology, but they also do not suffer from it.
+
+Considering garage, this is expected: nodes in the same DC are put in the same zone, and then data are spread on different zones for data resiliency and availaibility.
+Then, in the default mode, requesting data requires to query at least 2 zones to be sure that we have the most up to date information.
+These requests will involve at least one inter-DC communication.
+In other words, we prioritize data availability and synchronization over raw performances.
+
+Minio's case is a bit different as by default a minio cluster is not location aware, so we can't explain its performances through location awareness.
+*We know that minio has a multi site mode but it is definitely not a first class citizen: data are asynchronously replicated from one minio cluster to another.*
+We suppose that, due to the consensus, for many of its requests minio will wait for a response of the majority of the server, also involving inter-DC communications.
+
+As a conclusion, our new topology did not influence garage or minio performances, confirming that in presence of latency, garage is the best fit.
 
 ### On a real world deployment
 
