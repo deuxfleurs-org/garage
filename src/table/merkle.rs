@@ -82,7 +82,7 @@ where
 
 		let ret2 = ret.clone();
 		background.spawn_worker(
-			format!("Merkle tree updater for {}", ret.data.name),
+			format!("Merkle tree updater for {}", F::TABLE_NAME),
 			|must_exit: watch::Receiver<bool>| ret2.updater_loop(must_exit),
 		);
 
@@ -97,14 +97,16 @@ where
 						if let Err(e) = self.update_item(&key[..], &valhash[..]) {
 							warn!(
 								"({}) Error while updating Merkle tree item: {}",
-								self.data.name, e
+								F::TABLE_NAME,
+								e
 							);
 						}
 					}
 					Err(e) => {
 						warn!(
 							"({}) Error while iterating on Merkle todo tree: {}",
-							self.data.name, e
+							F::TABLE_NAME,
+							e
 						);
 						tokio::time::sleep(Duration::from_secs(10)).await;
 					}
@@ -147,7 +149,8 @@ where
 		if !deleted {
 			debug!(
 				"({}) Item not deleted from Merkle todo because it changed: {:?}",
-				self.data.name, k
+				F::TABLE_NAME,
+				k
 			);
 		}
 		Ok(())
@@ -183,7 +186,7 @@ where
 						// should not happen
 						warn!(
 							"({}) Replacing intermediate node with empty node, should not happen.",
-							self.data.name
+							F::TABLE_NAME
 						);
 						Some(MerkleNode::Empty)
 					} else if children.len() == 1 {
@@ -195,7 +198,7 @@ where
 							MerkleNode::Empty => {
 								warn!(
 									"({}) Single subnode in tree is empty Merkle node",
-									self.data.name
+									F::TABLE_NAME
 								);
 								Some(MerkleNode::Empty)
 							}

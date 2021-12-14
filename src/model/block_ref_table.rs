@@ -44,6 +44,8 @@ pub struct BlockRefTable {
 }
 
 impl TableSchema for BlockRefTable {
+	const TABLE_NAME: &'static str = "block_ref";
+
 	type P = Hash;
 	type S = Uuid;
 	type E = BlockRef;

@@ -57,11 +57,11 @@ where
 	pub(crate) fn launch(system: Arc<System>, data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let endpoint = system
 			.netapp
-			.endpoint(format!("garage_table/gc.rs/Rpc:{}", data.name));
+			.endpoint(format!("garage_table/gc.rs/Rpc:{}", F::TABLE_NAME));
 
 		let gc = Arc::new(Self {
 			system: system.clone(),
-			data: data.clone(),
+			data,
 			endpoint,
 		});
 
@@ -69,7 +69,7 @@ where
 
 		let gc1 = gc.clone();
 		system.background.spawn_worker(
-			format!("GC loop for {}", data.name),
+			format!("GC loop for {}", F::TABLE_NAME),
 			move |must_exit: watch::Receiver<bool>| gc1.gc_loop(must_exit),
 		);
 
@@ -90,7 +90,7 @@ where
 					}
 				}
 				Err(e) => {
-					warn!("({}) Error doing GC: {}", self.data.name, e);
+					warn!("({}) Error doing GC: {}", F::TABLE_NAME, e);
 				}
 			}
 		}
@@ -160,7 +160,7 @@ where
 			return Ok(Some(Duration::from_secs(60)));
 		}
 
-		debug!("({}) GC: doing {} items", self.data.name, entries.len());
+		debug!("({}) GC: doing {} items", F::TABLE_NAME, entries.len());
 
 		// Split entries to GC by the set of nodes on which they are stored.
 		// Here we call them partitions but they are not exactly
@@ -262,7 +262,8 @@ where
 
 		info!(
 			"({}) GC: {} items successfully pushed, will try to delete.",
-			self.data.name, n_items
+			F::TABLE_NAME,
+			n_items
 		);
 
 		// Step 2: delete tombstones everywhere.

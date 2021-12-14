@@ -19,7 +19,6 @@ use crate::schema::*;
 pub struct TableData<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 
-	pub name: String,
 	pub(crate) instance: F,
 	pub(crate) replication: R,
 
@@ -36,31 +35,24 @@ where
 	F: TableSchema,
 	R: TableReplication,
 {
-	pub fn new(
-		system: Arc<System>,
-		name: String,
-		instance: F,
-		replication: R,
-		db: &sled::Db,
-	) -> Arc<Self> {
+	pub fn new(system: Arc<System>, instance: F, replication: R, db: &sled::Db) -> Arc<Self> {
 		let store = db
-			.open_tree(&format!("{}:table", name))
+			.open_tree(&format!("{}:table", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
 
 		let merkle_tree = db
-			.open_tree(&format!("{}:merkle_tree", name))
+			.open_tree(&format!("{}:merkle_tree", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle tree tree");
 		let merkle_todo = db
-			.open_tree(&format!("{}:merkle_todo", name))
+			.open_tree(&format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
 
 		let gc_todo = db
-			.open_tree(&format!("{}:gc_todo_v2", name))
+			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
 
 		Arc::new(Self {
 			system,
-			name,
 			instance,
 			replication,
 			store,
@@ -245,7 +237,7 @@ where
 			Err(e) => match F::try_migrate(bytes) {
 				Some(x) => Ok(x),
 				None => {
-					warn!("Unable to decode entry of {}: {}", self.name, e);
+					warn!("Unable to decode entry of {}: {}", F::TABLE_NAME, e);
 					for line in hexdump::hexdump_iter(bytes) {
 						debug!("{}", line);
 					}

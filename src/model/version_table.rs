@@ -114,6 +114,8 @@ pub struct VersionTable {
 }
 
 impl TableSchema for VersionTable {
+	const TABLE_NAME: &'static str = "version";
+
 	type P = Hash;
 	type S = EmptyKey;
 	type E = Version;

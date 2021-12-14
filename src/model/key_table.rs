@@ -120,6 +120,8 @@ pub enum KeyFilter {
 }
 
 impl TableSchema for KeyTable {
+	const TABLE_NAME: &'static str = "key";
+
 	type P = EmptyKey;
 	type S = String;
 	type E = Key;

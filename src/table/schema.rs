@@ -57,12 +57,19 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 
 /// Trait for the schema used in a table
 pub trait TableSchema: Send + Sync {
+	/// The name of the table in the database
+	const TABLE_NAME: &'static str;
+
 	/// The partition key used in that table
 	type P: PartitionKey + Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 	/// The sort key used int that table
 	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
+
 	/// They type for an entry in that table
 	type E: Entry<Self::P, Self::S>;
+
+	/// The type for a filter that can be applied to select entries
+	/// (e.g. filter out deleted entries)
 	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
 
 	// Action to take if not able to decode current version:

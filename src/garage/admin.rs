@@ -466,7 +466,7 @@ impl AdminRpcHandler {
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
-		writeln!(to, "\nTable stats for {}", t.data.name).unwrap();
+		writeln!(to, "\nTable stats for {}", F::TABLE_NAME).unwrap();
 		if opt.detailed {
 			writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
 			writeln!(

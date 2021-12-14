@@ -217,6 +217,8 @@ pub struct ObjectTable {
 }
 
 impl TableSchema for ObjectTable {
+	const TABLE_NAME: &'static str = "object";
+
 	type P = String;
 	type S = String;
 	type E = Object;

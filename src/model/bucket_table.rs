@@ -114,6 +114,8 @@ impl Crdt for Bucket {
 pub struct BucketTable;
 
 impl TableSchema for BucketTable {
+	const TABLE_NAME: &'static str = "bucket";
+
 	type P = EmptyKey;
 	type S = String;
 	type E = Bucket;

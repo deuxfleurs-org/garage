@@ -55,18 +55,12 @@ where
 {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
-	pub fn new(
-		instance: F,
-		replication: R,
-		system: Arc<System>,
-		db: &sled::Db,
-		name: String,
-	) -> Arc<Self> {
+	pub fn new(instance: F, replication: R, system: Arc<System>, db: &sled::Db) -> Arc<Self> {
 		let endpoint = system
 			.netapp
-			.endpoint(format!("garage_table/table.rs/Rpc:{}", name));
+			.endpoint(format!("garage_table/table.rs/Rpc:{}", F::TABLE_NAME));
 
-		let data = TableData::new(system.clone(), name, instance, replication, db);
+		let data = TableData::new(system.clone(), instance, replication, db);
 
 		let merkle_updater = MerkleUpdater::launch(&system.background, data.clone());
 

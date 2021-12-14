@@ -93,7 +93,6 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
-			"block_ref".to_string(),
 		);
 
 		info!("Initialize version_table...");
@@ -105,7 +104,6 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
-			"version".to_string(),
 		);
 
 		info!("Initialize object_table...");
@@ -117,26 +115,13 @@ impl Garage {
 			meta_rep_param,
 			system.clone(),
 			&db,
-			"object".to_string(),
 		);
 
 		info!("Initialize bucket_table...");
-		let bucket_table = Table::new(
-			BucketTable,
-			control_rep_param.clone(),
-			system.clone(),
-			&db,
-			"bucket".to_string(),
-		);
+		let bucket_table = Table::new(BucketTable, control_rep_param.clone(), system.clone(), &db);
 
 		info!("Initialize key_table_table...");
-		let key_table = Table::new(
-			KeyTable,
-			control_rep_param,
-			system.clone(),
-			&db,
-			"key".to_string(),
-		);
+		let key_table = Table::new(KeyTable, control_rep_param, system.clone(), &db);
 
 		info!("Initialize Garage...");
 		let garage = Arc::new(Self {
