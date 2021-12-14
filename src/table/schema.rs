@@ -16,7 +16,7 @@ impl PartitionKey for String {
 	}
 }
 
-impl PartitionKey for Hash {
+impl PartitionKey for FixedBytes32 {
 	fn hash(&self) -> Hash {
 		*self
 	}
@@ -34,7 +34,7 @@ impl SortKey for String {
 	}
 }
 
-impl SortKey for Hash {
+impl SortKey for FixedBytes32 {
 	fn sort_key(&self) -> &[u8] {
 		self.as_slice()
 	}

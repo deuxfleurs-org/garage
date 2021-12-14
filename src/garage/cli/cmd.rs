@@ -161,8 +161,11 @@ pub async fn cmd_admin(
 		}
 		AdminRpc::BucketList(bl) => {
 			println!("List of buckets:");
-			for bucket in bl {
-				println!("{}", bucket);
+			for alias in bl {
+				if let Some(p) = alias.state.get().as_option() {
+					let wflag = if p.website_access { "W" } else { " " };
+					println!("- {} {} {:?}", wflag, alias.name, p.bucket_id);
+				}
 			}
 		}
 		AdminRpc::BucketInfo(bucket) => {

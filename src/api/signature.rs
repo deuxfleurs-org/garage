@@ -64,7 +64,7 @@ pub async fn check_signature(
 		.key_table
 		.get(&EmptyKey, &authorization.key_id)
 		.await?
-		.filter(|k| !k.deleted.get())
+		.filter(|k| !k.state.is_deleted())
 		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", authorization.key_id)))?;
 
 	let canonical_request = canonical_request(

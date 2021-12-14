@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use garage_table::crdt::*;
 use garage_table::*;
+use garage_util::data::*;
+
+use crate::permission::BucketKeyPerm;
 
 /// An api key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -15,12 +18,39 @@ pub struct Key {
 	/// Name for the key
 	pub name: crdt::Lww<String>,
 
-	/// Is the key deleted
-	pub deleted: crdt::Bool,
+	/// If the key is present: it gives some permissions,
+	/// a map of bucket IDs (uuids) to permissions.
+	/// Otherwise no permissions are granted to key
+	pub state: crdt::Deletable<KeyParams>,
+}
 
-	/// Buckets in which the key is authorized. Empty if `Key` is deleted
-	// CRDT interaction: deleted implies authorized_buckets is empty
-	pub authorized_buckets: crdt::LwwMap<String, PermissionSet>,
+/// Configuration for a key
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct KeyParams {
+	pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
+	pub local_aliases: crdt::LwwMap<String, crdt::Deletable<Uuid>>,
+}
+
+impl KeyParams {
+	pub fn new() -> Self {
+		KeyParams {
+			authorized_buckets: crdt::Map::new(),
+			local_aliases: crdt::LwwMap::new(),
+		}
+	}
+}
+
+impl Default for KeyParams {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Crdt for KeyParams {
+	fn merge(&mut self, o: &Self) {
+		self.authorized_buckets.merge(&o.authorized_buckets);
+		self.local_aliases.merge(&o.local_aliases);
+	}
 }
 
 impl Key {
@@ -32,8 +62,7 @@ impl Key {
 			key_id,
 			secret_key,
 			name: crdt::Lww::new(name),
-			deleted: crdt::Bool::new(false),
-			authorized_buckets: crdt::LwwMap::new(),
+			state: crdt::Deletable::present(KeyParams::new()),
 		}
 	}
 
@@ -43,8 +72,7 @@ impl Key {
 			key_id: key_id.to_string(),
 			secret_key: secret_key.to_string(),
 			name: crdt::Lww::new(name.to_string()),
-			deleted: crdt::Bool::new(false),
-			authorized_buckets: crdt::LwwMap::new(),
+			state: crdt::Deletable::present(KeyParams::new()),
 		}
 	}
 
@@ -54,39 +82,35 @@ impl Key {
 			key_id,
 			secret_key: "".into(),
 			name: crdt::Lww::new("".to_string()),
-			deleted: crdt::Bool::new(true),
-			authorized_buckets: crdt::LwwMap::new(),
+			state: crdt::Deletable::Deleted,
 		}
 	}
 
 	/// Check if `Key` is allowed to read in bucket
-	pub fn allow_read(&self, bucket: &str) -> bool {
-		self.authorized_buckets
-			.get(&bucket.to_string())
-			.map(|x| x.allow_read)
-			.unwrap_or(false)
+	pub fn allow_read(&self, bucket: &Uuid) -> bool {
+		if let crdt::Deletable::Present(params) = &self.state {
+			params
+				.authorized_buckets
+				.get(bucket)
+				.map(|x| x.allow_read)
+				.unwrap_or(false)
+		} else {
+			false
+		}
 	}
 
 	/// Check if `Key` is allowed to write in bucket
-	pub fn allow_write(&self, bucket: &str) -> bool {
-		self.authorized_buckets
-			.get(&bucket.to_string())
-			.map(|x| x.allow_write)
-			.unwrap_or(false)
+	pub fn allow_write(&self, bucket: &Uuid) -> bool {
+		if let crdt::Deletable::Present(params) = &self.state {
+			params
+				.authorized_buckets
+				.get(bucket)
+				.map(|x| x.allow_write)
+				.unwrap_or(false)
+		} else {
+			false
+		}
 	}
-}
-
-/// Permission given to a key in a bucket
-#[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct PermissionSet {
-	/// The key can be used to read the bucket
-	pub allow_read: bool,
-	/// The key can be used to write in the bucket
-	pub allow_write: bool,
-}
-
-impl AutoCrdt for PermissionSet {
-	const WARN_IF_DIFFERENT: bool = true;
 }
 
 impl Entry<EmptyKey, String> for Key {
@@ -101,13 +125,7 @@ impl Entry<EmptyKey, String> for Key {
 impl Crdt for Key {
 	fn merge(&mut self, other: &Self) {
 		self.name.merge(&other.name);
-		self.deleted.merge(&other.deleted);
-
-		if self.deleted.get() {
-			self.authorized_buckets.clear();
-		} else {
-			self.authorized_buckets.merge(&other.authorized_buckets);
-		}
+		self.state.merge(&other.state);
 	}
 }
 
@@ -129,7 +147,7 @@ impl TableSchema for KeyTable {
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		match filter {
-			KeyFilter::Deleted(df) => df.apply(entry.deleted.get()),
+			KeyFilter::Deleted(df) => df.apply(entry.state.is_deleted()),
 			KeyFilter::Matches(pat) => {
 				let pat = pat.to_lowercase();
 				entry.key_id.to_lowercase().starts_with(&pat)

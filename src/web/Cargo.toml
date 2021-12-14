@@ -1,6 +1,6 @@
 [package]
 name = "garage_web"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Alex Auvolat <alex@adnab.me>", "Quentin Dufour <quentin@dufour.io>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,10 +14,10 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_api = { version = "0.5.0", path = "../api" }
-garage_model = { version = "0.5.0", path = "../model" }
-garage_util = { version = "0.5.0", path = "../util" }
-garage_table = { version = "0.5.0", path = "../table" }
+garage_api = { version = "0.6.0", path = "../api" }
+garage_model = { version = "0.6.0", path = "../model" }
+garage_util = { version = "0.6.0", path = "../util" }
+garage_table = { version = "0.6.0", path = "../table" }
 
 err-derive = "0.3"
 log = "0.4"

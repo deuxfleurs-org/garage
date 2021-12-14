@@ -82,6 +82,11 @@ where
 		&self.v
 	}
 
+	/// Take the value inside the CRDT (discards the timesamp)
+	pub fn take(self) -> T {
+		self.v
+	}
+
 	/// Get a mutable reference to the CRDT's value
 	///
 	/// This is usefull to mutate the inside value without changing the LWW timestamp.

@@ -15,7 +15,7 @@ use crate::version_table::*;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
 	/// The bucket in which the object is stored, used as partition key
-	pub bucket: String,
+	pub bucket_id: Uuid,
 
 	/// The key at which the object is stored in its bucket, used as sorting key
 	pub key: String,
@@ -26,9 +26,9 @@ pub struct Object {
 
 impl Object {
 	/// Initialize an Object struct from parts
-	pub fn new(bucket: String, key: String, versions: Vec<ObjectVersion>) -> Self {
+	pub fn new(bucket_id: Uuid, key: String, versions: Vec<ObjectVersion>) -> Self {
 		let mut ret = Self {
-			bucket,
+			bucket_id,
 			key,
 			versions: vec![],
 		};
@@ -164,9 +164,9 @@ impl ObjectVersion {
 	}
 }
 
-impl Entry<String, String> for Object {
-	fn partition_key(&self) -> &String {
-		&self.bucket
+impl Entry<Uuid, String> for Object {
+	fn partition_key(&self) -> &Uuid {
+		&self.bucket_id
 	}
 	fn sort_key(&self) -> &String {
 		&self.key
@@ -219,7 +219,7 @@ pub struct ObjectTable {
 impl TableSchema for ObjectTable {
 	const TABLE_NAME: &'static str = "object";
 
-	type P = String;
+	type P = Uuid;
 	type S = String;
 	type E = Object;
 	type Filter = DeletedFilter;
@@ -242,7 +242,7 @@ impl TableSchema for ObjectTable {
 					};
 					if newly_deleted {
 						let deleted_version =
-							Version::new(v.uuid, old_v.bucket.clone(), old_v.key.clone(), true);
+							Version::new(v.uuid, old_v.bucket_id, old_v.key.clone(), true);
 						version_table.insert(&deleted_version).await?;
 					}
 				}

@@ -1,3 +1,4 @@
+use garage_util::crdt::*;
 use garage_util::data::Uuid;
 use garage_util::error::*;
 
@@ -8,26 +9,50 @@ pub fn print_key_info(key: &Key) {
 	println!("Key name: {}", key.name.get());
 	println!("Key ID: {}", key.key_id);
 	println!("Secret key: {}", key.secret_key);
-	if key.deleted.get() {
-		println!("Key is deleted.");
-	} else {
-		println!("Authorized buckets:");
-		for (b, _, perm) in key.authorized_buckets.items().iter() {
-			println!("- {} R:{} W:{}", b, perm.allow_read, perm.allow_write);
+	match &key.state {
+		Deletable::Present(p) => {
+			println!("\nKey-specific bucket aliases:");
+			for (alias_name, _, alias) in p.local_aliases.items().iter() {
+				if let Some(bucket_id) = alias.as_option() {
+					println!("- {} {:?}", alias_name, bucket_id);
+				}
+			}
+			println!("\nAuthorized buckets:");
+			for (b, perm) in p.authorized_buckets.items().iter() {
+				let rflag = if perm.allow_read { "R" } else { " " };
+				let wflag = if perm.allow_write { "W" } else { " " };
+				println!("- {}{} {:?}", rflag, wflag, b);
+			}
+		}
+		Deletable::Deleted => {
+			println!("\nKey is deleted.");
 		}
 	}
 }
 
 pub fn print_bucket_info(bucket: &Bucket) {
-	println!("Bucket name: {}", bucket.name);
-	match bucket.state.get() {
-		BucketState::Deleted => println!("Bucket is deleted."),
-		BucketState::Present(p) => {
-			println!("Authorized keys:");
-			for (k, _, perm) in p.authorized_keys.items().iter() {
-				println!("- {} R:{} W:{}", k, perm.allow_read, perm.allow_write);
+	println!("Bucket: {}", hex::encode(bucket.id));
+	match &bucket.state {
+		Deletable::Deleted => println!("Bucket is deleted."),
+		Deletable::Present(p) => {
+			println!("\nGlobal aliases:");
+			for (alias, _, active) in p.aliases.items().iter() {
+				if *active {
+					println!("- {}", alias);
+				}
 			}
-			println!("Website access: {}", p.website.get());
+			println!("\nKey-specific aliases:");
+			for ((key_id, alias), _, active) in p.local_aliases.items().iter() {
+				if *active {
+					println!("- {} {}", key_id, alias);
+				}
+			}
+			println!("\nAuthorized keys:");
+			for (k, perm) in p.authorized_keys.items().iter() {
+				let rflag = if perm.allow_read { "R" } else { " " };
+				let wflag = if perm.allow_write { "W" } else { " " };
+				println!("- {}{} {}", rflag, wflag, k);
+			}
 		}
 	};
 }

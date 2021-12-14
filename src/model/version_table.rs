@@ -29,19 +29,19 @@ pub struct Version {
 	// Back link to bucket+key so that we can figure if
 	// this was deleted later on
 	/// Bucket in which the related object is stored
-	pub bucket: String,
+	pub bucket_id: Uuid,
 	/// Key in which the related object is stored
 	pub key: String,
 }
 
 impl Version {
-	pub fn new(uuid: Uuid, bucket: String, key: String, deleted: bool) -> Self {
+	pub fn new(uuid: Uuid, bucket_id: Uuid, key: String, deleted: bool) -> Self {
 		Self {
 			uuid,
 			deleted: deleted.into(),
 			blocks: crdt::Map::new(),
 			parts_etags: crdt::Map::new(),
-			bucket,
+			bucket_id,
 			key,
 		}
 	}
@@ -82,8 +82,8 @@ impl AutoCrdt for VersionBlock {
 	const WARN_IF_DIFFERENT: bool = true;
 }
 
-impl Entry<Hash, EmptyKey> for Version {
-	fn partition_key(&self) -> &Hash {
+impl Entry<Uuid, EmptyKey> for Version {
+	fn partition_key(&self) -> &Uuid {
 		&self.uuid
 	}
 	fn sort_key(&self) -> &EmptyKey {
@@ -116,7 +116,7 @@ pub struct VersionTable {
 impl TableSchema for VersionTable {
 	const TABLE_NAME: &'static str = "version";
 
-	type P = Hash;
+	type P = Uuid;
 	type S = EmptyKey;
 	type E = Version;
 	type Filter = DeletedFilter;

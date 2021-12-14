@@ -10,6 +10,11 @@ pub fn now_msec() -> u64 {
 		.as_millis() as u64
 }
 
+/// Increment logical clock
+pub fn increment_logical_clock(prev: u64) -> u64 {
+	std::cmp::max(prev + 1, now_msec())
+}
+
 /// Convert a timestamp represented as milliseconds since UNIX Epoch to
 /// its RFC3339 representation, such as "2021-01-01T12:30:00Z"
 pub fn msec_to_rfc3339(msecs: u64) -> String {

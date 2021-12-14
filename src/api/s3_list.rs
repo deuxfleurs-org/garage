@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use hyper::{Body, Response};
 
+use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
@@ -18,7 +19,8 @@ use crate::s3_xml;
 #[derive(Debug)]
 pub struct ListObjectsQuery {
 	pub is_v2: bool,
-	pub bucket: String,
+	pub bucket_name: String,
+	pub bucket_id: Uuid,
 	pub delimiter: Option<String>,
 	pub max_keys: usize,
 	pub prefix: String,
@@ -102,7 +104,7 @@ pub async fn handle_list(
 		let objects = garage
 			.object_table
 			.get_range(
-				&query.bucket,
+				&query.bucket_id,
 				Some(next_chunk_start.clone()),
 				Some(DeletedFilter::NotDeleted),
 				query.max_keys + 1,
@@ -232,7 +234,7 @@ pub async fn handle_list(
 
 	let mut result = s3_xml::ListBucketResult {
 		xmlns: (),
-		name: s3_xml::Value(query.bucket.to_string()),
+		name: s3_xml::Value(query.bucket_name.to_string()),
 		prefix: uriencode_maybe(&query.prefix, query.urlencode_resp),
 		marker: None,
 		next_marker: None,

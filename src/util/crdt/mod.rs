@@ -12,12 +12,14 @@
 mod bool;
 #[allow(clippy::module_inception)]
 mod crdt;
+mod deletable;
 mod lww;
 mod lww_map;
 mod map;
 
 pub use self::bool::*;
 pub use crdt::*;
+pub use deletable::*;
 pub use lww::*;
 pub use lww_map::*;
 pub use map::*;

@@ -12,7 +12,6 @@ use hyper::{
 use crate::error::*;
 use garage_api::helpers::{authority_to_host, host_to_bucket};
 use garage_api::s3_get::{handle_get, handle_head};
-use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::error::Error as GarageError;
@@ -77,31 +76,39 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	// Get bucket
 	let host = authority_to_host(authority)?;
 	let root = &garage.config.s3_web.root_domain;
-	let bucket = host_to_bucket(&host, root).unwrap_or(&host);
 
-	// Check bucket is exposed as a website
-	let bucket_desc = garage
+	let bucket_name = host_to_bucket(&host, root).unwrap_or(&host);
+	let bucket_id = garage
+		.bucket_alias_table
+		.get(&EmptyKey, &bucket_name.to_string())
+		.await?
+		.map(|x| x.state.take().into_option())
+		.flatten()
+		.filter(|param| param.website_access)
+		.map(|param| param.bucket_id)
+		.ok_or(Error::NotFound)?;
+
+	// Sanity check: check bucket isn't deleted
+	garage
 		.bucket_table
-		.get(&EmptyKey, &bucket.to_string())
+		.get(&bucket_id, &EmptyKey)
 		.await?
 		.filter(|b| !b.is_deleted())
 		.ok_or(Error::NotFound)?;
-
-	match bucket_desc.state.get() {
-		BucketState::Present(params) if *params.website.get() => Ok(()),
-		_ => Err(Error::NotFound),
-	}?;
 
 	// Get path
 	let path = req.uri().path().to_string();
 	let index = &garage.config.s3_web.index;
 	let key = path_to_key(&path, index)?;
 
-	info!("Selected bucket: \"{}\", selected key: \"{}\"", bucket, key);
+	info!(
+		"Selected bucket: \"{}\" {:?}, selected key: \"{}\"",
+		bucket_name, bucket_id, key
+	);
 
 	let res = match *req.method() {
-		Method::HEAD => handle_head(garage, &req, bucket, &key).await?,
-		Method::GET => handle_get(garage, &req, bucket, &key).await?,
+		Method::HEAD => handle_head(garage, &req, bucket_id, &key).await?,
+		Method::GET => handle_get(garage, &req, bucket_id, &key).await?,
 		_ => return Err(Error::BadRequest("HTTP method not supported".to_string())),
 	};
 

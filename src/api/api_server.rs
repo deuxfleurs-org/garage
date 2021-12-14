@@ -7,9 +7,12 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 
+use garage_util::crdt;
+use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
+use garage_model::key_table::Key;
 
 use crate::error::*;
 use crate::signature::check_signature;
@@ -105,10 +108,20 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		.and_then(|root_domain| host_to_bucket(&host, root_domain));
 
 	let endpoint = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
+
+	let bucket_name = match endpoint.authorization_type() {
+		Authorization::None => {
+			return handle_request_without_bucket(garage, req, api_key, endpoint).await
+		}
+		Authorization::Read(bucket) | Authorization::Write(bucket) => bucket.to_string(),
+	};
+
+	let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
+
 	let allowed = match endpoint.authorization_type() {
-		Authorization::None => true,
-		Authorization::Read(bucket) => api_key.allow_read(bucket),
-		Authorization::Write(bucket) => api_key.allow_write(bucket),
+		Authorization::Read(_) => api_key.allow_read(&bucket_id),
+		Authorization::Write(_) => api_key.allow_write(&bucket_id),
+		_ => unreachable!(),
 	};
 
 	if !allowed {
@@ -118,19 +131,18 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 
 	match endpoint {
-		Endpoint::ListBuckets => handle_list_buckets(&api_key),
-		Endpoint::HeadObject { bucket, key, .. } => handle_head(garage, &req, &bucket, &key).await,
-		Endpoint::GetObject { bucket, key, .. } => handle_get(garage, &req, &bucket, &key).await,
+		Endpoint::HeadObject { key, .. } => handle_head(garage, &req, bucket_id, &key).await,
+		Endpoint::GetObject { key, .. } => handle_get(garage, &req, bucket_id, &key).await,
 		Endpoint::UploadPart {
-			bucket,
 			key,
 			part_number,
 			upload_id,
+			..
 		} => {
 			handle_put_part(
 				garage,
 				req,
-				&bucket,
+				bucket_id,
 				&key,
 				part_number,
 				&upload_id,
@@ -138,38 +150,46 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::CopyObject { bucket, key } => {
+		Endpoint::CopyObject { key, .. } => {
 			let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 			let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 			let (source_bucket, source_key) = parse_bucket_key(&copy_source, None)?;
-			if !api_key.allow_read(source_bucket) {
+			let source_bucket_id =
+				resolve_bucket(&garage, &source_bucket.to_string(), &api_key).await?;
+			if !api_key.allow_read(&source_bucket_id) {
 				return Err(Error::Forbidden(format!(
 					"Reading from bucket {} not allowed for this key",
 					source_bucket
 				)));
 			}
 			let source_key = source_key.ok_or_bad_request("No source key specified")?;
-			handle_copy(garage, &req, &bucket, &key, source_bucket, source_key).await
+			handle_copy(garage, &req, bucket_id, &key, source_bucket_id, source_key).await
 		}
-		Endpoint::PutObject { bucket, key } => {
-			handle_put(garage, req, &bucket, &key, content_sha256).await
+		Endpoint::PutObject { key, .. } => {
+			handle_put(garage, req, bucket_id, &key, content_sha256).await
 		}
-		Endpoint::AbortMultipartUpload {
-			bucket,
-			key,
-			upload_id,
-		} => handle_abort_multipart_upload(garage, &bucket, &key, &upload_id).await,
-		Endpoint::DeleteObject { bucket, key, .. } => handle_delete(garage, &bucket, &key).await,
+		Endpoint::AbortMultipartUpload { key, upload_id, .. } => {
+			handle_abort_multipart_upload(garage, bucket_id, &key, &upload_id).await
+		}
+		Endpoint::DeleteObject { key, .. } => handle_delete(garage, bucket_id, &key).await,
 		Endpoint::CreateMultipartUpload { bucket, key } => {
-			handle_create_multipart_upload(garage, &req, &bucket, &key).await
+			handle_create_multipart_upload(garage, &req, &bucket, bucket_id, &key).await
 		}
 		Endpoint::CompleteMultipartUpload {
 			bucket,
 			key,
 			upload_id,
 		} => {
-			handle_complete_multipart_upload(garage, req, &bucket, &key, &upload_id, content_sha256)
-				.await
+			handle_complete_multipart_upload(
+				garage,
+				req,
+				&bucket,
+				bucket_id,
+				&key,
+				&upload_id,
+				content_sha256,
+			)
+			.await
 		}
 		Endpoint::CreateBucket { bucket } => {
 			debug!(
@@ -206,7 +226,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				garage,
 				&ListObjectsQuery {
 					is_v2: false,
-					bucket,
+					bucket_name: bucket,
+					bucket_id,
 					delimiter: delimiter.map(|d| d.to_string()),
 					max_keys: max_keys.unwrap_or(1000),
 					prefix: prefix.unwrap_or_default(),
@@ -234,7 +255,8 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					garage,
 					&ListObjectsQuery {
 						is_v2: true,
-						bucket,
+						bucket_name: bucket,
+						bucket_id,
 						delimiter: delimiter.map(|d| d.to_string()),
 						max_keys: max_keys.unwrap_or(1000),
 						prefix: prefix.unwrap_or_default(),
@@ -252,14 +274,49 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				)))
 			}
 		}
-		Endpoint::DeleteObjects { bucket } => {
-			handle_delete_objects(garage, &bucket, req, content_sha256).await
+		Endpoint::DeleteObjects { .. } => {
+			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
 		Endpoint::PutBucketWebsite { bucket } => {
 			handle_put_website(garage, bucket, req, content_sha256).await
 		}
 		Endpoint::DeleteBucketWebsite { bucket } => handle_delete_website(garage, bucket).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
+	}
+}
+
+async fn handle_request_without_bucket(
+	garage: Arc<Garage>,
+	_req: Request<Body>,
+	api_key: Key,
+	endpoint: Endpoint,
+) -> Result<Response<Body>, Error> {
+	match endpoint {
+		Endpoint::ListBuckets => handle_list_buckets(&garage, &api_key).await,
+		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
+	}
+}
+
+#[allow(clippy::ptr_arg)]
+async fn resolve_bucket(
+	garage: &Garage,
+	bucket_name: &String,
+	api_key: &Key,
+) -> Result<Uuid, Error> {
+	let api_key_params = api_key
+		.state
+		.as_option()
+		.ok_or_else(|| Error::Forbidden("Operation is not allowed for this key.".to_string()))?;
+
+	if let Some(crdt::Deletable::Present(bucket_id)) = api_key_params.local_aliases.get(bucket_name)
+	{
+		Ok(*bucket_id)
+	} else {
+		Ok(garage
+			.bucket_helper()
+			.resolve_global_bucket_name(bucket_name)
+			.await?
+			.ok_or(Error::NotFound)?)
 	}
 }
 

@@ -119,6 +119,35 @@ where
 	}
 }
 
+/// Trait to map error to the Bad Request error code
+pub trait OkOrMessage {
+	type S2;
+	fn ok_or_message<M: Into<String>>(self, message: M) -> Self::S2;
+}
+
+impl<T, E> OkOrMessage for Result<T, E>
+where
+	E: std::fmt::Display,
+{
+	type S2 = Result<T, Error>;
+	fn ok_or_message<M: Into<String>>(self, message: M) -> Result<T, Error> {
+		match self {
+			Ok(x) => Ok(x),
+			Err(e) => Err(Error::Message(format!("{}: {}", message.into(), e))),
+		}
+	}
+}
+
+impl<T> OkOrMessage for Option<T> {
+	type S2 = Result<T, Error>;
+	fn ok_or_message<M: Into<String>>(self, message: M) -> Result<T, Error> {
+		match self {
+			Some(x) => Ok(x),
+			None => Err(Error::Message(message.into())),
+		}
+	}
+}
+
 // Custom serialization for our error type, for use in RPC.
 // Errors are serialized as a string of their Display representation.
 // Upon deserialization, they all become a RemoteError with the

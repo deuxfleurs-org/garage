@@ -77,7 +77,7 @@ impl Repair {
 			let object = self
 				.garage
 				.object_table
-				.get(&version.bucket, &version.key)
+				.get(&version.bucket_id, &version.key)
 				.await?;
 			let version_exists = match object {
 				Some(o) => o
@@ -92,7 +92,7 @@ impl Repair {
 					.version_table
 					.insert(&Version::new(
 						version.uuid,
-						version.bucket,
+						version.bucket_id,
 						version.key,
 						true,
 					))

@@ -2,8 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use garage_table::crdt::Crdt;
 use garage_table::*;
+use garage_util::data::*;
+use garage_util::time::*;
 
-use crate::key_table::PermissionSet;
+use crate::permission::BucketKeyPerm;
 
 /// A bucket is a collection of objects
 ///
@@ -12,49 +14,38 @@ use crate::key_table::PermissionSet;
 ///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
-	/// Name of the bucket
-	pub name: String,
+	/// ID of the bucket
+	pub id: Uuid,
 	/// State, and configuration if not deleted, of the bucket
-	pub state: crdt::Lww<BucketState>,
-}
-
-/// State of a bucket
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum BucketState {
-	/// The bucket is deleted
-	Deleted,
-	/// The bucket exists
-	Present(BucketParams),
-}
-
-impl Crdt for BucketState {
-	fn merge(&mut self, o: &Self) {
-		match o {
-			BucketState::Deleted => *self = BucketState::Deleted,
-			BucketState::Present(other_params) => {
-				if let BucketState::Present(params) = self {
-					params.merge(other_params);
-				}
-			}
-		}
-	}
+	pub state: crdt::Deletable<BucketParams>,
 }
 
 /// Configuration for a bucket
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
+	/// Bucket's creation date
+	pub creation_date: u64,
 	/// Map of key with access to the bucket, and what kind of access they give
-	pub authorized_keys: crdt::LwwMap<String, PermissionSet>,
-	/// Is the bucket served as http
-	pub website: crdt::Lww<bool>,
+	pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
+	/// Map of aliases that are or have been given to this bucket
+	/// in the global namespace
+	/// (not authoritative: this is just used as an indication to
+	/// map back to aliases when doing ListBuckets)
+	pub aliases: crdt::LwwMap<String, bool>,
+	/// Map of aliases that are or have been given to this bucket
+	/// in namespaces local to keys
+	/// key = (access key id, alias name)
+	pub local_aliases: crdt::LwwMap<(String, String), bool>,
 }
 
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
 		BucketParams {
-			authorized_keys: crdt::LwwMap::new(),
-			website: crdt::Lww::new(false),
+			creation_date: now_msec(),
+			authorized_keys: crdt::Map::new(),
+			aliases: crdt::LwwMap::new(),
+			local_aliases: crdt::LwwMap::new(),
 		}
 	}
 }
@@ -62,7 +53,14 @@ impl BucketParams {
 impl Crdt for BucketParams {
 	fn merge(&mut self, o: &Self) {
 		self.authorized_keys.merge(&o.authorized_keys);
-		self.website.merge(&o.website);
+		self.aliases.merge(&o.aliases);
+		self.local_aliases.merge(&o.local_aliases);
+	}
+}
+
+impl Default for Bucket {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
@@ -74,34 +72,34 @@ impl Default for BucketParams {
 
 impl Bucket {
 	/// Initializes a new instance of the Bucket struct
-	pub fn new(name: String) -> Self {
+	pub fn new() -> Self {
 		Bucket {
-			name,
-			state: crdt::Lww::new(BucketState::Present(BucketParams::new())),
+			id: gen_uuid(),
+			state: crdt::Deletable::present(BucketParams::new()),
 		}
 	}
 
 	/// Returns true if this represents a deleted bucket
 	pub fn is_deleted(&self) -> bool {
-		*self.state.get() == BucketState::Deleted
+		self.state.is_deleted()
 	}
 
 	/// Return the list of authorized keys, when each was updated, and the permission associated to
 	/// the key
-	pub fn authorized_keys(&self) -> &[(String, u64, PermissionSet)] {
-		match self.state.get() {
-			BucketState::Deleted => &[],
-			BucketState::Present(state) => state.authorized_keys.items(),
+	pub fn authorized_keys(&self) -> &[(String, BucketKeyPerm)] {
+		match &self.state {
+			crdt::Deletable::Deleted => &[],
+			crdt::Deletable::Present(state) => state.authorized_keys.items(),
 		}
 	}
 }
 
-impl Entry<EmptyKey, String> for Bucket {
-	fn partition_key(&self) -> &EmptyKey {
-		&EmptyKey
+impl Entry<Uuid, EmptyKey> for Bucket {
+	fn partition_key(&self) -> &Uuid {
+		&self.id
 	}
-	fn sort_key(&self) -> &String {
-		&self.name
+	fn sort_key(&self) -> &EmptyKey {
+		&EmptyKey
 	}
 }
 
@@ -114,10 +112,10 @@ impl Crdt for Bucket {
 pub struct BucketTable;
 
 impl TableSchema for BucketTable {
-	const TABLE_NAME: &'static str = "bucket";
+	const TABLE_NAME: &'static str = "bucket_v2";
 
-	type P = EmptyKey;
-	type S = String;
+	type P = Uuid;
+	type S = EmptyKey;
 	type E = Bucket;
 	type Filter = DeletedFilter;
 

@@ -7,6 +7,7 @@ use hyper::body::Bytes;
 use hyper::{Body, Request, Response, StatusCode};
 
 use garage_table::EmptyKey;
+use garage_util::data::*;
 
 use garage_model::garage::Garage;
 use garage_model::object_table::*;
@@ -84,12 +85,12 @@ fn try_answer_cached(
 pub async fn handle_head(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let object = garage
 		.object_table
-		.get(&bucket.to_string(), &key.to_string())
+		.get(&bucket_id, &key.to_string())
 		.await?
 		.ok_or(Error::NotFound)?;
 
@@ -123,12 +124,12 @@ pub async fn handle_head(
 pub async fn handle_get(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let object = garage
 		.object_table
-		.get(&bucket.to_string(), &key.to_string())
+		.get(&bucket_id, &key.to_string())
 		.await?
 		.ok_or(Error::NotFound)?;
 

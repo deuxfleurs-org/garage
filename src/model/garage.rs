@@ -14,6 +14,8 @@ use garage_table::*;
 
 use crate::block::*;
 use crate::block_ref_table::*;
+use crate::bucket_alias_table::*;
+use crate::bucket_helper::*;
 use crate::bucket_table::*;
 use crate::key_table::*;
 use crate::object_table::*;
@@ -35,6 +37,8 @@ pub struct Garage {
 
 	/// Table containing informations about buckets
 	pub bucket_table: Arc<Table<BucketTable, TableFullReplication>>,
+	/// Table containing informations about bucket aliases
+	pub bucket_alias_table: Arc<Table<BucketAliasTable, TableFullReplication>>,
 	/// Table containing informations about api keys
 	pub key_table: Arc<Table<KeyTable, TableFullReplication>>,
 
@@ -120,6 +124,14 @@ impl Garage {
 		info!("Initialize bucket_table...");
 		let bucket_table = Table::new(BucketTable, control_rep_param.clone(), system.clone(), &db);
 
+		info!("Initialize bucket_alias_table...");
+		let bucket_alias_table = Table::new(
+			BucketAliasTable,
+			control_rep_param.clone(),
+			system.clone(),
+			&db,
+		);
+
 		info!("Initialize key_table_table...");
 		let key_table = Table::new(KeyTable, control_rep_param, system.clone(), &db);
 
@@ -131,6 +143,7 @@ impl Garage {
 			system,
 			block_manager,
 			bucket_table,
+			bucket_alias_table,
 			key_table,
 			object_table,
 			version_table,
@@ -147,5 +160,9 @@ impl Garage {
 	/// Use this for shutdown
 	pub fn break_reference_cycles(&self) {
 		self.block_manager.garage.swap(None);
+	}
+
+	pub fn bucket_helper(&self) -> BucketHelper {
+		BucketHelper(self)
 	}
 }

@@ -18,14 +18,14 @@ use crate::s3_xml;
 pub async fn handle_copy(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
-	dest_bucket: &str,
+	dest_bucket_id: Uuid,
 	dest_key: &str,
-	source_bucket: &str,
+	source_bucket_id: Uuid,
 	source_key: &str,
 ) -> Result<Response<Body>, Error> {
 	let source_object = garage
 		.object_table
-		.get(&source_bucket.to_string(), &source_key.to_string())
+		.get(&source_bucket_id, &source_key.to_string())
 		.await?
 		.ok_or(Error::NotFound)?;
 
@@ -76,7 +76,7 @@ pub async fn handle_copy(
 				)),
 			};
 			let dest_object = Object::new(
-				dest_bucket.to_string(),
+				dest_bucket_id,
 				dest_key.to_string(),
 				vec![dest_object_version],
 			);
@@ -99,7 +99,7 @@ pub async fn handle_copy(
 				state: ObjectVersionState::Uploading(new_meta.headers.clone()),
 			};
 			let tmp_dest_object = Object::new(
-				dest_bucket.to_string(),
+				dest_bucket_id,
 				dest_key.to_string(),
 				vec![tmp_dest_object_version],
 			);
@@ -109,12 +109,8 @@ pub async fn handle_copy(
 			// this means that the BlockRef entries linked to this version cannot be
 			// marked as deleted (they are marked as deleted only if the Version
 			// doesn't exist or is marked as deleted).
-			let mut dest_version = Version::new(
-				new_uuid,
-				dest_bucket.to_string(),
-				dest_key.to_string(),
-				false,
-			);
+			let mut dest_version =
+				Version::new(new_uuid, dest_bucket_id, dest_key.to_string(), false);
 			garage.version_table.insert(&dest_version).await?;
 
 			// Fill in block list for version and insert block refs
@@ -151,7 +147,7 @@ pub async fn handle_copy(
 				)),
 			};
 			let dest_object = Object::new(
-				dest_bucket.to_string(),
+				dest_bucket_id,
 				dest_key.to_string(),
 				vec![dest_object_version],
 			);

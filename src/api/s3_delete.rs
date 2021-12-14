@@ -14,12 +14,12 @@ use crate::signature::verify_signed_content;
 
 async fn handle_delete_internal(
 	garage: &Garage,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 ) -> Result<(Uuid, Uuid), Error> {
 	let object = garage
 		.object_table
-		.get(&bucket.to_string(), &key.to_string())
+		.get(&bucket_id, &key.to_string())
 		.await?
 		.ok_or(Error::NotFound)?; // No need to delete
 
@@ -45,7 +45,7 @@ async fn handle_delete_internal(
 	let version_uuid = gen_uuid();
 
 	let object = Object::new(
-		bucket.into(),
+		bucket_id,
 		key.into(),
 		vec![ObjectVersion {
 			uuid: version_uuid,
@@ -61,11 +61,11 @@ async fn handle_delete_internal(
 
 pub async fn handle_delete(
 	garage: Arc<Garage>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let (_deleted_version, delete_marker_version) =
-		handle_delete_internal(&garage, bucket, key).await?;
+		handle_delete_internal(&garage, bucket_id, key).await?;
 
 	Ok(Response::builder()
 		.header("x-amz-version-id", hex::encode(delete_marker_version))
@@ -76,7 +76,7 @@ pub async fn handle_delete(
 
 pub async fn handle_delete_objects(
 	garage: Arc<Garage>,
-	bucket: &str,
+	bucket_id: Uuid,
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
@@ -90,7 +90,7 @@ pub async fn handle_delete_objects(
 	let mut ret_errors = Vec::new();
 
 	for obj in cmd.objects.iter() {
-		match handle_delete_internal(&garage, bucket, &obj.key).await {
+		match handle_delete_internal(&garage, bucket_id, &obj.key).await {
 			Ok((deleted_version, delete_marker_version)) => {
 				if cmd.quiet {
 					continue;

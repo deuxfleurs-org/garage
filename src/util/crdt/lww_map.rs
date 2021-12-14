@@ -30,8 +30,8 @@ pub struct LwwMap<K, V> {
 
 impl<K, V> LwwMap<K, V>
 where
-	K: Ord,
-	V: Crdt,
+	K: Clone + Ord,
+	V: Clone + Crdt,
 {
 	/// Create a new empty map CRDT
 	pub fn new() -> Self {
@@ -72,6 +72,10 @@ where
 			Err(_) => vec![(k, now_msec(), new_v)],
 		};
 		Self { vals: new_vals }
+	}
+
+	pub fn update_in_place(&mut self, k: K, new_v: V) {
+		self.merge(&self.update_mutator(k, new_v));
 	}
 	/// Takes all of the values of the map and returns them. The current map is reset to the
 	/// empty map. This is very usefull to produce in-place a new map that contains only a delta
@@ -158,8 +162,8 @@ where
 
 impl<K, V> Default for LwwMap<K, V>
 where
-	K: Ord,
-	V: Crdt,
+	K: Clone + Ord,
+	V: Clone + Crdt,
 {
 	fn default() -> Self {
 		Self::new()

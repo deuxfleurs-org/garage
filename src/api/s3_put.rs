@@ -24,7 +24,7 @@ use crate::signature::verify_signed_content;
 pub async fn handle_put(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
@@ -77,7 +77,7 @@ pub async fn handle_put(
 			)),
 		};
 
-		let object = Object::new(bucket.into(), key.into(), vec![object_version]);
+		let object = Object::new(bucket_id, key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
 
 		return Ok(put_response(version_uuid, data_md5sum_hex));
@@ -90,14 +90,14 @@ pub async fn handle_put(
 		timestamp: version_timestamp,
 		state: ObjectVersionState::Uploading(headers.clone()),
 	};
-	let object = Object::new(bucket.into(), key.into(), vec![object_version.clone()]);
+	let object = Object::new(bucket_id, key.into(), vec![object_version.clone()]);
 	garage.object_table.insert(&object).await?;
 
 	// Initialize corresponding entry in version table
 	// Write this entry now, even with empty block list,
 	// to prevent block_ref entries from being deleted (they can be deleted
 	// if the reference a version that isn't found in the version table)
-	let version = Version::new(version_uuid, bucket.into(), key.into(), false);
+	let version = Version::new(version_uuid, bucket_id, key.into(), false);
 	garage.version_table.insert(&version).await?;
 
 	// Transfer data and verify checksum
@@ -127,7 +127,7 @@ pub async fn handle_put(
 		Err(e) => {
 			// Mark object as aborted, this will free the blocks further down
 			object_version.state = ObjectVersionState::Aborted;
-			let object = Object::new(bucket.into(), key.into(), vec![object_version.clone()]);
+			let object = Object::new(bucket_id, key.into(), vec![object_version.clone()]);
 			garage.object_table.insert(&object).await?;
 			return Err(e);
 		}
@@ -143,7 +143,7 @@ pub async fn handle_put(
 		},
 		first_block_hash,
 	));
-	let object = Object::new(bucket.into(), key.into(), vec![object_version]);
+	let object = Object::new(bucket_id, key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 
 	Ok(put_response(version_uuid, md5sum_hex))
@@ -315,7 +315,8 @@ pub fn put_response(version_uuid: Uuid, md5sum_hex: String) -> Response<Body> {
 pub async fn handle_create_multipart_upload(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
-	bucket: &str,
+	bucket_name: &str,
+	bucket_id: Uuid,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let version_uuid = gen_uuid();
@@ -327,20 +328,20 @@ pub async fn handle_create_multipart_upload(
 		timestamp: now_msec(),
 		state: ObjectVersionState::Uploading(headers),
 	};
-	let object = Object::new(bucket.to_string(), key.to_string(), vec![object_version]);
+	let object = Object::new(bucket_id, key.to_string(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 
 	// Insert empty version so that block_ref entries refer to something
 	// (they are inserted concurrently with blocks in the version table, so
 	// there is the possibility that they are inserted before the version table
 	// is created, in which case it is allowed to delete them, e.g. in repair_*)
-	let version = Version::new(version_uuid, bucket.into(), key.into(), false);
+	let version = Version::new(version_uuid, bucket_id, key.into(), false);
 	garage.version_table.insert(&version).await?;
 
 	// Send success response
 	let result = s3_xml::InitiateMultipartUploadResult {
 		xmlns: (),
-		bucket: s3_xml::Value(bucket.to_string()),
+		bucket: s3_xml::Value(bucket_name.to_string()),
 		key: s3_xml::Value(key.to_string()),
 		upload_id: s3_xml::Value(hex::encode(version_uuid)),
 	};
@@ -352,7 +353,7 @@ pub async fn handle_create_multipart_upload(
 pub async fn handle_put_part(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 	part_number: u64,
 	upload_id: &str,
@@ -366,12 +367,11 @@ pub async fn handle_put_part(
 	};
 
 	// Read first chuck, and at the same time try to get object to see if it exists
-	let bucket = bucket.to_string();
 	let key = key.to_string();
 	let mut chunker = BodyChunker::new(req.into_body(), garage.config.block_size);
 
 	let (object, first_block) =
-		futures::try_join!(garage.object_table.get(&bucket, &key), chunker.next(),)?;
+		futures::try_join!(garage.object_table.get(&bucket_id, &key), chunker.next(),)?;
 
 	// Check object is valid and multipart block can be accepted
 	let first_block = first_block.ok_or_else(|| Error::BadRequest("Empty body".to_string()))?;
@@ -386,7 +386,7 @@ pub async fn handle_put_part(
 	}
 
 	// Copy block to store
-	let version = Version::new(version_uuid, bucket, key, false);
+	let version = Version::new(version_uuid, bucket_id, key, false);
 	let first_block_hash = blake2sum(&first_block[..]);
 	let (_, data_md5sum, data_sha256sum) = read_and_put_blocks(
 		&garage,
@@ -424,7 +424,8 @@ pub async fn handle_put_part(
 pub async fn handle_complete_multipart_upload(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-	bucket: &str,
+	bucket_name: &str,
+	bucket_id: Uuid,
 	key: &str,
 	upload_id: &str,
 	content_sha256: Option<Hash>,
@@ -442,10 +443,9 @@ pub async fn handle_complete_multipart_upload(
 
 	let version_uuid = decode_upload_id(upload_id)?;
 
-	let bucket = bucket.to_string();
 	let key = key.to_string();
 	let (object, version) = futures::try_join!(
-		garage.object_table.get(&bucket, &key),
+		garage.object_table.get(&bucket_id, &key),
 		garage.version_table.get(&version_uuid, &EmptyKey),
 	)?;
 
@@ -510,14 +510,14 @@ pub async fn handle_complete_multipart_upload(
 		version.blocks.items()[0].1.hash,
 	));
 
-	let final_object = Object::new(bucket.clone(), key.clone(), vec![object_version]);
+	let final_object = Object::new(bucket_id, key.clone(), vec![object_version]);
 	garage.object_table.insert(&final_object).await?;
 
 	// Send response saying ok we're done
 	let result = s3_xml::CompleteMultipartUploadResult {
 		xmlns: (),
 		location: None,
-		bucket: s3_xml::Value(bucket),
+		bucket: s3_xml::Value(bucket_name.to_string()),
 		key: s3_xml::Value(key),
 		etag: s3_xml::Value(etag),
 	};
@@ -528,7 +528,7 @@ pub async fn handle_complete_multipart_upload(
 
 pub async fn handle_abort_multipart_upload(
 	garage: Arc<Garage>,
-	bucket: &str,
+	bucket_id: Uuid,
 	key: &str,
 	upload_id: &str,
 ) -> Result<Response<Body>, Error> {
@@ -536,7 +536,7 @@ pub async fn handle_abort_multipart_upload(
 
 	let object = garage
 		.object_table
-		.get(&bucket.to_string(), &key.to_string())
+		.get(&bucket_id, &key.to_string())
 		.await?;
 	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
 
@@ -550,7 +550,7 @@ pub async fn handle_abort_multipart_upload(
 	};
 
 	object_version.state = ObjectVersionState::Aborted;
-	let final_object = Object::new(bucket.to_string(), key.to_string(), vec![object_version]);
+	let final_object = Object::new(bucket_id, key.to_string(), vec![object_version]);
 	garage.object_table.insert(&final_object).await?;
 
 	Ok(Response::new(Body::from(vec![])))
