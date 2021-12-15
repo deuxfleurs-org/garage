@@ -22,6 +22,7 @@ use crate::s3_get::*;
 use crate::s3_list::*;
 use crate::s3_put::*;
 use crate::s3_router::{Authorization, Endpoint};
+use crate::s3_website::*;
 
 /// Run the S3 API server
 pub async fn run_api_server(
@@ -254,6 +255,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		Endpoint::DeleteObjects { bucket } => {
 			handle_delete_objects(garage, &bucket, req, content_sha256).await
 		}
+		Endpoint::PutBucketWebsite { bucket } => {
+			handle_put_website(garage, bucket, req, content_sha256).await
+		}
+		Endpoint::DeleteBucketWebsite { bucket } => handle_delete_website(garage, bucket).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 	}
 }

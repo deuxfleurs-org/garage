@@ -1,5 +1,5 @@
 use quick_xml::se::to_string;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::Error as ApiError;
 
@@ -9,14 +9,14 @@ pub fn to_xml_with_header<T: Serialize>(x: &T) -> Result<String, ApiError> {
 	Ok(xml)
 }
 
-fn xmlns_tag<S: Serializer>(_v: &(), s: S) -> Result<S::Ok, S::Error> {
+pub fn xmlns_tag<S: Serializer>(_v: &(), s: S) -> Result<S::Ok, S::Error> {
 	s.serialize_str("http://s3.amazonaws.com/doc/2006-03-01/")
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Value(#[serde(rename = "$value")] pub String);
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntValue(#[serde(rename = "$value")] pub i64);
 
 #[derive(Debug, Serialize, PartialEq)]
