@@ -5,6 +5,7 @@
 Implemented:
 
 - path-style URLs (`garage.tld/bucket/key`)
+- vhost-style URLs (`bucket.garage.tld/key`)
 - putting and getting objects in buckets
 - multipart uploads
 - listing objects
@@ -12,9 +13,8 @@ Implemented:
 
 Not implemented:
 
-- vhost-style URLs (`bucket.garage.tld/key`)
 - object-level ACL
-- object versioning
+- [object versioning](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/166)
 - encryption
 - most `x-amz-` headers
 
@@ -31,10 +31,12 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | CreateBucket                 | Unsupported, stub (see below)    |
 | CreateMultipartUpload        | Implemented                      |
 | DeleteBucket                 | Unsupported (see below)          |
+| DeleteBucketWebsite          | Implemented                      |
 | DeleteObject                 | Implemented                      |
 | DeleteObjects                | Implemented                      |
 | GetBucketLocation            | Implemented                      |
 | GetBucketVersioning          | Stub (see below)                 |
+| GetBucketWebsite             | Unsupported                      |
 | GetObject                    | Implemented                      |
 | HeadBucket                   | Implemented                      |
 | HeadObject                   | Implemented                      |
@@ -42,6 +44,7 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | ListObjects                  | Implemented, bugs? (see below)   |
 | ListObjectsV2                | Implemented                      |
 | PutObject                    | Implemented                      |
+| PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |
 
 
@@ -55,3 +58,6 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 
 - **ListObjects:** Implemented, but there isn't a very good specification of what `encoding-type=url` covers so there might be some encoding bugs. In our implementation the url-encoded fields are in the same in ListObjects as they are in ListObjectsV2.
 
+- **PutBucketWebsite:** Implemented, but only store if website is enabled, not more complexe informations.
+
+- **GetBucketWebsite:** Not implemented yet, will be when PubBucketWebsite store more informations.
