@@ -511,11 +511,7 @@ impl Endpoint {
 		let path = uri.path().trim_start_matches('/');
 		let query = uri.query();
 		if bucket.is_none() && path.is_empty() {
-			if query.is_none() {
-				return Ok(Self::ListBuckets);
-			} else {
-				return Err(Error::BadRequest("Invalid ListBuckets query".to_owned()));
-			}
+			return Ok(Self::ListBuckets);
 		}
 
 		let (bucket, key) = if let Some(bucket) = bucket {
