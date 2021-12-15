@@ -14,13 +14,27 @@ impl<'a> BucketHelper<'a> {
 		&self,
 		bucket_name: &String,
 	) -> Result<Option<Uuid>, Error> {
-		Ok(self
-			.0
-			.bucket_alias_table
-			.get(&EmptyKey, bucket_name)
-			.await?
-			.map(|x| x.state.get().as_option().map(|x| x.bucket_id))
-			.flatten())
+		let hexbucket = hex::decode(bucket_name.as_str())
+			.ok()
+			.map(|by| Uuid::try_from(&by))
+			.flatten();
+		if let Some(bucket_id) = hexbucket {
+			Ok(self
+				.0
+				.bucket_table
+				.get(&bucket_id, &EmptyKey)
+				.await?
+				.filter(|x| !x.state.is_deleted())
+				.map(|_| bucket_id))
+		} else {
+			Ok(self
+				.0
+				.bucket_alias_table
+				.get(&EmptyKey, bucket_name)
+				.await?
+				.map(|x| x.state.get().as_option().map(|x| x.bucket_id))
+				.flatten())
+		}
 	}
 
 	#[allow(clippy::ptr_arg)]

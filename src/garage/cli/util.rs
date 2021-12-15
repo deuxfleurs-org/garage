@@ -12,17 +12,22 @@ pub fn print_key_info(key: &Key) {
 	match &key.state {
 		Deletable::Present(p) => {
 			println!("\nKey-specific bucket aliases:");
+			let mut table = vec![];
 			for (alias_name, _, alias) in p.local_aliases.items().iter() {
 				if let Some(bucket_id) = alias.as_option() {
-					println!("- {} {:?}", alias_name, bucket_id);
+					table.push(format!("\t{}\t{}", alias_name, hex::encode(bucket_id)));
 				}
 			}
+			format_table(table);
+
 			println!("\nAuthorized buckets:");
+			let mut table = vec![];
 			for (b, perm) in p.authorized_buckets.items().iter() {
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
-				println!("- {}{} {:?}", rflag, wflag, b);
+				table.push(format!("\t{}{}\t{:?}", rflag, wflag, b));
 			}
+			format_table(table);
 		}
 		Deletable::Deleted => {
 			println!("\nKey is deleted.");
@@ -41,12 +46,14 @@ pub fn print_bucket_info(bucket: &Bucket) {
 					println!("- {}", alias);
 				}
 			}
+
 			println!("\nKey-specific aliases:");
 			for ((key_id, alias), _, active) in p.local_aliases.items().iter() {
 				if *active {
 					println!("- {} {}", key_id, alias);
 				}
 			}
+
 			println!("\nAuthorized keys:");
 			for (k, perm) in p.authorized_keys.items().iter() {
 				let rflag = if perm.allow_read { "R" } else { " " };

@@ -150,6 +150,14 @@ pub enum BucketOperation {
 	#[structopt(name = "delete")]
 	Delete(DeleteBucketOpt),
 
+	/// Alias bucket under new name
+	#[structopt(name = "alias")]
+	Alias(AliasBucketOpt),
+
+	/// Remove bucket alias
+	#[structopt(name = "unalias")]
+	Unalias(UnaliasBucketOpt),
+
 	/// Allow key to read or write to bucket
 	#[structopt(name = "allow")]
 	Allow(PermBucketOpt),
@@ -191,6 +199,29 @@ pub struct DeleteBucketOpt {
 	/// If this flag is not given, the bucket won't be deleted
 	#[structopt(long = "yes")]
 	pub yes: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct AliasBucketOpt {
+	/// Existing bucket name (its alias in global namespace or its full hex uuid)
+	pub existing_bucket: String,
+
+	/// New bucket name
+	pub new_name: String,
+
+	/// Make this alias local to the specified access key
+	#[structopt(long = "local")]
+	pub local: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct UnaliasBucketOpt {
+	/// Bucket name
+	pub name: String,
+
+	/// Unalias in bucket namespace local to this access key
+	#[structopt(long = "local")]
+	pub local: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

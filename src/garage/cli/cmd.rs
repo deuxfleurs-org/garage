@@ -161,12 +161,15 @@ pub async fn cmd_admin(
 		}
 		AdminRpc::BucketList(bl) => {
 			println!("List of buckets:");
+			let mut table = vec![];
 			for alias in bl {
 				if let Some(p) = alias.state.get().as_option() {
 					let wflag = if p.website_access { "W" } else { " " };
-					println!("- {} {} {:?}", wflag, alias.name, p.bucket_id);
+					table.push(format!("{}\t{}\t{:?}", wflag, alias.name, p.bucket_id));
 				}
 			}
+			format_table(table);
+			println!("Buckets that don't have a global alias (i.e. that only exist in the namespace of an access key) are not shown.");
 		}
 		AdminRpc::BucketInfo(bucket) => {
 			print_bucket_info(&bucket);

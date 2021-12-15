@@ -77,6 +77,8 @@ impl AdminRpcHandler {
 			}
 			BucketOperation::Create(query) => self.handle_create_bucket(&query.name).await,
 			BucketOperation::Delete(query) => self.handle_delete_bucket(query).await,
+			BucketOperation::Alias(query) => self.handle_alias_bucket(query).await,
+			BucketOperation::Unalias(query) => self.handle_unalias_bucket(query).await,
 			BucketOperation::Allow(query) => self.handle_bucket_allow(query).await,
 			BucketOperation::Deny(query) => self.handle_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.handle_bucket_website(query).await,
@@ -191,6 +193,191 @@ impl AdminRpcHandler {
 		self.garage.bucket_table.insert(&bucket).await?;
 
 		Ok(AdminRpc::Ok(format!("Bucket {} was deleted.", query.name)))
+	}
+
+	async fn handle_alias_bucket(&self, query: &AliasBucketOpt) -> Result<AdminRpc, Error> {
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&query.existing_bucket)
+			.await?
+			.ok_or_message("Bucket not found")?;
+		let mut bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+
+		if let Some(key_local) = &query.local {
+			let mut key = self.get_existing_key(key_local).await?;
+			let mut key_param = key.state.as_option_mut().unwrap();
+
+			if let Some(Deletable::Present(existing_alias)) =
+				key_param.local_aliases.get(&query.new_name)
+			{
+				if *existing_alias == bucket_id {
+					return Ok(AdminRpc::Ok(format!(
+						"Alias {} already points to bucket {:?} in namespace of key {}",
+						query.new_name, bucket_id, key.key_id
+					)));
+				} else {
+					return Err(Error::Message(format!("Alias {} already exists and points to different bucket: {:?} in namespace of key {}", query.new_name, existing_alias, key.key_id)));
+				}
+			}
+
+			key_param.local_aliases = key_param
+				.local_aliases
+				.update_mutator(query.new_name.clone(), Deletable::present(bucket_id));
+			self.garage.key_table.insert(&key).await?;
+
+			let mut bucket_p = bucket.state.as_option_mut().unwrap();
+			bucket_p.local_aliases = bucket_p
+				.local_aliases
+				.update_mutator((key.key_id.clone(), query.new_name.clone()), true);
+			self.garage.bucket_table.insert(&bucket).await?;
+
+			Ok(AdminRpc::Ok(format!(
+				"Alias {} created to bucket {:?} in namespace of key {}",
+				query.new_name, bucket_id, key.key_id
+			)))
+		} else {
+			let mut alias = self
+				.garage
+				.bucket_alias_table
+				.get(&EmptyKey, &query.new_name)
+				.await?
+				.unwrap_or(BucketAlias {
+					name: query.new_name.clone(),
+					state: Lww::new(Deletable::delete()),
+				});
+
+			if let Some(existing_alias) = alias.state.get().as_option() {
+				if existing_alias.bucket_id == bucket_id {
+					return Ok(AdminRpc::Ok(format!(
+						"Alias {} already points to bucket {:?}",
+						query.new_name, bucket_id
+					)));
+				} else {
+					return Err(Error::Message(format!(
+						"Alias {} already exists and points to different bucket: {:?}",
+						query.new_name, existing_alias.bucket_id
+					)));
+				}
+			}
+
+			// Checks ok, add alias
+			alias.state.update(Deletable::present(AliasParams {
+				bucket_id,
+				website_access: false,
+			}));
+			self.garage.bucket_alias_table.insert(&alias).await?;
+
+			let mut bucket_p = bucket.state.as_option_mut().unwrap();
+			bucket_p.aliases = bucket_p
+				.aliases
+				.update_mutator(query.new_name.clone(), true);
+			self.garage.bucket_table.insert(&bucket).await?;
+
+			Ok(AdminRpc::Ok(format!(
+				"Alias {} created to bucket {:?}",
+				query.new_name, bucket_id
+			)))
+		}
+	}
+
+	async fn handle_unalias_bucket(&self, query: &UnaliasBucketOpt) -> Result<AdminRpc, Error> {
+		if let Some(key_local) = &query.local {
+			let mut key = self.get_existing_key(key_local).await?;
+
+			let bucket_id = key
+				.state
+				.as_option()
+				.unwrap()
+				.local_aliases
+				.get(&query.name)
+				.map(|a| a.into_option())
+				.flatten()
+				.ok_or_message("Bucket not found")?;
+			let mut bucket = self
+				.garage
+				.bucket_helper()
+				.get_existing_bucket(bucket_id)
+				.await?;
+			let mut bucket_state = bucket.state.as_option_mut().unwrap();
+
+			let has_other_aliases = bucket_state
+				.aliases
+				.items()
+				.iter()
+				.any(|(_, _, active)| *active)
+				|| bucket_state
+					.local_aliases
+					.items()
+					.iter()
+					.any(|((k, n), _, active)| *k == key.key_id && *n == query.name && *active);
+			if !has_other_aliases {
+				return Err(Error::Message(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
+			}
+
+			let mut key_param = key.state.as_option_mut().unwrap();
+			key_param.local_aliases = key_param
+				.local_aliases
+				.update_mutator(query.name.clone(), Deletable::delete());
+			self.garage.key_table.insert(&key).await?;
+
+			bucket_state.local_aliases = bucket_state
+				.local_aliases
+				.update_mutator((key.key_id.clone(), query.name.clone()), false);
+			self.garage.bucket_table.insert(&bucket).await?;
+
+			Ok(AdminRpc::Ok(format!(
+				"Bucket alias {} deleted from namespace of key {}",
+				query.name, key.key_id
+			)))
+		} else {
+			let bucket_id = self
+				.garage
+				.bucket_helper()
+				.resolve_global_bucket_name(&query.name)
+				.await?
+				.ok_or_message("Bucket not found")?;
+			let mut bucket = self
+				.garage
+				.bucket_helper()
+				.get_existing_bucket(bucket_id)
+				.await?;
+			let mut bucket_state = bucket.state.as_option_mut().unwrap();
+
+			let has_other_aliases = bucket_state
+				.aliases
+				.items()
+				.iter()
+				.any(|(name, _, active)| *name != query.name && *active)
+				|| bucket_state
+					.local_aliases
+					.items()
+					.iter()
+					.any(|(_, _, active)| *active);
+			if !has_other_aliases {
+				return Err(Error::Message(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
+			}
+
+			let mut alias = self
+				.garage
+				.bucket_alias_table
+				.get(&EmptyKey, &query.name)
+				.await?
+				.ok_or_message("Internal error: alias not found")?;
+			alias.state.update(Deletable::delete());
+			self.garage.bucket_alias_table.insert(&alias).await?;
+
+			bucket_state.aliases = bucket_state
+				.aliases
+				.update_mutator(query.name.clone(), false);
+			self.garage.bucket_table.insert(&bucket).await?;
+
+			Ok(AdminRpc::Ok(format!("Bucket alias {} deleted", query.name)))
+		}
 	}
 
 	async fn handle_bucket_allow(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
