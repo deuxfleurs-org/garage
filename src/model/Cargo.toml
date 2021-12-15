@@ -23,6 +23,7 @@ arc-swap = "1.0"
 hex = "0.4"
 log = "0.4"
 rand = "0.8"
+zstd = { version = "0.9", default-features = false }
 
 sled = "0.34"
 

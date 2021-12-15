@@ -10,6 +10,8 @@ block_size = 1048576
 
 replication_mode = "3"
 
+compression_level = 1
+
 rpc_secret = "4425f5c26c5e11581d3223904324dcb5b5d5dfb14e5e7f35e38c595424f5f1e6"
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "[fc00:1::1]:3901"
@@ -97,6 +99,30 @@ Never run a Garage cluster where that is not the case.**
 
 Changing the `replication_mode` of a cluster might work (make sure to shut down all nodes
 and changing it everywhere at the time), but is not officially supported.
+
+### `compression_level`
+
+Zstd compression level to use for storing blocks.
+
+Values between `1` (faster compression) and `19` (smaller file) are standard compression
+levels for zstd. From `20` to `22`, compression levels are referred as "ultra" and must be
+used with extra care as it will use lot of memory. A value of `0` will let zstd choose a
+default value (currently `3`). Finally, zstd has also compression designed to be faster
+than default compression levels, they range from `-1` (smaller file) to `-99` (faster 
+compression).
+
+If you do not specify a `compression_level` entry, garage will set it to `1` for you. With
+this parameters, zstd consumes low amount of cpu and should work faster than line speed in
+most situations, while saving some space and intra-cluster
+bandwidth.
+
+If you want to totally deactivate zstd in garage, you can pass the special value `'none'`. No
+zstd related code will be called, your chunks will be stored on disk without any processing.
+
+Compression is done synchronously, setting a value too high will add latency to write queries.
+
+This value can be different between nodes, compression is done by the node which receive the
+API call.
 
 #### `rpc_secret`
 

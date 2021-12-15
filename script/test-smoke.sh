@@ -30,6 +30,11 @@ dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # No multipart, inline sto
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5 # No multipart but file will be chunked
 dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10 # by default, AWS starts using multipart at 8MB
 
+# data of lower entropy, to test compression
+dd if=/dev/urandom bs=1k count=2  | base64 -w0 > /tmp/garage.1.b64
+dd if=/dev/urandom bs=1M count=5  | base64 -w0 > /tmp/garage.2.b64
+dd if=/dev/urandom bs=1M count=10 | base64 -w0 > /tmp/garage.3.b64
+
 echo "🧪 S3 API testing..."
 
 # AWS
@@ -37,11 +42,11 @@ if [ -z "$SKIP_AWS" ]; then
   echo "🛠️ Testing with awscli"
   source ${SCRIPT_FOLDER}/dev-env-aws.sh
   aws s3 ls
-  for idx in $(seq 1 3); do
-    aws s3 cp "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.aws"
+  for idx in {1..3}.{rnd,b64}; do
+    aws s3 cp "/tmp/garage.$idx" "s3://eprouvette/&+-é\"/garage.$idx.aws"
     aws s3 ls s3://eprouvette
     aws s3 cp "s3://eprouvette/&+-é\"/garage.$idx.aws" "/tmp/garage.$idx.dl"
-    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     aws s3 rm "s3://eprouvette/&+-é\"/garage.$idx.aws"
   done
@@ -52,11 +57,11 @@ if [ -z "$SKIP_S3CMD" ]; then
   echo "🛠️ Testing with s3cmd"
   source ${SCRIPT_FOLDER}/dev-env-s3cmd.sh
   s3cmd ls
-  for idx in $(seq 1 3); do
-    s3cmd put "/tmp/garage.$idx.rnd" "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
+  for idx in {1..3}.{rnd,b64}; do
+    s3cmd put "/tmp/garage.$idx" "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
     s3cmd ls s3://eprouvette
     s3cmd get "s3://eprouvette/&+-é\"/garage.$idx.s3cmd" "/tmp/garage.$idx.dl"
-    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     s3cmd rm "s3://eprouvette/&+-é\"/garage.$idx.s3cmd"
   done
@@ -67,11 +72,11 @@ if [ -z "$SKIP_MC" ]; then
   echo "🛠️ Testing with mc (minio client)"
   source ${SCRIPT_FOLDER}/dev-env-mc.sh
   mc ls garage/
-  for idx in $(seq 1 3); do
-    mc cp "/tmp/garage.$idx.rnd" "garage/eprouvette/&+-é\"/garage.$idx.mc"
+  for idx in {1..3}.{rnd,b64}; do
+    mc cp "/tmp/garage.$idx" "garage/eprouvette/&+-é\"/garage.$idx.mc"
     mc ls garage/eprouvette
     mc cp "garage/eprouvette/&+-é\"/garage.$idx.mc" "/tmp/garage.$idx.dl"
-    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     mc rm "garage/eprouvette/&+-é\"/garage.$idx.mc"
   done
@@ -82,13 +87,13 @@ if [ -z "$SKIP_RCLONE" ]; then
   echo "🛠️ Testing with rclone"
   source ${SCRIPT_FOLDER}/dev-env-rclone.sh
   rclone lsd garage:
-  for idx in $(seq 1 3); do
-    cp /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+  for idx in {1..3}.{rnd,b64}; do
+    cp /tmp/garage.$idx /tmp/garage.$idx.dl
     rclone copy "/tmp/garage.$idx.dl" "garage:eprouvette/&+-é\"/"
     rm /tmp/garage.$idx.dl
     rclone ls garage:eprouvette
     rclone copy "garage:eprouvette/&+-é\"/garage.$idx.dl" "/tmp/"
-    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     rclone delete "garage:eprouvette/&+-é\"/garage.$idx.dl"
   done
@@ -100,17 +105,17 @@ if [ -z "$SKIP_DUCK" ]; then
   source ${SCRIPT_FOLDER}/dev-env-duck.sh
   duck --list garage:/
   duck --mkdir "garage:/eprouvette/duck"
-  for idx in $(seq 1 3); do
-    duck --verbose --upload "garage:/eprouvette/duck/" "/tmp/garage.$idx.rnd" 
+  for idx in {1..3}.{rnd,b64}; do
+    duck --verbose --upload "garage:/eprouvette/duck/" "/tmp/garage.$idx"
     duck --list garage:/eprouvette/duck/
-    duck --download "garage:/eprouvette/duck/garage.$idx.rnd" "/tmp/garage.$idx.dl"
-    diff /tmp/garage.$idx.rnd /tmp/garage.$idx.dl
+    duck --download "garage:/eprouvette/duck/garage.$idx" "/tmp/garage.$idx.dl"
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
     rm /tmp/garage.$idx.dl
     duck --delete "garage:/eprouvette/duck/garage.$idx.dk"
   done
 fi
 
-rm /tmp/garage.{1,2,3}.rnd
+rm /tmp/garage.{1..3}.{rnd,b64}
 
 if [ -z "$SKIP_AWS" ]; then
   echo "🧪 Website Testing"

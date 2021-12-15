@@ -74,6 +74,8 @@ data_dir = "/var/lib/garage/data"
 
 replication_mode = "3"
 
+compression_level = 2
+
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "<this node's public IP>:3901"
 rpc_secret = "<RPC secret>"
