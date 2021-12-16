@@ -173,8 +173,8 @@ pub async fn cmd_admin(
 			format_table(table);
 			println!("Buckets that don't have a global alias (i.e. that only exist in the namespace of an access key) are not shown.");
 		}
-		AdminRpc::BucketInfo(bucket) => {
-			print_bucket_info(&bucket);
+		AdminRpc::BucketInfo(bucket, rk) => {
+			print_bucket_info(&bucket, &rk);
 		}
 		AdminRpc::KeyList(kl) => {
 			println!("List of keys:");
@@ -182,8 +182,8 @@ pub async fn cmd_admin(
 				println!("{}\t{}", key.0, key.1);
 			}
 		}
-		AdminRpc::KeyInfo(key) => {
-			print_key_info(&key);
+		AdminRpc::KeyInfo(key, rb) => {
+			print_key_info(&key, &rb);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

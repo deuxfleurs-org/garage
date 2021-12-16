@@ -38,9 +38,9 @@ pub enum AdminRpc {
 	// Replies
 	Ok(String),
 	BucketList(Vec<BucketAlias>),
-	BucketInfo(Bucket),
+	BucketInfo(Bucket, HashMap<String, Key>),
 	KeyList(Vec<(String, String)>),
-	KeyInfo(Key),
+	KeyInfo(Key, HashMap<Uuid, Bucket>),
 }
 
 impl Rpc for AdminRpc {
@@ -63,20 +63,7 @@ impl AdminRpcHandler {
 	async fn handle_bucket_cmd(&self, cmd: &BucketOperation) -> Result<AdminRpc, Error> {
 		match cmd {
 			BucketOperation::List => self.handle_list_buckets().await,
-			BucketOperation::Info(query) => {
-				let bucket_id = self
-					.garage
-					.bucket_helper()
-					.resolve_global_bucket_name(&query.name)
-					.await?
-					.ok_or_message("Bucket not found")?;
-				let bucket = self
-					.garage
-					.bucket_helper()
-					.get_existing_bucket(bucket_id)
-					.await?;
-				Ok(AdminRpc::BucketInfo(bucket))
-			}
+			BucketOperation::Info(query) => self.handle_bucket_info(query).await,
 			BucketOperation::Create(query) => self.handle_create_bucket(&query.name).await,
 			BucketOperation::Delete(query) => self.handle_delete_bucket(query).await,
 			BucketOperation::Alias(query) => self.handle_alias_bucket(query).await,
@@ -94,6 +81,52 @@ impl AdminRpcHandler {
 			.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
 			.await?;
 		Ok(AdminRpc::BucketList(bucket_aliases))
+	}
+
+	async fn handle_bucket_info(&self, query: &BucketOpt) -> Result<AdminRpc, Error> {
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&query.name)
+			.await?
+			.ok_or_message("Bucket not found")?;
+
+		let bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+
+		let mut relevant_keys = HashMap::new();
+		for (k, _) in bucket
+			.state
+			.as_option()
+			.unwrap()
+			.authorized_keys
+			.items()
+			.iter()
+		{
+			if let Some(key) = self.garage.key_table.get(&EmptyKey, k).await? {
+				relevant_keys.insert(k.clone(), key);
+			}
+		}
+		for ((k, _), _, _) in bucket
+			.state
+			.as_option()
+			.unwrap()
+			.local_aliases
+			.items()
+			.iter()
+		{
+			if relevant_keys.contains_key(k) {
+				continue;
+			}
+			if let Some(key) = self.garage.key_table.get(&EmptyKey, k).await? {
+				relevant_keys.insert(k.clone(), key);
+			}
+		}
+
+		Ok(AdminRpc::BucketInfo(bucket, relevant_keys))
 	}
 
 	#[allow(clippy::ptr_arg)]
@@ -476,10 +509,7 @@ impl AdminRpcHandler {
 	async fn handle_key_cmd(&self, cmd: &KeyOperation) -> Result<AdminRpc, Error> {
 		match cmd {
 			KeyOperation::List => self.handle_list_keys().await,
-			KeyOperation::Info(query) => {
-				let key = self.get_existing_key(&query.key_pattern).await?;
-				Ok(AdminRpc::KeyInfo(key))
-			}
+			KeyOperation::Info(query) => self.handle_key_info(query).await,
 			KeyOperation::New(query) => self.handle_create_key(query).await,
 			KeyOperation::Rename(query) => self.handle_rename_key(query).await,
 			KeyOperation::Delete(query) => self.handle_delete_key(query).await,
@@ -504,17 +534,22 @@ impl AdminRpcHandler {
 		Ok(AdminRpc::KeyList(key_ids))
 	}
 
+	async fn handle_key_info(&self, query: &KeyOpt) -> Result<AdminRpc, Error> {
+		let key = self.get_existing_key(&query.key_pattern).await?;
+		self.key_info_result(key).await
+	}
+
 	async fn handle_create_key(&self, query: &KeyNewOpt) -> Result<AdminRpc, Error> {
 		let key = Key::new(query.name.clone());
 		self.garage.key_table.insert(&key).await?;
-		Ok(AdminRpc::KeyInfo(key))
+		self.key_info_result(key).await
 	}
 
 	async fn handle_rename_key(&self, query: &KeyRenameOpt) -> Result<AdminRpc, Error> {
 		let mut key = self.get_existing_key(&query.key_pattern).await?;
 		key.name.update(query.new_name.clone());
 		self.garage.key_table.insert(&key).await?;
-		Ok(AdminRpc::KeyInfo(key))
+		self.key_info_result(key).await
 	}
 
 	async fn handle_delete_key(&self, query: &KeyDeleteOpt) -> Result<AdminRpc, Error> {
@@ -577,7 +612,8 @@ impl AdminRpcHandler {
 		}
 		let imported_key = Key::import(&query.key_id, &query.secret_key, &query.name);
 		self.garage.key_table.insert(&imported_key).await?;
-		Ok(AdminRpc::KeyInfo(imported_key))
+
+		self.key_info_result(imported_key).await
 	}
 
 	async fn get_existing_key(&self, pattern: &str) -> Result<Key, Error> {
@@ -602,6 +638,25 @@ impl AdminRpcHandler {
 		} else {
 			Ok(candidates.into_iter().next().unwrap())
 		}
+	}
+
+	async fn key_info_result(&self, key: Key) -> Result<AdminRpc, Error> {
+		let mut relevant_buckets = HashMap::new();
+
+		for (id, _) in key
+			.state
+			.as_option()
+			.unwrap()
+			.authorized_buckets
+			.items()
+			.iter()
+		{
+			if let Some(b) = self.garage.bucket_table.get(id, &EmptyKey).await? {
+				relevant_buckets.insert(*id, b);
+			}
+		}
+
+		Ok(AdminRpc::KeyInfo(key, relevant_buckets))
 	}
 
 	/// Update **key table** to inform of the new linked bucket
