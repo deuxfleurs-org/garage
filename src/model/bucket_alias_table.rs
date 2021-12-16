@@ -15,7 +15,6 @@ pub struct BucketAlias {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub struct AliasParams {
 	pub bucket_id: Uuid,
-	pub website_access: bool,
 }
 
 impl AutoCrdt for AliasParams {
@@ -23,13 +22,10 @@ impl AutoCrdt for AliasParams {
 }
 
 impl BucketAlias {
-	pub fn new(name: String, bucket_id: Uuid, website_access: bool) -> Self {
+	pub fn new(name: String, bucket_id: Uuid) -> Self {
 		BucketAlias {
 			name,
-			state: crdt::Lww::new(crdt::Deletable::present(AliasParams {
-				bucket_id,
-				website_access,
-			})),
+			state: crdt::Lww::new(crdt::Deletable::present(AliasParams { bucket_id })),
 		}
 	}
 	pub fn is_deleted(&self) -> bool {

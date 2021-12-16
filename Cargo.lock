@@ -436,6 +436,7 @@ dependencies = [
  "quick-xml",
  "roxmltree",
  "serde",
+ "serde_bytes",
  "sha2",
  "tokio",
  "url",

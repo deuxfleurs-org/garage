@@ -10,9 +10,13 @@ use hyper::{
 };
 
 use crate::error::*;
+
 use garage_api::helpers::{authority_to_host, host_to_bucket};
 use garage_api::s3_get::{handle_get, handle_head};
+
+use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
+
 use garage_table::*;
 use garage_util::error::Error as GarageError;
 
@@ -84,16 +88,20 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.await?
 		.map(|x| x.state.take().into_option())
 		.flatten()
-		.filter(|param| param.website_access)
 		.map(|param| param.bucket_id)
 		.ok_or(Error::NotFound)?;
 
-	// Sanity check: check bucket isn't deleted
-	garage
+	// Check bucket isn't deleted and has website access enabled
+	let _: Bucket = garage
 		.bucket_table
 		.get(&bucket_id, &EmptyKey)
 		.await?
-		.filter(|b| !b.is_deleted())
+		.filter(|b| {
+			b.state
+				.as_option()
+				.map(|x| *x.website_access.get())
+				.unwrap_or(false)
+		})
 		.ok_or(Error::NotFound)?;
 
 	// Get path

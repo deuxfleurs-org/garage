@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 
 use crate::error::*;
 use crate::s3_xml::{xmlns_tag, IntValue, Value};
@@ -11,23 +12,22 @@ use crate::signature::verify_signed_content;
 use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::crdt;
-use garage_util::data::Hash;
+use garage_util::data::*;
 
 pub async fn handle_delete_website(
 	garage: Arc<Garage>,
-	bucket: String,
+	bucket_id: Uuid,
 ) -> Result<Response<Body>, Error> {
 	let mut bucket = garage
-		.bucket_alias_table
-		.get(&EmptyKey, &bucket)
+		.bucket_table
+		.get(&bucket_id, &EmptyKey)
 		.await?
 		.ok_or(Error::NotFound)?;
 
-	if let crdt::Deletable::Present(state) = bucket.state.get_mut() {
-		let mut new_param = state.clone();
-		new_param.website_access = false;
-		bucket.state.update(crdt::Deletable::present(new_param));
-		garage.bucket_alias_table.insert(&bucket).await?;
+	if let crdt::Deletable::Present(param) = &mut bucket.state {
+		param.website_access.update(false);
+		param.website_config.update(None);
+		garage.bucket_table.insert(&bucket).await?;
 	} else {
 		unreachable!();
 	}
@@ -40,7 +40,7 @@ pub async fn handle_delete_website(
 
 pub async fn handle_put_website(
 	garage: Arc<Garage>,
-	bucket: String,
+	bucket_id: Uuid,
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
@@ -48,19 +48,20 @@ pub async fn handle_put_website(
 	verify_signed_content(content_sha256, &body[..])?;
 
 	let mut bucket = garage
-		.bucket_alias_table
-		.get(&EmptyKey, &bucket)
+		.bucket_table
+		.get(&bucket_id, &EmptyKey)
 		.await?
 		.ok_or(Error::NotFound)?;
 
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
 
-	if let crdt::Deletable::Present(state) = bucket.state.get() {
-		let mut new_param = state.clone();
-		new_param.website_access = true;
-		bucket.state.update(crdt::Deletable::present(new_param));
-		garage.bucket_alias_table.insert(&bucket).await?;
+	if let crdt::Deletable::Present(param) = &mut bucket.state {
+		param.website_access.update(true);
+		param
+			.website_config
+			.update(Some(ByteBuf::from(body.to_vec())));
+		garage.bucket_table.insert(&bucket).await?;
 	} else {
 		unreachable!();
 	}

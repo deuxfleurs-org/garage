@@ -238,6 +238,11 @@ pub struct PermBucketOpt {
 	#[structopt(long = "write")]
 	pub write: bool,
 
+	/// Allow/deny administrative operations operations
+	/// (such as deleting bucket or changing bucket website configuration)
+	#[structopt(long = "owner")]
+	pub owner: bool,
+
 	/// Bucket name
 	pub bucket: String,
 }

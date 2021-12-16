@@ -12,8 +12,12 @@ pub struct BucketKeyPerm {
 
 	/// The key can be used to read the bucket
 	pub allow_read: bool,
-	/// The key can be used to write in the bucket
+	/// The key can be used to write objects to the bucket
 	pub allow_write: bool,
+	/// The key can be used to control other aspects of the bucket:
+	/// - enable / disable website access
+	/// - delete bucket
+	pub allow_owner: bool,
 }
 
 impl Crdt for BucketKeyPerm {

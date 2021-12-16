@@ -27,6 +27,7 @@ pub struct Key {
 /// Configuration for a key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct KeyParams {
+	pub allow_create_bucket: crdt::Lww<bool>,
 	pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
 	pub local_aliases: crdt::LwwMap<String, crdt::Deletable<Uuid>>,
 }
@@ -34,6 +35,7 @@ pub struct KeyParams {
 impl KeyParams {
 	pub fn new() -> Self {
 		KeyParams {
+			allow_create_bucket: crdt::Lww::new(false),
 			authorized_buckets: crdt::Map::new(),
 			local_aliases: crdt::LwwMap::new(),
 		}
@@ -48,6 +50,7 @@ impl Default for KeyParams {
 
 impl Crdt for KeyParams {
 	fn merge(&mut self, o: &Self) {
+		self.allow_create_bucket.merge(&o.allow_create_bucket);
 		self.authorized_buckets.merge(&o.authorized_buckets);
 		self.local_aliases.merge(&o.local_aliases);
 	}
@@ -106,6 +109,19 @@ impl Key {
 				.authorized_buckets
 				.get(bucket)
 				.map(|x| x.allow_write)
+				.unwrap_or(false)
+		} else {
+			false
+		}
+	}
+
+	/// Check if `Key` is owner of bucket
+	pub fn allow_owner(&self, bucket: &Uuid) -> bool {
+		if let crdt::Deletable::Present(params) = &self.state {
+			params
+				.authorized_buckets
+				.get(bucket)
+				.map(|x| x.allow_owner)
 				.unwrap_or(false)
 		} else {
 			false

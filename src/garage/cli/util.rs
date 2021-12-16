@@ -11,6 +11,7 @@ pub fn print_key_info(key: &Key) {
 	println!("Secret key: {}", key.secret_key);
 	match &key.state {
 		Deletable::Present(p) => {
+			println!("Can create buckets: {}", p.allow_create_bucket.get());
 			println!("\nKey-specific bucket aliases:");
 			let mut table = vec![];
 			for (alias_name, _, alias) in p.local_aliases.items().iter() {
@@ -25,7 +26,8 @@ pub fn print_key_info(key: &Key) {
 			for (b, perm) in p.authorized_buckets.items().iter() {
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
-				table.push(format!("\t{}{}\t{:?}", rflag, wflag, b));
+				let oflag = if perm.allow_owner { "O" } else { " " };
+				table.push(format!("\t{}{}{}\t{:?}", rflag, wflag, oflag, b));
 			}
 			format_table(table);
 		}
@@ -58,7 +60,8 @@ pub fn print_bucket_info(bucket: &Bucket) {
 			for (k, perm) in p.authorized_keys.items().iter() {
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
-				println!("- {}{} {}", rflag, wflag, k);
+				let oflag = if perm.allow_owner { "O" } else { " " };
+				println!("- {}{}{} {}", rflag, wflag, oflag, k);
 			}
 		}
 	};

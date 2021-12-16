@@ -277,10 +277,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		Endpoint::DeleteObjects { .. } => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
-		Endpoint::PutBucketWebsite { bucket } => {
-			handle_put_website(garage, bucket, req, content_sha256).await
+		Endpoint::PutBucketWebsite { .. } => {
+			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
-		Endpoint::DeleteBucketWebsite { bucket } => handle_delete_website(garage, bucket).await,
+		Endpoint::DeleteBucketWebsite { .. } => handle_delete_website(garage, bucket_id).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 	}
 }

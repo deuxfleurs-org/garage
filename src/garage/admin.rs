@@ -104,11 +104,10 @@ impl AdminRpcHandler {
 				}
 				alias.state.update(Deletable::Present(AliasParams {
 					bucket_id: bucket.id,
-					website_access: false,
 				}));
 				alias
 			}
-			None => BucketAlias::new(name.clone(), bucket.id, false),
+			None => BucketAlias::new(name.clone(), bucket.id),
 		};
 		bucket
 			.state
@@ -178,7 +177,7 @@ impl AdminRpcHandler {
 		for (key_id, _) in bucket.authorized_keys() {
 			if let Some(key) = self.garage.key_table.get(&EmptyKey, key_id).await? {
 				if !key.state.is_deleted() {
-					self.update_key_bucket(&key, bucket.id, false, false)
+					self.update_key_bucket(&key, bucket.id, false, false, false)
 						.await?;
 				}
 			} else {
@@ -266,10 +265,9 @@ impl AdminRpcHandler {
 			}
 
 			// Checks ok, add alias
-			alias.state.update(Deletable::present(AliasParams {
-				bucket_id,
-				website_access: false,
-			}));
+			alias
+				.state
+				.update(Deletable::present(AliasParams { bucket_id }));
 			self.garage.bucket_alias_table.insert(&alias).await?;
 
 			let mut bucket_p = bucket.state.as_option_mut().unwrap();
@@ -396,16 +394,17 @@ impl AdminRpcHandler {
 
 		let allow_read = query.read || key.allow_read(&bucket_id);
 		let allow_write = query.write || key.allow_write(&bucket_id);
+		let allow_owner = query.owner || key.allow_owner(&bucket_id);
 
 		let new_perm = self
-			.update_key_bucket(&key, bucket_id, allow_read, allow_write)
+			.update_key_bucket(&key, bucket_id, allow_read, allow_write, allow_owner)
 			.await?;
 		self.update_bucket_key(bucket, &key.key_id, new_perm)
 			.await?;
 
 		Ok(AdminRpc::Ok(format!(
-			"New permissions for {} on {}: read {}, write {}.",
-			&key.key_id, &query.bucket, allow_read, allow_write
+			"New permissions for {} on {}: read {}, write {}, owner {}.",
+			&key.key_id, &query.bucket, allow_read, allow_write, allow_owner
 		)))
 	}
 
@@ -425,29 +424,34 @@ impl AdminRpcHandler {
 
 		let allow_read = !query.read && key.allow_read(&bucket_id);
 		let allow_write = !query.write && key.allow_write(&bucket_id);
+		let allow_owner = !query.owner && key.allow_owner(&bucket_id);
 
 		let new_perm = self
-			.update_key_bucket(&key, bucket_id, allow_read, allow_write)
+			.update_key_bucket(&key, bucket_id, allow_read, allow_write, allow_owner)
 			.await?;
 		self.update_bucket_key(bucket, &key.key_id, new_perm)
 			.await?;
 
 		Ok(AdminRpc::Ok(format!(
-			"New permissions for {} on {}: read {}, write {}.",
-			&key.key_id, &query.bucket, allow_read, allow_write
+			"New permissions for {} on {}: read {}, write {}, owner {}.",
+			&key.key_id, &query.bucket, allow_read, allow_write, allow_owner
 		)))
 	}
 
 	async fn handle_bucket_website(&self, query: &WebsiteOpt) -> Result<AdminRpc, Error> {
-		let mut bucket_alias = self
+		let bucket_id = self
 			.garage
-			.bucket_alias_table
-			.get(&EmptyKey, &query.bucket)
+			.bucket_helper()
+			.resolve_global_bucket_name(&query.bucket)
 			.await?
-			.filter(|a| !a.is_deleted())
-			.ok_or_message(format!("Bucket {} does not exist", query.bucket))?;
+			.ok_or_message("Bucket not found")?;
 
-		let mut state = bucket_alias.state.get().as_option().unwrap().clone();
+		let mut bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+		let bucket_state = bucket.state.as_option_mut().unwrap();
 
 		if !(query.allow ^ query.deny) {
 			return Err(Error::Message(
@@ -455,9 +459,8 @@ impl AdminRpcHandler {
 			));
 		}
 
-		state.website_access = query.allow;
-		bucket_alias.state.update(Deletable::present(state));
-		self.garage.bucket_alias_table.insert(&bucket_alias).await?;
+		bucket_state.website_access.update(query.allow);
+		self.garage.bucket_table.insert(&bucket).await?;
 
 		let msg = if query.allow {
 			format!("Website access allowed for {}", &query.bucket)
@@ -545,6 +548,7 @@ impl AdminRpcHandler {
 					timestamp: increment_logical_clock(auth.timestamp),
 					allow_read: false,
 					allow_write: false,
+					allow_owner: false,
 				};
 				if !bucket.is_deleted() {
 					self.update_bucket_key(bucket, &key.key_id, new_perm)
@@ -605,6 +609,7 @@ impl AdminRpcHandler {
 		bucket_id: Uuid,
 		allow_read: bool,
 		allow_write: bool,
+		allow_owner: bool,
 	) -> Result<BucketKeyPerm, Error> {
 		let mut key = key.clone();
 		let mut key_state = key.state.as_option_mut().unwrap();
@@ -617,11 +622,13 @@ impl AdminRpcHandler {
 				timestamp: increment_logical_clock(old_perm.timestamp),
 				allow_read,
 				allow_write,
+				allow_owner,
 			})
 			.unwrap_or(BucketKeyPerm {
 				timestamp: now_msec(),
 				allow_read,
 				allow_write,
+				allow_owner,
 			});
 
 		key_state.authorized_buckets = Map::put_mutator(bucket_id, perm);

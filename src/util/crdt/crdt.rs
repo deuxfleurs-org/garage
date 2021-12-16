@@ -28,6 +28,17 @@ pub trait Crdt {
 	fn merge(&mut self, other: &Self);
 }
 
+impl<T> Crdt for Option<T>
+where
+	T: Eq,
+{
+	fn merge(&mut self, other: &Self) {
+		if self != other {
+			*self = None;
+		}
+	}
+}
+
 /// All types that implement `Ord` (a total order) can also implement a trivial CRDT
 /// defined by the merge rule: `a ⊔ b = max(a, b)`. Implement this trait for your type
 /// to enable this behavior.
