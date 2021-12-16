@@ -77,9 +77,19 @@ where
 		self.v = new_value;
 	}
 
+	/// Get the timestamp currently associated with the value
+	pub fn timestamp(&self) -> u64 {
+		self.ts
+	}
+
 	/// Get the CRDT value
 	pub fn get(&self) -> &T {
 		&self.v
+	}
+
+	/// Take the CRDT value
+	pub fn take(self) -> T {
+		self.v
 	}
 
 	/// Get a mutable reference to the CRDT's value

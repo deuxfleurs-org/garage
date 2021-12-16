@@ -382,7 +382,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "bytes 1.1.0",
@@ -411,7 +411,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "base64",
  "bytes 1.1.0",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "async-trait",
  "bytes 1.1.0",
@@ -511,7 +511,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "blake2",
  "chrono",
@@ -535,7 +535,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "err-derive 0.3.0",
  "futures",
