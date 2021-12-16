@@ -19,6 +19,7 @@ use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
+use garage_model::migrate::Migrate;
 use garage_model::permission::*;
 
 use crate::cli::*;
@@ -31,6 +32,7 @@ pub enum AdminRpc {
 	BucketOperation(BucketOperation),
 	KeyOperation(KeyOperation),
 	LaunchRepair(RepairOpt),
+	Migrate(MigrateOpt),
 	Stats(StatsOpt),
 
 	// Replies
@@ -650,6 +652,22 @@ impl AdminRpcHandler {
 		Ok(())
 	}
 
+	async fn handle_migrate(self: &Arc<Self>, opt: MigrateOpt) -> Result<AdminRpc, Error> {
+		if !opt.yes {
+			return Err(Error::BadRpc(
+				"Please provide the --yes flag to initiate migration operation.".to_string(),
+			));
+		}
+
+		let m = Migrate {
+			garage: self.garage.clone(),
+		};
+		match opt.what {
+			MigrateWhat::Buckets050 => m.migrate_buckets050().await,
+		}?;
+		Ok(AdminRpc::Ok("Migration successfull.".into()))
+	}
+
 	async fn handle_launch_repair(self: &Arc<Self>, opt: RepairOpt) -> Result<AdminRpc, Error> {
 		if !opt.yes {
 			return Err(Error::BadRpc(
@@ -819,6 +837,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 		match message {
 			AdminRpc::BucketOperation(bo) => self.handle_bucket_cmd(bo).await,
 			AdminRpc::KeyOperation(ko) => self.handle_key_cmd(ko).await,
+			AdminRpc::Migrate(opt) => self.handle_migrate(opt.clone()).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			_ => Err(Error::BadRpc("Invalid RPC".to_string())),

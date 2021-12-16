@@ -444,17 +444,17 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c56150ee02bc26c77996b19fee0851f7d53cf42ae80370a8cf3a5dd5bb0bba76"
+checksum = "584619e8999713d73761775591ad6f01ff8c9d724f3b20984f5932f1fc7f9988"
 dependencies = [
  "arc-swap",
  "async-trait",
  "futures",
  "futures-util",
- "garage_rpc 0.5.0",
- "garage_table 0.5.0",
- "garage_util 0.5.0",
+ "garage_rpc 0.5.1",
+ "garage_table 0.5.1",
+ "garage_util 0.5.1",
  "hex",
  "log",
  "netapp",
@@ -464,6 +464,7 @@ dependencies = [
  "serde_bytes",
  "sled",
  "tokio",
+ "zstd",
 ]
 
 [[package]]
@@ -474,7 +475,7 @@ dependencies = [
  "async-trait",
  "futures",
  "futures-util",
- "garage_model 0.5.0",
+ "garage_model 0.5.1",
  "garage_rpc 0.6.0",
  "garage_table 0.6.0",
  "garage_util 0.6.0",
@@ -492,16 +493,16 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5743c49f616b260f548454ff52b81d10372593d4c4bc01d516ee3c3c4e515a"
+checksum = "81e693aa4582cfe7a7ce70c07880e3662544b5d0cd68bc4b59c53febfbb8d1ec"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 1.1.0",
  "futures",
  "futures-util",
- "garage_util 0.5.0",
+ "garage_util 0.5.1",
  "gethostname",
  "hex",
  "hyper",
@@ -544,16 +545,16 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "378ffd69e8fd084e0817dc64a23a1692b58ffc86509ac2cadc64aa2d83c3e1e0"
+checksum = "5c3557f3757e2acd29eaee86804d4e6c38d2abda81b4b349d8a0d2277044265c"
 dependencies = [
  "async-trait",
  "bytes 1.1.0",
  "futures",
  "futures-util",
- "garage_rpc 0.5.0",
- "garage_util 0.5.0",
+ "garage_rpc 0.5.1",
+ "garage_util 0.5.1",
  "hexdump",
  "log",
  "rand",
@@ -586,9 +587,9 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5282e613b4da5ecca5bfec8c48ce9f25226cc1f35fbc439ed5fc698cce1aa549"
+checksum = "1e096994382447431e2f3c70e3685eb8b24c00eceff8667bb22a2a27ff17832f"
 dependencies = [
  "blake2",
  "chrono",

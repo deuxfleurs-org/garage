@@ -8,6 +8,7 @@ pub mod bucket_helper;
 pub mod bucket_table;
 pub mod garage;
 pub mod key_table;
+pub mod migrate;
 pub mod object_table;
 pub mod permission;
 pub mod version_table;

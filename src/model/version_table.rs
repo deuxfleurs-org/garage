@@ -147,4 +147,39 @@ impl TableSchema for VersionTable {
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.deleted.get())
 	}
+
+	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
+		let old =
+			match rmp_serde::decode::from_read_ref::<_, garage_model_050::version_table::Version>(
+				bytes,
+			) {
+				Ok(x) => x,
+				Err(_) => return None,
+			};
+		let mut new_blocks = crdt::Map::new();
+		for (k, v) in old.blocks.items().iter() {
+			new_blocks.put(
+				VersionBlockKey {
+					part_number: k.part_number,
+					offset: k.offset,
+				},
+				VersionBlock {
+					hash: Hash::try_from(v.hash.as_slice()).unwrap(),
+					size: v.size,
+				},
+			);
+		}
+		let mut new_parts_etags = crdt::Map::new();
+		for (k, v) in old.parts_etags.items().iter() {
+			new_parts_etags.put(*k, v.clone());
+		}
+		Some(Version {
+			uuid: Hash::try_from(old.uuid.as_slice()).unwrap(),
+			deleted: crdt::Bool::new(old.deleted.get()),
+			blocks: new_blocks,
+			parts_etags: new_parts_etags,
+			bucket_id: blake2sum(old.bucket.as_bytes()),
+			key: old.key,
+		})
+	}
 }

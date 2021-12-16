@@ -11,6 +11,8 @@ use garage_table::*;
 
 use crate::version_table::*;
 
+use garage_model_050::object_table as old;
+
 /// An object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
@@ -254,5 +256,74 @@ impl TableSchema for ObjectTable {
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		let deleted = !entry.versions.iter().any(|v| v.is_data());
 		filter.apply(deleted)
+	}
+
+	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
+		let old_v = match rmp_serde::decode::from_read_ref::<_, old::Object>(bytes) {
+			Ok(x) => x,
+			Err(_) => return None,
+		};
+		Some(migrate_object(old_v))
+	}
+}
+
+// vvvvvvvv migration code, stupid stuff vvvvvvvvvvvv
+// (we just want to change bucket into bucket_id by hashing it)
+
+fn migrate_object(o: old::Object) -> Object {
+	let versions = o
+		.versions()
+		.iter()
+		.cloned()
+		.map(migrate_object_version)
+		.collect();
+	Object {
+		bucket_id: blake2sum(o.bucket.as_bytes()),
+		key: o.key,
+		versions,
+	}
+}
+
+fn migrate_object_version(v: old::ObjectVersion) -> ObjectVersion {
+	ObjectVersion {
+		uuid: Uuid::try_from(v.uuid.as_slice()).unwrap(),
+		timestamp: v.timestamp,
+		state: match v.state {
+			old::ObjectVersionState::Uploading(h) => {
+				ObjectVersionState::Uploading(migrate_object_version_headers(h))
+			}
+			old::ObjectVersionState::Complete(d) => {
+				ObjectVersionState::Complete(migrate_object_version_data(d))
+			}
+			old::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
+		},
+	}
+}
+
+fn migrate_object_version_headers(h: old::ObjectVersionHeaders) -> ObjectVersionHeaders {
+	ObjectVersionHeaders {
+		content_type: h.content_type,
+		other: h.other,
+	}
+}
+
+fn migrate_object_version_data(d: old::ObjectVersionData) -> ObjectVersionData {
+	match d {
+		old::ObjectVersionData::DeleteMarker => ObjectVersionData::DeleteMarker,
+		old::ObjectVersionData::Inline(m, b) => {
+			ObjectVersionData::Inline(migrate_object_version_meta(m), b)
+		}
+		old::ObjectVersionData::FirstBlock(m, h) => ObjectVersionData::FirstBlock(
+			migrate_object_version_meta(m),
+			Hash::try_from(h.as_slice()).unwrap(),
+		),
+	}
+}
+
+fn migrate_object_version_meta(m: old::ObjectVersionMeta) -> ObjectVersionMeta {
+	ObjectVersionMeta {
+		headers: migrate_object_version_headers(m.headers),
+		size: m.size,
+		etag: m.etag,
 	}
 }

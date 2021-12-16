@@ -17,7 +17,7 @@ path = "lib.rs"
 garage_rpc = { version = "0.6.0", path = "../rpc" }
 garage_table = { version = "0.6.0", path = "../table" }
 garage_util = { version = "0.6.0", path = "../util" }
-garage_model_050 = { package = "garage_model", version = "0.5.0" }
+garage_model_050 = { package = "garage_model", version = "0.5.1" }
 
 async-trait = "0.1.7"
 arc-swap = "1.0"

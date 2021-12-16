@@ -171,4 +171,31 @@ impl TableSchema for KeyTable {
 			}
 		}
 	}
+
+	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
+		let old_k =
+			match rmp_serde::decode::from_read_ref::<_, garage_model_050::key_table::Key>(bytes) {
+				Ok(x) => x,
+				Err(_) => return None,
+			};
+		let state = if old_k.deleted.get() {
+			crdt::Deletable::Deleted
+		} else {
+			// Authorized buckets is ignored here,
+			// migration is performed in specific migration code in
+			// garage/migrate.rs
+			crdt::Deletable::Present(KeyParams {
+				allow_create_bucket: crdt::Lww::new(false),
+				authorized_buckets: crdt::Map::new(),
+				local_aliases: crdt::LwwMap::new(),
+			})
+		};
+		let name = crdt::Lww::migrate_from_raw(old_k.name.timestamp(), old_k.name.get().clone());
+		Some(Key {
+			key_id: old_k.key_id,
+			secret_key: old_k.secret_key,
+			name,
+			state,
+		})
+	}
 }
