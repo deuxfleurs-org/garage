@@ -28,6 +28,17 @@ pub trait Crdt {
 	fn merge(&mut self, other: &Self);
 }
 
+/// Option<T> implements Crdt for any type T, even if T doesn't implement CRDT itself: when
+/// different values are detected, they are always merged to None.  This can be used for value
+/// types which shoulnd't be merged, instead of trying to merge things when we know we don't want
+/// to merge them (which is what the AutoCrdt trait is used for most of the time). This cases
+/// arises very often, for example with a Lww or a LwwMap: the value type has to be a CRDT so that
+/// we have a rule for what to do when timestamps aren't enough to disambiguate (in a distributed
+/// system, anything can happen!), and with AutoCrdt the rule is to make an arbitrary (but
+/// determinstic) choice between the two.  When using an Option<T> instead with this impl, ambiguity
+/// cases are explicitely stored as None, which allows us to detect the ambiguity and handle it in
+/// the way we want. (this can only work if we are happy with losing the value when an ambiguity
+/// arises)
 impl<T> Crdt for Option<T>
 where
 	T: Eq,
