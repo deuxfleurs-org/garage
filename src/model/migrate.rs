@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use serde_bytes::ByteBuf;
+
 use garage_table::util::EmptyKey;
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -38,6 +40,16 @@ impl Migrate {
 		old_bucket: &old_bucket::Bucket,
 		old_bucket_p: &old_bucket::BucketParams,
 	) -> Result<(), Error> {
+		let bucket_id = blake2sum(old_bucket.name.as_bytes());
+
+		let new_name = if is_valid_bucket_name(&old_bucket.name) {
+			old_bucket.name.clone()
+		} else {
+			// if old bucket name was not valid, replace it by
+			// a hex-encoded name derived from its identifier
+			hex::encode(&bucket_id.as_slice()[..16])
+		};
+
 		let mut new_ak = Map::new();
 		for (k, ts, perm) in old_bucket_p.authorized_keys.items().iter() {
 			new_ak.put(
@@ -52,27 +64,27 @@ impl Migrate {
 		}
 
 		let mut aliases = LwwMap::new();
-		aliases.update_in_place(old_bucket.name.clone(), true);
+		aliases.update_in_place(new_name.clone(), true);
+
+		let website = if *old_bucket_p.website.get() {
+			Some(ByteBuf::from(DEFAULT_WEBSITE_CONFIGURATION.to_vec()))
+		} else {
+			None
+		};
 
 		let new_bucket = Bucket {
-			id: blake2sum(old_bucket.name.as_bytes()),
+			id: bucket_id,
 			state: Deletable::Present(BucketParams {
 				creation_date: now_msec(),
 				authorized_keys: new_ak.clone(),
-				website_access: Lww::new(*old_bucket_p.website.get()),
-				website_config: Lww::new(None),
+				website_config: Lww::new(website),
 				aliases,
 				local_aliases: LwwMap::new(),
 			}),
 		};
 		self.garage.bucket_table.insert(&new_bucket).await?;
 
-		let new_alias = BucketAlias {
-			name: old_bucket.name.clone(),
-			state: Lww::new(Deletable::Present(AliasParams {
-				bucket_id: new_bucket.id,
-			})),
-		};
+		let new_alias = BucketAlias::new(new_name.clone(), new_bucket.id).unwrap();
 		self.garage.bucket_alias_table.insert(&new_alias).await?;
 
 		for (k, perm) in new_ak.items().iter() {

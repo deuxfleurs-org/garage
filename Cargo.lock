@@ -403,6 +403,7 @@ dependencies = [
  "rand",
  "rmp-serde 0.15.5",
  "serde",
+ "serde_bytes",
  "sled",
  "structopt",
  "tokio",

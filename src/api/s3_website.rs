@@ -25,7 +25,6 @@ pub async fn handle_delete_website(
 		.ok_or(Error::NotFound)?;
 
 	if let crdt::Deletable::Present(param) = &mut bucket.state {
-		param.website_access.update(false);
 		param.website_config.update(None);
 		garage.bucket_table.insert(&bucket).await?;
 	} else {
@@ -57,7 +56,6 @@ pub async fn handle_put_website(
 	conf.validate()?;
 
 	if let crdt::Deletable::Present(param) = &mut bucket.state {
-		param.website_access.update(true);
 		param
 			.website_config
 			.update(Some(ByteBuf::from(body.to_vec())));

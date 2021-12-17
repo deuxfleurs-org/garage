@@ -61,7 +61,7 @@ where
 	///
 	/// Compared to new, the CRDT's timestamp is not set to now
 	/// but must be set to the previous, non-compatible, CRDT's timestamp.
-	pub fn migrate_from_raw(ts: u64, value: T) -> Self {
+	pub fn raw(ts: u64, value: T) -> Self {
 		Self { ts, v: value }
 	}
 
@@ -75,6 +75,11 @@ where
 	pub fn update(&mut self, new_value: T) {
 		self.ts = std::cmp::max(self.ts + 1, now_msec());
 		self.v = new_value;
+	}
+
+	/// Get the timestamp currently associated with the value
+	pub fn timestamp(&self) -> u64 {
+		self.ts
 	}
 
 	/// Get the CRDT value

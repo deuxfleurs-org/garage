@@ -35,6 +35,7 @@ sled = "0.34"
 
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+serde_bytes = "0.11"
 structopt = { version = "0.3", default-features = false }
 toml = "0.5"
 

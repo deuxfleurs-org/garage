@@ -167,7 +167,7 @@ pub async fn cmd_admin(
 			let mut table = vec![];
 			for alias in bl {
 				if let Some(p) = alias.state.get().as_option() {
-					table.push(format!("\t{}\t{:?}", alias.name, p.bucket_id));
+					table.push(format!("\t{}\t{:?}", alias.name(), p.bucket_id));
 				}
 			}
 			format_table(table);

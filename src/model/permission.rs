@@ -34,6 +34,9 @@ impl Crdt for BucketKeyPerm {
 				if !other.allow_write {
 					self.allow_write = false;
 				}
+				if !other.allow_owner {
+					self.allow_owner = false;
+				}
 			}
 			_ => (),
 		}

@@ -8,6 +8,8 @@ use garage_util::time::*;
 
 use crate::permission::BucketKeyPerm;
 
+pub const DEFAULT_WEBSITE_CONFIGURATION: &[u8] = b""; // TODO (an XML WebsiteConfiguration document per the AWS spec)
+
 /// A bucket is a collection of objects
 ///
 /// Its parameters are not directly accessible as:
@@ -29,9 +31,8 @@ pub struct BucketParams {
 	/// Map of key with access to the bucket, and what kind of access they give
 	pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
 	/// Whether this bucket is allowed for website access
-	/// (under all of its global alias names)
-	pub website_access: crdt::Lww<bool>,
-	/// The website configuration XML document
+	/// (under all of its global alias names),
+	/// and if so, the website configuration XML document
 	pub website_config: crdt::Lww<Option<ByteBuf>>,
 	/// Map of aliases that are or have been given to this bucket
 	/// in the global namespace
@@ -50,7 +51,6 @@ impl BucketParams {
 		BucketParams {
 			creation_date: now_msec(),
 			authorized_keys: crdt::Map::new(),
-			website_access: crdt::Lww::new(false),
 			website_config: crdt::Lww::new(None),
 			aliases: crdt::LwwMap::new(),
 			local_aliases: crdt::LwwMap::new(),
@@ -61,7 +61,6 @@ impl BucketParams {
 impl Crdt for BucketParams {
 	fn merge(&mut self, o: &Self) {
 		self.authorized_keys.merge(&o.authorized_keys);
-		self.website_access.merge(&o.website_access);
 		self.website_config.merge(&o.website_config);
 		self.aliases.merge(&o.aliases);
 		self.local_aliases.merge(&o.local_aliases);

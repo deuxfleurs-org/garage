@@ -67,7 +67,7 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 						if let Some(alias_ent) = alias_ent {
 							if let Some(alias_p) = alias_ent.state.get().as_option() {
 								if alias_p.bucket_id == *bucket_id {
-									aliases.insert(alias_ent.name.clone(), *bucket_id);
+									aliases.insert(alias_ent.name().to_string(), *bucket_id);
 								}
 							}
 						}

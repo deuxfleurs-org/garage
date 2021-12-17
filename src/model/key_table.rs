@@ -190,7 +190,7 @@ impl TableSchema for KeyTable {
 				local_aliases: crdt::LwwMap::new(),
 			})
 		};
-		let name = crdt::Lww::migrate_from_raw(old_k.name.timestamp(), old_k.name.get().clone());
+		let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
 		Some(Key {
 			key_id: old_k.key_id,
 			secret_key: old_k.secret_key,

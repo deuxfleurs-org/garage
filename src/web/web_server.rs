@@ -99,7 +99,7 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.filter(|b| {
 			b.state
 				.as_option()
-				.map(|x| *x.website_access.get())
+				.map(|x| x.website_config.get().is_some())
 				.unwrap_or(false)
 		})
 		.ok_or(Error::NotFound)?;

@@ -109,11 +109,9 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let endpoint = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
 
-	let bucket_name = match endpoint.authorization_type() {
-		Authorization::None => {
-			return handle_request_without_bucket(garage, req, api_key, endpoint).await
-		}
-		Authorization::Read(bucket) | Authorization::Write(bucket) => bucket.to_string(),
+	let bucket_name = match endpoint.get_bucket() {
+		None => return handle_request_without_bucket(garage, req, api_key, endpoint).await,
+		Some(bucket) => bucket.to_string(),
 	};
 
 	let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;

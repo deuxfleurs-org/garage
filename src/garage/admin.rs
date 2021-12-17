@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_bytes::ByteBuf;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -26,6 +27,8 @@ use crate::cli::*;
 use crate::repair::Repair;
 
 pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
+
+macro_rules! INVALID_BUCKET_NAME_MESSAGE { () => { "Invalid bucket name: {}. See AWS documentation for constraints on S3 bucket names:\nhttps://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html" }; }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum AdminRpc {
@@ -142,14 +145,14 @@ impl AdminRpcHandler {
 				}));
 				alias
 			}
-			None => BucketAlias::new(name.clone(), bucket.id),
+			None => BucketAlias::new(name.clone(), bucket.id)
+				.ok_or_message(format!(INVALID_BUCKET_NAME_MESSAGE!(), name))?,
 		};
-		bucket
-			.state
-			.as_option_mut()
-			.unwrap()
-			.aliases
-			.update_in_place(name.clone(), true);
+		bucket.state.as_option_mut().unwrap().aliases.merge_raw(
+			name,
+			alias.state.timestamp(),
+			&true,
+		);
 		self.garage.bucket_table.insert(&bucket).await?;
 		self.garage.bucket_alias_table.insert(&alias).await?;
 		Ok(AdminRpc::Ok(format!("Bucket {} was created.", name)))
@@ -222,7 +225,7 @@ impl AdminRpcHandler {
 		// 2. delete bucket alias
 		bucket_alias.state.update(Deletable::Deleted);
 		self.garage.bucket_alias_table.insert(&bucket_alias).await?;
-		// 3. delete bucket alias
+		// 3. delete bucket
 		bucket.state = Deletable::delete();
 		self.garage.bucket_table.insert(&bucket).await?;
 
@@ -259,15 +262,36 @@ impl AdminRpcHandler {
 				}
 			}
 
-			key_param.local_aliases = key_param
-				.local_aliases
-				.update_mutator(query.new_name.clone(), Deletable::present(bucket_id));
+			if !is_valid_bucket_name(&query.new_name) {
+				return Err(Error::Message(format!(
+					INVALID_BUCKET_NAME_MESSAGE!(),
+					query.new_name
+				)));
+			}
+
+			// Checks ok, add alias
+			let mut bucket_p = bucket.state.as_option_mut().unwrap();
+			let bucket_p_local_alias_key = (key.key_id.clone(), query.new_name.clone());
+
+			// Calculate the timestamp to assign to this aliasing in the two local_aliases maps
+			// (the one from key to bucket, and the reverse one stored in the bucket iself)
+			// so that merges on both maps in case of a concurrent operation resolve
+			// to the same alias being set
+			let alias_ts = increment_logical_clock_2(
+				key_param.local_aliases.get_timestamp(&query.new_name),
+				bucket_p
+					.local_aliases
+					.get_timestamp(&bucket_p_local_alias_key),
+			);
+
+			key_param.local_aliases = LwwMap::raw_item(
+				query.new_name.clone(),
+				alias_ts,
+				Deletable::present(bucket_id),
+			);
 			self.garage.key_table.insert(&key).await?;
 
-			let mut bucket_p = bucket.state.as_option_mut().unwrap();
-			bucket_p.local_aliases = bucket_p
-				.local_aliases
-				.update_mutator((key.key_id.clone(), query.new_name.clone()), true);
+			bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, true);
 			self.garage.bucket_table.insert(&bucket).await?;
 
 			Ok(AdminRpc::Ok(format!(
@@ -275,40 +299,47 @@ impl AdminRpcHandler {
 				query.new_name, bucket_id, key.key_id
 			)))
 		} else {
-			let mut alias = self
+			let alias = self
 				.garage
 				.bucket_alias_table
 				.get(&EmptyKey, &query.new_name)
-				.await?
-				.unwrap_or(BucketAlias {
-					name: query.new_name.clone(),
-					state: Lww::new(Deletable::delete()),
-				});
+				.await?;
 
-			if let Some(existing_alias) = alias.state.get().as_option() {
-				if existing_alias.bucket_id == bucket_id {
-					return Ok(AdminRpc::Ok(format!(
-						"Alias {} already points to bucket {:?}",
-						query.new_name, bucket_id
-					)));
-				} else {
-					return Err(Error::Message(format!(
-						"Alias {} already exists and points to different bucket: {:?}",
-						query.new_name, existing_alias.bucket_id
-					)));
+			if let Some(existing_alias) = alias.as_ref() {
+				if let Some(p) = existing_alias.state.get().as_option() {
+					if p.bucket_id == bucket_id {
+						return Ok(AdminRpc::Ok(format!(
+							"Alias {} already points to bucket {:?}",
+							query.new_name, bucket_id
+						)));
+					} else {
+						return Err(Error::Message(format!(
+							"Alias {} already exists and points to different bucket: {:?}",
+							query.new_name, p.bucket_id
+						)));
+					}
 				}
 			}
 
 			// Checks ok, add alias
-			alias
-				.state
-				.update(Deletable::present(AliasParams { bucket_id }));
+			let mut bucket_p = bucket.state.as_option_mut().unwrap();
+
+			let alias_ts = increment_logical_clock_2(
+				bucket_p.aliases.get_timestamp(&query.new_name),
+				alias.as_ref().map(|a| a.state.timestamp()).unwrap_or(0),
+			);
+
+			let alias = match alias {
+				None => BucketAlias::new(query.new_name.clone(), bucket_id)
+					.ok_or_message(format!(INVALID_BUCKET_NAME_MESSAGE!(), query.new_name))?,
+				Some(mut a) => {
+					a.state = Lww::raw(alias_ts, Deletable::present(AliasParams { bucket_id }));
+					a
+				}
+			};
 			self.garage.bucket_alias_table.insert(&alias).await?;
 
-			let mut bucket_p = bucket.state.as_option_mut().unwrap();
-			bucket_p.aliases = bucket_p
-				.aliases
-				.update_mutator(query.new_name.clone(), true);
+			bucket_p.aliases = LwwMap::raw_item(query.new_name.clone(), alias_ts, true);
 			self.garage.bucket_table.insert(&bucket).await?;
 
 			Ok(AdminRpc::Ok(format!(
@@ -336,14 +367,14 @@ impl AdminRpcHandler {
 				.bucket_helper()
 				.get_existing_bucket(bucket_id)
 				.await?;
-			let mut bucket_state = bucket.state.as_option_mut().unwrap();
+			let mut bucket_p = bucket.state.as_option_mut().unwrap();
 
-			let has_other_aliases = bucket_state
+			let has_other_aliases = bucket_p
 				.aliases
 				.items()
 				.iter()
 				.any(|(_, _, active)| *active)
-				|| bucket_state
+				|| bucket_p
 					.local_aliases
 					.items()
 					.iter()
@@ -352,15 +383,22 @@ impl AdminRpcHandler {
 				return Err(Error::Message(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
 			}
 
+			// Checks ok, remove alias
 			let mut key_param = key.state.as_option_mut().unwrap();
-			key_param.local_aliases = key_param
-				.local_aliases
-				.update_mutator(query.name.clone(), Deletable::delete());
+			let bucket_p_local_alias_key = (key.key_id.clone(), query.name.clone());
+
+			let alias_ts = increment_logical_clock_2(
+				key_param.local_aliases.get_timestamp(&query.name),
+				bucket_p
+					.local_aliases
+					.get_timestamp(&bucket_p_local_alias_key),
+			);
+
+			key_param.local_aliases =
+				LwwMap::raw_item(query.name.clone(), alias_ts, Deletable::delete());
 			self.garage.key_table.insert(&key).await?;
 
-			bucket_state.local_aliases = bucket_state
-				.local_aliases
-				.update_mutator((key.key_id.clone(), query.name.clone()), false);
+			bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, false);
 			self.garage.bucket_table.insert(&bucket).await?;
 
 			Ok(AdminRpc::Ok(format!(
@@ -401,12 +439,17 @@ impl AdminRpcHandler {
 				.get(&EmptyKey, &query.name)
 				.await?
 				.ok_or_message("Internal error: alias not found")?;
-			alias.state.update(Deletable::delete());
+
+			// Checks ok, remove alias
+			let alias_ts = increment_logical_clock_2(
+				alias.state.timestamp(),
+				bucket_state.aliases.get_timestamp(&query.name),
+			);
+
+			alias.state = Lww::raw(alias_ts, Deletable::delete());
 			self.garage.bucket_alias_table.insert(&alias).await?;
 
-			bucket_state.aliases = bucket_state
-				.aliases
-				.update_mutator(query.name.clone(), false);
+			bucket_state.aliases = LwwMap::raw_item(query.name.clone(), alias_ts, false);
 			self.garage.bucket_table.insert(&bucket).await?;
 
 			Ok(AdminRpc::Ok(format!("Bucket alias {} deleted", query.name)))
@@ -494,7 +537,13 @@ impl AdminRpcHandler {
 			));
 		}
 
-		bucket_state.website_access.update(query.allow);
+		let website = if query.allow {
+			Some(ByteBuf::from(DEFAULT_WEBSITE_CONFIGURATION.to_vec()))
+		} else {
+			None
+		};
+
+		bucket_state.website_config.update(website);
 		self.garage.bucket_table.insert(&bucket).await?;
 
 		let msg = if query.allow {

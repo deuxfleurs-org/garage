@@ -82,7 +82,7 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 	match &bucket.state {
 		Deletable::Deleted => println!("Bucket is deleted."),
 		Deletable::Present(p) => {
-			println!("Website access: {}", p.website_access.get());
+			println!("Website access: {}", p.website_config.get().is_some());
 
 			println!("\nGlobal aliases:");
 			for (alias, _, active) in p.aliases.items().iter() {
