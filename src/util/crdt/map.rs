@@ -33,6 +33,7 @@ where
 	/// This can be used to build a delta-mutator:
 	/// when merged with another map, the value will be added or CRDT-merged if a previous
 	/// value already exists.
+	#[must_use = "CRDT mutators are meant to be merged into a CRDT and not ignored."]
 	pub fn put_mutator(k: K, v: V) -> Self {
 		Self { vals: vec![(k, v)] }
 	}

@@ -63,6 +63,7 @@ where
 	///
 	/// However extracting the mutator on its own and only sending that on the network is very
 	/// interesting as it is much smaller than the whole map.
+	#[must_use = "CRDT mutators are meant to be merged into a CRDT and not ignored."]
 	pub fn update_mutator(&self, k: K, new_v: V) -> Self {
 		let new_vals = match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(&k)) {
 			Ok(i) => {
