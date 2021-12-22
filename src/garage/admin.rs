@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_bytes::ByteBuf;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -538,7 +537,10 @@ impl AdminRpcHandler {
 		}
 
 		let website = if query.allow {
-			Some(ByteBuf::from(DEFAULT_WEBSITE_CONFIGURATION.to_vec()))
+			Some(WebsiteConfig::Website {
+				index_document: "index.html".into(),
+				error_document: None,
+			})
 		} else {
 			None
 		};

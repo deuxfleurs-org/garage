@@ -6,6 +6,8 @@ use garage_util::data::*;
 
 use crate::permission::BucketKeyPerm;
 
+use garage_model_050::key_table as old;
+
 /// An api key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
@@ -173,11 +175,8 @@ impl TableSchema for KeyTable {
 	}
 
 	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old_k =
-			match rmp_serde::decode::from_read_ref::<_, garage_model_050::key_table::Key>(bytes) {
-				Ok(x) => x,
-				Err(_) => return None,
-			};
+		let old_k = rmp_serde::decode::from_read_ref::<_, old::Key>(bytes).ok()?;
+
 		let state = if old_k.deleted.get() {
 			crdt::Deletable::Deleted
 		} else {

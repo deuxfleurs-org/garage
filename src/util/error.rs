@@ -119,17 +119,17 @@ where
 	}
 }
 
-/// Trait to map error to the Bad Request error code
+/// Trait to map any error type to Error::Message
 pub trait OkOrMessage {
-	type S2;
-	fn ok_or_message<M: Into<String>>(self, message: M) -> Self::S2;
+	type S;
+	fn ok_or_message<M: Into<String>>(self, message: M) -> Result<Self::S, Error>;
 }
 
 impl<T, E> OkOrMessage for Result<T, E>
 where
 	E: std::fmt::Display,
 {
-	type S2 = Result<T, Error>;
+	type S = T;
 	fn ok_or_message<M: Into<String>>(self, message: M) -> Result<T, Error> {
 		match self {
 			Ok(x) => Ok(x),
@@ -139,7 +139,7 @@ where
 }
 
 impl<T> OkOrMessage for Option<T> {
-	type S2 = Result<T, Error>;
+	type S = T;
 	fn ok_or_message<M: Into<String>>(self, message: M) -> Result<T, Error> {
 		match self {
 			Some(x) => Ok(x),

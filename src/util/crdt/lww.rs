@@ -57,10 +57,7 @@ where
 		}
 	}
 
-	/// Build a new CRDT from a previous non-compatible one
-	///
-	/// Compared to new, the CRDT's timestamp is not set to now
-	/// but must be set to the previous, non-compatible, CRDT's timestamp.
+	/// Build a new LWW CRDT from its raw pieces: a timestamp and the value
 	pub fn raw(ts: u64, value: T) -> Self {
 		Self { ts, v: value }
 	}

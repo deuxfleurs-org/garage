@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_bytes::ByteBuf;
 
 use garage_table::crdt::Crdt;
 use garage_table::*;
@@ -7,8 +6,6 @@ use garage_util::data::*;
 use garage_util::time::*;
 
 use crate::permission::BucketKeyPerm;
-
-pub const DEFAULT_WEBSITE_CONFIGURATION: &[u8] = b""; // TODO (an XML WebsiteConfiguration document per the AWS spec)
 
 /// A bucket is a collection of objects
 ///
@@ -33,7 +30,7 @@ pub struct BucketParams {
 	/// Whether this bucket is allowed for website access
 	/// (under all of its global alias names),
 	/// and if so, the website configuration XML document
-	pub website_config: crdt::Lww<Option<ByteBuf>>,
+	pub website_config: crdt::Lww<Option<WebsiteConfig>>,
 	/// Map of aliases that are or have been given to this bucket
 	/// in the global namespace
 	/// (not authoritative: this is just used as an indication to
@@ -43,6 +40,18 @@ pub struct BucketParams {
 	/// in namespaces local to keys
 	/// key = (access key id, alias name)
 	pub local_aliases: crdt::LwwMap<(String, String), bool>,
+}
+
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+pub enum WebsiteConfig {
+	RedirectAll {
+		hostname: String,
+		protocol: String,
+	},
+	Website {
+		index_document: String,
+		error_document: Option<String>,
+	},
 }
 
 impl BucketParams {

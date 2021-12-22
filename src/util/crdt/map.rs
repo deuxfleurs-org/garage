@@ -1,3 +1,5 @@
+use std::iter::{FromIterator, IntoIterator};
+
 use serde::{Deserialize, Serialize};
 
 use crate::crdt::crdt::*;
@@ -96,5 +98,28 @@ where
 {
 	fn default() -> Self {
 		Self::new()
+	}
+}
+
+/// A crdt map can be created from an iterator of key-value pairs.
+/// Note that all keys in the iterator must be distinct:
+/// this function will throw a panic if it is not the case.
+impl<K, V> FromIterator<(K, V)> for Map<K, V>
+where
+	K: Clone + Ord,
+	V: Clone + Crdt,
+{
+	fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+		let mut vals: Vec<(K, V)> = iter.into_iter().collect();
+		vals.sort_by_cached_key(|tup| tup.0.clone());
+
+		// sanity check
+		for i in 1..vals.len() {
+			if vals[i - 1].0 == vals[i].0 {
+				panic!("Duplicate key in crdt::Map resulting from .from_iter() or .collect()");
+			}
+		}
+
+		Self { vals }
 	}
 }

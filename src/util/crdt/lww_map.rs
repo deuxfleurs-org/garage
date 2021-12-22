@@ -38,10 +38,11 @@ where
 		Self { vals: vec![] }
 	}
 
-	/// Used to migrate from a map defined in an incompatible format. This produces
-	/// a map that contains a single item with the specified timestamp (copied from
-	/// the incompatible format). Do this as many times as you have items to migrate,
-	/// and put them all together using the CRDT merge operator.
+	/// This produces a map that contains a single item with the specified timestamp.
+	///
+	/// Used to migrate from a map defined in an incompatible format. Do this as many
+	/// times as you have items to migrate, and put them all together using the
+	/// CRDT merge operator.
 	pub fn raw_item(k: K, ts: u64, v: V) -> Self {
 		Self {
 			vals: vec![(k, ts, v)],

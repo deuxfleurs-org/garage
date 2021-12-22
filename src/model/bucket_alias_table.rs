@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use garage_util::data::*;
+use garage_util::time::*;
+
 use garage_table::crdt::*;
 use garage_table::*;
-use garage_util::data::*;
 
 /// The bucket alias table holds the names given to buckets
 /// in the global namespace.
@@ -23,15 +25,19 @@ impl AutoCrdt for AliasParams {
 
 impl BucketAlias {
 	pub fn new(name: String, bucket_id: Uuid) -> Option<Self> {
+		Self::raw(name, now_msec(), bucket_id)
+	}
+	pub fn raw(name: String, ts: u64, bucket_id: Uuid) -> Option<Self> {
 		if !is_valid_bucket_name(&name) {
 			None
 		} else {
 			Some(BucketAlias {
 				name,
-				state: crdt::Lww::new(crdt::Deletable::present(AliasParams { bucket_id })),
+				state: crdt::Lww::raw(ts, crdt::Deletable::present(AliasParams { bucket_id })),
 			})
 		}
 	}
+
 	pub fn is_deleted(&self) -> bool {
 		self.state.get().is_deleted()
 	}

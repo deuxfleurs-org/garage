@@ -156,62 +156,67 @@ impl Error {
 
 /// Trait to map error to the Bad Request error code
 pub trait OkOrBadRequest {
-	type S2;
-	fn ok_or_bad_request(self, reason: &'static str) -> Self::S2;
+	type S;
+	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<Self::S, Error>;
 }
 
 impl<T, E> OkOrBadRequest for Result<T, E>
 where
 	E: std::fmt::Display,
 {
-	type S2 = Result<T, Error>;
-	fn ok_or_bad_request(self, reason: &'static str) -> Result<T, Error> {
+	type S = T;
+	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
 		match self {
 			Ok(x) => Ok(x),
-			Err(e) => Err(Error::BadRequest(format!("{}: {}", reason, e))),
+			Err(e) => Err(Error::BadRequest(format!(
+				"{}: {}",
+				reason.as_ref(),
+				e.to_string()
+			))),
 		}
 	}
 }
 
 impl<T> OkOrBadRequest for Option<T> {
-	type S2 = Result<T, Error>;
-	fn ok_or_bad_request(self, reason: &'static str) -> Result<T, Error> {
+	type S = T;
+	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
 		match self {
 			Some(x) => Ok(x),
-			None => Err(Error::BadRequest(reason.to_string())),
+			None => Err(Error::BadRequest(reason.as_ref().to_string())),
 		}
 	}
 }
 
 /// Trait to map an error to an Internal Error code
 pub trait OkOrInternalError {
-	type S2;
-	fn ok_or_internal_error(self, reason: &'static str) -> Self::S2;
+	type S;
+	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<Self::S, Error>;
 }
 
 impl<T, E> OkOrInternalError for Result<T, E>
 where
 	E: std::fmt::Display,
 {
-	type S2 = Result<T, Error>;
-	fn ok_or_internal_error(self, reason: &'static str) -> Result<T, Error> {
+	type S = T;
+	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
 		match self {
 			Ok(x) => Ok(x),
 			Err(e) => Err(Error::InternalError(GarageError::Message(format!(
 				"{}: {}",
-				reason, e
+				reason.as_ref(),
+				e
 			)))),
 		}
 	}
 }
 
 impl<T> OkOrInternalError for Option<T> {
-	type S2 = Result<T, Error>;
-	fn ok_or_internal_error(self, reason: &'static str) -> Result<T, Error> {
+	type S = T;
+	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
 		match self {
 			Some(x) => Ok(x),
 			None => Err(Error::InternalError(GarageError::Message(
-				reason.to_string(),
+				reason.as_ref().to_string(),
 			))),
 		}
 	}

@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_bytes::ByteBuf;
 
 use crate::error::*;
 use crate::s3_xml::{xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
+use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::crdt;
@@ -58,7 +58,7 @@ pub async fn handle_put_website(
 	if let crdt::Deletable::Present(param) = &mut bucket.state {
 		param
 			.website_config
-			.update(Some(ByteBuf::from(body.to_vec())));
+			.update(Some(conf.into_garage_website_config()?));
 		garage.bucket_table.insert(&bucket).await?;
 	} else {
 		unreachable!();
@@ -167,6 +167,26 @@ impl WebsiteConfiguration {
 		}
 
 		Ok(())
+	}
+
+	pub fn into_garage_website_config(self) -> Result<WebsiteConfig, Error> {
+		if let Some(rart) = self.redirect_all_requests_to {
+			Ok(WebsiteConfig::RedirectAll {
+				hostname: rart.hostname.0,
+				protocol: rart
+					.protocol
+					.map(|x| x.0)
+					.unwrap_or_else(|| "http".to_string()),
+			})
+		} else {
+			Ok(WebsiteConfig::Website {
+				index_document: self
+					.index_document
+					.map(|x| x.suffix.0)
+					.unwrap_or_else(|| "index.html".to_string()),
+				error_document: self.error_document.map(|x| x.key.0),
+			})
+		}
 	}
 }
 
