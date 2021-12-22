@@ -50,7 +50,7 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 		.authorized_buckets
 		.items()
 		.iter()
-		.filter(|(_, perms)| perms.allow_read || perms.allow_write)
+		.filter(|(_, perms)| perms.allow_read || perms.allow_write || perms.allow_owner)
 		.map(|(id, _)| *id)
 		.collect::<Vec<_>>();
 
