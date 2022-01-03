@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use garage_table::util::EmptyKey;
 use garage_util::crdt::*;
 use garage_util::data::*;
-use garage_util::error::*;
+use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
 use garage_model_050::bucket_table as old_bucket;
@@ -11,6 +10,7 @@ use garage_model_050::bucket_table as old_bucket;
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
 use crate::garage::Garage;
+use crate::helper::error::*;
 use crate::permission::*;
 
 pub struct Migrate {
@@ -19,11 +19,16 @@ pub struct Migrate {
 
 impl Migrate {
 	pub async fn migrate_buckets050(&self) -> Result<(), Error> {
-		let tree = self.garage.db.open_tree("bucket:table")?;
+		let tree = self
+			.garage
+			.db
+			.open_tree("bucket:table")
+			.map_err(GarageError::from)?;
 
 		for res in tree.iter() {
-			let (_k, v) = res?;
-			let bucket = rmp_serde::decode::from_read_ref::<_, old_bucket::Bucket>(&v[..])?;
+			let (_k, v) = res.map_err(GarageError::from)?;
+			let bucket = rmp_serde::decode::from_read_ref::<_, old_bucket::Bucket>(&v[..])
+				.map_err(GarageError::from)?;
 
 			if let old_bucket::BucketState::Present(p) = bucket.state.get() {
 				self.migrate_buckets050_do_bucket(&bucket, p).await?;
@@ -48,27 +53,6 @@ impl Migrate {
 			hex::encode(&bucket_id.as_slice()[..16])
 		};
 
-		let new_ak = old_bucket_p
-			.authorized_keys
-			.items()
-			.iter()
-			.map(|(k, ts, perm)| {
-				(
-					k.to_string(),
-					BucketKeyPerm {
-						timestamp: *ts,
-						allow_read: perm.allow_read,
-						allow_write: perm.allow_write,
-						allow_owner: false,
-					},
-				)
-			})
-			.collect::<Map<_, _>>();
-
-		let mut aliases = LwwMap::new();
-		aliases.update_in_place(new_name.clone(), true);
-		let alias_ts = aliases.get_timestamp(&new_name);
-
 		let website = if *old_bucket_p.website.get() {
 			Some(WebsiteConfig {
 				index_document: "index.html".into(),
@@ -78,32 +62,39 @@ impl Migrate {
 			None
 		};
 
-		let new_bucket = Bucket {
-			id: bucket_id,
-			state: Deletable::Present(BucketParams {
-				creation_date: now_msec(),
-				authorized_keys: new_ak.clone(),
-				website_config: Lww::new(website),
-				aliases,
-				local_aliases: LwwMap::new(),
-			}),
-		};
-		self.garage.bucket_table.insert(&new_bucket).await?;
+		self.garage
+			.bucket_table
+			.insert(&Bucket {
+				id: bucket_id,
+				state: Deletable::Present(BucketParams {
+					creation_date: now_msec(),
+					authorized_keys: Map::new(),
+					website_config: Lww::new(website),
+					aliases: LwwMap::new(),
+					local_aliases: LwwMap::new(),
+				}),
+			})
+			.await?;
 
-		let new_alias = BucketAlias::raw(new_name.clone(), alias_ts, new_bucket.id).unwrap();
-		self.garage.bucket_alias_table.insert(&new_alias).await?;
+		self.garage
+			.bucket_helper()
+			.set_global_bucket_alias(bucket_id, &new_name)
+			.await?;
 
-		for (k, perm) in new_ak.items().iter() {
-			let mut key = self
-				.garage
-				.key_table
-				.get(&EmptyKey, k)
-				.await?
-				.ok_or_message(format!("Missing key: {}", k))?;
-			if let Some(p) = key.state.as_option_mut() {
-				p.authorized_buckets.put(new_bucket.id, *perm);
-			}
-			self.garage.key_table.insert(&key).await?;
+		for (k, ts, perm) in old_bucket_p.authorized_keys.items().iter() {
+			self.garage
+				.bucket_helper()
+				.set_bucket_key_permissions(
+					bucket_id,
+					k,
+					BucketKeyPerm {
+						timestamp: *ts,
+						allow_read: perm.allow_read,
+						allow_write: perm.allow_write,
+						allow_owner: false,
+					},
+				)
+				.await?;
 		}
 
 		Ok(())

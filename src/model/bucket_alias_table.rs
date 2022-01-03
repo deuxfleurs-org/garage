@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
-use garage_util::time::*;
 
 use garage_table::crdt::*;
 use garage_table::*;
@@ -24,10 +23,7 @@ impl AutoCrdt for AliasParams {
 }
 
 impl BucketAlias {
-	pub fn new(name: String, bucket_id: Uuid) -> Option<Self> {
-		Self::raw(name, now_msec(), bucket_id)
-	}
-	pub fn raw(name: String, ts: u64, bucket_id: Uuid) -> Option<Self> {
+	pub fn new(name: String, ts: u64, bucket_id: Uuid) -> Option<Self> {
 		if !is_valid_bucket_name(&name) {
 			None
 		} else {
@@ -101,3 +97,6 @@ pub fn is_valid_bucket_name(n: &str) -> bool {
 	// Bucket names must not end with "-s3alias"
 	&& !n.ends_with("-s3alias")
 }
+
+/// Error message to return for invalid bucket names
+pub const INVALID_BUCKET_NAME_MESSAGE: &str = "Invalid bucket name. See AWS documentation for constraints on S3 bucket names:\nhttps://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html";

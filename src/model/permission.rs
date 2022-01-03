@@ -20,6 +20,17 @@ pub struct BucketKeyPerm {
 	pub allow_owner: bool,
 }
 
+impl BucketKeyPerm {
+	pub fn no_permissions() -> Self {
+		Self {
+			timestamp: 0,
+			allow_read: false,
+			allow_write: false,
+			allow_owner: false,
+		}
+	}
+}
+
 impl Crdt for BucketKeyPerm {
 	fn merge(&mut self, other: &Self) {
 		match other.timestamp.cmp(&self.timestamp) {
