@@ -253,7 +253,7 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "95059428f66df56b63431fdb4e1947ed2190586af5c5a8a8b71122bdf5a7f469"; };
     dependencies = {
-      ${ if hostPlatform.config == "aarch64-apple-darwin" || hostPlatform.parsed.cpu.name == "aarch64" && hostPlatform.parsed.kernel.name == "linux" then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.103" { inherit profileName; };
+      ${ if hostPlatform.parsed.cpu.name == "aarch64" && hostPlatform.parsed.kernel.name == "linux" || hostPlatform.config == "aarch64-apple-darwin" then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.103" { inherit profileName; };
     };
   });
   
@@ -716,6 +716,7 @@ in
     dependencies = {
       arc_swap = rustPackages."registry+https://github.com/rust-lang/crates.io-index".arc-swap."1.4.0" { inherit profileName; };
       async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.51" { profileName = "__noProfile"; };
+      err_derive = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.0" { profileName = "__noProfile"; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.17" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.17" { inherit profileName; };
       garage_model_050 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".garage_model."0.5.1" { inherit profileName; };
