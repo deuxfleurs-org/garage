@@ -541,7 +541,7 @@ impl AdminRpcHandler {
 		}
 
 		let website = if query.allow {
-			Some(WebsiteConfig::Website {
+			Some(WebsiteConfig {
 				index_document: "index.html".into(),
 				error_document: None,
 			})

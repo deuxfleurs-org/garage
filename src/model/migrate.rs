@@ -70,7 +70,7 @@ impl Migrate {
 		let alias_ts = aliases.get_timestamp(&new_name);
 
 		let website = if *old_bucket_p.website.get() {
-			Some(WebsiteConfig::Website {
+			Some(WebsiteConfig {
 				index_document: "index.html".into(),
 				error_document: None,
 			})

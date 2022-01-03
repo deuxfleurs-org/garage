@@ -43,15 +43,9 @@ pub struct BucketParams {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub enum WebsiteConfig {
-	RedirectAll {
-		hostname: String,
-		protocol: String,
-	},
-	Website {
-		index_document: String,
-		error_document: Option<String>,
-	},
+pub struct WebsiteConfig {
+	pub index_document: String,
+	pub error_document: Option<String>,
 }
 
 impl BucketParams {

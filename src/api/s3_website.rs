@@ -170,16 +170,16 @@ impl WebsiteConfiguration {
 	}
 
 	pub fn into_garage_website_config(self) -> Result<WebsiteConfig, Error> {
-		if let Some(rart) = self.redirect_all_requests_to {
-			Ok(WebsiteConfig::RedirectAll {
-				hostname: rart.hostname.0,
-				protocol: rart
-					.protocol
-					.map(|x| x.0)
-					.unwrap_or_else(|| "http".to_string()),
-			})
+		if self.redirect_all_requests_to.is_some() {
+			Err(Error::NotImplemented(
+				"S3 website redirects are not currently implemented in Garage.".into(),
+			))
+		} else if self.routing_rules.map(|x| !x.is_empty()).unwrap_or(false) {
+			Err(Error::NotImplemented(
+				"S3 routing rules are not currently implemented in Garage.".into(),
+			))
 		} else {
-			Ok(WebsiteConfig::Website {
+			Ok(WebsiteConfig {
 				index_document: self
 					.index_document
 					.map(|x| x.suffix.0)
