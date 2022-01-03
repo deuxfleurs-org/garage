@@ -594,10 +594,8 @@ impl BlockManager {
 							need_nodes.push(*node);
 						}
 					}
-					_ => {
-						return Err(Error::Message(
-							"Unexpected response to NeedBlockQuery RPC".to_string(),
-						));
+					m => {
+						return Err(Error::unexpected_rpc_message(m));
 					}
 				}
 			}
@@ -730,7 +728,7 @@ impl EndpointHandler<BlockRpc> for BlockManager {
 			BlockRpc::PutBlock { hash, data } => self.write_block(hash, data).await,
 			BlockRpc::GetBlock(h) => self.read_block(h).await,
 			BlockRpc::NeedBlockQuery(h) => self.need_block(h).await.map(BlockRpc::NeedBlockReply),
-			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
+			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}
 }

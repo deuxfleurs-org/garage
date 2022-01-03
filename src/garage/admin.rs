@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
 use garage_util::data::*;
-use garage_util::error::*;
+use garage_util::error::{Error as GarageError, OkOrMessage};
 use garage_util::time::*;
 
 use garage_table::replication::*;
@@ -18,6 +18,7 @@ use garage_rpc::*;
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
+use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
 use garage_model::permission::*;
@@ -91,7 +92,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.resolve_global_bucket_name(&query.name)
 			.await?
-			.ok_or_message("Bucket not found")?;
+			.ok_or_bad_request("Bucket not found")?;
 
 		let bucket = self
 			.garage
@@ -137,7 +138,7 @@ impl AdminRpcHandler {
 		let alias = match self.garage.bucket_alias_table.get(&EmptyKey, name).await? {
 			Some(mut alias) => {
 				if !alias.state.get().is_deleted() {
-					return Err(Error::BadRpc(format!("Bucket {} already exists", name)));
+					return Err(Error::BadRequest(format!("Bucket {} already exists", name)));
 				}
 				alias.state.update(Deletable::Present(AliasParams {
 					bucket_id: bucket.id,
@@ -145,7 +146,7 @@ impl AdminRpcHandler {
 				alias
 			}
 			None => BucketAlias::new(name.clone(), bucket.id)
-				.ok_or_message(format!(INVALID_BUCKET_NAME_MESSAGE!(), name))?,
+				.ok_or_bad_request(format!(INVALID_BUCKET_NAME_MESSAGE!(), name))?,
 		};
 		bucket.state.as_option_mut().unwrap().aliases.merge_raw(
 			name,
@@ -164,7 +165,7 @@ impl AdminRpcHandler {
 			.get(&EmptyKey, &query.name)
 			.await?
 			.filter(|a| !a.is_deleted())
-			.ok_or_message(format!("Bucket {} does not exist", query.name))?;
+			.ok_or_bad_request(format!("Bucket {} does not exist", query.name))?;
 
 		let bucket_id = bucket_alias.state.get().as_option().unwrap().bucket_id;
 
@@ -182,7 +183,7 @@ impl AdminRpcHandler {
 			.filter(|(_, _, active)| *active)
 			.any(|(name, _, _)| name != &query.name)
 		{
-			return Err(Error::Message(format!("Bucket {} still has other global aliases. Use `bucket unalias` to delete them one by one.", query.name)));
+			return Err(Error::BadRequest(format!("Bucket {} still has other global aliases. Use `bucket unalias` to delete them one by one.", query.name)));
 		}
 		if bucket_state
 			.local_aliases
@@ -190,7 +191,7 @@ impl AdminRpcHandler {
 			.iter()
 			.any(|(_, _, active)| *active)
 		{
-			return Err(Error::Message(format!("Bucket {} still has other local aliases. Use `bucket unalias` to delete them one by one.", query.name)));
+			return Err(Error::BadRequest(format!("Bucket {} still has other local aliases. Use `bucket unalias` to delete them one by one.", query.name)));
 		}
 
 		// Check bucket is empty
@@ -200,11 +201,14 @@ impl AdminRpcHandler {
 			.get_range(&bucket_id, None, Some(DeletedFilter::NotDeleted), 10)
 			.await?;
 		if !objects.is_empty() {
-			return Err(Error::BadRpc(format!("Bucket {} is not empty", query.name)));
+			return Err(Error::BadRequest(format!(
+				"Bucket {} is not empty",
+				query.name
+			)));
 		}
 
 		if !query.yes {
-			return Err(Error::BadRpc(
+			return Err(Error::BadRequest(
 				"Add --yes flag to really perform this operation".to_string(),
 			));
 		}
@@ -218,7 +222,7 @@ impl AdminRpcHandler {
 						.await?;
 				}
 			} else {
-				return Err(Error::Message(format!("Key not found: {}", key_id)));
+				return Err(Error::BadRequest(format!("Key not found: {}", key_id)));
 			}
 		}
 		// 2. delete bucket alias
@@ -237,7 +241,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.resolve_global_bucket_name(&query.existing_bucket)
 			.await?
-			.ok_or_message("Bucket not found")?;
+			.ok_or_bad_request("Bucket not found")?;
 		let mut bucket = self
 			.garage
 			.bucket_helper()
@@ -257,12 +261,12 @@ impl AdminRpcHandler {
 						query.new_name, bucket_id, key.key_id
 					)));
 				} else {
-					return Err(Error::Message(format!("Alias {} already exists and points to different bucket: {:?} in namespace of key {}", query.new_name, existing_alias, key.key_id)));
+					return Err(Error::BadRequest(format!("Alias {} already exists and points to different bucket: {:?} in namespace of key {}", query.new_name, existing_alias, key.key_id)));
 				}
 			}
 
 			if !is_valid_bucket_name(&query.new_name) {
-				return Err(Error::Message(format!(
+				return Err(Error::BadRequest(format!(
 					INVALID_BUCKET_NAME_MESSAGE!(),
 					query.new_name
 				)));
@@ -312,7 +316,7 @@ impl AdminRpcHandler {
 							query.new_name, bucket_id
 						)));
 					} else {
-						return Err(Error::Message(format!(
+						return Err(Error::BadRequest(format!(
 							"Alias {} already exists and points to different bucket: {:?}",
 							query.new_name, p.bucket_id
 						)));
@@ -330,7 +334,7 @@ impl AdminRpcHandler {
 
 			let alias = match alias {
 				None => BucketAlias::new(query.new_name.clone(), bucket_id)
-					.ok_or_message(format!(INVALID_BUCKET_NAME_MESSAGE!(), query.new_name))?,
+					.ok_or_bad_request(format!(INVALID_BUCKET_NAME_MESSAGE!(), query.new_name))?,
 				Some(mut a) => {
 					a.state = Lww::raw(alias_ts, Deletable::present(AliasParams { bucket_id }));
 					a
@@ -360,7 +364,7 @@ impl AdminRpcHandler {
 				.get(&query.name)
 				.map(|a| a.into_option())
 				.flatten()
-				.ok_or_message("Bucket not found")?;
+				.ok_or_bad_request("Bucket not found")?;
 			let mut bucket = self
 				.garage
 				.bucket_helper()
@@ -379,7 +383,7 @@ impl AdminRpcHandler {
 					.iter()
 					.any(|((k, n), _, active)| *k == key.key_id && *n == query.name && *active);
 			if !has_other_aliases {
-				return Err(Error::Message(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
+				return Err(Error::BadRequest(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
 			}
 
 			// Checks ok, remove alias
@@ -410,7 +414,7 @@ impl AdminRpcHandler {
 				.bucket_helper()
 				.resolve_global_bucket_name(&query.name)
 				.await?
-				.ok_or_message("Bucket not found")?;
+				.ok_or_bad_request("Bucket not found")?;
 			let mut bucket = self
 				.garage
 				.bucket_helper()
@@ -429,7 +433,7 @@ impl AdminRpcHandler {
 					.iter()
 					.any(|(_, _, active)| *active);
 			if !has_other_aliases {
-				return Err(Error::Message(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
+				return Err(Error::BadRequest(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", query.name)));
 			}
 
 			let mut alias = self
@@ -461,7 +465,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
-			.ok_or_message("Bucket not found")?;
+			.ok_or_bad_request("Bucket not found")?;
 		let bucket = self
 			.garage
 			.bucket_helper()
@@ -491,7 +495,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
-			.ok_or_message("Bucket not found")?;
+			.ok_or_bad_request("Bucket not found")?;
 		let bucket = self
 			.garage
 			.bucket_helper()
@@ -521,7 +525,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
-			.ok_or_message("Bucket not found")?;
+			.ok_or_bad_request("Bucket not found")?;
 
 		let mut bucket = self
 			.garage
@@ -531,7 +535,7 @@ impl AdminRpcHandler {
 		let bucket_state = bucket.state.as_option_mut().unwrap();
 
 		if !(query.allow ^ query.deny) {
-			return Err(Error::Message(
+			return Err(Error::BadRequest(
 				"You must specify exactly one flag, either --allow or --deny".to_string(),
 			));
 		}
@@ -606,7 +610,7 @@ impl AdminRpcHandler {
 	async fn handle_delete_key(&self, query: &KeyDeleteOpt) -> Result<AdminRpc, Error> {
 		let mut key = self.get_existing_key(&query.key_pattern).await?;
 		if !query.yes {
-			return Err(Error::BadRpc(
+			return Err(Error::BadRequest(
 				"Add --yes flag to really perform this operation".to_string(),
 			));
 		}
@@ -659,7 +663,7 @@ impl AdminRpcHandler {
 	async fn handle_import_key(&self, query: &KeyImportOpt) -> Result<AdminRpc, Error> {
 		let prev_key = self.garage.key_table.get(&EmptyKey, &query.key_id).await?;
 		if prev_key.is_some() {
-			return Err(Error::Message(format!("Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.", query.key_id)));
+			return Err(Error::BadRequest(format!("Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.", query.key_id)));
 		}
 		let imported_key = Key::import(&query.key_id, &query.secret_key, &query.name);
 		self.garage.key_table.insert(&imported_key).await?;
@@ -682,7 +686,7 @@ impl AdminRpcHandler {
 			.filter(|k| !k.state.is_deleted())
 			.collect::<Vec<_>>();
 		if candidates.len() != 1 {
-			Err(Error::Message(format!(
+			Err(Error::BadRequest(format!(
 				"{} matching keys",
 				candidates.len()
 			)))
@@ -760,7 +764,7 @@ impl AdminRpcHandler {
 
 	async fn handle_migrate(self: &Arc<Self>, opt: MigrateOpt) -> Result<AdminRpc, Error> {
 		if !opt.yes {
-			return Err(Error::BadRpc(
+			return Err(Error::BadRequest(
 				"Please provide the --yes flag to initiate migration operation.".to_string(),
 			));
 		}
@@ -776,7 +780,7 @@ impl AdminRpcHandler {
 
 	async fn handle_launch_repair(self: &Arc<Self>, opt: RepairOpt) -> Result<AdminRpc, Error> {
 		if !opt.yes {
-			return Err(Error::BadRpc(
+			return Err(Error::BadRequest(
 				"Please provide the --yes flag to initiate repair operations.".to_string(),
 			));
 		}
@@ -803,7 +807,7 @@ impl AdminRpcHandler {
 			if failures.is_empty() {
 				Ok(AdminRpc::Ok("Repair launched on all nodes".to_string()))
 			} else {
-				Err(Error::Message(format!(
+				Err(Error::BadRequest(format!(
 					"Could not launch repair on nodes: {:?} (launched successfully on other nodes)",
 					failures
 				)))
@@ -946,7 +950,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Migrate(opt) => self.handle_migrate(opt.clone()).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
-			_ => Err(Error::BadRpc("Invalid RPC".to_string())),
+			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}
 }

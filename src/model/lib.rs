@@ -12,6 +12,6 @@ pub mod version_table;
 
 pub mod block;
 
-pub mod bucket_helper;
 pub mod garage;
+pub mod helper;
 pub mod migrate;

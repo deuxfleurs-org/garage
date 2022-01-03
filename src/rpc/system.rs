@@ -576,7 +576,7 @@ impl EndpointHandler<SystemRpc> for System {
 				self.clone().handle_advertise_cluster_layout(adv).await
 			}
 			SystemRpc::GetKnownNodes => Ok(self.handle_get_known_nodes()),
-			_ => Err(Error::BadRpc("Unexpected RPC message".to_string())),
+			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}
 }

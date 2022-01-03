@@ -6,6 +6,8 @@ use garage_rpc::layout::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
+use garage_model::helper::error::Error as HelperError;
+
 use crate::admin::*;
 use crate::cli::*;
 
@@ -14,14 +16,14 @@ pub async fn cli_command_dispatch(
 	system_rpc_endpoint: &Endpoint<SystemRpc, ()>,
 	admin_rpc_endpoint: &Endpoint<AdminRpc, ()>,
 	rpc_host: NodeID,
-) -> Result<(), Error> {
+) -> Result<(), HelperError> {
 	match cmd {
-		Command::Status => cmd_status(system_rpc_endpoint, rpc_host).await,
+		Command::Status => Ok(cmd_status(system_rpc_endpoint, rpc_host).await?),
 		Command::Node(NodeOperation::Connect(connect_opt)) => {
-			cmd_connect(system_rpc_endpoint, rpc_host, connect_opt).await
+			Ok(cmd_connect(system_rpc_endpoint, rpc_host, connect_opt).await?)
 		}
 		Command::Layout(layout_opt) => {
-			cli_layout_command_dispatch(layout_opt, system_rpc_endpoint, rpc_host).await
+			Ok(cli_layout_command_dispatch(layout_opt, system_rpc_endpoint, rpc_host).await?)
 		}
 		Command::Bucket(bo) => {
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::BucketOperation(bo)).await
@@ -149,7 +151,7 @@ pub async fn cmd_connect(
 			println!("Success.");
 			Ok(())
 		}
-		r => Err(Error::BadRpc(format!("Unexpected response: {:?}", r))),
+		m => Err(Error::unexpected_rpc_message(m)),
 	}
 }
 
@@ -157,7 +159,7 @@ pub async fn cmd_admin(
 	rpc_cli: &Endpoint<AdminRpc, ()>,
 	rpc_host: NodeID,
 	args: AdminRpc,
-) -> Result<(), Error> {
+) -> Result<(), HelperError> {
 	match rpc_cli.call(&rpc_host, &args, PRIO_NORMAL).await?? {
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);

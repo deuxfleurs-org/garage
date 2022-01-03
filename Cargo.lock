@@ -474,6 +474,7 @@ version = "0.6.0"
 dependencies = [
  "arc-swap",
  "async-trait",
+ "err-derive 0.3.0",
  "futures",
  "futures-util",
  "garage_model 0.5.1",

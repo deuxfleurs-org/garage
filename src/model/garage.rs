@@ -15,8 +15,8 @@ use garage_table::*;
 use crate::block::*;
 use crate::block_ref_table::*;
 use crate::bucket_alias_table::*;
-use crate::bucket_helper::*;
 use crate::bucket_table::*;
+use crate::helper;
 use crate::key_table::*;
 use crate::object_table::*;
 use crate::version_table::*;
@@ -162,7 +162,7 @@ impl Garage {
 		self.block_manager.garage.swap(None);
 	}
 
-	pub fn bucket_helper(&self) -> BucketHelper {
-		BucketHelper(self)
+	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
+		helper::bucket::BucketHelper(self)
 	}
 }

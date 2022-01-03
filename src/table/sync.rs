@@ -514,10 +514,7 @@ where
 		if let SyncRpc::Ok = rpc_resp {
 			Ok(())
 		} else {
-			Err(Error::Message(format!(
-				"Unexpected response to RPC Update: {}",
-				debug_serialize(&rpc_resp)
-			)))
+			Err(Error::unexpected_rpc_message(rpc_resp))
 		}
 	}
 }
@@ -545,7 +542,7 @@ where
 				self.data.update_many(items)?;
 				Ok(SyncRpc::Ok)
 			}
-			_ => Err(Error::Message("Unexpected sync RPC".to_string())),
+			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}
 }

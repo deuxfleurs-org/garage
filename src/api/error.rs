@@ -4,6 +4,7 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
+use garage_model::helper::error::Error as HelperError;
 use garage_util::error::Error as GarageError;
 
 use crate::s3_xml;
@@ -80,6 +81,15 @@ impl From<roxmltree::Error> for Error {
 impl From<quick_xml::de::DeError> for Error {
 	fn from(err: quick_xml::de::DeError) -> Self {
 		Self::InvalidXml(format!("{}", err))
+	}
+}
+
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Self {
+		match err {
+			HelperError::Internal(i) => Self::InternalError(i),
+			HelperError::BadRequest(b) => Self::BadRequest(b),
+		}
 	}
 }
 

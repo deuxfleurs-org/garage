@@ -315,7 +315,7 @@ where
 				}
 				Ok(GcRpc::Ok)
 			}
-			_ => Err(Error::Message("Unexpected GC RPC".to_string())),
+			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}
 }

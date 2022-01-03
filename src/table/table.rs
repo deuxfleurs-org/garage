@@ -311,7 +311,7 @@ where
 				self.data.update_many(pairs)?;
 				Ok(TableRpc::Ok)
 			}
-			_ => Err(Error::BadRpc("Unexpected table RPC".to_string())),
+			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}
 }

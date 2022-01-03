@@ -59,14 +59,20 @@ pub enum Error {
 	)]
 	Quorum(usize, usize, usize, Vec<String>),
 
-	#[error(display = "Bad RPC: {}", _0)]
-	BadRpc(String),
+	#[error(display = "Unexpected RPC message: {}", _0)]
+	UnexpectedRpcMessage(String),
 
 	#[error(display = "Corrupt data: does not match hash {:?}", _0)]
 	CorruptData(Hash),
 
 	#[error(display = "{}", _0)]
 	Message(String),
+}
+
+impl Error {
+	pub fn unexpected_rpc_message<T: Serialize>(v: T) -> Self {
+		Self::UnexpectedRpcMessage(debug_serialize(&v))
+	}
 }
 
 impl From<sled::transaction::TransactionError<Error>> for Error {

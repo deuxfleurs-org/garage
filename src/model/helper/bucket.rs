@@ -1,10 +1,9 @@
-use garage_util::data::*;
-use garage_util::error::*;
-
 use garage_table::util::EmptyKey;
+use garage_util::data::*;
 
 use crate::bucket_table::Bucket;
 use crate::garage::Garage;
+use crate::helper::error::*;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
 
@@ -52,12 +51,6 @@ impl<'a> BucketHelper<'a> {
 			.get(&bucket_id, &EmptyKey)
 			.await?
 			.filter(|b| !b.is_deleted())
-			.map(Ok)
-			.unwrap_or_else(|| {
-				Err(Error::BadRpc(format!(
-					"Bucket {:?} does not exist",
-					bucket_id
-				)))
-			})
+			.ok_or_bad_request(format!("Bucket {:?} does not exist", bucket_id))
 	}
 }
