@@ -7,7 +7,6 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 
-use garage_util::crdt;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
@@ -306,8 +305,7 @@ async fn resolve_bucket(
 		.as_option()
 		.ok_or_else(|| Error::Forbidden("Operation is not allowed for this key.".to_string()))?;
 
-	if let Some(crdt::Deletable::Present(bucket_id)) = api_key_params.local_aliases.get(bucket_name)
-	{
+	if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
 		Ok(*bucket_id)
 	} else {
 		Ok(garage

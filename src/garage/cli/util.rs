@@ -34,7 +34,7 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 			println!("\nKey-specific bucket aliases:");
 			let mut table = vec![];
 			for (alias_name, _, alias) in p.local_aliases.items().iter() {
-				if let Some(bucket_id) = alias.as_option() {
+				if let Some(bucket_id) = alias {
 					table.push(format!(
 						"\t{}\t{}\t{}",
 						alias_name,
@@ -55,7 +55,7 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 					.local_aliases
 					.items()
 					.iter()
-					.filter(|(_, _, a)| a.as_option() == Some(bucket_id))
+					.filter(|(_, _, a)| *a == Some(*bucket_id))
 					.map(|(a, _, _)| a.clone())
 					.collect::<Vec<_>>()
 					.join(", ");

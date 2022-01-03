@@ -140,7 +140,7 @@ impl AdminRpcHandler {
 		}
 
 		if let Some(alias) = self.garage.bucket_alias_table.get(&EmptyKey, name).await? {
-			if !alias.state.get().is_deleted() {
+			if alias.state.get().is_some() {
 				return Err(Error::BadRequest(format!("Bucket {} already exists", name)));
 			}
 		}
@@ -229,7 +229,7 @@ impl AdminRpcHandler {
 		// 2. delete bucket alias
 		if bucket_alias.is_some() {
 			helper
-				.unset_global_bucket_alias(bucket_id, &query.name)
+				.purge_global_bucket_alias(bucket_id, &query.name)
 				.await?;
 		}
 
@@ -281,7 +281,7 @@ impl AdminRpcHandler {
 				.unwrap()
 				.local_aliases
 				.get(&query.name)
-				.map(|a| a.into_option())
+				.cloned()
 				.flatten()
 				.ok_or_bad_request("Bucket not found")?;
 
@@ -484,20 +484,26 @@ impl AdminRpcHandler {
 		let state = key.state.as_option_mut().unwrap();
 
 		// --- done checking, now commit ---
+		// (the step at unset_local_bucket_alias will fail if a bucket
+		// does not have another alias, the deletion will be
+		// interrupted in the middle if that happens)
+
 		// 1. Delete local aliases
 		for (alias, _, to) in state.local_aliases.items().iter() {
-			if let Deletable::Present(bucket_id) = to {
+			if let Some(bucket_id) = to {
 				helper
 					.unset_local_bucket_alias(*bucket_id, &key.key_id, alias)
 					.await?;
 			}
 		}
-		// 2. Delete authorized buckets
+
+		// 2. Remove permissions on all authorized buckets
 		for (ab_id, _auth) in state.authorized_buckets.items().iter() {
 			helper
 				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::no_permissions())
 				.await?;
 		}
+
 		// 3. Actually delete key
 		key.state = Deletable::delete();
 		self.garage.key_table.insert(&key).await?;

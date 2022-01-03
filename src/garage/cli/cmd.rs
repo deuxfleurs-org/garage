@@ -168,8 +168,8 @@ pub async fn cmd_admin(
 			println!("List of buckets:");
 			let mut table = vec![];
 			for alias in bl {
-				if let Some(p) = alias.state.get().as_option() {
-					table.push(format!("\t{}\t{:?}", alias.name(), p.bucket_id));
+				if let Some(alias_bucket) = alias.state.get() {
+					table.push(format!("\t{}\t{:?}", alias.name(), alias_bucket));
 				}
 			}
 			format_table(table);

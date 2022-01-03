@@ -86,9 +86,8 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.bucket_alias_table
 		.get(&EmptyKey, &bucket_name.to_string())
 		.await?
-		.map(|x| x.state.take().into_option())
+		.map(|x| x.state.take())
 		.flatten()
-		.map(|param| param.bucket_id)
 		.ok_or(Error::NotFound)?;
 
 	// Check bucket isn't deleted and has website access enabled

@@ -31,7 +31,7 @@ pub struct Key {
 pub struct KeyParams {
 	pub allow_create_bucket: crdt::Lww<bool>,
 	pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
-	pub local_aliases: crdt::LwwMap<String, crdt::Deletable<Uuid>>,
+	pub local_aliases: crdt::LwwMap<String, Option<Uuid>>,
 }
 
 impl KeyParams {

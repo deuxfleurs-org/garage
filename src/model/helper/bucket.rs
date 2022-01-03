@@ -46,7 +46,7 @@ impl<'a> BucketHelper<'a> {
 				.bucket_alias_table
 				.get(&EmptyKey, bucket_name)
 				.await?
-				.map(|x| x.state.get().as_option().map(|x| x.bucket_id))
+				.map(|x| *x.state.get())
 				.flatten())
 		}
 	}
@@ -154,11 +154,11 @@ impl<'a> BucketHelper<'a> {
 		let alias = self.0.bucket_alias_table.get(&EmptyKey, alias_name).await?;
 
 		if let Some(existing_alias) = alias.as_ref() {
-			if let Some(p) = existing_alias.state.get().as_option() {
-				if p.bucket_id != bucket_id {
+			if let Some(p_bucket) = existing_alias.state.get() {
+				if *p_bucket != bucket_id {
 					return Err(Error::BadRequest(format!(
 						"Alias {} already exists and points to different bucket: {:?}",
-						alias_name, p.bucket_id
+						alias_name, p_bucket
 					)));
 				}
 			}
@@ -176,10 +176,10 @@ impl<'a> BucketHelper<'a> {
 		// writes are now done and all writes use timestamp alias_ts
 
 		let alias = match alias {
-			None => BucketAlias::new(alias_name.clone(), alias_ts, bucket_id)
+			None => BucketAlias::new(alias_name.clone(), alias_ts, Some(bucket_id))
 				.ok_or_bad_request(format!("{}: {}", alias_name, INVALID_BUCKET_NAME_MESSAGE))?,
 			Some(mut a) => {
-				a.state = Lww::raw(alias_ts, Deletable::present(AliasParams { bucket_id }));
+				a.state = Lww::raw(alias_ts, Some(bucket_id));
 				a
 			}
 		};
@@ -209,13 +209,7 @@ impl<'a> BucketHelper<'a> {
 			.bucket_alias_table
 			.get(&EmptyKey, alias_name)
 			.await?
-			.filter(|a| {
-				a.state
-					.get()
-					.as_option()
-					.map(|x| x.bucket_id == bucket_id)
-					.unwrap_or(false)
-			})
+			.filter(|a| a.state.get().map(|x| x == bucket_id).unwrap_or(false))
 			.ok_or_message(format!(
 				"Internal error: alias not found or does not point to bucket {:?}",
 				bucket_id
@@ -244,11 +238,56 @@ impl<'a> BucketHelper<'a> {
 		// ---- timestamp-ensured causality barrier ----
 		// writes are now done and all writes use timestamp alias_ts
 
-		alias.state = Lww::raw(alias_ts, Deletable::delete());
+		alias.state = Lww::raw(alias_ts, None);
 		self.0.bucket_alias_table.insert(&alias).await?;
 
 		bucket_state.aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, false);
 		self.0.bucket_table.insert(&bucket).await?;
+
+		Ok(())
+	}
+
+	/// Ensures a bucket does not have a certain global alias.
+	/// Contrarily to unset_global_bucket_alias, this does not
+	/// fail on any condition other than:
+	/// - bucket cannot be found (its fine if it is in deleted state)
+	/// - alias cannot be found (its fine if it points to nothing or
+	///   to another bucket)
+	pub async fn purge_global_bucket_alias(
+		&self,
+		bucket_id: Uuid,
+		alias_name: &String,
+	) -> Result<(), Error> {
+		let mut bucket = self.get_internal_bucket(bucket_id).await?;
+
+		let mut alias = self
+			.0
+			.bucket_alias_table
+			.get(&EmptyKey, alias_name)
+			.await?
+			.ok_or_message(format!("Alias {} not found", alias_name))?;
+
+		// Checks ok, remove alias
+		let alias_ts = match bucket.state.as_option() {
+			Some(bucket_state) => increment_logical_clock_2(
+				alias.state.timestamp(),
+				bucket_state.aliases.get_timestamp(alias_name),
+			),
+			None => increment_logical_clock(alias.state.timestamp()),
+		};
+
+		// ---- timestamp-ensured causality barrier ----
+		// writes are now done and all writes use timestamp alias_ts
+
+		if alias.state.get() == &Some(bucket_id) {
+			alias.state = Lww::raw(alias_ts, None);
+			self.0.bucket_alias_table.insert(&alias).await?;
+		}
+
+		if let Some(mut bucket_state) = bucket.state.as_option_mut() {
+			bucket_state.aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, false);
+			self.0.bucket_table.insert(&bucket).await?;
+		}
 
 		Ok(())
 	}
@@ -277,7 +316,7 @@ impl<'a> BucketHelper<'a> {
 
 		let mut key_param = key.state.as_option_mut().unwrap();
 
-		if let Some(Deletable::Present(existing_alias)) = key_param.local_aliases.get(alias_name) {
+		if let Some(Some(existing_alias)) = key_param.local_aliases.get(alias_name) {
 			if *existing_alias != bucket_id {
 				return Err(Error::BadRequest(format!("Alias {} already exists in namespace of key {} and points to different bucket: {:?}", alias_name,  key.key_id, existing_alias)));
 			}
@@ -301,8 +340,7 @@ impl<'a> BucketHelper<'a> {
 		// ---- timestamp-ensured causality barrier ----
 		// writes are now done and all writes use timestamp alias_ts
 
-		key_param.local_aliases =
-			LwwMap::raw_item(alias_name.clone(), alias_ts, Deletable::present(bucket_id));
+		key_param.local_aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, Some(bucket_id));
 		self.0.key_table.insert(&key).await?;
 
 		bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, true);
@@ -334,8 +372,8 @@ impl<'a> BucketHelper<'a> {
 			.unwrap()
 			.local_aliases
 			.get(alias_name)
-			.map(|x| x.as_option())
-			.flatten() != Some(&bucket_id)
+			.cloned()
+			.flatten() != Some(bucket_id)
 		{
 			return Err(GarageError::Message(format!(
 				"Bucket {:?} does not have alias {} in namespace of key {}",
@@ -372,8 +410,7 @@ impl<'a> BucketHelper<'a> {
 		// ---- timestamp-ensured causality barrier ----
 		// writes are now done and all writes use timestamp alias_ts
 
-		key_param.local_aliases =
-			LwwMap::raw_item(alias_name.clone(), alias_ts, Deletable::delete());
+		key_param.local_aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, None);
 		self.0.key_table.insert(&key).await?;
 
 		bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, false);

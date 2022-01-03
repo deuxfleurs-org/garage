@@ -1,5 +1,3 @@
-use crate::data::*;
-
 /// Definition of a CRDT - all CRDT Rust types implement this.
 ///
 /// A CRDT is defined as a merge operator that respects a certain set of axioms.
@@ -85,9 +83,5 @@ impl AutoCrdt for String {
 }
 
 impl AutoCrdt for bool {
-	const WARN_IF_DIFFERENT: bool = true;
-}
-
-impl AutoCrdt for FixedBytes32 {
 	const WARN_IF_DIFFERENT: bool = true;
 }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
 /// An array of 32 bytes
-#[derive(Default, PartialOrd, Ord, Clone, Hash, PartialEq, Copy)]
+#[derive(Default, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Copy)]
 pub struct FixedBytes32([u8; 32]);
 
 impl From<[u8; 32]> for FixedBytes32 {
@@ -19,8 +19,6 @@ impl std::convert::AsRef<[u8]> for FixedBytes32 {
 		&self.0[..]
 	}
 }
-
-impl Eq for FixedBytes32 {}
 
 impl fmt::Debug for FixedBytes32 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

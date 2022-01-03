@@ -65,8 +65,8 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 					if *active {
 						let alias_ent = garage.bucket_alias_table.get(&EmptyKey, alias).await?;
 						if let Some(alias_ent) = alias_ent {
-							if let Some(alias_p) = alias_ent.state.get().as_option() {
-								if alias_p.bucket_id == *bucket_id {
+							if let Some(alias_bucket) = alias_ent.state.get() {
+								if alias_bucket == bucket_id {
 									aliases.insert(alias_ent.name().to_string(), *bucket_id);
 								}
 							}
@@ -78,8 +78,8 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 		}
 	}
 
-	for (alias, _, id) in key_state.local_aliases.items() {
-		if let Some(id) = id.as_option() {
+	for (alias, _, id_opt) in key_state.local_aliases.items() {
+		if let Some(id) = id_opt {
 			aliases.insert(alias.clone(), *id);
 		}
 	}

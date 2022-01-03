@@ -10,32 +10,23 @@ use garage_table::*;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketAlias {
 	name: String,
-	pub state: crdt::Lww<crdt::Deletable<AliasParams>>,
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
-pub struct AliasParams {
-	pub bucket_id: Uuid,
-}
-
-impl AutoCrdt for AliasParams {
-	const WARN_IF_DIFFERENT: bool = true;
+	pub state: crdt::Lww<Option<Uuid>>,
 }
 
 impl BucketAlias {
-	pub fn new(name: String, ts: u64, bucket_id: Uuid) -> Option<Self> {
+	pub fn new(name: String, ts: u64, bucket_id: Option<Uuid>) -> Option<Self> {
 		if !is_valid_bucket_name(&name) {
 			None
 		} else {
 			Some(BucketAlias {
 				name,
-				state: crdt::Lww::raw(ts, crdt::Deletable::present(AliasParams { bucket_id })),
+				state: crdt::Lww::raw(ts, bucket_id),
 			})
 		}
 	}
 
 	pub fn is_deleted(&self) -> bool {
-		self.state.get().is_deleted()
+		self.state.get().is_none()
 	}
 	pub fn name(&self) -> &str {
 		&self.name

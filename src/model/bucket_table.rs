@@ -63,6 +63,7 @@ impl BucketParams {
 
 impl Crdt for BucketParams {
 	fn merge(&mut self, o: &Self) {
+		self.creation_date = std::cmp::min(self.creation_date, o.creation_date);
 		self.authorized_keys.merge(&o.authorized_keys);
 		self.website_config.merge(&o.website_config);
 		self.aliases.merge(&o.aliases);
