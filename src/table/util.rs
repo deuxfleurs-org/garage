@@ -19,7 +19,7 @@ impl PartitionKey for EmptyKey {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum DeletedFilter {
-	All,
+	Any,
 	Deleted,
 	NotDeleted,
 }
@@ -27,7 +27,7 @@ pub enum DeletedFilter {
 impl DeletedFilter {
 	pub fn apply(&self, deleted: bool) -> bool {
 		match self {
-			DeletedFilter::All => true,
+			DeletedFilter::Any => true,
 			DeletedFilter::Deleted => deleted,
 			DeletedFilter::NotDeleted => !deleted,
 		}

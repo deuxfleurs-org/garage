@@ -116,12 +116,11 @@ impl<'a> BucketHelper<'a> {
 			.get_range(
 				&EmptyKey,
 				None,
-				Some(KeyFilter::Matches(pattern.to_string())),
+				Some(KeyFilter::MatchesAndNotDeleted(pattern.to_string())),
 				10,
 			)
 			.await?
 			.into_iter()
-			.filter(|k| !k.state.is_deleted())
 			.collect::<Vec<_>>();
 		if candidates.len() != 1 {
 			Err(Error::BadRequest(format!(

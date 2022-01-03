@@ -152,7 +152,7 @@ pub struct KeyTable;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum KeyFilter {
 	Deleted(DeletedFilter),
-	Matches(String),
+	MatchesAndNotDeleted(String),
 }
 
 impl TableSchema for KeyTable {
@@ -166,10 +166,11 @@ impl TableSchema for KeyTable {
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		match filter {
 			KeyFilter::Deleted(df) => df.apply(entry.state.is_deleted()),
-			KeyFilter::Matches(pat) => {
+			KeyFilter::MatchesAndNotDeleted(pat) => {
 				let pat = pat.to_lowercase();
-				entry.key_id.to_lowercase().starts_with(&pat)
-					|| entry.name.get().to_lowercase() == pat
+				!entry.state.is_deleted()
+					&& (entry.key_id.to_lowercase().starts_with(&pat)
+						|| entry.name.get().to_lowercase() == pat)
 			}
 		}
 	}
