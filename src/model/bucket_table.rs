@@ -105,14 +105,28 @@ impl Bucket {
 			crdt::Deletable::Present(state) => state.authorized_keys.items(),
 		}
 	}
+
+	pub fn aliases(&self) -> &[(String, u64, bool)] {
+		match &self.state {
+			crdt::Deletable::Deleted => &[],
+			crdt::Deletable::Present(state) => state.aliases.items(),
+		}
+	}
+
+	pub fn local_aliases(&self) -> &[((String, String), u64, bool)] {
+		match &self.state {
+			crdt::Deletable::Deleted => &[],
+			crdt::Deletable::Present(state) => state.local_aliases.items(),
+		}
+	}
 }
 
-impl Entry<Uuid, EmptyKey> for Bucket {
-	fn partition_key(&self) -> &Uuid {
-		&self.id
-	}
-	fn sort_key(&self) -> &EmptyKey {
+impl Entry<EmptyKey, Uuid> for Bucket {
+	fn partition_key(&self) -> &EmptyKey {
 		&EmptyKey
+	}
+	fn sort_key(&self) -> &Uuid {
+		&self.id
 	}
 }
 
@@ -127,8 +141,8 @@ pub struct BucketTable;
 impl TableSchema for BucketTable {
 	const TABLE_NAME: &'static str = "bucket_v2";
 
-	type P = Uuid;
-	type S = EmptyKey;
+	type P = EmptyKey;
+	type S = Uuid;
 	type E = Bucket;
 	type Filter = DeletedFilter;
 

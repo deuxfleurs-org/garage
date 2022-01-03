@@ -58,21 +58,17 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 	let mut aliases = HashMap::new();
 
 	for bucket_id in ids.iter() {
-		let bucket = garage.bucket_table.get(bucket_id, &EmptyKey).await?;
+		let bucket = garage.bucket_table.get(&EmptyKey, bucket_id).await?;
 		if let Some(bucket) = bucket {
-			if let Deletable::Present(param) = bucket.state {
-				for (alias, _, active) in param.aliases.items() {
-					if *active {
-						let alias_ent = garage.bucket_alias_table.get(&EmptyKey, alias).await?;
-						if let Some(alias_ent) = alias_ent {
-							if let Some(alias_bucket) = alias_ent.state.get() {
-								if alias_bucket == bucket_id {
-									aliases.insert(alias_ent.name().to_string(), *bucket_id);
-								}
-							}
-						}
+			for (alias, _, _active) in bucket.aliases().iter().filter(|(_, _, active)| *active) {
+				let alias_opt = garage.bucket_alias_table.get(&EmptyKey, alias).await?;
+				if let Some(alias_ent) = alias_opt {
+					if *alias_ent.state.get() == Some(*bucket_id) {
+						aliases.insert(alias_ent.name().to_string(), *bucket_id);
 					}
 				}
+			}
+			if let Deletable::Present(param) = bucket.state {
 				buckets_by_id.insert(bucket_id, param);
 			}
 		}

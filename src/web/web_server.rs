@@ -93,7 +93,7 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 	// Check bucket isn't deleted and has website access enabled
 	let _: Bucket = garage
 		.bucket_table
-		.get(&bucket_id, &EmptyKey)
+		.get(&EmptyKey, &bucket_id)
 		.await?
 		.filter(|b| {
 			b.state

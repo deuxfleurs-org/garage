@@ -20,7 +20,7 @@ pub async fn handle_delete_website(
 ) -> Result<Response<Body>, Error> {
 	let mut bucket = garage
 		.bucket_table
-		.get(&bucket_id, &EmptyKey)
+		.get(&EmptyKey, &bucket_id)
 		.await?
 		.ok_or(Error::NotFound)?;
 
@@ -48,7 +48,7 @@ pub async fn handle_put_website(
 
 	let mut bucket = garage
 		.bucket_table
-		.get(&bucket_id, &EmptyKey)
+		.get(&EmptyKey, &bucket_id)
 		.await?
 		.ok_or(Error::NotFound)?;
 

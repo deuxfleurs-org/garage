@@ -36,7 +36,7 @@ impl<'a> BucketHelper<'a> {
 			Ok(self
 				.0
 				.bucket_table
-				.get(&bucket_id, &EmptyKey)
+				.get(&EmptyKey, &bucket_id)
 				.await?
 				.filter(|x| !x.state.is_deleted())
 				.map(|_| bucket_id))
@@ -58,7 +58,7 @@ impl<'a> BucketHelper<'a> {
 		Ok(self
 			.0
 			.bucket_table
-			.get(&bucket_id, &EmptyKey)
+			.get(&EmptyKey, &bucket_id)
 			.await?
 			.ok_or_message(format!("Bucket {:?} does not exist", bucket_id))?)
 	}
@@ -70,7 +70,7 @@ impl<'a> BucketHelper<'a> {
 	pub async fn get_existing_bucket(&self, bucket_id: Uuid) -> Result<Bucket, Error> {
 		self.0
 			.bucket_table
-			.get(&bucket_id, &EmptyKey)
+			.get(&EmptyKey, &bucket_id)
 			.await?
 			.filter(|b| !b.is_deleted())
 			.ok_or_bad_request(format!(

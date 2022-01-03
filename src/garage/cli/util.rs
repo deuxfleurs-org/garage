@@ -7,6 +7,46 @@ use garage_util::error::*;
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
 
+pub fn print_bucket_list(bl: Vec<Bucket>) {
+	println!("List of buckets:");
+
+	let mut table = vec![];
+	for bucket in bl {
+		let aliases = bucket
+			.aliases()
+			.iter()
+			.filter(|(_, _, active)| *active)
+			.map(|(name, _, _)| name.to_string())
+			.collect::<Vec<_>>();
+		let local_aliases_n = match bucket
+			.local_aliases()
+			.iter()
+			.filter(|(_, _, active)| *active)
+			.count()
+		{
+			0 => "".into(),
+			1 => "1 local alias".into(),
+			n => format!("{} local aliases", n),
+		};
+		table.push(format!(
+			"\t{}\t{}\t{}",
+			aliases.join(","),
+			local_aliases_n,
+			hex::encode(bucket.id)
+		));
+	}
+	format_table(table);
+}
+
+pub fn print_key_list(kl: Vec<(String, String)>) {
+	println!("List of keys:");
+	let mut table = vec![];
+	for key in kl {
+		table.push(format!("\t{}\t{}", key.0, key.1));
+	}
+	format_table(table);
+}
+
 pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 	let bucket_global_aliases = |b: &Uuid| {
 		if let Some(bucket) = relevant_buckets.get(b) {
@@ -99,7 +139,7 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 						.get(key_id)
 						.map(|k| k.name.get().as_str())
 						.unwrap_or("");
-					table.push(format!("\t{}\t{} ({})", alias, key_id, key_name));
+					table.push(format!("\t{} ({})\t{}", key_id, key_name, alias));
 				}
 			}
 			format_table(table);
@@ -115,7 +155,7 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 					.map(|k| k.name.get().as_str())
 					.unwrap_or("");
 				table.push(format!(
-					"\t{}{}{}\t{} ({})",
+					"\t{}{}{}\t{}\t{}",
 					rflag, wflag, oflag, k, key_name
 				));
 			}

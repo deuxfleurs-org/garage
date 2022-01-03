@@ -165,24 +165,13 @@ pub async fn cmd_admin(
 			println!("{}", msg);
 		}
 		AdminRpc::BucketList(bl) => {
-			println!("List of buckets:");
-			let mut table = vec![];
-			for alias in bl {
-				if let Some(alias_bucket) = alias.state.get() {
-					table.push(format!("\t{}\t{:?}", alias.name(), alias_bucket));
-				}
-			}
-			format_table(table);
-			println!("Buckets that don't have a global alias (i.e. that only exist in the namespace of an access key) are not shown.");
+			print_bucket_list(bl);
 		}
 		AdminRpc::BucketInfo(bucket, rk) => {
 			print_bucket_info(&bucket, &rk);
 		}
 		AdminRpc::KeyList(kl) => {
-			println!("List of keys:");
-			for key in kl {
-				println!("{}\t{}", key.0, key.1);
-			}
+			print_key_list(kl);
 		}
 		AdminRpc::KeyInfo(key, rb) => {
 			print_key_info(&key, &rb);

@@ -38,7 +38,7 @@ pub enum AdminRpc {
 
 	// Replies
 	Ok(String),
-	BucketList(Vec<BucketAlias>),
+	BucketList(Vec<Bucket>),
 	BucketInfo(Bucket, HashMap<String, Key>),
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
@@ -76,12 +76,12 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_list_buckets(&self) -> Result<AdminRpc, Error> {
-		let bucket_aliases = self
+		let buckets = self
 			.garage
-			.bucket_alias_table
+			.bucket_table
 			.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
 			.await?;
-		Ok(AdminRpc::BucketList(bucket_aliases))
+		Ok(AdminRpc::BucketList(buckets))
 	}
 
 	async fn handle_bucket_info(&self, query: &BucketOpt) -> Result<AdminRpc, Error> {
@@ -536,7 +536,7 @@ impl AdminRpcHandler {
 			.items()
 			.iter()
 		{
-			if let Some(b) = self.garage.bucket_table.get(id, &EmptyKey).await? {
+			if let Some(b) = self.garage.bucket_table.get(&EmptyKey, id).await? {
 				relevant_buckets.insert(*id, b);
 			}
 		}

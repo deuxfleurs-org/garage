@@ -139,8 +139,8 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
 
 	match cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await {
-		Err(HelperError::Internal(i)) => Err(i),
-		Err(HelperError::BadRequest(b)) => Err(Error::Message(format!("bad request: {}", b))),
+		Err(HelperError::Internal(i)) => Err(Error::Message(format!("Internal error: {}", i))),
+		Err(HelperError::BadRequest(b)) => Err(Error::Message(b)),
 		Ok(x) => Ok(x),
 	}
 }
