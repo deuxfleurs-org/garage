@@ -107,7 +107,13 @@ impl AdminRpcHandler {
 			.items()
 			.iter()
 		{
-			if let Some(key) = self.garage.key_table.get(&EmptyKey, k).await? {
+			if let Some(key) = self
+				.garage
+				.key_table
+				.get(&EmptyKey, k)
+				.await?
+				.filter(|k| !k.is_deleted())
+			{
 				relevant_keys.insert(k.clone(), key);
 			}
 		}
@@ -222,7 +228,7 @@ impl AdminRpcHandler {
 		// 1. delete authorization from keys that had access
 		for (key_id, _) in bucket.authorized_keys() {
 			helper
-				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::no_permissions())
+				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
 				.await?;
 		}
 
@@ -439,7 +445,7 @@ impl AdminRpcHandler {
 			)
 			.await?
 			.iter()
-			.map(|k| (k.key_id.to_string(), k.name.get().clone()))
+			.map(|k| (k.key_id.to_string(), k.params().unwrap().name.get().clone()))
 			.collect::<Vec<_>>();
 		Ok(AdminRpc::KeyList(key_ids))
 	}
@@ -454,7 +460,7 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_create_key(&self, query: &KeyNewOpt) -> Result<AdminRpc, Error> {
-		let key = Key::new(query.name.clone());
+		let key = Key::new(&query.name);
 		self.garage.key_table.insert(&key).await?;
 		self.key_info_result(key).await
 	}
@@ -465,7 +471,10 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
-		key.name.update(query.new_name.clone());
+		key.params_mut()
+			.unwrap()
+			.name
+			.update(query.new_name.clone());
 		self.garage.key_table.insert(&key).await?;
 		self.key_info_result(key).await
 	}
@@ -500,7 +509,7 @@ impl AdminRpcHandler {
 		// 2. Remove permissions on all authorized buckets
 		for (ab_id, _auth) in state.authorized_buckets.items().iter() {
 			helper
-				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::no_permissions())
+				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::NO_PERMISSIONS)
 				.await?;
 		}
 

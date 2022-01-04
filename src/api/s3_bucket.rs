@@ -38,8 +38,8 @@ pub fn handle_get_bucket_versioning() -> Result<Response<Body>, Error> {
 }
 
 pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Response<Body>, Error> {
-	let key_state = api_key.state.as_option().ok_or_internal_error(
-		"Key should not be in deleted state at this point (internal error)",
+	let key_p = api_key.params().ok_or_internal_error(
+		"Key should not be in deleted state at this point (in handle_list_buckets)",
 	)?;
 
 	// Collect buckets user has access to
@@ -74,7 +74,7 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 		}
 	}
 
-	for (alias, _, id_opt) in key_state.local_aliases.items() {
+	for (alias, _, id_opt) in key_p.local_aliases.items() {
 		if let Some(id) = id_opt {
 			aliases.insert(alias.clone(), *id);
 		}
@@ -83,7 +83,7 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 	// Generate response
 	let list_buckets = s3_xml::ListAllMyBucketsResult {
 		owner: s3_xml::Owner {
-			display_name: s3_xml::Value(api_key.name.get().to_string()),
+			display_name: s3_xml::Value(key_p.name.get().to_string()),
 			id: s3_xml::Value(api_key.key_id.to_string()),
 		},
 		buckets: s3_xml::BucketList {

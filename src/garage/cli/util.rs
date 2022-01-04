@@ -65,11 +65,11 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 		"".to_string()
 	};
 
-	println!("Key name: {}", key.name.get());
-	println!("Key ID: {}", key.key_id);
-	println!("Secret key: {}", key.secret_key);
 	match &key.state {
 		Deletable::Present(p) => {
+			println!("Key name: {}", p.name.get());
+			println!("Key ID: {}", key.key_id);
+			println!("Secret key: {}", p.secret_key);
 			println!("Can create buckets: {}", p.allow_create_bucket.get());
 			println!("\nKey-specific bucket aliases:");
 			let mut table = vec![];
@@ -112,12 +112,19 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 			format_table(table);
 		}
 		Deletable::Deleted => {
-			println!("\nKey is deleted.");
+			println!("Key {} is deleted.", key.key_id);
 		}
 	}
 }
 
 pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) {
+	let key_name = |k| {
+		relevant_keys
+			.get(k)
+			.map(|k| k.params().unwrap().name.get().as_str())
+			.unwrap_or("<deleted>")
+	};
+
 	println!("Bucket: {}", hex::encode(bucket.id));
 	match &bucket.state {
 		Deletable::Deleted => println!("Bucket is deleted."),
@@ -135,11 +142,7 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 			let mut table = vec![];
 			for ((key_id, alias), _, active) in p.local_aliases.items().iter() {
 				if *active {
-					let key_name = relevant_keys
-						.get(key_id)
-						.map(|k| k.name.get().as_str())
-						.unwrap_or("");
-					table.push(format!("\t{} ({})\t{}", key_id, key_name, alias));
+					table.push(format!("\t{} ({})\t{}", key_id, key_name(key_id), alias));
 				}
 			}
 			format_table(table);
@@ -150,13 +153,13 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
 				let oflag = if perm.allow_owner { "O" } else { " " };
-				let key_name = relevant_keys
-					.get(k)
-					.map(|k| k.name.get().as_str())
-					.unwrap_or("");
 				table.push(format!(
 					"\t{}{}{}\t{}\t{}",
-					rflag, wflag, oflag, k, key_name
+					rflag,
+					wflag,
+					oflag,
+					k,
+					key_name(k)
 				));
 			}
 			format_table(table);

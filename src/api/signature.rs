@@ -66,6 +66,7 @@ pub async fn check_signature(
 		.await?
 		.filter(|k| !k.state.is_deleted())
 		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", authorization.key_id)))?;
+	let key_p = key.params().unwrap();
 
 	let canonical_request = canonical_request(
 		request.method(),
@@ -79,7 +80,7 @@ pub async fn check_signature(
 
 	let mut hmac = signing_hmac(
 		&date,
-		&key.secret_key,
+		&key_p.secret_key,
 		&garage.config.s3_api.s3_region,
 		"s3",
 	)

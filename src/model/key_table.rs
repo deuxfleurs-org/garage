@@ -14,29 +14,37 @@ pub struct Key {
 	/// The id of the key (immutable), used as partition key
 	pub key_id: String,
 
-	/// The secret_key associated
-	pub secret_key: String,
-
-	/// Name for the key
-	pub name: crdt::Lww<String>,
-
-	/// If the key is present: it gives some permissions,
-	/// a map of bucket IDs (uuids) to permissions.
-	/// Otherwise no permissions are granted to key
+	/// Internal state of the key
 	pub state: crdt::Deletable<KeyParams>,
 }
 
 /// Configuration for a key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct KeyParams {
+	/// The secret_key associated (immutable)
+	pub secret_key: String,
+
+	/// Name for the key
+	pub name: crdt::Lww<String>,
+
+	/// Flag to allow users having this key to create buckets
 	pub allow_create_bucket: crdt::Lww<bool>,
+
+	/// If the key is present: it gives some permissions,
+	/// a map of bucket IDs (uuids) to permissions.
+	/// Otherwise no permissions are granted to key
 	pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
+
+	/// A key can have a local view of buckets names it is
+	/// the only one to see, this is the namespace for these aliases
 	pub local_aliases: crdt::LwwMap<String, Option<Uuid>>,
 }
 
 impl KeyParams {
-	pub fn new() -> Self {
+	fn new(secret_key: &str, name: &str) -> Self {
 		KeyParams {
+			secret_key: secret_key.to_string(),
+			name: crdt::Lww::new(name.to_string()),
 			allow_create_bucket: crdt::Lww::new(false),
 			authorized_buckets: crdt::Map::new(),
 			local_aliases: crdt::LwwMap::new(),
@@ -44,14 +52,9 @@ impl KeyParams {
 	}
 }
 
-impl Default for KeyParams {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
 impl Crdt for KeyParams {
 	fn merge(&mut self, o: &Self) {
+		self.name.merge(&o.name);
 		self.allow_create_bucket.merge(&o.allow_create_bucket);
 		self.authorized_buckets.merge(&o.authorized_buckets);
 		self.local_aliases.merge(&o.local_aliases);
@@ -60,14 +63,12 @@ impl Crdt for KeyParams {
 
 impl Key {
 	/// Initialize a new Key, generating a random identifier and associated secret key
-	pub fn new(name: String) -> Self {
+	pub fn new(name: &str) -> Self {
 		let key_id = format!("GK{}", hex::encode(&rand::random::<[u8; 12]>()[..]));
 		let secret_key = hex::encode(&rand::random::<[u8; 32]>()[..]);
 		Self {
 			key_id,
-			secret_key,
-			name: crdt::Lww::new(name),
-			state: crdt::Deletable::present(KeyParams::new()),
+			state: crdt::Deletable::present(KeyParams::new(&secret_key, name)),
 		}
 	}
 
@@ -75,9 +76,7 @@ impl Key {
 	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Self {
 		Self {
 			key_id: key_id.to_string(),
-			secret_key: secret_key.to_string(),
-			name: crdt::Lww::new(name.to_string()),
-			state: crdt::Deletable::present(KeyParams::new()),
+			state: crdt::Deletable::present(KeyParams::new(secret_key, name)),
 		}
 	}
 
@@ -85,49 +84,47 @@ impl Key {
 	pub fn delete(key_id: String) -> Self {
 		Self {
 			key_id,
-			secret_key: "".into(),
-			name: crdt::Lww::new("".to_string()),
 			state: crdt::Deletable::Deleted,
 		}
 	}
 
+	/// Returns true if this represents a deleted bucket
+	pub fn is_deleted(&self) -> bool {
+		self.state.is_deleted()
+	}
+
+	/// Returns an option representing the params (None if in deleted state)
+	pub fn params(&self) -> Option<&KeyParams> {
+		self.state.as_option()
+	}
+
+	/// Mutable version of `.state()`
+	pub fn params_mut(&mut self) -> Option<&mut KeyParams> {
+		self.state.as_option_mut()
+	}
+
+	/// Get permissions for a bucket
+	pub fn bucket_permissions(&self, bucket: &Uuid) -> BucketKeyPerm {
+		self.params()
+			.map(|params| params.authorized_buckets.get(bucket))
+			.flatten()
+			.cloned()
+			.unwrap_or(BucketKeyPerm::NO_PERMISSIONS)
+	}
+
 	/// Check if `Key` is allowed to read in bucket
 	pub fn allow_read(&self, bucket: &Uuid) -> bool {
-		if let crdt::Deletable::Present(params) = &self.state {
-			params
-				.authorized_buckets
-				.get(bucket)
-				.map(|x| x.allow_read)
-				.unwrap_or(false)
-		} else {
-			false
-		}
+		self.bucket_permissions(bucket).allow_read
 	}
 
 	/// Check if `Key` is allowed to write in bucket
 	pub fn allow_write(&self, bucket: &Uuid) -> bool {
-		if let crdt::Deletable::Present(params) = &self.state {
-			params
-				.authorized_buckets
-				.get(bucket)
-				.map(|x| x.allow_write)
-				.unwrap_or(false)
-		} else {
-			false
-		}
+		self.bucket_permissions(bucket).allow_write
 	}
 
 	/// Check if `Key` is owner of bucket
 	pub fn allow_owner(&self, bucket: &Uuid) -> bool {
-		if let crdt::Deletable::Present(params) = &self.state {
-			params
-				.authorized_buckets
-				.get(bucket)
-				.map(|x| x.allow_owner)
-				.unwrap_or(false)
-		} else {
-			false
-		}
+		self.bucket_permissions(bucket).allow_owner
 	}
 }
 
@@ -142,7 +139,6 @@ impl Entry<EmptyKey, String> for Key {
 
 impl Crdt for Key {
 	fn merge(&mut self, other: &Self) {
-		self.name.merge(&other.name);
 		self.state.merge(&other.state);
 	}
 }
@@ -168,15 +164,20 @@ impl TableSchema for KeyTable {
 			KeyFilter::Deleted(df) => df.apply(entry.state.is_deleted()),
 			KeyFilter::MatchesAndNotDeleted(pat) => {
 				let pat = pat.to_lowercase();
-				!entry.state.is_deleted()
-					&& (entry.key_id.to_lowercase().starts_with(&pat)
-						|| entry.name.get().to_lowercase() == pat)
+				entry
+					.params()
+					.map(|p| {
+						entry.key_id.to_lowercase().starts_with(&pat)
+							|| p.name.get().to_lowercase() == pat
+					})
+					.unwrap_or(false)
 			}
 		}
 	}
 
 	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
 		let old_k = rmp_serde::decode::from_read_ref::<_, old::Key>(bytes).ok()?;
+		let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
 
 		let state = if old_k.deleted.get() {
 			crdt::Deletable::Deleted
@@ -185,16 +186,15 @@ impl TableSchema for KeyTable {
 			// migration is performed in specific migration code in
 			// garage/migrate.rs
 			crdt::Deletable::Present(KeyParams {
+				secret_key: old_k.secret_key,
+				name,
 				allow_create_bucket: crdt::Lww::new(false),
 				authorized_buckets: crdt::Map::new(),
 				local_aliases: crdt::LwwMap::new(),
 			})
 		};
-		let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
 		Some(Key {
 			key_id: old_k.key_id,
-			secret_key: old_k.secret_key,
-			name,
 			state,
 		})
 	}

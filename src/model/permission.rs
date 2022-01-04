@@ -21,14 +21,12 @@ pub struct BucketKeyPerm {
 }
 
 impl BucketKeyPerm {
-	pub fn no_permissions() -> Self {
-		Self {
-			timestamp: 0,
-			allow_read: false,
-			allow_write: false,
-			allow_owner: false,
-		}
-	}
+	pub const NO_PERMISSIONS: Self = Self {
+		timestamp: 0,
+		allow_read: false,
+		allow_write: false,
+		allow_owner: false,
+	};
 }
 
 impl Crdt for BucketKeyPerm {

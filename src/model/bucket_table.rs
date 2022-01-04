@@ -97,27 +97,32 @@ impl Bucket {
 		self.state.is_deleted()
 	}
 
+	/// Returns an option representing the parameters (None if in deleted state)
+	pub fn params(&self) -> Option<&BucketParams> {
+		self.state.as_option()
+	}
+
+	/// Mutable version of `.params()`
+	pub fn params_mut(&mut self) -> Option<&mut BucketParams> {
+		self.state.as_option_mut()
+	}
+
 	/// Return the list of authorized keys, when each was updated, and the permission associated to
 	/// the key
 	pub fn authorized_keys(&self) -> &[(String, BucketKeyPerm)] {
-		match &self.state {
-			crdt::Deletable::Deleted => &[],
-			crdt::Deletable::Present(state) => state.authorized_keys.items(),
-		}
+		self.params()
+			.map(|s| s.authorized_keys.items())
+			.unwrap_or(&[])
 	}
 
 	pub fn aliases(&self) -> &[(String, u64, bool)] {
-		match &self.state {
-			crdt::Deletable::Deleted => &[],
-			crdt::Deletable::Present(state) => state.aliases.items(),
-		}
+		self.params().map(|s| s.aliases.items()).unwrap_or(&[])
 	}
 
 	pub fn local_aliases(&self) -> &[((String, String), u64, bool)] {
-		match &self.state {
-			crdt::Deletable::Deleted => &[],
-			crdt::Deletable::Present(state) => state.local_aliases.items(),
-		}
+		self.params()
+			.map(|s| s.local_aliases.items())
+			.unwrap_or(&[])
 	}
 }
 
