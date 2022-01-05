@@ -789,7 +789,6 @@ impl Endpoint {
 				GetBucketRequestPayment,
 				GetBucketTagging,
 				GetBucketVersioning,
-				GetBucketWebsite,
 				GetObject,
 				GetObjectAcl,
 				GetObjectLegalHold,
@@ -813,8 +812,22 @@ impl Endpoint {
 			]
 		}
 		.is_some();
+		let owner = s3_match! {
+			@extract
+			self,
+			bucket,
+			[
+				DeleteBucket,
+				GetBucketWebsite,
+				PutBucketWebsite,
+				DeleteBucketWebsite,
+			]
+		}
+		.is_some();
 		if readonly {
 			Authorization::Read(bucket)
+		} else if owner {
+			Authorization::Owner(bucket)
 		} else {
 			Authorization::Write(bucket)
 		}
@@ -830,6 +843,8 @@ pub enum Authorization<'a> {
 	Read(&'a str),
 	/// Having Write permission on bucket .0 is required
 	Write(&'a str),
+	/// Having Owner permission on bucket .0 is required
+	Owner(&'a str),
 }
 
 /// This macro is used to generate part of the code in this module. It must be called only one, and

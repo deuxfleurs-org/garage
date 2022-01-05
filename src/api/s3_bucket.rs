@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request, Response, StatusCode};
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 use garage_model::permission::BucketKeyPerm;
-use garage_table::util::EmptyKey;
+use garage_table::util::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
@@ -185,6 +185,100 @@ pub async fn handle_create_bucket(
 		.header("Location", format!("/{}", bucket_name))
 		.body(Body::empty())
 		.unwrap())
+}
+
+pub async fn handle_delete_bucket(
+	garage: &Garage,
+	bucket_id: Uuid,
+	bucket_name: String,
+	api_key: Key,
+) -> Result<Response<Body>, Error> {
+	let key_params = api_key
+		.params()
+		.ok_or_internal_error("Key should not be deleted at this point")?;
+
+	let is_local_alias = matches!(key_params.local_aliases.get(&bucket_name), Some(Some(_)));
+
+	let mut bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
+	let bucket_state = bucket.state.as_option().unwrap();
+
+	// If the bucket has no other aliases, this is a true deletion.
+	// Otherwise, it is just an alias removal.
+
+	let has_other_global_aliases = bucket_state
+		.aliases
+		.items()
+		.iter()
+		.filter(|(_, _, active)| *active)
+		.any(|(n, _, _)| is_local_alias || (*n != bucket_name));
+
+	let has_other_local_aliases = bucket_state
+		.local_aliases
+		.items()
+		.iter()
+		.filter(|(_, _, active)| *active)
+		.any(|((k, n), _, _)| !is_local_alias || *n != bucket_name || *k != api_key.key_id);
+
+	if !has_other_global_aliases && !has_other_local_aliases {
+		// Delete bucket
+
+		// Check bucket is empty
+		let objects = garage
+			.object_table
+			.get_range(&bucket_id, None, Some(DeletedFilter::NotDeleted), 10)
+			.await?;
+		if !objects.is_empty() {
+			return Err(Error::BadRequest(format!(
+				"Bucket {} is not empty",
+				bucket_name
+			)));
+		}
+
+		// --- done checking, now commit ---
+		// 1. delete bucket alias
+		if is_local_alias {
+			garage
+				.bucket_helper()
+				.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
+				.await?;
+		} else {
+			garage
+				.bucket_helper()
+				.unset_global_bucket_alias(bucket_id, &bucket_name)
+				.await?;
+		}
+
+		// 2. delete authorization from keys that had access
+		for (key_id, _) in bucket.authorized_keys() {
+			garage
+				.bucket_helper()
+				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
+				.await?;
+		}
+
+		// 3. delete bucket
+		bucket.state = Deletable::delete();
+		garage.bucket_table.insert(&bucket).await?;
+	} else if is_local_alias {
+		// Just unalias
+		garage
+			.bucket_helper()
+			.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
+			.await?;
+	} else {
+		// Just unalias (but from global namespace)
+		garage
+			.bucket_helper()
+			.unset_global_bucket_alias(bucket_id, &bucket_name)
+			.await?;
+	}
+
+	Ok(Response::builder()
+		.status(StatusCode::NO_CONTENT)
+		.body(Body::empty())?)
 }
 
 fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {

@@ -123,6 +123,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	let allowed = match endpoint.authorization_type() {
 		Authorization::Read(_) => api_key.allow_read(&bucket_id),
 		Authorization::Write(_) => api_key.allow_write(&bucket_id),
+		Authorization::Owner(_) => api_key.allow_owner(&bucket_id),
 		_ => unreachable!(),
 	};
 
@@ -199,9 +200,9 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			let response = Response::builder().body(empty_body).unwrap();
 			Ok(response)
 		}
-		Endpoint::DeleteBucket { .. } => Err(Error::Forbidden(
-			"Cannot delete buckets using S3 api, please talk to Garage directly".into(),
-		)),
+		Endpoint::DeleteBucket { .. } => {
+			handle_delete_bucket(&garage, bucket_id, bucket_name, api_key).await
+		}
 		Endpoint::GetBucketLocation { .. } => handle_get_bucket_location(garage),
 		Endpoint::GetBucketVersioning { .. } => handle_get_bucket_versioning(),
 		Endpoint::ListObjects {
