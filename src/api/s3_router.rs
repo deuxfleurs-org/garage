@@ -1000,13 +1000,13 @@ mod tests {
             $(
             assert!(
                 matches!(
-                    parse(stringify!($method), $uri, Some("my_bucket".to_owned()), None),
+                    parse(test_cases!{@actual_method $method}, $uri, Some("my_bucket".to_owned()), None),
                     Endpoint::$variant { .. }
                 )
             );
             assert!(
                 matches!(
-                    parse(stringify!($method), concat!("/my_bucket", $uri), None, None),
+                    parse(test_cases!{@actual_method $method}, concat!("/my_bucket", $uri), None, None),
                     Endpoint::$variant { .. }
                 )
             );
@@ -1014,6 +1014,16 @@ mod tests {
             test_cases!{@auth $method $uri}
             )*
         }};
+
+		(@actual_method HEAD) => {{ "HEAD" }};
+		(@actual_method GET) => {{ "GET" }};
+		(@actual_method OWNER_GET) => {{ "GET" }};
+		(@actual_method PUT) => {{ "PUT" }};
+		(@actual_method OWNER_PUT) => {{ "PUT" }};
+		(@actual_method POST) => {{ "POST" }};
+		(@actual_method DELETE) => {{ "DELETE" }};
+		(@actual_method OWNER_DELETE) => {{ "DELETE" }};
+
         (@auth HEAD $uri:expr) => {{
             assert_eq!(parse("HEAD", concat!("/my_bucket", $uri), None, None).authorization_type(),
                 Authorization::Read("my_bucket"))
@@ -1022,9 +1032,17 @@ mod tests {
             assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).authorization_type(),
                 Authorization::Read("my_bucket"))
         }};
+        (@auth OWNER_GET $uri:expr) => {{
+            assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).authorization_type(),
+                Authorization::Owner("my_bucket"))
+        }};
         (@auth PUT $uri:expr) => {{
             assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).authorization_type(),
                 Authorization::Write("my_bucket"))
+        }};
+        (@auth OWNER_PUT $uri:expr) => {{
+            assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).authorization_type(),
+                Authorization::Owner("my_bucket"))
         }};
         (@auth POST $uri:expr) => {{
             assert_eq!(parse("POST", concat!("/my_bucket", $uri), None, None).authorization_type(),
@@ -1033,6 +1051,10 @@ mod tests {
         (@auth DELETE $uri:expr) => {{
             assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).authorization_type(),
                 Authorization::Write("my_bucket"))
+        }};
+        (@auth OWNER_DELETE $uri:expr) => {{
+            assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).authorization_type(),
+                Authorization::Owner("my_bucket"))
         }};
     }
 
@@ -1109,7 +1131,7 @@ mod tests {
 			PUT "/" => CreateBucket
 			POST "/example-object?uploads" => CreateMultipartUpload
 			POST "/{Key+}?uploads" => CreateMultipartUpload
-			DELETE "/" => DeleteBucket
+			OWNER_DELETE "/" => DeleteBucket
 			DELETE "/?analytics&id=list1" => DeleteBucketAnalyticsConfiguration
 			DELETE "/?analytics&id=Id" => DeleteBucketAnalyticsConfiguration
 			DELETE "/?cors" => DeleteBucketCors
@@ -1124,7 +1146,7 @@ mod tests {
 			DELETE "/?policy" => DeleteBucketPolicy
 			DELETE "/?replication" => DeleteBucketReplication
 			DELETE "/?tagging" => DeleteBucketTagging
-			DELETE "/?website" => DeleteBucketWebsite
+			OWNER_DELETE "/?website" => DeleteBucketWebsite
 			DELETE "/my-second-image.jpg" => DeleteObject
 			DELETE "/my-third-image.jpg?versionId=UIORUnfndfiufdisojhr398493jfdkjFJjkndnqUifhnw89493jJFJ" => DeleteObject
 			DELETE "/Key+?versionId=VersionId" => DeleteObject
@@ -1153,7 +1175,7 @@ mod tests {
 			GET "/?requestPayment" => GetBucketRequestPayment
 			GET "/?tagging" => GetBucketTagging
 			GET "/?versioning" => GetBucketVersioning
-			GET "/?website" => GetBucketWebsite
+			OWNER_GET "/?website" => GetBucketWebsite
 			GET "/my-image.jpg" => GetObject
 			GET "/myObject?versionId=3/L4kqtJlcpXroDTDmpUMLUo" => GetObject
 			GET "/Junk3.txt?response-cache-control=No-cache&response-content-disposition=attachment%3B%20filename%3Dtesting.txt&response-content-encoding=x-gzip&response-content-language=mi%2C%20en&response-expires=Thu%2C%2001%20Dec%201994%2016:00:00%20GMT" => GetObject
@@ -1227,7 +1249,7 @@ mod tests {
 			PUT "/?requestPayment" => PutBucketRequestPayment
 			PUT "/?tagging" => PutBucketTagging
 			PUT "/?versioning" => PutBucketVersioning
-			PUT "/?website" => PutBucketWebsite
+			OWNER_PUT "/?website" => PutBucketWebsite
 			PUT "/my-image.jpg" => PutObject
 			PUT "/Key+" => PutObject
 			PUT "/my-image.jpg?acl" => PutObjectAcl

@@ -287,20 +287,20 @@ fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {
 
 	let xml = roxmltree::Document::parse(xml_str).ok()?;
 
-	let root = xml.root();
-	let cbc = root.first_child()?;
+	let cbc = xml.root().first_child()?;
 	if !cbc.has_tag_name("CreateBucketConfiguration") {
 		return None;
 	}
 
 	let mut ret = None;
 	for item in cbc.children() {
+		println!("{:?}", item);
 		if item.has_tag_name("LocationConstraint") {
 			if ret != None {
 				return None;
 			}
 			ret = Some(item.text()?.to_string());
-		} else {
+		} else if !item.is_text() {
 			return None;
 		}
 	}
@@ -313,7 +313,17 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn create_bucket() -> Result<(), ()> {
+	fn create_bucket() {
+		assert_eq!(parse_create_bucket_xml(br#""#), Some(None));
+		assert_eq!(
+			parse_create_bucket_xml(
+				br#"
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
+            </CreateBucketConfiguration >
+		"#
+			),
+			Some(None)
+		);
 		assert_eq!(
 			parse_create_bucket_xml(
 				br#"
@@ -322,13 +332,13 @@ mod tests {
             </CreateBucketConfiguration >
 		"#
 			),
-			Some("Europe")
+			Some(Some("Europe".into()))
 		);
 		assert_eq!(
 			parse_create_bucket_xml(
 				br#"
             <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
-            </CreateBucketConfiguration >
+            </Crea >
 		"#
 			),
 			None
