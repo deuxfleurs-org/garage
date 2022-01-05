@@ -429,6 +429,8 @@ impl AdminRpcHandler {
 			KeyOperation::New(query) => self.handle_create_key(query).await,
 			KeyOperation::Rename(query) => self.handle_rename_key(query).await,
 			KeyOperation::Delete(query) => self.handle_delete_key(query).await,
+			KeyOperation::Allow(query) => self.handle_allow_key(query).await,
+			KeyOperation::Deny(query) => self.handle_deny_key(query).await,
 			KeyOperation::Import(query) => self.handle_import_key(query).await,
 		}
 	}
@@ -521,6 +523,34 @@ impl AdminRpcHandler {
 			"Key {} was deleted successfully.",
 			key.key_id
 		)))
+	}
+
+	async fn handle_allow_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
+		let mut key = self
+			.garage
+			.bucket_helper()
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
+		key.params_mut()
+			.unwrap()
+			.allow_create_bucket
+			.update(true);
+		self.garage.key_table.insert(&key).await?;
+		self.key_info_result(key).await
+	}
+
+	async fn handle_deny_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
+		let mut key = self
+			.garage
+			.bucket_helper()
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
+		key.params_mut()
+			.unwrap()
+			.allow_create_bucket
+			.update(false);
+		self.garage.key_table.insert(&key).await?;
+		self.key_info_result(key).await
 	}
 
 	async fn handle_import_key(&self, query: &KeyImportOpt) -> Result<AdminRpc, Error> {

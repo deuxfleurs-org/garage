@@ -274,6 +274,14 @@ pub enum KeyOperation {
 	#[structopt(name = "delete")]
 	Delete(KeyDeleteOpt),
 
+	/// Set permission flags for key
+	#[structopt(name = "allow")]
+	Allow(KeyPermOpt),
+
+	/// Unset permission flags for key
+	#[structopt(name = "deny")]
+	Deny(KeyPermOpt),
+
 	/// Import key
 	#[structopt(name = "import")]
 	Import(KeyImportOpt),
@@ -309,6 +317,16 @@ pub struct KeyDeleteOpt {
 	/// Confirm deletion
 	#[structopt(long = "yes")]
 	pub yes: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct KeyPermOpt {
+	/// ID or name of the key
+	pub key_pattern: String,
+
+	/// Flag that allows key to create buckets using S3's CreateBucket call
+	#[structopt(long = "create-bucket")]
+	pub create_bucket: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
