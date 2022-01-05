@@ -18,15 +18,15 @@ pub fn print_bucket_list(bl: Vec<Bucket>) {
 			.filter(|(_, _, active)| *active)
 			.map(|(name, _, _)| name.to_string())
 			.collect::<Vec<_>>();
-		let local_aliases_n = match bucket
+		let local_aliases_n = match &bucket
 			.local_aliases()
 			.iter()
 			.filter(|(_, _, active)| *active)
-			.count()
+			.collect::<Vec<_>>()[..]
 		{
-			0 => "".into(),
-			1 => "1 local alias".into(),
-			n => format!("{} local aliases", n),
+			[] => "".into(),
+			[((k, n), _, _)] => format!("{}:{}", k, n),
+			s => format!("[{} local aliases]", s.len()),
 		};
 		table.push(format!(
 			"\t{}\t{}\t{}",
@@ -88,6 +88,9 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 			println!("\nAuthorized buckets:");
 			let mut table = vec![];
 			for (bucket_id, perm) in p.authorized_buckets.items().iter() {
+				if !perm.is_any() {
+					continue;
+				}
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
 				let oflag = if perm.allow_owner { "O" } else { " " };
