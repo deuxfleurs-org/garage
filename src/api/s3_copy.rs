@@ -27,14 +27,14 @@ pub async fn handle_copy(
 		.object_table
 		.get(&source_bucket_id, &source_key.to_string())
 		.await?
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let source_last_v = source_object
 		.versions()
 		.iter()
 		.rev()
 		.find(|v| v.is_complete())
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let source_last_state = match &source_last_v.state {
 		ObjectVersionState::Complete(x) => x,
@@ -47,7 +47,7 @@ pub async fn handle_copy(
 	// Implement x-amz-metadata-directive: REPLACE
 	let old_meta = match source_last_state {
 		ObjectVersionData::DeleteMarker => {
-			return Err(Error::NotFound);
+			return Err(Error::NoSuchKey);
 		}
 		ObjectVersionData::Inline(meta, _bytes) => meta,
 		ObjectVersionData::FirstBlock(meta, _fbh) => meta,
@@ -88,7 +88,7 @@ pub async fn handle_copy(
 				.version_table
 				.get(&source_last_v.uuid, &EmptyKey)
 				.await?;
-			let source_version = source_version.ok_or(Error::NotFound)?;
+			let source_version = source_version.ok_or(Error::NoSuchKey)?;
 
 			// Write an "uploading" marker in Object table
 			// This holds a reference to the object in the Version table

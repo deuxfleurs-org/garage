@@ -382,7 +382,7 @@ pub async fn handle_put_part(
 		.iter()
 		.any(|v| v.uuid == version_uuid && v.is_uploading())
 	{
-		return Err(Error::NotFound);
+		return Err(Error::NoSuchUpload);
 	}
 
 	// Copy block to store
@@ -449,15 +449,15 @@ pub async fn handle_complete_multipart_upload(
 		garage.version_table.get(&version_uuid, &EmptyKey),
 	)?;
 
-	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
+	let object = object.ok_or(Error::NoSuchKey)?;
 	let mut object_version = object
 		.versions()
 		.iter()
 		.find(|v| v.uuid == version_uuid && v.is_uploading())
 		.cloned()
-		.ok_or_else(|| Error::BadRequest("Version not found".to_string()))?;
+		.ok_or(Error::NoSuchUpload)?;
 
-	let version = version.ok_or_else(|| Error::BadRequest("Version not found".to_string()))?;
+	let version = version.ok_or(Error::NoSuchKey)?;
 	if version.blocks.is_empty() {
 		return Err(Error::BadRequest("No data was uploaded".to_string()));
 	}
@@ -538,14 +538,14 @@ pub async fn handle_abort_multipart_upload(
 		.object_table
 		.get(&bucket_id, &key.to_string())
 		.await?;
-	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
+	let object = object.ok_or(Error::NoSuchKey)?;
 
 	let object_version = object
 		.versions()
 		.iter()
 		.find(|v| v.uuid == version_uuid && v.is_uploading());
 	let mut object_version = match object_version {
-		None => return Err(Error::NotFound),
+		None => return Err(Error::NoSuchUpload),
 		Some(x) => x.clone(),
 	};
 
@@ -611,9 +611,9 @@ pub(crate) fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, E
 }
 
 fn decode_upload_id(id: &str) -> Result<Uuid, Error> {
-	let id_bin = hex::decode(id).ok_or_bad_request("Invalid upload ID")?;
+	let id_bin = hex::decode(id).map_err(|_| Error::NoSuchUpload)?;
 	if id_bin.len() != 32 {
-		return None.ok_or_bad_request("Invalid upload ID");
+		return Err(Error::NoSuchUpload);
 	}
 	let mut uuid = [0u8; 32];
 	uuid.copy_from_slice(&id_bin[..]);

@@ -107,6 +107,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		.and_then(|root_domain| host_to_bucket(&host, root_domain));
 
 	let endpoint = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
+	debug!("Endpoint: {:?}", endpoint);
 
 	// Special code path for CreateBucket API endpoint
 	if let Endpoint::CreateBucket { bucket } = endpoint {
@@ -306,7 +307,7 @@ async fn resolve_bucket(
 			.bucket_helper()
 			.resolve_global_bucket_name(bucket_name)
 			.await?
-			.ok_or(Error::NotFound)?)
+			.ok_or(Error::NoSuchBucket)?)
 	}
 }
 

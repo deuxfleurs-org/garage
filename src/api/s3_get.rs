@@ -92,14 +92,14 @@ pub async fn handle_head(
 		.object_table
 		.get(&bucket_id, &key.to_string())
 		.await?
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let version = object
 		.versions()
 		.iter()
 		.rev()
 		.find(|v| v.is_data())
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let version_meta = match &version.state {
 		ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
@@ -131,21 +131,21 @@ pub async fn handle_get(
 		.object_table
 		.get(&bucket_id, &key.to_string())
 		.await?
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let last_v = object
 		.versions()
 		.iter()
 		.rev()
 		.find(|v| v.is_complete())
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchKey)?;
 
 	let last_v_data = match &last_v.state {
 		ObjectVersionState::Complete(x) => x,
 		_ => unreachable!(),
 	};
 	let last_v_meta = match last_v_data {
-		ObjectVersionData::DeleteMarker => return Err(Error::NotFound),
+		ObjectVersionData::DeleteMarker => return Err(Error::NoSuchKey),
 		ObjectVersionData::Inline(meta, _) => meta,
 		ObjectVersionData::FirstBlock(meta, _) => meta,
 	};
@@ -196,7 +196,7 @@ pub async fn handle_get(
 			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
 
 			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
-			let version = version.ok_or(Error::NotFound)?;
+			let version = version.ok_or(Error::NoSuchKey)?;
 
 			let mut blocks = version
 				.blocks
@@ -261,7 +261,7 @@ async fn handle_get_range(
 			let version = garage.version_table.get(&version.uuid, &EmptyKey).await?;
 			let version = match version {
 				Some(v) => v,
-				None => return Err(Error::NotFound),
+				None => return Err(Error::NoSuchKey),
 			};
 
 			// We will store here the list of blocks that have an intersection with the requested

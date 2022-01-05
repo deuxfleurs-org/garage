@@ -22,7 +22,7 @@ pub async fn handle_delete_website(
 		.bucket_table
 		.get(&EmptyKey, &bucket_id)
 		.await?
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchBucket)?;
 
 	if let crdt::Deletable::Present(param) = &mut bucket.state {
 		param.website_config.update(None);
@@ -50,7 +50,7 @@ pub async fn handle_put_website(
 		.bucket_table
 		.get(&EmptyKey, &bucket_id)
 		.await?
-		.ok_or(Error::NotFound)?;
+		.ok_or(Error::NoSuchBucket)?;
 
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;

@@ -153,10 +153,7 @@ pub async fn handle_create_bucket(
 		// otherwise return a forbidden error.
 		let kp = api_key.bucket_permissions(&bucket_id);
 		if !(kp.allow_write || kp.allow_owner) {
-			return Err(Error::Forbidden(format!(
-				"Key {} does not have write or owner permissions on bucket {}",
-				api_key.key_id, bucket_name
-			)));
+			return Err(Error::BucketAlreadyExists);
 		}
 	} else {
 		// Create the bucket!
@@ -231,10 +228,7 @@ pub async fn handle_delete_bucket(
 			.get_range(&bucket_id, None, Some(DeletedFilter::NotDeleted), 10)
 			.await?;
 		if !objects.is_empty() {
-			return Err(Error::BadRequest(format!(
-				"Bucket {} is not empty",
-				bucket_name
-			)));
+			return Err(Error::BucketNotEmpty);
 		}
 
 		// --- done checking, now commit ---

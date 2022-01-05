@@ -21,7 +21,7 @@ async fn handle_delete_internal(
 		.object_table
 		.get(&bucket_id, &key.to_string())
 		.await?
-		.ok_or(Error::NotFound)?; // No need to delete
+		.ok_or(Error::NoSuchKey)?; // No need to delete
 
 	let interesting_versions = object.versions().iter().filter(|v| {
 		!matches!(
@@ -40,7 +40,7 @@ async fn handle_delete_internal(
 		timestamp = std::cmp::max(timestamp, v.timestamp + 1);
 	}
 
-	let deleted_version = version_to_delete.ok_or(Error::NotFound)?;
+	let deleted_version = version_to_delete.ok_or(Error::NoSuchKey)?;
 
 	let version_uuid = gen_uuid();
 

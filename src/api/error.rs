@@ -35,8 +35,24 @@ pub enum Error {
 	AuthorizationHeaderMalformed(String),
 
 	/// The object requested don't exists
-	#[error(display = "Not found")]
-	NotFound,
+	#[error(display = "Key not found")]
+	NoSuchKey,
+
+	/// The bucket requested don't exists
+	#[error(display = "Bucket not found")]
+	NoSuchBucket,
+
+	/// The multipart upload requested don't exists
+	#[error(display = "Upload not found")]
+	NoSuchUpload,
+
+	/// Tried to create a bucket that already exist
+	#[error(display = "Bucket already exists")]
+	BucketAlreadyExists,
+
+	/// Tried to delete a non-empty bucket
+	#[error(display = "Tried to delete a non-empty bucket")]
+	BucketNotEmpty,
 
 	// Category: bad request
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
@@ -97,7 +113,8 @@ impl Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {
-			Error::NotFound => StatusCode::NOT_FOUND,
+			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
+			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::InternalError(
 				GarageError::Timeout
@@ -115,9 +132,14 @@ impl Error {
 
 	pub fn aws_code(&self) -> &'static str {
 		match self {
-			Error::NotFound => "NoSuchKey",
+			Error::NoSuchKey => "NoSuchKey",
+			Error::NoSuchBucket => "NoSuchBucket",
+			Error::NoSuchUpload => "NoSuchUpload",
+			Error::BucketAlreadyExists => "BucketAlreadyExists",
+			Error::BucketNotEmpty => "BucketNotEmpty",
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
+			Error::NotImplemented(_) => "NotImplemented",
 			Error::InternalError(
 				GarageError::Timeout
 				| GarageError::RemoteError(_)
