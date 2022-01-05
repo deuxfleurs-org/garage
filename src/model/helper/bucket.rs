@@ -433,13 +433,11 @@ impl<'a> BucketHelper<'a> {
 		let mut bucket = self.get_internal_bucket(bucket_id).await?;
 		let mut key = self.get_internal_key(key_id).await?;
 
-		let allow_any = perm.allow_read || perm.allow_write || perm.allow_owner;
-
 		if let Some(bstate) = bucket.state.as_option() {
 			if let Some(kp) = bstate.authorized_keys.get(key_id) {
 				perm.timestamp = increment_logical_clock_2(perm.timestamp, kp.timestamp);
 			}
-		} else if allow_any {
+		} else if perm.is_any() {
 			return Err(Error::BadRequest(
 				"Trying to give permissions on a deleted bucket".into(),
 			));
@@ -449,7 +447,7 @@ impl<'a> BucketHelper<'a> {
 			if let Some(bp) = kstate.authorized_buckets.get(&bucket_id) {
 				perm.timestamp = increment_logical_clock_2(perm.timestamp, bp.timestamp);
 			}
-		} else if allow_any {
+		} else if perm.is_any() {
 			return Err(Error::BadRequest(
 				"Trying to give permissions to a deleted key".into(),
 			));

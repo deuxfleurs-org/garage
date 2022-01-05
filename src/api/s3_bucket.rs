@@ -1,16 +1,21 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{Body, Response};
+use hyper::{Body, Request, Response};
 
+use garage_model::bucket_alias_table::*;
+use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
+use garage_model::permission::BucketKeyPerm;
 use garage_table::util::EmptyKey;
 use garage_util::crdt::*;
+use garage_util::data::*;
 use garage_util::time::*;
 
 use crate::error::*;
 use crate::s3_xml;
+use crate::signature::verify_signed_content;
 
 pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<Body>, Error> {
 	let loc = s3_xml::LocationConstraint {
@@ -50,7 +55,7 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 		.authorized_buckets
 		.items()
 		.iter()
-		.filter(|(_, perms)| perms.allow_read || perms.allow_write || perms.allow_owner)
+		.filter(|(_, perms)| perms.is_any())
 		.map(|(id, _)| *id)
 		.collect::<Vec<_>>();
 
@@ -104,4 +109,141 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
 		.body(Body::from(xml))?)
+}
+
+pub async fn handle_create_bucket(
+	garage: &Garage,
+	req: Request<Body>,
+	content_sha256: Option<Hash>,
+	api_key: Key,
+	bucket_name: String,
+) -> Result<Response<Body>, Error> {
+	let body = hyper::body::to_bytes(req.into_body()).await?;
+	verify_signed_content(content_sha256, &body[..])?;
+
+	let cmd =
+		parse_create_bucket_xml(&body[..]).ok_or_bad_request("Invalid create bucket XML query")?;
+
+	if let Some(location_constraint) = cmd {
+		if location_constraint != garage.config.s3_api.s3_region {
+			return Err(Error::BadRequest(format!(
+				"Buckets must be created in region {}",
+				garage.config.s3_api.s3_region
+			)));
+		}
+	}
+
+	let key_params = api_key
+		.params()
+		.ok_or_internal_error("Key should not be deleted at this point")?;
+
+	let existing_bucket = if let Some(Some(bucket_id)) = key_params.local_aliases.get(&bucket_name)
+	{
+		Some(*bucket_id)
+	} else {
+		garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&bucket_name)
+			.await?
+	};
+
+	if let Some(bucket_id) = existing_bucket {
+		// Check we have write or owner permission on the bucket,
+		// in that case it's fine, return 200 OK, bucket exists;
+		// otherwise return a forbidden error.
+		let kp = api_key.bucket_permissions(&bucket_id);
+		if !(kp.allow_write || kp.allow_owner) {
+			return Err(Error::Forbidden(format!(
+				"Key {} does not have write or owner permissions on bucket {}",
+				api_key.key_id, bucket_name
+			)));
+		}
+	} else {
+		// Create the bucket!
+		if !is_valid_bucket_name(&bucket_name) {
+			return Err(Error::BadRequest(format!(
+				"{}: {}",
+				bucket_name, INVALID_BUCKET_NAME_MESSAGE
+			)));
+		}
+
+		let bucket = Bucket::new();
+		garage.bucket_table.insert(&bucket).await?;
+
+		garage
+			.bucket_helper()
+			.set_bucket_key_permissions(bucket.id, &api_key.key_id, BucketKeyPerm::ALL_PERMISSIONS)
+			.await?;
+
+		garage
+			.bucket_helper()
+			.set_local_bucket_alias(bucket.id, &api_key.key_id, &bucket_name)
+			.await?;
+	}
+
+	Ok(Response::builder()
+		.header("Location", format!("/{}", bucket_name))
+		.body(Body::empty())
+		.unwrap())
+}
+
+fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {
+	// Returns None if invalid data
+	// Returns Some(None) if no location constraint is given
+	// Returns Some(Some("xxxx")) where xxxx is the given location constraint
+
+	let xml_str = std::str::from_utf8(xml_bytes).ok()?;
+	if xml_str.trim_matches(char::is_whitespace).is_empty() {
+		return Some(None);
+	}
+
+	let xml = roxmltree::Document::parse(xml_str).ok()?;
+
+	let root = xml.root();
+	let cbc = root.first_child()?;
+	if !cbc.has_tag_name("CreateBucketConfiguration") {
+		return None;
+	}
+
+	let mut ret = None;
+	for item in cbc.children() {
+		if item.has_tag_name("LocationConstraint") {
+			if ret != None {
+				return None;
+			}
+			ret = Some(item.text()?.to_string());
+		} else {
+			return None;
+		}
+	}
+
+	Some(ret)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn create_bucket() -> Result<(), ()> {
+		assert_eq!(
+			parse_create_bucket_xml(
+				br#"
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
+             <LocationConstraint>Europe</LocationConstraint> 
+            </CreateBucketConfiguration >
+		"#
+			),
+			Some("Europe")
+		);
+		assert_eq!(
+			parse_create_bucket_xml(
+				br#"
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
+            </CreateBucketConfiguration >
+		"#
+			),
+			None
+		);
+	}
 }

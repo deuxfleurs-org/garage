@@ -27,6 +27,17 @@ impl BucketKeyPerm {
 		allow_write: false,
 		allow_owner: false,
 	};
+
+	pub const ALL_PERMISSIONS: Self = Self {
+		timestamp: 0,
+		allow_read: true,
+		allow_write: true,
+		allow_owner: true,
+	};
+
+	pub fn is_any(&self) -> bool {
+		self.allow_read || self.allow_write || self.allow_owner
+	}
 }
 
 impl Crdt for BucketKeyPerm {

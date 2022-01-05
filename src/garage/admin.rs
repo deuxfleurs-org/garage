@@ -531,10 +531,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
-		key.params_mut()
-			.unwrap()
-			.allow_create_bucket
-			.update(true);
+		key.params_mut().unwrap().allow_create_bucket.update(true);
 		self.garage.key_table.insert(&key).await?;
 		self.key_info_result(key).await
 	}
@@ -545,10 +542,7 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
-		key.params_mut()
-			.unwrap()
-			.allow_create_bucket
-			.update(false);
+		key.params_mut().unwrap().allow_create_bucket.update(false);
 		self.garage.key_table.insert(&key).await?;
 		self.key_info_result(key).await
 	}

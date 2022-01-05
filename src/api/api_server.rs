@@ -108,6 +108,11 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let endpoint = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
 
+	// Special code path for CreateBucket API endpoint
+	if let Endpoint::CreateBucket { bucket } = endpoint {
+		return handle_create_bucket(&garage, req, content_sha256, api_key, bucket).await;
+	}
+
 	let bucket_name = match endpoint.get_bucket() {
 		None => return handle_request_without_bucket(garage, req, api_key, endpoint).await,
 		Some(bucket) => bucket.to_string(),
@@ -188,19 +193,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::CreateBucket { bucket } => {
-			debug!(
-				"Body: {}",
-				std::str::from_utf8(&hyper::body::to_bytes(req.into_body()).await?)
-					.unwrap_or("<invalid utf8>")
-			);
-			let empty_body: Body = Body::from(vec![]);
-			let response = Response::builder()
-				.header("Location", format!("/{}", bucket))
-				.body(empty_body)
-				.unwrap();
-			Ok(response)
-		}
+		Endpoint::CreateBucket { .. } => unreachable!(),
 		Endpoint::HeadBucket { .. } => {
 			let empty_body: Body = Body::from(vec![]);
 			let response = Response::builder().body(empty_body).unwrap();
@@ -303,7 +296,7 @@ async fn resolve_bucket(
 	let api_key_params = api_key
 		.state
 		.as_option()
-		.ok_or_else(|| Error::Forbidden("Operation is not allowed for this key.".to_string()))?;
+		.ok_or_internal_error("Key should not be deleted at this point")?;
 
 	if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
 		Ok(*bucket_id)
