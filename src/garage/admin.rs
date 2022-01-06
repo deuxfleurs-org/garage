@@ -404,8 +404,8 @@ impl AdminRpcHandler {
 
 		let website = if query.allow {
 			Some(WebsiteConfig {
-				index_document: "index.html".into(),
-				error_document: None,
+				index_document: query.index_document.clone(),
+				error_document: query.error_document.clone(),
 			})
 		} else {
 			None
