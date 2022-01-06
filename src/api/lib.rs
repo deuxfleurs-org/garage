@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate log;
 
-mod error;
+pub mod error;
 pub use error::Error;
 
 mod encoding;

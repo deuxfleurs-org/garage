@@ -87,8 +87,6 @@ pub struct WebConfig {
 	pub bind_addr: SocketAddr,
 	/// Suffix to remove from domain name to find bucket
 	pub root_domain: String,
-	/// Suffix to add when user-agent request path end with "/"
-	pub index: String,
 }
 
 fn default_sled_cache_capacity() -> u64 {

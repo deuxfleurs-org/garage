@@ -3,7 +3,7 @@ use std::{borrow::Cow, convert::Infallible, net::SocketAddr, sync::Arc};
 use futures::future::Future;
 
 use hyper::{
-	header::HOST,
+	header::{HeaderValue, HOST},
 	server::conn::AddrStream,
 	service::{make_service_fn, service_fn},
 	Body, Method, Request, Response, Server,
@@ -11,10 +11,10 @@ use hyper::{
 
 use crate::error::*;
 
+use garage_api::error::{Error as ApiError, OkOrBadRequest};
 use garage_api::helpers::{authority_to_host, host_to_bucket};
 use garage_api::s3_get::{handle_get, handle_head};
 
-use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 
 use garage_table::*;
@@ -52,29 +52,45 @@ async fn handle_request(
 	addr: SocketAddr,
 ) -> Result<Response<Body>, Infallible> {
 	info!("{} {} {}", addr, req.method(), req.uri());
-	let res = serve_file(garage, req).await;
-	match &res {
-		Ok(r) => debug!("{} {:?}", r.status(), r.headers()),
-		Err(e) => warn!("Response: error {}, {}", e.http_status_code(), e),
+	match serve_file(garage, &req).await {
+		Ok(res) => {
+			debug!("{} {} {}", req.method(), req.uri(), res.status());
+			Ok(res)
+		}
+		Err(error) => {
+			info!(
+				"{} {} {} {}",
+				req.method(),
+				req.uri(),
+				error.http_status_code(),
+				error
+			);
+			Ok(error_to_res(error))
+		}
 	}
-
-	Ok(res.unwrap_or_else(error_to_res))
 }
 
 fn error_to_res(e: Error) -> Response<Body> {
-	let body: Body = Body::from(format!("{}\n", e));
+	// If we are here, it is either that:
+	// - there was an error before trying to get the requested URL
+	//   from the bucket (e.g. bucket not found)
+	// - there was an error processing the request and (the request
+	//   was a HEAD request or we couldn't get the error document)
+	// We do NOT enter this code path when returning the bucket's
+	// error document (this is handled in serve_file)
+	let body = Body::from(format!("{}\n", e));
 	let mut http_error = Response::new(body);
 	*http_error.status_mut() = e.http_status_code();
 	e.add_headers(http_error.headers_mut());
 	http_error
 }
 
-async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
+async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response<Body>, Error> {
 	// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 	let authority = req
 		.headers()
 		.get(HOST)
-		.ok_or_else(|| Error::BadRequest("HOST header required".to_owned()))?
+		.ok_or_bad_request("HOST header required")?
 		.to_str()?;
 
 	// Get bucket
@@ -91,35 +107,95 @@ async fn serve_file(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<
 		.ok_or(Error::NotFound)?;
 
 	// Check bucket isn't deleted and has website access enabled
-	let _: Bucket = garage
+	let bucket = garage
 		.bucket_table
 		.get(&EmptyKey, &bucket_id)
 		.await?
-		.filter(|b| {
-			b.state
-				.as_option()
-				.map(|x| x.website_config.get().is_some())
-				.unwrap_or(false)
-		})
+		.ok_or(Error::NotFound)?;
+
+	let website_config = bucket
+		.params()
+		.ok_or(Error::NotFound)?
+		.website_config
+		.get()
+		.as_ref()
 		.ok_or(Error::NotFound)?;
 
 	// Get path
 	let path = req.uri().path().to_string();
-	let index = &garage.config.s3_web.index;
+	let index = &website_config.index_document;
 	let key = path_to_key(&path, index)?;
 
-	info!(
+	debug!(
 		"Selected bucket: \"{}\" {:?}, selected key: \"{}\"",
 		bucket_name, bucket_id, key
 	);
 
-	let res = match *req.method() {
-		Method::HEAD => handle_head(garage, &req, bucket_id, &key).await?,
-		Method::GET => handle_get(garage, &req, bucket_id, &key).await?,
-		_ => return Err(Error::BadRequest("HTTP method not supported".to_string())),
-	};
+	let ret_doc = match *req.method() {
+		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key).await,
+		Method::GET => handle_get(garage.clone(), req, bucket_id, &key).await,
+		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),
+	}
+	.map_err(Error::from);
 
-	Ok(res)
+	if let Err(error) = ret_doc {
+		if *req.method() == Method::HEAD || !error.http_status_code().is_client_error() {
+			// Do not return the error document in the following cases:
+			// - the error is not a 4xx error code
+			// - the request is a HEAD method
+			// In this case we just return the error code and the error message in the body,
+			// by relying on err_to_res that is called above when we return an Err.
+			return Err(error);
+		}
+
+		// Same if no error document is set: just return the error directly
+		let error_document = match &website_config.error_document {
+			Some(ed) => ed.trim_start_matches('/').to_owned(),
+			None => return Err(error),
+		};
+
+		// We want to return the error document
+		// Create a fake HTTP request with path = the error document
+		let req2 = Request::builder()
+			.uri(format!("http://{}/{}", host, &error_document))
+			.body(Body::empty())
+			.unwrap();
+
+		match handle_get(garage, &req2, bucket_id, &error_document).await {
+			Ok(mut error_doc) => {
+				// The error won't be logged back in handle_request,
+				// so log it here
+				info!(
+					"{} {} {} {}",
+					req.method(),
+					req.uri(),
+					error.http_status_code(),
+					error
+				);
+
+				*error_doc.status_mut() = error.http_status_code();
+				error.add_headers(error_doc.headers_mut());
+
+				// Preserve error message in a special header
+				for error_line in error.to_string().split('\n') {
+					if let Ok(v) = HeaderValue::from_bytes(error_line.as_bytes()) {
+						error_doc.headers_mut().append("X-Garage-Error", v);
+					}
+				}
+
+				Ok(error_doc)
+			}
+			Err(error_doc_error) => {
+				warn!(
+					"Couldn't get error document {} for bucket {:?}: {}",
+					error_document, bucket_id, error_doc_error
+				);
+				Err(error)
+			}
+		}
+	} else {
+		ret_doc
+	}
 }
 
 /// Path to key
