@@ -11,8 +11,45 @@ use crate::signature::verify_signed_content;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_table::*;
-use garage_util::crdt;
 use garage_util::data::*;
+
+pub async fn handle_get_website(
+	garage: Arc<Garage>,
+	bucket_id: Uuid,
+) -> Result<Response<Body>, Error> {
+	let bucket = garage
+		.bucket_table
+		.get(&EmptyKey, &bucket_id)
+		.await?
+		.ok_or(Error::NoSuchBucket)?;
+
+	let param = bucket
+		.params()
+		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+
+	if let Some(website) = param.website_config.get() {
+		let wc = WebsiteConfiguration {
+			xmlns: (),
+			error_document: website.error_document.as_ref().map(|v| Key {
+				key: Value(v.to_string()),
+			}),
+			index_document: Some(Suffix {
+				suffix: Value(website.index_document.to_string()),
+			}),
+			redirect_all_requests_to: None,
+			routing_rules: None,
+		};
+		let xml = quick_xml::se::to_string(&wc)?;
+		Ok(Response::builder()
+			.status(StatusCode::OK)
+			.header(http::header::CONTENT_TYPE, "application/xml")
+			.body(Body::from(xml))?)
+	} else {
+		Ok(Response::builder()
+			.status(StatusCode::NO_CONTENT)
+			.body(Body::empty())?)
+	}
+}
 
 pub async fn handle_delete_website(
 	garage: Arc<Garage>,
@@ -24,17 +61,16 @@ pub async fn handle_delete_website(
 		.await?
 		.ok_or(Error::NoSuchBucket)?;
 
-	if let crdt::Deletable::Present(param) = &mut bucket.state {
-		param.website_config.update(None);
-		garage.bucket_table.insert(&bucket).await?;
-	} else {
-		unreachable!();
-	}
+	let param = bucket
+		.params_mut()
+		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+
+	param.website_config.update(None);
+	garage.bucket_table.insert(&bucket).await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::from(vec![]))
-		.unwrap())
+		.body(Body::empty())?)
 }
 
 pub async fn handle_put_website(
@@ -52,22 +88,21 @@ pub async fn handle_put_website(
 		.await?
 		.ok_or(Error::NoSuchBucket)?;
 
+	let param = bucket
+		.params_mut()
+		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
 
-	if let crdt::Deletable::Present(param) = &mut bucket.state {
-		param
-			.website_config
-			.update(Some(conf.into_garage_website_config()?));
-		garage.bucket_table.insert(&bucket).await?;
-	} else {
-		unreachable!();
-	}
+	param
+		.website_config
+		.update(Some(conf.into_garage_website_config()?));
+	garage.bucket_table.insert(&bucket).await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)
-		.body(Body::from(vec![]))
-		.unwrap())
+		.body(Body::empty())?)
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]

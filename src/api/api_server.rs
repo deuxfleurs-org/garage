@@ -305,6 +305,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		Endpoint::DeleteObjects { .. } => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
+		Endpoint::GetBucketWebsite { .. } => handle_get_website(garage, bucket_id).await,
 		Endpoint::PutBucketWebsite { .. } => {
 			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
