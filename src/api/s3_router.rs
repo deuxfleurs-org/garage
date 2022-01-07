@@ -327,6 +327,7 @@ pub enum Endpoint {
 		part_number_marker: Option<u64>,
 		upload_id: String,
 	},
+	Options,
 	PutBucketAccelerateConfiguration {
 	},
 	PutBucketAcl {
@@ -433,6 +434,10 @@ impl Endpoint {
 				.map(|(b, p)| (b.to_owned(), p.trim_start_matches('/')))
 				.unwrap_or((path.to_owned(), ""))
 		};
+
+		if *req.method() == Method::OPTIONS {
+			return Ok((Self::Options, Some(bucket)));
+		}
 
 		let key = percent_encoding::percent_decode_str(key)
 			.decode_utf8()?
@@ -665,7 +670,6 @@ impl Endpoint {
 				GetBucketAccelerateConfiguration,
 				GetBucketAcl,
 				GetBucketAnalyticsConfiguration,
-				GetBucketCors,
 				GetBucketEncryption,
 				GetBucketIntelligentTieringConfiguration,
 				GetBucketInventoryConfiguration,
@@ -711,6 +715,9 @@ impl Endpoint {
 				GetBucketWebsite,
 				PutBucketWebsite,
 				DeleteBucketWebsite,
+				GetBucketCors,
+				PutBucketCors,
+				DeleteBucketCors,
 			]
 		};
 		if readonly {
@@ -1027,7 +1034,7 @@ mod tests {
 			OWNER_DELETE "/" => DeleteBucket
 			DELETE "/?analytics&id=list1" => DeleteBucketAnalyticsConfiguration
 			DELETE "/?analytics&id=Id" => DeleteBucketAnalyticsConfiguration
-			DELETE "/?cors" => DeleteBucketCors
+			OWNER_DELETE "/?cors" => DeleteBucketCors
 			DELETE "/?encryption" => DeleteBucketEncryption
 			DELETE "/?intelligent-tiering&id=Id" => DeleteBucketIntelligentTieringConfiguration
 			DELETE "/?inventory&id=list1" => DeleteBucketInventoryConfiguration
@@ -1050,7 +1057,7 @@ mod tests {
 			GET "/?accelerate" => GetBucketAccelerateConfiguration
 			GET "/?acl" => GetBucketAcl
 			GET "/?analytics&id=Id" => GetBucketAnalyticsConfiguration
-			GET "/?cors" => GetBucketCors
+			OWNER_GET "/?cors" => GetBucketCors
 			GET "/?encryption" => GetBucketEncryption
 			GET "/?intelligent-tiering&id=Id" => GetBucketIntelligentTieringConfiguration
 			GET "/?inventory&id=list1" => GetBucketInventoryConfiguration
@@ -1126,7 +1133,7 @@ mod tests {
 			PUT "/?acl" => PutBucketAcl
 			PUT "/?analytics&id=report1" => PutBucketAnalyticsConfiguration
 			PUT "/?analytics&id=Id" => PutBucketAnalyticsConfiguration
-			PUT "/?cors" => PutBucketCors
+			OWNER_PUT "/?cors" => PutBucketCors
 			PUT "/?encryption" => PutBucketEncryption
 			PUT "/?intelligent-tiering&id=Id" => PutBucketIntelligentTieringConfiguration
 			PUT "/?inventory&id=report1" => PutBucketInventoryConfiguration

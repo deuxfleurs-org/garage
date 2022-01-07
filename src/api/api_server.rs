@@ -5,7 +5,7 @@ use futures::future::Future;
 use hyper::header;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
+use hyper::{Body, Method, Request, Response, Server};
 
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
@@ -13,12 +13,15 @@ use garage_util::error::Error as GarageError;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
+use garage_table::util::*;
+
 use crate::error::*;
 use crate::signature::payload::check_payload_signature;
 
 use crate::helpers::*;
 use crate::s3_bucket::*;
 use crate::s3_copy::*;
+use crate::s3_cors::*;
 use crate::s3_delete::*;
 use crate::s3_get::*;
 use crate::s3_list::*;
@@ -102,17 +105,17 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let host = authority_to_host(authority)?;
 
-	let bucket = garage
+	let bucket_name = garage
 		.config
 		.s3_api
 		.root_domain
 		.as_ref()
 		.and_then(|root_domain| host_to_bucket(&host, root_domain));
 
-	let (endpoint, bucket) = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
+	let (endpoint, bucket_name) = Endpoint::from_request(&req, bucket_name.map(ToOwned::to_owned))?;
 	debug!("Endpoint: {:?}", endpoint);
 
-	let bucket_name = match bucket {
+	let bucket_name = match bucket_name {
 		None => return handle_request_without_bucket(garage, req, api_key, endpoint).await,
 		Some(bucket) => bucket.to_string(),
 	};
@@ -123,6 +126,12 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	}
 
 	let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
+	let bucket = garage
+		.bucket_table
+		.get(&EmptyKey, &bucket_id)
+		.await?
+		.filter(|b| !b.state.is_deleted())
+		.ok_or(Error::NoSuchBucket)?;
 
 	let allowed = match endpoint.authorization_type() {
 		Authorization::Read => api_key.allow_read(&bucket_id),
@@ -137,7 +146,17 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		));
 	}
 
-	match endpoint {
+	// Look up what CORS rule might apply to response.
+	// Requests for methods different than GET, HEAD or POST
+	// are always preflighted, i.e. the browser should make
+	// an OPTIONS call before to check it is allowed
+	let matching_cors_rule = match *req.method() {
+		Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)?,
+		_ => None,
+	};
+
+	let resp = match endpoint {
+		Endpoint::Options => handle_options(garage, &req, bucket_id).await,
 		Endpoint::HeadObject { key, .. } => handle_head(garage, &req, bucket_id, &key).await,
 		Endpoint::GetObject { key, .. } => handle_get(garage, &req, bucket_id, &key).await,
 		Endpoint::UploadPart {
@@ -320,8 +339,21 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
 		Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket_id).await,
+		Endpoint::GetBucketCors {} => handle_get_cors(garage, bucket_id).await,
+		Endpoint::PutBucketCors {} => handle_put_cors(garage, bucket_id, req, content_sha256).await,
+		Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket_id).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
+	};
+
+	// If request was a success and we have a CORS rule that applies to it,
+	// add the corresponding CORS headers to the response
+	let mut resp_ok = resp?;
+	if let Some(rule) = matching_cors_rule {
+		add_cors_headers(&mut resp_ok, rule)
+			.ok_or_internal_error("Invalid bucket CORS configuration")?;
 	}
+
+	Ok(resp_ok)
 }
 
 async fn handle_request_without_bucket(

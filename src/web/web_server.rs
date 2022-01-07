@@ -11,8 +11,9 @@ use hyper::{
 
 use crate::error::*;
 
-use garage_api::error::{Error as ApiError, OkOrBadRequest};
+use garage_api::error::{Error as ApiError, OkOrBadRequest, OkOrInternalError};
 use garage_api::helpers::{authority_to_host, host_to_bucket};
+use garage_api::s3_cors::{add_cors_headers, find_matching_cors_rule};
 use garage_api::s3_get::{handle_get, handle_head};
 
 use garage_model::garage::Garage;
@@ -138,63 +139,70 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 	}
 	.map_err(Error::from);
 
-	if let Err(error) = ret_doc {
-		if *req.method() == Method::HEAD || !error.http_status_code().is_client_error() {
-			// Do not return the error document in the following cases:
-			// - the error is not a 4xx error code
-			// - the request is a HEAD method
-			// In this case we just return the error code and the error message in the body,
-			// by relying on err_to_res that is called above when we return an Err.
-			return Err(error);
-		}
+	match ret_doc {
+		Err(error) => {
+			// For a HEAD method, and for non-4xx errors,
+			// we don't return the error document as content,
+			// we return above and just return the error message
+			// by relying on err_to_res that is called when we return an Err.
+			if *req.method() == Method::HEAD || !error.http_status_code().is_client_error() {
+				return Err(error);
+			}
 
-		// Same if no error document is set: just return the error directly
-		let error_document = match &website_config.error_document {
-			Some(ed) => ed.trim_start_matches('/').to_owned(),
-			None => return Err(error),
-		};
+			// If no error document is set: just return the error directly
+			let error_document = match &website_config.error_document {
+				Some(ed) => ed.trim_start_matches('/').to_owned(),
+				None => return Err(error),
+			};
 
-		// We want to return the error document
-		// Create a fake HTTP request with path = the error document
-		let req2 = Request::builder()
-			.uri(format!("http://{}/{}", host, &error_document))
-			.body(Body::empty())
-			.unwrap();
+			// We want to return the error document
+			// Create a fake HTTP request with path = the error document
+			let req2 = Request::builder()
+				.uri(format!("http://{}/{}", host, &error_document))
+				.body(Body::empty())
+				.unwrap();
 
-		match handle_get(garage, &req2, bucket_id, &error_document).await {
-			Ok(mut error_doc) => {
-				// The error won't be logged back in handle_request,
-				// so log it here
-				info!(
-					"{} {} {} {}",
-					req.method(),
-					req.uri(),
-					error.http_status_code(),
-					error
-				);
+			match handle_get(garage, &req2, bucket_id, &error_document).await {
+				Ok(mut error_doc) => {
+					// The error won't be logged back in handle_request,
+					// so log it here
+					info!(
+						"{} {} {} {}",
+						req.method(),
+						req.uri(),
+						error.http_status_code(),
+						error
+					);
 
-				*error_doc.status_mut() = error.http_status_code();
-				error.add_headers(error_doc.headers_mut());
+					*error_doc.status_mut() = error.http_status_code();
+					error.add_headers(error_doc.headers_mut());
 
-				// Preserve error message in a special header
-				for error_line in error.to_string().split('\n') {
-					if let Ok(v) = HeaderValue::from_bytes(error_line.as_bytes()) {
-						error_doc.headers_mut().append("X-Garage-Error", v);
+					// Preserve error message in a special header
+					for error_line in error.to_string().split('\n') {
+						if let Ok(v) = HeaderValue::from_bytes(error_line.as_bytes()) {
+							error_doc.headers_mut().append("X-Garage-Error", v);
+						}
 					}
-				}
 
-				Ok(error_doc)
-			}
-			Err(error_doc_error) => {
-				warn!(
-					"Couldn't get error document {} for bucket {:?}: {}",
-					error_document, bucket_id, error_doc_error
-				);
-				Err(error)
+					Ok(error_doc)
+				}
+				Err(error_doc_error) => {
+					warn!(
+						"Couldn't get error document {} for bucket {:?}: {}",
+						error_document, bucket_id, error_doc_error
+					);
+					Err(error)
+				}
 			}
 		}
-	} else {
-		ret_doc
+		Ok(mut resp) => {
+			// Maybe add CORS headers
+			if let Some(rule) = find_matching_cors_rule(&bucket, req)? {
+				add_cors_headers(&mut resp, rule)
+					.ok_or_internal_error("Invalid bucket CORS configuration")?;
+			}
+			Ok(resp)
+		}
 	}
 }
 

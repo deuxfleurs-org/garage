@@ -5,7 +5,7 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use crate::error::*;
-use crate::s3_xml::{xmlns_tag, IntValue, Value};
+use crate::s3_xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
 use garage_model::bucket_table::*;
@@ -39,7 +39,7 @@ pub async fn handle_get_website(
 			redirect_all_requests_to: None,
 			routing_rules: None,
 		};
-		let xml = quick_xml::se::to_string(&wc)?;
+		let xml = to_xml_with_header(&wc)?;
 		Ok(Response::builder()
 			.status(StatusCode::OK)
 			.header(http::header::CONTENT_TYPE, "application/xml")
@@ -306,7 +306,7 @@ mod tests {
 	use quick_xml::de::from_str;
 
 	#[test]
-	fn test_deserialize() {
+	fn test_deserialize() -> Result<(), Error> {
 		let message = r#"<?xml version="1.0" encoding="UTF-8"?>
 <WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
    <ErrorDocument>
@@ -368,7 +368,12 @@ mod tests {
 			ref_value,
 			conf
 		}
-		// TODO verify result is ok
-		// TODO cycle back and verify if ok
+
+		let message2 = to_xml_with_header(&ref_value)?;
+
+		let cleanup = |c: &str| c.replace(char::is_whitespace, "");
+		assert_eq!(cleanup(message), cleanup(&message2));
+
+		Ok(())
 	}
 }

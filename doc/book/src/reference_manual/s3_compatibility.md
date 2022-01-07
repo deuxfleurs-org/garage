@@ -9,7 +9,8 @@ Implemented:
 - putting and getting objects in buckets
 - multipart uploads
 - listing objects
-- access control on a per-key-per-bucket basis
+- access control on a per-access-key-per-bucket basis
+- CORS headers on web endpoint
 
 Not implemented:
 
@@ -31,9 +32,11 @@ All APIs that are not mentionned are not implemented and will return a 501 Not I
 | CreateBucket                 | Implemented                      |
 | CreateMultipartUpload        | Implemented                      |
 | DeleteBucket                 | Implemented                      |
+| DeleteBucketCors             | Implemented                      |
 | DeleteBucketWebsite          | Implemented                      |
 | DeleteObject                 | Implemented                      |
 | DeleteObjects                | Implemented                      |
+| GetBucketCors                | Implemented                      |
 | GetBucketLocation            | Implemented                      |
 | GetBucketVersioning          | Stub (see below)                 |
 | GetBucketWebsite             | Implemented                      |
@@ -46,6 +49,7 @@ All APIs that are not mentionned are not implemented and will return a 501 Not I
 | ListMultipartUpload          | Implemented                      |
 | ListParts                    | Implemented                      |
 | PutObject                    | Implemented                      |
+| PutBucketCors                | Implemented                      |
 | PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |
 | UploadPartCopy               | Implemented                      |
