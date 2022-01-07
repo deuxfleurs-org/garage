@@ -125,3 +125,15 @@ where
 		}
 	}
 }
+
+impl<T> Default for Lww<T>
+where
+	T: Default,
+{
+	fn default() -> Self {
+		Self {
+			ts: 0,
+			v: T::default(),
+		}
+	}
+}

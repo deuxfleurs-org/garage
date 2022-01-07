@@ -20,6 +20,7 @@ use crate::signature::check_signature;
 use crate::helpers::*;
 use crate::s3_bucket::*;
 use crate::s3_copy::*;
+use crate::s3_cors::*;
 use crate::s3_delete::*;
 use crate::s3_get::*;
 use crate::s3_list::*;
@@ -310,6 +311,11 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
 		Endpoint::DeleteBucketWebsite { .. } => handle_delete_website(garage, bucket_id).await,
+		Endpoint::GetBucketCors { .. } => handle_get_cors(garage, bucket_id).await,
+		Endpoint::PutBucketCors { .. } => {
+			handle_put_cors(garage, bucket_id, req, content_sha256).await
+		}
+		Endpoint::DeleteBucketCors { .. } => handle_delete_cors(garage, bucket_id).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 	}
 }

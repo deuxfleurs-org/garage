@@ -27,10 +27,7 @@ pub struct BucketParams {
 	pub creation_date: u64,
 	/// Map of key with access to the bucket, and what kind of access they give
 	pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
-	/// Whether this bucket is allowed for website access
-	/// (under all of its global alias names),
-	/// and if so, the website configuration XML document
-	pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+
 	/// Map of aliases that are or have been given to this bucket
 	/// in the global namespace
 	/// (not authoritative: this is just used as an indication to
@@ -40,6 +37,14 @@ pub struct BucketParams {
 	/// in namespaces local to keys
 	/// key = (access key id, alias name)
 	pub local_aliases: crdt::LwwMap<(String, String), bool>,
+
+	/// Whether this bucket is allowed for website access
+	/// (under all of its global alias names),
+	/// and if so, the website configuration XML document
+	pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+	/// CORS rules
+	#[serde(default)]
+	pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -48,15 +53,26 @@ pub struct WebsiteConfig {
 	pub error_document: Option<String>,
 }
 
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+pub struct CorsRule {
+	pub id: Option<String>,
+	pub max_age_seconds: Option<u64>,
+	pub allow_origins: Vec<String>,
+	pub allow_methods: Vec<String>,
+	pub allow_headers: Vec<String>,
+	pub expose_headers: Vec<String>,
+}
+
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
 		BucketParams {
 			creation_date: now_msec(),
 			authorized_keys: crdt::Map::new(),
-			website_config: crdt::Lww::new(None),
 			aliases: crdt::LwwMap::new(),
 			local_aliases: crdt::LwwMap::new(),
+			website_config: crdt::Lww::new(None),
+			cors_config: crdt::Lww::new(None),
 		}
 	}
 }
@@ -65,9 +81,12 @@ impl Crdt for BucketParams {
 	fn merge(&mut self, o: &Self) {
 		self.creation_date = std::cmp::min(self.creation_date, o.creation_date);
 		self.authorized_keys.merge(&o.authorized_keys);
-		self.website_config.merge(&o.website_config);
+
 		self.aliases.merge(&o.aliases);
 		self.local_aliases.merge(&o.local_aliases);
+
+		self.website_config.merge(&o.website_config);
+		self.cors_config.merge(&o.cors_config);
 	}
 }
 

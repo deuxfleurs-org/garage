@@ -15,6 +15,7 @@ mod signature;
 pub mod helpers;
 mod s3_bucket;
 mod s3_copy;
+pub mod s3_cors;
 mod s3_delete;
 pub mod s3_get;
 mod s3_list;

@@ -16,6 +16,12 @@ pub fn xmlns_tag<S: Serializer>(_v: &(), s: S) -> Result<S::Ok, S::Error> {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Value(#[serde(rename = "$value")] pub String);
 
+impl From<&str> for Value {
+	fn from(s: &str) -> Value {
+		Value(s.to_string())
+	}
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntValue(#[serde(rename = "$value")] pub i64);
 

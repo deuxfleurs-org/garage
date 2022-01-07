@@ -69,9 +69,10 @@ impl Migrate {
 				state: Deletable::Present(BucketParams {
 					creation_date: now_msec(),
 					authorized_keys: Map::new(),
-					website_config: Lww::new(website),
 					aliases: LwwMap::new(),
 					local_aliases: LwwMap::new(),
+					website_config: Lww::new(website),
+					cors_config: Lww::new(None),
 				}),
 			})
 			.await?;

@@ -26,10 +26,10 @@ your motivations for doing so in the PR message.
 | 							 | UploadPart |
 | 							 | [*ListMultipartUploads*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103) |
 | 							 | [*ListParts*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103) |
-| **A-tier** (will implement)     | |
-| 							 | [*GetBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
-| 							 | [*PutBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
-| 							 | [*DeleteBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
+| **A-tier**                 | |
+| 							 | GetBucketCors |
+| 							 | PutBucketCors |
+| 							 | DeleteBucketCors |
 | 							 | UploadPartCopy |
 | 							 | GetBucketWebsite |
 | 							 | PutBucketWebsite |
