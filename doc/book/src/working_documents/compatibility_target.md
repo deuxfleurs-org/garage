@@ -31,8 +31,8 @@ your motivations for doing so in the PR message.
 | 							 | [*PutBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
 | 							 | [*DeleteBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
 | 							 | UploadPartCopy |
-| 							 | [*GetBucketWebsite*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/77) |
-| 							 | [*PutBucketWebsite*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/77) |
+| 							 | GetBucketWebsite |
+| 							 | PutBucketWebsite |
 | 							 | DeleteBucketWebsite |
 | ~~~~~~~~~~~~~~~~~~~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
 | **B-tier** | |

@@ -36,7 +36,7 @@ All APIs that are not mentionned are not implemented and will return a 501 Not I
 | DeleteObjects                | Implemented                      |
 | GetBucketLocation            | Implemented                      |
 | GetBucketVersioning          | Stub (see below)                 |
-| GetBucketWebsite             | Unsupported                      |
+| GetBucketWebsite             | Implemented                      |
 | GetObject                    | Implemented                      |
 | HeadBucket                   | Implemented                      |
 | HeadObject                   | Implemented                      |
@@ -56,6 +56,5 @@ All APIs that are not mentionned are not implemented and will return a 501 Not I
 
 - **ListObjects:** Implemented, but there isn't a very good specification of what `encoding-type=url` covers so there might be some encoding bugs. In our implementation the url-encoded fields are in the same in ListObjects as they are in ListObjectsV2.
 
-- **PutBucketWebsite:** Implemented, but only store if website is enabled, not more complexe informations.
+- **PutBucketWebsite:** Implemented, but only stores the index document suffix and the error document path. Redirects are not supported.
 
-- **GetBucketWebsite:** Not implemented yet, will be when PubBucketWebsite store more informations.
