@@ -28,9 +28,9 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | AbortMultipartUpload         | Implemented                      |
 | CompleteMultipartUpload      | Implemented                      |
 | CopyObject                   | Implemented                      |
-| CreateBucket                 | Unsupported, stub (see below)    |
+| CreateBucket                 | Implemented                      |
 | CreateMultipartUpload        | Implemented                      |
-| DeleteBucket                 | Unsupported (see below)          |
+| DeleteBucket                 | Implemented                      |
 | DeleteBucketWebsite          | Implemented                      |
 | DeleteObject                 | Implemented                      |
 | DeleteObjects                | Implemented                      |
@@ -47,11 +47,6 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |
 
-
-
-- **CreateBucket:** Garage does not yet accept creating buckets or giving access using API calls, it has to be done using the CLI tools. CreateBucket will return a 200 if the bucket exists and user has write access, and a 403 Forbidden in all other cases.
-
-- **DeleteBucket:** Garage does not yet accept deleting buckets using API calls, it has to be done using the CLI tools. This request will return a 403 Forbidden.
 
 - **GetBucketVersioning:** Stub implementation (Garage does not yet support versionning so this always returns
 "versionning not enabled").

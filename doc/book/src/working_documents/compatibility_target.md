@@ -9,8 +9,8 @@ your motivations for doing so in the PR message.
 | **S-tier** (high priority) | |
 | 							 | HeadBucket |
 | 							 | GetBucketLocation |
-| 							 | [*CreateBucket*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/97) |
-| 							 | [*DeleteBucket*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/97) |
+| 							 | CreateBucket |
+| 							 | DeleteBucket |
 | 							 | ListBuckets |
 | 							 | ListObjects |
 | 							 | ListObjectsV2 |
