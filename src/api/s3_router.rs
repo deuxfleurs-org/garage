@@ -1015,14 +1015,14 @@ mod tests {
             )*
         }};
 
-		(@actual_method HEAD) => {{ "HEAD" }};
-		(@actual_method GET) => {{ "GET" }};
-		(@actual_method OWNER_GET) => {{ "GET" }};
-		(@actual_method PUT) => {{ "PUT" }};
-		(@actual_method OWNER_PUT) => {{ "PUT" }};
-		(@actual_method POST) => {{ "POST" }};
-		(@actual_method DELETE) => {{ "DELETE" }};
-		(@actual_method OWNER_DELETE) => {{ "DELETE" }};
+        (@actual_method HEAD) => {{ "HEAD" }};
+        (@actual_method GET) => {{ "GET" }};
+        (@actual_method OWNER_GET) => {{ "GET" }};
+        (@actual_method PUT) => {{ "PUT" }};
+        (@actual_method OWNER_PUT) => {{ "PUT" }};
+        (@actual_method POST) => {{ "POST" }};
+        (@actual_method DELETE) => {{ "DELETE" }};
+        (@actual_method OWNER_DELETE) => {{ "DELETE" }};
 
         (@auth HEAD $uri:expr) => {{
             assert_eq!(parse("HEAD", concat!("/my_bucket", $uri), None, None).authorization_type(),
