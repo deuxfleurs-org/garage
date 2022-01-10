@@ -44,5 +44,6 @@
 - [Working Documents](./working_documents/index.md)
   - [S3 compatibility target](./working_documents/compatibility_target.md)
   - [Load balancing data](./working_documents/load_balancing.md)
+  - [Migrating from 0.5 to 0.6](./working_documents/migration_06.md)
   - [Migrating from 0.3 to 0.4](./working_documents/migration_04.md)
   - [Design draft](./working_documents/design_draft.md)
