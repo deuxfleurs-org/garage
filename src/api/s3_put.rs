@@ -370,12 +370,15 @@ pub async fn handle_put_part(
 	let key = key.to_string();
 	let mut chunker = BodyChunker::new(req.into_body(), garage.config.block_size);
 
-	let (object, first_block) =
-		futures::try_join!(garage.object_table.get(&bucket_id, &key), chunker.next(),)?;
+	let (object, version, first_block) = futures::try_join!(
+		garage.object_table.get(&bucket_id, &key),
+		garage.version_table.get(&version_uuid, &EmptyKey),
+		chunker.next()
+	)?;
 
 	// Check object is valid and multipart block can be accepted
-	let first_block = first_block.ok_or_else(|| Error::BadRequest("Empty body".to_string()))?;
-	let object = object.ok_or_else(|| Error::BadRequest("Object not found".to_string()))?;
+	let first_block = first_block.ok_or_bad_request("Empty body")?;
+	let object = object.ok_or_bad_request("Object not found")?;
 
 	if !object
 		.versions()
@@ -383,6 +386,16 @@ pub async fn handle_put_part(
 		.any(|v| v.uuid == version_uuid && v.is_uploading())
 	{
 		return Err(Error::NoSuchUpload);
+	}
+
+	// Check part hasn't already been uploaded
+	if let Some(v) = version {
+		if v.has_part_number(part_number) {
+			return Err(Error::BadRequest(format!(
+				"Part number {} has already been uploaded",
+				part_number
+			)));
+		}
 	}
 
 	// Copy block to store

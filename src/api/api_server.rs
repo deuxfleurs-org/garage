@@ -156,19 +156,24 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			.await
 		}
 		Endpoint::CopyObject { key, .. } => {
-			let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
-			let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
-			let (source_bucket, source_key) = parse_bucket_key(&copy_source, None)?;
-			let source_bucket_id =
-				resolve_bucket(&garage, &source_bucket.to_string(), &api_key).await?;
-			if !api_key.allow_read(&source_bucket_id) {
-				return Err(Error::Forbidden(format!(
-					"Reading from bucket {} not allowed for this key",
-					source_bucket
-				)));
-			}
-			let source_key = source_key.ok_or_bad_request("No source key specified")?;
-			handle_copy(garage, &req, bucket_id, &key, source_bucket_id, source_key).await
+			handle_copy(garage, &api_key, &req, bucket_id, &key).await
+		}
+		Endpoint::UploadPartCopy {
+			key,
+			part_number,
+			upload_id,
+			..
+		} => {
+			handle_upload_part_copy(
+				garage,
+				&api_key,
+				&req,
+				bucket_id,
+				&key,
+				part_number,
+				&upload_id,
+			)
+			.await
 		}
 		Endpoint::PutObject { key, .. } => {
 			handle_put(garage, req, bucket_id, &key, content_sha256).await
@@ -321,7 +326,7 @@ async fn handle_request_without_bucket(
 }
 
 #[allow(clippy::ptr_arg)]
-async fn resolve_bucket(
+pub async fn resolve_bucket(
 	garage: &Garage,
 	bucket_name: &String,
 	api_key: &Key,
@@ -347,7 +352,7 @@ async fn resolve_bucket(
 ///
 /// S3 internally manages only buckets and keys. This function splits
 /// an HTTP path to get the corresponding bucket name and key.
-fn parse_bucket_key<'a>(
+pub fn parse_bucket_key<'a>(
 	path: &'a str,
 	host_bucket: Option<&'a str>,
 ) -> Result<(&'a str, Option<&'a str>), Error> {

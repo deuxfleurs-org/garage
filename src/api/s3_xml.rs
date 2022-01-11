@@ -428,6 +428,8 @@ mod tests {
 
 	#[test]
 	fn copy_object_result() -> Result<(), ApiError> {
+		// @FIXME: ETag should be quoted, but we can't add quotes
+		// because XML serializer replaces them by `&quot;`
 		let copy_result = CopyObjectResult {
 			last_modified: Value(msec_to_rfc3339(0)),
 			etag: Value("9b2cf535f27731c974343645a3985328".to_string()),
@@ -466,6 +468,8 @@ mod tests {
 
 	#[test]
 	fn complete_multipart_upload_result() -> Result<(), ApiError> {
+		// @FIXME: ETag should be quoted, but we can't add quotes
+		// because XML serializer replaces them by `&quot;`
 		let result = CompleteMultipartUploadResult {
 			xmlns: (),
 			location: Some(Value("https://garage.tld/mybucket/a/plop".to_string())),
@@ -540,6 +544,8 @@ mod tests {
 
 	#[test]
 	fn list_objects_v1_1() -> Result<(), ApiError> {
+		// @FIXME: ETag should be quoted, but we can't add quotes
+		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("example-bucket".to_string()),
@@ -639,6 +645,8 @@ mod tests {
 
 	#[test]
 	fn list_objects_v2_1() -> Result<(), ApiError> {
+		// @FIXME: ETag should be quoted, but we can't add quotes
+		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("quotes".to_string()),
@@ -685,6 +693,8 @@ mod tests {
 
 	#[test]
 	fn list_objects_v2_2() -> Result<(), ApiError> {
+		// @FIXME: ETag should be quoted, but we can't add quotes
+		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("bucket".to_string()),

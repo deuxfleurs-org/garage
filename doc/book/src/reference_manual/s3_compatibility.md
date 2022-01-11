@@ -21,7 +21,7 @@ Not implemented:
 
 ## Endpoint implementation
 
-All APIs that are not mentionned are not implemented and will return a 400 bad request.
+All APIs that are not mentionned are not implemented and will return a 501 Not Implemented.
 
 | Endpoint                     | Status                           |
 |------------------------------|----------------------------------|
@@ -48,6 +48,7 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | PutObject                    | Implemented                      |
 | PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |
+| UploadPartCopy               | Implemented                      |
 
 
 - **GetBucketVersioning:** Stub implementation (Garage does not yet support versionning so this always returns

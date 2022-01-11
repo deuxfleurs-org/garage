@@ -30,7 +30,7 @@ your motivations for doing so in the PR message.
 | 							 | [*GetBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
 | 							 | [*PutBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
 | 							 | [*DeleteBucketCors*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138) |
-| 							 | [*UploadPartCopy*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/160) |
+| 							 | UploadPartCopy |
 | 							 | [*GetBucketWebsite*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/77) |
 | 							 | [*PutBucketWebsite*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/77) |
 | 							 | DeleteBucketWebsite |

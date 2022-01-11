@@ -47,6 +47,20 @@ impl Version {
 			key,
 		}
 	}
+
+	pub fn has_part_number(&self, part_number: u64) -> bool {
+		let case1 = self
+			.parts_etags
+			.items()
+			.binary_search_by(|(k, _)| k.cmp(&part_number))
+			.is_ok();
+		let case2 = self
+			.blocks
+			.items()
+			.binary_search_by(|(k, _)| k.part_number.cmp(&part_number))
+			.is_ok();
+		case1 || case2
+	}
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
