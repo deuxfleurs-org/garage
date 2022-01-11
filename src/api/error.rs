@@ -54,6 +54,10 @@ pub enum Error {
 	#[error(display = "Tried to delete a non-empty bucket")]
 	BucketNotEmpty,
 
+	/// Precondition failed (e.g. x-amz-copy-source-if-match)
+	#[error(display = "At least one of the preconditions you specified did not hold")]
+	PreconditionFailed,
+
 	// Category: bad request
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
@@ -115,6 +119,7 @@ impl Error {
 		match self {
 			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
 			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
+			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::InternalError(
 				GarageError::Timeout
@@ -137,6 +142,7 @@ impl Error {
 			Error::NoSuchUpload => "NoSuchUpload",
 			Error::BucketAlreadyExists => "BucketAlreadyExists",
 			Error::BucketNotEmpty => "BucketNotEmpty",
+			Error::PreconditionFailed => "PreconditionFailed",
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::NotImplemented(_) => "NotImplemented",

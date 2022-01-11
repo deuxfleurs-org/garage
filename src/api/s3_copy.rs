@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use hyper::{Body, Request, Response};
 
@@ -23,6 +24,8 @@ pub async fn handle_copy(
 	source_bucket_id: Uuid,
 	source_key: &str,
 ) -> Result<Response<Body>, Error> {
+	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
+
 	let source_object = garage
 		.object_table
 		.get(&source_bucket_id, &source_key.to_string())
@@ -62,6 +65,9 @@ pub async fn handle_copy(
 	};
 
 	let etag = new_meta.etag.to_string();
+
+	// Check precondition, e.g. x-amz-copy-source-if-match
+	copy_precondition.check(source_last_v, etag.as_str())?;
 
 	// Save object copy
 	match source_last_state {
@@ -164,5 +170,100 @@ pub async fn handle_copy(
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
+		.header("x-amz-version-id", hex::encode(new_uuid))
+		.header(
+			"x-amz-copy-source-version-id",
+			hex::encode(source_last_v.uuid),
+		)
 		.body(Body::from(xml))?)
+}
+
+struct CopyPreconditionHeaders {
+	copy_source_if_match: Option<Vec<String>>,
+	copy_source_if_modified_since: Option<SystemTime>,
+	copy_source_if_none_match: Option<Vec<String>>,
+	copy_source_if_unmodified_since: Option<SystemTime>,
+}
+
+impl CopyPreconditionHeaders {
+	fn parse(req: &Request<Body>) -> Result<Self, Error> {
+		Ok(Self {
+			copy_source_if_match: req
+				.headers()
+				.get("x-amz-copy-source-if-match")
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| {
+					x.split(',')
+						.map(|m| m.trim().trim_matches('"').to_string())
+						.collect::<Vec<_>>()
+				}),
+			copy_source_if_modified_since: req
+				.headers()
+				.get("x-amz-copy-source-if-modified-since")
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| httpdate::parse_http_date(x))
+				.transpose()
+				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-modified-since")?,
+			copy_source_if_none_match: req
+				.headers()
+				.get("x-amz-copy-source-if-none-match")
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| {
+					x.split(',')
+						.map(|m| m.trim().trim_matches('"').to_string())
+						.collect::<Vec<_>>()
+				}),
+			copy_source_if_unmodified_since: req
+				.headers()
+				.get("x-amz-copy-source-if-unmodified-since")
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| httpdate::parse_http_date(x))
+				.transpose()
+				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-unmodified-since")?,
+		})
+	}
+
+	fn check(&self, v: &ObjectVersion, etag: &str) -> Result<(), Error> {
+		let v_date = UNIX_EPOCH + Duration::from_millis(v.timestamp);
+
+		let ok = match (
+			&self.copy_source_if_match,
+			&self.copy_source_if_unmodified_since,
+			&self.copy_source_if_none_match,
+			&self.copy_source_if_modified_since,
+		) {
+			// TODO I'm not sure all of the conditions are evaluated correctly here
+
+			// If we have both if-match and if-unmodified-since,
+			// basically we don't care about if-unmodified-since,
+			// because in the spec it says that if if-match evaluates to
+			// true but if-unmodified-since evaluates to false,
+			// the copy is still done.
+			(Some(im), _, None, None) => im.iter().any(|x| x == etag || x == "*"),
+			(None, Some(ius), None, None) => v_date <= *ius,
+
+			// If we have both if-none-match and if-modified-since,
+			// then both of the two conditions must evaluate to true
+			(None, None, Some(inm), Some(ims)) => {
+				!inm.iter().any(|x| x == etag || x == "*") && v_date > *ims
+			}
+			(None, None, Some(inm), None) => !inm.iter().any(|x| x == etag || x == "*"),
+			(None, None, None, Some(ims)) => v_date > *ims,
+			_ => {
+				return Err(Error::BadRequest(
+					"Invalid combination of x-amz-copy-source-if-xxxxx headers".into(),
+				))
+			}
+		};
+
+		if ok {
+			Ok(())
+		} else {
+			Err(Error::PreconditionFailed)
+		}
+	}
 }
