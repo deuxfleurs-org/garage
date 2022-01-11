@@ -8,6 +8,17 @@ use hyper::{HeaderMap, Method, Request};
 /// This macro is used to generate very repetitive match {} blocks in this module
 /// It is _not_ made to be used anywhere else
 macro_rules! s3_match {
+    (@match $enum:expr , [ $($endpoint:ident,)* ]) => {{
+        // usage: s3_match {@match my_enum, [ VariantWithField1, VariantWithField2 ..] }
+        // returns true if the variant was one of the listed variants, false otherwise.
+        use Endpoint::*;
+        match $enum {
+            $(
+            $endpoint { .. } => true,
+            )*
+            _ => false
+        }
+    }};
     (@extract $enum:expr , $param:ident, [ $($endpoint:ident,)* ]) => {{
         // usage: s3_match {@extract my_enum, field_name, [ VariantWithField1, VariantWithField2 ..] }
         // returns Some(field_value), or None if the variant was not one of the listed variants.
@@ -19,10 +30,10 @@ macro_rules! s3_match {
             _ => None
         }
     }};
-    (@gen_parser ($keyword:expr, $key:expr, $bucket:expr, $query:expr, $header:expr),
+    (@gen_parser ($keyword:expr, $key:expr, $query:expr, $header:expr),
         key: [$($kw_k:ident $(if $required_k:ident)? $(header $header_k:expr)? => $api_k:ident $(($($conv_k:ident :: $param_k:ident),*))?,)*],
         no_key: [$($kw_nk:ident $(if $required_nk:ident)? $(if_header $header_nk:expr)? => $api_nk:ident $(($($conv_nk:ident :: $param_nk:ident),*))?,)*]) => {{
-        // usage: s3_match {@gen_parser (keyword, key, bucket, query, header),
+        // usage: s3_match {@gen_parser (keyword, key, query, header),
         //   key: [
         //      SOME_KEYWORD => VariantWithKey,
         //      ...
@@ -38,7 +49,6 @@ macro_rules! s3_match {
         match ($keyword, !$key.is_empty()){
             $(
             ($kw_k, true) if true $(&& $query.$required_k.is_some())? $(&& $header.contains_key($header_k))? => Ok($api_k {
-                bucket: $bucket,
                 key: $key,
                 $($(
                     $param_k: s3_match!(@@parse_param $query, $conv_k, $param_k),
@@ -47,7 +57,6 @@ macro_rules! s3_match {
             )*
             $(
             ($kw_nk, false) $(if $query.$required_nk.is_some())? $(if $header.contains($header_nk))? => Ok($api_nk {
-                bucket: $bucket,
                 $($(
                     $param_nk: s3_match!(@@parse_param $query, $conv_nk, $param_nk),
                 )*)?
@@ -87,7 +96,6 @@ macro_rules! s3_match {
         $(
             $(#[$outer:meta])*
             $variant:ident $({
-                bucket: String,
                 $($name:ident: $ty:ty,)*
             })?,
         )*
@@ -97,7 +105,6 @@ macro_rules! s3_match {
             $(
                 $(#[$outer])*
                 $variant $({
-                    bucket: String,
                     $($name: $ty, )*
                 })?,
             )*
@@ -106,15 +113,6 @@ macro_rules! s3_match {
             pub fn name(&self) -> &'static str {
                 match self {
                     $(Endpoint::$variant $({ $($name: _,)* .. })? => stringify!($variant),)*
-                }
-            }
-
-            /// Get the bucket the request target. Returns None for requests not related to a bucket.
-            pub fn get_bucket(&self) -> Option<&str> {
-                match self {
-                    $(
-                        Endpoint::$variant $({ bucket, $($name: _,)* .. })? => s3_match!{@if ($(bucket $($name)*)?) then (Some(bucket)) else (None)},
-                    )*
                 }
             }
         }
@@ -138,215 +136,158 @@ s3_match! {@func
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Endpoint {
 	AbortMultipartUpload {
-		bucket: String,
 		key: String,
 		upload_id: String,
 	},
 	CompleteMultipartUpload {
-		bucket: String,
 		key: String,
 		upload_id: String,
 	},
 	CopyObject {
-		bucket: String,
 		key: String,
 	},
 	CreateBucket {
-		bucket: String,
 	},
 	CreateMultipartUpload {
-		bucket: String,
 		key: String,
 	},
 	DeleteBucket {
-		bucket: String,
 	},
 	DeleteBucketAnalyticsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	DeleteBucketCors {
-		bucket: String,
 	},
 	DeleteBucketEncryption {
-		bucket: String,
 	},
 	DeleteBucketIntelligentTieringConfiguration {
-		bucket: String,
 		id: String,
 	},
 	DeleteBucketInventoryConfiguration {
-		bucket: String,
 		id: String,
 	},
 	DeleteBucketLifecycle {
-		bucket: String,
 	},
 	DeleteBucketMetricsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	DeleteBucketOwnershipControls {
-		bucket: String,
 	},
 	DeleteBucketPolicy {
-		bucket: String,
 	},
 	DeleteBucketReplication {
-		bucket: String,
 	},
 	DeleteBucketTagging {
-		bucket: String,
 	},
 	DeleteBucketWebsite {
-		bucket: String,
 	},
 	DeleteObject {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	DeleteObjects {
-		bucket: String,
 	},
 	DeleteObjectTagging {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	DeletePublicAccessBlock {
-		bucket: String,
 	},
 	GetBucketAccelerateConfiguration {
-		bucket: String,
 	},
 	GetBucketAcl {
-		bucket: String,
 	},
 	GetBucketAnalyticsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	GetBucketCors {
-		bucket: String,
 	},
 	GetBucketEncryption {
-		bucket: String,
 	},
 	GetBucketIntelligentTieringConfiguration {
-		bucket: String,
 		id: String,
 	},
 	GetBucketInventoryConfiguration {
-		bucket: String,
 		id: String,
 	},
 	GetBucketLifecycleConfiguration {
-		bucket: String,
 	},
 	GetBucketLocation {
-		bucket: String,
 	},
 	GetBucketLogging {
-		bucket: String,
 	},
 	GetBucketMetricsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	GetBucketNotificationConfiguration {
-		bucket: String,
 	},
 	GetBucketOwnershipControls {
-		bucket: String,
 	},
 	GetBucketPolicy {
-		bucket: String,
 	},
 	GetBucketPolicyStatus {
-		bucket: String,
 	},
 	GetBucketReplication {
-		bucket: String,
 	},
 	GetBucketRequestPayment {
-		bucket: String,
 	},
 	GetBucketTagging {
-		bucket: String,
 	},
 	GetBucketVersioning {
-		bucket: String,
 	},
 	GetBucketWebsite {
-		bucket: String,
 	},
 	/// There are actually many more query parameters, used to add headers to the answer. They were
 	/// not added here as they are best handled in a dedicated route.
 	GetObject {
-		bucket: String,
 		key: String,
 		part_number: Option<u64>,
 		version_id: Option<String>,
 	},
 	GetObjectAcl {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	GetObjectLegalHold {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	GetObjectLockConfiguration {
-		bucket: String,
 	},
 	GetObjectRetention {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	GetObjectTagging {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	GetObjectTorrent {
-		bucket: String,
 		key: String,
 	},
 	GetPublicAccessBlock {
-		bucket: String,
 	},
 	HeadBucket {
-		bucket: String,
 	},
 	HeadObject {
-		bucket: String,
 		key: String,
 		part_number: Option<u64>,
 		version_id: Option<String>,
 	},
 	ListBucketAnalyticsConfigurations {
-		bucket: String,
 		continuation_token: Option<String>,
 	},
 	ListBucketIntelligentTieringConfigurations {
-		bucket: String,
 		continuation_token: Option<String>,
 	},
 	ListBucketInventoryConfigurations {
-		bucket: String,
 		continuation_token: Option<String>,
 	},
 	ListBucketMetricsConfigurations {
-		bucket: String,
 		continuation_token: Option<String>,
 	},
 	ListBuckets,
 	ListMultipartUploads {
-		bucket: String,
 		delimiter: Option<char>,
 		encoding_type: Option<String>,
 		key_marker: Option<String>,
@@ -355,7 +296,6 @@ pub enum Endpoint {
 		upload_id_marker: Option<String>,
 	},
 	ListObjects {
-		bucket: String,
 		delimiter: Option<char>,
 		encoding_type: Option<String>,
 		marker: Option<String>,
@@ -363,7 +303,6 @@ pub enum Endpoint {
 		prefix: Option<String>,
 	},
 	ListObjectsV2 {
-		bucket: String,
 		// This value should always be 2. It is not checked when constructing the struct
 		list_type: String,
 		continuation_token: Option<String>,
@@ -375,7 +314,6 @@ pub enum Endpoint {
 		start_after: Option<String>,
 	},
 	ListObjectVersions {
-		bucket: String,
 		delimiter: Option<char>,
 		encoding_type: Option<String>,
 		key_marker: Option<String>,
@@ -384,119 +322,89 @@ pub enum Endpoint {
 		version_id_marker: Option<String>,
 	},
 	ListParts {
-		bucket: String,
 		key: String,
 		max_parts: Option<u64>,
 		part_number_marker: Option<u64>,
 		upload_id: String,
 	},
 	PutBucketAccelerateConfiguration {
-		bucket: String,
 	},
 	PutBucketAcl {
-		bucket: String,
 	},
 	PutBucketAnalyticsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	PutBucketCors {
-		bucket: String,
 	},
 	PutBucketEncryption {
-		bucket: String,
 	},
 	PutBucketIntelligentTieringConfiguration {
-		bucket: String,
 		id: String,
 	},
 	PutBucketInventoryConfiguration {
-		bucket: String,
 		id: String,
 	},
 	PutBucketLifecycleConfiguration {
-		bucket: String,
 	},
 	PutBucketLogging {
-		bucket: String,
 	},
 	PutBucketMetricsConfiguration {
-		bucket: String,
 		id: String,
 	},
 	PutBucketNotificationConfiguration {
-		bucket: String,
 	},
 	PutBucketOwnershipControls {
-		bucket: String,
 	},
 	PutBucketPolicy {
-		bucket: String,
 	},
 	PutBucketReplication {
-		bucket: String,
 	},
 	PutBucketRequestPayment {
-		bucket: String,
 	},
 	PutBucketTagging {
-		bucket: String,
 	},
 	PutBucketVersioning {
-		bucket: String,
 	},
 	PutBucketWebsite {
-		bucket: String,
 	},
 	PutObject {
-		bucket: String,
 		key: String,
 	},
 	PutObjectAcl {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	PutObjectLegalHold {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	PutObjectLockConfiguration {
-		bucket: String,
 	},
 	PutObjectRetention {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	PutObjectTagging {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	PutPublicAccessBlock {
-		bucket: String,
 	},
 	RestoreObject {
-		bucket: String,
 		key: String,
 		version_id: Option<String>,
 	},
 	SelectObjectContent {
-		bucket: String,
 		key: String,
 		// This value should always be 2. It is not checked when constructing the struct
 		select_type: String,
 	},
 	UploadPart {
-		bucket: String,
 		key: String,
 		part_number: u64,
 		upload_id: String,
 	},
 	UploadPartCopy {
-		bucket: String,
 		key: String,
 		part_number: u64,
 		upload_id: String,
@@ -506,12 +414,16 @@ pub enum Endpoint {
 impl Endpoint {
 	/// Determine which S3 endpoint a request is for using the request, and a bucket which was
 	/// possibly extracted from the Host header.
-	pub fn from_request<T>(req: &Request<T>, bucket: Option<String>) -> Result<Self, Error> {
+	/// Returns Self plus bucket name, if endpoint is not Endpoint::ListBuckets
+	pub fn from_request<T>(
+		req: &Request<T>,
+		bucket: Option<String>,
+	) -> Result<(Self, Option<String>), Error> {
 		let uri = req.uri();
 		let path = uri.path().trim_start_matches('/');
 		let query = uri.query();
 		if bucket.is_none() && path.is_empty() {
-			return Ok(Self::ListBuckets);
+			return Ok((Self::ListBuckets, None));
 		}
 
 		let (bucket, key) = if let Some(bucket) = bucket {
@@ -529,29 +441,25 @@ impl Endpoint {
 		let mut query = QueryParameters::from_query(query.unwrap_or_default())?;
 
 		let res = match *req.method() {
-			Method::GET => Self::from_get(bucket, key, &mut query)?,
-			Method::HEAD => Self::from_head(bucket, key, &mut query)?,
-			Method::POST => Self::from_post(bucket, key, &mut query)?,
-			Method::PUT => Self::from_put(bucket, key, &mut query, req.headers())?,
-			Method::DELETE => Self::from_delete(bucket, key, &mut query)?,
+			Method::GET => Self::from_get(key, &mut query)?,
+			Method::HEAD => Self::from_head(key, &mut query)?,
+			Method::POST => Self::from_post(key, &mut query)?,
+			Method::PUT => Self::from_put(key, &mut query, req.headers())?,
+			Method::DELETE => Self::from_delete(key, &mut query)?,
 			_ => return Err(Error::BadRequest("Unknown method".to_owned())),
 		};
 
 		if let Some(message) = query.nonempty_message() {
 			debug!("Unused query parameter: {}", message)
 		}
-		Ok(res)
+		Ok((res, Some(bucket)))
 	}
 
 	/// Determine which endpoint a request is for, knowing it is a GET.
-	fn from_get(
-		bucket: String,
-		key: String,
-		query: &mut QueryParameters<'_>,
-	) -> Result<Self, Error> {
+	fn from_get(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		s3_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, bucket, query, None),
+			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
 			key: [
 				EMPTY if upload_id => ListParts (query::upload_id, opt_parse::max_parts, opt_parse::part_number_marker),
 				EMPTY => GetObject (query_opt::version_id, opt_parse::part_number),
@@ -605,14 +513,10 @@ impl Endpoint {
 	}
 
 	/// Determine which endpoint a request is for, knowing it is a HEAD.
-	fn from_head(
-		bucket: String,
-		key: String,
-		query: &mut QueryParameters<'_>,
-	) -> Result<Self, Error> {
+	fn from_head(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		s3_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, bucket, query, None),
+			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
 			key: [
 				EMPTY => HeadObject(opt_parse::part_number, query_opt::version_id),
 			],
@@ -623,14 +527,10 @@ impl Endpoint {
 	}
 
 	/// Determine which endpoint a request is for, knowing it is a POST.
-	fn from_post(
-		bucket: String,
-		key: String,
-		query: &mut QueryParameters<'_>,
-	) -> Result<Self, Error> {
+	fn from_post(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		s3_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, bucket, query, None),
+			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
 			key: [
 				EMPTY if upload_id  => CompleteMultipartUpload (query::upload_id),
 				RESTORE => RestoreObject (query_opt::version_id),
@@ -645,14 +545,13 @@ impl Endpoint {
 
 	/// Determine which endpoint a request is for, knowing it is a PUT.
 	fn from_put(
-		bucket: String,
 		key: String,
 		query: &mut QueryParameters<'_>,
 		headers: &HeaderMap<HeaderValue>,
 	) -> Result<Self, Error> {
 		s3_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, bucket, query, headers),
+			(query.keyword.take().unwrap_or_default().as_ref(), key, query, headers),
 			key: [
 				EMPTY if part_number header "x-amz-copy-source" => UploadPartCopy (parse::part_number, query::upload_id),
 				EMPTY header "x-amz-copy-source" => CopyObject,
@@ -691,14 +590,10 @@ impl Endpoint {
 	}
 
 	/// Determine which endpoint a request is for, knowing it is a DELETE.
-	fn from_delete(
-		bucket: String,
-		key: String,
-		query: &mut QueryParameters<'_>,
-	) -> Result<Self, Error> {
+	fn from_delete(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		s3_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, bucket, query, None),
+			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
 			key: [
 				EMPTY if upload_id => AbortMultipartUpload (query::upload_id),
 				EMPTY => DeleteObject (query_opt::version_id),
@@ -759,16 +654,13 @@ impl Endpoint {
 	}
 
 	/// Get the kind of authorization which is required to perform the operation.
-	pub fn authorization_type(&self) -> Authorization<'_> {
-		let bucket = if let Some(bucket) = self.get_bucket() {
-			bucket
-		} else {
+	pub fn authorization_type(&self) -> Authorization {
+		if let Endpoint::ListBuckets = self {
 			return Authorization::None;
 		};
 		let readonly = s3_match! {
-			@extract
+			@match
 			self,
-			bucket,
 			[
 				GetBucketAccelerateConfiguration,
 				GetBucketAcl,
@@ -810,41 +702,38 @@ impl Endpoint {
 				ListParts,
 				SelectObjectContent,
 			]
-		}
-		.is_some();
+		};
 		let owner = s3_match! {
-			@extract
+			@match
 			self,
-			bucket,
 			[
 				DeleteBucket,
 				GetBucketWebsite,
 				PutBucketWebsite,
 				DeleteBucketWebsite,
 			]
-		}
-		.is_some();
+		};
 		if readonly {
-			Authorization::Read(bucket)
+			Authorization::Read
 		} else if owner {
-			Authorization::Owner(bucket)
+			Authorization::Owner
 		} else {
-			Authorization::Write(bucket)
+			Authorization::Write
 		}
 	}
 }
 
 /// What kind of authorization is required to perform a given action
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Authorization<'a> {
+pub enum Authorization {
 	/// No authorization is required
 	None,
-	/// Having Read permission on bucket .0 is required
-	Read(&'a str),
-	/// Having Write permission on bucket .0 is required
-	Write(&'a str),
-	/// Having Owner permission on bucket .0 is required
-	Owner(&'a str),
+	/// Having Read permission on bucket
+	Read,
+	/// Having Write permission on bucket
+	Write,
+	/// Having Owner permission on bucket
+	Owner,
 }
 
 /// This macro is used to generate part of the code in this module. It must be called only one, and
@@ -985,7 +874,7 @@ mod tests {
 		uri: &str,
 		bucket: Option<String>,
 		header: Option<(&str, &str)>,
-	) -> Endpoint {
+	) -> (Endpoint, Option<String>) {
 		let mut req = Request::builder().method(method).uri(uri);
 		if let Some((k, v)) = header {
 			req = req.header(k, v)
@@ -1000,13 +889,13 @@ mod tests {
             $(
             assert!(
                 matches!(
-                    parse(test_cases!{@actual_method $method}, $uri, Some("my_bucket".to_owned()), None),
+                    parse(test_cases!{@actual_method $method}, $uri, Some("my_bucket".to_owned()), None).0,
                     Endpoint::$variant { .. }
                 )
             );
             assert!(
                 matches!(
-                    parse(test_cases!{@actual_method $method}, concat!("/my_bucket", $uri), None, None),
+                    parse(test_cases!{@actual_method $method}, concat!("/my_bucket", $uri), None, None).0,
                     Endpoint::$variant { .. }
                 )
             );
@@ -1025,78 +914,82 @@ mod tests {
         (@actual_method OWNER_DELETE) => {{ "DELETE" }};
 
         (@auth HEAD $uri:expr) => {{
-            assert_eq!(parse("HEAD", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Read("my_bucket"))
+            assert_eq!(parse("HEAD", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Read)
         }};
         (@auth GET $uri:expr) => {{
-            assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Read("my_bucket"))
+            assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Read)
         }};
         (@auth OWNER_GET $uri:expr) => {{
-            assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Owner("my_bucket"))
+            assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Owner)
         }};
         (@auth PUT $uri:expr) => {{
-            assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Write("my_bucket"))
+            assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Write)
         }};
         (@auth OWNER_PUT $uri:expr) => {{
-            assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Owner("my_bucket"))
+            assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Owner)
         }};
         (@auth POST $uri:expr) => {{
-            assert_eq!(parse("POST", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Write("my_bucket"))
+            assert_eq!(parse("POST", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Write)
         }};
         (@auth DELETE $uri:expr) => {{
-            assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Write("my_bucket"))
+            assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Write)
         }};
         (@auth OWNER_DELETE $uri:expr) => {{
-            assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).authorization_type(),
-                Authorization::Owner("my_bucket"))
+            assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Owner)
         }};
     }
 
 	#[test]
 	fn test_bucket_extraction() {
 		assert_eq!(
-			parse("GET", "/my/key", Some("my_bucket".to_owned()), None).get_bucket(),
-			parse("GET", "/my_bucket/my/key", None, None).get_bucket()
+			parse("GET", "/my/key", Some("my_bucket".to_owned()), None).1,
+			parse("GET", "/my_bucket/my/key", None, None).1
 		);
 		assert_eq!(
-			parse("GET", "/my_bucket/my/key", None, None)
-				.get_bucket()
-				.unwrap(),
+			parse("GET", "/my_bucket/my/key", None, None).1.unwrap(),
 			"my_bucket"
 		);
-		assert!(parse("GET", "/", None, None).get_bucket().is_none());
+		assert!(parse("GET", "/", None, None).1.is_none());
 	}
 
 	#[test]
 	fn test_key() {
 		assert_eq!(
-			parse("GET", "/my/key", Some("my_bucket".to_owned()), None).get_key(),
-			parse("GET", "/my_bucket/my/key", None, None).get_key()
+			parse("GET", "/my/key", Some("my_bucket".to_owned()), None)
+				.0
+				.get_key(),
+			parse("GET", "/my_bucket/my/key", None, None).0.get_key()
 		);
 		assert_eq!(
 			parse("GET", "/my_bucket/my/key", None, None)
+				.0
 				.get_key()
 				.unwrap(),
 			"my/key"
 		);
 		assert_eq!(
 			parse("GET", "/my_bucket/my/key?acl", None, None)
+				.0
 				.get_key()
 				.unwrap(),
 			"my/key"
 		);
 		assert!(parse("GET", "/my_bucket/?list-type=2", None, None)
+			.0
 			.get_key()
 			.is_none());
 
 		assert_eq!(
 			parse("GET", "/my_bucket/%26%2B%3F%25%C3%A9/something", None, None)
+				.0
 				.get_key()
 				.unwrap(),
 			"&+?%é/something"
@@ -1268,11 +1161,11 @@ mod tests {
 		);
 		// no bucket, won't work with the rest of the test suite
 		assert!(matches!(
-			parse("GET", "/", None, None),
+			parse("GET", "/", None, None).0,
 			Endpoint::ListBuckets { .. }
 		));
 		assert!(matches!(
-			parse("GET", "/", None, None).authorization_type(),
+			parse("GET", "/", None, None).0.authorization_type(),
 			Authorization::None
 		));
 
@@ -1283,16 +1176,8 @@ mod tests {
 				"/Key+",
 				Some("my_bucket".to_owned()),
 				Some(("x-amz-copy-source", "some/key"))
-			),
-			Endpoint::CopyObject { .. }
-		));
-		assert!(matches!(
-			parse(
-				"PUT",
-				"/my_bucket/Key+",
-				None,
-				Some(("x-amz-copy-source", "some/key"))
-			),
+			)
+			.0,
 			Endpoint::CopyObject { .. }
 		));
 		assert!(matches!(
@@ -1302,8 +1187,19 @@ mod tests {
 				None,
 				Some(("x-amz-copy-source", "some/key"))
 			)
+			.0,
+			Endpoint::CopyObject { .. }
+		));
+		assert!(matches!(
+			parse(
+				"PUT",
+				"/my_bucket/Key+",
+				None,
+				Some(("x-amz-copy-source", "some/key"))
+			)
+			.0
 			.authorization_type(),
-			Authorization::Write("my_bucket")
+			Authorization::Write
 		));
 
 		// require a header
@@ -1313,16 +1209,8 @@ mod tests {
 				"/Key+?partNumber=2&uploadId=UploadId",
 				Some("my_bucket".to_owned()),
 				Some(("x-amz-copy-source", "some/key"))
-			),
-			Endpoint::UploadPartCopy { .. }
-		));
-		assert!(matches!(
-			parse(
-				"PUT",
-				"/my_bucket/Key+?partNumber=2&uploadId=UploadId",
-				None,
-				Some(("x-amz-copy-source", "some/key"))
-			),
+			)
+			.0,
 			Endpoint::UploadPartCopy { .. }
 		));
 		assert!(matches!(
@@ -1332,8 +1220,19 @@ mod tests {
 				None,
 				Some(("x-amz-copy-source", "some/key"))
 			)
+			.0,
+			Endpoint::UploadPartCopy { .. }
+		));
+		assert!(matches!(
+			parse(
+				"PUT",
+				"/my_bucket/Key+?partNumber=2&uploadId=UploadId",
+				None,
+				Some(("x-amz-copy-source", "some/key"))
+			)
+			.0
 			.authorization_type(),
-			Authorization::Write("my_bucket")
+			Authorization::Write
 		));
 
 		// POST request, but with GET semantic for permissions purpose
@@ -1343,17 +1242,19 @@ mod tests {
 				"/{Key+}?select&select-type=2",
 				Some("my_bucket".to_owned()),
 				None
-			),
+			)
+			.0,
 			Endpoint::SelectObjectContent { .. }
 		));
 		assert!(matches!(
-			parse("POST", "/my_bucket/{Key+}?select&select-type=2", None, None),
+			parse("POST", "/my_bucket/{Key+}?select&select-type=2", None, None).0,
 			Endpoint::SelectObjectContent { .. }
 		));
 		assert!(matches!(
 			parse("POST", "/my_bucket/{Key+}?select&select-type=2", None, None)
+				.0
 				.authorization_type(),
-			Authorization::Read("my_bucket")
+			Authorization::Read
 		));
 	}
 }

@@ -107,25 +107,25 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		.as_ref()
 		.and_then(|root_domain| host_to_bucket(&host, root_domain));
 
-	let endpoint = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
+	let (endpoint, bucket) = Endpoint::from_request(&req, bucket.map(ToOwned::to_owned))?;
 	debug!("Endpoint: {:?}", endpoint);
 
-	// Special code path for CreateBucket API endpoint
-	if let Endpoint::CreateBucket { bucket } = endpoint {
-		return handle_create_bucket(&garage, req, content_sha256, api_key, bucket).await;
-	}
-
-	let bucket_name = match endpoint.get_bucket() {
+	let bucket_name = match bucket {
 		None => return handle_request_without_bucket(garage, req, api_key, endpoint).await,
 		Some(bucket) => bucket.to_string(),
 	};
 
+	// Special code path for CreateBucket API endpoint
+	if let Endpoint::CreateBucket {} = endpoint {
+		return handle_create_bucket(&garage, req, content_sha256, api_key, bucket_name).await;
+	}
+
 	let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
 
 	let allowed = match endpoint.authorization_type() {
-		Authorization::Read(_) => api_key.allow_read(&bucket_id),
-		Authorization::Write(_) => api_key.allow_write(&bucket_id),
-		Authorization::Owner(_) => api_key.allow_owner(&bucket_id),
+		Authorization::Read => api_key.allow_read(&bucket_id),
+		Authorization::Write => api_key.allow_write(&bucket_id),
+		Authorization::Owner => api_key.allow_owner(&bucket_id),
 		_ => unreachable!(),
 	};
 
@@ -142,7 +142,6 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			key,
 			part_number,
 			upload_id,
-			..
 		} => {
 			handle_put_part(
 				garage,
@@ -155,14 +154,11 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::CopyObject { key, .. } => {
-			handle_copy(garage, &api_key, &req, bucket_id, &key).await
-		}
+		Endpoint::CopyObject { key } => handle_copy(garage, &api_key, &req, bucket_id, &key).await,
 		Endpoint::UploadPartCopy {
 			key,
 			part_number,
 			upload_id,
-			..
 		} => {
 			handle_upload_part_copy(
 				garage,
@@ -175,25 +171,21 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::PutObject { key, .. } => {
+		Endpoint::PutObject { key } => {
 			handle_put(garage, req, bucket_id, &key, &api_key, content_sha256).await
 		}
-		Endpoint::AbortMultipartUpload { key, upload_id, .. } => {
+		Endpoint::AbortMultipartUpload { key, upload_id } => {
 			handle_abort_multipart_upload(garage, bucket_id, &key, &upload_id).await
 		}
 		Endpoint::DeleteObject { key, .. } => handle_delete(garage, bucket_id, &key).await,
-		Endpoint::CreateMultipartUpload { bucket, key } => {
-			handle_create_multipart_upload(garage, &req, &bucket, bucket_id, &key).await
+		Endpoint::CreateMultipartUpload { key } => {
+			handle_create_multipart_upload(garage, &req, &bucket_name, bucket_id, &key).await
 		}
-		Endpoint::CompleteMultipartUpload {
-			bucket,
-			key,
-			upload_id,
-		} => {
+		Endpoint::CompleteMultipartUpload { key, upload_id } => {
 			handle_complete_multipart_upload(
 				garage,
 				req,
-				&bucket,
+				&bucket_name,
 				bucket_id,
 				&key,
 				&upload_id,
@@ -201,19 +193,18 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::CreateBucket { .. } => unreachable!(),
-		Endpoint::HeadBucket { .. } => {
+		Endpoint::CreateBucket {} => unreachable!(),
+		Endpoint::HeadBucket {} => {
 			let empty_body: Body = Body::from(vec![]);
 			let response = Response::builder().body(empty_body).unwrap();
 			Ok(response)
 		}
-		Endpoint::DeleteBucket { .. } => {
+		Endpoint::DeleteBucket {} => {
 			handle_delete_bucket(&garage, bucket_id, bucket_name, api_key).await
 		}
-		Endpoint::GetBucketLocation { .. } => handle_get_bucket_location(garage),
-		Endpoint::GetBucketVersioning { .. } => handle_get_bucket_versioning(),
+		Endpoint::GetBucketLocation {} => handle_get_bucket_location(garage),
+		Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
 		Endpoint::ListObjects {
-			bucket,
 			delimiter,
 			encoding_type,
 			marker,
@@ -224,7 +215,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				garage,
 				&ListObjectsQuery {
 					common: ListQueryCommon {
-						bucket_name: bucket,
+						bucket_name,
 						bucket_id,
 						delimiter: delimiter.map(|d| d.to_string()),
 						page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
@@ -240,7 +231,6 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			.await
 		}
 		Endpoint::ListObjectsV2 {
-			bucket,
 			delimiter,
 			encoding_type,
 			max_keys,
@@ -255,7 +245,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					garage,
 					&ListObjectsQuery {
 						common: ListQueryCommon {
-							bucket_name: bucket,
+							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
 							page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
@@ -277,7 +267,6 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			}
 		}
 		Endpoint::ListMultipartUploads {
-			bucket,
 			delimiter,
 			encoding_type,
 			key_marker,
@@ -289,7 +278,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				garage,
 				&ListMultipartUploadsQuery {
 					common: ListQueryCommon {
-						bucket_name: bucket,
+						bucket_name,
 						bucket_id,
 						delimiter: delimiter.map(|d| d.to_string()),
 						page_size: max_uploads.map(|p| min(1000, max(1, p))).unwrap_or(1000),
@@ -302,14 +291,14 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
-		Endpoint::DeleteObjects { .. } => {
+		Endpoint::DeleteObjects {} => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
-		Endpoint::GetBucketWebsite { .. } => handle_get_website(garage, bucket_id).await,
-		Endpoint::PutBucketWebsite { .. } => {
+		Endpoint::GetBucketWebsite {} => handle_get_website(garage, bucket_id).await,
+		Endpoint::PutBucketWebsite {} => {
 			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
-		Endpoint::DeleteBucketWebsite { .. } => handle_delete_website(garage, bucket_id).await,
+		Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket_id).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 	}
 }
