@@ -43,6 +43,8 @@ All APIs that are not mentionned are not implemented and will return a 400 bad r
 | ListBuckets                  | Implemented                      |
 | ListObjects                  | Implemented, bugs? (see below)   |
 | ListObjectsV2                | Implemented                      |
+| ListMultipartUpload          | Implemented                      |
+| ListParts                    | Missing                          |
 | PutObject                    | Implemented                      |
 | PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |

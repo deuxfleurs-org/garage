@@ -24,6 +24,11 @@ in let
   rustChannel = pkgs.rustPlatform.rust;
 
   overrides = pkgs.buildPackages.rustBuilder.overrides.all ++ [
+    /*
+     We want to inject the git version while keeping the build deterministic.
+     As we do not want to consider the .git folder as part of the input source,
+     we ask the user (the CI often) to pass the value to Nix.
+    */
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage";
       overrideAttrs = drv: if git_version != null then {
@@ -33,6 +38,21 @@ in let
         '';
       } else {};
     })
+
+    /*
+     On a sandbox pure NixOS environment, /usr/bin/file is not available.
+     This is a known problem: https://github.com/NixOS/nixpkgs/issues/98440
+     We simply patch the file as suggested
+    */
+    /*(pkgs.rustBuilder.rustLib.makeOverride {
+      name = "libsodium-sys";
+      overrideAttrs = drv: {
+        preConfigure = ''
+          ${drv.preConfigure or ""}
+          sed -i 's,/usr/bin/file,${file}/bin/file,g' ./configure
+        '';
+      }
+    })*/
   ];
 
   packageFun = import ./Cargo.nix;

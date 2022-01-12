@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -217,16 +218,18 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			handle_list(
 				garage,
 				&ListObjectsQuery {
+					common: ListQueryCommon {
+						bucket_name: bucket,
+						bucket_id,
+						delimiter: delimiter.map(|d| d.to_string()),
+						page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+						prefix: prefix.unwrap_or_default(),
+						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+					},
 					is_v2: false,
-					bucket_name: bucket,
-					bucket_id,
-					delimiter: delimiter.map(|d| d.to_string()),
-					max_keys: max_keys.unwrap_or(1000),
-					prefix: prefix.unwrap_or_default(),
 					marker,
 					continuation_token: None,
 					start_after: None,
-					urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 				},
 			)
 			.await
@@ -246,16 +249,18 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 				handle_list(
 					garage,
 					&ListObjectsQuery {
+						common: ListQueryCommon {
+							bucket_name: bucket,
+							bucket_id,
+							delimiter: delimiter.map(|d| d.to_string()),
+							page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+							prefix: prefix.unwrap_or_default(),
+						},
 						is_v2: true,
-						bucket_name: bucket,
-						bucket_id,
-						delimiter: delimiter.map(|d| d.to_string()),
-						max_keys: max_keys.unwrap_or(1000),
-						prefix: prefix.unwrap_or_default(),
 						marker: None,
 						continuation_token,
 						start_after,
-						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 					},
 				)
 				.await
@@ -265,6 +270,32 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 					list_type
 				)))
 			}
+		}
+		Endpoint::ListMultipartUploads {
+			bucket,
+			delimiter,
+			encoding_type,
+			key_marker,
+			max_uploads,
+			prefix,
+			upload_id_marker,
+		} => {
+			handle_list_multipart_upload(
+				garage,
+				&ListMultipartUploadsQuery {
+					common: ListQueryCommon {
+						bucket_name: bucket,
+						bucket_id,
+						delimiter: delimiter.map(|d| d.to_string()),
+						page_size: max_uploads.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+						prefix: prefix.unwrap_or_default(),
+						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+					},
+					key_marker,
+					upload_id_marker,
+				},
+			)
+			.await
 		}
 		Endpoint::DeleteObjects { .. } => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await

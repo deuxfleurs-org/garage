@@ -83,6 +83,7 @@ function refresh_toolchain {
      pkgs.which
      pkgs.openssl
      pkgs.curl
+     pkgs.jq
     ] else [])
    ++
    (if release then [ 

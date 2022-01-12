@@ -7,6 +7,7 @@ use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
+use garage_model::object_table::ObjectFilter;
 use garage_model::permission::BucketKeyPerm;
 use garage_table::util::*;
 use garage_util::crdt::*;
@@ -226,7 +227,7 @@ pub async fn handle_delete_bucket(
 		// Check bucket is empty
 		let objects = garage
 			.object_table
-			.get_range(&bucket_id, None, Some(DeletedFilter::NotDeleted), 10)
+			.get_range(&bucket_id, None, Some(ObjectFilter::IsData), 10)
 			.await?;
 		if !objects.is_empty() {
 			return Err(Error::BucketNotEmpty);

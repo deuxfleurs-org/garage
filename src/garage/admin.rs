@@ -21,6 +21,7 @@ use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
+use garage_model::object_table::ObjectFilter;
 use garage_model::permission::*;
 
 use crate::cli::*;
@@ -209,7 +210,7 @@ impl AdminRpcHandler {
 		let objects = self
 			.garage
 			.object_table
-			.get_range(&bucket_id, None, Some(DeletedFilter::NotDeleted), 10)
+			.get_range(&bucket_id, None, Some(ObjectFilter::IsData), 10)
 			.await?;
 		if !objects.is_empty() {
 			return Err(Error::BadRequest(format!(

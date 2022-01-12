@@ -218,13 +218,19 @@ pub struct ObjectTable {
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum ObjectFilter {
+	IsData,
+	IsUploading,
+}
+
 impl TableSchema for ObjectTable {
 	const TABLE_NAME: &'static str = "object";
 
 	type P = Uuid;
 	type S = String;
 	type E = Object;
-	type Filter = DeletedFilter;
+	type Filter = ObjectFilter;
 
 	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
 		let version_table = self.version_table.clone();
@@ -254,8 +260,10 @@ impl TableSchema for ObjectTable {
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
-		let deleted = !entry.versions.iter().any(|v| v.is_data());
-		filter.apply(deleted)
+		match filter {
+			ObjectFilter::IsData => entry.versions.iter().any(|v| v.is_data()),
+			ObjectFilter::IsUploading => entry.versions.iter().any(|v| v.is_uploading()),
+		}
 	}
 
 	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {

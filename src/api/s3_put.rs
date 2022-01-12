@@ -610,7 +610,7 @@ pub(crate) fn get_headers(req: &Request<Body>) -> Result<ObjectVersionHeaders, E
 	})
 }
 
-fn decode_upload_id(id: &str) -> Result<Uuid, Error> {
+pub fn decode_upload_id(id: &str) -> Result<Uuid, Error> {
 	let id_bin = hex::decode(id).map_err(|_| Error::NoSuchUpload)?;
 	if id_bin.len() != 32 {
 		return Err(Error::NoSuchUpload);

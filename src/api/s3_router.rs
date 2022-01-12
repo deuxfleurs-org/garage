@@ -350,7 +350,7 @@ pub enum Endpoint {
 		delimiter: Option<char>,
 		encoding_type: Option<String>,
 		key_marker: Option<String>,
-		max_uploads: Option<u64>,
+		max_uploads: Option<usize>,
 		prefix: Option<String>,
 		upload_id_marker: Option<String>,
 	},

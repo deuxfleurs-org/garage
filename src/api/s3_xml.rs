@@ -142,6 +142,60 @@ pub struct CompleteMultipartUploadResult {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
+pub struct Initiator {
+	#[serde(rename = "DisplayName")]
+	pub display_name: Value,
+	#[serde(rename = "ID")]
+	pub id: Value,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct ListMultipartItem {
+	#[serde(rename = "Initiated")]
+	pub initiated: Value,
+	#[serde(rename = "Initiator")]
+	pub initiator: Initiator,
+	#[serde(rename = "Key")]
+	pub key: Value,
+	#[serde(rename = "UploadId")]
+	pub upload_id: Value,
+	#[serde(rename = "Owner")]
+	pub owner: Owner,
+	#[serde(rename = "StorageClass")]
+	pub storage_class: Value,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct ListMultipartUploadsResult {
+	#[serde(serialize_with = "xmlns_tag")]
+	pub xmlns: (),
+	#[serde(rename = "Bucket")]
+	pub bucket: Value,
+	#[serde(rename = "KeyMarker")]
+	pub key_marker: Option<Value>,
+	#[serde(rename = "UploadIdMarker")]
+	pub upload_id_marker: Option<Value>,
+	#[serde(rename = "NextKeyMarker")]
+	pub next_key_marker: Option<Value>,
+	#[serde(rename = "NextUploadIdMarker")]
+	pub next_upload_id_marker: Option<Value>,
+	#[serde(rename = "Prefix")]
+	pub prefix: Value,
+	#[serde(rename = "Delimiter")]
+	pub delimiter: Option<Value>,
+	#[serde(rename = "MaxUploads")]
+	pub max_uploads: IntValue,
+	#[serde(rename = "IsTruncated")]
+	pub is_truncated: Value,
+	#[serde(rename = "Upload")]
+	pub upload: Vec<ListMultipartItem>,
+	#[serde(rename = "CommonPrefixes")]
+	pub common_prefixes: Vec<CommonPrefix>,
+	#[serde(rename = "EncodingType")]
+	pub encoding_type: Option<Value>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
 pub struct ListBucketItem {
 	#[serde(rename = "Key")]
 	pub key: Value,
@@ -429,6 +483,58 @@ mod tests {
 	<ETag>3858f62230ac3c915f300c664312c11f-9</ETag>\
 </CompleteMultipartUploadResult>"
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn list_multipart_uploads_result() -> Result<(), ApiError> {
+		let result = ListMultipartUploadsResult {
+			xmlns: (),
+			bucket: Value("example-bucket".to_string()),
+			key_marker: None,
+			next_key_marker: None,
+			upload_id_marker: None,
+			encoding_type: None,
+			next_upload_id_marker: None,
+			upload: vec![],
+			delimiter: Some(Value("/".to_string())),
+			prefix: Value("photos/2006/".to_string()),
+			max_uploads: IntValue(1000),
+			is_truncated: Value("false".to_string()),
+			common_prefixes: vec![
+				CommonPrefix {
+					prefix: Value("photos/2006/February/".to_string()),
+				},
+				CommonPrefix {
+					prefix: Value("photos/2006/January/".to_string()),
+				},
+				CommonPrefix {
+					prefix: Value("photos/2006/March/".to_string()),
+				},
+			],
+		};
+
+		assert_eq!(
+			to_xml_with_header(&result)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<ListMultipartUploadsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\
+	<Bucket>example-bucket</Bucket>\
+	<Prefix>photos/2006/</Prefix>\
+	<Delimiter>/</Delimiter>\
+	<MaxUploads>1000</MaxUploads>\
+	<IsTruncated>false</IsTruncated>\
+	<CommonPrefixes>\
+		<Prefix>photos/2006/February/</Prefix>\
+	</CommonPrefixes>\
+	<CommonPrefixes>\
+		<Prefix>photos/2006/January/</Prefix>\
+	</CommonPrefixes>\
+	<CommonPrefixes>\
+		<Prefix>photos/2006/March/</Prefix>\
+	</CommonPrefixes>\
+</ListMultipartUploadsResult>"
+		);
+
 		Ok(())
 	}
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -ex
 
@@ -10,6 +10,7 @@ GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
 NIX_RELEASE="${REPO_FOLDER}/result/bin/"
 PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
+CMDOUT=/tmp/garage.cmd.tmp
 
 # @FIXME Duck is not ready for testing, we have a bug
 SKIP_DUCK=1
@@ -131,6 +132,142 @@ if [ -z "$SKIP_AWS" ]; then
 fi
 
 if [ -z "$SKIP_AWS" ]; then
+  echo "🔌 Test S3API"
+
+  echo "Test Objects"
+  aws s3api put-object --bucket eprouvette --key a
+  aws s3api put-object --bucket eprouvette --key a/a
+  aws s3api put-object --bucket eprouvette --key a/b
+  aws s3api put-object --bucket eprouvette --key a/c
+  aws s3api put-object --bucket eprouvette --key a/d/a
+  aws s3api put-object --bucket eprouvette --key a/é
+  aws s3api put-object --bucket eprouvette --key b
+  aws s3api put-object --bucket eprouvette --key c
+
+
+  aws s3api list-objects-v2 --bucket eprouvette >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --page-size 0 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --page-size 999999999999999 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --delimiter '/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects-v2 --bucket eprouvette --delimiter '/' --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects-v2 --bucket eprouvette --prefix 'a/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --prefix 'a/' --delimiter '/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 4 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects-v2 --bucket eprouvette --prefix 'a/' --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --prefix 'a/' --delimiter '/' --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 4 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects-v2 --bucket eprouvette --start-after 'Z' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects-v2 --bucket eprouvette --start-after 'c' >$CMDOUT
+  ! [ -s $CMDOUT ]
+
+
+  aws s3api list-objects --bucket eprouvette >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects --bucket eprouvette --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects --bucket eprouvette --delimiter '/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  # @FIXME it does not work as expected but might be a limitation of aws s3api
+  # The problem is the conjunction of a delimiter + pagination + v1 of listobjects
+  #aws s3api list-objects --bucket eprouvette --delimiter '/' --page-size 1 >$CMDOUT
+  #[ $(jq '.Contents | length' $CMDOUT) == 3 ]
+  #[ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects --bucket eprouvette --prefix 'a/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects --bucket eprouvette --prefix 'a/' --delimiter '/' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 4 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects --bucket eprouvette --prefix 'a/' --page-size 1 >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  # @FIXME idem
+  #aws s3api list-objects --bucket eprouvette --prefix 'a/' --delimiter '/' --page-size 1 >$CMDOUT
+  #[ $(jq '.Contents | length' $CMDOUT) == 4 ]
+  #[ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-objects --bucket eprouvette --starting-token 'Z' >$CMDOUT
+  [ $(jq '.Contents | length' $CMDOUT) == 8 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-objects --bucket eprouvette --starting-token 'c' >$CMDOUT
+  ! [ -s $CMDOUT ]
+
+  aws s3api list-objects-v2 --bucket eprouvette | \
+    jq -c '. | {Objects: [.Contents[] | {Key: .Key}], Quiet: true}' | \
+    aws s3api delete-objects --bucket eprouvette --delete file:///dev/stdin
+
+
+  echo "Test Multipart Upload"
+  aws s3api create-multipart-upload --bucket eprouvette --key a
+  aws s3api create-multipart-upload --bucket eprouvette --key a
+  aws s3api create-multipart-upload --bucket eprouvette --key c
+  aws s3api create-multipart-upload --bucket eprouvette --key c/a
+  aws s3api create-multipart-upload --bucket eprouvette --key c/b
+
+  aws s3api list-multipart-uploads --bucket eprouvette >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --page-size 1 >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --delimiter '/' >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --delimiter '/' --page-size 1 >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --page-size 1 >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --delimiter '/' >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 1 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --delimiter '/' --page-size 1 >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 1 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --starting-token 'ZZZZZ' >$CMDOUT
+  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
+  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
+  aws s3api list-multipart-uploads --bucket eprouvette --starting-token 'd' >$CMDOUT
+  ! [ -s $CMDOUT ]
+
+  aws s3api list-multipart-uploads --bucket eprouvette | \
+    jq -r '.Uploads[] | "\(.Key) \(.UploadId)"' | \
+    while read r; do 
+      key=$(echo $r|cut -d' ' -f 1); 
+      uid=$(echo $r|cut -d' ' -f 2); 
+      aws s3api abort-multipart-upload --bucket eprouvette --key $key --upload-id $uid;
+      echo "Deleted ${key}:${uid}"
+    done
+fi
+
+if [ -z "$SKIP_AWS" ]; then
   echo "🪣 Test bucket logic "
   AWS_ACCESS_KEY_ID=`cat /tmp/garage.s3 |cut -d' ' -f1`
   [ $(aws s3 ls | wc -l) == 1 ]
@@ -151,5 +288,6 @@ AWS_SECRET_ACCESS_KEY=`cat /tmp/garage.s3 |cut -d' ' -f2`
 garage -c /tmp/config.1.toml bucket deny --read --write eprouvette --key $AWS_ACCESS_KEY_ID
 garage -c /tmp/config.1.toml bucket delete --yes eprouvette
 garage -c /tmp/config.1.toml key delete --yes $AWS_ACCESS_KEY_ID
+exec 3>&-
 
 echo "✅ Success"
