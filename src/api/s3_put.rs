@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -520,6 +520,7 @@ pub async fn handle_complete_multipart_upload(
 
 	let version_uuid = decode_upload_id(upload_id)?;
 
+	// Get object and version
 	let key = key.to_string();
 	let (object, version) = futures::try_join!(
 		garage.object_table.get(&bucket_id, &key),
@@ -544,6 +545,20 @@ pub async fn handle_complete_multipart_upload(
 		_ => unreachable!(),
 	};
 
+	// Check that part numbers are an increasing sequence.
+	// (it doesn't need to start at 1 nor to be a continuous sequence,
+	// see discussion in #192)
+	if body_list_of_parts.is_empty() {
+		return Err(Error::EntityTooSmall);
+	}
+	if !body_list_of_parts
+		.iter()
+		.zip(body_list_of_parts.iter().skip(1))
+		.all(|(p1, p2)| p1.part_number < p2.part_number)
+	{
+		return Err(Error::InvalidPartOrder);
+	}
+
 	// Check that the list of parts they gave us corresponds to the parts we have here
 	debug!("Expected parts from request: {:?}", body_list_of_parts);
 	debug!("Parts stored in version: {:?}", version.parts_etags.items());
@@ -557,17 +572,30 @@ pub async fn handle_complete_multipart_upload(
 		.map(|x| (&x.part_number, &x.etag))
 		.eq(parts);
 	if !same_parts {
+		return Err(Error::InvalidPart);
+	}
+
+	// Check that all blocks belong to one of the parts
+	let block_parts = version
+		.blocks
+		.items()
+		.iter()
+		.map(|(bk, _)| bk.part_number)
+		.collect::<BTreeSet<_>>();
+	let same_parts = body_list_of_parts
+		.iter()
+		.map(|x| x.part_number)
+		.eq(block_parts.into_iter());
+	if !same_parts {
 		return Err(Error::BadRequest(
-			"We don't have the same parts".to_string(),
+			"Part numbers in block list and part list do not match. This can happen if a part was partially uploaded. Please abort the multipart upload and try again.".into(),
 		));
 	}
 
 	// Calculate etag of final object
 	// To understand how etags are calculated, read more here:
 	// https://teppen.io/2018/06/23/aws_s3_etags/
-	let num_parts = version.blocks.items().last().unwrap().0.part_number
-		- version.blocks.items().first().unwrap().0.part_number
-		+ 1;
+	let num_parts = body_list_of_parts.len();
 	let mut etag_md5_hasher = Md5::new();
 	for (_, etag) in version.parts_etags.items().iter() {
 		etag_md5_hasher.update(etag.as_bytes());

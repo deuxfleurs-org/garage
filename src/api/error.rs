@@ -58,6 +58,19 @@ pub enum Error {
 	#[error(display = "At least one of the preconditions you specified did not hold")]
 	PreconditionFailed,
 
+	/// Parts specified in CMU request do not match parts actually uploaded
+	#[error(display = "Parts given to CompleteMultipartUpload do not match uploaded parts")]
+	InvalidPart,
+
+	/// Parts given to CompleteMultipartUpload were not in ascending order
+	#[error(display = "Parts given to CompleteMultipartUpload were not in ascending order")]
+	InvalidPartOrder,
+
+	/// In CompleteMultipartUpload: not enough data
+	/// (here we are more lenient than AWS S3)
+	#[error(display = "Proposed upload is smaller than the minimum allowed object size")]
+	EntityTooSmall,
+
 	// Category: bad request
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
@@ -143,6 +156,9 @@ impl Error {
 			Error::BucketAlreadyExists => "BucketAlreadyExists",
 			Error::BucketNotEmpty => "BucketNotEmpty",
 			Error::PreconditionFailed => "PreconditionFailed",
+			Error::InvalidPart => "InvalidPart",
+			Error::InvalidPartOrder => "InvalidPartOrder",
+			Error::EntityTooSmall => "EntityTooSmall",
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::NotImplemented(_) => "NotImplemented",

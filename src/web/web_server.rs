@@ -134,8 +134,8 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 
 	let ret_doc = match *req.method() {
 		Method::OPTIONS => handle_options(req, &bucket).await,
-		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key).await,
-		Method::GET => handle_get(garage.clone(), req, bucket_id, &key).await,
+		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key, None).await,
+		Method::GET => handle_get(garage.clone(), req, bucket_id, &key, None).await,
 		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),
 	}
 	.map_err(Error::from);
@@ -166,7 +166,7 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 				.body(Body::empty())
 				.unwrap();
 
-			match handle_get(garage, &req2, bucket_id, &error_document).await {
+			match handle_get(garage, &req2, bucket_id, &error_document, None).await {
 				Ok(mut error_doc) => {
 					// The error won't be logged back in handle_request,
 					// so log it here

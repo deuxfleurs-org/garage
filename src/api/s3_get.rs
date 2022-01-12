@@ -3,6 +3,10 @@ use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
 use futures::stream::*;
+use http::header::{
+	ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, IF_MODIFIED_SINCE,
+	IF_NONE_MATCH, LAST_MODIFIED,
+};
 use hyper::body::Bytes;
 use hyper::{Body, Request, Response, StatusCode};
 
@@ -24,15 +28,12 @@ fn object_headers(
 	let date_str = httpdate::fmt_http_date(date);
 
 	let mut resp = Response::builder()
-		.header(
-			"Content-Type",
-			version_meta.headers.content_type.to_string(),
-		)
-		.header("Last-Modified", date_str)
-		.header("Accept-Ranges", "bytes".to_string());
+		.header(CONTENT_TYPE, version_meta.headers.content_type.to_string())
+		.header(LAST_MODIFIED, date_str)
+		.header(ACCEPT_RANGES, "bytes".to_string());
 
 	if !version_meta.etag.is_empty() {
-		resp = resp.header("ETag", format!("\"{}\"", version_meta.etag));
+		resp = resp.header(ETAG, format!("\"{}\"", version_meta.etag));
 	}
 
 	for (k, v) in version_meta.headers.other.iter() {
@@ -52,7 +53,7 @@ fn try_answer_cached(
 	// precedence and If-Modified-Since is ignored (as per 6.Precedence from rfc7232). The rational
 	// being that etag based matching is more accurate, it has no issue with sub-second precision
 	// for instance (in case of very fast updates)
-	let cached = if let Some(none_match) = req.headers().get(http::header::IF_NONE_MATCH) {
+	let cached = if let Some(none_match) = req.headers().get(IF_NONE_MATCH) {
 		let none_match = none_match.to_str().ok()?;
 		let expected = format!("\"{}\"", version_meta.etag);
 		let found = none_match
@@ -60,7 +61,7 @@ fn try_answer_cached(
 			.map(str::trim)
 			.any(|etag| etag == expected || etag == "\"*\"");
 		found
-	} else if let Some(modified_since) = req.headers().get(http::header::IF_MODIFIED_SINCE) {
+	} else if let Some(modified_since) = req.headers().get(IF_MODIFIED_SINCE) {
 		let modified_since = modified_since.to_str().ok()?;
 		let client_date = httpdate::parse_http_date(modified_since).ok()?;
 		let server_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
@@ -87,6 +88,7 @@ pub async fn handle_head(
 	req: &Request<Body>,
 	bucket_id: Uuid,
 	key: &str,
+	part_number: Option<u64>,
 ) -> Result<Response<Body>, Error> {
 	let object = garage
 		.object_table
@@ -94,30 +96,68 @@ pub async fn handle_head(
 		.await?
 		.ok_or(Error::NoSuchKey)?;
 
-	let version = object
+	let object_version = object
 		.versions()
 		.iter()
 		.rev()
 		.find(|v| v.is_data())
 		.ok_or(Error::NoSuchKey)?;
 
-	let version_meta = match &version.state {
-		ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
-		ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta,
+	let version_data = match &object_version.state {
+		ObjectVersionState::Complete(c) => c,
 		_ => unreachable!(),
 	};
 
-	if let Some(cached) = try_answer_cached(version, version_meta, req) {
+	let version_meta = match version_data {
+		ObjectVersionData::Inline(meta, _) => meta,
+		ObjectVersionData::FirstBlock(meta, _) => meta,
+		_ => unreachable!(),
+	};
+
+	if let Some(cached) = try_answer_cached(object_version, version_meta, req) {
 		return Ok(cached);
 	}
 
-	let body: Body = Body::empty();
-	let response = object_headers(version, version_meta)
-		.header("Content-Length", format!("{}", version_meta.size))
-		.status(StatusCode::OK)
-		.body(body)
-		.unwrap();
-	Ok(response)
+	if let Some(pn) = part_number {
+		if let ObjectVersionData::Inline(_, _) = version_data {
+			// Not a multipart upload
+			return Err(Error::BadRequest(
+				"Cannot process part_number argument: not a multipart upload".into(),
+			));
+		}
+
+		let version = garage
+			.version_table
+			.get(&object_version.uuid, &EmptyKey)
+			.await?
+			.ok_or(Error::NoSuchKey)?;
+		if !version.has_part_number(pn) {
+			return Err(Error::BadRequest(format!(
+				"Part number {} does not exist",
+				pn
+			)));
+		}
+
+		let part_size: u64 = version
+			.blocks
+			.items()
+			.iter()
+			.filter(|(k, _)| k.part_number == pn)
+			.map(|(_, b)| b.size)
+			.sum();
+		let n_parts = version.parts_etags.items().len();
+
+		Ok(object_headers(object_version, version_meta)
+			.header(CONTENT_LENGTH, format!("{}", part_size))
+			.header("x-amz-mp-parts-count", format!("{}", n_parts))
+			.status(StatusCode::OK)
+			.body(Body::empty())?)
+	} else {
+		Ok(object_headers(object_version, version_meta)
+			.header(CONTENT_LENGTH, format!("{}", version_meta.size))
+			.status(StatusCode::OK)
+			.body(Body::empty())?)
+	}
 }
 
 /// Handle GET request
@@ -126,7 +166,14 @@ pub async fn handle_get(
 	req: &Request<Body>,
 	bucket_id: Uuid,
 	key: &str,
+	part_number: Option<u64>,
 ) -> Result<Response<Body>, Error> {
+	if part_number.is_some() {
+		return Err(Error::NotImplemented(
+			"part_number not supported for GetObject".into(),
+		));
+	}
+
 	let object = garage
 		.object_table
 		.get(&bucket_id, &key.to_string())
@@ -182,7 +229,7 @@ pub async fn handle_get(
 	}
 
 	let resp_builder = object_headers(last_v, last_v_meta)
-		.header("Content-Length", format!("{}", last_v_meta.size))
+		.header(CONTENT_LENGTH, format!("{}", last_v_meta.size))
 		.status(StatusCode::OK);
 
 	match &last_v_data {
@@ -238,9 +285,9 @@ async fn handle_get_range(
 	end: u64,
 ) -> Result<Response<Body>, Error> {
 	let resp_builder = object_headers(version, version_meta)
-		.header("Content-Length", format!("{}", end - begin))
+		.header(CONTENT_LENGTH, format!("{}", end - begin))
 		.header(
-			"Content-Range",
+			CONTENT_RANGE,
 			format!("bytes {}-{}/{}", begin, end - 1, version_meta.size),
 		)
 		.status(StatusCode::PARTIAL_CONTENT);

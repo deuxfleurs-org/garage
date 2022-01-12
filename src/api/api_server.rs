@@ -157,8 +157,12 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let resp = match endpoint {
 		Endpoint::Options => handle_options(&req, &bucket).await,
-		Endpoint::HeadObject { key, .. } => handle_head(garage, &req, bucket_id, &key).await,
-		Endpoint::GetObject { key, .. } => handle_get(garage, &req, bucket_id, &key).await,
+		Endpoint::HeadObject {
+			key, part_number, ..
+		} => handle_head(garage, &req, bucket_id, &key, part_number).await,
+		Endpoint::GetObject {
+			key, part_number, ..
+		} => handle_get(garage, &req, bucket_id, &key, part_number).await,
 		Endpoint::UploadPart {
 			key,
 			part_number,
