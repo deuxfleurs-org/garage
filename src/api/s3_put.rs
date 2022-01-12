@@ -532,7 +532,7 @@ pub async fn handle_complete_multipart_upload(
 		location: None,
 		bucket: s3_xml::Value(bucket_name.to_string()),
 		key: s3_xml::Value(key),
-		etag: s3_xml::Value(etag),
+		etag: s3_xml::Value(format!("\"{}\"", etag)),
 	};
 	let xml = s3_xml::to_xml_with_header(&result)?;
 

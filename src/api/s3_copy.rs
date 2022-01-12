@@ -148,9 +148,9 @@ pub async fn handle_copy(
 	}
 
 	let last_modified = msec_to_rfc3339(new_timestamp);
-	let result = s3_xml::CopyObjectResult {
+	let result = CopyObjectResult {
 		last_modified: s3_xml::Value(last_modified),
-		etag: s3_xml::Value(etag),
+		etag: s3_xml::Value(format!("\"{}\"", etag)),
 	};
 	let xml = s3_xml::to_xml_with_header(&result)?;
 
@@ -394,7 +394,7 @@ pub async fn handle_upload_part_copy(
 	// LGTM
 	let resp_xml = s3_xml::to_xml_with_header(&CopyPartResult {
 		xmlns: (),
-		etag: s3_xml::Value(etag),
+		etag: s3_xml::Value(format!("\"{}\"", etag)),
 		last_modified: s3_xml::Value(msec_to_rfc3339(source_object_version.timestamp)),
 	})?;
 
@@ -554,6 +554,14 @@ impl CopyPreconditionHeaders {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
+pub struct CopyObjectResult {
+	#[serde(rename = "LastModified")]
+	pub last_modified: s3_xml::Value,
+	#[serde(rename = "ETag")]
+	pub etag: s3_xml::Value,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
 pub struct CopyPartResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -569,14 +577,34 @@ mod tests {
 	use crate::s3_xml::to_xml_with_header;
 
 	#[test]
+	fn copy_object_result() -> Result<(), Error> {
+		let copy_result = CopyObjectResult {
+			last_modified: s3_xml::Value(msec_to_rfc3339(0)),
+			etag: s3_xml::Value("\"9b2cf535f27731c974343645a3985328\"".to_string()),
+		};
+		assert_eq!(
+			to_xml_with_header(&copy_result)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<CopyObjectResult>\
+    <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
+    <ETag>&quot;9b2cf535f27731c974343645a3985328&quot;</ETag>\
+</CopyObjectResult>\
+			"
+		);
+		Ok(())
+	}
+
+	#[test]
 	fn serialize_copy_part_result() -> Result<(), Error> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
-		let expected_retval = r#"<?xml version="1.0" encoding="UTF-8"?><CopyPartResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><LastModified>2011-04-11T20:34:56.000Z</LastModified><ETag>9b2cf535f27731c974343645a3985328</ETag></CopyPartResult>"#;
+		let expected_retval = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<CopyPartResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\
+	<LastModified>2011-04-11T20:34:56.000Z</LastModified>\
+	<ETag>&quot;9b2cf535f27731c974343645a3985328&quot;</ETag>\
+</CopyPartResult>";
 		let v = CopyPartResult {
 			xmlns: (),
 			last_modified: s3_xml::Value("2011-04-11T20:34:56.000Z".into()),
-			etag: s3_xml::Value("9b2cf535f27731c974343645a3985328".into()),
+			etag: s3_xml::Value("\"9b2cf535f27731c974343645a3985328\"".into()),
 		};
 		println!("{}", to_xml_with_header(&v)?);
 

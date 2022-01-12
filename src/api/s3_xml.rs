@@ -108,14 +108,6 @@ pub struct DeleteResult {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub struct CopyObjectResult {
-	#[serde(rename = "LastModified")]
-	pub last_modified: Value,
-	#[serde(rename = "ETag")]
-	pub etag: Value,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
 pub struct InitiateMultipartUploadResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -427,26 +419,6 @@ mod tests {
 	}
 
 	#[test]
-	fn copy_object_result() -> Result<(), ApiError> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
-		let copy_result = CopyObjectResult {
-			last_modified: Value(msec_to_rfc3339(0)),
-			etag: Value("9b2cf535f27731c974343645a3985328".to_string()),
-		};
-		assert_eq!(
-			to_xml_with_header(&copy_result)?,
-			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
-<CopyObjectResult>\
-    <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
-    <ETag>9b2cf535f27731c974343645a3985328</ETag>\
-</CopyObjectResult>\
-			"
-		);
-		Ok(())
-	}
-
-	#[test]
 	fn initiate_multipart_upload_result() -> Result<(), ApiError> {
 		let result = InitiateMultipartUploadResult {
 			xmlns: (),
@@ -468,14 +440,12 @@ mod tests {
 
 	#[test]
 	fn complete_multipart_upload_result() -> Result<(), ApiError> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
 		let result = CompleteMultipartUploadResult {
 			xmlns: (),
 			location: Some(Value("https://garage.tld/mybucket/a/plop".to_string())),
 			bucket: Value("mybucket".to_string()),
 			key: Value("a/plop".to_string()),
-			etag: Value("3858f62230ac3c915f300c664312c11f-9".to_string()),
+			etag: Value("\"3858f62230ac3c915f300c664312c11f-9\"".to_string()),
 		};
 		assert_eq!(
 			to_xml_with_header(&result)?,
@@ -484,7 +454,7 @@ mod tests {
 	<Location>https://garage.tld/mybucket/a/plop</Location>\
 	<Bucket>mybucket</Bucket>\
 	<Key>a/plop</Key>\
-	<ETag>3858f62230ac3c915f300c664312c11f-9</ETag>\
+	<ETag>&quot;3858f62230ac3c915f300c664312c11f-9&quot;</ETag>\
 </CompleteMultipartUploadResult>"
 		);
 		Ok(())
@@ -544,8 +514,6 @@ mod tests {
 
 	#[test]
 	fn list_objects_v1_1() -> Result<(), ApiError> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("example-bucket".to_string()),
@@ -563,7 +531,7 @@ mod tests {
 			contents: vec![ListBucketItem {
 				key: Value("sample.jpg".to_string()),
 				last_modified: Value(msec_to_rfc3339(0)),
-				etag: Value("bf1d737a4d46a19f3bced6905cc8b902".to_string()),
+				etag: Value("\"bf1d737a4d46a19f3bced6905cc8b902\"".to_string()),
 				size: IntValue(142863),
 				storage_class: Value("STANDARD".to_string()),
 			}],
@@ -584,7 +552,7 @@ mod tests {
   <Contents>\
     <Key>sample.jpg</Key>\
     <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
-    <ETag>bf1d737a4d46a19f3bced6905cc8b902</ETag>\
+    <ETag>&quot;bf1d737a4d46a19f3bced6905cc8b902&quot;</ETag>\
     <Size>142863</Size>\
     <StorageClass>STANDARD</StorageClass>\
   </Contents>\
@@ -645,8 +613,6 @@ mod tests {
 
 	#[test]
 	fn list_objects_v2_1() -> Result<(), ApiError> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("quotes".to_string()),
@@ -664,7 +630,7 @@ mod tests {
 			contents: vec![ListBucketItem {
 				key: Value("ExampleObject.txt".to_string()),
 				last_modified: Value(msec_to_rfc3339(0)),
-				etag: Value("599bab3ed2c697f1d26842727561fd94".to_string()),
+				etag: Value("\"599bab3ed2c697f1d26842727561fd94\"".to_string()),
 				size: IntValue(857),
 				storage_class: Value("REDUCED_REDUNDANCY".to_string()),
 			}],
@@ -682,7 +648,7 @@ mod tests {
   <Contents>\
     <Key>ExampleObject.txt</Key>\
     <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
-    <ETag>599bab3ed2c697f1d26842727561fd94</ETag>\
+    <ETag>&quot;599bab3ed2c697f1d26842727561fd94&quot;</ETag>\
     <Size>857</Size>\
     <StorageClass>REDUCED_REDUNDANCY</StorageClass>\
   </Contents>\
@@ -693,8 +659,6 @@ mod tests {
 
 	#[test]
 	fn list_objects_v2_2() -> Result<(), ApiError> {
-		// @FIXME: ETag should be quoted, but we can't add quotes
-		// because XML serializer replaces them by `&quot;`
 		let result = ListBucketResult {
 			xmlns: (),
 			name: Value("bucket".to_string()),
@@ -714,7 +678,7 @@ mod tests {
 			contents: vec![ListBucketItem {
 				key: Value("happyfacex.jpg".to_string()),
 				last_modified: Value(msec_to_rfc3339(0)),
-				etag: Value("70ee1738b6b21e2c8a43f3a5ab0eee71".to_string()),
+				etag: Value("\"70ee1738b6b21e2c8a43f3a5ab0eee71\"".to_string()),
 				size: IntValue(1111),
 				storage_class: Value("STANDARD".to_string()),
 			}],
@@ -734,7 +698,7 @@ mod tests {
   <Contents>\
     <Key>happyfacex.jpg</Key>\
     <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
-    <ETag>70ee1738b6b21e2c8a43f3a5ab0eee71</ETag>\
+    <ETag>&quot;70ee1738b6b21e2c8a43f3a5ab0eee71&quot;</ETag>\
     <Size>1111</Size>\
     <StorageClass>STANDARD</StorageClass>\
   </Contents>\
