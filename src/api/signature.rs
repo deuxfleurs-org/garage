@@ -266,10 +266,13 @@ fn canonical_header_string(headers: &HashMap<String, String>, signed_headers: &s
 	let mut items = headers
 		.iter()
 		.filter(|(key, _)| signed_headers_vec.contains(&key.as_str()))
-		.map(|(key, value)| key.to_lowercase() + ":" + value.trim())
 		.collect::<Vec<_>>();
-	items.sort();
-	items.join("\n")
+	items.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+	items
+		.iter()
+		.map(|(key, value)| key.to_lowercase() + ":" + value.trim())
+		.collect::<Vec<_>>()
+		.join("\n")
 }
 
 fn canonical_query_string(uri: &hyper::Uri) -> String {

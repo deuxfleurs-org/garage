@@ -537,6 +537,7 @@ impl CopyPreconditionHeaders {
 			}
 			(None, None, Some(inm), None) => !inm.iter().any(|x| x == etag || x == "*"),
 			(None, None, None, Some(ims)) => v_date > *ims,
+			(None, None, None, None) => true,
 			_ => {
 				return Err(Error::BadRequest(
 					"Invalid combination of x-amz-copy-source-if-xxxxx headers".into(),

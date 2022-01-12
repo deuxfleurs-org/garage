@@ -116,21 +116,7 @@ if [ -z "$SKIP_DUCK" ]; then
   done
 fi
 
-rm /tmp/garage.{1..3}.{rnd,b64}
-
-if [ -z "$SKIP_AWS" ]; then
-  echo "🧪 Website Testing"
-  echo "<h1>hello world</h1>" > /tmp/garage-index.html
-  aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
-  garage -c /tmp/config.1.toml bucket website --allow eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 200 ]
-  garage -c /tmp/config.1.toml bucket website --deny eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
-  aws s3 rm s3://eprouvette/index.html
-  rm /tmp/garage-index.html
-fi
-
+# Advanced testing via S3API
 if [ -z "$SKIP_AWS" ]; then
   echo "🔌 Test S3API"
 
@@ -265,7 +251,60 @@ if [ -z "$SKIP_AWS" ]; then
       aws s3api abort-multipart-upload --bucket eprouvette --key $key --upload-id $uid;
       echo "Deleted ${key}:${uid}"
     done
+
+  # Test for UploadPartCopy
+  aws s3 cp "/tmp/garage.3.rnd" "s3://eprouvette/copy_part_source"
+  UPLOAD_ID=$(aws s3api create-multipart-upload --bucket eprouvette --key test_multipart | jq -r .UploadId)
+  PART1=$(aws s3api upload-part \
+    --bucket eprouvette --key test_multipart \
+    --upload-id $UPLOAD_ID --part-number 1 \
+    --body /tmp/garage.2.rnd | jq .ETag)
+  PART2=$(aws s3api upload-part-copy \
+    --bucket eprouvette --key test_multipart \
+    --upload-id $UPLOAD_ID --part-number 2 \
+    --copy-source "/eprouvette/copy_part_source" \
+    --copy-source-range "bytes=500-5000500" \
+    | jq .CopyPartResult.ETag)
+  PART3=$(aws s3api upload-part \
+    --bucket eprouvette --key test_multipart \
+    --upload-id $UPLOAD_ID --part-number 3 \
+    --body /tmp/garage.3.rnd | jq .ETag)
+  cat >/tmp/garage.multipart_struct <<EOF
+{
+  "Parts": [
+    {
+      "ETag": $PART1,
+      "PartNumber": 1
+    },
+    {
+      "ETag": $PART2,
+      "PartNumber": 2
+    },
+    {
+      "ETag": $PART3,
+      "PartNumber": 3
+    }
+  ]
+}
+EOF
+  aws s3api complete-multipart-upload \
+    --bucket eprouvette --key test_multipart --upload-id $UPLOAD_ID \
+    --multipart-upload file:///tmp/garage.multipart_struct
+
+  aws s3 cp "s3://eprouvette/test_multipart" /tmp/garage.test_multipart
+  cat /tmp/garage.2.rnd <(tail -c +501 /tmp/garage.3.rnd | head -c 5000001) /tmp/garage.3.rnd > /tmp/garage.test_multipart_reference
+  diff /tmp/garage.test_multipart /tmp/garage.test_multipart_reference >/tmp/garage.test_multipart_diff 2>&1
+
+  aws s3 rm "s3://eprouvette/copy_part_source"
+  aws s3 rm "s3://eprouvette/test_multipart"
+
+  rm /tmp/garage.multipart_struct
+  rm /tmp/garage.test_multipart
+  rm /tmp/garage.test_multipart_reference
+  rm /tmp/garage.test_multipart_diff
 fi
+
+rm /tmp/garage.{1..3}.{rnd,b64}
 
 if [ -z "$SKIP_AWS" ]; then
   echo "🪣 Test bucket logic "
@@ -280,6 +319,19 @@ if [ -z "$SKIP_AWS" ]; then
   [ $(aws s3 ls | wc -l) == 2 ]
   garage -c /tmp/config.1.toml bucket delete --yes seau
   [ $(aws s3 ls | wc -l) == 1 ]
+fi
+
+if [ -z "$SKIP_AWS" ]; then
+  echo "🧪 Website Testing"
+  echo "<h1>hello world</h1>" > /tmp/garage-index.html
+  aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
+  garage -c /tmp/config.1.toml bucket website --allow eprouvette
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 200 ]
+  garage -c /tmp/config.1.toml bucket website --deny eprouvette
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
+  aws s3 rm s3://eprouvette/index.html
+  rm /tmp/garage-index.html
 fi
 
 echo "🏁 Teardown"
