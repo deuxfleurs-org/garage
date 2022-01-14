@@ -302,6 +302,25 @@ EOF
   rm /tmp/garage.test_multipart
   rm /tmp/garage.test_multipart_reference
   rm /tmp/garage.test_multipart_diff
+
+  echo "Test CORS endpoints"
+  # @FIXME remove bucket allow if/when testing on s3 endpoint
+  garage -c /tmp/config.1.toml bucket website --allow eprouvette
+  aws s3api put-object --bucket eprouvette --key index.html
+  CORS='{"CORSRules":[{"AllowedHeaders":["*"],"AllowedMethods":["GET","PUT"],"AllowedOrigins":["*"]}]}'
+  aws s3api put-bucket-cors --bucket eprouvette --cors-configuration $CORS
+  [ `aws s3api get-bucket-cors --bucket eprouvette | jq -c` == $CORS ]
+
+  # @FIXME should we really return these CORS on the WEB endpoint and not on the S3 endpoint?
+  curl -s -i -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921 | grep access-control-allow-origin
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921|grep access-control-allow-methods
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: DELETE' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921 |grep '403 Forbidden'
+
+  aws s3api delete-bucket-cors --bucket eprouvette 
+  ! [ -s `aws s3api get-bucket-cors --bucket eprouvette` ]
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921|grep '403 Forbidden'
+  aws s3api delete-object --bucket eprouvette --key index.html
+  garage -c /tmp/config.1.toml bucket website --deny eprouvette
 fi
 
 rm /tmp/garage.{1..3}.{rnd,b64}
@@ -325,11 +344,11 @@ if [ -z "$SKIP_AWS" ]; then
   echo "🧪 Website Testing"
   echo "<h1>hello world</h1>" > /tmp/garage-index.html
   aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 404 ]
   garage -c /tmp/config.1.toml bucket website --allow eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 200 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 200 ]
   garage -c /tmp/config.1.toml bucket website --deny eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.garage.tld"  http://127.0.0.1:3921/ ` == 404 ]
+  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 404 ]
   aws s3 rm s3://eprouvette/index.html
   rm /tmp/garage-index.html
 fi

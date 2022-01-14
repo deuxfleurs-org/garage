@@ -49,11 +49,11 @@ bootstrap_peers = []
 [s3_api]
 s3_region = "garage"
 api_bind_addr = "[::]:3900"
-root_domain = ".s3.garage"
+root_domain = ".s3.garage.localhost"
 
 [s3_web]
 bind_addr = "[::]:3902"
-root_domain = ".web.garage"
+root_domain = ".web.garage.localhost"
 index = "index.html"
 ```
 
