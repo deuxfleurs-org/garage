@@ -28,12 +28,6 @@ pub struct Bucket {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub struct DisplayName(#[serde(rename = "$value")] pub String);
-
-#[derive(Debug, Serialize, PartialEq)]
-pub struct Id(#[serde(rename = "$value")] pub String);
-
-#[derive(Debug, Serialize, PartialEq)]
 pub struct Owner {
 	#[serde(rename = "DisplayName")]
 	pub display_name: Value,
@@ -185,6 +179,46 @@ pub struct ListMultipartUploadsResult {
 	pub common_prefixes: Vec<CommonPrefix>,
 	#[serde(rename = "EncodingType")]
 	pub encoding_type: Option<Value>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct PartItem {
+	#[serde(rename = "ETag")]
+	pub etag: Value,
+	#[serde(rename = "LastModified")]
+	pub last_modified: Value,
+	#[serde(rename = "PartNumber")]
+	pub part_number: IntValue,
+	#[serde(rename = "Size")]
+	pub size: IntValue,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct ListPartsResult {
+	#[serde(serialize_with = "xmlns_tag")]
+	pub xmlns: (),
+	#[serde(rename = "Bucket")]
+	pub bucket: Value,
+	#[serde(rename = "Key")]
+	pub key: Value,
+	#[serde(rename = "UploadId")]
+	pub upload_id: Value,
+	#[serde(rename = "PartNumberMarker")]
+	pub part_number_marker: Option<IntValue>,
+	#[serde(rename = "NextPartNumberMarker")]
+	pub next_part_number_marker: Option<IntValue>,
+	#[serde(rename = "MaxParts")]
+	pub max_parts: IntValue,
+	#[serde(rename = "IsTruncated")]
+	pub is_truncated: Value,
+	#[serde(rename = "Part", default)]
+	pub parts: Vec<PartItem>,
+	#[serde(rename = "Initiator")]
+	pub initiator: Initiator,
+	#[serde(rename = "Owner")]
+	pub owner: Owner,
+	#[serde(rename = "StorageClass")]
+	pub storage_class: Value,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -704,6 +738,87 @@ mod tests {
   </Contents>\
 </ListBucketResult>"
 		);
+		Ok(())
+	}
+
+	#[test]
+	fn list_parts() -> Result<(), ApiError> {
+		let result = ListPartsResult {
+			xmlns: (),
+			bucket: Value("example-bucket".to_string()),
+			key: Value("example-object".to_string()),
+			upload_id: Value(
+				"XXBsb2FkIElEIGZvciBlbHZpbmcncyVcdS1tb3ZpZS5tMnRzEEEwbG9hZA".to_string(),
+			),
+			part_number_marker: Some(IntValue(1)),
+			next_part_number_marker: Some(IntValue(3)),
+			max_parts: IntValue(2),
+			is_truncated: Value("true".to_string()),
+			parts: vec![
+				PartItem {
+					etag: Value("\"7778aef83f66abc1fa1e8477f296d394\"".to_string()),
+					last_modified: Value("2010-11-10T20:48:34.000Z".to_string()),
+					part_number: IntValue(2),
+					size: IntValue(10485760),
+				},
+				PartItem {
+					etag: Value("\"aaaa18db4cc2f85cedef654fccc4a4x8\"".to_string()),
+					last_modified: Value("2010-11-10T20:48:33.000Z".to_string()),
+					part_number: IntValue(3),
+					size: IntValue(10485760),
+				},
+			],
+			initiator: Initiator {
+				display_name: Value("umat-user-11116a31-17b5-4fb7-9df5-b288870f11xx".to_string()),
+				id: Value(
+					"arn:aws:iam::111122223333:user/some-user-11116a31-17b5-4fb7-9df5-b288870f11xx"
+						.to_string(),
+				),
+			},
+			owner: Owner {
+				display_name: Value("someName".to_string()),
+				id: Value(
+					"75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a".to_string(),
+				),
+			},
+			storage_class: Value("STANDARD".to_string()),
+		};
+
+		assert_eq!(
+			to_xml_with_header(&result)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<ListPartsResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\
+  <Bucket>example-bucket</Bucket>\
+  <Key>example-object</Key>\
+  <UploadId>XXBsb2FkIElEIGZvciBlbHZpbmcncyVcdS1tb3ZpZS5tMnRzEEEwbG9hZA</UploadId>\
+  <PartNumberMarker>1</PartNumberMarker>\
+  <NextPartNumberMarker>3</NextPartNumberMarker>\
+  <MaxParts>2</MaxParts>\
+  <IsTruncated>true</IsTruncated>\
+  <Part>\
+    <ETag>&quot;7778aef83f66abc1fa1e8477f296d394&quot;</ETag>\
+    <LastModified>2010-11-10T20:48:34.000Z</LastModified>\
+    <PartNumber>2</PartNumber>\
+    <Size>10485760</Size>\
+  </Part>\
+  <Part>\
+    <ETag>&quot;aaaa18db4cc2f85cedef654fccc4a4x8&quot;</ETag>\
+    <LastModified>2010-11-10T20:48:33.000Z</LastModified>\
+    <PartNumber>3</PartNumber>\
+    <Size>10485760</Size>\
+  </Part>\
+  <Initiator>\
+      <DisplayName>umat-user-11116a31-17b5-4fb7-9df5-b288870f11xx</DisplayName>\
+      <ID>arn:aws:iam::111122223333:user/some-user-11116a31-17b5-4fb7-9df5-b288870f11xx</ID>\
+  </Initiator>\
+  <Owner>\
+    <DisplayName>someName</DisplayName>\
+    <ID>75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a</ID>\
+  </Owner>\
+  <StorageClass>STANDARD</StorageClass>\
+</ListPartsResult>"
+		);
+
 		Ok(())
 	}
 }
