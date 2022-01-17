@@ -511,7 +511,7 @@ pub async fn handle_complete_multipart_upload(
 	}
 
 	let body_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
-	let body_list_of_parts = parse_complete_multpart_upload_body(&body_xml)
+	let body_list_of_parts = parse_complete_multipart_upload_body(&body_xml)
 		.ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
 	debug!(
 		"CompleteMultipartUpload list of parts: {:?}",
@@ -703,7 +703,7 @@ struct CompleteMultipartUploadPart {
 	part_number: u64,
 }
 
-fn parse_complete_multpart_upload_body(
+fn parse_complete_multipart_upload_body(
 	xml: &roxmltree::Document,
 ) -> Option<Vec<CompleteMultipartUploadPart>> {
 	let mut parts = vec![];
@@ -715,6 +715,11 @@ fn parse_complete_multpart_upload_body(
 	}
 
 	for item in cmu.children() {
+		// Only parse <Part> nodes
+		if !item.is_element() {
+			continue;
+		}
+
 		if item.has_tag_name("Part") {
 			let etag = item.children().find(|e| e.has_tag_name("ETag"))?.text()?;
 			let part_number = item
