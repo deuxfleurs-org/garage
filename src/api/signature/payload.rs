@@ -1,25 +1,23 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use hmac::{Hmac, Mac, NewMac};
+use hmac::Mac;
 use hyper::{Body, Method, Request};
 use sha2::{Digest, Sha256};
 
 use garage_table::*;
-use garage_util::data::{sha256sum, Hash};
+use garage_util::data::Hash;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
+use super::signing_hmac;
+use super::{LONG_DATETIME, SHORT_DATE};
+
 use crate::encoding::uri_encode;
 use crate::error::*;
 
-const SHORT_DATE: &str = "%Y%m%d";
-const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
-
-type HmacSha256 = Hmac<Sha256>;
-
-pub async fn check_signature(
+pub async fn check_payload_signature(
 	garage: &Garage,
 	request: &Request<Body>,
 ) -> Result<(Key, Option<Hash>), Error> {
@@ -97,13 +95,13 @@ pub async fn check_signature(
 
 	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
 		None
+	} else if authorization.content_sha256 == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" {
+		let bytes = hex::decode(authorization.signature).ok_or_bad_request("Invalid signature")?;
+		Some(Hash::try_from(&bytes).ok_or_bad_request("Invalid signature")?)
 	} else {
 		let bytes = hex::decode(authorization.content_sha256)
 			.ok_or_bad_request("Invalid content sha256 hash")?;
-		Some(
-			Hash::try_from(&bytes[..])
-				.ok_or_else(|| Error::BadRequest("Invalid content sha256 hash".to_string()))?,
-		)
+		Some(Hash::try_from(&bytes).ok_or_bad_request("Invalid content sha256 hash")?)
 	};
 
 	Ok((key, content_sha256))
@@ -222,25 +220,6 @@ fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &
 	.join("\n")
 }
 
-fn signing_hmac(
-	datetime: &DateTime<Utc>,
-	secret_key: &str,
-	region: &str,
-	service: &str,
-) -> Result<HmacSha256, crypto_mac::InvalidKeyLength> {
-	let secret = String::from("AWS4") + secret_key;
-	let mut date_hmac = HmacSha256::new_varkey(secret.as_bytes())?;
-	date_hmac.update(datetime.format(SHORT_DATE).to_string().as_bytes());
-	let mut region_hmac = HmacSha256::new_varkey(&date_hmac.finalize().into_bytes())?;
-	region_hmac.update(region.as_bytes());
-	let mut service_hmac = HmacSha256::new_varkey(&region_hmac.finalize().into_bytes())?;
-	service_hmac.update(service.as_bytes());
-	let mut signing_hmac = HmacSha256::new_varkey(&service_hmac.finalize().into_bytes())?;
-	signing_hmac.update(b"aws4_request");
-	let hmac = HmacSha256::new_varkey(&signing_hmac.finalize().into_bytes())?;
-	Ok(hmac)
-}
-
 fn canonical_request(
 	method: &Method,
 	url_path: &str,
@@ -287,15 +266,4 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 	} else {
 		"".to_string()
 	}
-}
-
-pub fn verify_signed_content(content_sha256: Option<Hash>, body: &[u8]) -> Result<(), Error> {
-	let expected_sha256 =
-		content_sha256.ok_or_bad_request("Request content hash not signed, aborting.")?;
-	if expected_sha256 != sha256sum(body) {
-		return Err(Error::BadRequest(
-			"Request content hash does not match signed hash".to_string(),
-		));
-	}
-	Ok(())
 }

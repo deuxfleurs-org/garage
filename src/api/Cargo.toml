@@ -28,10 +28,12 @@ hmac = "0.10"
 idna = "0.2"
 log = "0.4"
 md-5 = "0.9"
+nom = "7.1"
 sha2 = "0.9"
 
 futures = "0.3"
 futures-util = "0.3"
+pin-project = "1.0"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 
 http = "0.2"

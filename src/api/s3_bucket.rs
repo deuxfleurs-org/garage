@@ -120,7 +120,10 @@ pub async fn handle_create_bucket(
 	bucket_name: String,
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
-	verify_signed_content(content_sha256, &body[..])?;
+
+	if let Some(content_sha256) = content_sha256 {
+		verify_signed_content(content_sha256, &body[..])?;
+	}
 
 	let cmd =
 		parse_create_bucket_xml(&body[..]).ok_or_bad_request("Invalid create bucket XML query")?;
@@ -320,7 +323,7 @@ mod tests {
 		assert_eq!(
 			parse_create_bucket_xml(
 				br#"
-            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             </CreateBucketConfiguration >
 		"#
 			),
@@ -329,8 +332,8 @@ mod tests {
 		assert_eq!(
 			parse_create_bucket_xml(
 				br#"
-            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
-             <LocationConstraint>Europe</LocationConstraint> 
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+             <LocationConstraint>Europe</LocationConstraint>
             </CreateBucketConfiguration >
 		"#
 			),
@@ -339,7 +342,7 @@ mod tests {
 		assert_eq!(
 			parse_create_bucket_xml(
 				br#"
-            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
+            <CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             </Crea >
 		"#
 			),

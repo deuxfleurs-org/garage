@@ -15,7 +15,7 @@ use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
 use crate::error::*;
-use crate::signature::check_signature;
+use crate::signature::payload::check_payload_signature;
 
 use crate::helpers::*;
 use crate::s3_bucket::*;
@@ -90,7 +90,7 @@ async fn handler(
 }
 
 async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
-	let (api_key, content_sha256) = check_signature(&garage, &req).await?;
+	let (api_key, content_sha256) = check_payload_signature(&garage, &req).await?;
 
 	let authority = req
 		.headers()
@@ -176,7 +176,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			.await
 		}
 		Endpoint::PutObject { key, .. } => {
-			handle_put(garage, req, bucket_id, &key, content_sha256).await
+			handle_put(garage, req, bucket_id, &key, &api_key, content_sha256).await
 		}
 		Endpoint::AbortMultipartUpload { key, upload_id, .. } => {
 			handle_abort_multipart_upload(garage, bucket_id, &key, &upload_id).await

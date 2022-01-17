@@ -8,7 +8,7 @@ cat > /tmp/garage.mc/config.json <<EOF
   "version": "10",
   "aliases": {
     "garage": {
-      "url": "https://localhost:4443",
+      "url": "http://127.0.0.1:3911",
       "accessKey": "$ACCESS_KEY",
       "secretKey": "$SECRET_KEY",
       "api": "S3v4",

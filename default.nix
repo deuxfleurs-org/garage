@@ -76,7 +76,7 @@ in let
        */
        ''^(src|tests)''          # fixed default
        ''.*\.(rs|toml)$''        # fixed default
-       ''^(crdt|replication|cli|helper)''   # our crate submodules
+       ''^(crdt|replication|cli|helper|signature)''   # our crate submodules
     ];
   };
 

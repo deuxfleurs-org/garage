@@ -81,7 +81,10 @@ pub async fn handle_delete_objects(
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
-	verify_signed_content(content_sha256, &body[..])?;
+
+	if let Some(content_sha256) = content_sha256 {
+		verify_signed_content(content_sha256, &body[..])?;
+	}
 
 	let cmd_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
 	let cmd = parse_delete_objects_xml(&cmd_xml).ok_or_bad_request("Invalid delete XML query")?;

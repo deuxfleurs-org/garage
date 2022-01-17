@@ -80,7 +80,10 @@ pub async fn handle_put_website(
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
 	let body = hyper::body::to_bytes(req.into_body()).await?;
-	verify_signed_content(content_sha256, &body[..])?;
+
+	if let Some(content_sha256) = content_sha256 {
+		verify_signed_content(content_sha256, &body[..])?;
+	}
 
 	let mut bucket = garage
 		.bucket_table
