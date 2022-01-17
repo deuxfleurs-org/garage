@@ -137,7 +137,7 @@ if [ -z "$SKIP_AWS" ]; then
   aws s3api list-objects-v2 --bucket eprouvette --page-size 0 >$CMDOUT
   [ $(jq '.Contents | length' $CMDOUT) == 8 ]
   [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-objects-v2 --bucket eprouvette --page-size 999999999999999 >$CMDOUT
+  aws s3api list-objects-v2 --bucket eprouvette --page-size 999999999 >$CMDOUT
   [ $(jq '.Contents | length' $CMDOUT) == 8 ]
   [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
   aws s3api list-objects-v2 --bucket eprouvette --page-size 1 >$CMDOUT
