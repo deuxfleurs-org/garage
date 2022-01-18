@@ -121,7 +121,7 @@ pub async fn handle_list(
 				key: uriencode_maybe(key, query.common.urlencode_resp),
 				last_modified: s3_xml::Value(msec_to_rfc3339(info.last_modified)),
 				size: s3_xml::IntValue(info.size as i64),
-				etag: s3_xml::Value(format!("\"{}\"", info.etag.to_string())),
+				etag: s3_xml::Value(format!("\"{}\"", info.etag)),
 				storage_class: s3_xml::Value("STANDARD".to_string()),
 			})
 			.collect(),

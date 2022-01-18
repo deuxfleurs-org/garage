@@ -487,7 +487,7 @@ impl CopyPreconditionHeaders {
 				.get("x-amz-copy-source-if-modified-since")
 				.map(|x| x.to_str())
 				.transpose()?
-				.map(|x| httpdate::parse_http_date(x))
+				.map(httpdate::parse_http_date)
 				.transpose()
 				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-modified-since")?,
 			copy_source_if_none_match: req
@@ -505,7 +505,7 @@ impl CopyPreconditionHeaders {
 				.get("x-amz-copy-source-if-unmodified-since")
 				.map(|x| x.to_str())
 				.transpose()?
-				.map(|x| httpdate::parse_http_date(x))
+				.map(httpdate::parse_http_date)
 				.transpose()
 				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-unmodified-since")?,
 		})

@@ -20,7 +20,7 @@ use crate::error::*;
 pub async fn check_payload_signature(
 	garage: &Garage,
 	request: &Request<Body>,
-) -> Result<(Key, Option<Hash>), Error> {
+) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
 	for (key, val) in request.headers() {
 		headers.insert(key.to_string(), val.to_str()?.to_string());
@@ -34,24 +34,24 @@ pub async fn check_payload_signature(
 
 	let authorization = if let Some(authorization) = headers.get("authorization") {
 		parse_authorization(authorization, &headers)?
+	} else if let Some(algorithm) = headers.get("x-amz-algorithm") {
+		parse_query_authorization(algorithm, &headers)?
 	} else {
-		parse_query_authorization(&headers)?
+		let content_sha256 = headers.get("x-amz-content-sha256");
+		if let Some(content_sha256) = content_sha256.filter(|c| "UNSIGNED-PAYLOAD" != c.as_str()) {
+			let sha256 = hex::decode(content_sha256)
+				.ok()
+				.and_then(|bytes| Hash::try_from(&bytes))
+				.ok_or_bad_request("Invalid content sha256 hash")?;
+			return Ok((None, Some(sha256)));
+		} else {
+			return Ok((None, None));
+		}
 	};
-
-	let date = headers
-		.get("x-amz-date")
-		.ok_or_bad_request("Missing X-Amz-Date field")?;
-	let date: NaiveDateTime =
-		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
-	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
-
-	if Utc::now() - date > Duration::hours(24) {
-		return Err(Error::BadRequest("Date is too old".to_string()));
-	}
 
 	let scope = format!(
 		"{}/{}/s3/aws4_request",
-		date.format(SHORT_DATE),
+		authorization.date.format(SHORT_DATE),
 		garage.config.s3_api.s3_region
 	);
 	if authorization.scope != scope {
@@ -74,10 +74,10 @@ pub async fn check_payload_signature(
 		&authorization.signed_headers,
 		&authorization.content_sha256,
 	);
-	let string_to_sign = string_to_sign(&date, &scope, &canonical_request);
+	let string_to_sign = string_to_sign(&authorization.date, &scope, &canonical_request);
 
 	let mut hmac = signing_hmac(
-		&date,
+		&authorization.date,
 		&key_p.secret_key,
 		&garage.config.s3_api.s3_region,
 		"s3",
@@ -104,7 +104,7 @@ pub async fn check_payload_signature(
 		Some(Hash::try_from(&bytes).ok_or_bad_request("Invalid content sha256 hash")?)
 	};
 
-	Ok((key, content_sha256))
+	Ok((Some(key), content_sha256))
 }
 
 struct Authorization {
@@ -113,6 +113,7 @@ struct Authorization {
 	signed_headers: String,
 	signature: String,
 	content_sha256: String,
+	date: DateTime<Utc>,
 }
 
 fn parse_authorization(
@@ -147,6 +148,17 @@ fn parse_authorization(
 		.get("x-amz-content-sha256")
 		.ok_or_bad_request("Missing X-Amz-Content-Sha256 field")?;
 
+	let date = headers
+		.get("x-amz-date")
+		.ok_or_bad_request("Missing X-Amz-Date field")?;
+	let date: NaiveDateTime =
+		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
+	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+
+	if Utc::now() - date > Duration::hours(24) {
+		return Err(Error::BadRequest("Date is too old".to_string()));
+	}
+
 	let auth = Authorization {
 		key_id,
 		scope,
@@ -159,15 +171,16 @@ fn parse_authorization(
 			.ok_or_bad_request("Could not find Signature in Authorization field")?
 			.to_string(),
 		content_sha256: content_sha256.to_string(),
+		date,
 	};
 	Ok(auth)
 }
 
-fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Authorization, Error> {
-	let algo = headers
-		.get("x-amz-algorithm")
-		.ok_or_bad_request("X-Amz-Algorithm not found in query parameters")?;
-	if algo != "AWS4-HMAC-SHA256" {
+fn parse_query_authorization(
+	algorithm: &str,
+	headers: &HashMap<String, String>,
+) -> Result<Authorization, Error> {
+	if algorithm != "AWS4-HMAC-SHA256" {
 		return Err(Error::BadRequest(
 			"Unsupported authorization method".to_string(),
 		));
@@ -188,12 +201,36 @@ fn parse_query_authorization(headers: &HashMap<String, String>) -> Result<Author
 		.map(|x| x.as_str())
 		.unwrap_or("UNSIGNED-PAYLOAD");
 
+	let duration = headers
+		.get("x-amz-expires")
+		.ok_or_bad_request("X-Amz-Expires not found in query parameters")?
+		.parse()
+		.map_err(|_| Error::BadRequest("X-Amz-Expires is not a number".to_string()))?;
+
+	if duration > 7 * 24 * 3600 {
+		return Err(Error::BadRequest(
+			"X-Amz-Exprires may not exceed a week".to_string(),
+		));
+	}
+
+	let date = headers
+		.get("x-amz-date")
+		.ok_or_bad_request("Missing X-Amz-Date field")?;
+	let date: NaiveDateTime =
+		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
+	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+
+	if Utc::now() - date > Duration::seconds(duration) {
+		return Err(Error::BadRequest("Date is too old".to_string()));
+	}
+
 	Ok(Authorization {
 		key_id,
 		scope,
 		signed_headers: signed_headers.to_string(),
 		signature: signature.to_string(),
 		content_sha256: content_sha256.to_string(),
+		date,
 	})
 }
 

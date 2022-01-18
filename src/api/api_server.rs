@@ -91,6 +91,9 @@ async fn handler(
 
 async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Response<Body>, Error> {
 	let (api_key, content_sha256) = check_payload_signature(&garage, &req).await?;
+	let api_key = api_key.ok_or_else(|| {
+		Error::Forbidden("Garage does not support anonymous access yet".to_string())
+	})?;
 
 	let authority = req
 		.headers()

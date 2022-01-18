@@ -31,11 +31,7 @@ where
 	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
 		match self {
 			Ok(x) => Ok(x),
-			Err(e) => Err(Error::BadRequest(format!(
-				"{}: {}",
-				reason.as_ref(),
-				e.to_string()
-			))),
+			Err(e) => Err(Error::BadRequest(format!("{}: {}", reason.as_ref(), e))),
 		}
 	}
 }
