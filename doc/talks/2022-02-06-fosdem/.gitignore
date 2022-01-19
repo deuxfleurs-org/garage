@@ -1,0 +1,13 @@
+*
+
+!assets
+
+!.gitignore
+!*.svg
+!*.png
+!*.jpg
+!*.tex
+!Makefile
+!.gitignore
+
+!talk.pdf
