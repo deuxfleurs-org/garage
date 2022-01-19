@@ -294,6 +294,25 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 			)
 			.await
 		}
+		Endpoint::ListParts {
+			key,
+			max_parts,
+			part_number_marker,
+			upload_id,
+		} => {
+			handle_list_parts(
+				garage,
+				&ListPartsQuery {
+					bucket_name,
+					bucket_id,
+					key,
+					upload_id,
+					part_number_marker: part_number_marker.map(|p| p.clamp(1, 10000)),
+					max_parts: max_parts.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+				},
+			)
+			.await
+		}
 		Endpoint::DeleteObjects {} => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
