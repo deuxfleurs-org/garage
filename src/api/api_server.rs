@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -221,7 +220,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 						bucket_name,
 						bucket_id,
 						delimiter: delimiter.map(|d| d.to_string()),
-						page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+						page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
 						prefix: prefix.unwrap_or_default(),
 						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 					},
@@ -251,7 +250,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
-							page_size: max_keys.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+							page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 							prefix: prefix.unwrap_or_default(),
 						},
@@ -284,7 +283,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 						bucket_name,
 						bucket_id,
 						delimiter: delimiter.map(|d| d.to_string()),
-						page_size: max_uploads.map(|p| min(1000, max(1, p))).unwrap_or(1000),
+						page_size: max_uploads.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
 						prefix: prefix.unwrap_or_default(),
 						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 					},
