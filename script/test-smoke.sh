@@ -252,7 +252,58 @@ if [ -z "$SKIP_AWS" ]; then
       echo "Deleted ${key}:${uid}"
     done
 
-  # Test for UploadPartCopy
+  echo "Test for ListParts"
+  UPLOAD_ID=$(aws s3api create-multipart-upload --bucket eprouvette --key list-parts | jq -r .UploadId)
+  aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
+  [ $(jq '.Parts | length' $CMDOUT) == 0 ]
+  [ $(jq -r '.StorageClass' $CMDOUT) == 'STANDARD' ] # check that the result is not empty
+  ETAG1=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 10 --body /tmp/garage.2.rnd | jq .ETag)
+  aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
+  [ $(jq '.Parts | length' $CMDOUT) == 1 ]
+  [ $(jq '.Parts[0].PartNumber' $CMDOUT) == 10 ]
+  [ $(jq '.Parts[0].Size' $CMDOUT) == 5242880 ]
+  [ $(jq '.Parts[0].ETag' $CMDOUT) == $ETAG1 ]
+
+  ETAG2=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 9999 --body /tmp/garage.3.rnd | jq .ETag)
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 30 --body /tmp/garage.2.rnd | jq .ETag)
+  aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
+  [ $(jq '.Parts | length' $CMDOUT) == 3 ]
+  [ $(jq '.Parts[1].ETag' $CMDOUT) == $ETAG3 ]
+
+  aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --page-size 1 >$CMDOUT
+  [ $(jq '.Parts | length' $CMDOUT) == 3 ]
+  [ $(jq '.Parts[1].ETag' $CMDOUT) == $ETAG3 ]
+
+  cat >/tmp/garage.multipart_struct <<EOF
+{
+  "Parts": [
+    {
+      "ETag": $ETAG1,
+      "PartNumber": 10
+    },
+    {
+      "ETag": $ETAG3,
+      "PartNumber": 30
+    },
+    {
+      "ETag": $ETAG2,
+      "PartNumber": 9999
+    }
+  ]
+}
+EOF
+  aws s3api complete-multipart-upload \
+    --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID \
+    --multipart-upload file:///tmp/garage.multipart_struct
+
+  ! aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
+  aws s3 rm "s3://eprouvette/list-parts"
+
+
+  # @FIXME We do not write tests with --starting-token due to a bug with awscli
+  # See here: https://github.com/aws/aws-cli/issues/6666
+
+  echo "Test for UploadPartCopy"
   aws s3 cp "/tmp/garage.3.rnd" "s3://eprouvette/copy_part_source"
   UPLOAD_ID=$(aws s3api create-multipart-upload --bucket eprouvette --key test_multipart | jq -r .UploadId)
   PART1=$(aws s3api upload-part \

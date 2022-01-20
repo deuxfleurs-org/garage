@@ -44,7 +44,7 @@ All APIs that are not mentionned are not implemented and will return a 501 Not I
 | ListObjects                  | Implemented, bugs? (see below)   |
 | ListObjectsV2                | Implemented                      |
 | ListMultipartUpload          | Implemented                      |
-| ListParts                    | Missing                          |
+| ListParts                    | Implemented                      |
 | PutObject                    | Implemented                      |
 | PutBucketWebsite             | Partially implemented (see below)|
 | UploadPart                   | Implemented                      |
