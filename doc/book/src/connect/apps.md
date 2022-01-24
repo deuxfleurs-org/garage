@@ -1,6 +1,19 @@
 # Apps (Nextcloud, Peertube...)
 
-In this section, we cover the following software: [Nextcloud](#nextcloud), [Peertube](#peertube), [Mastodon](#mastodon), [Matrix](#matrix)
+In this section, we cover the following web applications:
+
+| Name | Status | Note |
+|------|--------|------|
+| [Nextcloud](#nextcloud)     | ✅       |  Both Primary Storage and External Storage are supported    |
+| [Peertube](#peertube)     | ✅       | `base_url` must be set to the website endpoint     |
+| [Mastodon](#mastodon)     | ❓       |      |
+| [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
+| [Pixelfed](#pixelfed)     | ❓       |      |
+| [Pleroma](#pleroma)     | ❓       |      |
+| [Lemmy](#lemmy)     | ❓       |      |
+| [Funkwhale](#funkwhale)     | ❓       |      |
+| [Misskey](#misskey)     | ❓       |      |
+| [Prismo](#prismo)     | ❓       |      |
 
 ## Nextcloud
 
@@ -108,109 +121,8 @@ Do not change the `use_path_style` and `legacy_auth` entries, other configuratio
 
 Peertube proposes a clever integration of S3 by directly exposing its endpoint instead of proxifying requests through the application.
 In other words, Peertube is only responsible of the "control plane" and offload the "data plane" to Garage.
-In return, this system is a bit harder to configure, especially with Garage that supports less feature than other older S3 backends.
-We show that it is still possible to configure Garage with Peertube, allowing you to spread the load and the bandwidth usage on the Garage cluster.
-
-### Enable path-style access by patching Peertube
-
-First, you will need to apply a small patch on Peertube ([#4510](https://github.com/Chocobozzz/PeerTube/pull/4510)):
-
-```diff
-From e3b4c641bdf67e07d406a1d49d6aa6b1fbce2ab4 Mon Sep 17 00:00:00 2001
-From: Martin Honermeyer <maze@strahlungsfrei.de>
-Date: Sun, 31 Oct 2021 12:34:04 +0100
-Subject: [PATCH] Allow setting path-style access for object storage
-
----
- config/default.yaml                                           | 4 ++++
- config/production.yaml.example                                | 4 ++++
- server/initializers/config.ts                                 | 1 +
- server/lib/object-storage/shared/client.ts                    | 3 ++-
- .../production/config/custom-environment-variables.yaml       | 2 ++
- 5 files changed, 13 insertions(+), 1 deletion(-)
-
-diff --git a/config/default.yaml b/config/default.yaml
-index cf9d69a6211..4efd56fb804 100644
---- a/config/default.yaml
-+++ b/config/default.yaml
-@@ -123,6 +123,10 @@ object_storage:
-     # You can also use AWS_SECRET_ACCESS_KEY env variable
-     secret_access_key: ''
- 
-+  # Reference buckets via path rather than subdomain
-+  # (i.e. "my-endpoint.com/bucket" instead of "bucket.my-endpoint.com")
-+  force_path_style: false
-+
-   # Maximum amount to upload in one request to object storage
-   max_upload_part: 2GB
- 
-diff --git a/config/production.yaml.example b/config/production.yaml.example
-index 70993bf57a3..9ca2de5f4c9 100644
---- a/config/production.yaml.example
-+++ b/config/production.yaml.example
-@@ -121,6 +121,10 @@ object_storage:
-     # You can also use AWS_SECRET_ACCESS_KEY env variable
-     secret_access_key: ''
- 
-+  # Reference buckets via path rather than subdomain
-+  # (i.e. "my-endpoint.com/bucket" instead of "bucket.my-endpoint.com")
-+  force_path_style: false
-+
-   # Maximum amount to upload in one request to object storage
-   max_upload_part: 2GB
- 
-diff --git a/server/initializers/config.ts b/server/initializers/config.ts
-index 8375bf4304c..d726c59a4b6 100644
---- a/server/initializers/config.ts
-+++ b/server/initializers/config.ts
-@@ -91,6 +91,7 @@ const CONFIG = {
-       ACCESS_KEY_ID: config.get<string>('object_storage.credentials.access_key_id'),
-       SECRET_ACCESS_KEY: config.get<string>('object_storage.credentials.secret_access_key')
-     },
-+    FORCE_PATH_STYLE: config.get<boolean>('object_storage.force_path_style'),
-     VIDEOS: {
-       BUCKET_NAME: config.get<string>('object_storage.videos.bucket_name'),
-       PREFIX: config.get<string>('object_storage.videos.prefix'),
-diff --git a/server/lib/object-storage/shared/client.ts b/server/lib/object-storage/shared/client.ts
-index c9a61459336..eadad02f93f 100644
---- a/server/lib/object-storage/shared/client.ts
-+++ b/server/lib/object-storage/shared/client.ts
-@@ -26,7 +26,8 @@ function getClient () {
-         accessKeyId: OBJECT_STORAGE.CREDENTIALS.ACCESS_KEY_ID,
-         secretAccessKey: OBJECT_STORAGE.CREDENTIALS.SECRET_ACCESS_KEY
-       }
--      : undefined
-+      : undefined,
-+    forcePathStyle: CONFIG.OBJECT_STORAGE.FORCE_PATH_STYLE
-   })
- 
-   logger.info('Initialized S3 client %s with region %s.', getEndpoint(), OBJECT_STORAGE.REGION, lTags())
-diff --git a/support/docker/production/config/custom-environment-variables.yaml b/support/docker/production/config/custom-environment-variables.yaml
-index c7cd28e6521..a960bab0bc9 100644
---- a/support/docker/production/config/custom-environment-variables.yaml
-+++ b/support/docker/production/config/custom-environment-variables.yaml
-@@ -54,6 +54,8 @@ object_storage:
- 
-   region: "PEERTUBE_OBJECT_STORAGE_REGION"
- 
-+  force_path_style: "PEERTUBE_OBJECT_STORAGE_FORCE_PATH_STYLE"
-+
-   max_upload_part:
-     __name: "PEERTUBE_OBJECT_STORAGE_MAX_UPLOAD_PART"
-     __format: "json"
-```
-
-You can then recompile it with:
-
-```
-npm run build
-```
-
-And it can be started with:
-
-```
-NODE_ENV=production NODE_CONFIG_DIR=/srv/peertube/config node dist/server.js
-```
+In return, this system is a bit harder to configure.
+We show how it is still possible to configure Garage with Peertube, allowing you to spread the load and the bandwidth usage on the Garage cluster.
 
 
 ### Create resources in Garage
@@ -232,30 +144,31 @@ garage bucket create peertube-playlist
 Now we allow our key to read and write on these buckets:
 
 ```
-garage bucket allow peertube-playlist --read --write --key peertube-key
-garage bucket allow peertube-video --read --write --key peertube-key
+garage bucket allow peertube-playlists --read --write --owner --key peertube-key
+garage bucket allow peertube-videos --read --write --owner --key peertube-key
 ```
 
-Finally, we need to expose these buckets publicly to serve their content to users:
+We also need to expose these buckets publicly to serve their content to users:
 
 ```bash
-garage bucket website --allow peertube-playlist
-garage bucket website --allow peertube-video
+garage bucket website --allow peertube-playlists
+garage bucket website --allow peertube-videos
+```
+
+Finally, we must allow Cross-Origin Resource Sharing (CORS). 
+CORS are required by your browser to allow requests triggered from the peertube website (eg. peertube.tld) to your bucket's domain (eg. peertube-videos.web.garage.tld)
+
+```bash
+export CORS='{"CORSRules":[{"AllowedHeaders":["*"],"AllowedMethods":["GET"],"AllowedOrigins":["*"]}]}'
+aws --endpoint http://s3.garage.localhost s3api put-bucket-cors --bucket peertube-playlists --cors-configuration $CORS
+aws --endpoint http://s3.garage.localhost s3api put-bucket-cors --bucket peertube-videos --cors-configuration $CORS
 ```
 
 These buckets are now accessible on the web port (by default 3902) with the following URL: `http://<bucket><root_domain>:<web_port>` where the root domain is defined in your configuration file (by default `.web.garage`). So we have currently the following URLs: 
-  * http://peertube-playlist.web.garage:3902
-  * http://peertube-video.web.garage:3902
+  * http://peertube-playlists.web.garage:3902
+  * http://peertube-videos.web.garage:3902
 
 Make sure you (will) have a corresponding DNS entry for them.
-
-### Configure a Reverse Proxy to serve CORS
-
-Now we will configure a reverse proxy in front of Garage.
-This is required as we have no other way to serve CORS headers yet.
-Check the [Configuring a reverse proxy](/cookbook/reverse_proxy.html) section to know how.
-
-Now make sure that your 2 dns entries are pointing to your reverse proxy.
 
 ### Configure Peertube
 
@@ -267,9 +180,6 @@ object_storage:
 
   # Put localhost only if you have a garage instance running on that node
   endpoint: 'http://localhost:3900' # or "garage.example.com" if you have TLS on port 443
-
-  # This entry has been added by our patch, must be set to true
-  force_path_style: true
 
   # Garage supports only one region for now, named garage
   region: 'garage'
@@ -287,28 +197,23 @@ object_storage:
     prefix: ''
 
     # You must fill this field to make Peertube use our reverse proxy/website logic
-    base_url: 'http://peertube-playlist.web.garage' # Example: 'https://mirror.example.com'
+    base_url: 'http://peertube-playlists.web.garage.localhost' # Example: 'https://mirror.example.com'
 
   # Same settings but for webtorrent videos
   videos:
     bucket_name: 'peertube-video'
     prefix: ''
     # You must fill this field to make Peertube use our reverse proxy/website logic
-    base_url: 'http://peertube-video.web.garage'
+    base_url: 'http://peertube-videos.web.garage.localhost'
 ```
 
 ### That's all
 
 Everything must be configured now, simply restart Peertube and try to upload a video.
-You must see in your browser console that data are fetched directly from our bucket (through the reverse proxy).
 
-### Miscellaneous
-
-*Known bug:* The playback does not start and some 400 Bad Request Errors appear in your browser console and on Garage.
-If the description of the error contains HTTP Invalid Range: InvalidRange, the error is due to a buggy ffmpeg version.
-You must avoid the 4.4.0 and use either a newer or older version.
-
-*Associated issues:* [#137](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/137), [#138](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/138), [#140](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/140). These issues are non blocking.
+Peertube will start by serving the video from its own domain while it is encoding.
+Once the encoding is done, the video is uploaded to Garage.
+You can now reload the page and see in your browser console that data are fetched directly from your bucket.
 
 *External link:* [Peertube Documentation > Remote Storage](https://docs.joinpeertube.org/admin-remote-storage)
 

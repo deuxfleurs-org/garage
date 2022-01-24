@@ -3,6 +3,12 @@
 Garage is also suitable to host static websites.
 While they can be deployed with traditional CLI tools, some static website generators have integrated options to ease your workflow.
 
+| Name | Status | Note |
+|------|--------|------|
+| [Hugo](#hugo)     | ✅       | Publishing logic is integrated in the tool  |
+| [Publii](#publii)     | ✅       | Require a correctly configured s3 vhost endpoint     |
+| [Generic Static Site Generator](#generic-static-site-generator)     | ✅        |  Works for Jekyll, Zola, Gatsby, Pelican, etc.    |
+
 ## Hugo
 
 Add to your `config.toml` the following section:
@@ -39,39 +45,38 @@ hugo deploy
 
 ## Publii
 
-It would require a patch either on Garage or on Publii to make both systems work.
+[![A screenshot of Publii's GUI](./publii.png)](./publii.png)
 
-Currently, the proposed workaround is to deploy your website manually:
-  - On the left menu, click on Server, choose Manual Deployment (the logo looks like a compressed file)
-  - Set your website URL, keep Output type as "Non-compressed catalog"
-  - Click on Save changes
-  - Click on Sync your website (bottom left of the app)
-  - On the new page, click again on Sync your website
-  - Click on Get website files
-  - You need to synchronize the output folder you see in your file explorer, we will use minio client.
+Deploying a website to Garage from Publii is natively supported.
+First, make sure that your Garage administrator allowed and configured Garage to support vhost access style.
+We also suppose that your bucket ("my-bucket") and key is already created and configured.
 
-Be sure that you [configured minio client](cli.html#minio-client-recommended).
+Then, from the left menu, click on server. Choose "S3" as the protocol.
+In the configuration window, enter:
+  - Your finale website URL (eg. "http://my-bucket.web.garage.localhost:3902")
+  - Tick "Use a custom S3 provider"
+  - Set the S3 endpoint, (eg. "http://s3.garage.localhost:3900")
+  - Then put your access key (eg. "GK..."), your secret key, and your bucket (eg. "my-bucket")
+  - And hit the button "Save settings"
 
-Then copy this output folder
+Now, each time you want to publish your website from Publii, just hit the bottom left button "Sync your website"!
 
-```bash
-mc mirror --overwrite output garage/my-site
-```
 
-## Generic (eg. Jekyll)
+
+## Generic Static Site Generator
 
 Some tools do not support sending to a S3 backend but output a compiled folder on your system.
 We can then use any CLI tool to upload this content to our S3 target.
 
 First, start by [configuring minio client](cli.html#minio-client-recommended).
 
-Then build your website:
+Then build your website (example for jekyll):
 
 ```bash
 jekyll build
 ```
 
-And copy jekyll's output folder on S3:
+And copy its output folder (`_site` for Jekyll) on S3:
 
 ```bash
 mc mirror --overwrite _site garage/my-site
