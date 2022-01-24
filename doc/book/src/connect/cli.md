@@ -1,18 +1,19 @@
-# CLI tools
+# Browsing tools
 
-CLI tools allow you to query the S3 API without too many abstractions.
+Browsing tools allow you to query the S3 API without too many abstractions.
 These tools are particularly suitable for debug, backups, website deployments or any scripted task that need to handle data.
 
 | Name | Status | Note |
 |------|--------|------|
-| [Minio client](#minio-client-recommended)     | ✅       |    |
-| [AWS CLI](#aws-cli)     | ✅       |    |
+| [Minio client](#minio-client-recommended)     | ✅       |  Recommended  |
+| [AWS CLI](#aws-cli)     | ✅       | Recommended   |
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
 | [(Cyber)duck](#cyberduck--duck)     | ✅       |    |
+| [WinSCP (libs3)](#winscp)     | ✅       | No instructions yet   |
 
 
-## Minio client (recommended)
+## Minio client
 
 Use the following command to set an "alias", i.e. define a new S3 server to be
 used by the Minio client:
@@ -269,3 +270,8 @@ duck --upload /tmp/object.txt garage:/my-files/another-object.txt
 # Delete an object
 duck --delete garage:/my-files/an-object.txt
 ```
+
+## WinSCP (libs3)
+
+*No instruction yet. You can find ones in french [in our wiki](https://wiki.deuxfleurs.fr/fr/Guide/Garage/WinSCP).*
+
