@@ -13,16 +13,7 @@ use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::data::*;
 
-pub async fn handle_get_website(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
-) -> Result<Response<Body>, Error> {
-	let bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
-
+pub async fn handle_get_website(bucket: &Bucket) -> Result<Response<Body>, Error> {
 	let param = bucket
 		.params()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;

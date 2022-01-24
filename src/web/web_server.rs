@@ -13,7 +13,7 @@ use crate::error::*;
 
 use garage_api::error::{Error as ApiError, OkOrBadRequest, OkOrInternalError};
 use garage_api::helpers::{authority_to_host, host_to_bucket};
-use garage_api::s3_cors::{add_cors_headers, find_matching_cors_rule};
+use garage_api::s3_cors::{add_cors_headers, find_matching_cors_rule, handle_options};
 use garage_api::s3_get::{handle_get, handle_head};
 
 use garage_model::garage::Garage;
@@ -133,6 +133,7 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 	);
 
 	let ret_doc = match *req.method() {
+		Method::OPTIONS => handle_options(req, &bucket).await,
 		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key).await,
 		Method::GET => handle_get(garage.clone(), req, bucket_id, &key).await,
 		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),
@@ -141,11 +142,14 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 
 	match ret_doc {
 		Err(error) => {
-			// For a HEAD method, and for non-4xx errors,
+			// For a HEAD or OPTIONS method, and for non-4xx errors,
 			// we don't return the error document as content,
 			// we return above and just return the error message
 			// by relying on err_to_res that is called when we return an Err.
-			if *req.method() == Method::HEAD || !error.http_status_code().is_client_error() {
+			if *req.method() == Method::HEAD
+				|| *req.method() == Method::OPTIONS
+				|| !error.http_status_code().is_client_error()
+			{
 				return Err(error);
 			}
 

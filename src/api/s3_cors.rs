@@ -18,16 +18,7 @@ use garage_model::garage::Garage;
 use garage_table::*;
 use garage_util::data::*;
 
-pub async fn handle_get_cors(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
-) -> Result<Response<Body>, Error> {
-	let bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
-
+pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<Body>, Error> {
 	let param = bucket
 		.params()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
@@ -109,16 +100,7 @@ pub async fn handle_put_cors(
 		.body(Body::empty())?)
 }
 
-pub async fn handle_options(
-	garage: Arc<Garage>,
-	req: &Request<Body>,
-	bucket_id: Uuid,
-) -> Result<Response<Body>, Error> {
-	let bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+pub async fn handle_options(req: &Request<Body>, bucket: &Bucket) -> Result<Response<Body>, Error> {
 	let origin = req
 		.headers()
 		.get("Origin")

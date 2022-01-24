@@ -156,7 +156,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	};
 
 	let resp = match endpoint {
-		Endpoint::Options => handle_options(garage, &req, bucket_id).await,
+		Endpoint::Options => handle_options(&req, &bucket).await,
 		Endpoint::HeadObject { key, .. } => handle_head(garage, &req, bucket_id, &key).await,
 		Endpoint::GetObject { key, .. } => handle_get(garage, &req, bucket_id, &key).await,
 		Endpoint::UploadPart {
@@ -334,12 +334,12 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		Endpoint::DeleteObjects {} => {
 			handle_delete_objects(garage, bucket_id, req, content_sha256).await
 		}
-		Endpoint::GetBucketWebsite {} => handle_get_website(garage, bucket_id).await,
+		Endpoint::GetBucketWebsite {} => handle_get_website(&bucket).await,
 		Endpoint::PutBucketWebsite {} => {
 			handle_put_website(garage, bucket_id, req, content_sha256).await
 		}
 		Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket_id).await,
-		Endpoint::GetBucketCors {} => handle_get_cors(garage, bucket_id).await,
+		Endpoint::GetBucketCors {} => handle_get_cors(&bucket).await,
 		Endpoint::PutBucketCors {} => handle_put_cors(garage, bucket_id, req, content_sha256).await,
 		Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket_id).await,
 		endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
