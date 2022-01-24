@@ -24,8 +24,8 @@ your motivations for doing so in the PR message.
 | 							 | CompleteMultipartUpload |
 | 							 | AbortMultipartUpload |
 | 							 | UploadPart |
-| 							 | [*ListMultipartUploads*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103) |
-| 							 | [*ListParts*](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103) |
+| 							 | ListMultipartUploads |
+| 							 | ListParts |
 | **A-tier**                 | |
 | 							 | GetBucketCors |
 | 							 | PutBucketCors |
@@ -34,6 +34,7 @@ your motivations for doing so in the PR message.
 | 							 | GetBucketWebsite |
 | 							 | PutBucketWebsite |
 | 							 | DeleteBucketWebsite |
+| 							 | [PostObject](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPOST.html) |
 | ~~~~~~~~~~~~~~~~~~~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
 | **B-tier** | |
 | 							 | GetBucketAcl |
