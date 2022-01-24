@@ -3,6 +3,15 @@
 Whether you need to store and serve binary packages or source code, you may want to deploy a tool referred as a repository or registry.
 Garage can also help you serve this content.
 
+| Name | Status | Note |
+|------|--------|------|
+| [Gitea](#gitea)     | ✅       |   |
+| [Docker](#generic-static-site-generator)     | ✅        | Requires garage >= v0.6.0   |
+| [Nix](#generic-static-site-generator)     | ✅        |     |
+| [Gitlab](#gitlab)     |  ❓        |  Not yet tested    |
+
+
+
 ## Gitea
 
 You can use Garage with Gitea to store your [git LFS](https://git-lfs.github.com/) data, your users' avatar, and their attachements.
@@ -52,18 +61,42 @@ $ aws s3 ls s3://gitea/avatars/
 
 *External link:* [Gitea Documentation > Configuration Cheat Sheet](https://docs.gitea.io/en-us/config-cheat-sheet/)
 
-## Gitlab
-
-*External link:* [Gitlab Documentation > Object storage](https://docs.gitlab.com/ee/administration/object_storage.html)
-
-
-## Private NPM Registry (Verdacio)
-
-*External link:* [Verdaccio Github Repository > aws-storage plugin](https://github.com/verdaccio/verdaccio/tree/master/packages/plugins/aws-storage)
-
 ## Docker
 
-Not yet compatible, follow [#103](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/103).
+Create a bucket and a key for your docker registry, then create `config.yml` with the following content:
+
+```yml
+version: 0.1
+http:
+  addr: 0.0.0.0:5000
+  secret: asecretforlocaldevelopment
+  debug:
+    addr: localhost:5001
+storage:
+  s3:
+    accesskey: GKxxxx
+    secretkey: yyyyy
+    region: garage
+    regionendpoint: http://localhost:3900
+    bucket: docker
+    secure: false
+    v4auth: true
+    rootdirectory: /
+```
+
+Replace the `accesskey`, `secretkey`, `bucket`, `regionendpoint` and `secure` values by the one fitting your deployment.
+
+Then simply run the docker registry:
+
+```bash
+docker run \
+  --net=host \
+  -v `pwd`/config.yml:/etc/docker/registry/config.yml \
+  registry:2
+```
+
+*We started a plain text registry but docker clients require encrypted registries. You must either [setup TLS](https://docs.docker.com/registry/deploying/#run-an-externally-accessible-registry) on your registry or add `--insecure-registry=localhost:5000` to your docker daemon parameters.*
+
 
 *External link:* [Docker Documentation > Registry storage drivers > S3 storage driver](https://docs.docker.com/registry/storage-drivers/s3/)
 
@@ -167,3 +200,9 @@ on the binary cache, the client will download the result from the cache instead 
 
 Channels additionnaly serve Nix definitions, ie. a `.nix` file referencing
 all the derivations you want to serve.
+
+## Gitlab
+
+*External link:* [Gitlab Documentation > Object storage](https://docs.gitlab.com/ee/administration/object_storage.html)
+
+

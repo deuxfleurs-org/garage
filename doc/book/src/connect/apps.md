@@ -5,15 +5,16 @@ In this section, we cover the following web applications:
 | Name | Status | Note |
 |------|--------|------|
 | [Nextcloud](#nextcloud)     | ✅       |  Both Primary Storage and External Storage are supported    |
-| [Peertube](#peertube)     | ✅       | `base_url` must be set to the website endpoint     |
-| [Mastodon](#mastodon)     | ❓       |      |
+| [Peertube](#peertube)     | ✅       | Must be configured with the website endpoint     |
+| [Mastodon](#mastodon)     | ❓       | Not yet tested     |
 | [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
-| [Pixelfed](#pixelfed)     | ❓       |      |
-| [Pleroma](#pleroma)     | ❓       |      |
-| [Lemmy](#lemmy)     | ❓       |      |
-| [Funkwhale](#funkwhale)     | ❓       |      |
-| [Misskey](#misskey)     | ❓       |      |
-| [Prismo](#prismo)     | ❓       |      |
+| [Pixelfed](#pixelfed)     | ❓       |  Not yet tested    |
+| [Pleroma](#pleroma)     | ❓       |  Not yet tested    |
+| [Lemmy](#lemmy)     | ❓       |  Not yet tested    |
+| [Funkwhale](#funkwhale)     | ❓       | Not yet tested     |
+| [Misskey](#misskey)     | ❓       | Not yet tested     |
+| [Prismo](#prismo)     | ❓       | Not yet tested     |
+| [Owncloud OCIS](#owncloud-infinite-scale-ocis) |  ❓| Not yet tested |
 
 ## Nextcloud
 
@@ -334,30 +335,33 @@ And add a new line. For example, to run it every 10 minutes:
 
 ## Pixelfed
 
-https://docs.pixelfed.org/technical-documentation/env.html#filesystem
+[Pixelfed Technical Documentation > Configuration](https://docs.pixelfed.org/technical-documentation/env.html#filesystem)
 
 ## Pleroma
 
-https://docs-develop.pleroma.social/backend/configuration/cheatsheet/#pleromauploaderss3
+[Pleroma Documentation > Pleroma.Uploaders.S3](https://docs-develop.pleroma.social/backend/configuration/cheatsheet/#pleromauploaderss3)
 
 ## Lemmy
 
-via pict-rs
-https://git.asonix.dog/asonix/pict-rs/commit/f9f4fc63d670f357c93f24147c2ee3e1278e2d97
+Lemmy uses pict-rs that [supports S3 backends](https://git.asonix.dog/asonix/pict-rs/commit/f9f4fc63d670f357c93f24147c2ee3e1278e2d97)
 
 ## Funkwhale
 
-https://docs.funkwhale.audio/admin/configuration.html#s3-storage
+[Funkwhale Documentation > S3 Storage](https://docs.funkwhale.audio/admin/configuration.html#s3-storage)
 
 ## Misskey
 
-https://github.com/misskey-dev/misskey/commit/9d944243a3a59e8880a360cbfe30fd5a3ec8d52d
+[Misskey Github > commit 9d94424](https://github.com/misskey-dev/misskey/commit/9d944243a3a59e8880a360cbfe30fd5a3ec8d52d)
 
 ## Prismo
 
-https://gitlab.com/prismosuite/prismo/-/blob/dev/.env.production.sample#L26-33
+[Prismo Gitlab > .env.production.sample](https://gitlab.com/prismosuite/prismo/-/blob/dev/.env.production.sample#L26-33)
 
 ## Owncloud Infinite Scale (ocis)
+
+OCIS could be compatible with S3:
+  - [Deploying OCIS with S3](https://owncloud.dev/ocis/deployment/ocis_s3/)
+  - [OCIS 1.7 release note](https://central.owncloud.org/t/owncloud-infinite-scale-tech-preview-1-7-enables-s3-storage/32514/3)
 
 ## Unsupported
 
