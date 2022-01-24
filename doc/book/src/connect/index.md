@@ -4,11 +4,12 @@ Garage implements the Amazon S3 protocol, which makes it compatible with many ex
 
 In particular, you will find here instructions to connect it with:
 
-  - [web applications](./apps.md)
-  - [website hosting](./websites.md)
-  - [software repositories](./repositories.md)
-  - [CLI tools](./cli.md)
-  - [your own code](./code.md)
+  - [Browsing tools](./cli.md)
+  - [Applications](./apps.md)
+  - [Website hosting](./websites.md)
+  - [Software repositories](./repositories.md)
+  - [Your own code](./code.md)
+  - [FUSE](./fs.md)
 
 ### Generic instructions
 
@@ -30,9 +31,9 @@ you will need the following parameters:
 Most S3 clients can be configured easily with these parameters,
 provided that you follow the following guidelines:
 
-- **Force path style:** Garage does not support DNS-style buckets, which are now by default
-  on Amazon S3. Instead, Garage uses the legacy path-style bucket addressing.
-  Remember to configure your client to acknowledge this fact.
+- **Be careful to DNS-style/path-style access:** Garage supports both DNS-style buckets, which are now by default
+  on Amazon S3, and legacy path-style buckets. If you use a reverse proxy in front of Garage, 
+  make sure that you configured it to support the access-style required by the software you want to use.
 
 - **Configuring the S3 region:** Garage requires your client to talk to the correct "S3 region",
   which is set in the configuration file. This is often set just to `garage`.
