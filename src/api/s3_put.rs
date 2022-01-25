@@ -559,6 +559,17 @@ pub async fn handle_complete_multipart_upload(
 		return Err(Error::InvalidPartOrder);
 	}
 
+	// Garage-specific restriction, see #204: part numbers must be
+	// consecutive starting at 1
+	if body_list_of_parts[0].part_number != 1
+		|| !body_list_of_parts
+			.iter()
+			.zip(body_list_of_parts.iter().skip(1))
+			.all(|(p1, p2)| p1.part_number + 1 == p2.part_number)
+	{
+		return Err(Error::NotImplemented("Garage does not support completing a Multipart upload with non-consecutive part numbers. This is a restriction of Garage's data model, which might be fixed in a future release. See issue #204 for more information on this topic.".into()));
+	}
+
 	// Check that the list of parts they gave us corresponds to the parts we have here
 	debug!("Expected parts from request: {:?}", body_list_of_parts);
 	debug!("Parts stored in version: {:?}", version.parts_etags.items());

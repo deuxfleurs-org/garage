@@ -257,15 +257,15 @@ if [ -z "$SKIP_AWS" ]; then
   aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
   [ $(jq '.Parts | length' $CMDOUT) == 0 ]
   [ $(jq -r '.StorageClass' $CMDOUT) == 'STANDARD' ] # check that the result is not empty
-  ETAG1=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 10 --body /tmp/garage.2.rnd | jq .ETag)
+  ETAG1=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 1 --body /tmp/garage.2.rnd | jq .ETag)
   aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
   [ $(jq '.Parts | length' $CMDOUT) == 1 ]
-  [ $(jq '.Parts[0].PartNumber' $CMDOUT) == 10 ]
+  [ $(jq '.Parts[0].PartNumber' $CMDOUT) == 1 ]
   [ $(jq '.Parts[0].Size' $CMDOUT) == 5242880 ]
   [ $(jq '.Parts[0].ETag' $CMDOUT) == $ETAG1 ]
 
-  ETAG2=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 9999 --body /tmp/garage.3.rnd | jq .ETag)
-  ETAG3=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 30 --body /tmp/garage.2.rnd | jq .ETag)
+  ETAG2=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 3 --body /tmp/garage.3.rnd | jq .ETag)
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID --part-number 2 --body /tmp/garage.2.rnd | jq .ETag)
   aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
   [ $(jq '.Parts | length' $CMDOUT) == 3 ]
   [ $(jq '.Parts[1].ETag' $CMDOUT) == $ETAG3 ]
@@ -279,15 +279,15 @@ if [ -z "$SKIP_AWS" ]; then
   "Parts": [
     {
       "ETag": $ETAG1,
-      "PartNumber": 10
+      "PartNumber": 1
     },
     {
       "ETag": $ETAG3,
-      "PartNumber": 30
+      "PartNumber": 2
     },
     {
       "ETag": $ETAG2,
-      "PartNumber": 9999
+      "PartNumber": 3
     }
   ]
 }
