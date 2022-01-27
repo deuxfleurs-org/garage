@@ -38,9 +38,13 @@ The migration steps are as follows:
    the buckets that existed previously. This will also give access to API keys
    as it was before.
 
-9. Check that all your buckets indeed appear in `garage bucket list`, and that
-   keys have the proper access flags set. If that is not the case, revert
-   everything and file a bug!
+9. Do `garage repair -a --yes tables` and `garage repair -a --yes blocks`,
+   check the logs and check that all data seems to be synced correctly between
+   nodes.
 
-10. Your upgraded cluster should be in a working state. Re-enable API and Web
+10. Check that all your buckets indeed appear in `garage bucket list`, and that
+    keys have the proper access flags set. If that is not the case, revert
+    everything and file a bug!
+
+11. Your upgraded cluster should be in a working state. Re-enable API and Web
     access and check that everything went well.
