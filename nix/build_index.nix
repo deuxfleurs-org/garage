@@ -88,9 +88,11 @@ let
       builds = builtins.sort cmpDate (map (x: { version = x; builds = builtins.getAttr x builds_per_version; }) versions_commit);
     }
   ];
-
 in
-  pkgs.writeText "index.html" ''
+{
+  json = pkgs.writeTextDir "share/_releases.json" (builtins.toJSON sorted_builds);
+
+  html = pkgs.writeTextDir "share/_releases.html" ''
 <!doctype html>
 <html>
   <head>
@@ -143,4 +145,5 @@ in
   ''))}
   </body>
 </html>
-''
+'';
+}
