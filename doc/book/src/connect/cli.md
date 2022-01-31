@@ -129,6 +129,11 @@ rclone copy garage:quentin.divers/hello.txt .
 rclone help
 ```
 
+**Advice with rclone:** use the `--fast-list` option when accessing buckets with large amounts of objects.
+This will tremendously accelerate operations such as `rclone sync` or `rclone ncdu` by reducing the number
+of ListObjects calls that are made.
+
+
 ## `s3cmd`
 
 Here is a template for the `s3cmd.cfg` file to talk with Garage:
