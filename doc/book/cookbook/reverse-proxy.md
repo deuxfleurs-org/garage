@@ -3,7 +3,7 @@ title = "Configuring a reverse proxy"
 weight = 30
 +++
 
-The main reason to add a reverse proxy in front of Garage is to provide TLS to your users.
+The main reason to add a reverse proxy in front of Garage is to provide TLS to your users and serve multiple web services on port 443.
 
 In production you will likely need your certificates signed by a certificate authority.
 The most automated way is to use a provider supporting the [ACME protocol](https://datatracker.ietf.org/doc/html/rfc8555) 
@@ -58,16 +58,15 @@ If you directly put the instructions in the root `nginx.conf`, keep in mind that
 
 And do not forget to reload nginx with `systemctl reload nginx` or `nginx -s reload`.
 
-### Defining backends
+### Exposing the S3 endpoints
 
 First, we need to tell to nginx how to access our Garage cluster.
 Because we have multiple nodes, we want to leverage all of them by spreading the load.
+In nginx, we can do that with the `upstream` directive.
 
-In nginx, we can do that with the upstream directive.
-Because we have 2 endpoints: one for the S3 API and one to serve websites,
-we create 2 backends named respectively `s3_backend` and `web_backend`.
+Then in a `server` directive, we define the vhosts, the TLS certificates and the proxy rule.
 
-A documented example for the `s3_backend` assuming you chose port 3900:
+A possible configuration:
 
 ```nginx
 upstream s3_backend {
@@ -81,9 +80,34 @@ upstream s3_backend {
   # that are more powerful than others
   server garage2.example.com:3900 weight=2;
 }
+
+server {
+  listen [::]:443 http2 ssl;
+
+  ssl_certificate     /tmp/garage.crt;
+  ssl_certificate_key /tmp/garage.key;
+
+  # You need multiple server names here:
+  #  - s3.garage.tld is used for path-based s3 requests
+  #  - *.s3.garage.tld is used for vhost-based s3 requests
+  server_name s3.garage.tld *.s3.garage.tld;
+
+  location / {
+    proxy_pass http://s3_backend;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $host;
+  }
+}
 ```
 
-A similar example for the `web_backend` assuming you chose port 3902:
+## Exposing the web endpoint
+
+To better understand the logic involved, you can refer to the [Exposing buckets as websites](/cookbook/exposing_websites.html) section.
+Otherwise, the configuration is very similar to the S3 endpoint.
+You must only adapt `upstream` with the web port instead of the s3 port and change the `server_name` and `proxy_pass` entry
+
+A possible configuration:
+
 
 ```nginx
 upstream web_backend {
@@ -92,72 +116,25 @@ upstream web_backend {
   server garage1.example.com:3902;
   server garage2.example.com:3902 weight=2;
 }
-```
 
-### Exposing the S3 API
-
-The configuration section for the S3 API is simple as we only support path-access style yet.
-We simply configure the TLS parameters and forward all the requests to the backend:
-
-```nginx
 server {
   listen [::]:443 http2 ssl;
+
   ssl_certificate     /tmp/garage.crt;
   ssl_certificate_key /tmp/garage.key;
 
-  # should be the endpoint you want
-  # aws uses s3.amazonaws.com for example
-  server_name garage.example.com;
+  # You need multiple server names here:
+  #  - *.web.garage.tld is used for your users wanting a website without reserving a domain name
+  #  - example.com, my-site.tld, etc. are reserved domain name by your users that chose to host their website as a garage's bucket
+  server_name *.web.garage.tld example.com my-site.tld;
 
   location / {
-    proxy_pass http://s3_backend;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $host;
-  }
-}
-
-```
-
-### Exposing the web endpoint
-
-The web endpoint is a bit more complicated to configure as it listens on many different `Host` fields.
-To better understand the logic involved, you can refer to the [Exposing buckets as websites](@/documentation/cookbook/exposing-websites.md) section.
-Also, for some applications, you may need to serve CORS headers: Garage can not serve them directly but we show how we can use nginx to serve them.
-You can use the following example as your starting point:
-
-```nginx
-server {
-  listen [::]:443 http2 ssl;
-  ssl_certificate     /tmp/garage.crt;
-  ssl_certificate_key /tmp/garage.key;
-
-  # We list all the Hosts fields that can access our buckets
-  server_name *.web.garage
-              example.com
-              my-site.tld
-              ;
-
-  location / {
-    # Add these headers only if you want to allow CORS requests
-    # For production use, more specific rules would be better for your security
-    add_header Access-Control-Allow-Origin *;
-    add_header Access-Control-Max-Age 3600;
-    add_header Access-Control-Expose-Headers Content-Length;
-    add_header Access-Control-Allow-Headers Range;
-
-    # We do not forward OPTIONS requests to Garage
-    # as it does not support them but they are needed for CORS.
-    if ($request_method = OPTIONS) {
-      return 200;
-    }
-
     proxy_pass http://web_backend;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header Host $host;
   }
 }
 ```
-
 
 ## Apache httpd
 

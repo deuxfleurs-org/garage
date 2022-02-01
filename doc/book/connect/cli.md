@@ -1,12 +1,22 @@
 +++
-title = "CLI tools"
+title = "Browsing tools"
 weight = 20
 +++
 
-CLI tools allow you to query the S3 API without too many abstractions.
+Browsing tools allow you to query the S3 API without too many abstractions.
 These tools are particularly suitable for debug, backups, website deployments or any scripted task that need to handle data.
 
-## Minio client (recommended)
+| Name | Status | Note |
+|------|--------|------|
+| [Minio client](#minio-client-recommended)     | ✅       |  Recommended  |
+| [AWS CLI](#aws-cli)     | ✅       | Recommended   |
+| [rclone](#rclone)     | ✅       |    |
+| [s3cmd](#s3cmd)     | ✅       |    |
+| [(Cyber)duck](#cyberduck--duck)     | ✅       |    |
+| [WinSCP (libs3)](#winscp)     | ✅       | No instructions yet   |
+
+
+## Minio client
 
 Use the following command to set an "alias", i.e. define a new S3 server to be
 used by the Minio client:
@@ -169,6 +179,107 @@ s3cmd get s3://my-bucket/hello.txt hello.txt
 
 ## Cyberduck & duck
 
-TODO
+Both Cyberduck (the GUI) and duck (the CLI) have a concept of "Connection Profiles" that contain some presets for a specific provider.
+We wrote the following connection profile for Garage:
 
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Protocol</key>
+        <string>s3</string>
+        <key>Vendor</key>
+        <string>garage</string>
+        <key>Scheme</key>
+        <string>https</string>
+        <key>Description</key>
+        <string>GarageS3</string>
+        <key>Default Hostname</key>
+        <string>127.0.0.1</string>
+        <key>Default Port</key>
+        <string>4443</string>
+        <key>Hostname Configurable</key>
+        <false/>
+        <key>Port Configurable</key>
+        <false/>
+        <key>Username Configurable</key>
+        <true/>
+        <key>Username Placeholder</key>
+        <string>Access Key ID (GK...)</string>
+        <key>Password Placeholder</key>
+        <string>Secret Key</string>
+        <key>Properties</key>
+        <array>
+            <string>s3service.disable-dns-buckets=true</string>
+        </array>
+        <key>Region</key>
+        <string>garage</string>
+        <key>Regions</key>
+        <array>
+            <string>garage</string>
+        </array>
+    </dict>
+</plist>
+```
+
+*Note: If your garage instance is configured with vhost access style, you can remove `s3service.disable-dns-buckets=true`.*
+
+### Instructions for the GUI
+
+Copy the connection profile, and save it anywhere as `garage.cyberduckprofile`.
+Then find this file with your file explorer and double click on it: Cyberduck will open a connection wizard for this profile.
+Simply follow the wizard and you should be done!
+
+### Instuctions for the CLI
+
+To configure duck (Cyberduck's CLI tool), start by creating its folder hierarchy:
+
+```
+mkdir -p ~/.duck/profiles/
+```
+
+Then, save the connection profile for Garage in `~/.duck/profiles/garage.cyberduckprofile`.
+To set your credentials in `~/.duck/credentials`, use the following commands to generate the appropriate string:
+
+```bash
+export AWS_ACCESS_KEY_ID="GK..."
+export AWS_SECRET_ACCESS_KEY="..."
+export HOST="s3.garage.localhost"
+export PORT="4443"
+export PROTOCOL="https"
+
+cat > ~/.duck/credentials <<EOF
+$PROTOCOL\://$AWS_ACCESS_KEY_ID@$HOST\:$PORT=$AWS_SECRET_ACCESS_KEY
+EOF
+```
+
+And finally, I recommend appending a small wrapper to your `~/.bashrc` to avoid setting the username on each command (do not forget to replace `GK...` by your access key):
+
+```bash
+function duck { command duck --username GK... $@ ; }
+```
+
+Finally, you can then use `duck` as follow:
+
+```bash
+# List buckets
+duck --list garage:/
+
+# List objects in a bucket
+duck --list garage:/my-files/
+
+# Download an object
+duck --download garage:/my-files/an-object.txt /tmp/object.txt
+
+# Upload an object
+duck --upload /tmp/object.txt garage:/my-files/another-object.txt
+
+# Delete an object
+duck --delete garage:/my-files/an-object.txt
+```
+
+## WinSCP (libs3)
+
+*No instruction yet. You can find ones in french [in our wiki](https://wiki.deuxfleurs.fr/fr/Guide/Garage/WinSCP).*
 
