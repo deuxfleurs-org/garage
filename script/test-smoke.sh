@@ -362,15 +362,15 @@ EOF
   aws s3api put-bucket-cors --bucket eprouvette --cors-configuration $CORS
   [ `aws s3api get-bucket-cors --bucket eprouvette | jq -c` == $CORS ]
 
-  curl -s -i -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921 | grep access-control-allow-origin
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921|grep access-control-allow-methods
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: DELETE' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921 |grep '403 Forbidden'
+  curl -s -i -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep access-control-allow-origin
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep access-control-allow-methods
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: DELETE' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep '403 Forbidden'
 
   #@TODO we may want to test the S3 endpoint but we need to handle authentication, which is way more complex.
 
   aws s3api delete-bucket-cors --bucket eprouvette
   ! [ -s `aws s3api get-bucket-cors --bucket eprouvette` ]
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' http://eprouvette.web.garage.localhost:3921|grep '403 Forbidden'
+  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep '403 Forbidden'
   aws s3api delete-object --bucket eprouvette --key index.html
   garage -c /tmp/config.1.toml bucket website --deny eprouvette
 fi
