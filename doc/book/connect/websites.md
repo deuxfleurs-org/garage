@@ -71,7 +71,7 @@ Now, each time you want to publish your website from Publii, just hit the bottom
 Some tools do not support sending to a S3 backend but output a compiled folder on your system.
 We can then use any CLI tool to upload this content to our S3 target.
 
-First, start by [configuring minio client](@/documentation/connect/cli.md#minio-client-recommended).
+First, start by [configuring minio client](@/documentation/connect/cli.md#minio-client).
 
 Then build your website (example for jekyll):
 

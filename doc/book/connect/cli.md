@@ -8,11 +8,11 @@ These tools are particularly suitable for debug, backups, website deployments or
 
 | Name | Status | Note |
 |------|--------|------|
-| [Minio client](#minio-client-recommended)     | ✅       |  Recommended  |
+| [Minio client](#minio-client)     | ✅       |  Recommended  |
 | [AWS CLI](#aws-cli)     | ✅       | Recommended   |
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
-| [(Cyber)duck](#cyberduck--duck)     | ✅       |    |
+| [(Cyber)duck](#cyberduck)     | ✅       |    |
 | [WinSCP (libs3)](#winscp)     | ✅       | No instructions yet   |
 
 
@@ -177,7 +177,7 @@ s3cmd put /tmp/hello.txt s3://my-bucket/
 s3cmd get s3://my-bucket/hello.txt hello.txt
 ```
 
-## Cyberduck & duck
+## Cyberduck & duck {#cyberduck}
 
 Both Cyberduck (the GUI) and duck (the CLI) have a concept of "Connection Profiles" that contain some presets for a specific provider.
 We wrote the following connection profile for Garage:
@@ -279,7 +279,7 @@ duck --upload /tmp/object.txt garage:/my-files/another-object.txt
 duck --delete garage:/my-files/an-object.txt
 ```
 
-## WinSCP (libs3)
+## WinSCP (libs3) {#winscp}
 
 *No instruction yet. You can find ones in french [in our wiki](https://wiki.deuxfleurs.fr/fr/Guide/Garage/WinSCP).*
 

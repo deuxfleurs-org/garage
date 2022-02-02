@@ -9,8 +9,8 @@ Garage can also help you serve this content.
 | Name | Status | Note |
 |------|--------|------|
 | [Gitea](#gitea)     | ✅       |   |
-| [Docker](#generic-static-site-generator)     | ✅        | Requires garage >= v0.6.0   |
-| [Nix](#generic-static-site-generator)     | ✅        |     |
+| [Docker](#docker)     | ✅        | Requires garage >= v0.6.0   |
+| [Nix](#nix)     | ✅        |     |
 | [Gitlab](#gitlab)     |  ❓        |  Not yet tested    |
 
 
