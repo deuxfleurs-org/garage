@@ -153,6 +153,9 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 			println!("\nAuthorized keys:");
 			let mut table = vec![];
 			for (k, perm) in p.authorized_keys.items().iter() {
+				if !perm.is_any() {
+					continue;
+				}
 				let rflag = if perm.allow_read { "R" } else { " " };
 				let wflag = if perm.allow_write { "W" } else { " " };
 				let oflag = if perm.allow_owner { "O" } else { " " };
