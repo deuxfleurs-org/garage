@@ -8,6 +8,8 @@ description = "Garage, an S3-compatible distributed object store for self-hosted
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 readme = "../../README.md"
 
+autotests = false
+
 [[bin]]
 name = "garage"
 path = "main.rs"

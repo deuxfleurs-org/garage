@@ -46,7 +46,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --option log-lines 100 --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
 
   - name: unit tests
     image: nixpkgs/nix:nixos-21.05
@@ -59,6 +59,7 @@ steps:
       - |
         nix-build \
           --no-build-output \
+          --option log-lines 100 \
           --argstr target x86_64-unknown-linux-musl \
           --argstr compileMode test
       - ./result*/bin/garage_api*

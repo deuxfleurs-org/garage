@@ -179,12 +179,6 @@ index = "index.html"
 	}
 }
 
-impl Drop for Instance {
-	fn drop(&mut self) {
-		self.terminate()
-	}
-}
-
 static mut INSTANCE: MaybeUninit<Instance> = MaybeUninit::uninit();
 static INSTANCE_INIT: Once = Once::new();
 
@@ -192,7 +186,7 @@ static INSTANCE_INIT: Once = Once::new();
 extern "C" fn terminate_instance() {
 	if INSTANCE_INIT.is_completed() {
 		unsafe {
-			INSTANCE.assume_init_drop();
+			INSTANCE.assume_init_mut().terminate();
 		}
 	}
 }
