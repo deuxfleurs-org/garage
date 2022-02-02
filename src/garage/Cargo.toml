@@ -12,6 +12,10 @@ readme = "../../README.md"
 name = "garage"
 path = "main.rs"
 
+[[test]]
+name = "integration"
+path = "tests/lib.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -45,3 +49,9 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 
 #netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }
 netapp = "0.3.0"
+
+[dev-dependencies]
+aws-sdk-s3 = "0.6"
+http = "0.2"
+
+static_init = "1.0"
