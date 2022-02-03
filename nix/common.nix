@@ -10,7 +10,8 @@ rec {
   cargo2nixSrc = fetchGit {
     # As of 2021-10-06
     url = "https://github.com/superboum/cargo2nix";
-    rev = "1364752cd784764db2ef5b1e1248727cebfae2ce";
+    ref = "backward-compat";
+    rev = "08d963f32a774353ee8acf3f61749915875c1ec4";
   };
 
   /*

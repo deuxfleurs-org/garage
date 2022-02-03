@@ -76,7 +76,7 @@ function refresh_toolchain {
      pkgs.rustPlatform.rust.cargo
      pkgs.clippy
      pkgs.rustfmt
-     /*(pkgs.callPackage cargo2nix {}).package*/
+     /* cargo2nix.packages.x86_64-linux.cargo2nix */
     ] else [])
    ++
    (if integration then [ 
