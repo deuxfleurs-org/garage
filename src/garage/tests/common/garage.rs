@@ -1,3 +1,4 @@
+use std::env::var_os;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -203,7 +204,12 @@ pub fn instance() -> &'static Instance {
 }
 
 pub fn command(config_path: &Path) -> process::Command {
-	let mut command = process::Command::new(env!("CARGO_BIN_EXE_garage"));
+	let mut command = process::Command::new(
+		var_os("GARAGE_TEST_INTEGRATION_EXE")
+			.as_ref()
+			.and_then(|e| e.to_str())
+			.unwrap_or(env!("CARGO_BIN_EXE_garage")),
+	);
 
 	command.arg("-c").arg(config_path);
 

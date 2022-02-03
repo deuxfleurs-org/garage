@@ -8,11 +8,13 @@ rec {
     sha256 = "1xy9zpypqfxs5gcq5dcla4bfkhxmh5nzn9dyqkr03lqycm9wg5cr";
   };
   cargo2nixSrc = fetchGit {
-    # As of 2021-10-06
+    # As of 2022-02-03
     url = "https://github.com/superboum/cargo2nix";
     ref = "backward-compat";
     rev = "08d963f32a774353ee8acf3f61749915875c1ec4";
   };
+
+
 
   /*
    * Shared objects

@@ -17,13 +17,25 @@ in let
   };
 
   /*
-   The following complexity should be abstracted by makePackageSet' (note the final quote).
-   However its code uses deprecated features of rust-overlay that can lead to bug.
-   Instead, we build our own rustChannel object with the recommended API of rust-overlay.
+   Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
+   We want our own Rust to avoir incompatibilities, like we had with musl 1.2.0.
+   rustc was built with musl < 1.2.0 and nix shipped musl >= 1.2.0 which lead to compilation breakage.
+   So we want a Rust release that is bound to our Nix repository to avoid these problems.
+   See here for more info: https://musl.libc.org/time64.html
+   Because Cargo2nix does not support the Rust environment shipped by NixOS,
+   we emulate the structure of the Rust object created by rustOverlay.
+   In practise, rustOverlay ships rustc+cargo in a single derivation while
+   NixOS ships them in separate ones. We reunite them with symlinkJoin.
    */
-  rustChannel = pkgs.rustPlatform.rust;
+  rustChannel = pkgs.symlinkJoin {
+    name ="rust-channel";
+    paths = [ 
+      pkgs.rustPlatform.rust.rustc
+      pkgs.rustPlatform.rust.cargo
+    ];
+  };
 
-  overrides = pkgs.buildPackages.rustBuilder.overrides.all ++ [
+  overrides = pkgs.rustBuilder.overrides.all ++ [
     /*
      We want to inject the git version while keeping the build deterministic.
      As we do not want to consider the .git folder as part of the input source,
@@ -57,30 +69,27 @@ in let
 
   packageFun = import ./Cargo.nix;
 
+  /*
+   The following definition is not elegant as we use a low level function of Cargo2nix
+   that enables us to pass our custom rustChannel object
+  */ 
   rustPkgs = pkgs.rustBuilder.makePackageSet {
     inherit packageFun rustChannel release;
     packageOverrides = overrides;
+    target = null; /* we set target to null because we want that cargo2nix computes it automatically */
 
     buildRustPackages = pkgs.buildPackages.rustBuilder.makePackageSet {
       inherit rustChannel packageFun;
       packageOverrides = overrides;
+      target = null; /* we set target to null because we want that cargo2nix computes it automatically */ 
     };
-
-    localPatterns = [
-      /*
-       The way the default rules are written make think we match recursively, on full path, but the rules are misleading.
-       In fact, the regex is only called on root elements of the crate (and not recursively).
-       This behavior does not work well with our nested modules.
-       We tried to build a "deny list" but negative lookup ahead are not supported on Nix.
-       As a workaround, we have to register all our submodules in this allow list...
-       */
-       ''^(src|tests)''          # fixed default
-       ''.*\.(rs|toml)$''        # fixed default
-       ''^(crdt|replication|cli|helper|signature|common|ext)''   # our crate submodules
-    ];
   };
+
 
 in
   if compileMode == "test"
-    then builtins.mapAttrs (name: value: rustPkgs.workspace.${name} { inherit compileMode; }) rustPkgs.workspace
+    then pkgs.symlinkJoin {
+      name ="garage-tests";
+      paths = builtins.map (key: rustPkgs.workspace.${key} { inherit compileMode; }) (builtins.attrNames rustPkgs.workspace);
+    }
     else rustPkgs.workspace.garage { inherit compileMode; }
