@@ -7,6 +7,7 @@ pub mod macros;
 pub mod client;
 pub mod ext;
 pub mod garage;
+pub mod util;
 
 const REGION: Region = Region::from_static("garage-integ-test");
 
@@ -23,20 +24,27 @@ impl Context {
 		Context { garage, client }
 	}
 
-	pub fn create_bucket(&self, name: &str) {
+	/// Create an unique bucket with a random suffix.
+	///
+	/// Return the created bucket full name.
+	pub fn create_bucket(&self, name: &str) -> String {
+		let bucket_name = format!("{}-{}", name, util::random_id(6));
+
 		self.garage
 			.command()
-			.args(["bucket", "create", name])
+			.args(["bucket", "create", &bucket_name])
 			.quiet()
 			.expect_success_status("Could not create bucket");
 		self.garage
 			.command()
 			.args(["bucket", "allow"])
 			.args(["--owner", "--read", "--write"])
-			.arg(name)
+			.arg(&bucket_name)
 			.args(["--key", &self.garage.key.name])
 			.quiet()
 			.expect_success_status("Could not allow key for bucket");
+
+		bucket_name
 	}
 }
 

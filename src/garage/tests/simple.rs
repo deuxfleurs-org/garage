@@ -5,13 +5,13 @@ async fn test_simple() {
 	use aws_sdk_s3::ByteStream;
 
 	let ctx = common::context();
-	ctx.create_bucket("test-simple");
+	let bucket = ctx.create_bucket("test-simple");
 
 	let data = ByteStream::from_static(b"Hello world!");
 
 	ctx.client
 		.put_object()
-		.bucket("test-simple")
+		.bucket(&bucket)
 		.key("test")
 		.body(data)
 		.send()
@@ -21,7 +21,7 @@ async fn test_simple() {
 	let res = ctx
 		.client
 		.get_object()
-		.bucket("test-simple")
+		.bucket(&bucket)
 		.key("test")
 		.send()
 		.await
@@ -35,13 +35,13 @@ async fn test_simple_2() {
 	use aws_sdk_s3::ByteStream;
 
 	let ctx = common::context();
-	ctx.create_bucket("test-simple-2");
+	let bucket = ctx.create_bucket("test-simple-2");
 
 	let data = ByteStream::from_static(b"Hello world!");
 
 	ctx.client
 		.put_object()
-		.bucket("test-simple-2")
+		.bucket(&bucket)
 		.key("test")
 		.body(data)
 		.send()
@@ -51,7 +51,7 @@ async fn test_simple_2() {
 	let res = ctx
 		.client
 		.get_object()
-		.bucket("test-simple-2")
+		.bucket(&bucket)
 		.key("test")
 		.send()
 		.await

@@ -56,4 +56,5 @@ netapp = "0.3.0"
 aws-sdk-s3 = "0.6"
 http = "0.2"
 
+rand = "0.8"
 static_init = "1.0"
