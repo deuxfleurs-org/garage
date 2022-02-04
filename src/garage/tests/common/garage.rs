@@ -1,4 +1,3 @@
-use std::env::var_os;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -186,6 +185,8 @@ static INSTANCE_INIT: Once = Once::new();
 #[static_init::destructor]
 extern "C" fn terminate_instance() {
 	if INSTANCE_INIT.is_completed() {
+		// This block is sound as it depends on `INSTANCE_INIT` being completed, meaning `INSTANCE`
+		// is actually initialized.
 		unsafe {
 			INSTANCE.assume_init_mut().terminate();
 		}
@@ -200,15 +201,17 @@ pub fn instance() -> &'static Instance {
 		INSTANCE.write(instance);
 	});
 
+	// This block is sound as it depends on `INSTANCE_INIT` being completed by calling `call_once` (blocking),
+	// meaning `INSTANCE` is actually initialized.
 	unsafe { INSTANCE.assume_init_ref() }
 }
 
 pub fn command(config_path: &Path) -> process::Command {
+	use std::env;
+
 	let mut command = process::Command::new(
-		var_os("GARAGE_TEST_INTEGRATION_EXE")
-			.as_ref()
-			.and_then(|e| e.to_str())
-			.unwrap_or(env!("CARGO_BIN_EXE_garage")),
+		env::var("GARAGE_TEST_INTEGRATION_EXE")
+			.unwrap_or_else(|_| env!("CARGO_BIN_EXE_garage").to_owned()),
 	);
 
 	command.arg("-c").arg(config_path);
