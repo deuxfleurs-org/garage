@@ -51,9 +51,15 @@ function refresh_index {
       --endpoint-url https://garage.deuxfleurs.fr \
       --region garage \
     s3 cp \
-      --content-type "text/html" \
-      result \
-      s3://garagehq.deuxfleurs.fr/_releases.html
+      result/share/_releases.json \
+      s3://garagehq.deuxfleurs.fr/
+
+  aws \
+      --endpoint-url https://garage.deuxfleurs.fr \
+      --region garage \
+    s3 cp \
+      result/share/_releases.html \
+      s3://garagehq.deuxfleurs.fr/
 }
 
 function refresh_toolchain {
