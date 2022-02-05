@@ -55,7 +55,7 @@ let
   parsed = map (entry: listToSet keys entry) elems;
 
   subkeys = ["root" "version" "platform" "binary" ];
-  builds = map (entry: entry // listToSet subkeys (lib.splitString "/" entry.path)) parsed;
+  builds = map (entry: entry // listToSet subkeys (lib.splitString "/" entry.path) // { url = "https://garagehq.deuxfleurs.fr/" + entry.path; }) parsed;
 
   /* Aggregation */
   builds_per_version = lib.foldl (acc: v: acc // { ${v.version} = if builtins.hasAttr v.version acc then acc.${v.version} ++ [ v ] else [ v ]; }) {} builds; 
