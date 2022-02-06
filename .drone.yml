@@ -93,48 +93,6 @@ node:
 
 ---
 kind: pipeline
-name: website
-
-steps:
-  - name: build
-    image: hrektts/mdbook
-    commands:
-      - cd doc/book
-      - mdbook build
-
-  - name: upload
-    image: plugins/s3
-    settings:
-      bucket: garagehq.deuxfleurs.fr
-      access_key:
-        from_secret: garagehq_aws_access_key_id
-      secret_key:
-        from_secret: garagehq_aws_secret_access_key
-      source: doc/book/book/**/*
-      strip_prefix: doc/book/book/
-      target: /
-      path_style: true
-      endpoint: https://garage.deuxfleurs.fr
-      region: garage
-    when:
-      event:
-        - push
-      branch:
-        - main
-      repo:
-        - Deuxfleurs/garage
-
-trigger:
-  event:
-  - custom
-  - push
-  - pull_request
-
-node:
-  nix: 1
-
----
-kind: pipeline
 type: docker
 name: release-linux-x86_64
 
@@ -511,6 +469,6 @@ node:
 
 ---
 kind: signature
-hmac: 1c33490cc2902564c4250a409c156683d0d549b8c9d5aee4e46d1bde4e0ccf2c
+hmac: 928ea1bb59f3ac19b5ddd2a184f17b7c728cc355877c34e61b3d1b421544d4c3
 
 ...
