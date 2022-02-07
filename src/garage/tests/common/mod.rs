@@ -7,7 +7,6 @@ pub mod macros;
 pub mod client;
 pub mod ext;
 pub mod garage;
-pub mod util;
 
 const REGION: Region = Region::from_static("garage-integ-test");
 
@@ -28,7 +27,7 @@ impl Context {
 	///
 	/// Return the created bucket full name.
 	pub fn create_bucket(&self, name: &str) -> String {
-		let bucket_name = format!("{}-{}", name, util::random_id(6));
+		let bucket_name = name.to_owned();
 
 		self.garage
 			.command()
