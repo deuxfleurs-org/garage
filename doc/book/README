@@ -1,0 +1,3 @@
+These are the sources for the documentation but not the whole website.
+The website templates and other things are in garage_website, which
+uses this as a submodule.
