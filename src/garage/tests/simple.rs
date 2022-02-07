@@ -29,33 +29,3 @@ async fn test_simple() {
 
 	assert_bytes_eq!(res.body, b"Hello world!");
 }
-
-#[tokio::test]
-async fn test_simple_2() {
-	use aws_sdk_s3::ByteStream;
-
-	let ctx = common::context();
-	let bucket = ctx.create_bucket("test-simple-2");
-
-	let data = ByteStream::from_static(b"Hello world!");
-
-	ctx.client
-		.put_object()
-		.bucket(&bucket)
-		.key("test")
-		.body(data)
-		.send()
-		.await
-		.unwrap();
-
-	let res = ctx
-		.client
-		.get_object()
-		.bucket(&bucket)
-		.key("test")
-		.send()
-		.await
-		.unwrap();
-
-	assert_bytes_eq!(res.body, b"Hello world!");
-}
