@@ -1,5 +1,9 @@
 #[macro_use]
 mod common;
 
-mod listobjects;
+mod bucket;
+mod list;
+mod multipart;
+mod objects;
 mod simple;
+mod website;
