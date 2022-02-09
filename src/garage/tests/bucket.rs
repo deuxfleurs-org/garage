@@ -23,12 +23,14 @@ async fn test_bucket_all() {
 	{
 		// List buckets
 		let r = ctx.client.list_buckets().send().await.unwrap();
-
-		assert_eq!(r.buckets.as_ref().unwrap().len(), 1);
-		assert_eq!(
-			r.buckets.unwrap().first().unwrap().name.as_ref().unwrap(),
-			bucket_name
-		);
+		assert!(r
+			.buckets
+			.as_ref()
+			.unwrap()
+			.into_iter()
+			.filter(|x| x.name.as_ref().is_some())
+			.find(|x| x.name.as_ref().unwrap() == "hello")
+			.is_some());
 	}
 	{
 		// Get its location
@@ -73,6 +75,13 @@ async fn test_bucket_all() {
 	{
 		// Check bucket is deleted with List buckets
 		let r = ctx.client.list_buckets().send().await.unwrap();
-		assert_eq!(r.buckets.as_ref().unwrap().len(), 0);
+		assert!(r
+			.buckets
+			.as_ref()
+			.unwrap()
+			.into_iter()
+			.filter(|x| x.name.as_ref().is_some())
+			.find(|x| x.name.as_ref().unwrap() == "hello")
+			.is_none());
 	}
 }

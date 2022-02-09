@@ -1,6 +1,7 @@
 use crate::common;
 
 const KEYS: [&str; 8] = ["a", "a/a", "a/b", "a/c", "a/d/a", "a/é", "b", "c"];
+const KEYS_MULTIPART: [&str; 5] = ["a", "a", "c", "c/a", "c/b"];
 
 #[tokio::test]
 async fn test_listobjectsv2() {
@@ -427,6 +428,188 @@ async fn test_listobjectsv1() {
 			.unwrap();
 
 		assert!(r.contents.is_none());
+		assert!(r.common_prefixes.is_none());
+	}
+}
+
+#[tokio::test]
+async fn test_listmultipart() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("listmultipartuploads");
+
+	for k in KEYS_MULTIPART {
+		ctx.client
+			.create_multipart_upload()
+			.bucket(&bucket)
+			.key(k)
+			.send()
+			.await
+			.unwrap();
+	}
+
+	{
+		// Default
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 5);
+		assert!(r.common_prefixes.is_none());
+	}
+	{
+		// With pagination
+		let mut next = None;
+		let mut upnext = None;
+		let last_idx = KEYS_MULTIPART.len() - 1;
+
+		for i in 0..KEYS_MULTIPART.len() {
+			let r = ctx
+				.client
+				.list_multipart_uploads()
+				.bucket(&bucket)
+				.set_key_marker(next)
+				.set_upload_id_marker(upnext)
+				.max_uploads(1)
+				.send()
+				.await
+				.unwrap();
+
+			next = r.next_key_marker;
+			upnext = r.next_upload_id_marker;
+
+			assert_eq!(r.uploads.unwrap().len(), 1);
+			assert!(r.common_prefixes.is_none());
+			if i != last_idx {
+				assert!(next.is_some());
+			}
+		}
+	}
+	{
+		// With delimiter
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.delimiter("/")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 3);
+		assert_eq!(r.common_prefixes.unwrap().len(), 1);
+	}
+	{
+		// With delimiter and pagination
+		let mut next = None;
+		let mut upnext = None;
+		let mut upcnt = 0;
+		let mut pfxcnt = 0;
+		let mut loopcnt = 0;
+
+		while loopcnt < KEYS_MULTIPART.len() {
+			let r = ctx
+				.client
+				.list_multipart_uploads()
+				.bucket(&bucket)
+				.delimiter("/")
+				.max_uploads(1)
+				.set_key_marker(next)
+				.set_upload_id_marker(upnext)
+				.send()
+				.await
+				.unwrap();
+
+			next = r.next_key_marker;
+			upnext = r.next_upload_id_marker;
+
+			loopcnt += 1;
+			upcnt += r.uploads.unwrap_or(vec![]).len();
+			pfxcnt += r.common_prefixes.unwrap_or(vec![]).len();
+
+			if next.is_none() {
+				break;
+			}
+		}
+
+		assert_eq!(upcnt + pfxcnt, loopcnt);
+		assert_eq!(upcnt, 3);
+		assert_eq!(pfxcnt, 1);
+	}
+	{
+		// With prefix
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.prefix("c")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 3);
+		assert!(r.common_prefixes.is_none());
+	}
+	{
+		// With prefix and delimiter
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.prefix("c")
+			.delimiter("/")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 1);
+		assert_eq!(r.common_prefixes.unwrap().len(), 1);
+	}
+	{
+		// With prefix, delimiter and max keys
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.prefix("c")
+			.delimiter("/")
+			.max_uploads(1)
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 1);
+		assert!(r.common_prefixes.is_none());
+	}
+	{
+		// With starting token before the first element
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.key_marker("ZZZZZ")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.uploads.unwrap().len(), 5);
+		assert!(r.common_prefixes.is_none());
+	}
+	{
+		// With starting token after the last element
+		let r = ctx
+			.client
+			.list_multipart_uploads()
+			.bucket(&bucket)
+			.key_marker("d")
+			.send()
+			.await
+			.unwrap();
+
+		assert!(r.uploads.is_none());
 		assert!(r.common_prefixes.is_none());
 	}
 }

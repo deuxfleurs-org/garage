@@ -143,52 +143,6 @@ fi
 
 # Advanced testing via S3API
 if [ -z "$SKIP_AWS" ]; then
-  echo "Test Multipart Upload"
-  aws s3api create-multipart-upload --bucket eprouvette --key a
-  aws s3api create-multipart-upload --bucket eprouvette --key a
-  aws s3api create-multipart-upload --bucket eprouvette --key c
-  aws s3api create-multipart-upload --bucket eprouvette --key c/a
-  aws s3api create-multipart-upload --bucket eprouvette --key c/b
-
-  aws s3api list-multipart-uploads --bucket eprouvette >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --page-size 1 >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --delimiter '/' >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --delimiter '/' --page-size 1 >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --page-size 1 >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 3 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --delimiter '/' >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 1 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --prefix 'c' --delimiter '/' --page-size 1 >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 1 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 1 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --starting-token 'ZZZZZ' >$CMDOUT
-  [ $(jq '.Uploads | length' $CMDOUT) == 5 ]
-  [ $(jq '.CommonPrefixes | length' $CMDOUT) == 0 ]
-  aws s3api list-multipart-uploads --bucket eprouvette --starting-token 'd' >$CMDOUT
-  ! [ -s $CMDOUT ]
-
-  aws s3api list-multipart-uploads --bucket eprouvette | \
-    jq -r '.Uploads[] | "\(.Key) \(.UploadId)"' | \
-    while read r; do 
-      key=$(echo $r|cut -d' ' -f 1); 
-      uid=$(echo $r|cut -d' ' -f 2); 
-      aws s3api abort-multipart-upload --bucket eprouvette --key $key --upload-id $uid;
-      echo "Deleted ${key}:${uid}"
-    done
-
   echo "Test for ListParts"
   UPLOAD_ID=$(aws s3api create-multipart-upload --bucket eprouvette --key list-parts | jq -r .UploadId)
   aws s3api list-parts --bucket eprouvette --key list-parts --upload-id $UPLOAD_ID >$CMDOUT
