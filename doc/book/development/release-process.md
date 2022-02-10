@@ -32,9 +32,10 @@ We generate the following binary artifacts for now:
   - **os**: linux
   - **format**: static binary, docker container
 
-Additionnaly we also build two web pages:
+Additionnaly we also build two web pages and one JSON document:
   - the documentation (this website)
   - [the release page](https://garagehq.deuxfleurs.fr/_releases.html)
+  - [the release list in JSON format](https://garagehq.deuxfleurs.fr/_releases.json)
 
 We publish the static binaries on our own garage cluster (you can access them through the releases page)
 and the docker containers on Docker Hub.

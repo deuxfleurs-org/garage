@@ -40,7 +40,6 @@ root_domain = ".s3.garage"
 [s3_web]
 bind_addr = "[::]:3902"
 root_domain = ".web.garage"
-index = "index.html"
 ```
 
 The following gives details about each available configuration option.
@@ -60,19 +59,22 @@ Store this folder on a fast SSD drive if possible to maximize Garage's performan
 The directory in which Garage will store the data blocks of objects.
 This folder can be placed on an HDD. The space available for `data_dir`
 should be counted to determine a node's capacity
-when [configuring it](@/documentation/cookbook/real-world.md).
+when [adding it to the cluster layout](@/documentation/cookbook/real-world.md).
 
 ### `block_size`
 
 Garage splits stored objects in consecutive chunks of size `block_size`
 (except the last one which might be smaller). The default size is 1MB and
-should work in most cases.  If you are interested in tuning this, feel free
-to do so (and remember to report your findings to us!). If this value is
-changed for a running Garage installation, only files newly uploaded will be
-affected. Previously uploaded files will remain available. This however
-means that chunks from existing files will not be deduplicated with chunks
-from newly uploaded files, meaning you might use more storage space that is
-optimally possible.
+should work in most cases. We recommend increasing it to e.g. 10MB if
+you are using Garage to store large files and have fast network connections
+between all nodes (e.g. 1gbps).
+
+If you are interested in tuning this, feel free to do so (and remember to
+report your findings to us!). When this value is changed for a running Garage
+installation, only files newly uploaded will be affected. Previously uploaded
+files will remain available. This however means that chunks from existing files
+will not be deduplicated with chunks from newly uploaded files, meaning you
+might use more storage space that is optimally possible.
 
 ### `replication_mode`
 
@@ -114,12 +116,12 @@ default value (currently `3`). Finally, zstd has also compression designed to be
 than default compression levels, they range from `-1` (smaller file) to `-99` (faster 
 compression).
 
-If you do not specify a `compression_level` entry, garage will set it to `1` for you. With
+If you do not specify a `compression_level` entry, Garage will set it to `1` for you. With
 this parameters, zstd consumes low amount of cpu and should work faster than line speed in
 most situations, while saving some space and intra-cluster
 bandwidth.
 
-If you want to totally deactivate zstd in garage, you can pass the special value `'none'`. No
+If you want to totally deactivate zstd in Garage, you can pass the special value `'none'`. No
 zstd related code will be called, your chunks will be stored on disk without any processing.
 
 Compression is done synchronously, setting a value too high will add latency to write queries.
@@ -169,21 +171,23 @@ yourself.
 
 ### `consul_host` and `consul_service_name`
 
-Garage supports discovering other nodes of the cluster using Consul.
-This works only when nodes are announced in Consul by an orchestrator such as Nomad,
-as Garage is not able to announce itself.
+Garage supports discovering other nodes of the cluster using Consul.  For this
+to work correctly, nodes need to know their IP address by which they can be
+reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
 The `consul_host` parameter should be set to the hostname of the Consul server,
 and `consul_service_name` should be set to the service name under which Garage's
 RPC ports are announced.
+
+Garage does not yet support talking to Consul over TLS.
 
 ### `sled_cache_capacity`
 
 This parameter can be used to tune the capacity of the cache used by
 [sled](https://sled.rs), the database Garage uses internally to store metadata.
 Tune this to fit the RAM you wish to make available to your Garage instance.
-More cache means faster Garage, but the default value (128MB) should be plenty
-for most use cases.
+This value has a conservative default (128MB) so that Garage doesn't use too much
+RAM by default, but feel free to increase this for higher performance.
 
 ### `sled_flush_every_ms`
 

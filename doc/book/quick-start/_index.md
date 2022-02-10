@@ -20,7 +20,7 @@ as it provides no redundancy for your data!
 
 Download the latest Garage binary from the release pages on our repository:
 
-<https://garagehq.deuxfleurs.fr/_releases.html>
+<https://garagehq.deuxfleurs.fr/download/>
 
 Place this binary somewhere in your `$PATH` so that you can invoke the `garage`
 command directly (for instance you can copy the binary in `/usr/local/bin`
