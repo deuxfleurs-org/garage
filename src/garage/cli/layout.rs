@@ -196,6 +196,15 @@ pub async fn cmd_apply_layout(
 ) -> Result<(), Error> {
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
+	layout.roles.merge(&layout.staging);
+
+	if !layout.calculate_partition_assignation() {
+		return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
+	}
+
+	layout.staging.clear();
+	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
+
 	match apply_opt.version {
 		None => {
 			println!("Please pass the --version flag to ensure that you are writing the correct version of the cluster layout.");
@@ -208,15 +217,6 @@ pub async fn cmd_apply_layout(
 			}
 		}
 	}
-
-	layout.roles.merge(&layout.staging);
-
-	if !layout.calculate_partition_assignation() {
-		return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
-	}
-
-	layout.staging.clear();
-	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
 
 	layout.version += 1;
 

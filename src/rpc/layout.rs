@@ -172,12 +172,38 @@ impl ClusterLayout {
 		println!("Calculating updated partition assignation, this may take some time...");
 		println!();
 
+		// Get old partition assignation
 		let old_partitions = self.parse_assignation_data();
 
+		// Create new partition assignation starting from old one
 		let mut partitions = old_partitions.clone();
+
+		// Cleanup steps in new partition assignation:
+		let min_keep_nodes_per_part = (self.replication_factor + 1) / 2;
 		for part in partitions.iter_mut() {
+			// - remove from assignation nodes that don't have a role in the layout anymore
 			part.nodes
 				.retain(|(_, info)| info.map(|x| x.capacity.is_some()).unwrap_or(false));
+
+			// - remove from assignation some nodes that are in the same datacenter
+			//   if we can, so that the later steps can ensure datacenter variety
+			//   as much as possible (but still under the constraint that each partition
+			//   should not move from at least a certain number of nodes that is
+			//   min_keep_nodes_per_part)
+			'rmloop: while part.nodes.len() > min_keep_nodes_per_part {
+				let mut zns_c = HashMap::<&str, usize>::new();
+				for (_id, info) in part.nodes.iter() {
+					*zns_c.entry(info.unwrap().zone.as_str()).or_insert(0) += 1;
+				}
+				for i in 0..part.nodes.len() {
+					if zns_c[part.nodes[i].1.unwrap().zone.as_str()] > 1 {
+						part.nodes.remove(i);
+						continue 'rmloop;
+					}
+				}
+
+				break;
+			}
 		}
 
 		// When nodes are removed, or when bootstraping an assignation from
@@ -196,6 +222,8 @@ impl ClusterLayout {
 				}
 			}
 			None => {
+				// Not enough nodes in cluster to build a correct assignation.
+				// Signal it by returning an error.
 				return false;
 			}
 		}
