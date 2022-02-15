@@ -17,6 +17,8 @@ path = "lib.rs"
 garage_rpc = { version = "0.6.0", path = "../rpc" }
 garage_util = { version = "0.6.0", path = "../util" }
 
+opentelemetry = "0.17"
+
 async-trait = "0.1.7"
 bytes = "1.0"
 hexdump = "0.1"

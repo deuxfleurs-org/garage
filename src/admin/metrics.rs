@@ -76,7 +76,6 @@ struct AdminServerMetrics {
 	http_counter: BoundCounter<u64>,
 	http_body_gauge: BoundValueRecorder<u64>,
 	http_req_histogram: BoundValueRecorder<f64>,
-	bucket_v2_merkle_updater_todo_queue_length: BoundValueRecorder<f64>,
 }
 
 impl AdminServer {
@@ -100,11 +99,6 @@ impl AdminServer {
 				http_req_histogram: meter
 					.f64_value_recorder("example.http_request_duration_seconds")
 					.with_description("The HTTP request latencies in seconds.")
-					.init()
-					.bind(HANDLER_ALL.as_ref()),
-				bucket_v2_merkle_updater_todo_queue_length: meter
-					.f64_value_recorder("bucket_v2.merkle_updater.todo_queue_length")
-					.with_description("Bucket merkle updater TODO queue length.")
 					.init()
 					.bind(HANDLER_ALL.as_ref()),
 			},

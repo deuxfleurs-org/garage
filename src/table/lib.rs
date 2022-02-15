@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate log;
 
+mod metrics;
 pub mod schema;
 pub mod util;
 

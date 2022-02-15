@@ -35,7 +35,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.open()
 		.expect("Unable to open sled DB");
 
-	info!("Configure and run admin web server...");
+	info!("Initialize admin web server and metric backend...");
 	let admin_server_init = AdminServer::init();
 
 	info!("Initializing background runner...");

@@ -998,6 +998,7 @@ dependencies = [
  "garage_util 0.6.0",
  "hexdump",
  "log",
+ "opentelemetry",
  "rand",
  "rmp-serde 0.15.5",
  "serde",

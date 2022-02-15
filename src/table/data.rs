@@ -13,6 +13,7 @@ use garage_rpc::system::System;
 
 use crate::crdt::Crdt;
 use crate::gc::GcTodoEntry;
+use crate::metrics::*;
 use crate::replication::*;
 use crate::schema::*;
 
@@ -28,6 +29,8 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_todo: sled::Tree,
 	pub(crate) merkle_todo_notify: Notify,
 	pub(crate) gc_todo: sled::Tree,
+
+	pub(crate) metrics: TableMetrics,
 }
 
 impl<F, R> TableData<F, R>
@@ -51,6 +54,8 @@ where
 			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
 
+		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone());
+
 		Arc::new(Self {
 			system,
 			instance,
@@ -60,6 +65,7 @@ where
 			merkle_todo,
 			merkle_todo_notify: Notify::new(),
 			gc_todo,
+			metrics,
 		})
 	}
 
