@@ -4,9 +4,7 @@ weight = 10
 +++
 
 
-Garage is a standard Rust project.
-First, you need `rust` and `cargo`.
-For instance on Debian:
+Garage is a standard Rust project.  First, you need `rust` and `cargo`.  For instance on Debian:
 
 ```bash
 sudo apt-get update
@@ -14,6 +12,13 @@ sudo apt-get install -y rustc cargo
 ```
 
 You can also use [Rustup](https://rustup.rs/) to setup a Rust toolchain easily.
+
+In addition, you will need a full C toolchain. On Debian-based distributions, it can be installed as follows:
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential
+```
 
 ## Using source from `crates.io`
 
