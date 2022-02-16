@@ -3,11 +3,9 @@ use hyper::{
 	service::{make_service_fn, service_fn},
 	Body, Method, Request, Response, Server,
 };
-use lazy_static::lazy_static;
 use opentelemetry::{
 	global,
 	metrics::{BoundCounter, BoundValueRecorder},
-	KeyValue,
 };
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
@@ -18,11 +16,6 @@ use std::time::SystemTime;
 use futures::future::*;
 use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
-
-lazy_static! {
-	// This defines the differennt tags that will be referenced by the object
-	static ref HANDLER_ALL: [KeyValue; 1] = [KeyValue::new("handler", "all")];
-}
 
 // serve_req on metric endpoint
 async fn serve_req(
@@ -87,20 +80,20 @@ impl AdminServer {
 			exporter,
 			metrics: AdminServerMetrics {
 				http_counter: meter
-					.u64_counter("router.http_requests_total")
+					.u64_counter("admin.http_requests_total")
 					.with_description("Total number of HTTP requests made.")
 					.init()
-					.bind(HANDLER_ALL.as_ref()),
+					.bind(&[]),
 				http_body_gauge: meter
-					.u64_value_recorder("example.http_response_size_bytes")
+					.u64_value_recorder("admin.http_response_size_bytes")
 					.with_description("The metrics HTTP response sizes in bytes.")
 					.init()
-					.bind(HANDLER_ALL.as_ref()),
+					.bind(&[]),
 				http_req_histogram: meter
-					.f64_value_recorder("example.http_request_duration_seconds")
+					.f64_value_recorder("admin.http_request_duration_seconds")
 					.with_description("The HTTP request latencies in seconds.")
 					.init()
-					.bind(HANDLER_ALL.as_ref()),
+					.bind(&[]),
 			},
 		}
 	}
@@ -125,7 +118,7 @@ impl AdminServer {
 
 		let addr = &garage.config.admin_api.bind_addr;
 
-		let server = Server::bind(&addr).serve(make_svc);
+		let server = Server::bind(addr).serve(make_svc);
 		let graceful = server.with_graceful_shutdown(shutdown_signal);
 		info!("Admin server listening on http://{}", addr);
 

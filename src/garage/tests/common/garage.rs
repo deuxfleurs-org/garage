@@ -65,6 +65,9 @@ root_domain = ".s3.garage"
 bind_addr = "127.0.0.1:{web_port}"
 root_domain = ".web.garage"
 index = "index.html"
+
+[admin_api]
+bind_addr = "127.0.0.1:{admin_port}"
 "#,
 			path = path.display(),
 			secret = GARAGE_TEST_SECRET,
@@ -72,6 +75,7 @@ index = "index.html"
 			api_port = port,
 			rpc_port = port + 1,
 			web_port = port + 2,
+			admin_port = port + 3,
 		);
 		fs::write(path.join("config.toml"), config).expect("Could not write garage config file");
 

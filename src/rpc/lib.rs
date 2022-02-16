@@ -10,6 +10,7 @@ pub mod layout;
 pub mod ring;
 pub mod system;
 
+mod metrics;
 pub mod rpc_helper;
 
 pub use rpc_helper::*;

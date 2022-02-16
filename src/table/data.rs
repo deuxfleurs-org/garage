@@ -54,7 +54,7 @@ where
 			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
 
-		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone());
+		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone(), gc_todo.clone());
 
 		Arc::new(Self {
 			system,
@@ -171,6 +171,8 @@ where
 		})?;
 
 		if let Some((old_entry, new_entry, new_bytes_hash)) = changed {
+			self.metrics.internal_update_counter.add(1);
+
 			let is_tombstone = new_entry.is_tombstone();
 			self.instance.updated(old_entry, Some(new_entry));
 			self.merkle_todo_notify.notify_one();
@@ -205,6 +207,8 @@ where
 		})?;
 
 		if removed {
+			self.metrics.internal_delete_counter.add(1);
+
 			let old_entry = self.decode_entry(v)?;
 			self.instance.updated(Some(old_entry), None);
 			self.merkle_todo_notify.notify_one();

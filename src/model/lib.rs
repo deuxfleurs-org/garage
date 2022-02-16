@@ -11,6 +11,7 @@ pub mod object_table;
 pub mod version_table;
 
 pub mod block;
+mod block_metrics;
 
 pub mod garage;
 pub mod helper;
