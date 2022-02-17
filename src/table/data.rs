@@ -1,7 +1,6 @@
 use core::borrow::Borrow;
 use std::sync::Arc;
 
-use log::warn;
 use serde_bytes::ByteBuf;
 use sled::Transactional;
 use tokio::sync::Notify;

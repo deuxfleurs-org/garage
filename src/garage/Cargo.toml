@@ -32,7 +32,7 @@ garage_admin = { version = "0.6.0", path = "../admin" }
 bytes = "1.0"
 git-version = "0.3.4"
 hex = "0.4"
-log = "0.4"
+tracing = { version = "0.1.30", features = ["log-always"] }
 pretty_env_logger = "0.4"
 rand = "0.8"
 async-trait = "0.1.7"

@@ -1,6 +1,6 @@
 //! Crate for handling web serving of s3 bucket
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 mod error;
 pub use error::Error;

@@ -7,6 +7,7 @@ use garage_util::config::*;
 use garage_util::error::Error;
 
 use garage_admin::metrics::*;
+use garage_admin::tracing_setup::*;
 use garage_api::run_api_server;
 use garage_model::garage::Garage;
 use garage_web::run_web_server;
@@ -44,6 +45,11 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone(), db, background);
+
+	info!("Initialize tracing...");
+	if let Some(export_to) = config.admin_api.otlp_export_traces_to {
+		init_tracing(&export_to, garage.system.id)?;
+	}
 
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
 

@@ -5,6 +5,8 @@ use std::borrow::Cow;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, Method, Request};
 
+use strum_macros::Display;
+
 /// This macro is used to generate very repetitive match {} blocks in this module
 /// It is _not_ made to be used anywhere else
 macro_rules! s3_match {
@@ -133,7 +135,7 @@ s3_match! {@func
 /// query parameters). Parameters it may receive by header are left out, however headers are
 /// considered when required to determine between one endpoint or another (for CopyObject and
 /// UploadObject, for instance).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum Endpoint {
 	AbortMultipartUpload {
 		key: String,

@@ -1,6 +1,6 @@
 //! Crate for serving a S3 compatible API
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 pub mod error;
 pub use error::Error;

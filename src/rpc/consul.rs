@@ -139,10 +139,10 @@ pub async fn publish_consul_service(
 	let resp = client.request(req).await?;
 	debug!("Response of advertising to Consul: {:?}", resp);
 	let resp_code = resp.status();
+	let resp_bytes = &hyper::body::to_bytes(resp.into_body()).await?;
 	debug!(
 		"{}",
-		std::str::from_utf8(&hyper::body::to_bytes(resp.into_body()).await?)
-			.unwrap_or("<invalid utf8>")
+		std::str::from_utf8(resp_bytes).unwrap_or("<invalid utf8>")
 	);
 
 	if resp_code != StatusCode::OK {

@@ -1,7 +1,7 @@
 //! Crate containing rpc related functions and types used in Garage
 
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 mod consul;
 mod kubernetes;

@@ -2,7 +2,7 @@
 //! Garage CLI, used to interact with a running Garage instance, and to launch a Garage instance
 
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 mod admin;
 mod cli;

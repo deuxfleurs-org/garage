@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use futures::select;
 use futures_util::future::*;
-use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use sled::transaction::{
 	ConflictableTransactionError, ConflictableTransactionResult, TransactionalTree,

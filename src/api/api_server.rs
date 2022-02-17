@@ -7,6 +7,11 @@ use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server};
 
+use opentelemetry::{
+	trace::{FutureExt, TraceContextExt, Tracer},
+	Context,
+};
+
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
@@ -43,7 +48,20 @@ pub async fn run_api_server(
 		async move {
 			Ok::<_, GarageError>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
-				handler(garage, req, client_addr)
+
+				let tracer = opentelemetry::global::tracer("garage");
+				let uuid = gen_uuid();
+				let span = tracer
+					.span_builder("S3 API call (unknown)")
+					.with_trace_id(
+						opentelemetry::trace::TraceId::from_hex(&hex::encode(
+							&uuid.as_slice()[..16],
+						))
+						.unwrap(),
+					)
+					.start(&tracer);
+
+				handler(garage, req, client_addr).with_context(Context::current_with_span(span))
 			}))
 		}
 	});
@@ -110,6 +128,10 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	let (endpoint, bucket_name) = Endpoint::from_request(&req, bucket_name.map(ToOwned::to_owned))?;
 	debug!("Endpoint: {:?}", endpoint);
+
+	Context::current()
+		.span()
+		.update_name::<String>(format!("S3 API {}", endpoint));
 
 	// Some endpoints are processed early, before we even check for an API key
 	if let Endpoint::PostObject = endpoint {

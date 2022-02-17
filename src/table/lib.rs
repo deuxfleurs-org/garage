@@ -2,7 +2,7 @@
 #![allow(clippy::comparison_chain)]
 
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 mod metrics;
 pub mod schema;

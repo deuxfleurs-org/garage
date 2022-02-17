@@ -1,7 +1,7 @@
 //! Crate containing common functions and types used in Garage
 
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 pub mod background;
 pub mod config;

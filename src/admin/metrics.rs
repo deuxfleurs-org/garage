@@ -1,20 +1,26 @@
-use hyper::{
-	header::CONTENT_TYPE,
-	service::{make_service_fn, service_fn},
-	Body, Method, Request, Response, Server,
-};
-use opentelemetry::{
-	global,
-	metrics::{BoundCounter, BoundValueRecorder},
-};
-use opentelemetry_prometheus::PrometheusExporter;
-use prometheus::{Encoder, TextEncoder};
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future::*;
+use hyper::{
+	header::CONTENT_TYPE,
+	service::{make_service_fn, service_fn},
+	Body, Method, Request, Response, Server,
+};
+
+use opentelemetry::{
+	global,
+	metrics::{BoundCounter, BoundValueRecorder},
+	trace::{FutureExt, TraceContextExt, Tracer},
+	Context,
+};
+use opentelemetry_prometheus::PrometheusExporter;
+
+use prometheus::{Encoder, TextEncoder};
+
 use garage_model::garage::Garage;
+use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
 // serve_req on metric endpoint
@@ -22,7 +28,7 @@ async fn serve_req(
 	req: Request<Body>,
 	admin_server: Arc<AdminServer>,
 ) -> Result<Response<Body>, hyper::Error> {
-	println!("Receiving request at path {}", req.uri());
+	info!("Receiving request at path {}", req.uri());
 	let request_start = SystemTime::now();
 
 	admin_server.metrics.http_counter.add(1);
@@ -31,7 +37,12 @@ async fn serve_req(
 		(&Method::GET, "/metrics") => {
 			let mut buffer = vec![];
 			let encoder = TextEncoder::new();
-			let metric_families = admin_server.exporter.registry().gather();
+
+			let tracer = opentelemetry::global::tracer("garage");
+			let metric_families = tracer.in_span("admin/gather_metrics", |_| {
+				admin_server.exporter.registry().gather()
+			});
+
 			encoder.encode(&metric_families, &mut buffer).unwrap();
 			admin_server
 				.metrics
@@ -112,7 +123,22 @@ impl AdminServer {
 			// `service_fn` is a helper to convert a function that
 			// returns a Response into a `Service`.
 			async move {
-				Ok::<_, Infallible>(service_fn(move |req| serve_req(req, admin_server.clone())))
+				Ok::<_, Infallible>(service_fn(move |req| {
+					let tracer = opentelemetry::global::tracer("garage");
+					let uuid = gen_uuid();
+					let span = tracer
+						.span_builder("admin/request")
+						.with_trace_id(
+							opentelemetry::trace::TraceId::from_hex(&hex::encode(
+								&uuid.as_slice()[..16],
+							))
+							.unwrap(),
+						)
+						.start(&tracer);
+
+					serve_req(req, admin_server.clone())
+						.with_context(Context::current_with_span(span))
+				}))
 			}
 		});
 

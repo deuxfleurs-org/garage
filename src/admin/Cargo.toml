@@ -16,12 +16,15 @@ path = "lib.rs"
 garage_model = { version = "0.6.0", path = "../model" }
 garage_util = { version = "0.6.0", path = "../util" }
 
+hex = "0.4"
+
 futures = "0.3"
 futures-util = "0.3"
 http = "0.2"
 hyper = "0.14"
-log = "0.4"
+tracing = "0.1.30"
 
-opentelemetry = "0.17"
+opentelemetry = { version = "0.17", features = [ "rt-tokio" ] }
 opentelemetry-prometheus = "0.10"
+opentelemetry-otlp = "0.10"
 prometheus = "0.13"

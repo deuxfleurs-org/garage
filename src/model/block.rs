@@ -5,14 +5,16 @@ use std::time::{Duration, SystemTime};
 
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use zstd::stream::{decode_all as zstd_decode, Encoder};
+
 use futures::future::*;
 use futures::select;
-use opentelemetry::KeyValue;
-use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{watch, Mutex, Notify};
-use zstd::stream::{decode_all as zstd_decode, Encoder};
+
+use opentelemetry::KeyValue;
 
 use garage_util::data::*;
 use garage_util::error::*;

@@ -22,7 +22,7 @@ opentelemetry = "0.17"
 async-trait = "0.1.7"
 bytes = "1.0"
 hexdump = "0.1"
-log = "0.4"
+tracing = "0.1.30"
 rand = "0.8"
 
 sled = "0.34"
