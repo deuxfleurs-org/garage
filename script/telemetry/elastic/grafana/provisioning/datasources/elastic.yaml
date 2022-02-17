@@ -1,0 +1,20 @@
+apiVersion: 1
+
+datasources:
+  - name: DS_ELASTICSEARCH
+    type: elasticsearch
+    access: proxy
+    url: http://elastic:9700
+    password: ''
+    user: ''
+    database: metricbeat-*
+    basicAuth: false
+    isDefault: true
+    jsonData:
+      esVersion: 70
+      logLevelField: ''
+      logMessageField: ''
+      maxConcurrentShardRequests: 5
+      timeField: "@timestamp"
+      timeInterval: 10s
+    readOnly: false

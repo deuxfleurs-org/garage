@@ -1,0 +1,69 @@
+version: "2"
+services:
+
+  otel:
+    image: otel/opentelemetry-collector-contrib:${OTEL_COLLECT_TAG}
+    command: [ "--config=/etc/otel-config.yaml" ]
+    volumes:
+      - ./otel-config.yaml:/etc/otel-config.yaml
+    network_mode: "host"
+
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_BUNDLE_TAG}
+    container_name: elastic
+    environment:
+      - "node.name=elastic"
+      - "http.port=9200"
+      - "cluster.name=es-docker-cluster"
+      - "discovery.type=single-node"
+      - "bootstrap.memory_lock=true"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile: 65536
+    volumes:
+      - "es_data:/usr/share/elasticsearch/data"
+    network_mode: "host"
+
+  # kibana instance and collectors
+  # see https://www.elastic.co/guide/en/elastic-stack-get-started/current/get-started-docker.html
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_BUNDLE_TAG}
+    container_name: kibana
+    environment:
+      SERVER_NAME: "kibana.local"
+      # ELASTICSEARCH_URL: "http://localhost:9700"
+      ELASTICSEARCH_HOSTS: "http://localhost:9200"
+    depends_on: [ 'elastic' ]
+    network_mode: "host"
+
+  apm:
+    image: docker.elastic.co/apm/apm-server:${ELASTIC_BUNDLE_TAG}
+    container_name: apm
+    volumes:
+      - "./apm-config.yaml:/usr/share/apm-server/apm-server.yml:ro"
+    depends_on: [ 'elastic' ]
+    network_mode: "host"
+
+  grafana:
+    # see https://grafana.com/docs/grafana/latest/installation/docker/
+    image: "grafana/grafana:8.3.5"
+    container_name: grafana
+    # restart: unless-stopped
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel,grafana-polystat-panel"
+    network_mode: "host"
+    volumes:
+      # chown 472:472 if needed
+      - grafana:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+
+volumes:
+  es_data:
+    driver: local
+  grafana:
+    driver: local
+  metricbeat:
+    driver: local

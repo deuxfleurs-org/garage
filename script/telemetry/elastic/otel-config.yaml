@@ -1,0 +1,47 @@
+receivers:
+  # Data sources: metrics, traces
+  otlp:
+    protocols:
+      grpc:
+        endpoint: ":4317"
+      http:
+        endpoint: ":55681"
+  # Data sources: metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "garage"
+          scrape_interval: 5s
+          static_configs:
+            - targets: ["localhost:3909"]
+
+exporters:
+  logging:
+    logLevel: info
+  # see https://www.elastic.co/guide/en/apm/get-started/current/open-telemetry-elastic.html#open-telemetry-collector
+  otlp/elastic:
+    endpoint: "localhost:8200"
+    tls:
+      insecure: true
+
+processors:
+  batch:
+
+extensions:
+  health_check:
+  pprof:
+    endpoint: :1888
+  zpages:
+    endpoint: :55679
+
+service:
+  extensions: [pprof, zpages, health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging, otlp/elastic]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [batch]
+      exporters: [logging, otlp/elastic]
