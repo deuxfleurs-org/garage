@@ -305,7 +305,7 @@ mod tests {
 		let seed_signature = Hash::default();
 
 		let mut stream =
-			SignedPayloadStream::new(body, signing_hmac, datetime, &scope, seed_signature).unwrap();
+			SignedPayloadStream::new(body, signing_hmac, datetime, &scope, seed_signature);
 
 		assert!(stream.try_next().await.is_err());
 		match stream.try_next().await {
