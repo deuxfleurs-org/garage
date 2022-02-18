@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::future::Future;
+use futures::prelude::*;
 use hyper::header;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
@@ -24,7 +26,10 @@ use garage_model::key_table::Key;
 use garage_table::util::*;
 
 use crate::error::*;
+use crate::signature::compute_scope;
 use crate::signature::payload::check_payload_signature;
+use crate::signature::streaming::SignedPayloadStream;
+use crate::signature::LONG_DATETIME;
 
 use crate::helpers::*;
 use crate::s3_bucket::*;
@@ -158,7 +163,7 @@ async fn handler_stage2(
 	let authority = req
 		.headers()
 		.get(header::HOST)
-		.ok_or_else(|| Error::BadRequest("HOST header required".to_owned()))?
+		.ok_or_bad_request("Host header required")?
 		.to_str()?;
 
 	let host = authority_to_host(authority)?;
@@ -221,10 +226,56 @@ async fn handler_stage3(
 		return handle_options_s3api(garage, &req, bucket_name).await;
 	}
 
-	let (api_key, content_sha256) = check_payload_signature(&garage, &req).await?;
+	let (api_key, mut content_sha256) = check_payload_signature(&garage, &req).await?;
 	let api_key = api_key.ok_or_else(|| {
 		Error::Forbidden("Garage does not support anonymous access yet".to_string())
 	})?;
+
+	let req = match req.headers().get("x-amz-content-sha256") {
+		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
+			let signature = content_sha256
+				.take()
+				.ok_or_bad_request("No signature provided")?;
+
+			let secret_key = &api_key
+				.state
+				.as_option()
+				.ok_or_internal_error("Deleted key state")?
+				.secret_key;
+
+			let date = req
+				.headers()
+				.get("x-amz-date")
+				.ok_or_bad_request("Missing X-Amz-Date field")?
+				.to_str()?;
+			let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
+				.ok_or_bad_request("Invalid date")?;
+			let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+
+			let scope = compute_scope(&date, &garage.config.s3_api.s3_region);
+			let signing_hmac = crate::signature::signing_hmac(
+				&date,
+				secret_key,
+				&garage.config.s3_api.s3_region,
+				"s3",
+			)
+			.ok_or_internal_error("Unable to build signing HMAC")?;
+
+			req.map(move |body| {
+				Body::wrap_stream(
+					SignedPayloadStream::new(
+						body.map_err(Error::from),
+						signing_hmac,
+						date,
+						&scope,
+						signature,
+					)
+					.map_err(Error::from),
+				)
+			})
+		}
+		_ => req,
+	};
 
 	let bucket_name = match bucket_name {
 		None => return handle_request_without_bucket(garage, req, api_key, endpoint).await,
@@ -307,7 +358,7 @@ async fn handler_stage3(
 			.await
 		}
 		Endpoint::PutObject { key } => {
-			handle_put(garage, req, bucket_id, &key, &api_key, content_sha256).await
+			handle_put(garage, req, bucket_id, &key, content_sha256).await
 		}
 		Endpoint::AbortMultipartUpload { key, upload_id } => {
 			handle_abort_multipart_upload(garage, bucket_id, &key, &upload_id).await

@@ -164,15 +164,15 @@ where
 		datetime: DateTime<Utc>,
 		scope: &str,
 		seed_signature: Hash,
-	) -> Result<Self, Error> {
-		Ok(Self {
+	) -> Self {
+		Self {
 			stream,
 			buf: bytes::BytesMut::new(),
 			datetime,
 			scope: scope.into(),
 			signing_hmac,
 			previous_signature: seed_signature,
-		})
+		}
 	}
 
 	fn parse_next(input: &[u8]) -> nom::IResult<&[u8], SignedPayload, SignedPayloadStreamError> {

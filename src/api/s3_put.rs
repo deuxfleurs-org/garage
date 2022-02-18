@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
-use futures::{prelude::*, TryFutureExt};
+use futures::prelude::*;
 use hyper::body::{Body, Bytes};
 use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Request, Response};
@@ -17,23 +16,19 @@ use garage_util::time::*;
 use garage_model::block::INLINE_THRESHOLD;
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
-use garage_model::key_table::Key;
 use garage_model::object_table::*;
 use garage_model::version_table::*;
 
 use crate::error::*;
 use crate::s3_xml;
-use crate::signature::streaming::SignedPayloadStream;
-use crate::signature::LONG_DATETIME;
-use crate::signature::{compute_scope, verify_signed_content};
+use crate::signature::verify_signed_content;
 
 pub async fn handle_put(
 	garage: Arc<Garage>,
 	req: Request<Body>,
 	bucket_id: Uuid,
 	key: &str,
-	api_key: &Key,
-	mut content_sha256: Option<Hash>,
+	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
 	// Retrieve interesting headers from request
 	let headers = get_headers(req.headers())?;
@@ -43,51 +38,9 @@ pub async fn handle_put(
 		Some(x) => Some(x.to_str()?.to_string()),
 		None => None,
 	};
-	let payload_seed_signature = match req.headers().get("x-amz-content-sha256") {
-		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
-			let content_sha256 = content_sha256
-				.take()
-				.ok_or_bad_request("No signature provided")?;
-			Some(content_sha256)
-		}
-		_ => None,
-	};
 
-	// Parse body of uploaded file
-	let (head, body) = req.into_parts();
+	let (_head, body) = req.into_parts();
 	let body = body.map_err(Error::from);
-
-	let body = if let Some(signature) = payload_seed_signature {
-		let secret_key = &api_key
-			.state
-			.as_option()
-			.ok_or_internal_error("Deleted key state")?
-			.secret_key;
-
-		let date = head
-			.headers
-			.get("x-amz-date")
-			.ok_or_bad_request("Missing X-Amz-Date field")?
-			.to_str()?;
-		let date: NaiveDateTime =
-			NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
-		let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
-
-		let scope = compute_scope(&date, &garage.config.s3_api.s3_region);
-		let signing_hmac = crate::signature::signing_hmac(
-			&date,
-			secret_key,
-			&garage.config.s3_api.s3_region,
-			"s3",
-		)
-		.ok_or_internal_error("Unable to build signing HMAC")?;
-
-		SignedPayloadStream::new(body, signing_hmac, date, &scope, signature)?
-			.map_err(Error::from)
-			.boxed()
-	} else {
-		body.boxed()
-	};
 
 	save_stream(
 		garage,
