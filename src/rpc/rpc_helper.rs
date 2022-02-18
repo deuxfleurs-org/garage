@@ -152,14 +152,8 @@ impl RpcHelper {
 		self.0.metrics.rpc_counter.add(1, &metric_tags);
 		let rpc_start_time = SystemTime::now();
 
-		let tracer = opentelemetry::global::tracer("garage");
-		let mut span = tracer.start(format!("RPC {}", endpoint.path()));
-		span.set_attribute(KeyValue::new("to", format!("{:?}", to)));
-
 		let node_id = to.into();
-		let rpc_call = endpoint
-			.call(&node_id, &msg, strat.rs_priority)
-			.with_context(Context::current_with_span(span));
+		let rpc_call = endpoint.call(&node_id, msg, strat.rs_priority);
 
 		select! {
 			res = rpc_call => {
@@ -246,7 +240,7 @@ impl RpcHelper {
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
 
 		let tracer = opentelemetry::global::tracer("garage");
-		let mut span = tracer.start(format!("RPC {} to {:?}", endpoint.path(), to));
+		let mut span = tracer.start(format!("RPC {} to {}", endpoint.path(), to.len()));
 		span.set_attribute(KeyValue::new("to", format!("{:?}", to)));
 		span.set_attribute(KeyValue::new("quorum", quorum as i64));
 
@@ -329,7 +323,6 @@ impl RpcHelper {
 					// reach quorum, start some new requests.
 					while successes.len() + resp_stream.len() < quorum {
 						if let Some((_, _, _, req_to, fut)) = requests.next() {
-							let tracer = opentelemetry::global::tracer("garage");
 							let span = tracer.start(format!("RPC to {:?}", req_to));
 							resp_stream.push(tokio::spawn(
 								fut.with_context(Context::current_with_span(span)),

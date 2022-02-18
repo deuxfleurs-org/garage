@@ -9,7 +9,7 @@ use hyper::{Body, Method, Request, Response, Server};
 
 use opentelemetry::{
 	trace::{FutureExt, TraceContextExt, Tracer},
-	Context,
+	Context, KeyValue,
 };
 
 use garage_util::data::*;
@@ -50,15 +50,19 @@ pub async fn run_api_server(
 				let garage = garage.clone();
 
 				let tracer = opentelemetry::global::tracer("garage");
-				let uuid = gen_uuid();
+				let trace_id = gen_uuid();
 				let span = tracer
 					.span_builder("S3 API call (unknown)")
 					.with_trace_id(
 						opentelemetry::trace::TraceId::from_hex(&hex::encode(
-							&uuid.as_slice()[..16],
+							&trace_id.as_slice()[..16],
 						))
 						.unwrap(),
 					)
+					.with_attributes(vec![
+						KeyValue::new("method", format!("{}", req.method())),
+						KeyValue::new("uri", req.uri().path().to_string()),
+					])
 					.start(&tracer);
 
 				handler(garage, req, client_addr).with_context(Context::current_with_span(span))

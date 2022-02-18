@@ -14,7 +14,10 @@ use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{watch, Mutex, Notify};
 
-use opentelemetry::KeyValue;
+use opentelemetry::{
+	trace::{FutureExt as OtelFutureExt, TraceContextExt, Tracer},
+	Context, KeyValue,
+};
 
 use garage_util::data::*;
 use garage_util::error::*;
@@ -554,7 +557,24 @@ impl BlockManager {
 				let start_time = SystemTime::now();
 
 				let hash = Hash::try_from(&hash_bytes[..]).unwrap();
-				let res = self.resync_block(&hash).await;
+
+				let tracer = opentelemetry::global::tracer("garage");
+				let trace_id = gen_uuid();
+				let span = tracer
+					.span_builder("Resync block")
+					.with_trace_id(
+						opentelemetry::trace::TraceId::from_hex(&hex::encode(
+							&trace_id.as_slice()[..16],
+						))
+						.unwrap(),
+					)
+					.with_attributes(vec![KeyValue::new("block", format!("{:?}", hash))])
+					.start(&tracer);
+
+				let res = self
+					.resync_block(&hash)
+					.with_context(Context::current_with_span(span))
+					.await;
 
 				self.metrics.resync_counter.add(1);
 				self.metrics

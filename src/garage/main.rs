@@ -55,7 +55,7 @@ struct Opt {
 #[tokio::main]
 async fn main() {
 	if std::env::var("RUST_LOG").is_err() {
-		std::env::set_var("RUST_LOG", "garage=info")
+		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
 	}
 	pretty_env_logger::init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
@@ -106,7 +106,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	// Generate a temporary keypair for our RPC client
 	let (_pk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
 
-	let netapp = NetApp::new(network_key, sk);
+	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk);
 
 	// Find and parse the address of the target host
 	let (id, addr) = if let Some(h) = opt.rpc_host {

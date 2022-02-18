@@ -38,6 +38,9 @@ const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Version tag used for version check upon Netapp connection
+pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650006; // garage 0x0006
+
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
 
@@ -194,7 +197,10 @@ impl System {
 	) -> Arc<Self> {
 		let node_key =
 			gen_node_key(&config.metadata_dir).expect("Unable to read or generate node ID");
-		info!("Node public key: {}", hex::encode(&node_key.public_key()));
+		info!(
+			"Node ID of this node: {}",
+			hex::encode(&node_key.public_key()[..8])
+		);
 
 		let persist_cluster_layout = Persister::new(&config.metadata_dir, "cluster_layout");
 		let persist_peer_list = Persister::new(&config.metadata_dir, "peer_list");
@@ -222,13 +228,7 @@ impl System {
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
-		if let Some(addr) = config.rpc_public_addr {
-			println!("{}@{}", hex::encode(&node_key.public_key()), addr);
-		} else {
-			println!("{}", hex::encode(&node_key.public_key()));
-		}
-
-		let netapp = NetApp::new(network_key, node_key);
+		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
 		let fullmesh = FullMeshPeeringStrategy::new(
 			netapp.clone(),
 			config.bootstrap_peers.clone(),
