@@ -22,7 +22,7 @@ impl std::convert::AsRef<[u8]> for FixedBytes32 {
 
 impl fmt::Debug for FixedBytes32 {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}…", hex::encode(&self.0[..8]))
+		write!(f, "{}", hex::encode(&self.0[..8]))
 	}
 }
 
