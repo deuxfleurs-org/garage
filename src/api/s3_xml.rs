@@ -289,6 +289,20 @@ pub struct VersioningConfiguration {
 	pub status: Option<Value>,
 }
 
+#[derive(Debug, Serialize, PartialEq)]
+pub struct PostObject {
+	#[serde(serialize_with = "xmlns_tag")]
+	pub xmlns: (),
+	#[serde(rename = "Location")]
+	pub location: Value,
+	#[serde(rename = "Bucket")]
+	pub bucket: Value,
+	#[serde(rename = "Key")]
+	pub key: Value,
+	#[serde(rename = "ETag")]
+	pub etag: Value,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

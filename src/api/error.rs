@@ -126,6 +126,12 @@ impl From<HelperError> for Error {
 	}
 }
 
+impl From<multer::Error> for Error {
+	fn from(err: multer::Error) -> Self {
+		Self::BadRequest(err.to_string())
+	}
+}
+
 impl Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	pub fn http_status_code(&self) -> StatusCode {

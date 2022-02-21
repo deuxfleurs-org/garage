@@ -46,7 +46,7 @@ pub async fn handle_copy(
 	// Implement x-amz-metadata-directive: REPLACE
 	let new_meta = match req.headers().get("x-amz-metadata-directive") {
 		Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => ObjectVersionMeta {
-			headers: get_headers(req)?,
+			headers: get_headers(req.headers())?,
 			size: source_version_meta.size,
 			etag: source_version_meta.etag.clone(),
 		},

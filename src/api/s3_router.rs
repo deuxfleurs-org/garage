@@ -410,6 +410,12 @@ pub enum Endpoint {
 		part_number: u64,
 		upload_id: String,
 	},
+	// This endpoint is not documented with others because it has special use case :
+	// It's intended to be used with HTML forms, using a multipart/form-data body.
+	// It works a lot like presigned requests, but everything is in the form instead
+	// of being query parameters of the URL, so authenticating it is a bit different.
+	PostObject {
+	},
 }}
 
 impl Endpoint {
@@ -543,6 +549,7 @@ impl Endpoint {
 				UPLOADS => CreateMultipartUpload,
 			],
 			no_key: [
+				EMPTY => PostObject,
 				DELETE => DeleteObjects,
 			]
 		}
@@ -1165,6 +1172,7 @@ mod tests {
 			POST "/{Key+}?restore&versionId=VersionId" => RestoreObject
 			PUT "/my-movie.m2ts?partNumber=1&uploadId=VCVsb2FkIElEIGZvciBlbZZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZR" => UploadPart
 			PUT "/Key+?partNumber=2&uploadId=UploadId" => UploadPart
+			POST "/" => PostObject
 		);
 		// no bucket, won't work with the rest of the test suite
 		assert!(matches!(

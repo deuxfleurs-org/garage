@@ -49,23 +49,6 @@ pub async fn check_payload_signature(
 		}
 	};
 
-	let scope = format!(
-		"{}/{}/s3/aws4_request",
-		authorization.date.format(SHORT_DATE),
-		garage.config.s3_api.s3_region
-	);
-	if authorization.scope != scope {
-		return Err(Error::AuthorizationHeaderMalformed(scope.to_string()));
-	}
-
-	let key = garage
-		.key_table
-		.get(&EmptyKey, &authorization.key_id)
-		.await?
-		.filter(|k| !k.state.is_deleted())
-		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", authorization.key_id)))?;
-	let key_p = key.params().unwrap();
-
 	let canonical_request = canonical_request(
 		request.method(),
 		&request.uri().path().to_string(),
@@ -74,24 +57,17 @@ pub async fn check_payload_signature(
 		&authorization.signed_headers,
 		&authorization.content_sha256,
 	);
+	let (_, scope) = parse_credential(&authorization.credential)?;
 	let string_to_sign = string_to_sign(&authorization.date, &scope, &canonical_request);
 
-	let mut hmac = signing_hmac(
+	let key = verify_v4(
+		garage,
+		&authorization.credential,
 		&authorization.date,
-		&key_p.secret_key,
-		&garage.config.s3_api.s3_region,
-		"s3",
+		&authorization.signature,
+		string_to_sign.as_bytes(),
 	)
-	.ok_or_internal_error("Unable to build signing HMAC")?;
-	hmac.update(string_to_sign.as_bytes());
-	let signature = hex::encode(hmac.finalize().into_bytes());
-
-	if authorization.signature != signature {
-		trace!("Canonical request: ``{}``", canonical_request);
-		trace!("String to sign: ``{}``", string_to_sign);
-		trace!("Expected: {}, got: {}", signature, authorization.signature);
-		return Err(Error::Forbidden("Invalid signature".to_string()));
-	}
+	.await?;
 
 	let content_sha256 = if authorization.content_sha256 == "UNSIGNED-PAYLOAD" {
 		None
@@ -108,8 +84,7 @@ pub async fn check_payload_signature(
 }
 
 struct Authorization {
-	key_id: String,
-	scope: String,
+	credential: String,
 	signed_headers: String,
 	signature: String,
 	content_sha256: String,
@@ -142,7 +117,6 @@ fn parse_authorization(
 	let cred = auth_params
 		.get("Credential")
 		.ok_or_bad_request("Could not find Credential in Authorization field")?;
-	let (key_id, scope) = parse_credential(cred)?;
 
 	let content_sha256 = headers
 		.get("x-amz-content-sha256")
@@ -150,18 +124,15 @@ fn parse_authorization(
 
 	let date = headers
 		.get("x-amz-date")
-		.ok_or_bad_request("Missing X-Amz-Date field")?;
-	let date: NaiveDateTime =
-		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
-	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+		.ok_or_bad_request("Missing X-Amz-Date field")
+		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::hours(24) {
 		return Err(Error::BadRequest("Date is too old".to_string()));
 	}
 
 	let auth = Authorization {
-		key_id,
-		scope,
+		credential: cred.to_string(),
 		signed_headers: auth_params
 			.get("SignedHeaders")
 			.ok_or_bad_request("Could not find SignedHeaders in Authorization field")?
@@ -189,7 +160,6 @@ fn parse_query_authorization(
 	let cred = headers
 		.get("x-amz-credential")
 		.ok_or_bad_request("X-Amz-Credential not found in query parameters")?;
-	let (key_id, scope) = parse_credential(cred)?;
 	let signed_headers = headers
 		.get("x-amz-signedheaders")
 		.ok_or_bad_request("X-Amz-SignedHeaders not found in query parameters")?;
@@ -215,18 +185,15 @@ fn parse_query_authorization(
 
 	let date = headers
 		.get("x-amz-date")
-		.ok_or_bad_request("Missing X-Amz-Date field")?;
-	let date: NaiveDateTime =
-		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
-	let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+		.ok_or_bad_request("Missing X-Amz-Date field")
+		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::seconds(duration) {
 		return Err(Error::BadRequest("Date is too old".to_string()));
 	}
 
 	Ok(Authorization {
-		key_id,
-		scope,
+		credential: cred.to_string(),
 		signed_headers: signed_headers.to_string(),
 		signature: signature.to_string(),
 		content_sha256: content_sha256.to_string(),
@@ -303,4 +270,52 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 	} else {
 		"".to_string()
 	}
+}
+
+pub fn parse_date(date: &str) -> Result<DateTime<Utc>, Error> {
+	let date: NaiveDateTime =
+		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
+	Ok(DateTime::from_utc(date, Utc))
+}
+
+pub async fn verify_v4(
+	garage: &Garage,
+	credential: &str,
+	date: &DateTime<Utc>,
+	signature: &str,
+	payload: &[u8],
+) -> Result<Key, Error> {
+	let (key_id, scope) = parse_credential(credential)?;
+
+	let scope_expected = format!(
+		"{}/{}/s3/aws4_request",
+		date.format(SHORT_DATE),
+		garage.config.s3_api.s3_region
+	);
+	if scope != scope_expected {
+		return Err(Error::AuthorizationHeaderMalformed(scope.to_string()));
+	}
+
+	let key = garage
+		.key_table
+		.get(&EmptyKey, &key_id)
+		.await?
+		.filter(|k| !k.state.is_deleted())
+		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", &key_id)))?;
+	let key_p = key.params().unwrap();
+
+	let mut hmac = signing_hmac(
+		date,
+		&key_p.secret_key,
+		&garage.config.s3_api.s3_region,
+		"s3",
+	)
+	.ok_or_internal_error("Unable to build signing HMAC")?;
+	hmac.update(payload);
+	let our_signature = hex::encode(hmac.finalize().into_bytes());
+	if signature != our_signature {
+		return Err(Error::Forbidden("Invalid signature".to_string()));
+	}
+
+	Ok(key)
 }
