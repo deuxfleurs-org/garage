@@ -31,9 +31,6 @@ md-5 = "0.9"
 nom = "7.1"
 sha2 = "0.9"
 
-strum = "0.23"
-strum_macros = "0.23"
-
 futures = "0.3"
 futures-util = "0.3"
 pin-project = "1.0"

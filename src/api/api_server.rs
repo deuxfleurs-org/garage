@@ -135,7 +135,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 
 	Context::current()
 		.span()
-		.update_name::<String>(format!("S3 API {}", endpoint));
+		.update_name::<String>(format!("S3 API {}", endpoint.name()));
 
 	// Some endpoints are processed early, before we even check for an API key
 	if let Endpoint::PostObject = endpoint {

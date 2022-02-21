@@ -78,6 +78,7 @@ function refresh_toolchain {
      pkgs.clippy
      pkgs.rustfmt
      pkgs.perl
+     pkgs.protobuf
      cargo2nix.packages.x86_64-linux.cargo2nix
     ] else [])
    ++
