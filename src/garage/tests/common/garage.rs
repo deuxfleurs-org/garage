@@ -66,8 +66,8 @@ bind_addr = "127.0.0.1:{web_port}"
 root_domain = ".web.garage"
 index = "index.html"
 
-[admin_api]
-bind_addr = "127.0.0.1:{admin_port}"
+[admin]
+api_bind_addr = "127.0.0.1:{admin_port}"
 "#,
 			path = path.display(),
 			secret = GARAGE_TEST_SECRET,

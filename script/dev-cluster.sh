@@ -45,8 +45,8 @@ bind_addr = "0.0.0.0:$((3920+$count))"
 root_domain = ".web.garage.localhost"
 index = "index.html"
 
-[admin_api]
-bind_addr = "0.0.0.0:$((9900+$count))"
+[admin]
+api_bind_addr = "0.0.0.0:$((9900+$count))"
 EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"

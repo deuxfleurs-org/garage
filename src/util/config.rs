@@ -75,7 +75,7 @@ pub struct Config {
 	pub s3_web: WebConfig,
 
 	/// Configuration for the admin API endpoint
-	pub admin_api: AdminConfig,
+	pub admin: AdminConfig,
 }
 
 /// Configuration for S3 api
@@ -103,9 +103,9 @@ pub struct WebConfig {
 #[derive(Deserialize, Debug, Clone)]
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
-	pub bind_addr: SocketAddr,
+	pub api_bind_addr: SocketAddr,
 	/// OTLP server to where to export traces
-	pub otlp_export_traces_to: Option<String>,
+	pub trace_sink: Option<String>,
 }
 
 fn default_sled_cache_capacity() -> u64 {

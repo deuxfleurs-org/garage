@@ -47,7 +47,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let garage = Garage::new(config.clone(), db, background);
 
 	info!("Initialize tracing...");
-	if let Some(export_to) = config.admin_api.otlp_export_traces_to {
+	if let Some(export_to) = config.admin.trace_sink {
 		init_tracing(&export_to, garage.system.id)?;
 	}
 
@@ -70,7 +70,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Configure and run admin web server...");
 	let admin_server = tokio::spawn(
-		admin_server_init.run(config.admin_api.bind_addr, wait_from(watch_cancel.clone())),
+		admin_server_init.run(config.admin.api_bind_addr, wait_from(watch_cancel.clone())),
 	);
 
 	// Stuff runs
