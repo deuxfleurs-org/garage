@@ -42,3 +42,5 @@ hyper = "0.14"
 
 kube = { version = "0.62", features = ["runtime", "derive"] }
 k8s-openapi = { version = "0.13", features = ["v1_22"] }
+
+opentelemetry = "0.17"

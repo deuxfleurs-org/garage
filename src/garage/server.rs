@@ -70,7 +70,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	info!("Configure and run admin web server...");
 	let admin_server =
-		tokio::spawn(admin_server_init.run(garage.clone(), wait_from(watch_cancel.clone())));
+		tokio::spawn(admin_server_init.run(config.admin_api.bind_addr, wait_from(watch_cancel.clone())));
 
 	// Stuff runs
 

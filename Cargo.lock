@@ -841,7 +841,6 @@ version = "0.6.0"
 dependencies = [
  "futures",
  "futures-util",
- "garage_model 0.6.0",
  "garage_util 0.6.0",
  "hex",
  "http",
@@ -979,6 +978,7 @@ dependencies = [
  "bytes 1.1.0",
  "futures",
  "futures-util",
+ "garage_admin",
  "garage_util 0.6.0",
  "gethostname",
  "hex",
@@ -1084,6 +1084,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "netapp 0.4.0",
+ "opentelemetry",
  "rand",
  "rmp-serde 0.15.5",
  "serde",

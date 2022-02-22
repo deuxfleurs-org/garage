@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration};
 
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
@@ -23,6 +23,7 @@ use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::time::*;
 use garage_util::tranquilizer::Tranquilizer;
+use garage_util::metrics::RecordDuration;
 
 use garage_rpc::system::System;
 use garage_rpc::*;
@@ -391,7 +392,6 @@ impl BlockManager {
 
 	/// Write a block to disk
 	async fn write_block(&self, hash: &Hash, data: &DataBlock) -> Result<BlockRpc, Error> {
-		let request_start = SystemTime::now();
 		let write_size = data.inner_buffer().len() as u64;
 
 		let res = self
@@ -399,20 +399,26 @@ impl BlockManager {
 			.lock()
 			.await
 			.write_block(hash, data, self)
+			.bound_record_duration(&self.metrics.block_write_duration)
 			.await?;
 
 		self.metrics.bytes_written.add(write_size);
-		self.metrics
-			.block_write_duration
-			.record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
 
 		Ok(res)
 	}
 
 	/// Read block from disk, verifying it's integrity
 	async fn read_block(&self, hash: &Hash) -> Result<BlockRpc, Error> {
-		let request_start = SystemTime::now();
+		let data = self.read_block_internal(hash)
+			.bound_record_duration(&self.metrics.block_read_duration)
+			.await?;
 
+		self.metrics.bytes_read.add(data.inner_buffer().len() as u64);
+
+		Ok(BlockRpc::PutBlock { hash: *hash, data })
+	}
+
+	async fn read_block_internal(&self, hash: &Hash) -> Result<DataBlock, Error> {
 		let mut path = self.block_path(hash);
 		let compressed = match self.is_block_compressed(hash).await {
 			Ok(c) => c,
@@ -449,14 +455,7 @@ impl BlockManager {
 			return Err(Error::CorruptData(*hash));
 		}
 
-		self.metrics
-			.bytes_read
-			.add(data.inner_buffer().len() as u64);
-		self.metrics
-			.block_read_duration
-			.record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
-
-		Ok(BlockRpc::PutBlock { hash: *hash, data })
+		Ok(data)
 	}
 
 	/// Check if this node should have a block, but don't actually have it
@@ -554,8 +553,6 @@ impl BlockManager {
 			let time_msec = u64::from_be_bytes(time_bytes[0..8].try_into().unwrap());
 			let now = now_msec();
 			if now >= time_msec {
-				let start_time = SystemTime::now();
-
 				let hash = Hash::try_from(&hash_bytes[..]).unwrap();
 
 				let tracer = opentelemetry::global::tracer("garage");
@@ -574,12 +571,10 @@ impl BlockManager {
 				let res = self
 					.resync_block(&hash)
 					.with_context(Context::current_with_span(span))
+					.bound_record_duration(&self.metrics.resync_duration)
 					.await;
 
 				self.metrics.resync_counter.add(1);
-				self.metrics
-					.resync_duration
-					.record(start_time.elapsed().map_or(0.0, |d| d.as_secs_f64()));
 
 				if let Err(e) = &res {
 					self.metrics.resync_error_counter.add(1);

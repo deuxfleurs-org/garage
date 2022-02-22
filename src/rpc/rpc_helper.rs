@@ -1,6 +1,6 @@
 //! Contain structs related to making RPCs
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration};
 
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -23,6 +23,7 @@ pub use netapp::{NetApp, NodeID};
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
+use garage_util::metrics::RecordDuration;
 
 use crate::metrics::RpcMetrics;
 use crate::ring::Ring;
@@ -133,7 +134,6 @@ impl RpcHelper {
 		M: Rpc<Response = Result<S, Error>>,
 		H: EndpointHandler<M>,
 	{
-		let queueing_start_time = SystemTime::now();
 		let metric_tags = [KeyValue::new("endpoint", endpoint.path().to_string())];
 
 		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
@@ -141,19 +141,14 @@ impl RpcHelper {
 			.0
 			.request_buffer_semaphore
 			.acquire_many(msg_size)
+			.record_duration(&self.0.metrics.rpc_queueing_time, &metric_tags)
 			.await?;
 
-		self.0.metrics.rpc_queueing_time.record(
-			queueing_start_time
-				.elapsed()
-				.map_or(0.0, |d| d.as_secs_f64()),
-			&metric_tags,
-		);
 		self.0.metrics.rpc_counter.add(1, &metric_tags);
-		let rpc_start_time = SystemTime::now();
 
 		let node_id = to.into();
-		let rpc_call = endpoint.call(&node_id, msg, strat.rs_priority);
+		let rpc_call = endpoint.call(&node_id, msg, strat.rs_priority)
+			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 
 		select! {
 			res = rpc_call => {
@@ -164,8 +159,6 @@ impl RpcHelper {
 				}
 				let res = res?;
 
-				self.0.metrics.rpc_duration
-			.record(rpc_start_time.elapsed().map_or(0.0, |d| d.as_secs_f64()), &metric_tags);
 				if res.is_err() {
 					self.0.metrics.rpc_garage_error_counter.add(1, &metric_tags);
 				}

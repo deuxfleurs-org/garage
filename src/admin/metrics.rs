@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::SystemTime;
+use std::net::SocketAddr;
 
 use futures::future::*;
 use hyper::{
@@ -19,7 +20,6 @@ use opentelemetry_prometheus::PrometheusExporter;
 
 use prometheus::{Encoder, TextEncoder};
 
-use garage_model::garage::Garage;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
@@ -111,7 +111,7 @@ impl AdminServer {
 	/// run execute the admin server on the designated HTTP port and listen for requests
 	pub async fn run(
 		self,
-		garage: Arc<Garage>,
+		bind_addr: SocketAddr,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		let admin_server = Arc::new(self);
@@ -142,11 +142,9 @@ impl AdminServer {
 			}
 		});
 
-		let addr = &garage.config.admin_api.bind_addr;
-
-		let server = Server::bind(addr).serve(make_svc);
+		let server = Server::bind(&bind_addr).serve(make_svc);
 		let graceful = server.with_graceful_shutdown(shutdown_signal);
-		info!("Admin server listening on http://{}", addr);
+		info!("Admin server listening on http://{}", bind_addr);
 
 		graceful.await?;
 		Ok(())
