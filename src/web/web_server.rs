@@ -9,6 +9,13 @@ use hyper::{
 	Body, Method, Request, Response, Server,
 };
 
+use opentelemetry::{
+	global,
+	metrics::{Counter, ValueRecorder},
+	trace::{FutureExt, TraceContextExt, Tracer},
+	Context, KeyValue,
+};
+
 use crate::error::*;
 
 use garage_api::error::{Error as ApiError, OkOrBadRequest, OkOrInternalError};
@@ -20,6 +27,33 @@ use garage_model::garage::Garage;
 
 use garage_table::*;
 use garage_util::error::Error as GarageError;
+use garage_util::metrics::{gen_trace_id, RecordDuration};
+
+struct WebMetrics {
+	request_counter: Counter<u64>,
+	error_counter: Counter<u64>,
+	request_duration: ValueRecorder<f64>,
+}
+
+impl WebMetrics {
+	fn new() -> Self {
+		let meter = global::meter("garage/web");
+		Self {
+			request_counter: meter
+				.u64_counter("web.request_counter")
+				.with_description("Number of requests to the web endpoint")
+				.init(),
+			error_counter: meter
+				.u64_counter("web.error_counter")
+				.with_description("Number of requests to the web endpoint resulting in errors")
+				.init(),
+			request_duration: meter
+				.f64_value_recorder("web.request_duration")
+				.with_description("Duration of requests to the web endpoint")
+				.init(),
+		}
+	}
+}
 
 /// Run a web server
 pub async fn run_web_server(
@@ -28,13 +62,19 @@ pub async fn run_web_server(
 ) -> Result<(), GarageError> {
 	let addr = &garage.config.s3_web.bind_addr;
 
+	let metrics = Arc::new(WebMetrics::new());
+
 	let service = make_service_fn(|conn: &AddrStream| {
 		let garage = garage.clone();
+		let metrics = metrics.clone();
+
 		let client_addr = conn.remote_addr();
 		async move {
 			Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 				let garage = garage.clone();
-				handle_request(garage, req, client_addr)
+				let metrics = metrics.clone();
+
+				handle_request(garage, metrics, req, client_addr)
 			}))
 		}
 	});
@@ -49,22 +89,54 @@ pub async fn run_web_server(
 
 async fn handle_request(
 	garage: Arc<Garage>,
+	metrics: Arc<WebMetrics>,
 	req: Request<Body>,
 	addr: SocketAddr,
 ) -> Result<Response<Body>, Infallible> {
 	info!("{} {} {}", addr, req.method(), req.uri());
-	match serve_file(garage, &req).await {
+
+	// Lots of instrumentation
+	let tracer = opentelemetry::global::tracer("garage");
+	let span = tracer
+		.span_builder(format!("Web {} request", req.method()))
+		.with_trace_id(gen_trace_id())
+		.with_attributes(vec![
+			KeyValue::new("method", format!("{}", req.method())),
+			KeyValue::new("uri", req.uri().to_string()),
+		])
+		.start(&tracer);
+
+	let metrics_tags = &[KeyValue::new("method", req.method().to_string())];
+
+	// The actual handler
+	let res = serve_file(garage, &req)
+		.with_context(Context::current_with_span(span))
+		.record_duration(&metrics.request_duration, &metrics_tags[..])
+		.await;
+
+	// More instrumentation
+	metrics.request_counter.add(1, &metrics_tags[..]);
+
+	// Returning the result
+	match res {
 		Ok(res) => {
-			debug!("{} {} {}", req.method(), req.uri(), res.status());
+			debug!("{} {} {}", req.method(), res.status(), req.uri());
 			Ok(res)
 		}
 		Err(error) => {
 			info!(
 				"{} {} {} {}",
 				req.method(),
-				req.uri(),
 				error.http_status_code(),
+				req.uri(),
 				error
+			);
+			metrics.error_counter.add(
+				1,
+				&[
+					metrics_tags[0].clone(),
+					KeyValue::new("status_code", error.http_status_code().to_string()),
+				],
 			);
 			Ok(error_to_res(error))
 		}

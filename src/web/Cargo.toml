@@ -27,3 +27,5 @@ futures = "0.3"
 
 http = "0.2"
 hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
+
+opentelemetry = "0.17"

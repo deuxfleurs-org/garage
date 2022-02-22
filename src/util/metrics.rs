@@ -1,8 +1,9 @@
 use std::time::SystemTime;
 
 use futures::{future::BoxFuture, Future, FutureExt};
+use rand::Rng;
 
-use opentelemetry::{metrics::*, KeyValue};
+use opentelemetry::{metrics::*, trace::TraceId, KeyValue};
 
 pub trait RecordDuration<'a>: 'a {
 	type Output;
@@ -47,4 +48,10 @@ where
 		}
 		.boxed()
 	}
+}
+
+// ----
+
+pub fn gen_trace_id() -> TraceId {
+	rand::thread_rng().gen::<[u8; 16]>().into()
 }

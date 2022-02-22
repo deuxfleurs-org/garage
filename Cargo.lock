@@ -1109,6 +1109,7 @@ dependencies = [
  "garage_util 0.6.0",
  "http",
  "hyper",
+ "opentelemetry",
  "percent-encoding",
  "tracing",
 ]
