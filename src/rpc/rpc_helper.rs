@@ -1,6 +1,6 @@
 //! Contain structs related to making RPCs
 use std::sync::Arc;
-use std::time::{Duration};
+use std::time::Duration;
 
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -134,7 +134,7 @@ impl RpcHelper {
 		M: Rpc<Response = Result<S, Error>>,
 		H: EndpointHandler<M>,
 	{
-		let metric_tags = [KeyValue::new("endpoint", endpoint.path().to_string())];
+		let metric_tags = [KeyValue::new("rpc_endpoint", endpoint.path().to_string())];
 
 		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
 		let permit = self
@@ -147,7 +147,8 @@ impl RpcHelper {
 		self.0.metrics.rpc_counter.add(1, &metric_tags);
 
 		let node_id = to.into();
-		let rpc_call = endpoint.call(&node_id, msg, strat.rs_priority)
+		let rpc_call = endpoint
+			.call(&node_id, msg, strat.rs_priority)
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 
 		select! {

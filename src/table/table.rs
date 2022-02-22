@@ -161,7 +161,8 @@ where
 		partition_key: &F::P,
 		sort_key: &F::S,
 	) -> Result<Option<F::E>, Error> {
-		let res = self.get_internal(partition_key, sort_key)
+		let res = self
+			.get_internal(partition_key, sort_key)
 			.bound_record_duration(&self.data.metrics.get_request_duration)
 			.await?;
 		self.data.metrics.get_request_counter.add(1);
@@ -232,7 +233,8 @@ where
 		filter: Option<F::Filter>,
 		limit: usize,
 	) -> Result<Vec<F::E>, Error> {
-		let res = self.get_range_internal(partition_key, begin_sort_key, filter, limit)
+		let res = self
+			.get_range_internal(partition_key, begin_sort_key, filter, limit)
 			.bound_record_duration(&self.data.metrics.get_request_duration)
 			.await?;
 		self.data.metrics.get_request_counter.add(1);

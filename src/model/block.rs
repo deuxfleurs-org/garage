@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration};
+use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
@@ -21,9 +21,9 @@ use opentelemetry::{
 
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::metrics::RecordDuration;
 use garage_util::time::*;
 use garage_util::tranquilizer::Tranquilizer;
-use garage_util::metrics::RecordDuration;
 
 use garage_rpc::system::System;
 use garage_rpc::*;
@@ -409,11 +409,14 @@ impl BlockManager {
 
 	/// Read block from disk, verifying it's integrity
 	async fn read_block(&self, hash: &Hash) -> Result<BlockRpc, Error> {
-		let data = self.read_block_internal(hash)
+		let data = self
+			.read_block_internal(hash)
 			.bound_record_duration(&self.metrics.block_read_duration)
 			.await?;
 
-		self.metrics.bytes_read.add(data.inner_buffer().len() as u64);
+		self.metrics
+			.bytes_read
+			.add(data.inner_buffer().len() as u64);
 
 		Ok(BlockRpc::PutBlock { hash: *hash, data })
 	}

@@ -1,7 +1,7 @@
 use std::convert::Infallible;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::net::SocketAddr;
 
 use futures::future::*;
 use hyper::{
