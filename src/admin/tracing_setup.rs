@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use opentelemetry::sdk::{
-	trace::{self, IdGenerator},
+	trace::{self, IdGenerator, Sampler},
 	Resource,
 };
 use opentelemetry::KeyValue;
@@ -24,6 +24,7 @@ pub fn init_tracing(export_to: &str, node_id: Uuid) -> Result<(), Error> {
 		.with_trace_config(
 			trace::config()
 				.with_id_generator(IdGenerator::default())
+				.with_sampler(Sampler::AlwaysOn)
 				.with_resource(Resource::new(vec![
 					KeyValue::new("service.name", "garage"),
 					KeyValue::new("service.instance.id", node_id),
