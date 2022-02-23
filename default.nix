@@ -11,14 +11,26 @@ with import ./nix/common.nix;
 let
   crossSystem = { config = target; };
 in let
+  log = v: builtins.trace v v;
+
   pkgs = import pkgsSrc {
     inherit system crossSystem;
     overlays = [ cargo2nixOverlay ];
   };
 
+
+  /*
+   Rust and Nix triples are not the same. Cargo2nix has a dedicated library
+   to convert Nix triples to Rust ones. We need this conversion as we want to
+   set later options linked to our (rust) target in a generic way. Not only
+   the triple terminology is different, but also the "roles" are named differently.
+   Nix uses a build/host/target terminology where Nix's "host" maps to Cargo's "target".
+  */
+  rustTarget = log (pkgs.rustBuilder.rustLib.rustTriple pkgs.stdenv.hostPlatform);
+
   /*
    Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
-   We want our own Rust to avoir incompatibilities, like we had with musl 1.2.0.
+   We want our own Rust to avoid incompatibilities, like we had with musl 1.2.0.
    rustc was built with musl < 1.2.0 and nix shipped musl >= 1.2.0 which lead to compilation breakage.
    So we want a Rust release that is bound to our Nix repository to avoid these problems.
    See here for more info: https://musl.libc.org/time64.html
@@ -37,51 +49,69 @@ in let
 
   overrides = pkgs.rustBuilder.overrides.all ++ [
     /*
-     We want to inject the git version while keeping the build deterministic.
+     [1] We need to alter Nix hardening to be able to statically compile: PIE,
+     Position Independent Executables seems to be supported only on amd64. Having
+     this flags set either make our executables crash or compile as dynamic on many platforms.
+     In the following section codegenOpts, we reactive it for the supported targets
+     (only amd64 curently) through the `-static-pie` flag. PIE is a feature used
+     by ASLR, which helps mitigate security issues.
+     Learn more about Nix Hardening: https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/cc-wrapper/add-hardening.sh
+
+     [2] We want to inject the git version while keeping the build deterministic.
      As we do not want to consider the .git folder as part of the input source,
      we ask the user (the CI often) to pass the value to Nix.
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage";
-      overrideAttrs = drv: if git_version != null then {
-        preConfigure = ''
-          ${drv.preConfigure or ""}
-          export GIT_VERSION="${git_version}"
-        '';
-      } else {};
+      overrideAttrs = drv:
+        /* [1] */ { hardeningDisable = [ "pie" ]; }
+        //
+        /* [2] */ (if git_version != null then {
+          preConfigure = ''
+            ${drv.preConfigure or ""}
+            export GIT_VERSION="${git_version}"
+          '';
+        } else {});
     })
-
-    /*
-     On a sandbox pure NixOS environment, /usr/bin/file is not available.
-     This is a known problem: https://github.com/NixOS/nixpkgs/issues/98440
-     We simply patch the file as suggested
-    */
-    /*(pkgs.rustBuilder.rustLib.makeOverride {
-      name = "libsodium-sys";
-      overrideAttrs = drv: {
-        preConfigure = ''
-          ${drv.preConfigure or ""}
-          sed -i 's,/usr/bin/file,${file}/bin/file,g' ./configure
-        '';
-      }
-    })*/
   ];
 
   packageFun = import ./Cargo.nix;
 
   /*
+    We compile fully static binaries with musl to simplify deployment on most systems.
+    When possible, we reactivate PIE hardening (see above).
+
+    Also, if you set the RUSTFLAGS environment variable, the following parameters will
+    be ignored.
+
+    For more information on static builds, please refer to Rust's RFC 1721.
+    https://rust-lang.github.io/rfcs/1721-crt-static.html#specifying-dynamicstatic-c-runtime-linkage
+  */
+
+  codegenOpts = {
+   "armv6l-unknown-linux-musleabihf" = [ "target-feature=+crt-static" "link-arg=-static" ]; /* compile as dynamic with static-pie */
+   "aarch64-unknown-linux-musl" = [ "target-feature=+crt-static" "link-arg=-static" ]; /* segfault with static-pie */
+   "i686-unknown-linux-musl" = [ "target-feature=+crt-static" "link-arg=-static" ]; /* segfault with static-pie */
+   "x86_64-unknown-linux-musl" = [ "target-feature=+crt-static" "link-arg=-static-pie" ];
+  };
+
+  /*
    The following definition is not elegant as we use a low level function of Cargo2nix
-   that enables us to pass our custom rustChannel object
+   that enables us to pass our custom rustChannel object. We need this low level definition
+   to pass Nix's Rust toolchains instead of Mozilla's one.
+
+   target is mandatory but must be kept to null to allow cargo2nix to set it to the appropriate value
+   for each crate.
   */ 
   rustPkgs = pkgs.rustBuilder.makePackageSet {
-    inherit packageFun rustChannel release;
+    inherit packageFun rustChannel release codegenOpts;
     packageOverrides = overrides;
-    target = null; /* we set target to null because we want that cargo2nix computes it automatically */
+    target = null;
 
     buildRustPackages = pkgs.buildPackages.rustBuilder.makePackageSet {
-      inherit rustChannel packageFun;
+      inherit rustChannel packageFun codegenOpts;
       packageOverrides = overrides;
-      target = null; /* we set target to null because we want that cargo2nix computes it automatically */ 
+      target = null;
     };
   };
 
