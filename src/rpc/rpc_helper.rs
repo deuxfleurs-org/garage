@@ -134,7 +134,11 @@ impl RpcHelper {
 		M: Rpc<Response = Result<S, Error>>,
 		H: EndpointHandler<M>,
 	{
-		let metric_tags = [KeyValue::new("rpc_endpoint", endpoint.path().to_string())];
+		let metric_tags = [
+			KeyValue::new("rpc_endpoint", endpoint.path().to_string()),
+			KeyValue::new("from", format!("{:?}", self.0.our_node_id)),
+			KeyValue::new("to", format!("{:?}", to)),
+		];
 
 		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
 		let permit = self
@@ -245,6 +249,7 @@ impl RpcHelper {
 			)
 		};
 		let mut span = tracer.start(span_name);
+		span.set_attribute(KeyValue::new("from", format!("{:?}", self.0.our_node_id)));
 		span.set_attribute(KeyValue::new("to", format!("{:?}", to)));
 		span.set_attribute(KeyValue::new("quorum", quorum as i64));
 		span.set_attribute(KeyValue::new(

@@ -1,5 +1,7 @@
 use opentelemetry::{global, metrics::*};
 
+use garage_util::sled_counter::SledCountedTree;
+
 /// TableMetrics reference all counter used for metrics
 pub struct BlockManagerMetrics {
 	pub(crate) _resync_queue_len: ValueObserver<u64>,
@@ -20,7 +22,7 @@ pub struct BlockManagerMetrics {
 }
 
 impl BlockManagerMetrics {
-	pub fn new(resync_queue: sled::Tree) -> Self {
+	pub fn new(resync_queue: SledCountedTree) -> Self {
 		let meter = global::meter("garage_model/block");
 		Self {
 			_resync_queue_len: meter

@@ -7,6 +7,7 @@ use tokio::sync::Notify;
 
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::sled_counter::SledCountedTree;
 
 use garage_rpc::system::System;
 
@@ -27,7 +28,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: sled::Tree,
 	pub(crate) merkle_todo: sled::Tree,
 	pub(crate) merkle_todo_notify: Notify,
-	pub(crate) gc_todo: sled::Tree,
+	pub(crate) gc_todo: SledCountedTree,
 
 	pub(crate) metrics: TableMetrics,
 }
@@ -52,6 +53,7 @@ where
 		let gc_todo = db
 			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
+		let gc_todo = SledCountedTree::new(gc_todo);
 
 		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone(), gc_todo.clone());
 

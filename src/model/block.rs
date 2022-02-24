@@ -22,6 +22,7 @@ use opentelemetry::{
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::metrics::RecordDuration;
+use garage_util::sled_counter::SledCountedTree;
 use garage_util::time::*;
 use garage_util::tranquilizer::Tranquilizer;
 
@@ -155,7 +156,7 @@ pub struct BlockManager {
 
 	rc: sled::Tree,
 
-	resync_queue: sled::Tree,
+	resync_queue: SledCountedTree,
 	resync_notify: Notify,
 
 	system: Arc<System>,
@@ -184,6 +185,7 @@ impl BlockManager {
 		let resync_queue = db
 			.open_tree("block_local_resync_queue")
 			.expect("Unable to open block_local_resync_queue tree");
+		let resync_queue = SledCountedTree::new(resync_queue);
 
 		let endpoint = system
 			.netapp
