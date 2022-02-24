@@ -20,8 +20,8 @@ use opentelemetry_prometheus::PrometheusExporter;
 
 use prometheus::{Encoder, TextEncoder};
 
-use garage_util::data::*;
 use garage_util::error::Error as GarageError;
+use garage_util::metrics::*;
 
 // serve_req on metric endpoint
 async fn serve_req(
@@ -125,15 +125,9 @@ impl AdminServer {
 			async move {
 				Ok::<_, Infallible>(service_fn(move |req| {
 					let tracer = opentelemetry::global::tracer("garage");
-					let uuid = gen_uuid();
 					let span = tracer
 						.span_builder("admin/request")
-						.with_trace_id(
-							opentelemetry::trace::TraceId::from_hex(&hex::encode(
-								&uuid.as_slice()[..16],
-							))
-							.unwrap(),
-						)
+						.with_trace_id(gen_trace_id())
 						.start(&tracer);
 
 					serve_req(req, admin_server.clone())

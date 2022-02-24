@@ -234,9 +234,23 @@ impl RpcHelper {
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
 
 		let tracer = opentelemetry::global::tracer("garage");
-		let mut span = tracer.start(format!("RPC {} to {}", endpoint.path(), to.len()));
+		let span_name = if strategy.rs_interrupt_after_quorum {
+			format!("RPC {} to {} of {}", endpoint.path(), quorum, to.len())
+		} else {
+			format!(
+				"RPC {} to {} (quorum {})",
+				endpoint.path(),
+				to.len(),
+				quorum
+			)
+		};
+		let mut span = tracer.start(span_name);
 		span.set_attribute(KeyValue::new("to", format!("{:?}", to)));
 		span.set_attribute(KeyValue::new("quorum", quorum as i64));
+		span.set_attribute(KeyValue::new(
+			"interrupt_after_quorum",
+			strategy.rs_interrupt_after_quorum.to_string(),
+		));
 
 		self.try_call_many_internal(endpoint, to, msg, strategy, quorum)
 			.with_context(Context::current_with_span(span))
