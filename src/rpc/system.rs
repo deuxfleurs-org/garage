@@ -39,7 +39,7 @@ const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
 const PING_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Version tag used for version check upon Netapp connection
-pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650006; // garage 0x0006
+pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650007; // garage 0x0007
 
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";

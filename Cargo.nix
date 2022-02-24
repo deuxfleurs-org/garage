@@ -44,14 +44,14 @@ in
 {
   cargo2nixVersion = "0.10.0";
   workspace = {
-    garage_util = rustPackages.unknown.garage_util."0.6.0";
-    garage_rpc = rustPackages.unknown.garage_rpc."0.6.0";
-    garage_admin = rustPackages.unknown.garage_admin."0.6.0";
-    garage_table = rustPackages.unknown.garage_table."0.6.0";
-    garage_model = rustPackages.unknown.garage_model."0.6.0";
-    garage_api = rustPackages.unknown.garage_api."0.6.0";
-    garage_web = rustPackages.unknown.garage_web."0.6.0";
-    garage = rustPackages.unknown.garage."0.6.0";
+    garage_util = rustPackages.unknown.garage_util."0.7.0";
+    garage_rpc = rustPackages.unknown.garage_rpc."0.7.0";
+    garage_admin = rustPackages.unknown.garage_admin."0.7.0";
+    garage_table = rustPackages.unknown.garage_table."0.7.0";
+    garage_model = rustPackages.unknown.garage_model."0.7.0";
+    garage_api = rustPackages.unknown.garage_api."0.7.0";
+    garage_web = rustPackages.unknown.garage_web."0.7.0";
+    garage = rustPackages.unknown.garage."0.7.0";
   };
   "registry+https://github.com/rust-lang/crates.io-index".aho-corasick."0.7.18" = overridableMkRustCrate (profileName: rec {
     name = "aho-corasick";
@@ -1163,9 +1163,9 @@ in
     };
   });
   
-  "unknown".garage."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/garage");
     dependencies = {
@@ -1173,13 +1173,13 @@ in
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_admin = rustPackages."unknown".garage_admin."0.6.0" { inherit profileName; };
-      garage_api = rustPackages."unknown".garage_api."0.6.0" { inherit profileName; };
-      garage_model = rustPackages."unknown".garage_model."0.6.0" { inherit profileName; };
-      garage_rpc = rustPackages."unknown".garage_rpc."0.6.0" { inherit profileName; };
-      garage_table = rustPackages."unknown".garage_table."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
-      garage_web = rustPackages."unknown".garage_web."0.6.0" { inherit profileName; };
+      garage_admin = rustPackages."unknown".garage_admin."0.7.0" { inherit profileName; };
+      garage_api = rustPackages."unknown".garage_api."0.7.0" { inherit profileName; };
+      garage_model = rustPackages."unknown".garage_model."0.7.0" { inherit profileName; };
+      garage_rpc = rustPackages."unknown".garage_rpc."0.7.0" { inherit profileName; };
+      garage_table = rustPackages."unknown".garage_table."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
+      garage_web = rustPackages."unknown".garage_web."0.7.0" { inherit profileName; };
       git_version = rustPackages."registry+https://github.com/rust-lang/crates.io-index".git-version."0.3.5" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       sodiumoxide = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; };
@@ -1203,15 +1203,15 @@ in
     };
   });
   
-  "unknown".garage_admin."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_admin."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_admin";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/admin");
     dependencies = {
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.17" { inherit profileName; };
@@ -1223,9 +1223,9 @@ in
     };
   });
   
-  "unknown".garage_api."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_api."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_api";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/api");
     dependencies = {
@@ -1237,9 +1237,9 @@ in
       form_urlencoded = rustPackages."registry+https://github.com/rust-lang/crates.io-index".form_urlencoded."1.0.1" { inherit profileName; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_model = rustPackages."unknown".garage_model."0.6.0" { inherit profileName; };
-      garage_table = rustPackages."unknown".garage_table."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_model = rustPackages."unknown".garage_model."0.7.0" { inherit profileName; };
+      garage_table = rustPackages."unknown".garage_table."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       hmac = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hmac."0.10.1" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
@@ -1291,9 +1291,9 @@ in
     };
   });
   
-  "unknown".garage_model."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_model."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_model";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/model");
     dependencies = {
@@ -1303,9 +1303,9 @@ in
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
       garage_model_050 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".garage_model."0.5.1" { inherit profileName; };
-      garage_rpc = rustPackages."unknown".garage_rpc."0.6.0" { inherit profileName; };
-      garage_table = rustPackages."unknown".garage_table."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_rpc = rustPackages."unknown".garage_rpc."0.7.0" { inherit profileName; };
+      garage_table = rustPackages."unknown".garage_table."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.4.0" { inherit profileName; };
       opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
@@ -1348,9 +1348,9 @@ in
     };
   });
   
-  "unknown".garage_rpc."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_rpc."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_rpc";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/rpc");
     dependencies = {
@@ -1359,8 +1359,8 @@ in
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_admin = rustPackages."unknown".garage_admin."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_admin = rustPackages."unknown".garage_admin."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       gethostname = rustPackages."registry+https://github.com/rust-lang/crates.io-index".gethostname."0.2.2" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.17" { inherit profileName; };
@@ -1406,9 +1406,9 @@ in
     };
   });
   
-  "unknown".garage_table."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_table."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_table";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/table");
     dependencies = {
@@ -1416,8 +1416,8 @@ in
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_rpc = rustPackages."unknown".garage_rpc."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_rpc = rustPackages."unknown".garage_rpc."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       hexdump = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hexdump."0.1.1" { inherit profileName; };
       opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; };
@@ -1457,9 +1457,9 @@ in
     };
   });
   
-  "unknown".garage_util."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_util."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_util";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/util");
     dependencies = {
@@ -1487,18 +1487,18 @@ in
     };
   });
   
-  "unknown".garage_web."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_web."0.7.0" = overridableMkRustCrate (profileName: rec {
     name = "garage_web";
-    version = "0.6.0";
+    version = "0.7.0";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/web");
     dependencies = {
       err_derive = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
-      garage_api = rustPackages."unknown".garage_api."0.6.0" { inherit profileName; };
-      garage_model = rustPackages."unknown".garage_model."0.6.0" { inherit profileName; };
-      garage_table = rustPackages."unknown".garage_table."0.6.0" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.6.0" { inherit profileName; };
+      garage_api = rustPackages."unknown".garage_api."0.7.0" { inherit profileName; };
+      garage_model = rustPackages."unknown".garage_model."0.7.0" { inherit profileName; };
+      garage_table = rustPackages."unknown".garage_table."0.7.0" { inherit profileName; };
+      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.17" { inherit profileName; };
       opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
@@ -2322,7 +2322,7 @@ in
       [ "os-poll" ]
     ];
     dependencies = {
-      ${ if hostPlatform.parsed.kernel.name == "wasi" || hostPlatform.isUnix then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.119" { inherit profileName; };
+      ${ if hostPlatform.isUnix || hostPlatform.parsed.kernel.name == "wasi" then "libc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.119" { inherit profileName; };
       log = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.14" { inherit profileName; };
       ${ if hostPlatform.isWindows then "miow" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".miow."0.3.7" { inherit profileName; };
       ${ if hostPlatform.isWindows then "ntapi" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".ntapi."0.3.7" { inherit profileName; };
@@ -4821,11 +4821,11 @@ in
       [ "default" ]
     ];
     dependencies = {
-      ${ if hostPlatform.config == "aarch64-uwp-windows-msvc" || hostPlatform.config == "aarch64-pc-windows-msvc" then "windows_aarch64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_aarch64_msvc."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "aarch64-pc-windows-msvc" || hostPlatform.config == "aarch64-uwp-windows-msvc" then "windows_aarch64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_aarch64_msvc."0.32.0" { inherit profileName; };
       ${ if hostPlatform.config == "i686-uwp-windows-gnu" || hostPlatform.config == "i686-pc-windows-gnu" then "windows_i686_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_i686_gnu."0.32.0" { inherit profileName; };
-      ${ if hostPlatform.config == "i686-uwp-windows-msvc" || hostPlatform.config == "i686-pc-windows-msvc" then "windows_i686_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_i686_msvc."0.32.0" { inherit profileName; };
-      ${ if hostPlatform.config == "x86_64-uwp-windows-gnu" || hostPlatform.config == "x86_64-pc-windows-gnu" then "windows_x86_64_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_gnu."0.32.0" { inherit profileName; };
-      ${ if hostPlatform.config == "x86_64-pc-windows-msvc" || hostPlatform.config == "x86_64-uwp-windows-msvc" then "windows_x86_64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_msvc."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "i686-pc-windows-msvc" || hostPlatform.config == "i686-uwp-windows-msvc" then "windows_i686_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_i686_msvc."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "x86_64-pc-windows-gnu" || hostPlatform.config == "x86_64-uwp-windows-gnu" then "windows_x86_64_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_gnu."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "x86_64-uwp-windows-msvc" || hostPlatform.config == "x86_64-pc-windows-msvc" then "windows_x86_64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_msvc."0.32.0" { inherit profileName; };
     };
   });
   
