@@ -52,6 +52,14 @@ impl SledCountedTree {
 		res
 	}
 
+	pub fn remove<K: AsRef<[u8]>>(&self, key: K) -> Result<Option<IVec>> {
+		let res = self.0.tree.remove(key);
+		if matches!(res, Ok(Some(_))) {
+			self.0.len.fetch_sub(1, Ordering::Relaxed);
+		}
+		res
+	}
+
 	pub fn pop_min(&self) -> Result<Option<(IVec, IVec)>> {
 		let res = self.0.tree.pop_min();
 		if let Ok(Some(_)) = &res {

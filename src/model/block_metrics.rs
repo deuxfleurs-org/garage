@@ -5,6 +5,7 @@ use garage_util::sled_counter::SledCountedTree;
 /// TableMetrics reference all counter used for metrics
 pub struct BlockManagerMetrics {
 	pub(crate) _resync_queue_len: ValueObserver<u64>,
+	pub(crate) _resync_errored_blocks: ValueObserver<u64>,
 
 	pub(crate) resync_counter: BoundCounter<u64>,
 	pub(crate) resync_error_counter: BoundCounter<u64>,
@@ -22,7 +23,7 @@ pub struct BlockManagerMetrics {
 }
 
 impl BlockManagerMetrics {
-	pub fn new(resync_queue: SledCountedTree) -> Self {
+	pub fn new(resync_queue: SledCountedTree, resync_errors: SledCountedTree) -> Self {
 		let meter = global::meter("garage_model/block");
 		Self {
 			_resync_queue_len: meter
@@ -32,6 +33,12 @@ impl BlockManagerMetrics {
 				.with_description(
 					"Number of block hashes queued for local check and possible resync",
 				)
+				.init(),
+			_resync_errored_blocks: meter
+				.u64_value_observer("block.resync_errored_blocks", move |observer| {
+					observer.observe(resync_errors.len() as u64, &[])
+				})
+				.with_description("Number of block hashes whose last resync resulted in an error")
 				.init(),
 
 			resync_counter: meter
