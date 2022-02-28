@@ -60,6 +60,9 @@ pub async fn check_payload_signature(
 	let (_, scope) = parse_credential(&authorization.credential)?;
 	let string_to_sign = string_to_sign(&authorization.date, &scope, &canonical_request);
 
+	trace!("canonical request:\n{}", canonical_request);
+	trace!("string to sign:\n{}", string_to_sign);
+
 	let key = verify_v4(
 		garage,
 		&authorization.credential,
