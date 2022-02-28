@@ -133,7 +133,7 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 	);
 
 	let ret_doc = match *req.method() {
-		Method::OPTIONS => handle_options(req, &bucket).await,
+		Method::OPTIONS => handle_options(garage.clone(), req, Some(bucket_name.to_string())).await,
 		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key, None).await,
 		Method::GET => handle_get(garage.clone(), req, bucket_id, &key, None).await,
 		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),

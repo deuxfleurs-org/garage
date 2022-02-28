@@ -111,8 +111,12 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	let (endpoint, bucket_name) = Endpoint::from_request(&req, bucket_name.map(ToOwned::to_owned))?;
 	debug!("Endpoint: {:?}", endpoint);
 
-	if let Endpoint::PostObject {} = endpoint {
+	// Some endpoints are processed early, before we even check for an API key
+	if let Endpoint::PostObject = endpoint {
 		return handle_post_object(garage, req, bucket_name.unwrap()).await;
+	}
+	if let Endpoint::Options = endpoint {
+		return handle_options(garage, &req, bucket_name).await;
 	}
 
 	let (api_key, content_sha256) = check_payload_signature(&garage, &req).await?;
@@ -161,7 +165,6 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 	};
 
 	let resp = match endpoint {
-		Endpoint::Options => handle_options(&req, &bucket).await,
 		Endpoint::HeadObject {
 			key, part_number, ..
 		} => handle_head(garage, &req, bucket_id, &key, part_number).await,

@@ -100,7 +100,33 @@ pub async fn handle_put_cors(
 		.body(Body::empty())?)
 }
 
-pub async fn handle_options(req: &Request<Body>, bucket: &Bucket) -> Result<Response<Body>, Error> {
+pub async fn handle_options(
+	garage: Arc<Garage>,
+	req: &Request<Body>,
+	bucket_name: Option<String>,
+) -> Result<Response<Body>, Error> {
+	let bucket = if let Some(bn) = bucket_name {
+		let helper = garage.bucket_helper();
+		let bucket_id = helper
+			.resolve_global_bucket_name(&bn)
+			.await?
+			.ok_or(Error::NoSuchBucket)?;
+		garage
+			.bucket_table
+			.get(&EmptyKey, &bucket_id)
+			.await?
+			.filter(|b| !b.state.is_deleted())
+			.ok_or(Error::NoSuchBucket)?
+	} else {
+		// The only supported API call that doesn't use a bucket name is ListBuckets,
+		// which we want to allow in all cases
+		return Ok(Response::builder()
+			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+			.header(ACCESS_CONTROL_ALLOW_METHODS, "GET")
+			.status(StatusCode::OK)
+			.body(Body::empty())?);
+	};
+
 	let origin = req
 		.headers()
 		.get("Origin")

@@ -414,8 +414,7 @@ pub enum Endpoint {
 	// It's intended to be used with HTML forms, using a multipart/form-data body.
 	// It works a lot like presigned requests, but everything is in the form instead
 	// of being query parameters of the URL, so authenticating it is a bit different.
-	PostObject {
-	},
+	PostObject,
 }}
 
 impl Endpoint {
@@ -430,7 +429,11 @@ impl Endpoint {
 		let path = uri.path().trim_start_matches('/');
 		let query = uri.query();
 		if bucket.is_none() && path.is_empty() {
-			return Ok((Self::ListBuckets, None));
+			if *req.method() == Method::OPTIONS {
+				return Ok((Self::Options, None));
+			} else {
+				return Ok((Self::ListBuckets, None));
+			}
 		}
 
 		let (bucket, key) = if let Some(bucket) = bucket {
