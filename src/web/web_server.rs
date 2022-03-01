@@ -13,7 +13,7 @@ use crate::error::*;
 
 use garage_api::error::{Error as ApiError, OkOrBadRequest, OkOrInternalError};
 use garage_api::helpers::{authority_to_host, host_to_bucket};
-use garage_api::s3_cors::{add_cors_headers, find_matching_cors_rule, handle_options};
+use garage_api::s3_cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
 use garage_api::s3_get::{handle_get, handle_head};
 
 use garage_model::garage::Garage;
@@ -133,7 +133,7 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 	);
 
 	let ret_doc = match *req.method() {
-		Method::OPTIONS => handle_options(garage.clone(), req, Some(bucket_name.to_string())).await,
+		Method::OPTIONS => handle_options_for_bucket(req, &bucket),
 		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key, None).await,
 		Method::GET => handle_get(garage.clone(), req, bucket_id, &key, None).await,
 		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),

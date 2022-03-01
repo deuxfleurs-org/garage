@@ -116,7 +116,7 @@ async fn handler_inner(garage: Arc<Garage>, req: Request<Body>) -> Result<Respon
 		return handle_post_object(garage, req, bucket_name.unwrap()).await;
 	}
 	if let Endpoint::Options = endpoint {
-		return handle_options(garage, &req, bucket_name).await;
+		return handle_options_s3api(garage, &req, bucket_name).await;
 	}
 
 	let (api_key, content_sha256) = check_payload_signature(&garage, &req).await?;

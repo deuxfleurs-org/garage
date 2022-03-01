@@ -100,33 +100,63 @@ pub async fn handle_put_cors(
 		.body(Body::empty())?)
 }
 
-pub async fn handle_options(
+pub async fn handle_options_s3api(
 	garage: Arc<Garage>,
 	req: &Request<Body>,
 	bucket_name: Option<String>,
 ) -> Result<Response<Body>, Error> {
-	let bucket = if let Some(bn) = bucket_name {
+	// FIXME: CORS rules of buckets with local aliases are
+	// not taken into account.
+
+	// If the bucket name is a global bucket name,
+	// we try to apply the CORS rules of that bucket.
+	// If a user has a local bucket name that has
+	// the same name, its CORS rules won't be applied
+	// and will be shadowed by the rules of the globally
+	// existing bucket (but this is inevitable because
+	// OPTIONS calls are not auhtenticated).
+	if let Some(bn) = bucket_name {
 		let helper = garage.bucket_helper();
-		let bucket_id = helper
-			.resolve_global_bucket_name(&bn)
-			.await?
-			.ok_or(Error::NoSuchBucket)?;
-		garage
-			.bucket_table
-			.get(&EmptyKey, &bucket_id)
-			.await?
-			.filter(|b| !b.state.is_deleted())
-			.ok_or(Error::NoSuchBucket)?
+		let bucket_id = helper.resolve_global_bucket_name(&bn).await?;
+		if let Some(id) = bucket_id {
+			let bucket = garage
+				.bucket_table
+				.get(&EmptyKey, &id)
+				.await?
+				.filter(|b| !b.state.is_deleted())
+				.ok_or(Error::NoSuchBucket)?;
+			handle_options_for_bucket(req, &bucket)
+		} else {
+			// If there is a bucket name in the request, but that name
+			// does not correspond to a global alias for a bucket,
+			// then it's either a non-existing bucket or a local bucket.
+			// We have no way of knowing, because the request is not
+			// authenticated and thus we can't resolve local aliases.
+			// We take the permissive approach of allowing everything,
+			// because we don't want to prevent web apps that use
+			// local bucket names from making API calls.
+			Ok(Response::builder()
+				.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+				.header(ACCESS_CONTROL_ALLOW_METHODS, "*")
+				.status(StatusCode::OK)
+				.body(Body::empty())?)
+		}
 	} else {
-		// The only supported API call that doesn't use a bucket name is ListBuckets,
-		// which we want to allow in all cases
-		return Ok(Response::builder()
+		// If there is no bucket name in the request,
+		// we are doing a ListBuckets call, which we want to allow
+		// for all origins.
+		Ok(Response::builder()
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "GET")
 			.status(StatusCode::OK)
-			.body(Body::empty())?);
-	};
+			.body(Body::empty())?)
+	}
+}
 
+pub fn handle_options_for_bucket(
+	req: &Request<Body>,
+	bucket: &Bucket,
+) -> Result<Response<Body>, Error> {
 	let origin = req
 		.headers()
 		.get("Origin")
