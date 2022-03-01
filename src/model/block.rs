@@ -862,9 +862,11 @@ impl BlockManagerLocked {
 		let data = data.inner_buffer();
 
 		let mut path = mgr.block_dir(hash);
-		fs::create_dir_all(&path).await?;
-
+		let directory = path.clone();
 		path.push(hex::encode(hash));
+
+		fs::create_dir_all(&directory).await?;
+
 		let to_delete = match (mgr.is_block_compressed(hash).await, compressed) {
 			(Ok(true), _) => return Ok(BlockRpc::Ok),
 			(Ok(false), false) => return Ok(BlockRpc::Ok),
@@ -885,12 +887,21 @@ impl BlockManagerLocked {
 		path2.set_extension("tmp");
 		let mut f = fs::File::create(&path2).await?;
 		f.write_all(data).await?;
+		f.sync_all().await?;
 		drop(f);
 
 		fs::rename(path2, path).await?;
 		if let Some(to_delete) = to_delete {
 			fs::remove_file(to_delete).await?;
 		}
+
+		let dir = fs::OpenOptions::new()
+			.read(true)
+			.mode(0)
+			.open(directory)
+			.await?;
+		dir.sync_all().await?;
+		drop(dir);
 
 		Ok(BlockRpc::Ok)
 	}
