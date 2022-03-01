@@ -38,7 +38,6 @@ use crate::garage::Garage;
 /// Size under which data will be stored inlined in database instead of as files
 pub const INLINE_THRESHOLD: usize = 3072;
 
-pub const BACKGROUND_WORKERS: u64 = 1;
 pub const BACKGROUND_TRANQUILITY: u32 = 2;
 
 // Timeout for RPCs that read and write blocks to remote nodes
@@ -512,17 +511,14 @@ impl BlockManager {
 	// ---- Resync loop ----
 
 	pub fn spawn_background_worker(self: Arc<Self>) {
-		// Launch n simultaneous workers for background resync loop preprocessing
-		for i in 0..BACKGROUND_WORKERS {
-			let bm2 = self.clone();
-			let background = self.system.background.clone();
-			tokio::spawn(async move {
-				tokio::time::sleep(Duration::from_secs(10 * (i + 1))).await;
-				background.spawn_worker(format!("block resync worker {}", i), move |must_exit| {
-					bm2.resync_loop(must_exit)
-				});
+		// Launch a background workers for background resync loop processing
+		let background = self.system.background.clone();
+		tokio::spawn(async move {
+			tokio::time::sleep(Duration::from_secs(10)).await;
+			background.spawn_worker("block resync worker".into(), move |must_exit| {
+				self.resync_loop(must_exit)
 			});
-		}
+		});
 	}
 
 	fn put_to_resync(&self, hash: &Hash, delay: Duration) -> Result<(), Error> {
