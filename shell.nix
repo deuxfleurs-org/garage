@@ -13,6 +13,7 @@ let
     overlays = [ cargo2nixOverlay ];
   };
   kaniko = (import ./nix/kaniko.nix) pkgs;
+  winscp = (import ./nix/winscp.nix) pkgs;
 
 in
 
@@ -79,7 +80,8 @@ function refresh_toolchain {
      cargo2nix.packages.x86_64-linux.cargo2nix
     ] else [])
    ++
-   (if integration then [ 
+   (if integration then [
+     winscp
      pkgs.s3cmd
      pkgs.awscli2
      pkgs.minio-client

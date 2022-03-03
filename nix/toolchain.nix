@@ -18,6 +18,7 @@ let
   pkgsHost = import pkgsSrc {};
   lib = pkgsHost.lib;
   kaniko = (import ./kaniko.nix) pkgsHost;
+  winscp = (import ./winscp.nix) pkgsHost;
 in 
   lib.flatten (builtins.map (pkgs: [
      pkgs.rustPlatform.rust.rustc
@@ -25,5 +26,6 @@ in
      pkgs.buildPackages.stdenv.cc
   ]) pkgsList) ++ [
     kaniko
+    winscp
   ]
 

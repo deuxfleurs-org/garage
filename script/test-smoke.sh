@@ -116,6 +116,31 @@ if [ -z "$SKIP_DUCK" ]; then
   done
 fi
 
+if [ -z "$SKIP_WINSCP" ]; then
+  echo "🛠️ Testing with winscp"
+  source ${SCRIPT_FOLDER}/dev-env-winscp.sh
+  winscp <<EOF
+open $WINSCP_URL
+ls
+mkdir eprouvette/winscp
+EOF
+  for idx in {1..3}.{rnd,b64}; do
+    winscp <<EOF
+open $WINSCP_URL
+put Z:\\tmp\\garage.$idx eprouvette/winscp/garage.$idx.winscp
+ls eprouvette/winscp/
+get eprouvette/winscp/garage.$idx.winscp Z:\\tmp\\garage.$idx.dl
+rm eprouvette/winscp/garage.$idx.winscp
+EOF
+    diff /tmp/garage.$idx /tmp/garage.$idx.dl
+    rm /tmp/garage.$idx.dl
+  done
+  winscp <<EOF
+open $WINSCP_URL
+rm eprouvette/winscp
+EOF
+fi
+
 # Advanced testing via S3API
 if [ -z "$SKIP_AWS" ]; then
   echo "🔌 Test S3API"
