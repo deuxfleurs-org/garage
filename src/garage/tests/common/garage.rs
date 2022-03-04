@@ -6,7 +6,7 @@ use std::sync::Once;
 use super::ext::*;
 
 // https://xkcd.com/221/
-const DEFAULT_PORT: u16 = 49995;
+pub const DEFAULT_PORT: u16 = 49995;
 
 static GARAGE_TEST_SECRET: &str =
 	"c3ea8cb80333d04e208d136698b1a01ae370d463f0d435ab2177510b3478bf44";

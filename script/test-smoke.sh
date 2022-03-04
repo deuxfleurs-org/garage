@@ -141,28 +141,6 @@ rm eprouvette/winscp
 EOF
 fi
 
-# Advanced testing via S3API
-if [ -z "$SKIP_AWS" ]; then
-  echo "Test CORS endpoints"
-  garage -c /tmp/config.1.toml bucket website --allow eprouvette
-  aws s3api put-object --bucket eprouvette --key index.html
-  CORS='{"CORSRules":[{"AllowedHeaders":["*"],"AllowedMethods":["GET","PUT"],"AllowedOrigins":["*"]}]}'
-  aws s3api put-bucket-cors --bucket eprouvette --cors-configuration $CORS
-  [ `aws s3api get-bucket-cors --bucket eprouvette | jq -c` == $CORS ]
-
-  curl -s -i -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep access-control-allow-origin
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep access-control-allow-methods
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: DELETE' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep '403 Forbidden'
-
-  #@TODO we may want to test the S3 endpoint but we need to handle authentication, which is way more complex.
-
-  aws s3api delete-bucket-cors --bucket eprouvette
-  ! [ -s `aws s3api get-bucket-cors --bucket eprouvette` ]
-  curl -s -i -X OPTIONS -H 'Access-Control-Request-Method: PUT' -H 'Origin: http://example.com' --header "Host: eprouvette.web.garage.localhost" http://127.0.0.1:3921/ | grep '403 Forbidden'
-  aws s3api delete-object --bucket eprouvette --key index.html
-  garage -c /tmp/config.1.toml bucket website --deny eprouvette
-fi
-
 rm /tmp/garage.{1..3}.{rnd,b64}
 
 if [ -z "$SKIP_AWS" ]; then
@@ -178,19 +156,6 @@ if [ -z "$SKIP_AWS" ]; then
   [ $(aws s3 ls | wc -l) == 2 ]
   garage -c /tmp/config.1.toml bucket delete --yes seau
   [ $(aws s3 ls | wc -l) == 1 ]
-fi
-
-if [ -z "$SKIP_AWS" ]; then
-  echo "🧪 Website Testing"
-  echo "<h1>hello world</h1>" > /tmp/garage-index.html
-  aws s3 cp /tmp/garage-index.html s3://eprouvette/index.html
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 404 ]
-  garage -c /tmp/config.1.toml bucket website --allow eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 200 ]
-  garage -c /tmp/config.1.toml bucket website --deny eprouvette
-  [ `curl -s -o /dev/null -w "%{http_code}" --header "Host: eprouvette.web.garage.localhost"  http://127.0.0.1:3921/ ` == 404 ]
-  aws s3 rm s3://eprouvette/index.html
-  rm /tmp/garage-index.html
 fi
 
 echo "🏁 Teardown"

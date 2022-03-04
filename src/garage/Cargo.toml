@@ -55,5 +55,6 @@ netapp = "0.3.0"
 [dev-dependencies]
 aws-sdk-s3 = "0.6"
 http = "0.2"
+hyper = { version = "0.14", features = ["client", "http1", "runtime"] }
 
 static_init = "1.0"

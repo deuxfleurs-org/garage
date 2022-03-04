@@ -675,6 +675,7 @@ dependencies = [
  "git-version",
  "hex",
  "http",
+ "hyper",
  "kuska-sodiumoxide",
  "log",
  "netapp",
