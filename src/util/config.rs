@@ -52,6 +52,13 @@ pub struct Config {
 	pub consul_host: Option<String>,
 	/// Consul service name to use
 	pub consul_service_name: Option<String>,
+	/// Kubernetes namespace the service discovery resources are be created in
+	pub kubernetes_namespace: Option<String>,
+	/// Service name to filter for in k8s custom resources
+	pub kubernetes_service_name: Option<String>,
+	/// Skip creation of the garagenodes CRD
+	#[serde(default)]
+	pub kubernetes_skip_crd: bool,
 
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]

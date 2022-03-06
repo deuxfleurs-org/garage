@@ -38,3 +38,6 @@ netapp = "0.3.0"
 
 http = "0.2"
 hyper = "0.14"
+
+kube = { version = "0.62", features = ["runtime", "derive"] }
+k8s-openapi = { version = "0.13", features = ["v1_22"] }

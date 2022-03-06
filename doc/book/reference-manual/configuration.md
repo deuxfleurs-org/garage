@@ -29,6 +29,10 @@ bootstrap_peers = [
 consul_host = "consul.service"
 consul_service_name = "garage-daemon"
 
+kubernetes_namespace = "garage"
+kubernetes_service_name = "garage-daemon"
+kubernetes_skip_crd = false
+
 sled_cache_capacity = 134217728
 sled_flush_every_ms = 2000
 
@@ -180,6 +184,20 @@ and `consul_service_name` should be set to the service name under which Garage's
 RPC ports are announced.
 
 Garage does not yet support talking to Consul over TLS.
+
+### `kubernetes_namespace`, `kubernetes_service_name` and `kubernetes_skip_crd`
+
+Garage supports discovering other nodes of the cluster using kubernetes custom
+resources. For this to work `kubernetes_namespace` and `kubernetes_service_name`
+need to be configured.
+
+`kubernetes_namespace` sets the namespace in which the custom resources are
+configured. `kubernetes_service_name` is added as a label to these resources to
+filter them, to allow for multiple deployments in a single namespace.
+
+`kubernetes_skip_crd` can be set to true to disable the automatic creation and
+patching of the `garagenodes.deuxfleurs.fr` CRD. You will need to create the CRD
+manually.
 
 ### `sled_cache_capacity`
 

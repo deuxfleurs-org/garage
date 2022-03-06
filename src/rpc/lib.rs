@@ -4,6 +4,7 @@
 extern crate log;
 
 mod consul;
+mod kubernetes;
 
 pub mod layout;
 pub mod ring;
