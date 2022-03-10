@@ -68,10 +68,14 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		wait_from(watch_cancel.clone()),
 	));
 
-	info!("Configure and run admin web server...");
-	let admin_server = tokio::spawn(
-		admin_server_init.run(config.admin.api_bind_addr, wait_from(watch_cancel.clone())),
-	);
+	let admin_server = if let Some(admin_bind_addr) = config.admin.api_bind_addr {
+		info!("Configure and run admin web server...");
+		Some(tokio::spawn(
+			admin_server_init.run(admin_bind_addr, wait_from(watch_cancel.clone())),
+		))
+	} else {
+		None
+	};
 
 	// Stuff runs
 
@@ -82,8 +86,10 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	if let Err(e) = web_server.await? {
 		warn!("Web server exited with error: {}", e);
 	}
-	if let Err(e) = admin_server.await? {
-		warn!("Admin web server exited with error: {}", e);
+	if let Some(a) = admin_server {
+		if let Err(e) = a.await? {
+			warn!("Admin web server exited with error: {}", e);
+		}
 	}
 
 	// Remove RPC handlers for system to break reference cycles

@@ -75,6 +75,7 @@ pub struct Config {
 	pub s3_web: WebConfig,
 
 	/// Configuration for the admin API endpoint
+	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
 }
 
@@ -100,10 +101,10 @@ pub struct WebConfig {
 }
 
 /// Configuration for the admin and monitoring HTTP API
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
-	pub api_bind_addr: SocketAddr,
+	pub api_bind_addr: Option<SocketAddr>,
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
 }
