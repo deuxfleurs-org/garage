@@ -1,6 +1,6 @@
 use crate::common;
 use aws_sdk_s3::model::{CompletedMultipartUpload, CompletedPart};
-use aws_sdk_s3::ByteStream;
+use aws_sdk_s3::types::ByteStream;
 
 const SZ_5MB: usize = 5 * 1024 * 1024;
 const SZ_10MB: usize = 10 * 1024 * 1024;

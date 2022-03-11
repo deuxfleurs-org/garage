@@ -10,7 +10,8 @@ mod encoding;
 mod api_server;
 pub use api_server::run_api_server;
 
-mod signature;
+/// This mode is public only to help testing. Don't expect stability here
+pub mod signature;
 
 pub mod helpers;
 mod s3_bucket;

@@ -5,22 +5,31 @@ use ext::*;
 pub mod macros;
 
 pub mod client;
+pub mod custom_requester;
 pub mod ext;
 pub mod garage;
+
+use custom_requester::CustomRequester;
 
 const REGION: Region = Region::from_static("garage-integ-test");
 
 pub struct Context {
 	pub garage: &'static garage::Instance,
 	pub client: Client,
+	pub custom_request: CustomRequester,
 }
 
 impl Context {
 	fn new() -> Self {
 		let garage = garage::instance();
 		let client = client::build_client(garage);
+		let custom_request = CustomRequester::new(garage);
 
-		Context { garage, client }
+		Context {
+			garage,
+			client,
+			custom_request,
+		}
 	}
 
 	/// Create an unique bucket with a random suffix.

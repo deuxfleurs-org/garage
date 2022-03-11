@@ -2,7 +2,7 @@ use crate::common;
 
 #[tokio::test]
 async fn test_simple() {
-	use aws_sdk_s3::ByteStream;
+	use aws_sdk_s3::types::ByteStream;
 
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("test-simple");

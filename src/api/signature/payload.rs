@@ -51,8 +51,7 @@ pub async fn check_payload_signature(
 
 	let canonical_request = canonical_request(
 		request.method(),
-		request.uri().path(),
-		&canonical_query_string(request.uri()),
+		request.uri(),
 		&headers,
 		&authorization.signed_headers,
 		&authorization.content_sha256,
@@ -215,7 +214,7 @@ fn parse_credential(cred: &str) -> Result<(String, String), Error> {
 	))
 }
 
-fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &str) -> String {
+pub fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &str) -> String {
 	let mut hasher = Sha256::default();
 	hasher.update(canonical_req.as_bytes());
 	[
@@ -227,18 +226,17 @@ fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &
 	.join("\n")
 }
 
-fn canonical_request(
+pub fn canonical_request(
 	method: &Method,
-	url_path: &str,
-	canonical_query_string: &str,
+	uri: &hyper::Uri,
 	headers: &HashMap<String, String>,
 	signed_headers: &str,
 	content_sha256: &str,
 ) -> String {
 	[
 		method.as_str(),
-		url_path,
-		canonical_query_string,
+		&uri.path().to_string(),
+		&canonical_query_string(uri),
 		&canonical_header_string(headers, signed_headers),
 		"",
 		signed_headers,

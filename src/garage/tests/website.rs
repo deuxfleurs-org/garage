@@ -2,7 +2,7 @@ use crate::common;
 use crate::common::ext::*;
 use aws_sdk_s3::{
 	model::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
-	ByteStream,
+	types::ByteStream,
 };
 use http::Request;
 use hyper::{

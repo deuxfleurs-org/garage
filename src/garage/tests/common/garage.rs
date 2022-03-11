@@ -11,7 +11,7 @@ pub const DEFAULT_PORT: u16 = 49995;
 static GARAGE_TEST_SECRET: &str =
 	"c3ea8cb80333d04e208d136698b1a01ae370d463f0d435ab2177510b3478bf44";
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Key {
 	pub name: String,
 	pub id: String,

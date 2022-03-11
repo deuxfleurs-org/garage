@@ -150,29 +150,29 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"; };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-endpoint."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-endpoint."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-endpoint";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "06d059b181b25940b751e8efecc173ceb4fe65f45d8975f56b02e98db5c42fd6"; };
+    src = fetchCratesIo { inherit name version; sha256 = "d0990fe9d60185efea41850b10a205f4a9abe71499ec70298b11d2d830130167"; };
     dependencies = {
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
-      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.6.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
+      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.8.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       regex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".regex."1.5.5" { inherit profileName; };
       tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-http."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-http."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-http";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "3049066e3282c98bbf01e90459a1772ccf6c0b96cd1483c3dd5aa34bef9b9de1"; };
+    src = fetchCratesIo { inherit name version; sha256 = "6794b0b27fb74ef2696c41e1be08e916993ef043bbeda7ec554c4f50c3b81506"; };
     dependencies = {
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
-      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.6.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
+      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.8.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       lazy_static = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" { inherit profileName; };
       percent_encoding = rustPackages."registry+https://github.com/rust-lang/crates.io-index".percent-encoding."2.1.0" { inherit profileName; };
@@ -180,29 +180,29 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-sdk-s3."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-sdk-s3."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-sdk-s3";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "7d70be50ac07c3c2b5f37056271856ac00190e80c19c76c58bcbee5be0b63ec9"; };
+    src = fetchCratesIo { inherit name version; sha256 = "986a15277ad7adf67c32059359d60584426b4fa0c30ef34d153bbe47a83cbad7"; };
     features = builtins.concatLists [
       [ "default" ]
       [ "rt-tokio" ]
       [ "rustls" ]
     ];
     dependencies = {
-      aws_endpoint = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-endpoint."0.6.0" { inherit profileName; };
-      aws_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-http."0.6.0" { inherit profileName; };
-      aws_sig_auth = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sig-auth."0.6.0" { inherit profileName; };
-      aws_sigv4 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.6.0" { inherit profileName; };
-      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.36.0" { inherit profileName; };
-      aws_smithy_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-client."0.36.0" { inherit profileName; };
-      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.36.0" { inherit profileName; };
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
-      aws_smithy_http_tower = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.36.0" { inherit profileName; };
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
-      aws_smithy_xml = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-xml."0.36.0" { inherit profileName; };
-      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.6.0" { inherit profileName; };
+      aws_endpoint = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-endpoint."0.8.0" { inherit profileName; };
+      aws_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-http."0.8.0" { inherit profileName; };
+      aws_sig_auth = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sig-auth."0.8.0" { inherit profileName; };
+      aws_sigv4 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.8.0" { inherit profileName; };
+      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.38.0" { inherit profileName; };
+      aws_smithy_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-client."0.38.0" { inherit profileName; };
+      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.38.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
+      aws_smithy_http_tower = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.38.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
+      aws_smithy_xml = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-xml."0.38.0" { inherit profileName; };
+      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.8.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       md5 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".md5."0.7.0" { inherit profileName; };
@@ -211,31 +211,31 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-sig-auth."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-sig-auth."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-sig-auth";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "4012b5192350b5403aba19a01a5a3b1768158dab936c4269d89760970d4812bc"; };
+    src = fetchCratesIo { inherit name version; sha256 = "3fa501148ae6b5e0de5eeb8c4cf87fa3403d9a00077e543ad64011da781f73a6"; };
     features = builtins.concatLists [
       [ "aws-smithy-eventstream" ]
       [ "sign-eventstream" ]
     ];
     dependencies = {
-      aws_sigv4 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.6.0" { inherit profileName; };
-      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.36.0" { inherit profileName; };
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
-      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.6.0" { inherit profileName; };
+      aws_sigv4 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.8.0" { inherit profileName; };
+      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.38.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
+      aws_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-types."0.8.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.30" { inherit profileName; };
       tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-sigv4."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-sigv4";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "41f4b9c0c3a34e5152a0cd5e43b8f2cfd780e3bd7a245948d8787e051095ac4c"; };
+    src = fetchCratesIo { inherit name version; sha256 = "51d371fb688d909e5b866ff1f297bbec4621eed4f9fcdac566fcc33541f0c6a6"; };
     features = builtins.concatLists [
       [ "aws-smithy-eventstream" ]
       [ "bytes" ]
@@ -247,8 +247,8 @@ in
       [ "sign-http" ]
     ];
     dependencies = {
-      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.36.0" { inherit profileName; };
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
+      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.38.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       form_urlencoded = rustPackages."registry+https://github.com/rust-lang/crates.io-index".form_urlencoded."1.0.1" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
@@ -262,11 +262,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-async";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "b69dad0aefb1b64e63e0d3a1310dc50191608d8c9e226f2f241f344a7173642e"; };
+    src = fetchCratesIo { inherit name version; sha256 = "8ec4efb4a27ced592009787f4f03925f348a5b4a55e6a617e6819788d6cd5ed8"; };
     features = builtins.concatLists [
       [ "rt-tokio" ]
     ];
@@ -278,11 +278,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-client."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-client."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-client";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "93e47a8aca2194672518d6630936507d3b54598c482f13ffe53f9b7932724bbb"; };
+    src = fetchCratesIo { inherit name version; sha256 = "dad1857eb59d562e82f05c02fbcb9f46c1089301c86770a9798c9e64e5a4677a"; };
     features = builtins.concatLists [
       [ "client-hyper" ]
       [ "hyper" ]
@@ -292,10 +292,10 @@ in
       [ "rustls" ]
     ];
     dependencies = {
-      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.36.0" { inherit profileName; };
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
-      aws_smithy_http_tower = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.36.0" { inherit profileName; };
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
+      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.38.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
+      aws_smithy_http_tower = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.38.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       fastrand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".fastrand."1.7.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
@@ -311,23 +311,23 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-eventstream";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "f98bcfcb063d29c7cc7bb0a64830afe606090de75533c10a11a05460d814e8d9"; };
+    src = fetchCratesIo { inherit name version; sha256 = "f972226c639e0dc1eca2cb0220c1b5799e2bfc62eda37845b662c5d0cb972371"; };
     dependencies = {
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       crc32fast = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crc32fast."1.3.2" { inherit profileName; };
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-http";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "1c8bbe92ecdc4e39a612359b09994c45d000591d4951aa7343443f44b47e6696"; };
+    src = fetchCratesIo { inherit name version; sha256 = "12c787e24b757634453a60ff05948aa1b450f5b3a7a2094f22acff8a5022635b"; };
     features = builtins.concatLists [
       [ "aws-smithy-eventstream" ]
       [ "event-stream" ]
@@ -336,8 +336,8 @@ in
       [ "tokio-util" ]
     ];
     dependencies = {
-      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.36.0" { inherit profileName; };
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
+      aws_smithy_eventstream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-eventstream."0.38.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       bytes_utils = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes-utils."0.1.1" { inherit profileName; };
       futures_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.21" { inherit profileName; };
@@ -352,13 +352,13 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http-tower."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-http-tower";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "f23fdf1253855af3bb4abb25e42ad3152a71241af89014eebf27c14c7a59b81d"; };
+    src = fetchCratesIo { inherit name version; sha256 = "64f80a2c56fc09fc9a2da3c63f286ec2a89465433219f8165e14e522283a5eb8"; };
     dependencies = {
-      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.36.0" { inherit profileName; };
+      aws_smithy_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-http."0.38.0" { inherit profileName; };
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       http_body = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http-body."0.4.4" { inherit profileName; };
@@ -368,11 +368,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-types";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "cde96306a54777ec8781aa510830e242de614aa5746274713f5ecac0779f644f"; };
+    src = fetchCratesIo { inherit name version; sha256 = "dfed653678d1059bed597054c65ce44892aa79cd94444e386d7611843db9f0a2"; };
     dependencies = {
       itoa = rustPackages."registry+https://github.com/rust-lang/crates.io-index".itoa."1.0.1" { inherit profileName; };
       num_integer = rustPackages."registry+https://github.com/rust-lang/crates.io-index".num-integer."0.1.44" { inherit profileName; };
@@ -381,25 +381,26 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-xml."0.36.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-smithy-xml."0.38.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-smithy-xml";
-    version = "0.36.0";
+    version = "0.38.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "e3b0466594a86074a6e96b11284f9a9ddc90c5c5b7d6144ab357a90be49d28c4"; };
+    src = fetchCratesIo { inherit name version; sha256 = "7aa6c9de6c3f875faabcaaad1fb1f4ef241683bfc22795f731719e3568c3ca9f"; };
     dependencies = {
       thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.30" { inherit profileName; };
       xmlparser = rustPackages."registry+https://github.com/rust-lang/crates.io-index".xmlparser."0.13.3" { inherit profileName; };
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".aws-types."0.6.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".aws-types."0.8.0" = overridableMkRustCrate (profileName: rec {
     name = "aws-types";
-    version = "0.6.0";
+    version = "0.8.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "433fd128ea727e9b83b34c72c6d4db1b900f067760fa27b387694fe896633142"; };
+    src = fetchCratesIo { inherit name version; sha256 = "b111a0d144e1c570675358d2fae7eb5ddf9010d9db63142fe3bb80353ff65f38"; };
     dependencies = {
-      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.36.0" { inherit profileName; };
-      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.36.0" { inherit profileName; };
+      aws_smithy_async = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-async."0.38.0" { inherit profileName; };
+      aws_smithy_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-client."0.38.0" { inherit profileName; };
+      aws_smithy_types = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-smithy-types."0.38.0" { inherit profileName; };
       tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
       zeroize = rustPackages."registry+https://github.com/rust-lang/crates.io-index".zeroize."1.5.3" { inherit profileName; };
     };
@@ -1196,9 +1197,12 @@ in
       tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
     };
     devDependencies = {
-      aws_sdk_s3 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sdk-s3."0.6.0" { inherit profileName; };
+      aws_sdk_s3 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sdk-s3."0.8.0" { inherit profileName; };
+      chrono = rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.19" { inherit profileName; };
+      hmac = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hmac."0.10.1" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.17" { inherit profileName; };
+      sha2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".sha2."0.9.9" { inherit profileName; };
       static_init = rustPackages."registry+https://github.com/rust-lang/crates.io-index".static_init."1.0.2" { inherit profileName; };
     };
   });
