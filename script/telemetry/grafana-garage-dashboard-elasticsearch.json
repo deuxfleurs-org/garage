@@ -21,7 +21,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.3.5"
+      "version": "8.4.3"
     },
     {
       "type": "panel",
@@ -53,6 +53,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
+  "iteration": 1647250457308,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -116,6 +117,7 @@
         "y": 0
       },
       "id": 8,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -123,7 +125,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -146,7 +149,8 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "min_doc_count": "0",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -170,7 +174,7 @@
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -225,7 +229,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -236,6 +241,7 @@
         "y": 0
       },
       "id": 11,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -243,7 +249,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -282,7 +289,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "E",
           "timeField": "@timestamp"
         }
@@ -297,7 +304,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
+            "axisLabel": "Error rate",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
             "barAlignment": 0,
@@ -350,6 +357,7 @@
         "y": 0
       },
       "id": 17,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -357,7 +365,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -391,7 +400,8 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "min_doc_count": "0",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -412,10 +422,13 @@
               "hide": false,
               "id": "5",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -472,7 +485,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -483,6 +497,7 @@
         "y": 8
       },
       "id": 18,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -490,7 +505,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -504,7 +520,7 @@
                 "min_doc_count": "1",
                 "order": "desc",
                 "orderBy": "_term",
-                "size": "10"
+                "size": "15"
               },
               "type": "terms"
             },
@@ -534,10 +550,13 @@
               "hide": false,
               "id": "5",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -592,7 +611,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -603,6 +623,7 @@
         "y": 8
       },
       "id": 19,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -610,7 +631,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -649,7 +671,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "E",
           "timeField": "@timestamp"
         }
@@ -706,7 +728,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -724,7 +747,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -758,7 +782,8 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "min_doc_count": "0",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -782,7 +807,7 @@
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -857,7 +882,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -879,7 +905,8 @@
               "field": "@timestamp",
               "id": "2",
               "settings": {
-                "interval": "auto"
+                "interval": "auto",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -903,7 +930,7 @@
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "B",
           "timeField": "@timestamp"
         }
@@ -978,7 +1005,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1001,7 +1029,8 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "min_doc_count": "0",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -1025,7 +1054,7 @@
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "C",
           "timeField": "@timestamp"
         }
@@ -1081,7 +1110,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -1099,7 +1129,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1111,7 +1142,7 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "trimEdges": "0"
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -1133,10 +1164,13 @@
               "hide": false,
               "id": "4",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "C",
           "timeField": "@timestamp"
         }
@@ -1192,7 +1226,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "binBps"
         },
         "overrides": []
       },
@@ -1203,6 +1238,7 @@
         "y": 16
       },
       "id": 15,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -1210,7 +1246,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1243,10 +1280,13 @@
               "hide": false,
               "id": "4",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -1314,6 +1354,7 @@
         "y": 23
       },
       "id": 2,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -1321,7 +1362,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1332,7 +1374,8 @@
               "field": "@timestamp",
               "id": "2",
               "settings": {
-                "interval": "auto"
+                "interval": "auto",
+                "trimEdges": "0"
               },
               "type": "date_histogram"
             }
@@ -1352,10 +1395,13 @@
               "field": "1",
               "id": "5",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "Resyncs",
           "timeField": "@timestamp"
         }
@@ -1398,6 +1444,7 @@
             }
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1428,7 +1475,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1440,7 +1488,7 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "trimEdges": "5"
+                "trimEdges": "2"
               },
               "type": "date_histogram"
             }
@@ -1457,7 +1505,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "Resync queue",
           "timeField": "@timestamp"
         }
@@ -1466,10 +1514,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "elasticsearch",
-        "uid": "${DS_DS_ELASTICSEARCH}"
-      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1510,10 +1554,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -1527,6 +1567,7 @@
         "y": 23
       },
       "id": 4,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -1534,7 +1575,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1573,7 +1615,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:\"metric\"",
+          "query": "processor.event:\"metric\" AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -1646,7 +1688,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1670,7 +1713,7 @@
               "settings": {
                 "interval": "auto",
                 "min_doc_count": "0",
-                "trimEdges": "0"
+                "trimEdges": "2"
               },
               "type": "date_histogram"
             }
@@ -1686,7 +1729,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:\"metric\"",
+          "query": "processor.event:\"metric\" AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -1703,7 +1746,6 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -1737,13 +1779,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1753,7 +1792,7 @@
         "x": 0,
         "y": 29
       },
-      "id": 13,
+      "id": 24,
       "options": {
         "legend": {
           "calcs": [],
@@ -1761,7 +1800,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1769,22 +1809,11 @@
           "alias": "",
           "bucketAggs": [
             {
-              "field": "labels.rpc_endpoint",
-              "id": "6",
-              "settings": {
-                "min_doc_count": "1",
-                "order": "desc",
-                "orderBy": "_term",
-                "size": "10"
-              },
-              "type": "terms"
-            },
-            {
               "field": "@timestamp",
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "trimEdges": "0"
               },
               "type": "date_histogram"
             }
@@ -1795,25 +1824,28 @@
           },
           "metrics": [
             {
-              "field": "rpc_request_counter",
+              "field": "block_resync_error_counter",
               "hide": true,
               "id": "1",
+              "settings": {},
               "type": "sum"
             },
             {
               "field": "1",
-              "hide": false,
-              "id": "5",
+              "id": "3",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
       ],
-      "title": "RPC counters",
+      "title": "Resync errors",
       "type": "timeseries"
     },
     {
@@ -1825,7 +1857,6 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -1875,7 +1906,7 @@
         "x": 6,
         "y": 29
       },
-      "id": 16,
+      "id": 25,
       "options": {
         "legend": {
           "calcs": [],
@@ -1883,7 +1914,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -1891,23 +1923,11 @@
           "alias": "",
           "bucketAggs": [
             {
-              "field": "labels.rpc_endpoint",
-              "id": "6",
-              "settings": {
-                "min_doc_count": "1",
-                "order": "desc",
-                "orderBy": "_term",
-                "size": "10"
-              },
-              "type": "terms"
-            },
-            {
               "field": "@timestamp",
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0",
-                "trimEdges": "4"
+                "trimEdges": "2"
               },
               "type": "date_histogram"
             }
@@ -1918,17 +1938,18 @@
           },
           "metrics": [
             {
-              "field": "rpc_duration",
+              "field": "block_resync_errored_blocks",
+              "hide": false,
               "id": "1",
-              "type": "avg"
+              "type": "sum"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
       ],
-      "title": "RPC duration",
+      "title": "Blocks in error status",
       "type": "timeseries"
     },
     {
@@ -1940,7 +1961,6 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
-            "axisSoftMin": 0,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -1990,6 +2010,117 @@
         "x": 12,
         "y": 29
       },
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto"
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "${DS_DS_ELASTICSEARCH}"
+          },
+          "metrics": [
+            {
+              "field": "block_corruption_counter",
+              "hide": true,
+              "id": "1",
+              "type": "sum"
+            },
+            {
+              "field": "1",
+              "id": "3",
+              "pipelineAgg": "1",
+              "type": "derivative"
+            }
+          ],
+          "query": "processor.event:metric AND labels.job: garage",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "Data corruptions detected",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "RPC error rate (per second)",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 29
+      },
       "id": 21,
       "options": {
         "legend": {
@@ -1998,7 +2129,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -2021,7 +2153,8 @@
               "id": "2",
               "settings": {
                 "interval": "auto",
-                "min_doc_count": "0"
+                "min_doc_count": "0",
+                "trimEdges": "1"
               },
               "type": "date_histogram"
             }
@@ -2042,10 +2175,13 @@
               "hide": false,
               "id": "5",
               "pipelineAgg": "1",
+              "settings": {
+                "unit": "second"
+              },
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -2109,8 +2245,360 @@
       "gridPos": {
         "h": 9,
         "w": 6,
+        "x": 0,
+        "y": 38
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "labels.rpc_endpoint",
+              "id": "6",
+              "settings": {
+                "min_doc_count": "1",
+                "order": "desc",
+                "orderBy": "_term",
+                "size": "10"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "1"
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "${DS_DS_ELASTICSEARCH}"
+          },
+          "metrics": [
+            {
+              "field": "rpc_request_counter",
+              "hide": true,
+              "id": "1",
+              "type": "sum"
+            },
+            {
+              "field": "1",
+              "hide": false,
+              "id": "5",
+              "pipelineAgg": "1",
+              "type": "derivative"
+            }
+          ],
+          "query": "processor.event:metric AND labels.job: garage",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "RPC counters",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 6,
+        "y": 38
+      },
+      "id": 16,
+      "interval": ">$interval",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "labels.rpc_endpoint",
+              "id": "6",
+              "settings": {
+                "min_doc_count": "1",
+                "order": "desc",
+                "orderBy": "_term",
+                "size": "10"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "${DS_DS_ELASTICSEARCH}"
+          },
+          "metrics": [
+            {
+              "field": "rpc_duration",
+              "id": "1",
+              "type": "avg"
+            }
+          ],
+          "query": "processor.event:metric AND labels.job: garage",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "Average RPC duration",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 12,
+        "y": 38
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [
+            {
+              "field": "@timestamp",
+              "id": "2",
+              "settings": {
+                "interval": "auto",
+                "trimEdges": "2"
+              },
+              "type": "date_histogram"
+            }
+          ],
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": "${DS_DS_ELASTICSEARCH}"
+          },
+          "metrics": [
+            {
+              "field": "admin_http_requests_total",
+              "hide": true,
+              "id": "1",
+              "type": "sum"
+            },
+            {
+              "field": "1",
+              "id": "3",
+              "pipelineAgg": "1",
+              "type": "derivative"
+            }
+          ],
+          "query": "processor.event:metric AND labels.job: garage",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "Admin request rate",
+      "type": "timeseries"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
         "x": 18,
-        "y": 29
+        "y": 38
       },
       "id": 22,
       "options": {
@@ -2120,7 +2608,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -2178,7 +2667,7 @@
               "type": "derivative"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         }
@@ -2221,7 +2710,6 @@
             }
           },
           "mappings": [],
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2234,7 +2722,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "s"
         },
         "overrides": []
       },
@@ -2242,120 +2731,10 @@
         "h": 9,
         "w": 6,
         "x": 0,
-        "y": 38
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "alias": "",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto"
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "datasource": {
-            "type": "elasticsearch",
-            "uid": "${DS_DS_ELASTICSEARCH}"
-          },
-          "metrics": [
-            {
-              "field": "admin_http_requests_total",
-              "hide": true,
-              "id": "1",
-              "type": "sum"
-            },
-            {
-              "field": "1",
-              "id": "3",
-              "pipelineAgg": "1",
-              "type": "derivative"
-            }
-          ],
-          "query": "processor.event:metric",
-          "refId": "A",
-          "timeField": "@timestamp"
-        }
-      ],
-      "title": "Admin request rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "elasticsearch",
-        "uid": "${DS_DS_ELASTICSEARCH}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 6,
-        "x": 6,
-        "y": 38
+        "y": 47
       },
       "id": 10,
+      "interval": ">$interval",
       "options": {
         "legend": {
           "calcs": [],
@@ -2363,7 +2742,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
@@ -2390,7 +2770,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "A",
           "timeField": "@timestamp"
         },
@@ -2401,7 +2781,8 @@
               "field": "@timestamp",
               "id": "2",
               "settings": {
-                "interval": "auto"
+                "interval": "auto",
+                "trimEdges": "2"
               },
               "type": "date_histogram"
             }
@@ -2418,7 +2799,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "B",
           "timeField": "@timestamp"
         },
@@ -2446,7 +2827,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "C",
           "timeField": "@timestamp"
         },
@@ -2474,7 +2855,7 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "D",
           "timeField": "@timestamp"
         },
@@ -2502,138 +2883,116 @@
               "type": "avg"
             }
           ],
-          "query": "processor.event:metric",
+          "query": "processor.event:metric AND labels.job: garage",
           "refId": "E",
           "timeField": "@timestamp"
         }
       ],
-      "title": "Event duration",
-      "type": "timeseries"
-    },
-    {
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 38
-      },
-      "id": 23,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "alias": "",
-          "bucketAggs": [
-            {
-              "field": "@timestamp",
-              "id": "2",
-              "settings": {
-                "interval": "auto"
-              },
-              "type": "date_histogram"
-            }
-          ],
-          "datasource": {
-            "type": "elasticsearch",
-            "uid": "${DS_DS_ELASTICSEARCH}"
-          },
-          "metrics": [
-            {
-              "field": "block_corruption_counter",
-              "hide": true,
-              "id": "1",
-              "type": "sum"
-            },
-            {
-              "field": "1",
-              "id": "3",
-              "pipelineAgg": "1",
-              "type": "derivative"
-            }
-          ],
-          "query": "processor.event:metric",
-          "refId": "A",
-          "timeField": "@timestamp"
-        }
-      ],
-      "title": "Data corruptions detected",
+      "title": "Average event duration",
       "type": "timeseries"
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 34,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "auto": true,
+        "auto_count": 50,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "auto",
+          "value": "$__auto_interval_interval"
+        },
+        "hide": 0,
+        "label": "Interval",
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "auto",
+            "value": "$__auto_interval_interval"
+          },
+          {
+            "selected": false,
+            "text": "30s",
+            "value": "30s"
+          },
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "5m",
+            "value": "5m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "30s,1m,5m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      }
+    ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Garage",
+  "title": "Garage - Max",
   "uid": "ODT8K4B7e",
-  "version": 12,
+  "version": 7,
   "weekStart": ""
 }
