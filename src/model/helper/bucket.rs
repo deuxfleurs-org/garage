@@ -30,8 +30,7 @@ impl<'a> BucketHelper<'a> {
 		// the AWS spec, and hex-encoded UUIDs are 64 chars long.
 		let hexbucket = hex::decode(bucket_name.as_str())
 			.ok()
-			.map(|by| Uuid::try_from(&by))
-			.flatten();
+			.and_then(|by| Uuid::try_from(&by));
 		if let Some(bucket_id) = hexbucket {
 			Ok(self
 				.0
@@ -46,8 +45,7 @@ impl<'a> BucketHelper<'a> {
 				.bucket_alias_table
 				.get(&EmptyKey, bucket_name)
 				.await?
-				.map(|x| *x.state.get())
-				.flatten())
+				.and_then(|x| *x.state.get()))
 		}
 	}
 

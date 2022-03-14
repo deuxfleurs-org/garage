@@ -259,8 +259,7 @@ impl RoutingRuleInner {
 		let has_prefix = self
 			.condition
 			.as_ref()
-			.map(|c| c.prefix.as_ref())
-			.flatten()
+			.and_then(|c| c.prefix.as_ref())
 			.is_some();
 		self.redirect.validate(has_prefix)
 	}

@@ -322,8 +322,7 @@ impl RpcHelper {
 					let peer_avg_ping = peer_list
 						.iter()
 						.find(|x| x.id.as_ref() == to.as_slice())
-						.map(|pi| pi.avg_ping)
-						.flatten()
+						.and_then(|pi| pi.avg_ping)
 						.unwrap_or_else(|| Duration::from_secs(1));
 					(
 						to != self.0.our_node_id,

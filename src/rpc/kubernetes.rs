@@ -63,10 +63,8 @@ pub async fn get_kubernetes_nodes(
 		let pubkey = &node
 			.metadata
 			.name
-			.map(|k| hex::decode(&k).ok())
-			.flatten()
-			.map(|k| NodeID::from_slice(&k[..]))
-			.flatten();
+			.and_then(|k| hex::decode(&k).ok())
+			.and_then(|k| NodeID::from_slice(&k[..]));
 
 		if let Some(pubkey) = pubkey {
 			ret.push((*pubkey, SocketAddr::new(node.spec.address, node.spec.port)))

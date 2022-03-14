@@ -115,7 +115,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
 			.err_context(READ_KEY_ERROR)?;
-		if let Some(a) = config.as_ref().map(|c| c.rpc_public_addr).flatten() {
+		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr) {
 			(node_id, a)
 		} else {
 			let default_addr = SocketAddr::new(

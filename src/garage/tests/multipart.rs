@@ -124,7 +124,7 @@ async fn test_uploadlistpart() {
 
 		assert!(r.part_number_marker.is_none());
 		assert!(r.next_part_number_marker.is_some());
-		assert_eq!(r.max_parts, 1 as i32);
+		assert_eq!(r.max_parts, 1_i32);
 		assert!(r.is_truncated);
 		assert_eq!(r.key.unwrap(), "a");
 		assert_eq!(r.upload_id.unwrap().as_str(), uid.as_str());
@@ -146,7 +146,7 @@ async fn test_uploadlistpart() {
 			r2.part_number_marker.as_ref().unwrap(),
 			r.next_part_number_marker.as_ref().unwrap()
 		);
-		assert_eq!(r2.max_parts, 1 as i32);
+		assert_eq!(r2.max_parts, 1_i32);
 		assert!(r2.is_truncated);
 		assert_eq!(r2.key.unwrap(), "a");
 		assert_eq!(r2.upload_id.unwrap().as_str(), uid.as_str());

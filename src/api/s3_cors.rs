@@ -200,12 +200,7 @@ pub fn find_matching_cors_rule<'a>(
 				None => vec![],
 			};
 			return Ok(cors_config.iter().find(|rule| {
-				cors_rule_matches(
-					rule,
-					origin,
-					&req.method().to_string(),
-					request_headers.iter(),
-				)
+				cors_rule_matches(rule, origin, req.method().as_ref(), request_headers.iter())
 			}));
 		}
 	}

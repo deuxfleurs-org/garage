@@ -106,8 +106,7 @@ impl Key {
 	/// Get permissions for a bucket
 	pub fn bucket_permissions(&self, bucket: &Uuid) -> BucketKeyPerm {
 		self.params()
-			.map(|params| params.authorized_buckets.get(bucket))
-			.flatten()
+			.and_then(|params| params.authorized_buckets.get(bucket))
 			.cloned()
 			.unwrap_or(BucketKeyPerm::NO_PERMISSIONS)
 	}

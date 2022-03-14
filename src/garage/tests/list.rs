@@ -527,8 +527,8 @@ async fn test_listmultipart() {
 			upnext = r.next_upload_id_marker;
 
 			loopcnt += 1;
-			upcnt += r.uploads.unwrap_or(vec![]).len();
-			pfxcnt += r.common_prefixes.unwrap_or(vec![]).len();
+			upcnt += r.uploads.unwrap_or_default().len();
+			pfxcnt += r.common_prefixes.unwrap_or_default().len();
 
 			if next.is_none() {
 				break;

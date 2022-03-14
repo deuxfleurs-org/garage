@@ -27,7 +27,7 @@ async fn test_bucket_all() {
 			.buckets
 			.as_ref()
 			.unwrap()
-			.into_iter()
+			.iter()
 			.filter(|x| x.name.as_ref().is_some())
 			.find(|x| x.name.as_ref().unwrap() == "hello")
 			.is_some());
@@ -79,7 +79,7 @@ async fn test_bucket_all() {
 			.buckets
 			.as_ref()
 			.unwrap()
-			.into_iter()
+			.iter()
 			.filter(|x| x.name.as_ref().is_some())
 			.find(|x| x.name.as_ref().unwrap() == "hello")
 			.is_none());

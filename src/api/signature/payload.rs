@@ -51,7 +51,7 @@ pub async fn check_payload_signature(
 
 	let canonical_request = canonical_request(
 		request.method(),
-		&request.uri().path().to_string(),
+		request.uri().path(),
 		&canonical_query_string(request.uri()),
 		&headers,
 		&authorization.signed_headers,
