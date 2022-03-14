@@ -902,6 +902,11 @@ impl BlockManagerLocked {
 			fs::remove_file(to_delete).await?;
 		}
 
+		// We want to ensure that when this function returns, data is properly persisted
+		// to disk. The first step is the sync_all above that does an fsync on the data file.
+		// Now, we do an fsync on the containing directory, to ensure that the rename
+		// is persisted properly. See:
+		// http://thedjbway.b0llix.net/qmail/syncdir.html
 		let dir = fs::OpenOptions::new()
 			.read(true)
 			.mode(0)
