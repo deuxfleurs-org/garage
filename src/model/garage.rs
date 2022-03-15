@@ -153,9 +153,6 @@ impl Garage {
 			block_ref_table,
 		});
 
-		info!("Start block manager background thread...");
-		garage.block_manager.clone().spawn_background_worker();
-
 		garage
 	}
 
