@@ -52,7 +52,8 @@ impl TableSchema for BlockRefTable {
 	type Filter = DeletedFilter;
 
 	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
-		let block = &old.as_ref().or_else(|| new.as_ref()).unwrap().block;
+		#[allow(clippy::or_fun_call)]
+		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
 		let was_before = old.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
 		let is_after = new.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
 		if is_after && !was_before {

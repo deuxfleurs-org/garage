@@ -142,7 +142,8 @@ impl Garage {
 		let key_table = Table::new(KeyTable, control_rep_param, system.clone(), &db);
 
 		info!("Initialize Garage...");
-		let garage = Arc::new(Self {
+
+		Arc::new(Self {
 			config,
 			db,
 			background,
@@ -154,9 +155,7 @@ impl Garage {
 			object_table,
 			version_table,
 			block_ref_table,
-		});
-
-		garage
+		})
 	}
 
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
