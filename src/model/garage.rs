@@ -7,11 +7,11 @@ use garage_util::config::*;
 
 use garage_rpc::system::System;
 
+use garage_block::manager::*;
 use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
-use garage_block::manager::*;
 
 use crate::block_ref_table::*;
 use crate::bucket_alias_table::*;
@@ -86,11 +86,14 @@ impl Garage {
 		};
 
 		info!("Initialize block manager...");
-		let block_manager =
-			BlockManager::new(&db,
-							  config.data_dir.clone(),
-							  config.compression_level,
-							  data_rep_param, system.clone());
+		let block_manager = BlockManager::new(
+			&db,
+			config.data_dir.clone(),
+			config.compression_level,
+			config.block_manager_background_tranquility,
+			data_rep_param,
+			system.clone(),
+		);
 
 		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(

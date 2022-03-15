@@ -29,14 +29,12 @@ use garage_rpc::*;
 
 use garage_table::replication::{TableReplication, TableShardedReplication};
 
-use crate::metrics::*;
 use crate::block::*;
+use crate::metrics::*;
 use crate::rc::*;
 
 /// Size under which data will be stored inlined in database instead of as files
 pub const INLINE_THRESHOLD: usize = 3072;
-
-pub const BACKGROUND_TRANQUILITY: u32 = 2;
 
 // Timeout for RPCs that read and write blocks to remote nodes
 const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(30);
@@ -82,8 +80,9 @@ pub struct BlockManager {
 	pub replication: TableShardedReplication,
 	/// Directory in which block are stored
 	pub data_dir: PathBuf,
-	/// Zstd compression level
+
 	compression_level: Option<i32>,
+	background_tranquility: u32,
 
 	mutation_lock: Mutex<BlockManagerLocked>,
 
@@ -109,6 +108,7 @@ impl BlockManager {
 		db: &sled::Db,
 		data_dir: PathBuf,
 		compression_level: Option<i32>,
+		background_tranquility: u32,
 		replication: TableShardedReplication,
 		system: Arc<System>,
 	) -> Arc<Self> {
@@ -139,6 +139,7 @@ impl BlockManager {
 			replication,
 			data_dir,
 			compression_level,
+			background_tranquility,
 			mutation_lock: Mutex::new(manager_locked),
 			rc,
 			resync_queue,
@@ -440,7 +441,7 @@ impl BlockManager {
 		while !*must_exit.borrow() {
 			match self.resync_iter(&mut must_exit).await {
 				Ok(true) => {
-					tranquilizer.tranquilize(BACKGROUND_TRANQUILITY).await;
+					tranquilizer.tranquilize(self.background_tranquility).await;
 				}
 				Ok(false) => {
 					tranquilizer.reset();

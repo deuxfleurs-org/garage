@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
-use garage_util::error::*;
 use garage_util::data::*;
+use garage_util::error::*;
 use garage_util::time::*;
 
 use crate::manager::BLOCK_GC_DELAY;
@@ -12,9 +12,7 @@ pub struct BlockRc {
 
 impl BlockRc {
 	pub(crate) fn new(rc: sled::Tree) -> Self {
-		Self {
-			rc
-		}
+		Self { rc }
 	}
 
 	/// Increment the reference counter associated to a hash.
@@ -34,7 +32,7 @@ impl BlockRc {
 			.rc
 			.update_and_fetch(&hash, |old| RcEntry::parse_opt(old).decrement().serialize())?;
 		let new_rc = RcEntry::parse_opt(new_rc);
-		Ok(matches!(new_rc, RcEntry::Deletable {..}))
+		Ok(matches!(new_rc, RcEntry::Deletable { .. }))
 	}
 
 	/// Read a block's reference count
