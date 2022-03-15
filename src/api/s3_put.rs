@@ -13,7 +13,7 @@ use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
-use garage_model::block::INLINE_THRESHOLD;
+use garage_block::manager::INLINE_THRESHOLD;
 use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
 use garage_model::object_table::*;

@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use zstd::stream::{decode_all as zstd_decode, Encoder};
@@ -31,9 +30,7 @@ use garage_rpc::*;
 
 use garage_table::replication::{TableReplication, TableShardedReplication};
 
-use crate::block_metrics::*;
-use crate::block_ref_table::*;
-use crate::garage::Garage;
+use crate::metrics::*;
 
 /// Size under which data will be stored inlined in database instead of as files
 pub const INLINE_THRESHOLD: usize = 3072;
@@ -151,6 +148,8 @@ pub struct BlockManager {
 	pub replication: TableShardedReplication,
 	/// Directory in which block are stored
 	pub data_dir: PathBuf,
+	/// Zstd compression level
+	compression_level: Option<i32>,
 
 	mutation_lock: Mutex<BlockManagerLocked>,
 
@@ -162,7 +161,6 @@ pub struct BlockManager {
 
 	system: Arc<System>,
 	endpoint: Arc<Endpoint<BlockRpc, Self>>,
-	pub(crate) garage: ArcSwapOption<Garage>,
 
 	metrics: BlockManagerMetrics,
 }
@@ -176,6 +174,7 @@ impl BlockManager {
 	pub fn new(
 		db: &sled::Db,
 		data_dir: PathBuf,
+		compression_level: Option<i32>,
 		replication: TableShardedReplication,
 		system: Arc<System>,
 	) -> Arc<Self> {
@@ -204,6 +203,7 @@ impl BlockManager {
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
+			compression_level,
 			mutation_lock: Mutex::new(manager_locked),
 			rc,
 			resync_queue,
@@ -211,7 +211,6 @@ impl BlockManager {
 			resync_errors,
 			system,
 			endpoint,
-			garage: ArcSwapOption::from(None),
 			metrics,
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
@@ -257,14 +256,7 @@ impl BlockManager {
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(&self, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
 		let who = self.replication.write_nodes(&hash);
-		let compression_level = self
-			.garage
-			.load()
-			.as_ref()
-			.unwrap()
-			.config
-			.compression_level;
-		let data = DataBlock::from_buffer(data, compression_level);
+		let data = DataBlock::from_buffer(data, self.compression_level);
 		self.system
 			.rpc
 			.try_call_many(
@@ -286,18 +278,10 @@ impl BlockManager {
 	/// to fix any mismatch between the two.
 	pub async fn repair_data_store(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		// 1. Repair blocks from RC table.
-		let garage = self.garage.load_full().unwrap();
-		let mut last_hash = None;
-		for (i, entry) in garage.block_ref_table.data.store.iter().enumerate() {
-			let (_k, v_bytes) = entry?;
-			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(v_bytes.as_ref())?;
-			if Some(&block_ref.block) == last_hash.as_ref() {
-				continue;
-			}
-			if !block_ref.deleted.get() {
-				last_hash = Some(block_ref.block);
-				self.put_to_resync(&block_ref.block, Duration::from_secs(0))?;
-			}
+		for (i, entry) in self.rc.iter().enumerate() {
+			let (hash, _) = entry?;
+			let hash = Hash::try_from(&hash[..]).unwrap();
+			self.put_to_resync(&hash, Duration::from_secs(0))?;
 			if i & 0xFF == 0 && *must_exit.borrow() {
 				return Ok(());
 			}

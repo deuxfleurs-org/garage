@@ -883,6 +883,7 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "futures-util",
+ "garage_block",
  "garage_model 0.7.0",
  "garage_table 0.7.0",
  "garage_util 0.7.0",
@@ -908,6 +909,29 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "garage_block"
+version = "0.7.0"
+dependencies = [
+ "async-trait",
+ "bytes 1.1.0",
+ "futures",
+ "futures-util",
+ "garage_rpc 0.7.0",
+ "garage_table 0.7.0",
+ "garage_util 0.7.0",
+ "hex",
+ "opentelemetry",
+ "rand 0.8.5",
+ "rmp-serde 0.15.5",
+ "serde",
+ "serde_bytes",
+ "sled",
+ "tokio",
+ "tracing",
+ "zstd",
 ]
 
 [[package]]
@@ -944,6 +968,7 @@ dependencies = [
  "err-derive 0.3.1",
  "futures",
  "futures-util",
+ "garage_block",
  "garage_model 0.5.1",
  "garage_rpc 0.7.0",
  "garage_table 0.7.0",

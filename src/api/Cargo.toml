@@ -16,6 +16,7 @@ path = "lib.rs"
 [dependencies]
 garage_model = { version = "0.7.0", path = "../model" }
 garage_table = { version = "0.7.0", path = "../table" }
+garage_block = { version = "0.7.0", path = "../block" }
 garage_util = { version = "0.7.0", path = "../util" }
 
 base64 = "0.13"

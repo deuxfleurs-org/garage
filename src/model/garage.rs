@@ -11,8 +11,8 @@ use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
+use garage_block::manager::*;
 
-use crate::block::*;
 use crate::block_ref_table::*;
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
@@ -87,7 +87,10 @@ impl Garage {
 
 		info!("Initialize block manager...");
 		let block_manager =
-			BlockManager::new(&db, config.data_dir.clone(), data_rep_param, system.clone());
+			BlockManager::new(&db,
+							  config.data_dir.clone(),
+							  config.compression_level,
+							  data_rep_param, system.clone());
 
 		info!("Initialize block_ref_table...");
 		let block_ref_table = Table::new(
@@ -151,15 +154,9 @@ impl Garage {
 		});
 
 		info!("Start block manager background thread...");
-		garage.block_manager.garage.swap(Some(garage.clone()));
 		garage.block_manager.clone().spawn_background_worker();
 
 		garage
-	}
-
-	/// Use this for shutdown
-	pub fn break_reference_cycles(&self) {
-		self.block_manager.garage.swap(None);
 	}
 
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {

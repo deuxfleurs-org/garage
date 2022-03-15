@@ -10,9 +10,6 @@ pub mod key_table;
 pub mod object_table;
 pub mod version_table;
 
-pub mod block;
-mod block_metrics;
-
 pub mod garage;
 pub mod helper;
 pub mod migrate;

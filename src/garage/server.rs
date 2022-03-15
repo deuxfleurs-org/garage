@@ -98,8 +98,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	// Await for netapp RPC system to end
 	run_system.await?;
 
-	// Break last reference cycles so that stuff can terminate properly
-	garage.break_reference_cycles();
+	// Drop all references so that stuff can terminate properly
 	drop(garage);
 
 	// Await for all background tasks to end

@@ -6,7 +6,7 @@ use garage_util::data::*;
 use garage_table::crdt::Crdt;
 use garage_table::*;
 
-use crate::block::*;
+use garage_block::manager::*;
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {
