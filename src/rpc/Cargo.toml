@@ -32,13 +32,13 @@ serde_bytes = "0.11"
 serde_json = "1.0"
 
 # newer version requires rust edition 2021
-kube = { version = "0.62", features = ["runtime", "derive"] }
-k8s-openapi = { version = "0.13", features = ["v1_22"] }
-openssl = { version = "0.10", features = ["vendored"] }
-schemars = "0.8"
+kube = { version = "0.62", features = ["runtime", "derive"], optional = true }
+k8s-openapi = { version = "0.13", features = ["v1_22"], optional = true }
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+schemars = { version = "0.8", optional = true }
 
 # newer version requires rust edition 2021
-pnet = "0.28"
+pnet_datalink = "0.28"
 
 futures = "0.3"
 futures-util = "0.3"
@@ -52,3 +52,5 @@ netapp = { version = "0.4.1", features = ["telemetry"] }
 
 hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
+[features]
+kubernetes-discovery = [ "kube", "k8s-openapi", "openssl", "schemars" ]

@@ -12,8 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use netapp::NodeID;
 
-use garage_util::error::Error;
-
 static K8S_GROUP: &str = "deuxfleurs.fr";
 
 #[derive(CustomResource, Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -29,7 +27,7 @@ pub struct Node {
 	port: u16,
 }
 
-pub async fn create_kubernetes_crd() -> Result<(), Error> {
+pub async fn create_kubernetes_crd() -> Result<(), kube::Error> {
 	let client = Client::try_default().await?;
 	let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
 
@@ -45,7 +43,7 @@ pub async fn create_kubernetes_crd() -> Result<(), Error> {
 pub async fn get_kubernetes_nodes(
 	kubernetes_service_name: &str,
 	kubernetes_namespace: &str,
-) -> Result<Vec<(NodeID, SocketAddr)>, Error> {
+) -> Result<Vec<(NodeID, SocketAddr)>, kube::Error> {
 	let client = Client::try_default().await?;
 	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), kubernetes_namespace);
 
@@ -80,7 +78,7 @@ pub async fn publish_kubernetes_node(
 	node_id: NodeID,
 	hostname: &str,
 	rpc_public_addr: SocketAddr,
-) -> Result<(), Error> {
+) -> Result<(), kube::Error> {
 	let node_pubkey = hex::encode(node_id);
 
 	let mut node = GarageNode::new(

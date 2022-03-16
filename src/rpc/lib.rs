@@ -4,6 +4,7 @@
 extern crate tracing;
 
 mod consul;
+#[cfg(feature = "kubernetes-discovery")]
 mod kubernetes;
 
 pub mod layout;
