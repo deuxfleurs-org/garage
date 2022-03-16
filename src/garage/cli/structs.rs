@@ -92,8 +92,9 @@ pub enum LayoutOperation {
 
 #[derive(StructOpt, Debug)]
 pub struct AssignRoleOpt {
-	/// Node to which to assign role (prefix of hexadecimal node id)
-	pub(crate) node_id: String,
+	/// Node(s) to which to assign role (prefix of hexadecimal node id)
+	#[structopt(required = true)]
+	pub(crate) node_ids: Vec<String>,
 
 	/// Location (zone or datacenter) of the node
 	#[structopt(short = "z", long = "zone")]

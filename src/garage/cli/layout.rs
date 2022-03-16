@@ -43,7 +43,11 @@ pub async fn cmd_assign_role(
 		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	};
 
-	let added_node = find_matching_node(status.iter().map(|adv| adv.id), &args.node_id)?;
+	let added_nodes = args
+		.node_ids
+		.iter()
+		.map(|node_id| find_matching_node(status.iter().map(|adv| adv.id), node_id))
+		.collect::<Result<Vec<_>, _>>()?;
 
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
@@ -75,46 +79,51 @@ pub async fn cmd_assign_role(
 		return Err(Error::Message("Invalid capacity value: 0".into()));
 	}
 
-	let new_entry = match roles.get(&added_node) {
-		Some(NodeRoleV(Some(old))) => {
-			let capacity = match args.capacity {
-				Some(c) => Some(c),
-				None if args.gateway => None,
-				None => old.capacity,
-			};
-			let tags = if args.tags.is_empty() {
-				old.tags.clone()
-			} else {
-				args.tags
-			};
-			NodeRole {
-				zone: args.zone.unwrap_or_else(|| old.zone.to_string()),
-				capacity,
-				tags,
+	for added_node in added_nodes {
+		let new_entry = match roles.get(&added_node) {
+			Some(NodeRoleV(Some(old))) => {
+				let capacity = match args.capacity {
+					Some(c) => Some(c),
+					None if args.gateway => None,
+					None => old.capacity,
+				};
+				let tags = if args.tags.is_empty() {
+					old.tags.clone()
+				} else {
+					args.tags.clone()
+				};
+				NodeRole {
+					zone: args.zone.clone().unwrap_or_else(|| old.zone.to_string()),
+					capacity,
+					tags,
+				}
 			}
-		}
-		_ => {
-			let capacity = match args.capacity {
-				Some(c) => Some(c),
-				None if args.gateway => None,
-				None => return Err(Error::Message(
-						"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
-			};
-			NodeRole {
-				zone: args.zone.ok_or("Please specifiy a zone with the -z flag")?,
-				capacity,
-				tags: args.tags,
+			_ => {
+				let capacity = match args.capacity {
+					Some(c) => Some(c),
+					None if args.gateway => None,
+					None => return Err(Error::Message(
+							"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
+				};
+				NodeRole {
+					zone: args
+						.zone
+						.clone()
+						.ok_or("Please specifiy a zone with the -z flag")?,
+					capacity,
+					tags: args.tags.clone(),
+				}
 			}
-		}
-	};
+		};
 
-	layout
-		.staging
-		.merge(&roles.update_mutator(added_node, NodeRoleV(Some(new_entry))));
+		layout
+			.staging
+			.merge(&roles.update_mutator(added_node, NodeRoleV(Some(new_entry))));
+	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
-	println!("Role change is staged but not yet commited.");
+	println!("Role changes are staged but not yet commited.");
 	println!("Use `garage layout show` to view staged role changes,");
 	println!("and `garage layout apply` to enact staged changes.");
 	Ok(())
@@ -196,15 +205,6 @@ pub async fn cmd_apply_layout(
 ) -> Result<(), Error> {
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
-	layout.roles.merge(&layout.staging);
-
-	if !layout.calculate_partition_assignation() {
-		return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
-	}
-
-	layout.staging.clear();
-	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
-
 	match apply_opt.version {
 		None => {
 			println!("Please pass the --version flag to ensure that you are writing the correct version of the cluster layout.");
@@ -217,6 +217,15 @@ pub async fn cmd_apply_layout(
 			}
 		}
 	}
+
+	layout.roles.merge(&layout.staging);
+
+	if !layout.calculate_partition_assignation() {
+		return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
+	}
+
+	layout.staging.clear();
+	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
 
 	layout.version += 1;
 
