@@ -8,10 +8,10 @@ rec {
     sha256 = "1xy9zpypqfxs5gcq5dcla4bfkhxmh5nzn9dyqkr03lqycm9wg5cr";
   };
   cargo2nixSrc = fetchGit {
-    # As of 2022-02-03
+    # As of 2022-03-17
     url = "https://github.com/superboum/cargo2nix";
-    ref = "backward-compat";
-    rev = "08d963f32a774353ee8acf3f61749915875c1ec4";
+    ref = "main";
+    rev = "bcbf3ba99e9e01a61eb83a24624419c2dd9dec64";
   };
 
 
