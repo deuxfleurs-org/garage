@@ -245,8 +245,13 @@ impl ClusterLayout {
 			let mut option = None;
 			for (i, part) in partitions.iter_mut().enumerate() {
 				for (irm, (idrm, _)) in part.nodes.iter().enumerate() {
-					let suprm = partitions_per_node.get(*idrm).cloned().unwrap_or(0) as i32
-						- target_partitions_per_node.get(*idrm).cloned().unwrap_or(0) as i32;
+					let errratio = |node, parts| {
+						let tgt = *target_partitions_per_node.get(node).unwrap() as f32;
+						(parts - tgt) / tgt
+					};
+					let square = |x| x * x;
+
+					let partsrm = partitions_per_node.get(*idrm).cloned().unwrap_or(0) as f32;
 
 					for (idadd, infoadd) in configured_nodes.iter() {
 						// skip replacing a node by itself
@@ -255,14 +260,12 @@ impl ClusterLayout {
 							continue;
 						}
 
-						let supadd = partitions_per_node.get(*idadd).cloned().unwrap_or(0) as i32
-							- target_partitions_per_node.get(*idadd).cloned().unwrap_or(0) as i32;
-
 						// We want to try replacing node idrm by node idadd
 						// if that brings us close to our goal.
-						let square = |i: i32| i * i;
-						let oldcost = square(suprm) + square(supadd);
-						let newcost = square(suprm - 1) + square(supadd + 1);
+						let partsadd = partitions_per_node.get(*idadd).cloned().unwrap_or(0) as f32;
+						let oldcost = square(errratio(*idrm, partsrm) - errratio(*idadd, partsadd));
+						let newcost =
+							square(errratio(*idrm, partsrm - 1.) - errratio(*idadd, partsadd + 1.));
 						if newcost >= oldcost {
 							// not closer to our goal
 							continue;
@@ -315,7 +318,9 @@ impl ClusterLayout {
 		// Show statistics
 		println!("New number of partitions per node:");
 		for (node, npart) in partitions_per_node.iter() {
-			println!("{:?}\t{}", node, npart);
+			let tgt = *target_partitions_per_node.get(node).unwrap();
+			let pct = 100f32 * (*npart as f32) / (tgt as f32);
+			println!("{:?}\t{}\t({}% of {})", node, npart, pct as i32, tgt);
 		}
 		println!();
 
