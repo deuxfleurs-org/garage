@@ -23,7 +23,7 @@ To run a real-world deployment, make sure the following conditions are met:
 
 - Ideally, each machine should have a SSD available in addition to the HDD you are dedicating
   to Garage. This will allow for faster access to metadata and has the potential
-  to drastically reduce Garage's response times.
+  to significantly reduce Garage's response times.
 
 - This guide will assume you are using Docker containers to deploy Garage on each node. 
   Garage can also be run independently, for instance as a [Systemd service](@/documentation/cookbook/systemd.md).
@@ -35,12 +35,19 @@ For our example, we will suppose the following infrastructure with IPv6 connecti
 
 | Location | Name    | IP Address | Disk Space |
 |----------|---------|------------|------------|
-| Paris    | Mercury | fc00:1::1  | 1 To       |
-| Paris    | Venus   | fc00:1::2  | 2 To       |
-| London   | Earth   | fc00:B::1  | 2 To       |
-| Brussels | Mars    | fc00:F::1  | 1.5 To     |
+| Paris    | Mercury | fc00:1::1  | 1 TB       |
+| Paris    | Venus   | fc00:1::2  | 2 TB       |
+| London   | Earth   | fc00:B::1  | 2 TB       |
+| Brussels | Mars    | fc00:F::1  | 1.5 TB     |
 
-
+Note that Garage will **always** store the three copies of your data on nodes at different
+locations. This means that in the case of this small example, the available capacity
+of the cluster is in fact only 1.5 TB, because nodes in Brussels can't store more than that.
+This also means that nodes in Paris and London will be under-utilized.
+To make better use of the available hardware, you should ensure that the capacity
+available in the different locations of your cluster is roughly the same.
+For instance, here, the Mercury node could be moved to Brussels; this would allow the cluster
+to store 2 TB of data in total.
 
 ## Get a Docker image
 
@@ -208,10 +215,10 @@ For our example, we will suppose we have the following infrastructure
 
 | Location | Name    | Disk Space | `Capacity` | `Identifier` | `Zone` |
 |----------|---------|------------|------------|--------------|--------------|
-| Paris    | Mercury | 1 To       | `10`       | `563e`     | `par1`       |
-| Paris    | Venus   | 2 To       | `20`       | `86f0`     | `par1`       |
-| London   | Earth   | 2 To       | `20`       | `6814`     | `lon1`       |
-| Brussels | Mars    | 1.5 To     | `15`       | `212f`     | `bru1`       |
+| Paris    | Mercury | 1 TB       | `10`       | `563e`     | `par1`       |
+| Paris    | Venus   | 2 TB       | `20`       | `86f0`     | `par1`       |
+| London   | Earth   | 2 TB       | `20`       | `6814`     | `lon1`       |
+| Brussels | Mars    | 1.5 TB     | `15`       | `212f`     | `bru1`       |
 
 #### Node identifiers
 
