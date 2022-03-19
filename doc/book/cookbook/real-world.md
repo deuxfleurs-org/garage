@@ -261,10 +261,10 @@ have 66% chance of being stored by Venus and 33% chance of being stored by Mercu
 Given the information above, we will configure our cluster as follow:
 
 ```bash
-garage layout assign -z par1 -c 10 -t mercury 563e
-garage layout assign -z par1 -c 20 -t venus 86f0
-garage layout assign -z lon1 -c 20 -t earth 6814
-garage layout assign -z bru1 -c 15 -t mars 212f
+garage layout assign 563e -z par1 -c 10 -t mercury
+garage layout assign 86f0 -z par1 -c 20 -t venus
+garage layout assign 6814 -z lon1 -c 20 -t earth 
+garage layout assign 212f -z bru1 -c 15 -t mars 
 ```
 
 At this point, the changes in the cluster layout have not yet been applied.
