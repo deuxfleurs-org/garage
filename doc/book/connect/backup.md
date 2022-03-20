@@ -25,7 +25,22 @@ If you still want to use Borg, you can use it with `rclone mount`.
 
 ## Duplicati
 
-*External links:* [Duplicati Documentation > Storage Providers](https://github.com/kees-z/DuplicatiDocs/blob/master/docs/05-storage-providers.md#user-content-s3-compatible)
+*External links:* [Duplicati Documentation > Storage Providers](https://duplicati.readthedocs.io/en/latest/05-storage-providers/#s3-compatible)
+
+The following fields need to be specified:
+```
+Storage Type: S3 Compatible
+Use SSL: [ ] # Only if you have SSL
+Server: Custom server url (s3.garage.localhost:3900)
+Bucket name: bucket-name
+Bucket create region: Custom region value (garage) # Or as you've specified in garage.toml
+AWS Access ID: Key ID from "garage key info key-name"
+AWS Access Key: Secret key from "garage key info key-name"
+Client Library to use: Minio SDK
+```
+
+Click `Test connection` and then no when asked `The bucket name should start with your username, prepend automatically?`. Then it should say `Connection worked!`.
+
 
 ## knoxite
 
