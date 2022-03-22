@@ -22,16 +22,6 @@ pub struct CustomRequester {
 
 impl CustomRequester {
 	pub fn new(instance: &Instance) -> Self {
-		/*
-		let credentials = Credentials::new(
-			&instance.key.id,
-			&instance.key.secret,
-			None,
-			None,
-			"garage-integ-test",
-		);
-		let endpoint = Endpoint::immutable(instance.uri());
-		*/
 		CustomRequester {
 			key: instance.key.clone(),
 			uri: instance.uri(),
@@ -53,13 +43,6 @@ impl CustomRequester {
 			vhost_style: false,
 		}
 	}
-	/*
-	pub async fn request(&self, method: &str, path: String, headers: &HashMap<String, (bool, String)>, body: &[u8], vhost_style: bool) -> hyper::Result<Response<Body>> {
-		let request = Request::builder()
-			.method(
-		self.client.request(todo!()).await
-	}
-	*/
 }
 
 pub struct RequestBuilder<'a> {
@@ -160,8 +143,10 @@ impl<'a> RequestBuilder<'a> {
 					"x-amz-decoded-content-length".to_owned(),
 					self.body.len().to_string(),
 				);
-				// this is a pretty lazy and inefficient way to do it, but it's enought for
-				// test code.
+				// Get lenght of body by doing the conversion to a streaming body with an
+				// invalid signature (we don't know the seed) just to get its length. This
+				// is a pretty lazy and inefficient way to do it, but it's enought for test
+				// code.
 				all_headers.insert(
 					"content-length".to_owned(),
 					to_streaming_body(&self.body, size, String::new(), signer.clone(), now, "")
