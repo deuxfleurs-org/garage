@@ -3,6 +3,7 @@ members = [
 	"src/util",
 	"src/rpc",
 	"src/table",
+	"src/block",
 	"src/model",
 	"src/admin",
 	"src/api",
