@@ -47,6 +47,13 @@ in let
     ];
   };
 
+  /*
+   Cargo2nix provides many overrides by default, you can take inspiration from them:
+   https://github.com/cargo2nix/cargo2nix/blob/master/overlay/overrides.nix
+
+   You can have a complete list of the available options by looking at the overriden object, mkcrate:
+   https://github.com/cargo2nix/cargo2nix/blob/master/overlay/mkcrate.nix
+  */
   overrides = pkgs.rustBuilder.overrides.all ++ [
     /*
      [1] We need to alter Nix hardening to be able to statically compile: PIE,
@@ -72,6 +79,21 @@ in let
             export GIT_VERSION="${git_version}"
           '';
         } else {});
+    })
+
+    /*
+     We ship some parts of the code disabled by default by putting them behind a flag.
+     It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
+     But we want to ship these additional features when we release Garage.
+     In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
+     Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
+    */
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_rpc";
+      overrideArgs = old:
+        {
+          features = if release then [ "kubernetes-discovery" ] else [];
+        };
     })
   ];
 
