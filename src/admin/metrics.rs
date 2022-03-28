@@ -28,7 +28,7 @@ async fn serve_req(
 	req: Request<Body>,
 	admin_server: Arc<AdminServer>,
 ) -> Result<Response<Body>, hyper::Error> {
-	info!("Receiving request at path {}", req.uri());
+	debug!("Receiving request at path {}", req.uri());
 	let request_start = SystemTime::now();
 
 	admin_server.metrics.http_counter.add(1);
