@@ -728,6 +728,12 @@ impl AdminRpcHandler {
 			self.garage.block_manager.resync_queue_len()
 		)
 		.unwrap();
+		writeln!(
+			&mut ret,
+			"  blocks with resync errors: {}",
+			self.garage.block_manager.resync_errors_len()
+		)
+		.unwrap();
 
 		ret
 	}

@@ -265,6 +265,11 @@ impl BlockManager {
 		self.resync_queue.len()
 	}
 
+	/// Get number of blocks that have an error
+	pub fn resync_errors_len(&self) -> usize {
+		self.resync_errors.len()
+	}
+
 	/// Get number of items in the refcount table
 	pub fn rc_len(&self) -> usize {
 		self.rc.rc.len()
