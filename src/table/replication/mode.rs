@@ -1,7 +1,10 @@
 pub enum ReplicationMode {
 	None,
 	TwoWay,
+	TwoWayDangerous,
 	ThreeWay,
+	ThreeWayDegraded,
+	ThreeWayDangerous,
 }
 
 impl ReplicationMode {
@@ -9,7 +12,10 @@ impl ReplicationMode {
 		match v {
 			"none" | "1" => Some(Self::None),
 			"2" => Some(Self::TwoWay),
+			"2-dangerous" => Some(Self::TwoWayDangerous),
 			"3" => Some(Self::ThreeWay),
+			"3-degraded" => Some(Self::ThreeWayDegraded),
+			"3-dangerous" => Some(Self::ThreeWayDangerous),
 			_ => None,
 		}
 	}
@@ -24,16 +30,17 @@ impl ReplicationMode {
 	pub fn replication_factor(&self) -> usize {
 		match self {
 			Self::None => 1,
-			Self::TwoWay => 2,
-			Self::ThreeWay => 3,
+			Self::TwoWay | Self::TwoWayDangerous => 2,
+			Self::ThreeWay | Self::ThreeWayDegraded | Self::ThreeWayDangerous => 3,
 		}
 	}
 
 	pub fn read_quorum(&self) -> usize {
 		match self {
 			Self::None => 1,
-			Self::TwoWay => 1,
+			Self::TwoWay | Self::TwoWayDangerous => 1,
 			Self::ThreeWay => 2,
+			Self::ThreeWayDegraded | Self::ThreeWayDangerous => 1,
 		}
 	}
 
@@ -41,7 +48,9 @@ impl ReplicationMode {
 		match self {
 			Self::None => 1,
 			Self::TwoWay => 2,
-			Self::ThreeWay => 2,
+			Self::TwoWayDangerous => 1,
+			Self::ThreeWay | Self::ThreeWayDegraded => 2,
+			Self::ThreeWayDangerous => 1,
 		}
 	}
 }
