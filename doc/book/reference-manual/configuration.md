@@ -44,6 +44,11 @@ root_domain = ".s3.garage"
 [s3_web]
 bind_addr = "[::]:3902"
 root_domain = ".web.garage"
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+trace_sink = "http://localhost:4317"
+
 ```
 
 The following gives details about each available configuration option.
@@ -260,3 +265,21 @@ For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.f
 will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
 or with hostname `deuxfleurs.fr`.
 
+
+## The `[admin]` section
+
+Garage has a few administration capabilities, in particular to allow remote monitoring. These features are detailed below.
+
+### `api_bind_addr`
+
+If specified, Garage will bind an HTTP server to this port and address, on
+which it will listen to requests for administration features. Currently,
+this endpoint only exposes Garage metrics in the Prometheus format at
+`/metrics`. This endpoint is not authenticated. In the future, bucket and
+access key management might be possible by REST calls to this endpoint.
+
+### `trace_sink`
+
+Optionnally, the address of an Opentelemetry collector.  If specified,
+Garage will send traces in the Opentelemetry format to this endpoint. These
+trace allow to inspect Garage's operation when it handles S3 API requests.
