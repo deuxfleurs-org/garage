@@ -235,7 +235,7 @@ pub fn canonical_request(
 ) -> String {
 	[
 		method.as_str(),
-		&uri.path().to_string(),
+		uri.path(),
 		&canonical_query_string(uri),
 		&canonical_header_string(headers, signed_headers),
 		"",
