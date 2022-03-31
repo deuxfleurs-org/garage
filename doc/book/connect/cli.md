@@ -13,7 +13,8 @@ These tools are particularly suitable for debug, backups, website deployments or
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
 | [(Cyber)duck](#cyberduck)     | ✅       |    |
-| [WinSCP (libs3)](#winscp)     | ✅       | No instructions yet   |
+| [WinSCP (libs3)](#winscp)     | ✅       | CLI instructions only   |
+| [sftpgo](#sftpgo)     | ✅       |    |
 
 
 ## Minio client
@@ -281,5 +282,59 @@ duck --delete garage:/my-files/an-object.txt
 
 ## WinSCP (libs3) {#winscp}
 
-*No instruction yet. You can find ones in french [in our wiki](https://wiki.deuxfleurs.fr/fr/Guide/Garage/WinSCP).*
+*You can find instructions on how to use the GUI in french [in our wiki](https://wiki.deuxfleurs.fr/fr/Guide/Garage/WinSCP).*
+
+How to use `winscp.com`, the CLI interface of WinSCP:
+
+```
+open s3://GKxxxxx:yyyyyyy@127.0.0.1:4443 -certificate=* -rawsettings S3DefaultRegion=garage S3UrlStyle=1
+ls
+ls my-files/
+get my-files/an-object.txt Z:\tmp\object.txt
+put Z:\tmp\object.txt my-files/another-object.txt
+rm my-files/an-object
+exit
+```
+
+Notes:
+  - It seems WinSCP supports only TLS connections for S3
+  - `-certificate=*` allows self-signed certificates, remove it if you have valid certificates
+
+
+## sftpgo {#sftpgo}
+
+sftpgo needs a database to work, by default it uses sqlite and does not require additional configuration.
+You can then directly init it:
+
+```
+sftpgo initprovider
+```
+
+Then you can directly launch the daemon that will listen by default on `:8080 (http)` and `:2022 (ssh)`:
+
+```
+sftpgo serve
+```
+
+Go to the admin web interface (http://[::1]:8080/web/admin/), create the required admin account, then create a user account.
+Choose a username (eg: `ada`) and a password.
+
+In the filesystem section, choose:
+  - Storage: AWS S3 (Compatible)
+  - Bucket: *your bucket name*
+  - Region: `garage` (or the one you defined in `config.toml`)
+  - Access key: *your access key*
+  - Access secret: *your secret key*
+  - Endpoint: *your endpoint*, eg. `https://garage.example.tld`, note that the protocol (`https` here) must be specified. Non standard ports and `http` have not been tested yet.
+  - Keep the default values for other fields
+  - Tick "Use path-style addressing". It should work without ticking it if you have correctly configured your instance to use URL vhost-style.
+
+Now you can access your bucket through SFTP:
+
+```
+sftp -P2022 ada@[::1]
+ls
+```
+
+And through the web interface at http://[::1]:8080/web/client
 
