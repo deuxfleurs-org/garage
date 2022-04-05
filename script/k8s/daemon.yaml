@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: garage
+spec:
+  selector:
+    matchLabels:
+      app: garage
+  serviceName: "garage"
+  replicas: 3 
+  template:
+    metadata:
+      labels:
+        app: garage
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: garage
+        image: dxflrs/amd64_garage:v0.7.0-rc1
+        ports:
+        - containerPort: 3900
+          name: s3-api
+        - containerPort: 3902
+          name: web-api
+        volumeMounts:
+        - name: fast
+          mountPath: /mnt/fast
+        - name: slow
+          mountPath: /mnt/slow
+        - name: etc
+          mountPath: /etc/garage.toml
+          subPath: garage.toml
+      volumes:
+      - name: etc
+        configMap:
+          name: garage-config
+  volumeClaimTemplates:
+  - metadata:
+      name: fast
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
+  - metadata:
+      name: slow
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
+  

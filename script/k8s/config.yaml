@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage-config
+  namespace: default
+data:
+  garage.toml: |-
+    metadata_dir = "/tmp/meta"
+    data_dir = "/tmp/data"
+
+    replication_mode = "3"
+
+    rpc_bind_addr = "[::]:3901"
+    rpc_secret = "1799bccfd7411eddcf9ebd316bc1f5287ad12a68094e1c6ac6abde7e6feae1ec"
+
+    bootstrap_peers = []
+
+    kubernetes_namespace = "default"
+    kubernetes_service_name = "garage-daemon"
+    kubernetes_skip_crd = false
+
+    [s3_api]
+    s3_region = "garage"
+    api_bind_addr = "[::]:3900"
+    root_domain = ".s3.garage.tld"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = ".web.garage.tld"
+    index = "index.html"
