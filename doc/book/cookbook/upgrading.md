@@ -14,14 +14,8 @@ Following the [SemVer ](https://semver.org/) terminology, if only the *patch* nu
 Example: an upgrade from v0.6.0 from v0.6.1 is a straightforward upgrade.
 If the *minor* or *major* number changed however, you will have to do an advanced upgrade. Example: from v0.6.1 to v0.7.0.
 
-Migrations are tested only from one stable version to another one, if you want to minimize your risks, you must ideally upgrade only to the direct next stable version, including patch ones.
-Example: to go from v0.6.0 to v0.7.0, upgrade from v0.6.0 to v0.6.1 and then from v0.6.1 to v0.7.0.
-
-Migrating from a minor version to another one without installing patch ones could work but are not tested, you must do your own tests in advance.
-Example: going from v0.6.0 directly to v0.7.0 should work but is untested. Never, never, skip a minor or a major version.
-Example: going from v0.6.0 directly to v0.8.0 is forbidden.
-If you are very late in your upgrades, you should consider spawning a new cluster with the latest version and operate application level migrations
-from the old cluster to the new one.
+Migrations are designed to be run only between contiguous versions (from a *major*.*minor* perspective, *patches* can be skipped).
+Example: migrations from v0.6.1 to v0.7.0 and from v0.6.0 to v0.7.0 are supported but migrations from v0.5.0 to v0.7.0 are not supported.
 
 ## Straightforward upgrades
 

@@ -4,7 +4,7 @@ weight = 15
 +++
 
 **This guide explains how to migrate to 0.6 if you have an existing 0.5 cluster.
-We don't recommend trying to migrate directly from older to 0.5.**
+We don't recommend trying to migrate to 0.6 directly from 0.4 or older.**
 
 **We make no guarantee that this migration will work perfectly:
 back up all your data before attempting it!**
