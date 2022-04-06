@@ -13,7 +13,7 @@ receivers:
         - job_name: "garage"
           scrape_interval: 5s
           static_configs:
-            - targets: ["localhost:3909"]
+            - targets: ["localhost:3903"]
 
 exporters:
   logging:

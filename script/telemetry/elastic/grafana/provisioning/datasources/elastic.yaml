@@ -4,17 +4,16 @@ datasources:
   - name: DS_ELASTICSEARCH
     type: elasticsearch
     access: proxy
-    url: http://elastic:9700
+    url: http://localhost:9200
     password: ''
     user: ''
-    database: metricbeat-*
+    database: apm-*
     basicAuth: false
     isDefault: true
     jsonData:
-      esVersion: 70
+      esVersion: 7.10.0
       logLevelField: ''
       logMessageField: ''
       maxConcurrentShardRequests: 5
       timeField: "@timestamp"
-      timeInterval: 10s
     readOnly: false
