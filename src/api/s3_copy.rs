@@ -594,7 +594,7 @@ impl<S: Stream<Item = BlockStreamItem>> Defragmenter<S> {
 			}
 		}
 
-		return Ok((std::mem::take(&mut self.buffer), self.hash.take()));
+		Ok((std::mem::take(&mut self.buffer), self.hash.take()))
 	}
 }
 
