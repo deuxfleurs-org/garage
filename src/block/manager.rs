@@ -46,6 +46,9 @@ const NEED_BLOCK_QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 // and the time when it is retried, with exponential backoff
 // (multiplied by 2, 4, 8, 16, etc. for every consecutive failure).
 const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
+// The minimum retry delay is 60 seconds = 1 minute
+// The maximum retry delay is 60 seconds * 2^6 = 60 seconds << 6 = 64 minutes (~1 hour)
+const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
 
 // The delay between the moment when the reference counter
 // drops to zero, and the moment where we allow ourselves
@@ -985,7 +988,8 @@ impl ErrorCounter {
 	}
 
 	fn delay_msec(&self) -> u64 {
-		(RESYNC_RETRY_DELAY.as_millis() as u64) << std::cmp::min(self.errors - 1, 10)
+		(RESYNC_RETRY_DELAY.as_millis() as u64)
+			<< std::cmp::min(self.errors - 1, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
 	}
 	fn next_try(&self) -> u64 {
 		self.last_try + self.delay_msec()
