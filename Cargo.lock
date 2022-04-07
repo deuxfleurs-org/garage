@@ -840,7 +840,7 @@ dependencies = [
  "http",
  "hyper",
  "kuska-sodiumoxide",
- "netapp 0.4.1",
+ "netapp 0.4.2",
  "pretty_env_logger",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -975,7 +975,7 @@ dependencies = [
  "garage_table 0.7.0",
  "garage_util 0.7.0",
  "hex",
- "netapp 0.4.1",
+ "netapp 0.4.2",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -1031,7 +1031,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp 0.4.1",
+ "netapp 0.4.2",
  "openssl",
  "opentelemetry",
  "pnet_datalink",
@@ -1126,7 +1126,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "netapp 0.4.1",
+ "netapp 0.4.2",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -1833,9 +1833,9 @@ dependencies = [
 
 [[package]]
 name = "netapp"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aafa16daee87ca3251e6d2639c6bfb88c40590627459fd5d44034f60742bb5d1"
+checksum = "d1a19af9ad24e6cdb166e2c5882a7ff9326cab8d45c9d82379fa638c0cbc84df"
 dependencies = [
  "arc-swap",
  "async-trait",

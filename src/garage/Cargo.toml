@@ -52,7 +52,7 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 
 #netapp = { version = "0.3.2", git = "https://git.deuxfleurs.fr/lx/netapp" }
 #netapp = { version = "0.4", path = "../../../netapp" }
-netapp = "0.4.1"
+netapp = "0.4"
 
 [dev-dependencies]
 aws-sdk-s3 = "0.8"
