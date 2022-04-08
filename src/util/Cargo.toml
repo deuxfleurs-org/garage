@@ -40,4 +40,4 @@ netapp = "0.4"
 http = "0.2"
 hyper = "0.14"
 
-opentelemetry = "0.17"
+opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
