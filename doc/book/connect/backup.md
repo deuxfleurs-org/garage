@@ -50,3 +50,24 @@ Click `Test connection` and then no when asked `The bucket name should start wit
 
 *External links:* [Kopia Documentation > Repositories](https://kopia.io/docs/repositories/#amazon-s3)
 
+To create the Kopia repository, you need to specify the region, the HTTP(S) endpoint, the bucket name and the access keys.
+For instance, if you have an instance of garage running on `https://garage.example.com`:
+
+```
+kopia repository create s3 --region=garage --bucket=mybackups --access-key=KEY_ID --secret-access-key=SECRET_KEY --endpoint=garage.example.com
+```
+
+Or if you have an instance running on localhost, without TLS:
+
+```
+kopia repository create s3 --region=garage --bucket=mybackups --access-key=KEY_ID --secret-access-key=SECRET_KEY --endpoint=localhost:3900 --disable-tls
+```
+
+After the repository has been created, check that everything works as expected:
+
+```
+kopia repository validate-provider
+```
+
+You can then run all the standard kopia commands: `kopia snapshot create`, `kopia mount`...
+Everything should work out-of-the-box.
