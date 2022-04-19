@@ -268,7 +268,6 @@ pub async fn handle_upload_part_copy(
 
 	let mut blocks_to_copy = vec![];
 	let mut current_offset = 0;
-	let mut size_to_copy = 0;
 	for (_bk, block) in source_version.blocks.items().iter() {
 		let (block_begin, block_end) = (current_offset, current_offset + block.size);
 
@@ -289,22 +288,11 @@ pub async fn handle_upload_part_copy(
 				(Some(b), None) => Some(b as usize..block.size as usize),
 				(None, None) => None,
 			};
-			size_to_copy += range_to_copy
-				.as_ref()
-				.map(|x| x.len() as u64)
-				.unwrap_or(block.size);
 
 			blocks_to_copy.push((block.hash, range_to_copy));
 		}
 
 		current_offset = block_end;
-	}
-
-	if size_to_copy < 1024 * 1024 {
-		return Err(Error::BadRequest(format!(
-			"Not enough data to copy: {} bytes (minimum: 1MB)",
-			size_to_copy
-		)));
 	}
 
 	// Now, actually copy the blocks
