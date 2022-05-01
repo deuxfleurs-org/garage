@@ -23,6 +23,7 @@ gethostname = "0.2"
 hex = "0.4"
 tracing = "0.1.30"
 rand = "0.8"
+itertools="0.10"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 
 async-trait = "0.1.7"
