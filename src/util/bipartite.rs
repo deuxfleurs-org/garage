@@ -31,8 +31,8 @@ struct WeightedEdge {
  * as possible to old_match.
  * */
 pub fn optimize_matching(
-	old_match: &Vec<Vec<usize>>,
-	new_match: &Vec<Vec<usize>>,
+	old_match: &[Vec<usize>],
+	new_match: &[Vec<usize>],
 	nb_right: usize,
 ) -> Vec<Vec<usize>> {
 	let nb_left = old_match.len();
@@ -72,16 +72,11 @@ pub fn optimize_matching(
 	//Discovering and flipping a cycle with positive weight in this
 	//graph will make the matching closer to old_match.
 	//We use Bellman Ford algorithm to discover positive cycles
-	loop {
-		if let Some(cycle) = positive_cycle(&edge_vec, nb_left, nb_right) {
-			for i in cycle {
-				//We flip the edges of the cycle.
-				(edge_vec[i].u, edge_vec[i].v) = (edge_vec[i].v, edge_vec[i].u);
-				edge_vec[i].w *= -1;
-			}
-		} else {
-			//If there is no cycle, we return the optimal matching.
-			break;
+	while let Some(cycle) = positive_cycle(&edge_vec, nb_left, nb_right) {
+		for i in cycle {
+			//We flip the edges of the cycle.
+			(edge_vec[i].u, edge_vec[i].v) = (edge_vec[i].v, edge_vec[i].u);
+			edge_vec[i].w *= -1;
 		}
 	}
 
@@ -97,7 +92,7 @@ pub fn optimize_matching(
 
 //This function finds a positive cycle in a bipartite wieghted graph.
 fn positive_cycle(
-	edge_vec: &Vec<WeightedEdge>,
+	edge_vec: &[WeightedEdge],
 	nb_left: usize,
 	nb_right: usize,
 ) -> Option<Vec<usize>> {
@@ -122,8 +117,7 @@ fn positive_cycle(
 		//the number of partitions can be much larger than the
 		//number of nodes, we optimize that.
 		for _ in 0..(2 * nb_side_min) {
-			for j in 0..edge_vec.len() {
-				let e = edge_vec[j];
+			for (j, e) in edge_vec.iter().enumerate() {
 				if weight[e.v] < weight[e.u] + e.w {
 					weight[e.v] = weight[e.u] + e.w;
 					prev[e.v] = j;
@@ -148,8 +142,7 @@ fn positive_cycle(
 					curr = edge_vec[prev[curr]].u;
 				}
 				//Now curr is on the cycle. We collect the edges ids.
-				let mut cycle = Vec::<usize>::new();
-				cycle.push(prev[curr]);
+				let mut cycle = vec![prev[curr]];
 				let mut cycle_vert = edge_vec[prev[curr]].u;
 				while cycle_vert != curr {
 					cycle.push(prev[cycle_vert]);
@@ -180,16 +173,16 @@ pub fn dinic_compute_matching(left_cap_vec: Vec<u32>, right_cap_vec: Vec<u32>) -
 
 	// 0 will be the source
 	graph.push(vec![ed; left_cap_vec.len()]);
-	for i in 0..left_cap_vec.len() {
-		graph[0][i].c = left_cap_vec[i] as i32;
+	for (i, c) in left_cap_vec.iter().enumerate() {
+		graph[0][i].c = *c as i32;
 		graph[0][i].v = i + 2;
 		graph[0][i].rev = 0;
 	}
 
 	//1 will be the sink
 	graph.push(vec![ed; right_cap_vec.len()]);
-	for i in 0..right_cap_vec.len() {
-		graph[1][i].c = right_cap_vec[i] as i32;
+	for (i, c) in right_cap_vec.iter().enumerate() {
+		graph[1][i].c = *c as i32;
 		graph[1][i].v = i + 2 + left_cap_vec.len();
 		graph[1][i].rev = 0;
 	}
@@ -267,58 +260,52 @@ pub fn dinic_compute_matching(left_cap_vec: Vec<u32>, right_cap_vec: Vec<u32>) -
 		let mut next_nbd = vec![0; nb_vertices];
 		let mut lifo = VecDeque::new();
 
-		let flow_upper_bound;
-		if let Some(x) = left_cap_vec.iter().max() {
-			flow_upper_bound = *x as i32;
+		let flow_upper_bound = if let Some(x) = left_cap_vec.iter().max() {
+			*x as i32
 		} else {
-			flow_upper_bound = 0;
-			assert!(false);
-		}
+			panic!();
+		};
 
 		lifo.push_back((0, flow_upper_bound));
 
-		loop {
-			if let Some((id_tmp, f_tmp)) = lifo.back() {
-				let id = *id_tmp;
-				let f = *f_tmp;
-				if id == 1 {
-					//The DFS reached the sink, we can add a
-					//residual flow.
-					lifo.pop_back();
-					while !lifo.is_empty() {
-						if let Some((id, _)) = lifo.pop_back() {
-							let nbd = next_nbd[id];
-							graph[id][nbd].flow += f;
-							let id_v = graph[id][nbd].v;
-							let nbd_v = graph[id][nbd].rev;
-							graph[id_v][nbd_v].flow -= f;
-						}
+		while let Some((id_tmp, f_tmp)) = lifo.back() {
+			let id = *id_tmp;
+			let f = *f_tmp;
+			if id == 1 {
+				//The DFS reached the sink, we can add a
+				//residual flow.
+				lifo.pop_back();
+				while !lifo.is_empty() {
+					if let Some((id, _)) = lifo.pop_back() {
+						let nbd = next_nbd[id];
+						graph[id][nbd].flow += f;
+						let id_v = graph[id][nbd].v;
+						let nbd_v = graph[id][nbd].rev;
+						graph[id_v][nbd_v].flow -= f;
 					}
-					lifo.push_back((0, flow_upper_bound));
-					continue;
 				}
-				//else we did not reach the sink
-				let nbd = next_nbd[id];
-				if nbd >= graph[id].len() {
-					//There is nothing to explore from id anymore
-					lifo.pop_back();
-					if let Some((parent, _)) = lifo.back() {
-						next_nbd[*parent] += 1;
-					}
-					continue;
-				}
-				//else we can try to send flow from id to its nbd
-				let new_flow = min(f, graph[id][nbd].c - graph[id][nbd].flow);
-				if level[graph[id][nbd].v] <= level[id] || new_flow == 0 {
-					//We cannot send flow to nbd.
-					next_nbd[id] += 1;
-					continue;
-				}
-				//otherwise, we send flow to nbd.
-				lifo.push_back((graph[id][nbd].v, new_flow));
-			} else {
-				break;
+				lifo.push_back((0, flow_upper_bound));
+				continue;
 			}
+			//else we did not reach the sink
+			let nbd = next_nbd[id];
+			if nbd >= graph[id].len() {
+				//There is nothing to explore from id anymore
+				lifo.pop_back();
+				if let Some((parent, _)) = lifo.back() {
+					next_nbd[*parent] += 1;
+				}
+				continue;
+			}
+			//else we can try to send flow from id to its nbd
+			let new_flow = min(f, graph[id][nbd].c - graph[id][nbd].flow);
+			if level[graph[id][nbd].v] <= level[id] || new_flow == 0 {
+				//We cannot send flow to nbd.
+				next_nbd[id] += 1;
+				continue;
+			}
+			//otherwise, we send flow to nbd.
+			lifo.push_back((graph[id][nbd].v, new_flow));
 		}
 	}
 

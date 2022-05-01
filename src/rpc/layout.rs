@@ -195,8 +195,8 @@ impl ClusterLayout {
 				.collect::<Vec<(String, usize)>>();
 			//We create an indexing of the zones
 			let mut zone_id = HashMap::<String, usize>::new();
-			for i in 0..part_per_zone_vec.len() {
-				zone_id.insert(part_per_zone_vec[i].0.clone(), i);
+			for (i, ppz) in part_per_zone_vec.iter().enumerate() {
+				zone_id.insert(ppz.0.clone(), i);
 			}
 
 			//We compute a candidate for the new partition to zone
@@ -212,7 +212,7 @@ impl ClusterLayout {
 			let mut node_assignation = vec![vec![None; self.replication_factor]; nb_partitions];
 			//We will decrement part_per_nod to keep track of the number
 			//of partitions that we still have to associate.
-			let mut part_per_nod = part_per_nod.clone();
+			let mut part_per_nod = part_per_nod;
 
 			//We minimize the distance to the former assignation(if any)
 
@@ -265,7 +265,7 @@ impl ClusterLayout {
 									&& part_per_nod[*id] > 0
 							})
 							.collect();
-						assert!(possible_nodes.len() > 0);
+						assert!(!possible_nodes.is_empty());
 						//We randomly pick a node
 						if let Some(nod) = possible_nodes.choose(&mut rng) {
 							node_assignation[i][j] = Some(*nod);
@@ -277,12 +277,12 @@ impl ClusterLayout {
 
 			//We write the assignation in the 1D table
 			self.ring_assignation_data = Vec::<CompactNodeType>::new();
-			for i in 0..nb_partitions {
-				for j in 0..self.replication_factor {
-					if let Some(id) = node_assignation[i][j] {
+			for ass in node_assignation {
+				for nod in ass {
+					if let Some(id) = nod {
 						self.ring_assignation_data.push(id as CompactNodeType);
 					} else {
-						assert!(false)
+						panic!()
 					}
 				}
 			}
@@ -318,7 +318,7 @@ impl ClusterLayout {
 
 		self.node_id_vec = new_node_id_vec;
 		self.ring_assignation_data = vec![];
-		return node_assignation;
+		node_assignation
 	}
 
 	///This function compute the number of partition to assign to
@@ -345,7 +345,7 @@ impl ClusterLayout {
 		//Compute the optimal number of partitions per zone
 		let sum_capacities: u32 = zone_capacity.values().sum();
 
-		if sum_capacities <= 0 {
+		if sum_capacities == 0 {
 			println!("No storage capacity in the network.");
 			return None;
 		}
@@ -493,14 +493,10 @@ impl ClusterLayout {
 			.map(|id_nod| match self.node_role(id_nod) {
 				Some(NodeRole {
 					zone: _,
-					capacity,
+					capacity: Some(c),
 					tags: _,
 				}) => {
-					if let Some(c) = capacity {
 						*c
-					} else {
-						0
-					}
 				}
 				_ => 0,
 			})
