@@ -839,7 +839,6 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
- "garage_admin",
  "garage_api",
  "garage_model 0.7.0",
  "garage_rpc 0.7.0",
@@ -853,7 +852,11 @@ dependencies = [
  "hyper",
  "kuska-sodiumoxide",
  "netapp 0.4.4",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry-prometheus",
  "pretty_env_logger",
+ "prometheus",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
  "serde",
@@ -865,23 +868,6 @@ dependencies = [
  "structopt",
  "tokio",
  "toml",
- "tracing",
-]
-
-[[package]]
-name = "garage_admin"
-version = "0.7.0"
-dependencies = [
- "futures",
- "futures-util",
- "garage_util 0.7.0",
- "hex",
- "http",
- "hyper",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry-prometheus",
- "prometheus",
  "tracing",
 ]
 
@@ -914,8 +900,11 @@ dependencies = [
  "multer",
  "nom",
  "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry-prometheus",
  "percent-encoding",
  "pin-project 1.0.10",
+ "prometheus",
  "quick-xml",
  "roxmltree",
  "serde",
@@ -1040,7 +1029,6 @@ dependencies = [
  "bytes 1.1.0",
  "futures",
  "futures-util",
- "garage_admin",
  "garage_util 0.7.0",
  "gethostname",
  "hex",

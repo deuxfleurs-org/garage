@@ -5,7 +5,6 @@ members = [
 	"src/table",
 	"src/block",
 	"src/model",
-	"src/admin",
 	"src/api",
 	"src/web",
 	"src/garage"

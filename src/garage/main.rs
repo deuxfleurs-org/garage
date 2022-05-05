@@ -8,6 +8,7 @@ mod admin;
 mod cli;
 mod repair;
 mod server;
+mod tracing_setup;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;

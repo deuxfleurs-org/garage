@@ -121,6 +121,10 @@ pub struct WebConfig {
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
 	pub api_bind_addr: Option<SocketAddr>,
+	/// Bearer token to use to scrape metrics
+	pub metrics_token: Option<String>,
+	/// Bearer token to use to access Admin API endpoints
+	pub admin_token: Option<String>,
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
 }
