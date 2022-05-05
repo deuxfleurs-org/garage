@@ -14,8 +14,8 @@ router_match! {@func
 /// List of all Admin API endpoints.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Endpoint {
-	Metrics,
 	Options,
+	Metrics,
 	GetClusterStatus,
 	GetClusterLayout,
 	UpdateClusterLayout,

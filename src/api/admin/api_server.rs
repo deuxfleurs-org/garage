@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use futures::future::Future;
-use http::header::CONTENT_TYPE;
+use http::header::{CONTENT_TYPE, ALLOW, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN};
 use hyper::{Body, Request, Response};
 
 use opentelemetry::trace::{SpanRef, Tracer};
@@ -17,6 +17,7 @@ use crate::error::*;
 use crate::generic_server::*;
 
 use crate::admin::router::{Authorization, Endpoint};
+use crate::admin::cluster::*;
 
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
@@ -54,6 +55,15 @@ impl AdminApiServer {
 		} else {
 			Ok(())
 		}
+	}
+
+	fn handle_options(&self, _req: &Request<Body>) -> Result<Response<Body>, Error> {
+		Ok(Response::builder()
+			.status(204)
+			.header(ALLOW, "OPTIONS, GET, POST")
+			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, GET, POST")
+			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+			.body(Body::empty())?)
 	}
 
 	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
@@ -110,7 +120,9 @@ impl ApiHandler for AdminApiServer {
 		}
 
 		match endpoint {
+			Endpoint::Options => self.handle_options(&req),
 			Endpoint::Metrics => self.handle_metrics(),
+			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()
