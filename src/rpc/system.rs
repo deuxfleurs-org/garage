@@ -462,7 +462,6 @@ impl System {
 		SystemRpc::ReturnKnownNodes(known_nodes)
 	}
 
-
 	async fn handle_advertise_status(
 		self: &Arc<Self>,
 		from: Uuid,
