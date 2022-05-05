@@ -110,6 +110,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	// Remove RPC handlers for system to break reference cycles
 	garage.system.netapp.drop_all_handlers();
+	opentelemetry::global::shutdown_tracer_provider();
 
 	// Await for netapp RPC system to end
 	run_system.await?;
