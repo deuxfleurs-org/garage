@@ -1,5 +1,4 @@
 use garage_util::crdt::Crdt;
-use garage_util::data::*;
 use garage_util::error::*;
 
 use garage_rpc::layout::*;
@@ -211,31 +210,9 @@ pub async fn cmd_apply_layout(
 	rpc_host: NodeID,
 	apply_opt: ApplyLayoutOpt,
 ) -> Result<(), Error> {
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
-	match apply_opt.version {
-		None => {
-			println!("Please pass the --version flag to ensure that you are writing the correct version of the cluster layout.");
-			println!("To know the correct value of the --version flag, invoke `garage layout show` and review the proposed changes.");
-			return Err(Error::Message("--version flag is missing".into()));
-		}
-		Some(v) => {
-			if v != layout.version + 1 {
-				return Err(Error::Message("Invalid value of --version flag".into()));
-			}
-		}
-	}
-
-	layout.roles.merge(&layout.staging);
-
-	if !layout.calculate_partition_assignation() {
-		return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
-	}
-
-	layout.staging.clear();
-	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
-
-	layout.version += 1;
+	let layout = layout.apply_staged_changes(apply_opt.version)?;
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
@@ -250,25 +227,9 @@ pub async fn cmd_revert_layout(
 	rpc_host: NodeID,
 	revert_opt: RevertLayoutOpt,
 ) -> Result<(), Error> {
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
-	match revert_opt.version {
-		None => {
-			println!("Please pass the --version flag to ensure that you are writing the correct version of the cluster layout.");
-			println!("To know the correct value of the --version flag, invoke `garage layout show` and review the proposed changes.");
-			return Err(Error::Message("--version flag is missing".into()));
-		}
-		Some(v) => {
-			if v != layout.version + 1 {
-				return Err(Error::Message("Invalid value of --version flag".into()));
-			}
-		}
-	}
-
-	layout.staging.clear();
-	layout.staging_hash = blake2sum(&rmp_to_vec_all_named(&layout.staging).unwrap()[..]);
-
-	layout.version += 1;
+	let layout = layout.revert_staged_changes(revert_opt.version)?;
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 

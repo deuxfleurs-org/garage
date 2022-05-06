@@ -315,6 +315,14 @@ impl System {
 	// ---- Administrative operations (directly available and
 	//      also available through RPC) ----
 
+	pub fn garage_version(&self) -> &'static str {
+		option_env!("GIT_VERSION").unwrap_or(git_version::git_version!(
+			prefix = "git:",
+			cargo_prefix = "cargo:",
+			fallback = "unknown"
+		))
+	}
+
 	pub fn get_known_nodes(&self) -> Vec<KnownNodeInfo> {
 		let node_status = self.node_status.read().unwrap();
 		let known_nodes = self
@@ -343,6 +351,14 @@ impl System {
 
 	pub fn get_cluster_layout(&self) -> ClusterLayout {
 		self.ring.borrow().layout.clone()
+	}
+
+	pub async fn update_cluster_layout(
+		self: &Arc<Self>,
+		layout: &ClusterLayout,
+	) -> Result<(), Error> {
+		self.handle_advertise_cluster_layout(layout).await?;
+		Ok(())
 	}
 
 	pub async fn connect(&self, node: &str) -> Result<(), Error> {
@@ -495,7 +511,7 @@ impl System {
 	}
 
 	async fn handle_advertise_cluster_layout(
-		self: Arc<Self>,
+		self: &Arc<Self>,
 		adv: &ClusterLayout,
 	) -> Result<SystemRpc, Error> {
 		let update_ring = self.update_ring.lock().await;

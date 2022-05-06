@@ -19,6 +19,7 @@ Returns internal Garage metrics in Prometheus format.
 
 Returns the cluster's current status in JSON, including:
 
+- ID of the node being queried and its version of the Garage daemon
 - Live nodes
 - Currently configured cluster layout
 - Staged changes to the cluster layout
@@ -27,6 +28,8 @@ Example response body:
 
 ```json
 {
+  "node": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
+  "garage_version": "git:v0.8.0",
   "knownNodes": {
     "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
       "addr": "10.0.0.11:3901",

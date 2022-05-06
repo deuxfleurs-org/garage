@@ -13,6 +13,7 @@ use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
 use crate::error::*;
+use crate::helpers::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_insert_batch(
@@ -20,9 +21,7 @@ pub async fn handle_insert_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let items: Vec<InsertBatchItem> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let items = parse_json_body::<Vec<InsertBatchItem>>(req).await?;
 
 	let mut items2 = vec![];
 	for it in items {
@@ -52,9 +51,7 @@ pub async fn handle_read_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let queries: Vec<ReadBatchQuery> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let queries = parse_json_body::<Vec<ReadBatchQuery>>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -149,9 +146,7 @@ pub async fn handle_delete_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let queries: Vec<DeleteBatchQuery> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let queries = parse_json_body::<Vec<DeleteBatchQuery>>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries

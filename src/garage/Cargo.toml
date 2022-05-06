@@ -29,7 +29,6 @@ garage_util = { version = "0.7.0", path = "../util" }
 garage_web = { version = "0.7.0", path = "../web" }
 
 bytes = "1.0"
-git-version = "0.3.4"
 hex = "0.4"
 tracing = { version = "0.1.30", features = ["log-always"] }
 pretty_env_logger = "0.4"

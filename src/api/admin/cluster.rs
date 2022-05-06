@@ -2,19 +2,24 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use serde::Serialize;
+use hyper::{Body, Request, Response, StatusCode};
+use serde::{Deserialize, Serialize};
 
-use hyper::{Body, Response, StatusCode};
+use garage_util::crdt::*;
+use garage_util::data::*;
+use garage_util::error::Error as GarageError;
 
 use garage_rpc::layout::*;
-use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
 
 use crate::error::*;
+use crate::helpers::*;
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = GetClusterStatusResponse {
+		node: hex::encode(garage.system.id),
+		garage_version: garage.system.garage_version(),
 		known_nodes: garage
 			.system
 			.get_known_nodes()
@@ -72,6 +77,8 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 
 #[derive(Serialize)]
 struct GetClusterStatusResponse {
+	node: String,
+	garage_version: &'static str,
 	#[serde(rename = "knownNodes")]
 	known_nodes: HashMap<String, KnownNodeResp>,
 	layout: GetClusterLayoutResponse,
@@ -91,4 +98,68 @@ struct KnownNodeResp {
 	is_up: bool,
 	last_seen_secs_ago: Option<u64>,
 	hostname: String,
+}
+
+pub async fn handle_update_cluster_layout(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let updates = parse_json_body::<UpdateClusterLayoutRequest>(req).await?;
+
+	let mut layout = garage.system.get_cluster_layout();
+
+	let mut roles = layout.roles.clone();
+	roles.merge(&layout.staging);
+
+	for (node, role) in updates {
+		let node = hex::decode(node).ok_or_bad_request("Invalid node identifier")?;
+		let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
+
+		layout
+			.staging
+			.merge(&roles.update_mutator(node, NodeRoleV(role)));
+	}
+
+	garage.system.update_cluster_layout(&layout).await?;
+
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.body(Body::empty())?)
+}
+
+pub async fn handle_apply_cluster_layout(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+
+	let layout = garage.system.get_cluster_layout();
+	let layout = layout.apply_staged_changes(Some(param.version))?;
+	garage.system.update_cluster_layout(&layout).await?;
+
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.body(Body::empty())?)
+}
+
+pub async fn handle_revert_cluster_layout(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+
+	let layout = garage.system.get_cluster_layout();
+	let layout = layout.revert_staged_changes(Some(param.version))?;
+	garage.system.update_cluster_layout(&layout).await?;
+
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.body(Body::empty())?)
+}
+
+type UpdateClusterLayoutRequest = HashMap<String, Option<NodeRole>>;
+
+#[derive(Deserialize)]
+struct ApplyRevertLayoutRequest {
+	version: u64,
 }

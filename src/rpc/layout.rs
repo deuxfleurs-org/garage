@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::{AutoCrdt, Crdt, LwwMap};
 use garage_util::data::*;
+use garage_util::error::*;
 
 use crate::ring::*;
 
@@ -98,6 +99,61 @@ impl ClusterLayout {
 			}
 			Ordering::Less => false,
 		}
+	}
+
+	pub fn apply_staged_changes(mut self, version: Option<u64>) -> Result<Self, Error> {
+		match version {
+			None => {
+				let error = r#"
+Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
+To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
+				"#;
+				return Err(Error::Message(error.into()));
+			}
+			Some(v) => {
+				if v != self.version + 1 {
+					return Err(Error::Message("Invalid new layout version".into()));
+				}
+			}
+		}
+
+		self.roles.merge(&self.staging);
+		self.roles.retain(|(_, _, v)| v.0.is_some());
+
+		if !self.calculate_partition_assignation() {
+			return Err(Error::Message("Could not calculate new assignation of partitions to nodes. This can happen if there are less nodes than the desired number of copies of your data (see the replication_mode configuration parameter).".into()));
+		}
+
+		self.staging.clear();
+		self.staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+
+		self.version += 1;
+
+		Ok(self)
+	}
+
+	pub fn revert_staged_changes(mut self, version: Option<u64>) -> Result<Self, Error> {
+		match version {
+			None => {
+				let error = r#"
+Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
+To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
+				"#;
+				return Err(Error::Message(error.into()));
+			}
+			Some(v) => {
+				if v != self.version + 1 {
+					return Err(Error::Message("Invalid new layout version".into()));
+				}
+			}
+		}
+
+		self.staging.clear();
+		self.staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+
+		self.version += 1;
+
+		Ok(self)
 	}
 
 	/// Returns a list of IDs of nodes that currently have
