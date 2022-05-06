@@ -7,11 +7,15 @@ The admin API uses two different tokens for acces control, that are specified in
 
 # Administration API endpoints
 
-## Metrics `GET /metrics`
+## Metrics-related endpoints
+
+### Metrics `GET /metrics`
 
 Returns internal Garage metrics in Prometheus format.
 
-## GetClusterStatus `GET /status`
+## Cluster operations
+
+### GetClusterStatus `GET /status`
 
 Returns the cluster's current status in JSON, including:
 
@@ -50,6 +54,7 @@ Example response body:
     }
   },
   "layout": {
+    "version": 12,
     "roles": {
       "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
         "zone": "dc1",
@@ -86,7 +91,7 @@ Example response body:
 }
 ```
 
-## GetClusterLayout `GET /layout`
+### GetClusterLayout `GET /layout`
 
 Returns the cluster's current layout in JSON, including:
 
@@ -99,6 +104,7 @@ Example response body:
 
 ```json
 {
+  "version": 12,
   "roles": {
     "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
       "zone": "dc1",
@@ -133,3 +139,70 @@ Example response body:
   }
 }
 ```
+
+### UpdateClusterLayout `POST /layout`
+
+Send modifications to the cluster layout. These modifications will
+be included in the staged role changes, visible in subsequent calls
+of `GetClusterLayout`. Once the set of staged changes is satisfactory,
+the user may call `ApplyClusterLayout` to apply the changed changes,
+or `Revert ClusterLayout` to clear all of the staged changes in
+the layout.
+
+Request body format:
+
+```json
+{
+  <node_id>: {
+    "capacity": <new_capacity>,
+    "zone": <new_zone>,
+    "tags": [
+      <new_tag>,
+      ...
+    ]
+  },
+  <node_id_to_remove>: null,
+  ...
+}
+```
+
+Contrary to the CLI that may update only a subset of the fields
+`capacity`, `zone` and `tags`, when calling this API all of these
+values must be specified.
+
+
+### ApplyClusterLayout `POST /layout/apply`
+
+Applies to the cluster the layout changes currently registered as
+staged layout changes.
+
+Request body format:
+
+```json
+{
+  "version": 13
+}
+```
+
+Similarly to the CLI, the body must include the version of the new layout
+that will be created, which MUST be 1 + the value of the currently
+existing layout in the cluster.
+
+### RevertClusterLayout `POST /layout/revert`
+
+Clears all of the staged layout changes.
+
+Request body format:
+
+```json
+{
+  "version": 13
+}
+```
+
+Reverting the staged changes is done by incrementing the version number
+and clearing the contents of the staged change list.
+Similarly to the CLI, the body must include the incremented
+version number, which MUST be 1 + the value of the currently
+existing layout in the cluster.
+

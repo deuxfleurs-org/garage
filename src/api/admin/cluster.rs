@@ -52,6 +52,7 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 	let layout = garage.system.get_cluster_layout();
 
 	GetClusterLayoutResponse {
+		version: layout.version,
 		roles: layout
 			.roles
 			.items()
@@ -78,6 +79,7 @@ struct GetClusterStatusResponse {
 
 #[derive(Serialize)]
 struct GetClusterLayoutResponse {
+	version: u64,
 	roles: HashMap<String, Option<NodeRole>>,
 	#[serde(rename = "stagedRoleChanges")]
 	staged_role_changes: HashMap<String, Option<NodeRole>>,
