@@ -43,13 +43,21 @@ pub async fn cmd_assign_role(
 		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	};
 
+	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+
 	let added_nodes = args
 		.node_ids
 		.iter()
-		.map(|node_id| find_matching_node(status.iter().map(|adv| adv.id), node_id))
+		.map(|node_id| {
+			find_matching_node(
+				status
+					.iter()
+					.map(|adv| adv.id)
+					.chain(layout.node_ids().iter().cloned()),
+				node_id,
+			)
+		})
 		.collect::<Result<Vec<_>, _>>()?;
-
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	let mut roles = layout.roles.clone();
 	roles.merge(&layout.staging);
@@ -323,11 +331,20 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 }
 
 pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
-	if !layout.staging.items().is_empty() {
+	let has_changes = layout
+		.staging
+		.items()
+		.iter()
+		.any(|(k, _, v)| layout.roles.get(k) != Some(v));
+
+	if has_changes {
 		println!();
 		println!("==== STAGED ROLE CHANGES ====");
 		let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
 		for (id, _, role) in layout.staging.items().iter() {
+			if layout.roles.get(id) == Some(role) {
+				continue;
+			}
 			if let Some(role) = &role.0 {
 				let tags = role.tags.join(",");
 				table.push(format!(
