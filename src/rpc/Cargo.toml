@@ -48,7 +48,7 @@ opentelemetry = "0.17"
 
 #netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }
 #netapp = { version = "0.4", path = "../../../netapp", features = ["telemetry"] }
-netapp = { version = "0.4.2", features = ["telemetry"] }
+netapp = { version = "0.4.4", features = ["telemetry"] }
 
 hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
