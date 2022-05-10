@@ -86,13 +86,14 @@ in let
      It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
      But we want to ship these additional features when we release Garage.
      In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
-     Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
+     Currently, the only such feature of Garage is kubernetes-discovery from the garage_rpc crate.
+     The experimental feature k2v is also enabled here in all builds.
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_rpc";
       overrideArgs = old:
         {
-          features = if release then [ "kubernetes-discovery" ] else [];
+          features = if release then [ "kubernetes-discovery" "k2v" ] else [ "k2v" ];
         };
     })
   ];
