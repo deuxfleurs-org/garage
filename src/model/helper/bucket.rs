@@ -1,4 +1,4 @@
-use garage_table::util::EmptyKey;
+use garage_table::util::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::{Error as GarageError, OkOrMessage};
@@ -116,6 +116,7 @@ impl<'a> BucketHelper<'a> {
 				None,
 				Some(KeyFilter::MatchesAndNotDeleted(pattern.to_string())),
 				10,
+				EnumerationOrder::Forward,
 			)
 			.await?
 			.into_iter()

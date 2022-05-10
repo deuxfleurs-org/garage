@@ -51,11 +51,11 @@ impl TableSchema for BlockRefTable {
 	type E = BlockRef;
 	type Filter = DeletedFilter;
 
-	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+	fn updated(&self, old: Option<&Self::E>, new: Option<&Self::E>) {
 		#[allow(clippy::or_fun_call)]
-		let block = &old.as_ref().or(new.as_ref()).unwrap().block;
-		let was_before = old.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
-		let is_after = new.as_ref().map(|x| !x.deleted.get()).unwrap_or(false);
+		let block = &old.or(new).unwrap().block;
+		let was_before = old.map(|x| !x.deleted.get()).unwrap_or(false);
+		let is_after = new.map(|x| !x.deleted.get()).unwrap_or(false);
 		if is_after && !was_before {
 			if let Err(e) = self.block_manager.block_incref(block) {
 				warn!("block_incref failed for block {:?}: {}", block, e);

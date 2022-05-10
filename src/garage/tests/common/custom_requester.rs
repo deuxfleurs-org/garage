@@ -17,14 +17,25 @@ use garage_api::signature;
 pub struct CustomRequester {
 	key: Key,
 	uri: Uri,
+	service: &'static str,
 	client: Client<HttpConnector>,
 }
 
 impl CustomRequester {
-	pub fn new(instance: &Instance) -> Self {
+	pub fn new_s3(instance: &Instance) -> Self {
 		CustomRequester {
 			key: instance.key.clone(),
-			uri: instance.uri(),
+			uri: instance.s3_uri(),
+			service: "s3",
+			client: Client::new(),
+		}
+	}
+
+	pub fn new_k2v(instance: &Instance) -> Self {
+		CustomRequester {
+			key: instance.key.clone(),
+			uri: instance.k2v_uri(),
+			service: "k2v",
 			client: Client::new(),
 		}
 	}
@@ -32,6 +43,7 @@ impl CustomRequester {
 	pub fn builder(&self, bucket: String) -> RequestBuilder<'_> {
 		RequestBuilder {
 			requester: self,
+			service: self.service,
 			bucket,
 			method: Method::GET,
 			path: String::new(),
@@ -47,6 +59,7 @@ impl CustomRequester {
 
 pub struct RequestBuilder<'a> {
 	requester: &'a CustomRequester,
+	service: &'static str,
 	bucket: String,
 	method: Method,
 	path: String,
@@ -59,13 +72,17 @@ pub struct RequestBuilder<'a> {
 }
 
 impl<'a> RequestBuilder<'a> {
+	pub fn service(&mut self, service: &'static str) -> &mut Self {
+		self.service = service;
+		self
+	}
 	pub fn method(&mut self, method: Method) -> &mut Self {
 		self.method = method;
 		self
 	}
 
-	pub fn path(&mut self, path: String) -> &mut Self {
-		self.path = path;
+	pub fn path(&mut self, path: impl ToString) -> &mut Self {
+		self.path = path.to_string();
 		self
 	}
 
@@ -74,13 +91,35 @@ impl<'a> RequestBuilder<'a> {
 		self
 	}
 
+	pub fn query_param<T, U>(&mut self, param: T, value: Option<U>) -> &mut Self
+	where
+		T: ToString,
+		U: ToString,
+	{
+		self.query_params
+			.insert(param.to_string(), value.as_ref().map(ToString::to_string));
+		self
+	}
+
 	pub fn signed_headers(&mut self, signed_headers: HashMap<String, String>) -> &mut Self {
 		self.signed_headers = signed_headers;
 		self
 	}
 
+	pub fn signed_header(&mut self, name: impl ToString, value: impl ToString) -> &mut Self {
+		self.signed_headers
+			.insert(name.to_string(), value.to_string());
+		self
+	}
+
 	pub fn unsigned_headers(&mut self, unsigned_headers: HashMap<String, String>) -> &mut Self {
 		self.unsigned_headers = unsigned_headers;
+		self
+	}
+
+	pub fn unsigned_header(&mut self, name: impl ToString, value: impl ToString) -> &mut Self {
+		self.unsigned_headers
+			.insert(name.to_string(), value.to_string());
 		self
 	}
 
@@ -106,24 +145,24 @@ impl<'a> RequestBuilder<'a> {
 		let query = query_param_to_string(&self.query_params);
 		let (host, path) = if self.vhost_style {
 			(
-				format!("{}.s3.garage", self.bucket),
+				format!("{}.{}.garage", self.bucket, self.service),
 				format!("{}{}", self.path, query),
 			)
 		} else {
 			(
-				"s3.garage".to_owned(),
+				format!("{}.garage", self.service),
 				format!("{}/{}{}", self.bucket, self.path, query),
 			)
 		};
 		let uri = format!("{}{}", self.requester.uri, path);
 
 		let now = Utc::now();
-		let scope = signature::compute_scope(&now, super::REGION.as_ref());
+		let scope = signature::compute_scope(&now, super::REGION.as_ref(), self.service);
 		let mut signer = signature::signing_hmac(
 			&now,
 			&self.requester.key.secret,
 			super::REGION.as_ref(),
-			"s3",
+			self.service,
 		)
 		.unwrap();
 		let streaming_signer = signer.clone();

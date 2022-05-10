@@ -132,7 +132,7 @@ impl BlockManager {
 
 		let endpoint = system
 			.netapp
-			.endpoint("garage_model/block.rs/Rpc".to_string());
+			.endpoint("garage_block/manager.rs/Rpc".to_string());
 
 		let manager_locked = BlockManagerLocked();
 

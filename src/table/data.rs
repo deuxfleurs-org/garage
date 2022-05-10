@@ -1,8 +1,9 @@
 use core::borrow::Borrow;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 use serde_bytes::ByteBuf;
-use sled::Transactional;
+use sled::{IVec, Transactional};
 use tokio::sync::Notify;
 
 use garage_util::data::*;
@@ -16,12 +17,13 @@ use crate::gc::GcTodoEntry;
 use crate::metrics::*;
 use crate::replication::*;
 use crate::schema::*;
+use crate::util::*;
 
 pub struct TableData<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 
-	pub(crate) instance: F,
-	pub(crate) replication: R,
+	pub instance: F,
+	pub replication: R,
 
 	pub store: sled::Tree,
 
@@ -83,18 +85,48 @@ where
 
 	pub fn read_range(
 		&self,
-		p: &F::P,
-		s: &Option<F::S>,
+		partition_key: &F::P,
+		start: &Option<F::S>,
+		filter: &Option<F::Filter>,
+		limit: usize,
+		enumeration_order: EnumerationOrder,
+	) -> Result<Vec<Arc<ByteBuf>>, Error> {
+		let partition_hash = partition_key.hash();
+		match enumeration_order {
+			EnumerationOrder::Forward => {
+				let first_key = match start {
+					None => partition_hash.to_vec(),
+					Some(sk) => self.tree_key(partition_key, sk),
+				};
+				let range = self.store.range(first_key..);
+				self.read_range_aux(partition_hash, range, filter, limit)
+			}
+			EnumerationOrder::Reverse => match start {
+				Some(sk) => {
+					let last_key = self.tree_key(partition_key, sk);
+					let range = self.store.range(..=last_key).rev();
+					self.read_range_aux(partition_hash, range, filter, limit)
+				}
+				None => {
+					let mut last_key = partition_hash.to_vec();
+					let lower = u128::from_be_bytes(last_key[16..32].try_into().unwrap());
+					last_key[16..32].copy_from_slice(&u128::to_be_bytes(lower + 1));
+					let range = self.store.range(..last_key).rev();
+					self.read_range_aux(partition_hash, range, filter, limit)
+				}
+			},
+		}
+	}
+
+	fn read_range_aux(
+		&self,
+		partition_hash: Hash,
+		range: impl Iterator<Item = sled::Result<(IVec, IVec)>>,
 		filter: &Option<F::Filter>,
 		limit: usize,
 	) -> Result<Vec<Arc<ByteBuf>>, Error> {
-		let partition_hash = p.hash();
-		let first_key = match s {
-			None => partition_hash.to_vec(),
-			Some(sk) => self.tree_key(p, sk),
-		};
 		let mut ret = vec![];
-		for item in self.store.range(first_key..) {
+		for item in range {
 			let (key, value) = item?;
 			if &key[..32] != partition_hash.as_slice() {
 				break;
@@ -136,17 +168,31 @@ where
 		let update = self.decode_entry(update_bytes)?;
 		let tree_key = self.tree_key(update.partition_key(), update.sort_key());
 
+		self.update_entry_with(&tree_key[..], |ent| match ent {
+			Some(mut ent) => {
+				ent.merge(&update);
+				ent
+			}
+			None => update.clone(),
+		})?;
+		Ok(())
+	}
+
+	pub fn update_entry_with(
+		&self,
+		tree_key: &[u8],
+		f: impl Fn(Option<F::E>) -> F::E,
+	) -> Result<Option<F::E>, Error> {
 		let changed = (&self.store, &self.merkle_todo).transaction(|(store, mkl_todo)| {
-			let (old_entry, old_bytes, new_entry) = match store.get(&tree_key)? {
+			let (old_entry, old_bytes, new_entry) = match store.get(tree_key)? {
 				Some(old_bytes) => {
 					let old_entry = self
 						.decode_entry(&old_bytes)
 						.map_err(sled::transaction::ConflictableTransactionError::Abort)?;
-					let mut new_entry = old_entry.clone();
-					new_entry.merge(&update);
+					let new_entry = f(Some(old_entry.clone()));
 					(Some(old_entry), Some(old_bytes), new_entry)
 				}
-				None => (None, None, update.clone()),
+				None => (None, None, f(None)),
 			};
 
 			// Scenario 1: the value changed, so of course there is a change
@@ -163,8 +209,8 @@ where
 
 			if value_changed || encoding_changed {
 				let new_bytes_hash = blake2sum(&new_bytes[..]);
-				mkl_todo.insert(tree_key.clone(), new_bytes_hash.as_slice())?;
-				store.insert(tree_key.clone(), new_bytes)?;
+				mkl_todo.insert(tree_key.to_vec(), new_bytes_hash.as_slice())?;
+				store.insert(tree_key.to_vec(), new_bytes)?;
 				Ok(Some((old_entry, new_entry, new_bytes_hash)))
 			} else {
 				Ok(None)
@@ -175,7 +221,7 @@ where
 			self.metrics.internal_update_counter.add(1);
 
 			let is_tombstone = new_entry.is_tombstone();
-			self.instance.updated(old_entry, Some(new_entry));
+			self.instance.updated(old_entry.as_ref(), Some(&new_entry));
 			self.merkle_todo_notify.notify_one();
 			if is_tombstone {
 				// We are only responsible for GC'ing this item if we are the
@@ -187,12 +233,14 @@ where
 				let pk_hash = Hash::try_from(&tree_key[..32]).unwrap();
 				let nodes = self.replication.write_nodes(&pk_hash);
 				if nodes.first() == Some(&self.system.id) {
-					GcTodoEntry::new(tree_key, new_bytes_hash).save(&self.gc_todo)?;
+					GcTodoEntry::new(tree_key.to_vec(), new_bytes_hash).save(&self.gc_todo)?;
 				}
 			}
-		}
 
-		Ok(())
+			Ok(Some(new_entry))
+		} else {
+			Ok(None)
+		}
 	}
 
 	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
@@ -211,7 +259,7 @@ where
 			self.metrics.internal_delete_counter.add(1);
 
 			let old_entry = self.decode_entry(v)?;
-			self.instance.updated(Some(old_entry), None);
+			self.instance.updated(Some(&old_entry), None);
 			self.merkle_todo_notify.notify_one();
 		}
 		Ok(removed)
@@ -235,7 +283,7 @@ where
 
 		if let Some(old_v) = removed {
 			let old_entry = self.decode_entry(&old_v[..])?;
-			self.instance.updated(Some(old_entry), None);
+			self.instance.updated(Some(&old_entry), None);
 			self.merkle_todo_notify.notify_one();
 			Ok(true)
 		} else {
@@ -245,13 +293,13 @@ where
 
 	// ---- Utility functions ----
 
-	pub(crate) fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
+	pub fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
 		let mut ret = p.hash().to_vec();
 		ret.extend(s.sort_key());
 		ret
 	}
 
-	pub(crate) fn decode_entry(&self, bytes: &[u8]) -> Result<F::E, Error> {
+	pub fn decode_entry(&self, bytes: &[u8]) -> Result<F::E, Error> {
 		match rmp_serde::decode::from_read_ref::<_, F::E>(bytes) {
 			Ok(x) => Ok(x),
 			Err(e) => match F::try_migrate(bytes) {

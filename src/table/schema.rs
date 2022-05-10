@@ -86,7 +86,7 @@ pub trait TableSchema: Send + Sync {
 	// as the update itself is an unchangeable fact that will never go back
 	// due to CRDT logic. Typically errors in propagation of info should be logged
 	// to stderr.
-	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {}
+	fn updated(&self, _old: Option<&Self::E>, _new: Option<&Self::E>) {}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool;
 }

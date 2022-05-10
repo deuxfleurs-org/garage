@@ -11,14 +11,15 @@ use garage_util::data::Hash;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use super::signing_hmac;
-use super::{LONG_DATETIME, SHORT_DATE};
+use super::LONG_DATETIME;
+use super::{compute_scope, signing_hmac};
 
 use crate::encoding::uri_encode;
 use crate::error::*;
 
 pub async fn check_payload_signature(
 	garage: &Garage,
+	service: &str,
 	request: &Request<Body>,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
@@ -64,6 +65,7 @@ pub async fn check_payload_signature(
 
 	let key = verify_v4(
 		garage,
+		service,
 		&authorization.credential,
 		&authorization.date,
 		&authorization.signature,
@@ -281,6 +283,7 @@ pub fn parse_date(date: &str) -> Result<DateTime<Utc>, Error> {
 
 pub async fn verify_v4(
 	garage: &Garage,
+	service: &str,
 	credential: &str,
 	date: &DateTime<Utc>,
 	signature: &str,
@@ -288,11 +291,7 @@ pub async fn verify_v4(
 ) -> Result<Key, Error> {
 	let (key_id, scope) = parse_credential(credential)?;
 
-	let scope_expected = format!(
-		"{}/{}/s3/aws4_request",
-		date.format(SHORT_DATE),
-		garage.config.s3_api.s3_region
-	);
+	let scope_expected = compute_scope(date, &garage.config.s3_api.s3_region, service);
 	if scope != scope_expected {
 		return Err(Error::AuthorizationHeaderMalformed(scope.to_string()));
 	}
@@ -309,7 +308,7 @@ pub async fn verify_v4(
 		date,
 		&key_p.secret_key,
 		&garage.config.s3_api.s3_region,
-		"s3",
+		service,
 	)
 	.ok_or_internal_error("Unable to build signing HMAC")?;
 	hmac.update(payload);

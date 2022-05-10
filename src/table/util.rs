@@ -17,7 +17,7 @@ impl PartitionKey for EmptyKey {
 	}
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DeletedFilter {
 	Any,
 	Deleted,
@@ -30,6 +30,22 @@ impl DeletedFilter {
 			DeletedFilter::Any => true,
 			DeletedFilter::Deleted => deleted,
 			DeletedFilter::NotDeleted => !deleted,
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EnumerationOrder {
+	Forward,
+	Reverse,
+}
+
+impl EnumerationOrder {
+	pub fn from_reverse(reverse: bool) -> Self {
+		if reverse {
+			Self::Reverse
+		} else {
+			Self::Forward
 		}
 	}
 }

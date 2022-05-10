@@ -8,9 +8,12 @@ use garage_util::error::Error;
 
 use garage_admin::metrics::*;
 use garage_admin::tracing_setup::*;
-use garage_api::run_api_server;
+use garage_api::s3::api_server::S3ApiServer;
 use garage_model::garage::Garage;
 use garage_web::run_web_server;
+
+#[cfg(feature = "k2v")]
+use garage_api::k2v::api_server::K2VApiServer;
 
 use crate::admin::*;
 
@@ -56,11 +59,20 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Create admin RPC handler...");
 	AdminRpcHandler::new(garage.clone());
 
-	info!("Initializing API server...");
-	let api_server = tokio::spawn(run_api_server(
+	info!("Initializing S3 API server...");
+	let s3_api_server = tokio::spawn(S3ApiServer::run(
 		garage.clone(),
 		wait_from(watch_cancel.clone()),
 	));
+
+	#[cfg(feature = "k2v")]
+	let k2v_api_server = {
+		info!("Initializing K2V API server...");
+		tokio::spawn(K2VApiServer::run(
+			garage.clone(),
+			wait_from(watch_cancel.clone()),
+		))
+	};
 
 	info!("Initializing web server...");
 	let web_server = tokio::spawn(run_web_server(
@@ -80,8 +92,12 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	// Stuff runs
 
 	// When a cancel signal is sent, stuff stops
-	if let Err(e) = api_server.await? {
-		warn!("API server exited with error: {}", e);
+	if let Err(e) = s3_api_server.await? {
+		warn!("S3 API server exited with error: {}", e);
+	}
+	#[cfg(feature = "k2v")]
+	if let Err(e) = k2v_api_server.await? {
+		warn!("K2V API server exited with error: {}", e);
 	}
 	if let Err(e) = web_server.await? {
 		warn!("Web server exited with error: {}", e);

@@ -14,10 +14,10 @@ use serde::Deserialize;
 
 use garage_model::garage::Garage;
 
-use crate::api_server::resolve_bucket;
 use crate::error::*;
-use crate::s3_put::{get_headers, save_stream};
-use crate::s3_xml;
+use crate::helpers::resolve_bucket;
+use crate::s3::put::{get_headers, save_stream};
+use crate::s3::xml as s3_xml;
 use crate::signature::payload::{parse_date, verify_v4};
 
 pub async fn handle_post_object(
@@ -119,7 +119,15 @@ pub async fn handle_post_object(
 	};
 
 	let date = parse_date(date)?;
-	let api_key = verify_v4(&garage, credential, &date, signature, policy.as_bytes()).await?;
+	let api_key = verify_v4(
+		&garage,
+		"s3",
+		credential,
+		&date,
+		signature,
+		policy.as_bytes(),
+	)
+	.await?;
 
 	let bucket_id = resolve_bucket(&garage, &bucket, &api_key).await?;
 

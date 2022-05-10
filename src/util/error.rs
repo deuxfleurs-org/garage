@@ -44,6 +44,9 @@ pub enum Error {
 	#[error(display = "Tokio semaphore acquire error: {}", _0)]
 	TokioSemAcquire(#[error(source)] tokio::sync::AcquireError),
 
+	#[error(display = "Tokio broadcast receive error: {}", _0)]
+	TokioBcastRecv(#[error(source)] tokio::sync::broadcast::error::RecvError),
+
 	#[error(display = "Remote error: {}", _0)]
 	RemoteError(String),
 

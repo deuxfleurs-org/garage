@@ -12,16 +12,16 @@ use garage_table::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use garage_model::block_ref_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
-use garage_model::object_table::*;
-use garage_model::version_table::*;
+use garage_model::s3::block_ref_table::*;
+use garage_model::s3::object_table::*;
+use garage_model::s3::version_table::*;
 
-use crate::api_server::{parse_bucket_key, resolve_bucket};
 use crate::error::*;
-use crate::s3_put::{decode_upload_id, get_headers};
-use crate::s3_xml::{self, xmlns_tag};
+use crate::helpers::{parse_bucket_key, resolve_bucket};
+use crate::s3::put::{decode_upload_id, get_headers};
+use crate::s3::xml::{self as s3_xml, xmlns_tag};
 
 pub async fn handle_copy(
 	garage: Arc<Garage>,
@@ -619,7 +619,7 @@ pub struct CopyPartResult {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::s3_xml::to_xml_with_header;
+	use crate::s3::xml::to_xml_with_header;
 
 	#[test]
 	fn copy_object_result() -> Result<(), Error> {

@@ -42,6 +42,11 @@ pub fn signing_hmac(
 	Ok(hmac)
 }
 
-pub fn compute_scope(datetime: &DateTime<Utc>, region: &str) -> String {
-	format!("{}/{}/s3/aws4_request", datetime.format(SHORT_DATE), region,)
+pub fn compute_scope(datetime: &DateTime<Utc>, region: &str, service: &str) -> String {
+	format!(
+		"{}/{}/{}/aws4_request",
+		datetime.format(SHORT_DATE),
+		region,
+		service
+	)
 }

@@ -52,5 +52,6 @@ netapp = { version = "0.4.4", features = ["telemetry"] }
 
 hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
+
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "openssl", "schemars" ]

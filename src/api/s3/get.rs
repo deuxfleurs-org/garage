@@ -14,8 +14,8 @@ use garage_table::EmptyKey;
 use garage_util::data::*;
 
 use garage_model::garage::Garage;
-use garage_model::object_table::*;
-use garage_model::version_table::*;
+use garage_model::s3::object_table::*;
+use garage_model::s3::version_table::*;
 
 use crate::error::*;
 

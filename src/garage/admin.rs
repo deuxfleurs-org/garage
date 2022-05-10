@@ -21,8 +21,8 @@ use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
-use garage_model::object_table::ObjectFilter;
 use garage_model::permission::*;
+use garage_model::s3::object_table::ObjectFilter;
 
 use crate::cli::*;
 use crate::repair::Repair;
@@ -80,7 +80,13 @@ impl AdminRpcHandler {
 		let buckets = self
 			.garage
 			.bucket_table
-			.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
+			.get_range(
+				&EmptyKey,
+				None,
+				Some(DeletedFilter::NotDeleted),
+				10000,
+				EnumerationOrder::Forward,
+			)
 			.await?;
 		Ok(AdminRpc::BucketList(buckets))
 	}
@@ -210,7 +216,13 @@ impl AdminRpcHandler {
 		let objects = self
 			.garage
 			.object_table
-			.get_range(&bucket_id, None, Some(ObjectFilter::IsData), 10)
+			.get_range(
+				&bucket_id,
+				None,
+				Some(ObjectFilter::IsData),
+				10,
+				EnumerationOrder::Forward,
+			)
 			.await?;
 		if !objects.is_empty() {
 			return Err(Error::BadRequest(format!(
@@ -445,6 +457,7 @@ impl AdminRpcHandler {
 				None,
 				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
 				10000,
+				EnumerationOrder::Forward,
 			)
 			.await?
 			.iter()

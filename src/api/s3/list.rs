@@ -10,15 +10,16 @@ use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
 use garage_model::garage::Garage;
-use garage_model::object_table::*;
-use garage_model::version_table::Version;
+use garage_model::s3::object_table::*;
+use garage_model::s3::version_table::Version;
 
-use garage_table::EmptyKey;
+use garage_table::{EmptyKey, EnumerationOrder};
 
 use crate::encoding::*;
 use crate::error::*;
-use crate::s3_put;
-use crate::s3_xml;
+use crate::helpers::key_after_prefix;
+use crate::s3::put as s3_put;
+use crate::s3::xml as s3_xml;
 
 const DUMMY_NAME: &str = "Dummy Key";
 const DUMMY_KEY: &str = "GKDummyKey";
@@ -66,8 +67,14 @@ pub async fn handle_list(
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
-			t.get_range(&bucket, key, Some(ObjectFilter::IsData), count)
-				.await
+			t.get_range(
+				&bucket,
+				key,
+				Some(ObjectFilter::IsData),
+				count,
+				EnumerationOrder::Forward,
+			)
+			.await
 		}
 	};
 
@@ -165,8 +172,14 @@ pub async fn handle_list_multipart_upload(
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
-			t.get_range(&bucket, key, Some(ObjectFilter::IsUploading), count)
-				.await
+			t.get_range(
+				&bucket,
+				key,
+				Some(ObjectFilter::IsUploading),
+				count,
+				EnumerationOrder::Forward,
+			)
+			.await
 		}
 	};
 
@@ -923,39 +936,13 @@ fn uriencode_maybe(s: &str, yes: bool) -> s3_xml::Value {
 	}
 }
 
-const UTF8_BEFORE_LAST_CHAR: char = '\u{10FFFE}';
-
-/// Compute the key after the prefix
-fn key_after_prefix(pfx: &str) -> Option<String> {
-	let mut next = pfx.to_string();
-	while !next.is_empty() {
-		let tail = next.pop().unwrap();
-		if tail >= char::MAX {
-			continue;
-		}
-
-		// Circumvent a limitation of RangeFrom that overflow earlier than needed
-		// See: https://doc.rust-lang.org/core/ops/struct.RangeFrom.html
-		let new_tail = if tail == UTF8_BEFORE_LAST_CHAR {
-			char::MAX
-		} else {
-			(tail..).nth(1).unwrap()
-		};
-
-		next.push(new_tail);
-		return Some(next);
-	}
-
-	None
-}
-
 /*
  * Unit tests of this module
  */
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use garage_model::version_table::*;
+	use garage_model::s3::version_table::*;
 	use garage_util::*;
 	use std::iter::FromIterator;
 
@@ -1000,39 +987,6 @@ mod tests {
 				other: BTreeMap::<String, String>::new(),
 			}),
 		}
-	}
-
-	#[test]
-	fn test_key_after_prefix() {
-		assert_eq!(UTF8_BEFORE_LAST_CHAR as u32, (char::MAX as u32) - 1);
-		assert_eq!(key_after_prefix("a/b/").unwrap().as_str(), "a/b0");
-		assert_eq!(key_after_prefix("€").unwrap().as_str(), "₭");
-		assert_eq!(
-			key_after_prefix("􏿽").unwrap().as_str(),
-			String::from(char::from_u32(0x10FFFE).unwrap())
-		);
-
-		// When the last character is the biggest UTF8 char
-		let a = String::from_iter(['a', char::MAX].iter());
-		assert_eq!(key_after_prefix(a.as_str()).unwrap().as_str(), "b");
-
-		// When all characters are the biggest UTF8 char
-		let b = String::from_iter([char::MAX; 3].iter());
-		assert!(key_after_prefix(b.as_str()).is_none());
-
-		// Check utf8 surrogates
-		let c = String::from('\u{D7FF}');
-		assert_eq!(
-			key_after_prefix(c.as_str()).unwrap().as_str(),
-			String::from('\u{E000}')
-		);
-
-		// Check the character before the biggest one
-		let d = String::from('\u{10FFFE}');
-		assert_eq!(
-			key_after_prefix(d.as_str()).unwrap().as_str(),
-			String::from(char::MAX)
-		);
 	}
 
 	#[test]

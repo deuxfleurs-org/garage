@@ -9,7 +9,7 @@ use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
-use crate::version_table::*;
+use crate::s3::version_table::*;
 
 use garage_model_050::object_table as old;
 
@@ -232,8 +232,11 @@ impl TableSchema for ObjectTable {
 	type E = Object;
 	type Filter = ObjectFilter;
 
-	fn updated(&self, old: Option<Self::E>, new: Option<Self::E>) {
+	fn updated(&self, old: Option<&Self::E>, new: Option<&Self::E>) {
 		let version_table = self.version_table.clone();
+		let old = old.cloned();
+		let new = new.cloned();
+
 		self.background.spawn(async move {
 			if let (Some(old_v), Some(new_v)) = (old, new) {
 				// Propagate deletion of old versions

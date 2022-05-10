@@ -85,13 +85,14 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	format_table(healthy_nodes);
 
 	let status_keys = status.iter().map(|adv| adv.id).collect::<HashSet<_>>();
-	let failure_case_1 = status.iter().any(|adv| !adv.is_up);
+	let failure_case_1 = status
+		.iter()
+		.any(|adv| !adv.is_up && matches!(layout.roles.get(&adv.id), Some(NodeRoleV(Some(_)))));
 	let failure_case_2 = layout
 		.roles
 		.items()
 		.iter()
-		.filter(|(_, _, v)| v.0.is_some())
-		.any(|(id, _, _)| !status_keys.contains(id));
+		.any(|(id, _, v)| !status_keys.contains(id) && v.0.is_some());
 	if failure_case_1 || failure_case_2 {
 		println!("\n==== FAILED NODES ====");
 		let mut failed_nodes =

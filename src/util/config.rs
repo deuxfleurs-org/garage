@@ -73,7 +73,11 @@ pub struct Config {
 	pub sled_flush_every_ms: u64,
 
 	/// Configuration for S3 api
-	pub s3_api: ApiConfig,
+	pub s3_api: S3ApiConfig,
+
+	/// Configuration for K2V api
+	#[cfg(feature = "k2v")]
+	pub k2v_api: Option<K2VApiConfig>,
 
 	/// Configuration for serving files as normal web server
 	pub s3_web: WebConfig,
@@ -85,7 +89,7 @@ pub struct Config {
 
 /// Configuration for S3 api
 #[derive(Deserialize, Debug, Clone)]
-pub struct ApiConfig {
+pub struct S3ApiConfig {
 	/// Address and port to bind for api serving
 	pub api_bind_addr: SocketAddr,
 	/// S3 region to use
@@ -93,6 +97,14 @@ pub struct ApiConfig {
 	/// Suffix to remove from domain name to find bucket. If None,
 	/// vhost-style S3 request are disabled
 	pub root_domain: Option<String>,
+}
+
+/// Configuration for K2V api
+#[cfg(feature = "k2v")]
+#[derive(Deserialize, Debug, Clone)]
+pub struct K2VApiConfig {
+	/// Address and port to bind for api serving
+	pub api_bind_addr: SocketAddr,
 }
 
 /// Configuration for serving files as normal web server

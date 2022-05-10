@@ -18,7 +18,9 @@ garage_model = { version = "0.7.0", path = "../model" }
 garage_table = { version = "0.7.0", path = "../table" }
 garage_block = { version = "0.7.0", path = "../block" }
 garage_util = { version = "0.7.0", path = "../util" }
+garage_rpc = { version = "0.7.0", path = "../rpc" }
 
+async-trait = "0.1.7"
 base64 = "0.13"
 bytes = "1.0"
 chrono = "0.4"
@@ -52,3 +54,6 @@ quick-xml = { version = "0.21", features = [ "serialize" ] }
 url = "2.1"
 
 opentelemetry = "0.17"
+
+[features]
+k2v = [ "garage_util/k2v", "garage_model/k2v" ]
