@@ -137,7 +137,7 @@ let
         /* [2] */ hardeningDisable = [ "pie" ];
       };
       overrideArgs = old: {
-        /* [4] */ features = [ "bundled-libs" "sled" ]
+        /* [4] */ features = [ "bundled-libs" "sled" "k2v" ]
           ++ (if release then [ "kubernetes-discovery" "telemetry-otlp" "metrics" "lmdb" "sqlite" ] else []);
       };
     })
