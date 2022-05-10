@@ -80,7 +80,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		wait_from(watch_cancel.clone()),
 	));
 
-	info!("Initializing Admin server...");
+	info!("Launching Admin API server...");
 	let admin_server = tokio::spawn(admin_server.run(wait_from(watch_cancel.clone())));
 
 	// Stuff runs
