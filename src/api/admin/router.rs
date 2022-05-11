@@ -25,7 +25,8 @@ pub enum Endpoint {
 	ListKeys,
 	CreateKey,
 	GetKeyInfo {
-		id: String,
+		id: Option<String>,
+		search: Option<String>,
 	},
 	DeleteKey {
 		id: String,
@@ -56,7 +57,8 @@ impl Endpoint {
 			POST "/layout/apply" => ApplyClusterLayout,
 			POST "/layout/revert" => RevertClusterLayout,
 			// API key endpoints
-			GET "/key" if id => GetKeyInfo (query::id),
+			GET "/key" if id => GetKeyInfo (query_opt::id, query_opt::search),
+			GET "/key" if search => GetKeyInfo (query_opt::id, query_opt::search),
 			POST "/key" if id => UpdateKey (query::id),
 			POST "/key" => CreateKey,
 			DELETE "/key" if id => DeleteKey (query::id),
@@ -79,5 +81,6 @@ impl Endpoint {
 }
 
 generateQueryParameters! {
-	"id" => id
+	"id" => id,
+	"search" => search
 }

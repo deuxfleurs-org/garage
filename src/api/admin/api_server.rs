@@ -19,6 +19,7 @@ use crate::error::*;
 use crate::generic_server::*;
 
 use crate::admin::cluster::*;
+use crate::admin::key::*;
 use crate::admin::router::{Authorization, Endpoint};
 
 pub struct AdminApiServer {
@@ -125,10 +126,16 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::Options => self.handle_options(&req),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
+			// Layout
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,
 			Endpoint::UpdateClusterLayout => handle_update_cluster_layout(&self.garage, req).await,
 			Endpoint::ApplyClusterLayout => handle_apply_cluster_layout(&self.garage, req).await,
 			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage, req).await,
+			// Keys
+			Endpoint::ListKeys => handle_list_keys(&self.garage).await,
+			Endpoint::GetKeyInfo { id, search } => {
+				handle_get_key_info(&self.garage, id, search).await
+			}
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()

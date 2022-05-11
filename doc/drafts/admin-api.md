@@ -219,7 +219,16 @@ Returns all API access keys in the cluster.
 Example response:
 
 ```json
-#TODO
+[
+  {
+    "id": "GK31c2f218a2e44f485b94239e",
+    "name": "test"
+  },
+  {
+    "id": "GKe10061ac9c2921f09e4c5540",
+    "name": "test2"
+  }
+]
 ```
 
 ### CreateKey `POST /key`
@@ -235,13 +244,75 @@ Request body format:
 ```
 
 ### GetKeyInfo `GET /key?id=<acces key id>`
+### GetKeyInfo `GET /key?search=<pattern>`
 
 Returns information about the requested API access key.
+
+If `id` is set, the key is looked up using its exact identifier (faster).
+If `search` is set, the key is looked up using its name or prefix
+of identifier (slower, all keys are enumerated to do this).
 
 Example response:
 
 ```json
-#TODO
+{
+  "name": "test",
+  "accessKeyId": "GK31c2f218a2e44f485b94239e",
+  "secretAccessKey": "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835",
+  "permissions": {
+    "createBucket": false
+  },
+  "buckets": [
+    {
+      "id": "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033",
+      "globalAliases": [
+        "test2"
+      ],
+      "localAliases": [],
+      "permissions": {
+        "read": true,
+        "write": true,
+        "owner": false
+      }
+    },
+    {
+      "id": "d7452a935e663fc1914f3a5515163a6d3724010ce8dfd9e4743ca8be5974f995",
+      "globalAliases": [
+        "test3"
+      ],
+      "localAliases": [],
+      "permissions": {
+        "read": true,
+        "write": true,
+        "owner": false
+      }
+    },
+    {
+      "id": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+      "globalAliases": [],
+      "localAliases": [
+        "test"
+      ],
+      "permissions": {
+        "read": true,
+        "write": true,
+        "owner": true
+      }
+    },
+    {
+      "id": "96470e0df00ec28807138daf01915cfda2bee8eccc91dea9558c0b4855b5bf95",
+      "globalAliases": [
+        "alex"
+      ],
+      "localAliases": [],
+      "permissions": {
+        "read": true,
+        "write": true,
+        "owner": true
+      }
+    }
+  ]
+}
 ```
 
 ### DeleteKey `DELETE /key?id=<acces key id>`
