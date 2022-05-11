@@ -326,6 +326,16 @@ Updates information about the specified API access key.
 Request body format:
 
 ```json
-#TODO
+{
+	"name": "NameOfMyKey",
+	"allow": {
+		"createBucket": true,
+	},
+	"deny": {}
+}
 ```
+
+All fields (`name`, `allow` and `deny`) are optionnal.
+If they are present, the corresponding modifications are applied to the key, otherwise nothing is changed.
+The possible flags in `allow` and `deny` are: `createBucket`.
 
