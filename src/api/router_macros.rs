@@ -23,6 +23,29 @@ macro_rules! router_match {
             _ => None
         }
     }};
+	(@gen_path_parser ($method:expr, $reqpath:expr, $query:expr)
+	 [
+	 $($meth:ident $path:pat $(if $required:ident)? => $api:ident $(($($conv:ident :: $param:ident),*))?,)*
+	 ]) => {{
+		{
+			use Endpoint::*;
+			match ($method, $reqpath) {
+				$(
+					(&Method::$meth, $path) if true $(&& $query.$required.is_some())? => $api {
+						$($(
+							$param: router_match!(@@parse_param $query, $conv, $param),
+						)*)?
+					},
+				)*
+				(m, p) => {
+					return Err(Error::BadRequest(format!(
+						"Unknown API endpoint: {} {}",
+						m, p
+					)))
+				}
+			}
+		}
+	}};
     (@gen_parser ($keyword:expr, $key:ident, $query:expr, $header:expr),
         key: [$($kw_k:ident $(if $required_k:ident)? $(header $header_k:expr)? => $api_k:ident $(($($conv_k:ident :: $param_k:ident),*))?,)*],
         no_key: [$($kw_nk:ident $(if $required_nk:ident)? $(if_header $header_nk:expr)? => $api_nk:ident $(($($conv_nk:ident :: $param_nk:ident),*))?,)*]) => {{

@@ -129,12 +129,10 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::UpdateClusterLayout => handle_update_cluster_layout(&self.garage, req).await,
 			Endpoint::ApplyClusterLayout => handle_apply_cluster_layout(&self.garage, req).await,
 			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage, req).await,
-			/*
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()
 			))),
-			*/
 		}
 	}
 }

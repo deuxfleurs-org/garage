@@ -1,10 +1,9 @@
-use crate::error::{Error, OkOrBadRequest};
-
 use std::borrow::Cow;
 
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, Method, Request};
 
+use crate::error::{Error, OkOrBadRequest};
 use crate::helpers::Authorization;
 use crate::router_macros::{generateQueryParameters, router_match};
 

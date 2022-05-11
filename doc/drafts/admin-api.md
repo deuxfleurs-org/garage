@@ -209,3 +209,52 @@ Similarly to the CLI, the body must include the incremented
 version number, which MUST be 1 + the value of the currently
 existing layout in the cluster.
 
+
+## Access key operations
+
+### ListKeys `GET /key`
+
+Returns all API access keys in the cluster.
+
+Example response:
+
+```json
+#TODO
+```
+
+### CreateKey `POST /key`
+
+Creates a new API access key.
+
+Request body format:
+
+```json
+{
+	"name": "NameOfMyKey"
+}
+```
+
+### GetKeyInfo `GET /key?id=<acces key id>`
+
+Returns information about the requested API access key.
+
+Example response:
+
+```json
+#TODO
+```
+
+### DeleteKey `DELETE /key?id=<acces key id>`
+
+Deletes an API access key.
+
+### UpdateKey `POST /key?id=<acces key id>`
+
+Updates information about the specified API access key.
+
+Request body format:
+
+```json
+#TODO
+```
+

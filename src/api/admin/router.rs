@@ -1,8 +1,9 @@
-use crate::error::*;
+use std::borrow::Cow;
 
 use hyper::{Method, Request};
 
-use crate::router_macros::router_match;
+use crate::error::*;
+use crate::router_macros::*;
 
 pub enum Authorization {
 	MetricsToken,
@@ -21,6 +22,17 @@ pub enum Endpoint {
 	UpdateClusterLayout,
 	ApplyClusterLayout,
 	RevertClusterLayout,
+	ListKeys,
+	CreateKey,
+	GetKeyInfo {
+		id: String,
+	},
+	DeleteKey {
+		id: String,
+	},
+	UpdateKey {
+		id: String,
+	},
 }}
 
 impl Endpoint {
@@ -28,24 +40,32 @@ impl Endpoint {
 	/// possibly extracted from the Host header.
 	/// Returns Self plus bucket name, if endpoint is not Endpoint::ListBuckets
 	pub fn from_request<T>(req: &Request<T>) -> Result<Self, Error> {
-		let path = req.uri().path();
+		let uri = req.uri();
+		let path = uri.path();
+		let query = uri.query();
 
-		use Endpoint::*;
-		let res = match (req.method(), path) {
-			(&Method::OPTIONS, _) => Options,
-			(&Method::GET, "/metrics") => Metrics,
-			(&Method::GET, "/status") => GetClusterStatus,
-			(&Method::GET, "/layout") => GetClusterLayout,
-			(&Method::POST, "/layout") => UpdateClusterLayout,
-			(&Method::POST, "/layout/apply") => ApplyClusterLayout,
-			(&Method::POST, "/layout/revert") => RevertClusterLayout,
-			(m, p) => {
-				return Err(Error::BadRequest(format!(
-					"Unknown API endpoint: {} {}",
-					m, p
-				)))
-			}
-		};
+		let mut query = QueryParameters::from_query(query.unwrap_or_default())?;
+
+		let res = router_match!(@gen_path_parser (req.method(), path, query) [
+			OPTIONS _ => Options,
+			GET "/metrics" => Metrics,
+			GET "/status" => GetClusterStatus,
+			// Layout endpoints
+			GET "/layout" => GetClusterLayout,
+			POST "/layout" => UpdateClusterLayout,
+			POST "/layout/apply" => ApplyClusterLayout,
+			POST "/layout/revert" => RevertClusterLayout,
+			// API key endpoints
+			GET "/key" if id => GetKeyInfo (query::id),
+			POST "/key" if id => UpdateKey (query::id),
+			POST "/key" => CreateKey,
+			DELETE "/key" if id => DeleteKey (query::id),
+			GET "/key" => ListKeys,
+		]);
+
+		if let Some(message) = query.nonempty_message() {
+			debug!("Unused query parameter: {}", message)
+		}
 
 		Ok(res)
 	}
@@ -56,4 +76,8 @@ impl Endpoint {
 			_ => Authorization::AdminToken,
 		}
 	}
+}
+
+generateQueryParameters! {
+	"id" => id
 }
