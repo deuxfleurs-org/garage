@@ -136,10 +136,15 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::GetKeyInfo { id, search } => {
 				handle_get_key_info(&self.garage, id, search).await
 			}
+			Endpoint::CreateKey => handle_create_key(&self.garage, req).await,
+			Endpoint::UpdateKey { id } => handle_update_key(&self.garage, id, req).await,
+			Endpoint::DeleteKey { id } => handle_delete_key(&self.garage, id).await,
+			/*
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()
 			))),
+			*/
 		}
 	}
 }

@@ -261,6 +261,7 @@ impl AdminRpcHandler {
 
 	async fn handle_alias_bucket(&self, query: &AliasBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.existing_bucket)
@@ -268,7 +269,7 @@ impl AdminRpcHandler {
 			.ok_or_bad_request("Bucket not found")?;
 
 		if let Some(key_pattern) = &query.local {
-			let key = helper.get_existing_matching_key(key_pattern).await?;
+			let key = key_helper.get_existing_matching_key(key_pattern).await?;
 
 			helper
 				.set_local_bucket_alias(bucket_id, &key.key_id, &query.new_name)
@@ -290,9 +291,10 @@ impl AdminRpcHandler {
 
 	async fn handle_unalias_bucket(&self, query: &UnaliasBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		if let Some(key_pattern) = &query.local {
-			let key = helper.get_existing_matching_key(key_pattern).await?;
+			let key = key_helper.get_existing_matching_key(key_pattern).await?;
 
 			let bucket_id = key
 				.state
@@ -331,12 +333,15 @@ impl AdminRpcHandler {
 
 	async fn handle_bucket_allow(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		let allow_read = query.read || key.allow_read(&bucket_id);
 		let allow_write = query.write || key.allow_write(&bucket_id);
@@ -363,12 +368,15 @@ impl AdminRpcHandler {
 
 	async fn handle_bucket_deny(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		let allow_read = !query.read && key.allow_read(&bucket_id);
 		let allow_write = !query.write && key.allow_write(&bucket_id);
@@ -469,7 +477,7 @@ impl AdminRpcHandler {
 	async fn handle_key_info(&self, query: &KeyOpt) -> Result<AdminRpc, Error> {
 		let key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		self.key_info_result(key).await
@@ -484,7 +492,7 @@ impl AdminRpcHandler {
 	async fn handle_rename_key(&self, query: &KeyRenameOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		key.params_mut()
@@ -496,9 +504,11 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_delete_key(&self, query: &KeyDeleteOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
-		let mut key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let mut key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		if !query.yes {
 			return Err(Error::BadRequest(
@@ -506,32 +516,7 @@ impl AdminRpcHandler {
 			));
 		}
 
-		let state = key.state.as_option_mut().unwrap();
-
-		// --- done checking, now commit ---
-		// (the step at unset_local_bucket_alias will fail if a bucket
-		// does not have another alias, the deletion will be
-		// interrupted in the middle if that happens)
-
-		// 1. Delete local aliases
-		for (alias, _, to) in state.local_aliases.items().iter() {
-			if let Some(bucket_id) = to {
-				helper
-					.unset_local_bucket_alias(*bucket_id, &key.key_id, alias)
-					.await?;
-			}
-		}
-
-		// 2. Remove permissions on all authorized buckets
-		for (ab_id, _auth) in state.authorized_buckets.items().iter() {
-			helper
-				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::NO_PERMISSIONS)
-				.await?;
-		}
-
-		// 3. Actually delete key
-		key.state = Deletable::delete();
-		self.garage.key_table.insert(&key).await?;
+		key_helper.delete_key(&mut key).await?;
 
 		Ok(AdminRpc::Ok(format!(
 			"Key {} was deleted successfully.",
@@ -542,7 +527,7 @@ impl AdminRpcHandler {
 	async fn handle_allow_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		if query.create_bucket {
@@ -555,7 +540,7 @@ impl AdminRpcHandler {
 	async fn handle_deny_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		if query.create_bucket {

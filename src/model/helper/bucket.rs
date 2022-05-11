@@ -8,7 +8,7 @@ use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
 use crate::garage::Garage;
 use crate::helper::error::*;
-use crate::key_table::{Key, KeyFilter};
+use crate::helper::key::KeyHelper;
 use crate::permission::BucketKeyPerm;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
@@ -75,60 +75,6 @@ impl<'a> BucketHelper<'a> {
 				"Bucket {:?} does not exist or has been deleted",
 				bucket_id
 			))
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// even if it is in deleted state. Querying a non-existing
-	/// key ID returns an internal error.
-	pub async fn get_internal_key(&self, key_id: &String) -> Result<Key, Error> {
-		Ok(self
-			.0
-			.key_table
-			.get(&EmptyKey, key_id)
-			.await?
-			.ok_or_message(format!("Key {} does not exist", key_id))?)
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// only if it is in non-deleted state.
-	/// Querying a non-existing key ID or a deleted key
-	/// returns a bad request error.
-	pub async fn get_existing_key(&self, key_id: &String) -> Result<Key, Error> {
-		self.0
-			.key_table
-			.get(&EmptyKey, key_id)
-			.await?
-			.filter(|b| !b.state.is_deleted())
-			.ok_or_bad_request(format!("Key {} does not exist or has been deleted", key_id))
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// looking it up by key ID or by a match on its name,
-	/// only if it is in non-deleted state.
-	/// Querying a non-existing key ID or a deleted key
-	/// returns a bad request error.
-	pub async fn get_existing_matching_key(&self, pattern: &str) -> Result<Key, Error> {
-		let candidates = self
-			.0
-			.key_table
-			.get_range(
-				&EmptyKey,
-				None,
-				Some(KeyFilter::MatchesAndNotDeleted(pattern.to_string())),
-				10,
-				EnumerationOrder::Forward,
-			)
-			.await?
-			.into_iter()
-			.collect::<Vec<_>>();
-		if candidates.len() != 1 {
-			Err(Error::BadRequest(format!(
-				"{} matching keys",
-				candidates.len()
-			)))
-		} else {
-			Ok(candidates.into_iter().next().unwrap())
-		}
 	}
 
 	/// Sets a new alias for a bucket in global namespace.
@@ -303,6 +249,8 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		if !is_valid_bucket_name(alias_name) {
 			return Err(Error::BadRequest(format!(
 				"{}: {}",
@@ -311,7 +259,7 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
-		let mut key = self.get_existing_key(key_id).await?;
+		let mut key = key_helper.get_existing_key(key_id).await?;
 
 		let mut key_param = key.state.as_option_mut().unwrap();
 
@@ -360,8 +308,10 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
-		let mut key = self.get_existing_key(key_id).await?;
+		let mut key = key_helper.get_existing_key(key_id).await?;
 
 		let mut bucket_p = bucket.state.as_option_mut().unwrap();
 
@@ -429,8 +379,10 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		mut perm: BucketKeyPerm,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		let mut bucket = self.get_internal_bucket(bucket_id).await?;
-		let mut key = self.get_internal_key(key_id).await?;
+		let mut key = key_helper.get_internal_key(key_id).await?;
 
 		if let Some(bstate) = bucket.state.as_option() {
 			if let Some(kp) = bstate.authorized_keys.get(key_id) {

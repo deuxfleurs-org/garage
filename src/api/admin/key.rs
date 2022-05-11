@@ -1,15 +1,10 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use garage_util::crdt::*;
-use garage_util::data::*;
 use garage_util::error::Error as GarageError;
-
-use garage_rpc::layout::*;
 
 use garage_table::*;
 
@@ -62,7 +57,7 @@ pub async fn handle_get_key_info(
 			.ok_or(Error::NoSuchKey)?
 	} else if let Some(search) = search {
 		garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&search)
 			.await
 			.map_err(|_| Error::NoSuchKey)?
@@ -70,6 +65,84 @@ pub async fn handle_get_key_info(
 		unreachable!();
 	};
 
+	key_info_results(garage, key).await
+}
+
+pub async fn handle_create_key(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<CreateKeyRequest>(req).await?;
+
+	let key = Key::new(&req.name);
+	garage.key_table.insert(&key).await?;
+
+	key_info_results(garage, key).await
+}
+
+#[derive(Deserialize)]
+struct CreateKeyRequest {
+	name: String,
+}
+
+pub async fn handle_update_key(
+	garage: &Arc<Garage>,
+	id: String,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<UpdateKeyRequest>(req).await?;
+
+	let mut key = garage
+		.key_table
+		.get(&EmptyKey, &id)
+		.await?
+		.ok_or(Error::NoSuchKey)?;
+
+	let key_state = key.state.as_option_mut().ok_or(Error::NoSuchKey)?;
+
+	if let Some(new_name) = req.name {
+		key_state.name.update(new_name);
+	}
+	if let Some(allow) = req.allow {
+		if allow.create_bucket {
+			key_state.allow_create_bucket.update(true);
+		}
+	}
+	if let Some(deny) = req.deny {
+		if deny.create_bucket {
+			key_state.allow_create_bucket.update(false);
+		}
+	}
+
+	garage.key_table.insert(&key).await?;
+
+	key_info_results(garage, key).await
+}
+
+#[derive(Deserialize)]
+struct UpdateKeyRequest {
+	name: Option<String>,
+	allow: Option<KeyPerm>,
+	deny: Option<KeyPerm>,
+}
+
+pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Response<Body>, Error> {
+	let mut key = garage
+		.key_table
+		.get(&EmptyKey, &id)
+		.await?
+		.ok_or(Error::NoSuchKey)?;
+
+	key.state.as_option().ok_or(Error::NoSuchKey)?;
+
+	garage.key_helper().delete_key(&mut key).await?;
+
+	Ok(Response::builder()
+		.status(StatusCode::NO_CONTENT)
+		.body(Body::empty())?)
+}
+
+async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Body>, Error> {
 	let mut relevant_buckets = HashMap::new();
 
 	let key_state = key.state.as_option().unwrap();
@@ -99,7 +172,7 @@ pub async fn handle_get_key_info(
 		name: key_state.name.get().clone(),
 		access_key_id: key.key_id.clone(),
 		secret_access_key: key_state.secret_key.clone(),
-		permissions: KeyPermResult {
+		permissions: KeyPerm {
 			create_bucket: *key_state.allow_create_bucket.get(),
 		},
 		buckets: relevant_buckets
@@ -153,13 +226,13 @@ struct GetKeyInfoResult {
 	access_key_id: String,
 	#[serde(rename = "secretAccessKey")]
 	secret_access_key: String,
-	permissions: KeyPermResult,
+	permissions: KeyPerm,
 	buckets: Vec<KeyInfoBucketResult>,
 }
 
-#[derive(Serialize)]
-struct KeyPermResult {
-	#[serde(rename = "createBucket")]
+#[derive(Serialize, Deserialize)]
+struct KeyPerm {
+	#[serde(rename = "createBucket", default)]
 	create_bucket: bool,
 }
 
