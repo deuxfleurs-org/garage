@@ -146,6 +146,7 @@ impl ApiHandler for AdminApiServer {
 				handle_get_bucket_info(&self.garage, id, global_alias).await
 			}
 			Endpoint::CreateBucket => handle_create_bucket(&self.garage, req).await,
+			Endpoint::DeleteBucket { id } => handle_delete_bucket(&self.garage, id).await,
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()

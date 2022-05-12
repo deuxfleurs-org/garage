@@ -4,6 +4,7 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
+use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
@@ -13,6 +14,7 @@ use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::permission::*;
+use garage_model::s3::object_table::ObjectFilter;
 
 use crate::admin::key::KeyBucketPermResult;
 use crate::error::*;
@@ -305,4 +307,64 @@ struct CreateBucketLocalAlias {
 	alias: String,
 	#[serde(rename = "allPermissions", default)]
 	all_permissions: bool,
+}
+
+pub async fn handle_delete_bucket(
+	garage: &Arc<Garage>,
+	id: String,
+) -> Result<Response<Body>, Error> {
+	let helper = garage.bucket_helper();
+
+	let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
+	let bucket_id = Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?;
+
+	let mut bucket = helper.get_existing_bucket(bucket_id).await?;
+	let state = bucket.state.as_option().unwrap();
+
+	// Check bucket is empty
+	let objects = garage
+		.object_table
+		.get_range(
+			&bucket_id,
+			None,
+			Some(ObjectFilter::IsData),
+			10,
+			EnumerationOrder::Forward,
+		)
+		.await?;
+	if !objects.is_empty() {
+		return Err(Error::BadRequest("Bucket is not empty".into()));
+	}
+
+	// --- done checking, now commit ---
+	// 1. delete authorization from keys that had access
+	for (key_id, perm) in bucket.authorized_keys() {
+		if perm.is_any() {
+			helper
+				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
+				.await?;
+		}
+	}
+	// 2. delete all local aliases
+	for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
+		if *active {
+			helper
+				.unset_local_bucket_alias(bucket.id, &key_id, &alias)
+				.await?;
+		}
+	}
+	// 3. delete all global aliases
+	for (alias, _, active) in state.aliases.items().iter() {
+		if *active {
+			helper.purge_global_bucket_alias(bucket.id, &alias).await?;
+		}
+	}
+
+	// 4. delete bucket
+	bucket.state = Deletable::delete();
+	garage.bucket_table.insert(&bucket).await?;
+
+	Ok(Response::builder()
+		.status(StatusCode::NO_CONTENT)
+		.body(Body::empty())?)
 }

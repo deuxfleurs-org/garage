@@ -454,3 +454,5 @@ or no alias at all.
 ### DeleteBucket `DELETE /bucket?id=<bucket id>`
 
 Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
+
+Warning: this will delete all aliases associated with the bucket!
