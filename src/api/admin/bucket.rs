@@ -9,9 +9,10 @@ use garage_util::error::Error as GarageError;
 
 use garage_table::*;
 
+use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
-use garage_model::key_table::*;
+use garage_model::permission::*;
 
 use crate::admin::key::KeyBucketPermResult;
 use crate::error::*;
@@ -47,7 +48,7 @@ pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>,
 					.items()
 					.iter()
 					.filter(|(_, _, a)| *a)
-					.map(|((k, n), _, _)| ListBucketLocalAlias {
+					.map(|((k, n), _, _)| BucketLocalAlias {
 						access_key_id: k.to_string(),
 						alias: n.to_string(),
 					})
@@ -68,11 +69,11 @@ struct ListBucketResultItem {
 	#[serde(rename = "globalAliases")]
 	global_aliases: Vec<String>,
 	#[serde(rename = "localAliases")]
-	local_aliases: Vec<ListBucketLocalAlias>,
+	local_aliases: Vec<BucketLocalAlias>,
 }
 
 #[derive(Serialize)]
-struct ListBucketLocalAlias {
+struct BucketLocalAlias {
 	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
 	alias: String,
@@ -105,6 +106,13 @@ pub async fn handle_get_bucket_info(
 		.get_existing_bucket(bucket_id)
 		.await?;
 
+	bucket_info_results(garage, bucket).await
+}
+
+async fn bucket_info_results(
+	garage: &Arc<Garage>,
+	bucket: Bucket,
+) -> Result<Response<Body>, Error> {
 	let mut relevant_keys = HashMap::new();
 	for (k, _) in bucket
 		.state
@@ -205,4 +213,96 @@ struct GetBucketInfoKey {
 	permissions: KeyBucketPermResult,
 	#[serde(rename = "bucketLocalAliases")]
 	bucket_local_aliases: Vec<String>,
+}
+
+pub async fn handle_create_bucket(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<CreateBucketRequest>(req).await?;
+
+	if let Some(ga) = &req.global_alias {
+		if !is_valid_bucket_name(ga) {
+			return Err(Error::BadRequest(format!(
+				"{}: {}",
+				ga, INVALID_BUCKET_NAME_MESSAGE
+			)));
+		}
+
+		if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
+			if alias.state.get().is_some() {
+				return Err(Error::BucketAlreadyExists);
+			}
+		}
+	}
+
+	if let Some(la) = &req.local_alias {
+		if !is_valid_bucket_name(&la.alias) {
+			return Err(Error::BadRequest(format!(
+				"{}: {}",
+				la.alias, INVALID_BUCKET_NAME_MESSAGE
+			)));
+		}
+
+		let key = garage
+			.key_table
+			.get(&EmptyKey, &la.access_key_id)
+			.await?
+			.ok_or(Error::NoSuchKey)?;
+		let state = key.state.as_option().ok_or(Error::NoSuchKey)?;
+		if matches!(state.local_aliases.get(&la.alias), Some(_)) {
+			return Err(Error::BadRequest("Local alias already exists".into()));
+		}
+	}
+
+	let bucket = Bucket::new();
+	garage.bucket_table.insert(&bucket).await?;
+
+	if let Some(ga) = &req.global_alias {
+		garage
+			.bucket_helper()
+			.set_global_bucket_alias(bucket.id, ga)
+			.await?;
+	}
+
+	if let Some(la) = &req.local_alias {
+		garage
+			.bucket_helper()
+			.set_local_bucket_alias(bucket.id, &la.access_key_id, &la.alias)
+			.await?;
+		if la.all_permissions {
+			garage
+				.bucket_helper()
+				.set_bucket_key_permissions(
+					bucket.id,
+					&la.access_key_id,
+					BucketKeyPerm::ALL_PERMISSIONS,
+				)
+				.await?;
+		}
+	}
+
+	let bucket = garage
+		.bucket_table
+		.get(&EmptyKey, &bucket.id)
+		.await?
+		.ok_or_internal_error("Bucket should now exist but doesn't")?;
+	bucket_info_results(garage, bucket).await
+}
+
+#[derive(Deserialize)]
+struct CreateBucketRequest {
+	#[serde(rename = "globalAlias")]
+	global_alias: Option<String>,
+	#[serde(rename = "localAlias")]
+	local_alias: Option<CreateBucketLocalAlias>,
+}
+
+#[derive(Deserialize)]
+struct CreateBucketLocalAlias {
+	#[serde(rename = "accessKeyId")]
+	access_key_id: String,
+	alias: String,
+	#[serde(rename = "allPermissions", default)]
+	all_permissions: bool,
 }

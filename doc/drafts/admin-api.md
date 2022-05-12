@@ -435,8 +435,9 @@ OR
 ```json
 {
 	"localAlias": {
-		"key": "GK31c2f218a2e44f485b94239e",
-		"alias": "NameOfMyBucket"
+		"accessKeyId": "GK31c2f218a2e44f485b94239e",
+		"alias": "NameOfMyBucket",
+		"allPermissions": true
 	}
 }
 ```
