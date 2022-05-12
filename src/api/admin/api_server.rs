@@ -148,8 +148,12 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::CreateBucket => handle_create_bucket(&self.garage, req).await,
 			Endpoint::DeleteBucket { id } => handle_delete_bucket(&self.garage, id).await,
 			// Bucket-key permissions
-			Endpoint::BucketAllowKey => handle_bucket_allow_key(&self.garage, req).await,
-			Endpoint::BucketDenyKey => handle_bucket_deny_key(&self.garage, req).await,
+			Endpoint::BucketAllowKey => {
+				handle_bucket_change_key_perm(&self.garage, req, true).await
+			}
+			Endpoint::BucketDenyKey => {
+				handle_bucket_change_key_perm(&self.garage, req, false).await
+			}
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()

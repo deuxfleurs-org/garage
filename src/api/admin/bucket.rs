@@ -369,20 +369,6 @@ pub async fn handle_delete_bucket(
 		.body(Body::empty())?)
 }
 
-pub async fn handle_bucket_allow_key(
-	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	handle_bucket_change_key_perm(garage, req, true).await
-}
-
-pub async fn handle_bucket_deny_key(
-	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	handle_bucket_change_key_perm(garage, req, false).await
-}
-
 pub async fn handle_bucket_change_key_perm(
 	garage: &Arc<Garage>,
 	req: Request<Body>,
