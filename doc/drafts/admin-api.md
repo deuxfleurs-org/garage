@@ -456,3 +456,48 @@ or no alias at all.
 Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
+
+
+## Operations on permissions for keys on buckets
+
+### BucketAllowKey `POST /bucket/allow`
+
+Allows a key to do read/write/owner operations on a bucket.
+
+Request body format:
+
+```json
+{
+	"bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+	"accessKeyId": "GK31c2f218a2e44f485b94239e",
+	"permissions": {
+		"read": true,
+		"write": true,
+		"owner": true
+	},
+}
+```
+
+Flags in `permissions` which have the value `true` will be activated.
+Other flags will remain unchanged.
+
+### BucketDenyKey `POST /bucket/deny`
+
+Denies a key from doing read/write/owner operations on a bucket.
+
+Request body format:
+
+```json
+{
+	"bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+	"accessKeyId": "GK31c2f218a2e44f485b94239e",
+	"permissions": {
+		"read": false,
+		"write": false,
+		"owner": true
+	},
+}
+```
+
+Flags in `permissions` which have the value `true` will be deactivated.
+Other flags will remain unchanged.

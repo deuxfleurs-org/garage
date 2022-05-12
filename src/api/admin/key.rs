@@ -198,7 +198,7 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 					permissions: key_state
 						.authorized_buckets
 						.get(&bucket.id)
-						.map(|p| KeyBucketPermResult {
+						.map(|p| ApiBucketKeyPerm {
 							read: p.allow_read,
 							write: p.allow_write,
 							owner: p.allow_owner,
@@ -239,12 +239,15 @@ struct KeyInfoBucketResult {
 	global_aliases: Vec<String>,
 	#[serde(rename = "localAliases")]
 	local_aliases: Vec<String>,
-	permissions: KeyBucketPermResult,
+	permissions: ApiBucketKeyPerm,
 }
 
-#[derive(Serialize, Default)]
-pub(crate) struct KeyBucketPermResult {
+#[derive(Serialize, Deserialize, Default)]
+pub(crate) struct ApiBucketKeyPerm {
+	#[serde(default)]
 	pub(crate) read: bool,
+	#[serde(default)]
 	pub(crate) write: bool,
+	#[serde(default)]
 	pub(crate) owner: bool,
 }

@@ -16,7 +16,7 @@ use garage_model::garage::Garage;
 use garage_model::permission::*;
 use garage_model::s3::object_table::ObjectFilter;
 
-use crate::admin::key::KeyBucketPermResult;
+use crate::admin::key::ApiBucketKeyPerm;
 use crate::error::*;
 use crate::helpers::*;
 
@@ -174,7 +174,7 @@ async fn bucket_info_results(
 					permissions: p
 						.authorized_buckets
 						.get(&bucket.id)
-						.map(|p| KeyBucketPermResult {
+						.map(|p| ApiBucketKeyPerm {
 							read: p.allow_read,
 							write: p.allow_write,
 							owner: p.allow_owner,
@@ -212,7 +212,7 @@ struct GetBucketInfoKey {
 	access_key_id: String,
 	#[serde(rename = "name")]
 	name: String,
-	permissions: KeyBucketPermResult,
+	permissions: ApiBucketKeyPerm,
 	#[serde(rename = "bucketLocalAliases")]
 	bucket_local_aliases: Vec<String>,
 }
@@ -367,4 +367,77 @@ pub async fn handle_delete_bucket(
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
 		.body(Body::empty())?)
+}
+
+pub async fn handle_bucket_allow_key(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	handle_bucket_change_key_perm(garage, req, true).await
+}
+
+pub async fn handle_bucket_deny_key(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	handle_bucket_change_key_perm(garage, req, false).await
+}
+
+pub async fn handle_bucket_change_key_perm(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+	new_perm_flag: bool,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<BucketKeyPermChangeRequest>(req).await?;
+
+	let id_hex = hex::decode(&req.bucket_id).ok_or_bad_request("Invalid bucket id")?;
+	let bucket_id = Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?;
+
+	let bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
+	let state = bucket.state.as_option().unwrap();
+
+	let key = garage
+		.key_helper()
+		.get_existing_key(&req.access_key_id)
+		.await?;
+
+	let mut perm = state
+		.authorized_keys
+		.get(&key.key_id)
+		.cloned()
+		.unwrap_or(BucketKeyPerm::NO_PERMISSIONS);
+
+	if req.permissions.read {
+		perm.allow_read = new_perm_flag;
+	}
+	if req.permissions.write {
+		perm.allow_write = new_perm_flag;
+	}
+	if req.permissions.owner {
+		perm.allow_owner = new_perm_flag;
+	}
+
+	garage
+		.bucket_helper()
+		.set_bucket_key_permissions(bucket.id, &key.key_id, perm)
+		.await?;
+
+	let bucket = garage
+		.bucket_table
+		.get(&EmptyKey, &bucket.id)
+		.await?
+		.ok_or_internal_error("Bucket should now exist but doesn't")?;
+	bucket_info_results(garage, bucket).await
+}
+
+#[derive(Deserialize)]
+struct BucketKeyPermChangeRequest {
+	#[serde(rename = "bucketId")]
+	bucket_id: String,
+	#[serde(rename = "accessKeyId")]
+	access_key_id: String,
+	permissions: ApiBucketKeyPerm,
 }

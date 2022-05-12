@@ -46,6 +46,9 @@ pub enum Endpoint {
 	DeleteBucket {
 		id: String,
 	},
+	// Bucket-Key Permissions
+	BucketAllowKey,
+	BucketDenyKey,
 }}
 
 impl Endpoint {
@@ -81,6 +84,9 @@ impl Endpoint {
 			GET "/bucket" => ListBuckets,
 			POST "/bucket" => CreateBucket,
 			DELETE "/bucket" if id => DeleteBucket (query::id),
+			// Bucket-key permissions
+			POST "/bucket/allow" => BucketAllowKey,
+			POST "/bucket/deny" => BucketDenyKey,
 		]);
 
 		if let Some(message) = query.nonempty_message() {
