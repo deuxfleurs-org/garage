@@ -154,10 +154,6 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::BucketDenyKey => {
 				handle_bucket_change_key_perm(&self.garage, req, false).await
 			}
-			_ => Err(Error::NotImplemented(format!(
-				"Admin endpoint {} not implemented yet",
-				endpoint.name()
-			))),
 		}
 	}
 }
