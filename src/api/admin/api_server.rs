@@ -18,6 +18,7 @@ use garage_util::error::Error as GarageError;
 use crate::error::*;
 use crate::generic_server::*;
 
+use crate::admin::bucket::*;
 use crate::admin::cluster::*;
 use crate::admin::key::*;
 use crate::admin::router::{Authorization, Endpoint};
@@ -139,12 +140,15 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::CreateKey => handle_create_key(&self.garage, req).await,
 			Endpoint::UpdateKey { id } => handle_update_key(&self.garage, id, req).await,
 			Endpoint::DeleteKey { id } => handle_delete_key(&self.garage, id).await,
-			/*
+			// Buckets
+			Endpoint::ListBuckets => handle_list_buckets(&self.garage).await,
+			Endpoint::GetBucketInfo { id, global_alias } => {
+				handle_get_bucket_info(&self.garage, id, global_alias).await
+			}
 			_ => Err(Error::NotImplemented(format!(
 				"Admin endpoint {} not implemented yet",
 				endpoint.name()
 			))),
-			*/
 		}
 	}
 }

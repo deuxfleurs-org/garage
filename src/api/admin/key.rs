@@ -203,11 +203,7 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 							write: p.allow_write,
 							owner: p.allow_owner,
 						})
-						.unwrap_or(KeyBucketPermResult {
-							read: false,
-							write: false,
-							owner: false,
-						}),
+						.unwrap_or_default(),
 				}
 			})
 			.collect::<Vec<_>>(),
@@ -246,9 +242,9 @@ struct KeyInfoBucketResult {
 	permissions: KeyBucketPermResult,
 }
 
-#[derive(Serialize)]
-struct KeyBucketPermResult {
-	read: bool,
-	write: bool,
-	owner: bool,
+#[derive(Serialize, Default)]
+pub(crate) struct KeyBucketPermResult {
+	pub(crate) read: bool,
+	pub(crate) write: bool,
+	pub(crate) owner: bool,
 }

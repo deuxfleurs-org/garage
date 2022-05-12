@@ -18,10 +18,12 @@ pub enum Endpoint {
 	Options,
 	Metrics,
 	GetClusterStatus,
+	// Layout
 	GetClusterLayout,
 	UpdateClusterLayout,
 	ApplyClusterLayout,
 	RevertClusterLayout,
+	// Keys
 	ListKeys,
 	CreateKey,
 	GetKeyInfo {
@@ -32,6 +34,16 @@ pub enum Endpoint {
 		id: String,
 	},
 	UpdateKey {
+		id: String,
+	},
+	// Buckets
+	ListBuckets,
+	CreateBucket,
+	GetBucketInfo {
+		id: Option<String>,
+		global_alias: Option<String>,
+	},
+	DeleteBucket {
 		id: String,
 	},
 }}
@@ -63,6 +75,12 @@ impl Endpoint {
 			POST "/key" => CreateKey,
 			DELETE "/key" if id => DeleteKey (query::id),
 			GET "/key" => ListKeys,
+			// Bucket endpoints
+			GET "/bucket" if id => GetBucketInfo (query_opt::id, query_opt::global_alias),
+			GET "/bucket" if global_alias => GetBucketInfo (query_opt::id, query_opt::global_alias),
+			GET "/bucket" => ListBuckets,
+			POST "/bucket" => CreateBucket,
+			DELETE "/bucket" if id => DeleteBucket (query::id),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -82,5 +100,6 @@ impl Endpoint {
 
 generateQueryParameters! {
 	"id" => id,
-	"search" => search
+	"search" => search,
+	"globalAlias" => global_alias
 }

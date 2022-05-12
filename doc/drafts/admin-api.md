@@ -339,3 +339,117 @@ All fields (`name`, `allow` and `deny`) are optionnal.
 If they are present, the corresponding modifications are applied to the key, otherwise nothing is changed.
 The possible flags in `allow` and `deny` are: `createBucket`.
 
+
+## Bucket operations
+
+### ListBuckets `GET /bucket`
+
+Returns all storage buckets in the cluster.
+
+Example response:
+
+```json
+[
+  {
+    "id": "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033",
+    "globalAliases": [
+      "test2"
+    ],
+    "localAliases": []
+  },
+  {
+    "id": "96470e0df00ec28807138daf01915cfda2bee8eccc91dea9558c0b4855b5bf95",
+    "globalAliases": [
+      "alex"
+    ],
+    "localAliases": []
+  },
+  {
+    "id": "d7452a935e663fc1914f3a5515163a6d3724010ce8dfd9e4743ca8be5974f995",
+    "globalAliases": [
+      "test3"
+    ],
+    "localAliases": []
+  },
+  {
+    "id": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "globalAliases": [],
+    "localAliases": [
+      {
+        "accessKeyId": "GK31c2f218a2e44f485b94239e",
+        "alias": "test"
+      }
+    ]
+  }
+]
+```
+
+### GetBucketInfo `GET /bucket?id=<bucket id>`
+### GetBucketInfo `GET /bucket?globalAlias=<alias>`
+
+Returns information about the requested storage bucket.
+
+If `id` is set, the bucket is looked up using its exact identifier.
+If `globalAlias` is set, the bucket is looked up using its global alias.
+(both are fast)
+
+Example response:
+
+```json
+{
+  "id": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+  "globalAliases": [
+    "alex"
+  ],
+  "keys": [
+    {
+      "accessKeyId": "GK31c2f218a2e44f485b94239e",
+      "name": "alex",
+      "permissions": {
+        "read": true,
+        "write": true,
+        "owner": true
+      },
+      "bucketLocalAliases": [
+        "test"
+      ]
+    }
+  ]
+}
+```
+
+### CreateBucket `POST /bucket`
+
+Creates a new storage bucket.
+
+Request body format:
+
+```json
+{
+	"globalAlias": "NameOfMyBucket"
+}
+```
+
+OR
+
+```json
+{
+	"localAlias": {
+		"key": "GK31c2f218a2e44f485b94239e",
+		"alias": "NameOfMyBucket"
+	}
+}
+```
+
+OR
+
+```json
+{}
+```
+
+Creates a new bucket, either with a global alias, a local one,
+or no alias at all.
+
+### DeleteBucket `DELETE /bucket?id=<bucket id>`
+
+Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
