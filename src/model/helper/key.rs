@@ -34,7 +34,7 @@ impl<'a> KeyHelper<'a> {
 			.get(&EmptyKey, key_id)
 			.await?
 			.filter(|b| !b.state.is_deleted())
-			.ok_or_bad_request(format!("Key {} does not exist or has been deleted", key_id))
+			.ok_or_else(|| Error::NoSuchAccessKey(key_id.to_string()))
 	}
 
 	/// Returns a Key if it is present in key table,

@@ -84,6 +84,10 @@ pub enum Error {
 	#[error(display = "Invalid base64: {}", _0)]
 	InvalidBase64(#[error(source)] base64::DecodeError),
 
+	/// Bucket name is not valid according to AWS S3 specs
+	#[error(display = "Invalid bucket name")]
+	InvalidBucketName,
+
 	/// The client sent invalid XML data
 	#[error(display = "Invalid XML: {}", _0)]
 	InvalidXml(String),
@@ -126,6 +130,7 @@ impl From<HelperError> for Error {
 		match err {
 			HelperError::Internal(i) => Self::InternalError(i),
 			HelperError::BadRequest(b) => Self::BadRequest(b),
+			e => Self::BadRequest(format!("{}", e)),
 		}
 	}
 }
