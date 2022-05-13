@@ -50,17 +50,12 @@ pub async fn handle_get_key_info(
 	search: Option<String>,
 ) -> Result<Response<Body>, Error> {
 	let key = if let Some(id) = id {
-		garage
-			.key_table
-			.get(&EmptyKey, &id)
-			.await?
-			.ok_or(Error::NoSuchAccessKey)?
+		garage.key_helper().get_existing_key(&id).await?
 	} else if let Some(search) = search {
 		garage
 			.key_helper()
 			.get_existing_matching_key(&search)
-			.await
-			.map_err(|_| Error::NoSuchAccessKey)?
+			.await?
 	} else {
 		unreachable!();
 	};
@@ -92,13 +87,9 @@ pub async fn handle_update_key(
 ) -> Result<Response<Body>, Error> {
 	let req = parse_json_body::<UpdateKeyRequest>(req).await?;
 
-	let mut key = garage
-		.key_table
-		.get(&EmptyKey, &id)
-		.await?
-		.ok_or(Error::NoSuchAccessKey)?;
+	let mut key = garage.key_helper().get_existing_key(&id).await?;
 
-	let key_state = key.state.as_option_mut().ok_or(Error::NoSuchAccessKey)?;
+	let key_state = key.state.as_option_mut().unwrap();
 
 	if let Some(new_name) = req.name {
 		key_state.name.update(new_name);
@@ -127,13 +118,9 @@ struct UpdateKeyRequest {
 }
 
 pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Response<Body>, Error> {
-	let mut key = garage
-		.key_table
-		.get(&EmptyKey, &id)
-		.await?
-		.ok_or(Error::NoSuchAccessKey)?;
+	let mut key = garage.key_helper().get_existing_key(&id).await?;
 
-	key.state.as_option().ok_or(Error::NoSuchAccessKey)?;
+	key.state.as_option().unwrap();
 
 	garage.key_helper().delete_key(&mut key).await?;
 

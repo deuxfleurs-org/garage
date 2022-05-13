@@ -32,8 +32,8 @@ pub enum CommonError {
 	// These have to be error codes referenced in the S3 spec here:
 	// https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
 	/// The bucket requested don't exists
-	#[error(display = "Bucket not found")]
-	NoSuchBucket,
+	#[error(display = "Bucket not found: {}", _0)]
+	NoSuchBucket(String),
 
 	/// Tried to create a bucket that already exist
 	#[error(display = "Bucket already exists")]
@@ -45,8 +45,8 @@ pub enum CommonError {
 
 	// Category: bad request
 	/// Bucket name is not valid according to AWS S3 specs
-	#[error(display = "Invalid bucket name")]
-	InvalidBucketName,
+	#[error(display = "Invalid bucket name: {}", _0)]
+	InvalidBucketName(String),
 }
 
 impl CommonError {
@@ -62,9 +62,9 @@ impl CommonError {
 			}
 			CommonError::BadRequest(_) => StatusCode::BAD_REQUEST,
 			CommonError::Forbidden(_) => StatusCode::FORBIDDEN,
-			CommonError::NoSuchBucket => StatusCode::NOT_FOUND,
+			CommonError::NoSuchBucket(_) => StatusCode::NOT_FOUND,
 			CommonError::BucketNotEmpty | CommonError::BucketAlreadyExists => StatusCode::CONFLICT,
-			CommonError::InvalidBucketName => StatusCode::BAD_REQUEST,
+			CommonError::InvalidBucketName(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 
@@ -80,10 +80,10 @@ impl CommonError {
 				"InternalError"
 			}
 			CommonError::BadRequest(_) => "InvalidRequest",
-			CommonError::NoSuchBucket => "NoSuchBucket",
+			CommonError::NoSuchBucket(_) => "NoSuchBucket",
 			CommonError::BucketAlreadyExists => "BucketAlreadyExists",
 			CommonError::BucketNotEmpty => "BucketNotEmpty",
-			CommonError::InvalidBucketName => "InvalidBucketName",
+			CommonError::InvalidBucketName(_) => "InvalidBucketName",
 		}
 	}
 

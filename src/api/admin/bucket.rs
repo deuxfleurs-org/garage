@@ -248,11 +248,10 @@ pub async fn handle_create_bucket(
 		}
 
 		let key = garage
-			.key_table
-			.get(&EmptyKey, &la.access_key_id)
-			.await?
-			.ok_or(Error::NoSuchAccessKey)?;
-		let state = key.state.as_option().ok_or(Error::NoSuchAccessKey)?;
+			.key_helper()
+			.get_existing_key(&la.access_key_id)
+			.await?;
+		let state = key.state.as_option().unwrap();
 		if matches!(state.local_aliases.get(&la.alias), Some(_)) {
 			return Err(Error::bad_request("Local alias already exists"));
 		}

@@ -18,8 +18,8 @@ pub enum Error {
 
 	// Category: cannot process
 	/// The API access key does not exist
-	#[error(display = "Access key not found")]
-	NoSuchAccessKey,
+	#[error(display = "Access key not found: {}", _0)]
+	NoSuchAccessKey(String),
 }
 
 impl<T> From<T> for Error
@@ -38,9 +38,11 @@ impl From<HelperError> for Error {
 		match err {
 			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
 			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(_) => Self::CommonError(CommonError::InvalidBucketName),
-			HelperError::NoSuchBucket(_) => Self::CommonError(CommonError::NoSuchBucket),
-			HelperError::NoSuchAccessKey(_) => Self::NoSuchAccessKey,
+			HelperError::InvalidBucketName(n) => {
+				Self::CommonError(CommonError::InvalidBucketName(n))
+			}
+			HelperError::NoSuchBucket(n) => Self::CommonError(CommonError::NoSuchBucket(n)),
+			HelperError::NoSuchAccessKey(n) => Self::NoSuchAccessKey(n),
 		}
 	}
 }
@@ -49,7 +51,7 @@ impl Error {
 	fn code(&self) -> &'static str {
 		match self {
 			Error::CommonError(c) => c.aws_code(),
-			Error::NoSuchAccessKey => "NoSuchAccessKey",
+			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",
 		}
 	}
 }
@@ -59,7 +61,7 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::CommonError(c) => c.http_status_code(),
-			Error::NoSuchAccessKey => StatusCode::NOT_FOUND,
+			Error::NoSuchAccessKey(_) => StatusCode::NOT_FOUND,
 		}
 	}
 
