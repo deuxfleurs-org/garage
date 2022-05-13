@@ -87,7 +87,7 @@ fn compute_streaming_payload_signature(
 	let mut hmac = signing_hmac.clone();
 	hmac.update(string_to_sign.as_bytes());
 
-	Hash::try_from(&hmac.finalize().into_bytes()).ok_or_internal_error("Invalid signature")
+	Ok(Hash::try_from(&hmac.finalize().into_bytes()).ok_or_internal_error("Invalid signature")?)
 }
 
 mod payload {
@@ -163,10 +163,10 @@ impl From<SignedPayloadStreamError> for Error {
 		match err {
 			SignedPayloadStreamError::Stream(e) => e,
 			SignedPayloadStreamError::InvalidSignature => {
-				Error::BadRequest("Invalid payload signature".into())
+				Error::bad_request("Invalid payload signature")
 			}
 			SignedPayloadStreamError::Message(e) => {
-				Error::BadRequest(format!("Chunk format error: {}", e))
+				Error::bad_request(format!("Chunk format error: {}", e))
 			}
 		}
 	}

@@ -62,7 +62,7 @@ impl Endpoint {
 			.unwrap_or((path.to_owned(), ""));
 
 		if bucket.is_empty() {
-			return Err(Error::BadRequest("Missing bucket name".to_owned()));
+			return Err(Error::bad_request("Missing bucket name".to_owned()));
 		}
 
 		if *req.method() == Method::OPTIONS {
@@ -83,7 +83,7 @@ impl Endpoint {
 			Method::PUT => Self::from_put(partition_key, &mut query)?,
 			Method::DELETE => Self::from_delete(partition_key, &mut query)?,
 			_ if req.method() == method_search => Self::from_search(partition_key, &mut query)?,
-			_ => return Err(Error::BadRequest("Unknown method".to_owned())),
+			_ => return Err(Error::bad_request("Unknown method".to_owned())),
 		};
 
 		if let Some(message) = query.nonempty_message() {

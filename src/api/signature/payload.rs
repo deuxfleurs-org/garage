@@ -105,7 +105,7 @@ fn parse_authorization(
 	let (auth_kind, rest) = authorization.split_at(first_space);
 
 	if auth_kind != "AWS4-HMAC-SHA256" {
-		return Err(Error::BadRequest("Unsupported authorization method".into()));
+		return Err(Error::bad_request("Unsupported authorization method"));
 	}
 
 	let mut auth_params = HashMap::new();
@@ -129,10 +129,11 @@ fn parse_authorization(
 	let date = headers
 		.get("x-amz-date")
 		.ok_or_bad_request("Missing X-Amz-Date field")
+		.map_err(Error::from)
 		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::hours(24) {
-		return Err(Error::BadRequest("Date is too old".to_string()));
+		return Err(Error::bad_request("Date is too old".to_string()));
 	}
 
 	let auth = Authorization {
@@ -156,7 +157,7 @@ fn parse_query_authorization(
 	headers: &HashMap<String, String>,
 ) -> Result<Authorization, Error> {
 	if algorithm != "AWS4-HMAC-SHA256" {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"Unsupported authorization method".to_string(),
 		));
 	}
@@ -179,10 +180,10 @@ fn parse_query_authorization(
 		.get("x-amz-expires")
 		.ok_or_bad_request("X-Amz-Expires not found in query parameters")?
 		.parse()
-		.map_err(|_| Error::BadRequest("X-Amz-Expires is not a number".to_string()))?;
+		.map_err(|_| Error::bad_request("X-Amz-Expires is not a number".to_string()))?;
 
 	if duration > 7 * 24 * 3600 {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"X-Amz-Exprires may not exceed a week".to_string(),
 		));
 	}
@@ -190,10 +191,11 @@ fn parse_query_authorization(
 	let date = headers
 		.get("x-amz-date")
 		.ok_or_bad_request("Missing X-Amz-Date field")
+		.map_err(Error::from)
 		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::seconds(duration) {
-		return Err(Error::BadRequest("Date is too old".to_string()));
+		return Err(Error::bad_request("Date is too old".to_string()));
 	}
 
 	Ok(Authorization {

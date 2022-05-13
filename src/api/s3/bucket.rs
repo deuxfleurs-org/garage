@@ -130,7 +130,7 @@ pub async fn handle_create_bucket(
 
 	if let Some(location_constraint) = cmd {
 		if location_constraint != garage.config.s3_api.s3_region {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"Cannot satisfy location constraint `{}`: buckets can only be created in region `{}`",
 				location_constraint,
 				garage.config.s3_api.s3_region
@@ -163,7 +163,7 @@ pub async fn handle_create_bucket(
 	} else {
 		// Create the bucket!
 		if !is_valid_bucket_name(&bucket_name) {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"{}: {}",
 				bucket_name, INVALID_BUCKET_NAME_MESSAGE
 			)));

@@ -176,7 +176,7 @@ impl WebsiteConfiguration {
 				|| self.index_document.is_some()
 				|| self.routing_rules.is_some())
 		{
-			return Err(Error::BadRequest(
+			return Err(Error::bad_request(
 				"Bad XML: can't have RedirectAllRequestsTo and other fields".to_owned(),
 			));
 		}
@@ -222,7 +222,7 @@ impl WebsiteConfiguration {
 impl Key {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.key.0.is_empty() {
-			Err(Error::BadRequest(
+			Err(Error::bad_request(
 				"Bad XML: error document specified but empty".to_owned(),
 			))
 		} else {
@@ -234,7 +234,7 @@ impl Key {
 impl Suffix {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.suffix.0.is_empty() | self.suffix.0.contains('/') {
-			Err(Error::BadRequest(
+			Err(Error::bad_request(
 				"Bad XML: index document is empty or contains /".to_owned(),
 			))
 		} else {
@@ -247,7 +247,7 @@ impl Target {
 	pub fn validate(&self) -> Result<(), Error> {
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::BadRequest("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol".to_owned()));
 			}
 		}
 		Ok(())
@@ -269,19 +269,19 @@ impl Redirect {
 	pub fn validate(&self, has_prefix: bool) -> Result<(), Error> {
 		if self.replace_prefix.is_some() {
 			if self.replace_full.is_some() {
-				return Err(Error::BadRequest(
+				return Err(Error::bad_request(
 					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set".to_owned(),
 				));
 			}
 			if !has_prefix {
-				return Err(Error::BadRequest(
+				return Err(Error::bad_request(
 					"Bad XML: ReplaceKeyPrefixWith is set, but  KeyPrefixEquals isn't".to_owned(),
 				));
 			}
 		}
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::BadRequest("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol".to_owned()));
 			}
 		}
 		// TODO there are probably more invalide cases, but which ones?

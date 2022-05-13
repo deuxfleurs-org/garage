@@ -207,7 +207,7 @@ async fn serve_file(garage: Arc<Garage>, req: &Request<Body>) -> Result<Response
 		Method::OPTIONS => handle_options_for_bucket(req, &bucket),
 		Method::HEAD => handle_head(garage.clone(), req, bucket_id, &key, None).await,
 		Method::GET => handle_get(garage.clone(), req, bucket_id, &key, None).await,
-		_ => Err(ApiError::BadRequest("HTTP method not supported".into())),
+		_ => Err(ApiError::bad_request("HTTP method not supported")),
 	}
 	.map_err(Error::from);
 
@@ -290,9 +290,7 @@ fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(path).decode_utf8()?;
 
 	if !path_utf8.starts_with('/') {
-		return Err(Error::BadRequest(
-			"Path must start with a / (slash)".to_string(),
-		));
+		return Err(Error::BadRequest("Path must start with a / (slash)".into()));
 	}
 
 	match path_utf8.chars().last() {

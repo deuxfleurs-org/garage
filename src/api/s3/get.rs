@@ -210,8 +210,8 @@ pub async fn handle_get(
 
 	match (part_number, parse_range_header(req, last_v_meta.size)?) {
 		(Some(_), Some(_)) => {
-			return Err(Error::BadRequest(
-				"Cannot specify both partNumber and Range header".into(),
+			return Err(Error::bad_request(
+				"Cannot specify both partNumber and Range header",
 			));
 		}
 		(Some(pn), None) => {
@@ -302,9 +302,9 @@ async fn handle_get_range(
 				let body: Body = Body::from(bytes[begin as usize..end as usize].to_vec());
 				Ok(resp_builder.body(body)?)
 			} else {
-				None.ok_or_internal_error(
+				Err(Error::internal_error(
 					"Requested range not present in inline bytes when it should have been",
-				)
+				))
 			}
 		}
 		ObjectVersionData::FirstBlock(_meta, _first_block_hash) => {

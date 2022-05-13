@@ -1,11 +1,7 @@
 use err_derive::Error;
-use hyper::header::HeaderValue;
-use hyper::{Body, HeaderMap, StatusCode};
+use hyper::StatusCode;
 
-use garage_model::helper::error::Error as HelperError;
 use garage_util::error::Error as GarageError;
-
-use crate::generic_server::ApiError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -36,8 +32,9 @@ impl CommonError {
 				| GarageError::RemoteError(_)
 				| GarageError::Quorum(_, _, _, _),
 			) => StatusCode::SERVICE_UNAVAILABLE,
-			CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_) => 
-				StatusCode::INTERNAL_SERVER_ERROR,
+			CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_) => {
+				StatusCode::INTERNAL_SERVER_ERROR
+			}
 			CommonError::BadRequest(_) => StatusCode::BAD_REQUEST,
 		}
 	}
@@ -57,7 +54,11 @@ where
 	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, CommonError> {
 		match self {
 			Ok(x) => Ok(x),
-			Err(e) => Err(CommonError::BadRequest(format!("{}: {}", reason.as_ref(), e))),
+			Err(e) => Err(CommonError::BadRequest(format!(
+				"{}: {}",
+				reason.as_ref(),
+				e
+			))),
 		}
 	}
 }

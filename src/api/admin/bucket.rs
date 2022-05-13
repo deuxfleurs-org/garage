@@ -16,8 +16,8 @@ use garage_model::garage::Garage;
 use garage_model::permission::*;
 use garage_model::s3::object_table::ObjectFilter;
 
-use crate::admin::key::ApiBucketKeyPerm;
 use crate::admin::error::*;
+use crate::admin::key::ApiBucketKeyPerm;
 use crate::admin::parse_json_body;
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
@@ -98,7 +98,7 @@ pub async fn handle_get_bucket_info(
 			.ok_or_bad_request("Bucket not found")?,
 		_ => {
 			return Err(Error::bad_request(
-				"Either id or globalAlias must be provided (but not both)"
+				"Either id or globalAlias must be provided (but not both)",
 			));
 		}
 	};

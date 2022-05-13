@@ -310,7 +310,7 @@ impl ApiHandler for S3ApiServer {
 					)
 					.await
 				} else {
-					Err(Error::BadRequest(format!(
+					Err(Error::bad_request(format!(
 						"Invalid endpoint: list-type={}",
 						list_type
 					)))

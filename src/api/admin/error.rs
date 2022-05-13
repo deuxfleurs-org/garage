@@ -3,10 +3,10 @@ use hyper::header::HeaderValue;
 use hyper::{Body, HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
-use garage_util::error::Error as GarageError;
 
 use crate::generic_server::ApiError;
-pub use crate::common_error::*;
+use crate::common_error::CommonError;
+pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -47,7 +47,9 @@ pub enum Error {
 }
 
 impl<T> From<T> for Error
-where CommonError: From<T> {
+where
+	CommonError: From<T>,
+{
 	fn from(err: T) -> Self {
 		Error::CommonError(CommonError::from(err))
 	}
@@ -83,7 +85,10 @@ impl ApiError for Error {
 	}
 
 	fn http_body(&self, garage_region: &str, path: &str) -> Body {
-		Body::from(format!("ERROR: {}\n\ngarage region: {}\npath: {}", self, garage_region, path))
+		Body::from(format!(
+			"ERROR: {}\n\ngarage region: {}\npath: {}",
+			self, garage_region, path
+		))
 	}
 }
 

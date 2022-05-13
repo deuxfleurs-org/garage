@@ -7,24 +7,17 @@ use hyper::{Body, HeaderMap, StatusCode};
 use garage_model::helper::error::Error as HelperError;
 use garage_util::error::Error as GarageError;
 
+use crate::common_error::CommonError;
+pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::s3::xml as s3_xml;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum Error {
-	// Category: internal error
-	/// Error related to deeper parts of Garage
-	#[error(display = "Internal error: {}", _0)]
-	InternalError(#[error(source)] GarageError),
-
-	/// Error related to Hyper
-	#[error(display = "Internal error (Hyper error): {}", _0)]
-	Hyper(#[error(source)] hyper::Error),
-
-	/// Error related to HTTP
-	#[error(display = "Internal error (HTTP error): {}", _0)]
-	Http(#[error(source)] http::Error),
+	#[error(display = "{}", _0)]
+	/// Error from common error
+	CommonError(CommonError),
 
 	// Category: cannot process
 	/// No proper api key was used, or the signature was invalid
@@ -101,10 +94,6 @@ pub enum Error {
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
 	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
 
-	/// The client sent an invalid request
-	#[error(display = "Bad request: {}", _0)]
-	BadRequest(String),
-
 	/// The client asked for an invalid return format (invalid Accept header)
 	#[error(display = "Not acceptable: {}", _0)]
 	NotAcceptable(String),
@@ -112,6 +101,15 @@ pub enum Error {
 	/// The client sent a request for an action not supported by garage
 	#[error(display = "Unimplemented action: {}", _0)]
 	NotImplemented(String),
+}
+
+impl<T> From<T> for Error
+where
+	CommonError: From<T>,
+{
+	fn from(err: T) -> Self {
+		Error::CommonError(CommonError::from(err))
+	}
 }
 
 impl From<roxmltree::Error> for Error {
@@ -129,16 +127,16 @@ impl From<quick_xml::de::DeError> for Error {
 impl From<HelperError> for Error {
 	fn from(err: HelperError) -> Self {
 		match err {
-			HelperError::Internal(i) => Self::InternalError(i),
-			HelperError::BadRequest(b) => Self::BadRequest(b),
-			e => Self::BadRequest(format!("{}", e)),
+			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
+			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
+			e => Self::CommonError(CommonError::BadRequest(format!("{}", e))),
 		}
 	}
 }
 
 impl From<multer::Error> for Error {
 	fn from(err: multer::Error) -> Self {
-		Self::BadRequest(err.to_string())
+		Self::bad_request(err)
 	}
 }
 
@@ -157,18 +155,26 @@ impl Error {
 			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::NotImplemented(_) => "NotImplemented",
-			Error::InternalError(
+			Error::CommonError(CommonError::InternalError(
 				GarageError::Timeout
 				| GarageError::RemoteError(_)
 				| GarageError::Quorum(_, _, _, _),
-			) => "ServiceUnavailable",
-			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => "InternalError",
+			)) => "ServiceUnavailable",
+			Error::CommonError(
+				CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_),
+			) => "InternalError",
 			_ => "InvalidRequest",
 		}
 	}
 
+	pub fn internal_error<M: ToString>(msg: M) -> Self {
+		Self::CommonError(CommonError::InternalError(GarageError::Message(
+			msg.to_string(),
+		)))
+	}
+
 	pub fn bad_request<M: ToString>(msg: M) -> Self {
-		Self::BadRequest(msg.to_string())
+		Self::CommonError(CommonError::BadRequest(msg.to_string()))
 	}
 }
 
@@ -176,19 +182,12 @@ impl ApiError for Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	fn http_status_code(&self) -> StatusCode {
 		match self {
+			Error::CommonError(c) => c.http_status_code(),
 			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
 			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
 			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
 			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
-			Error::InternalError(
-				GarageError::Timeout
-				| GarageError::RemoteError(_)
-				| GarageError::Quorum(_, _, _, _),
-			) => StatusCode::SERVICE_UNAVAILABLE,
-			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
-				StatusCode::INTERNAL_SERVER_ERROR
-			}
 			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
 			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
 			_ => StatusCode::BAD_REQUEST,
@@ -228,69 +227,5 @@ impl ApiError for Error {
 			"#
 			.into()
 		}))
-	}
-}
-
-/// Trait to map error to the Bad Request error code
-pub trait OkOrBadRequest {
-	type S;
-	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<Self::S, Error>;
-}
-
-impl<T, E> OkOrBadRequest for Result<T, E>
-where
-	E: std::fmt::Display,
-{
-	type S = T;
-	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
-		match self {
-			Ok(x) => Ok(x),
-			Err(e) => Err(Error::BadRequest(format!("{}: {}", reason.as_ref(), e))),
-		}
-	}
-}
-
-impl<T> OkOrBadRequest for Option<T> {
-	type S = T;
-	fn ok_or_bad_request<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
-		match self {
-			Some(x) => Ok(x),
-			None => Err(Error::BadRequest(reason.as_ref().to_string())),
-		}
-	}
-}
-
-/// Trait to map an error to an Internal Error code
-pub trait OkOrInternalError {
-	type S;
-	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<Self::S, Error>;
-}
-
-impl<T, E> OkOrInternalError for Result<T, E>
-where
-	E: std::fmt::Display,
-{
-	type S = T;
-	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
-		match self {
-			Ok(x) => Ok(x),
-			Err(e) => Err(Error::InternalError(GarageError::Message(format!(
-				"{}: {}",
-				reason.as_ref(),
-				e
-			)))),
-		}
-	}
-}
-
-impl<T> OkOrInternalError for Option<T> {
-	type S = T;
-	fn ok_or_internal_error<M: AsRef<str>>(self, reason: M) -> Result<T, Error> {
-		match self {
-			Some(x) => Ok(x),
-			None => Err(Error::InternalError(GarageError::Message(
-				reason.as_ref().to_string(),
-			))),
-		}
 	}
 }

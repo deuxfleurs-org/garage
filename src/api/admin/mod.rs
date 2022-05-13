@@ -1,14 +1,13 @@
 pub mod api_server;
-mod router;
 mod error;
+mod router;
 
 mod bucket;
 mod cluster;
 mod key;
 
-
-use serde::{Deserialize};
-use hyper::{Request, Body};
+use hyper::{Body, Request};
+use serde::Deserialize;
 
 use error::*;
 

@@ -17,9 +17,9 @@ use garage_util::error::Error as GarageError;
 
 use crate::generic_server::*;
 
-use crate::admin::error::*;
 use crate::admin::bucket::*;
 use crate::admin::cluster::*;
+use crate::admin::error::*;
 use crate::admin::key::*;
 use crate::admin::router::{Authorization, Endpoint};
 

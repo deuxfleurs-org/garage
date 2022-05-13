@@ -588,7 +588,7 @@ impl ListObjectsQuery {
 					"]" => Ok(RangeBegin::AfterKey {
 						key: String::from_utf8(base64::decode(token[1..].as_bytes())?)?,
 					}),
-					_ => Err(Error::BadRequest("Invalid continuation token".to_string())),
+					_ => Err(Error::bad_request("Invalid continuation token".to_string())),
 				},
 
 				// StartAfter has defined semantics in the spec:

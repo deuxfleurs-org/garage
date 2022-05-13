@@ -88,7 +88,7 @@ async fn handle_read_batch_query(
 
 	let (items, more, next_start) = if query.single_item {
 		if query.prefix.is_some() || query.end.is_some() || query.limit.is_some() || query.reverse {
-			return Err(Error::BadRequest("Batch query parameters 'prefix', 'end', 'limit' and 'reverse' must not be set when singleItem is true.".into()));
+			return Err(Error::bad_request("Batch query parameters 'prefix', 'end', 'limit' and 'reverse' must not be set when singleItem is true."));
 		}
 		let sk = query
 			.start
@@ -183,7 +183,7 @@ async fn handle_delete_batch_query(
 
 	let deleted_items = if query.single_item {
 		if query.prefix.is_some() || query.end.is_some() {
-			return Err(Error::BadRequest("Batch query parameters 'prefix' and 'end' must not be set when singleItem is true.".into()));
+			return Err(Error::bad_request("Batch query parameters 'prefix' and 'end' must not be set when singleItem is true."));
 		}
 		let sk = query
 			.start

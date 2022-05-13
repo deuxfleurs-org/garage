@@ -342,7 +342,7 @@ impl Endpoint {
 			Method::POST => Self::from_post(key, &mut query)?,
 			Method::PUT => Self::from_put(key, &mut query, req.headers())?,
 			Method::DELETE => Self::from_delete(key, &mut query)?,
-			_ => return Err(Error::BadRequest("Unknown method".to_owned())),
+			_ => return Err(Error::bad_request("Unknown method".to_owned())),
 		};
 
 		if let Some(message) = query.nonempty_message() {

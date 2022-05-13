@@ -16,7 +16,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 pub fn verify_signed_content(expected_sha256: Hash, body: &[u8]) -> Result<(), Error> {
 	if expected_sha256 != sha256sum(body) {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"Request content hash does not match signed hash".to_string(),
 		));
 	}

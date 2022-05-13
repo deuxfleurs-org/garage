@@ -52,7 +52,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 	let mut iter = authority.chars().enumerate();
 	let (_, first_char) = iter
 		.next()
-		.ok_or_else(|| Error::BadRequest("Authority is empty".to_string()))?;
+		.ok_or_else(|| Error::bad_request("Authority is empty".to_string()))?;
 
 	let split = match first_char {
 		'[' => {
@@ -60,7 +60,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 			match iter.next() {
 				Some((_, ']')) => iter.next(),
 				_ => {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::bad_request(format!(
 						"Authority {} has an illegal format",
 						authority
 					)))
@@ -73,7 +73,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 	let authority = match split {
 		Some((i, ':')) => Ok(&authority[..i]),
 		None => Ok(authority),
-		Some((_, _)) => Err(Error::BadRequest(format!(
+		Some((_, _)) => Err(Error::bad_request(format!(
 			"Authority {} has an illegal format",
 			authority
 		))),
@@ -134,7 +134,7 @@ pub fn parse_bucket_key<'a>(
 		None => (path, None),
 	};
 	if bucket.is_empty() {
-		return Err(Error::BadRequest("No bucket specified".to_string()));
+		return Err(Error::bad_request("No bucket specified"));
 	}
 	Ok((bucket, key))
 }

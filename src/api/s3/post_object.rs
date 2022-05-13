@@ -48,7 +48,7 @@ pub async fn handle_post_object(
 		let field = if let Some(field) = multipart.next_field().await? {
 			field
 		} else {
-			return Err(Error::BadRequest(
+			return Err(Error::bad_request(
 				"Request did not contain a file".to_owned(),
 			));
 		};
@@ -66,14 +66,14 @@ pub async fn handle_post_object(
 				"tag" => (/* tag need to be reencoded, but we don't support them yet anyway */),
 				"acl" => {
 					if params.insert("x-amz-acl", content).is_some() {
-						return Err(Error::BadRequest(
+						return Err(Error::bad_request(
 							"Field 'acl' provided more than one time".to_string(),
 						));
 					}
 				}
 				_ => {
 					if params.insert(&name, content).is_some() {
-						return Err(Error::BadRequest(format!(
+						return Err(Error::bad_request(format!(
 							"Field '{}' provided more than one time",
 							name
 						)));
@@ -145,7 +145,7 @@ pub async fn handle_post_object(
 		.ok_or_bad_request("Invalid expiration date")?
 		.into();
 	if Utc::now() - expiration > Duration::zero() {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"Expiration date is in the paste".to_string(),
 		));
 	}
@@ -159,7 +159,7 @@ pub async fn handle_post_object(
 			"policy" | "x-amz-signature" => (), // this is always accepted, as it's required to validate other fields
 			"content-type" => {
 				let conds = conditions.params.remove("content-type").ok_or_else(|| {
-					Error::BadRequest(format!("Key '{}' is not allowed in policy", param_key))
+					Error::bad_request(format!("Key '{}' is not allowed in policy", param_key))
 				})?;
 				for cond in conds {
 					let ok = match cond {
@@ -169,7 +169,7 @@ pub async fn handle_post_object(
 						}
 					};
 					if !ok {
-						return Err(Error::BadRequest(format!(
+						return Err(Error::bad_request(format!(
 							"Key '{}' has value not allowed in policy",
 							param_key
 						)));
@@ -178,7 +178,7 @@ pub async fn handle_post_object(
 			}
 			"key" => {
 				let conds = conditions.params.remove("key").ok_or_else(|| {
-					Error::BadRequest(format!("Key '{}' is not allowed in policy", param_key))
+					Error::bad_request(format!("Key '{}' is not allowed in policy", param_key))
 				})?;
 				for cond in conds {
 					let ok = match cond {
@@ -186,7 +186,7 @@ pub async fn handle_post_object(
 						Operation::StartsWith(s) => key.starts_with(&s),
 					};
 					if !ok {
-						return Err(Error::BadRequest(format!(
+						return Err(Error::bad_request(format!(
 							"Key '{}' has value not allowed in policy",
 							param_key
 						)));
@@ -201,7 +201,7 @@ pub async fn handle_post_object(
 					continue;
 				}
 				let conds = conditions.params.remove(&param_key).ok_or_else(|| {
-					Error::BadRequest(format!("Key '{}' is not allowed in policy", param_key))
+					Error::bad_request(format!("Key '{}' is not allowed in policy", param_key))
 				})?;
 				for cond in conds {
 					let ok = match cond {
@@ -209,7 +209,7 @@ pub async fn handle_post_object(
 						Operation::StartsWith(s) => value.to_str()?.starts_with(s.as_str()),
 					};
 					if !ok {
-						return Err(Error::BadRequest(format!(
+						return Err(Error::bad_request(format!(
 							"Key '{}' has value not allowed in policy",
 							param_key
 						)));
@@ -220,7 +220,7 @@ pub async fn handle_post_object(
 	}
 
 	if let Some((param_key, _)) = conditions.params.iter().next() {
-		return Err(Error::BadRequest(format!(
+		return Err(Error::bad_request(format!(
 			"Key '{}' is required in policy, but no value was provided",
 			param_key
 		)));
@@ -326,7 +326,7 @@ impl Policy {
 			match condition {
 				PolicyCondition::Equal(map) => {
 					if map.len() != 1 {
-						return Err(Error::BadRequest("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item".to_owned()));
 					}
 					let (mut k, v) = map.into_iter().next().expect("size was verified");
 					k.make_ascii_lowercase();
@@ -334,7 +334,7 @@ impl Policy {
 				}
 				PolicyCondition::OtherOp([cond, mut key, value]) => {
 					if key.remove(0) != '$' {
-						return Err(Error::BadRequest("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item".to_owned()));
 					}
 					key.make_ascii_lowercase();
 					match cond.as_str() {
@@ -347,7 +347,7 @@ impl Policy {
 								.or_default()
 								.push(Operation::StartsWith(value));
 						}
-						_ => return Err(Error::BadRequest("Invalid policy item".to_owned())),
+						_ => return Err(Error::bad_request("Invalid policy item".to_owned())),
 					}
 				}
 				PolicyCondition::SizeRange(key, min, max) => {
@@ -355,7 +355,7 @@ impl Policy {
 						length.0 = length.0.max(min);
 						length.1 = length.1.min(max);
 					} else {
-						return Err(Error::BadRequest("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item".to_owned()));
 					}
 				}
 			}
@@ -420,14 +420,14 @@ where
 				self.read += bytes.len() as u64;
 				// optimization to fail early when we know before the end it's too long
 				if self.length.end() < &self.read {
-					return Poll::Ready(Some(Err(Error::BadRequest(
+					return Poll::Ready(Some(Err(Error::bad_request(
 						"File size does not match policy".to_owned(),
 					))));
 				}
 			}
 			Poll::Ready(None) => {
 				if !self.length.contains(&self.read) {
-					return Poll::Ready(Some(Err(Error::BadRequest(
+					return Poll::Ready(Some(Err(Error::bad_request(
 						"File size does not match policy".to_owned(),
 					))));
 				}
