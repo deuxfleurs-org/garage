@@ -594,7 +594,7 @@ impl ListObjectsQuery {
 								.ok_or_bad_request("Invalid continuation token")?,
 						)?,
 					}),
-					_ => Err(Error::bad_request("Invalid continuation token".to_string())),
+					_ => Err(Error::bad_request("Invalid continuation token")),
 				},
 
 				// StartAfter has defined semantics in the spec:

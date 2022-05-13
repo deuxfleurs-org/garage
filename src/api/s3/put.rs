@@ -184,7 +184,7 @@ fn ensure_checksum_matches(
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != data_sha256sum {
 			return Err(Error::bad_request(
-				"Unable to validate x-amz-content-sha256".to_string(),
+				"Unable to validate x-amz-content-sha256",
 			));
 		} else {
 			trace!("Successfully validated x-amz-content-sha256");
@@ -192,9 +192,7 @@ fn ensure_checksum_matches(
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != base64::encode(data_md5sum) {
-			return Err(Error::bad_request(
-				"Unable to validate content-md5".to_string(),
-			));
+			return Err(Error::bad_request("Unable to validate content-md5"));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
@@ -513,7 +511,7 @@ pub async fn handle_complete_multipart_upload(
 
 	let version = version.ok_or(Error::NoSuchKey)?;
 	if version.blocks.is_empty() {
-		return Err(Error::bad_request("No data was uploaded".to_string()));
+		return Err(Error::bad_request("No data was uploaded"));
 	}
 
 	let headers = match object_version.state {

@@ -170,7 +170,7 @@ impl WebsiteConfiguration {
 				|| self.routing_rules.is_some())
 		{
 			return Err(Error::bad_request(
-				"Bad XML: can't have RedirectAllRequestsTo and other fields".to_owned(),
+				"Bad XML: can't have RedirectAllRequestsTo and other fields",
 			));
 		}
 		if let Some(ref ed) = self.error_document {
@@ -216,7 +216,7 @@ impl Key {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.key.0.is_empty() {
 			Err(Error::bad_request(
-				"Bad XML: error document specified but empty".to_owned(),
+				"Bad XML: error document specified but empty",
 			))
 		} else {
 			Ok(())
@@ -228,7 +228,7 @@ impl Suffix {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.suffix.0.is_empty() | self.suffix.0.contains('/') {
 			Err(Error::bad_request(
-				"Bad XML: index document is empty or contains /".to_owned(),
+				"Bad XML: index document is empty or contains /",
 			))
 		} else {
 			Ok(())
@@ -240,7 +240,7 @@ impl Target {
 	pub fn validate(&self) -> Result<(), Error> {
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::bad_request("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol"));
 			}
 		}
 		Ok(())
@@ -263,18 +263,18 @@ impl Redirect {
 		if self.replace_prefix.is_some() {
 			if self.replace_full.is_some() {
 				return Err(Error::bad_request(
-					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set".to_owned(),
+					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set",
 				));
 			}
 			if !has_prefix {
 				return Err(Error::bad_request(
-					"Bad XML: ReplaceKeyPrefixWith is set, but  KeyPrefixEquals isn't".to_owned(),
+					"Bad XML: ReplaceKeyPrefixWith is set, but  KeyPrefixEquals isn't",
 				));
 			}
 		}
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::bad_request("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol"));
 			}
 		}
 		// TODO there are probably more invalide cases, but which ones?

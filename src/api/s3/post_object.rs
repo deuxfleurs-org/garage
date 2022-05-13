@@ -47,9 +47,7 @@ pub async fn handle_post_object(
 		let field = if let Some(field) = multipart.next_field().await? {
 			field
 		} else {
-			return Err(Error::bad_request(
-				"Request did not contain a file".to_owned(),
-			));
+			return Err(Error::bad_request("Request did not contain a file"));
 		};
 		let name: HeaderName = if let Some(Ok(name)) = field.name().map(TryInto::try_into) {
 			name
@@ -66,7 +64,7 @@ pub async fn handle_post_object(
 				"acl" => {
 					if params.insert("x-amz-acl", content).is_some() {
 						return Err(Error::bad_request(
-							"Field 'acl' provided more than one time".to_string(),
+							"Field 'acl' provided more than one time",
 						));
 					}
 				}
@@ -143,9 +141,7 @@ pub async fn handle_post_object(
 		.ok_or_bad_request("Invalid expiration date")?
 		.into();
 	if Utc::now() - expiration > Duration::zero() {
-		return Err(Error::bad_request(
-			"Expiration date is in the paste".to_string(),
-		));
+		return Err(Error::bad_request("Expiration date is in the paste"));
 	}
 
 	let mut conditions = decoded_policy.into_conditions()?;
@@ -324,7 +320,7 @@ impl Policy {
 			match condition {
 				PolicyCondition::Equal(map) => {
 					if map.len() != 1 {
-						return Err(Error::bad_request("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item"));
 					}
 					let (mut k, v) = map.into_iter().next().expect("size was verified");
 					k.make_ascii_lowercase();
@@ -332,7 +328,7 @@ impl Policy {
 				}
 				PolicyCondition::OtherOp([cond, mut key, value]) => {
 					if key.remove(0) != '$' {
-						return Err(Error::bad_request("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item"));
 					}
 					key.make_ascii_lowercase();
 					match cond.as_str() {
@@ -345,7 +341,7 @@ impl Policy {
 								.or_default()
 								.push(Operation::StartsWith(value));
 						}
-						_ => return Err(Error::bad_request("Invalid policy item".to_owned())),
+						_ => return Err(Error::bad_request("Invalid policy item")),
 					}
 				}
 				PolicyCondition::SizeRange(key, min, max) => {
@@ -353,7 +349,7 @@ impl Policy {
 						length.0 = length.0.max(min);
 						length.1 = length.1.min(max);
 					} else {
-						return Err(Error::bad_request("Invalid policy item".to_owned()));
+						return Err(Error::bad_request("Invalid policy item"));
 					}
 				}
 			}
@@ -419,14 +415,14 @@ where
 				// optimization to fail early when we know before the end it's too long
 				if self.length.end() < &self.read {
 					return Poll::Ready(Some(Err(Error::bad_request(
-						"File size does not match policy".to_owned(),
+						"File size does not match policy",
 					))));
 				}
 			}
 			Poll::Ready(None) => {
 				if !self.length.contains(&self.read) {
 					return Poll::Ready(Some(Err(Error::bad_request(
-						"File size does not match policy".to_owned(),
+						"File size does not match policy",
 					))));
 				}
 			}
