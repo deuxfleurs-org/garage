@@ -5,10 +5,9 @@ use hyper::header::HeaderValue;
 use hyper::{Body, HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
-use garage_util::error::Error as GarageError;
 
 use crate::common_error::CommonError;
-pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
+pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::s3::xml as s3_xml;
 use crate::signature::error::Error as SignatureError;
@@ -21,10 +20,6 @@ pub enum Error {
 	CommonError(CommonError),
 
 	// Category: cannot process
-	/// No proper api key was used, or the signature was invalid
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
-
 	/// Authorization Header Malformed
 	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
@@ -33,21 +28,9 @@ pub enum Error {
 	#[error(display = "Key not found")]
 	NoSuchKey,
 
-	/// The bucket requested don't exists
-	#[error(display = "Bucket not found")]
-	NoSuchBucket,
-
 	/// The multipart upload requested don't exists
 	#[error(display = "Upload not found")]
 	NoSuchUpload,
-
-	/// Tried to create a bucket that already exist
-	#[error(display = "Bucket already exists")]
-	BucketAlreadyExists,
-
-	/// Tried to delete a non-empty bucket
-	#[error(display = "Tried to delete a non-empty bucket")]
-	BucketNotEmpty,
 
 	/// Precondition failed (e.g. x-amz-copy-source-if-match)
 	#[error(display = "At least one of the preconditions you specified did not hold")]
@@ -75,14 +58,6 @@ pub enum Error {
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUtf8String(#[error(source)] std::string::FromUtf8Error),
 
-	/// Some base64 encoded data was badly encoded
-	#[error(display = "Invalid base64: {}", _0)]
-	InvalidBase64(#[error(source)] base64::DecodeError),
-
-	/// Bucket name is not valid according to AWS S3 specs
-	#[error(display = "Invalid bucket name")]
-	InvalidBucketName,
-
 	/// The client sent invalid XML data
 	#[error(display = "Invalid XML: {}", _0)]
 	InvalidXml(String),
@@ -94,10 +69,6 @@ pub enum Error {
 	/// The client sent a range header with invalid value
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
 	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
-
-	/// The client asked for an invalid return format (invalid Accept header)
-	#[error(display = "Not acceptable: {}", _0)]
-	NotAcceptable(String),
 
 	/// The client sent a request for an action not supported by garage
 	#[error(display = "Unimplemented action: {}", _0)]
@@ -113,6 +84,20 @@ where
 	}
 }
 
+impl CommonErrorDerivative for Error {}
+
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Self {
+		match err {
+			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
+			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
+			HelperError::InvalidBucketName(_) => Self::CommonError(CommonError::InvalidBucketName),
+			HelperError::NoSuchBucket(_) => Self::CommonError(CommonError::NoSuchBucket),
+			e => Self::bad_request(format!("{}", e)),
+		}
+	}
+}
+
 impl From<roxmltree::Error> for Error {
 	fn from(err: roxmltree::Error) -> Self {
 		Self::InvalidXml(format!("{}", err))
@@ -125,22 +110,13 @@ impl From<quick_xml::de::DeError> for Error {
 	}
 }
 
-impl From<HelperError> for Error {
-	fn from(err: HelperError) -> Self {
-		match err {
-			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
-			e => Self::CommonError(CommonError::BadRequest(format!("{}", e))),
-		}
-	}
-}
-
 impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {
 		match err {
 			SignatureError::CommonError(c) => Self::CommonError(c),
-			SignatureError::AuthorizationHeaderMalformed(c) => Self::AuthorizationHeaderMalformed(c),
-			SignatureError::Forbidden(f) => Self::Forbidden(f),
+			SignatureError::AuthorizationHeaderMalformed(c) => {
+				Self::AuthorizationHeaderMalformed(c)
+			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
 			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
@@ -156,38 +132,21 @@ impl From<multer::Error> for Error {
 impl Error {
 	pub fn aws_code(&self) -> &'static str {
 		match self {
+			Error::CommonError(c) => c.aws_code(),
 			Error::NoSuchKey => "NoSuchKey",
-			Error::NoSuchBucket => "NoSuchBucket",
 			Error::NoSuchUpload => "NoSuchUpload",
-			Error::BucketAlreadyExists => "BucketAlreadyExists",
-			Error::BucketNotEmpty => "BucketNotEmpty",
 			Error::PreconditionFailed => "PreconditionFailed",
 			Error::InvalidPart => "InvalidPart",
 			Error::InvalidPartOrder => "InvalidPartOrder",
 			Error::EntityTooSmall => "EntityTooSmall",
-			Error::Forbidden(_) => "AccessDenied",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::NotImplemented(_) => "NotImplemented",
-			Error::CommonError(CommonError::InternalError(
-				GarageError::Timeout
-				| GarageError::RemoteError(_)
-				| GarageError::Quorum(_, _, _, _),
-			)) => "ServiceUnavailable",
-			Error::CommonError(
-				CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_),
-			) => "InternalError",
-			_ => "InvalidRequest",
+			Error::InvalidXml(_) => "MalformedXML",
+			Error::InvalidRange(_) => "InvalidRange",
+			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) | Error::InvalidHeader(_) => {
+				"InvalidRequest"
+			}
 		}
-	}
-
-	pub fn internal_error<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::InternalError(GarageError::Message(
-			msg.to_string(),
-		)))
-	}
-
-	pub fn bad_request<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::BadRequest(msg.to_string()))
 	}
 }
 
@@ -196,14 +155,18 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::CommonError(c) => c.http_status_code(),
-			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
-			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
+			Error::NoSuchKey | Error::NoSuchUpload => StatusCode::NOT_FOUND,
 			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
 			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
 			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
-			_ => StatusCode::BAD_REQUEST,
+			Error::AuthorizationHeaderMalformed(_)
+			| Error::InvalidPart
+			| Error::InvalidPartOrder
+			| Error::EntityTooSmall
+			| Error::InvalidXml(_)
+			| Error::InvalidUtf8Str(_)
+			| Error::InvalidUtf8String(_)
+			| Error::InvalidHeader(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 

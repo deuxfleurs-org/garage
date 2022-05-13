@@ -10,7 +10,6 @@ use crate::signature::verify_signed_content;
 
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
-use garage_table::*;
 use garage_util::data::*;
 
 pub async fn handle_get_website(bucket: &Bucket) -> Result<Response<Body>, Error> {
@@ -47,14 +46,11 @@ pub async fn handle_delete_website(
 	bucket_id: Uuid,
 ) -> Result<Response<Body>, Error> {
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	param.website_config.update(None);
 	garage.bucket_table.insert(&bucket).await?;
@@ -77,14 +73,11 @@ pub async fn handle_put_website(
 	}
 
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;

@@ -89,9 +89,7 @@ pub async fn handle_post_object(
 		.to_str()?;
 	let credential = params
 		.get("x-amz-credential")
-		.ok_or_else(|| {
-			Error::Forbidden("Garage does not support anonymous access yet".to_string())
-		})?
+		.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?
 		.to_str()?;
 	let policy = params
 		.get("policy")
@@ -128,15 +126,16 @@ pub async fn handle_post_object(
 	)
 	.await?;
 
-	let bucket_id = garage.bucket_helper().resolve_bucket(&bucket, &api_key).await?;
+	let bucket_id = garage
+		.bucket_helper()
+		.resolve_bucket(&bucket, &api_key)
+		.await?;
 
 	if !api_key.allow_write(&bucket_id) {
-		return Err(Error::Forbidden(
-			"Operation is not allowed for this key.".to_string(),
-		));
+		return Err(Error::forbidden("Operation is not allowed for this key."));
 	}
 
-	let decoded_policy = base64::decode(&policy)?;
+	let decoded_policy = base64::decode(&policy).ok_or_bad_request("Invalid policy")?;
 	let decoded_policy: Policy =
 		serde_json::from_slice(&decoded_policy).ok_or_bad_request("Invalid policy")?;
 

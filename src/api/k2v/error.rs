@@ -5,7 +5,7 @@ use hyper::{Body, HeaderMap, StatusCode};
 use garage_model::helper::error::Error as HelperError;
 
 use crate::common_error::CommonError;
-pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
+pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::signature::error::Error as SignatureError;
 
@@ -17,10 +17,6 @@ pub enum Error {
 	CommonError(CommonError),
 
 	// Category: cannot process
-	/// No proper api key was used, or the signature was invalid
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
-
 	/// Authorization Header Malformed
 	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
@@ -28,10 +24,6 @@ pub enum Error {
 	/// The object requested don't exists
 	#[error(display = "Key not found")]
 	NoSuchKey,
-
-	/// The bucket requested don't exists
-	#[error(display = "Bucket not found")]
-	NoSuchBucket,
 
 	/// Some base64 encoded data was badly encoded
 	#[error(display = "Invalid base64: {}", _0)]
@@ -59,11 +51,15 @@ where
 	}
 }
 
+impl CommonErrorDerivative for Error {}
+
 impl From<HelperError> for Error {
 	fn from(err: HelperError) -> Self {
 		match err {
 			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
 			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
+			HelperError::InvalidBucketName(_) => Self::CommonError(CommonError::InvalidBucketName),
+			HelperError::NoSuchBucket(_) => Self::CommonError(CommonError::NoSuchBucket),
 			e => Self::CommonError(CommonError::BadRequest(format!("{}", e))),
 		}
 	}
@@ -73,23 +69,12 @@ impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {
 		match err {
 			SignatureError::CommonError(c) => Self::CommonError(c),
-			SignatureError::AuthorizationHeaderMalformed(c) => Self::AuthorizationHeaderMalformed(c),
-			SignatureError::Forbidden(f) => Self::Forbidden(f),
+			SignatureError::AuthorizationHeaderMalformed(c) => {
+				Self::AuthorizationHeaderMalformed(c)
+			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
 			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
-	}
-}
-
-impl Error {
-	//pub fn internal_error<M: ToString>(msg: M) -> Self {
-	//	Self::CommonError(CommonError::InternalError(GarageError::Message(
-	//		msg.to_string(),
-	//	)))
-	//}
-
-	pub fn bad_request<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::BadRequest(msg.to_string()))
 	}
 }
 
@@ -98,10 +83,12 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::CommonError(c) => c.http_status_code(),
-			Error::NoSuchKey | Error::NoSuchBucket => StatusCode::NOT_FOUND,
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
+			Error::NoSuchKey => StatusCode::NOT_FOUND,
 			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
-			_ => StatusCode::BAD_REQUEST,
+			Error::AuthorizationHeaderMalformed(_)
+			| Error::InvalidBase64(_)
+			| Error::InvalidHeader(_)
+			| Error::InvalidUtf8Str(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 
@@ -110,6 +97,7 @@ impl ApiError for Error {
 	}
 
 	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+		// TODO nice json error
 		Body::from(format!(
 			"ERROR: {}\n\ngarage region: {}\npath: {}",
 			self, garage_region, path

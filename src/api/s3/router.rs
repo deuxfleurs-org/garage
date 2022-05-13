@@ -3,9 +3,9 @@ use std::borrow::Cow;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, Method, Request};
 
-use crate::s3::error::{Error, OkOrBadRequest};
 use crate::helpers::Authorization;
 use crate::router_macros::{generateQueryParameters, router_match};
+use crate::s3::error::*;
 
 router_match! {@func
 

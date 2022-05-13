@@ -18,8 +18,8 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use crate::helpers::parse_bucket_key;
 use crate::s3::error::*;
-use crate::helpers::{parse_bucket_key};
 use crate::s3::put::{decode_upload_id, get_headers};
 use crate::s3::xml::{self as s3_xml, xmlns_tag};
 
@@ -413,10 +413,13 @@ async fn get_copy_source(
 	let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 
 	let (source_bucket, source_key) = parse_bucket_key(&copy_source, None)?;
-	let source_bucket_id = garage.bucket_helper().resolve_bucket(&source_bucket.to_string(), api_key).await?;
+	let source_bucket_id = garage
+		.bucket_helper()
+		.resolve_bucket(&source_bucket.to_string(), api_key)
+		.await?;
 
 	if !api_key.allow_read(&source_bucket_id) {
-		return Err(Error::Forbidden(format!(
+		return Err(Error::forbidden(format!(
 			"Reading from bucket {} not allowed for this key",
 			source_bucket
 		)));

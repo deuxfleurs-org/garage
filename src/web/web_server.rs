@@ -18,9 +18,11 @@ use opentelemetry::{
 
 use crate::error::*;
 
-use garage_api::s3::error::{Error as ApiError, OkOrBadRequest, OkOrInternalError};
 use garage_api::helpers::{authority_to_host, host_to_bucket};
 use garage_api::s3::cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
+use garage_api::s3::error::{
+	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
+};
 use garage_api::s3::get::{handle_get, handle_head};
 
 use garage_model::garage::Garage;

@@ -303,7 +303,7 @@ pub async fn verify_v4(
 		.get(&EmptyKey, &key_id)
 		.await?
 		.filter(|k| !k.state.is_deleted())
-		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", &key_id)))?;
+		.ok_or_else(|| Error::forbidden(format!("No such key: {}", &key_id)))?;
 	let key_p = key.params().unwrap();
 
 	let mut hmac = signing_hmac(
@@ -316,7 +316,7 @@ pub async fn verify_v4(
 	hmac.update(payload);
 	let our_signature = hex::encode(hmac.finalize().into_bytes());
 	if signature != our_signature {
-		return Err(Error::Forbidden("Invalid signature".to_string()));
+		return Err(Error::forbidden("Invalid signature".to_string()));
 	}
 
 	Ok(key)

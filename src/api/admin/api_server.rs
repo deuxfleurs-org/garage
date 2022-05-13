@@ -114,13 +114,9 @@ impl ApiHandler for AdminApiServer {
 
 		if let Some(h) = expected_auth_header {
 			match req.headers().get("Authorization") {
-				None => Err(Error::Forbidden(
-					"Authorization token must be provided".into(),
-				)),
+				None => Err(Error::forbidden("Authorization token must be provided")),
 				Some(v) if v.to_str().map(|hv| hv == h).unwrap_or(false) => Ok(()),
-				_ => Err(Error::Forbidden(
-					"Invalid authorization token provided".into(),
-				)),
+				_ => Err(Error::forbidden("Invalid authorization token provided")),
 			}?;
 		}
 

@@ -4,9 +4,9 @@ use hyper::{Body, HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
 
-use crate::generic_server::ApiError;
 use crate::common_error::CommonError;
-pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
+pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
+use crate::generic_server::ApiError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -16,30 +16,9 @@ pub enum Error {
 	CommonError(CommonError),
 
 	// Category: cannot process
-	/// No proper api key was used, or the signature was invalid
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
-
 	/// The API access key does not exist
 	#[error(display = "Access key not found")]
 	NoSuchAccessKey,
-
-	/// The bucket requested don't exists
-	#[error(display = "Bucket not found")]
-	NoSuchBucket,
-
-	/// Tried to create a bucket that already exist
-	#[error(display = "Bucket already exists")]
-	BucketAlreadyExists,
-
-	/// Tried to delete a non-empty bucket
-	#[error(display = "Tried to delete a non-empty bucket")]
-	BucketNotEmpty,
-
-	// Category: bad request
-	/// Bucket name is not valid according to AWS S3 specs
-	#[error(display = "Invalid bucket name")]
-	InvalidBucketName,
 }
 
 impl<T> From<T> for Error
@@ -51,14 +30,16 @@ where
 	}
 }
 
+impl CommonErrorDerivative for Error {}
+
 impl From<HelperError> for Error {
 	fn from(err: HelperError) -> Self {
 		match err {
 			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
 			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(_) => Self::InvalidBucketName,
+			HelperError::InvalidBucketName(_) => Self::CommonError(CommonError::InvalidBucketName),
+			HelperError::NoSuchBucket(_) => Self::CommonError(CommonError::NoSuchBucket),
 			HelperError::NoSuchAccessKey(_) => Self::NoSuchAccessKey,
-			HelperError::NoSuchBucket(_) => Self::NoSuchBucket,
 		}
 	}
 }
@@ -68,10 +49,7 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::CommonError(c) => c.http_status_code(),
-			Error::NoSuchAccessKey | Error::NoSuchBucket => StatusCode::NOT_FOUND,
-			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::InvalidBucketName => StatusCode::BAD_REQUEST,
+			Error::NoSuchAccessKey => StatusCode::NOT_FOUND,
 		}
 	}
 
@@ -80,15 +58,10 @@ impl ApiError for Error {
 	}
 
 	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+		// TODO nice json error
 		Body::from(format!(
 			"ERROR: {}\n\ngarage region: {}\npath: {}",
 			self, garage_region, path
 		))
-	}
-}
-
-impl Error {
-	pub fn bad_request<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::BadRequest(msg.to_string()))
 	}
 }

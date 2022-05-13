@@ -14,6 +14,7 @@ use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
+use crate::common_error::CommonError;
 use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
@@ -158,7 +159,7 @@ pub async fn handle_create_bucket(
 		// otherwise return a forbidden error.
 		let kp = api_key.bucket_permissions(&bucket_id);
 		if !(kp.allow_write || kp.allow_owner) {
-			return Err(Error::BucketAlreadyExists);
+			return Err(CommonError::BucketAlreadyExists.into());
 		}
 	} else {
 		// Create the bucket!
@@ -239,7 +240,7 @@ pub async fn handle_delete_bucket(
 			)
 			.await?;
 		if !objects.is_empty() {
-			return Err(Error::BucketNotEmpty);
+			return Err(CommonError::BucketNotEmpty.into());
 		}
 
 		// --- done checking, now commit ---

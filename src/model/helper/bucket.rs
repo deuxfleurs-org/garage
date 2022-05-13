@@ -6,10 +6,10 @@ use garage_util::time::*;
 
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
-use crate::key_table::*;
 use crate::garage::Garage;
 use crate::helper::error::*;
 use crate::helper::key::KeyHelper;
+use crate::key_table::*;
 use crate::permission::BucketKeyPerm;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
@@ -51,11 +51,7 @@ impl<'a> BucketHelper<'a> {
 	}
 
 	#[allow(clippy::ptr_arg)]
-	pub async fn resolve_bucket(
-		&self,
-		bucket_name: &String,
-		api_key: &Key,
-	) -> Result<Uuid, Error> {
+	pub async fn resolve_bucket(&self, bucket_name: &String, api_key: &Key) -> Result<Uuid, Error> {
 		let api_key_params = api_key
 			.state
 			.as_option()
@@ -64,8 +60,8 @@ impl<'a> BucketHelper<'a> {
 		if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
 			Ok(*bucket_id)
 		} else {
-			Ok(self.
-				resolve_global_bucket_name(bucket_name)
+			Ok(self
+				.resolve_global_bucket_name(bucket_name)
 				.await?
 				.ok_or_else(|| Error::NoSuchBucket(bucket_name.to_string()))?)
 		}

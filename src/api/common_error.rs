@@ -6,7 +6,7 @@ use garage_util::error::Error as GarageError;
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum CommonError {
-	// Category: internal error
+	// ---- INTERNAL ERRORS ----
 	/// Error related to deeper parts of Garage
 	#[error(display = "Internal error: {}", _0)]
 	InternalError(#[error(source)] GarageError),
@@ -19,9 +19,34 @@ pub enum CommonError {
 	#[error(display = "Internal error (HTTP error): {}", _0)]
 	Http(#[error(source)] http::Error),
 
-	/// The client sent an invalid request
+	// ---- GENERIC CLIENT ERRORS ----
+	/// Proper authentication was not provided
+	#[error(display = "Forbidden: {}", _0)]
+	Forbidden(String),
+
+	/// Generic bad request response with custom message
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+
+	// ---- SPECIFIC ERROR CONDITIONS ----
+	// These have to be error codes referenced in the S3 spec here:
+	// https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList
+	/// The bucket requested don't exists
+	#[error(display = "Bucket not found")]
+	NoSuchBucket,
+
+	/// Tried to create a bucket that already exist
+	#[error(display = "Bucket already exists")]
+	BucketAlreadyExists,
+
+	/// Tried to delete a non-empty bucket
+	#[error(display = "Tried to delete a non-empty bucket")]
+	BucketNotEmpty,
+
+	// Category: bad request
+	/// Bucket name is not valid according to AWS S3 specs
+	#[error(display = "Invalid bucket name")]
+	InvalidBucketName,
 }
 
 impl CommonError {
@@ -36,12 +61,50 @@ impl CommonError {
 				StatusCode::INTERNAL_SERVER_ERROR
 			}
 			CommonError::BadRequest(_) => StatusCode::BAD_REQUEST,
+			CommonError::Forbidden(_) => StatusCode::FORBIDDEN,
+			CommonError::NoSuchBucket => StatusCode::NOT_FOUND,
+			CommonError::BucketNotEmpty | CommonError::BucketAlreadyExists => StatusCode::CONFLICT,
+			CommonError::InvalidBucketName => StatusCode::BAD_REQUEST,
 		}
 	}
 
+	pub fn aws_code(&self) -> &'static str {
+		match self {
+			CommonError::Forbidden(_) => "AccessDenied",
+			CommonError::InternalError(
+				GarageError::Timeout
+				| GarageError::RemoteError(_)
+				| GarageError::Quorum(_, _, _, _),
+			) => "ServiceUnavailable",
+			CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_) => {
+				"InternalError"
+			}
+			CommonError::BadRequest(_) => "InvalidRequest",
+			CommonError::NoSuchBucket => "NoSuchBucket",
+			CommonError::BucketAlreadyExists => "BucketAlreadyExists",
+			CommonError::BucketNotEmpty => "BucketNotEmpty",
+			CommonError::InvalidBucketName => "InvalidBucketName",
+		}
+	}
 
 	pub fn bad_request<M: ToString>(msg: M) -> Self {
 		CommonError::BadRequest(msg.to_string())
+	}
+}
+
+pub trait CommonErrorDerivative: From<CommonError> {
+	fn internal_error<M: ToString>(msg: M) -> Self {
+		Self::from(CommonError::InternalError(GarageError::Message(
+			msg.to_string(),
+		)))
+	}
+
+	fn bad_request<M: ToString>(msg: M) -> Self {
+		Self::from(CommonError::BadRequest(msg.to_string()))
+	}
+
+	fn forbidden<M: ToString>(msg: M) -> Self {
+		Self::from(CommonError::Forbidden(msg.to_string()))
 	}
 }
 

@@ -18,6 +18,7 @@ use garage_model::s3::object_table::ObjectFilter;
 
 use crate::admin::error::*;
 use crate::admin::key::ApiBucketKeyPerm;
+use crate::common_error::CommonError;
 use crate::helpers::parse_json_body;
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
@@ -233,7 +234,7 @@ pub async fn handle_create_bucket(
 
 		if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
 			if alias.state.get().is_some() {
-				return Err(Error::BucketAlreadyExists);
+				return Err(CommonError::BucketAlreadyExists.into());
 			}
 		}
 	}
@@ -333,7 +334,7 @@ pub async fn handle_delete_bucket(
 		)
 		.await?;
 	if !objects.is_empty() {
-		return Err(Error::BucketNotEmpty);
+		return Err(CommonError::BucketNotEmpty.into());
 	}
 
 	// --- done checking, now commit ---

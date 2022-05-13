@@ -1,9 +1,7 @@
 use err_derive::Error;
 
-use garage_util::error::Error as GarageError;
-
 use crate::common_error::CommonError;
-pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
+pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -15,10 +13,6 @@ pub enum Error {
 	/// Authorization Header Malformed
 	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
-
-	/// No proper api key was used, or the signature was invalid
-	#[error(display = "Forbidden: {}", _0)]
-	Forbidden(String),
 
 	// Category: bad request
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
@@ -39,16 +33,4 @@ where
 	}
 }
 
-
-impl Error {
-	pub fn internal_error<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::InternalError(GarageError::Message(
-			msg.to_string(),
-		)))
-	}
-
-	pub fn bad_request<M: ToString>(msg: M) -> Self {
-		Self::CommonError(CommonError::BadRequest(msg.to_string()))
-	}
-}
-
+impl CommonErrorDerivative for Error {}

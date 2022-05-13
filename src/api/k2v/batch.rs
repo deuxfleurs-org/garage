@@ -12,8 +12,8 @@ use garage_model::garage::Garage;
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
-use crate::k2v::error::*;
 use crate::helpers::*;
+use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_insert_batch(

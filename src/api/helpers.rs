@@ -2,7 +2,7 @@ use hyper::{Body, Request};
 use idna::domain_to_unicode;
 use serde::Deserialize;
 
-use crate::common_error::{*, CommonError as Error};
+use crate::common_error::{CommonError as Error, *};
 
 /// What kind of authorization is required to perform a given action
 #[derive(Debug, Clone, PartialEq, Eq)]
