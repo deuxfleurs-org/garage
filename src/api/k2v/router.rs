@@ -1,4 +1,4 @@
-use crate::s3::error::*;
+use crate::k2v::error::*;
 
 use std::borrow::Cow;
 

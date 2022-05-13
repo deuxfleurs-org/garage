@@ -12,7 +12,7 @@ use garage_util::data::Hash;
 
 use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
 
-use crate::s3::error::*;
+use crate::signature::error::*;
 
 pub fn parse_streaming_body(
 	api_key: &Key,

@@ -1,4 +1,5 @@
 pub mod api_server;
+mod error;
 mod router;
 
 mod batch;

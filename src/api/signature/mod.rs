@@ -4,10 +4,11 @@ use sha2::Sha256;
 
 use garage_util::data::{sha256sum, Hash};
 
-use crate::s3::error::*;
-
+pub mod error;
 pub mod payload;
 pub mod streaming;
+
+use error::*;
 
 pub const SHORT_DATE: &str = "%Y%m%d";
 pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";

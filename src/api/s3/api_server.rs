@@ -119,7 +119,8 @@ impl ApiHandler for S3ApiServer {
 			return handle_post_object(garage, req, bucket_name.unwrap()).await;
 		}
 		if let Endpoint::Options = endpoint {
-			return handle_options_s3api(garage, &req, bucket_name).await;
+			return handle_options_s3api(garage, &req, bucket_name).await
+				.map_err(Error::from);
 		}
 
 		let (api_key, mut content_sha256) = check_payload_signature(&garage, "s3", &req).await?;

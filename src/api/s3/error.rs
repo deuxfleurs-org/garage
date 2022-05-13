@@ -11,6 +11,7 @@ use crate::common_error::CommonError;
 pub use crate::common_error::{OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::s3::xml as s3_xml;
+use crate::signature::error::Error as SignatureError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -130,6 +131,18 @@ impl From<HelperError> for Error {
 			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
 			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
 			e => Self::CommonError(CommonError::BadRequest(format!("{}", e))),
+		}
+	}
+}
+
+impl From<SignatureError> for Error {
+	fn from(err: SignatureError) -> Self {
+		match err {
+			SignatureError::CommonError(c) => Self::CommonError(c),
+			SignatureError::AuthorizationHeaderMalformed(c) => Self::AuthorizationHeaderMalformed(c),
+			SignatureError::Forbidden(f) => Self::Forbidden(f),
+			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
+			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
 	}
 }

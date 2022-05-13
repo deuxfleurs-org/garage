@@ -12,7 +12,7 @@ use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
 
-use crate::s3::error::*;
+use crate::k2v::error::*;
 use crate::generic_server::*;
 
 use crate::signature::payload::check_payload_signature;
@@ -84,7 +84,8 @@ impl ApiHandler for K2VApiServer {
 
 		// The OPTIONS method is procesed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
-			return handle_options_s3api(garage, &req, Some(bucket_name)).await;
+			return Ok(handle_options_s3api(garage, &req, Some(bucket_name)).await
+				.ok_or_bad_request("Error handling OPTIONS")?);
 		}
 
 		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;
@@ -126,7 +127,8 @@ impl ApiHandler for K2VApiServer {
 		// are always preflighted, i.e. the browser should make
 		// an OPTIONS call before to check it is allowed
 		let matching_cors_rule = match *req.method() {
-			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)?,
+			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)
+				.ok_or_internal_error("Error looking up CORS rule")?,
 			_ => None,
 		};
 
