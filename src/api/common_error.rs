@@ -38,6 +38,11 @@ impl CommonError {
 			CommonError::BadRequest(_) => StatusCode::BAD_REQUEST,
 		}
 	}
+
+
+	pub fn bad_request<M: ToString>(msg: M) -> Self {
+		CommonError::BadRequest(msg.to_string())
+	}
 }
 
 /// Trait to map error to the Bad Request error code

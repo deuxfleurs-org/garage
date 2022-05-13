@@ -14,7 +14,7 @@ use garage_rpc::layout::*;
 use garage_model::garage::Garage;
 
 use crate::admin::error::*;
-use crate::admin::parse_json_body;
+use crate::helpers::parse_json_body;
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = GetClusterStatusResponse {

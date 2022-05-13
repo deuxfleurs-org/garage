@@ -40,10 +40,6 @@ pub enum Error {
 	/// Bucket name is not valid according to AWS S3 specs
 	#[error(display = "Invalid bucket name")]
 	InvalidBucketName,
-
-	/// The client sent a request for an action not supported by garage
-	#[error(display = "Unimplemented action: {}", _0)]
-	NotImplemented(String),
 }
 
 impl<T> From<T> for Error
@@ -75,7 +71,6 @@ impl ApiError for Error {
 			Error::NoSuchAccessKey | Error::NoSuchBucket => StatusCode::NOT_FOUND,
 			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
 			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
 			Error::InvalidBucketName => StatusCode::BAD_REQUEST,
 		}
 	}

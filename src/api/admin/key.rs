@@ -12,7 +12,7 @@ use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::admin::error::*;
-use crate::admin::parse_json_body;
+use crate::helpers::parse_json_body;
 
 pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = garage

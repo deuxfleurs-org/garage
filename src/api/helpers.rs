@@ -2,12 +2,7 @@ use hyper::{Body, Request};
 use idna::domain_to_unicode;
 use serde::Deserialize;
 
-use garage_util::data::*;
-
-use garage_model::garage::Garage;
-use garage_model::key_table::Key;
-
-use crate::s3::error::*;
+use crate::common_error::{*, CommonError as Error};
 
 /// What kind of authorization is required to perform a given action
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,28 +74,6 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 		))),
 	};
 	authority.map(|h| domain_to_unicode(h).0)
-}
-
-#[allow(clippy::ptr_arg)]
-pub async fn resolve_bucket(
-	garage: &Garage,
-	bucket_name: &String,
-	api_key: &Key,
-) -> Result<Uuid, Error> {
-	let api_key_params = api_key
-		.state
-		.as_option()
-		.ok_or_internal_error("Key should not be deleted at this point")?;
-
-	if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
-		Ok(*bucket_id)
-	} else {
-		Ok(garage
-			.bucket_helper()
-			.resolve_global_bucket_name(bucket_name)
-			.await?
-			.ok_or(Error::NoSuchBucket)?)
-	}
 }
 
 /// Extract the bucket name and the key name from an HTTP path and possibly a bucket provided in

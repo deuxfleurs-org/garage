@@ -18,7 +18,7 @@ use garage_model::s3::object_table::ObjectFilter;
 
 use crate::admin::error::*;
 use crate::admin::key::ApiBucketKeyPerm;
-use crate::admin::parse_json_body;
+use crate::helpers::parse_json_body;
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let buckets = garage
@@ -333,7 +333,7 @@ pub async fn handle_delete_bucket(
 		)
 		.await?;
 	if !objects.is_empty() {
-		return Err(Error::bad_request("Bucket is not empty"));
+		return Err(Error::BucketNotEmpty);
 	}
 
 	// --- done checking, now commit ---

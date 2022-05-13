@@ -100,7 +100,7 @@ impl ApiHandler for K2VApiServer {
 			"k2v",
 		)?;
 
-		let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
+		let bucket_id = garage.bucket_helper().resolve_bucket(&bucket_name, &api_key).await?;
 		let bucket = garage
 			.bucket_table
 			.get(&EmptyKey, &bucket_id)

@@ -15,7 +15,6 @@ use serde::Deserialize;
 use garage_model::garage::Garage;
 
 use crate::s3::error::*;
-use crate::helpers::resolve_bucket;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
 use crate::signature::payload::{parse_date, verify_v4};
@@ -129,7 +128,7 @@ pub async fn handle_post_object(
 	)
 	.await?;
 
-	let bucket_id = resolve_bucket(&garage, &bucket, &api_key).await?;
+	let bucket_id = garage.bucket_helper().resolve_bucket(&bucket, &api_key).await?;
 
 	if !api_key.allow_write(&bucket_id) {
 		return Err(Error::Forbidden(

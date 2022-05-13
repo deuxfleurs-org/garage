@@ -149,7 +149,7 @@ impl ApiHandler for S3ApiServer {
 			return handle_create_bucket(&garage, req, content_sha256, api_key, bucket_name).await;
 		}
 
-		let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
+		let bucket_id = garage.bucket_helper().resolve_bucket(&bucket_name, &api_key).await?;
 		let bucket = garage
 			.bucket_table
 			.get(&EmptyKey, &bucket_id)
