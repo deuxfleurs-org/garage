@@ -166,6 +166,10 @@ impl Error {
 			_ => "InvalidRequest",
 		}
 	}
+
+	pub fn bad_request<M: ToString>(msg: M) -> Self {
+		Self::BadRequest(msg.to_string())
+	}
 }
 
 impl ApiError for Error {

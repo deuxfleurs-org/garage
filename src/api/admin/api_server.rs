@@ -15,9 +15,9 @@ use prometheus::{Encoder, TextEncoder};
 use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
 
-use crate::error::*;
 use crate::generic_server::*;
 
+use crate::admin::error::*;
 use crate::admin::bucket::*;
 use crate::admin::cluster::*;
 use crate::admin::key::*;

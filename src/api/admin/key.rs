@@ -11,8 +11,8 @@ use garage_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use crate::error::*;
-use crate::helpers::*;
+use crate::admin::error::*;
+use crate::admin::parse_json_body;
 
 pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = garage
@@ -54,13 +54,13 @@ pub async fn handle_get_key_info(
 			.key_table
 			.get(&EmptyKey, &id)
 			.await?
-			.ok_or(Error::NoSuchKey)?
+			.ok_or(Error::NoSuchAccessKey)?
 	} else if let Some(search) = search {
 		garage
 			.key_helper()
 			.get_existing_matching_key(&search)
 			.await
-			.map_err(|_| Error::NoSuchKey)?
+			.map_err(|_| Error::NoSuchAccessKey)?
 	} else {
 		unreachable!();
 	};
@@ -96,9 +96,9 @@ pub async fn handle_update_key(
 		.key_table
 		.get(&EmptyKey, &id)
 		.await?
-		.ok_or(Error::NoSuchKey)?;
+		.ok_or(Error::NoSuchAccessKey)?;
 
-	let key_state = key.state.as_option_mut().ok_or(Error::NoSuchKey)?;
+	let key_state = key.state.as_option_mut().ok_or(Error::NoSuchAccessKey)?;
 
 	if let Some(new_name) = req.name {
 		key_state.name.update(new_name);
@@ -131,9 +131,9 @@ pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Respo
 		.key_table
 		.get(&EmptyKey, &id)
 		.await?
-		.ok_or(Error::NoSuchKey)?;
+		.ok_or(Error::NoSuchAccessKey)?;
 
-	key.state.as_option().ok_or(Error::NoSuchKey)?;
+	key.state.as_option().ok_or(Error::NoSuchAccessKey)?;
 
 	garage.key_helper().delete_key(&mut key).await?;
 

@@ -17,8 +17,8 @@ use garage_model::permission::*;
 use garage_model::s3::object_table::ObjectFilter;
 
 use crate::admin::key::ApiBucketKeyPerm;
-use crate::error::*;
-use crate::helpers::*;
+use crate::admin::error::*;
+use crate::admin::parse_json_body;
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let buckets = garage
@@ -97,9 +97,9 @@ pub async fn handle_get_bucket_info(
 			.await?
 			.ok_or_bad_request("Bucket not found")?,
 		_ => {
-			return Err(Error::BadRequest(
-				"Either id or globalAlias must be provided (but not both)".into(),
-			))
+			return Err(Error::bad_request(
+				"Either id or globalAlias must be provided (but not both)"
+			));
 		}
 	};
 
@@ -225,7 +225,7 @@ pub async fn handle_create_bucket(
 
 	if let Some(ga) = &req.global_alias {
 		if !is_valid_bucket_name(ga) {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"{}: {}",
 				ga, INVALID_BUCKET_NAME_MESSAGE
 			)));
@@ -240,7 +240,7 @@ pub async fn handle_create_bucket(
 
 	if let Some(la) = &req.local_alias {
 		if !is_valid_bucket_name(&la.alias) {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"{}: {}",
 				la.alias, INVALID_BUCKET_NAME_MESSAGE
 			)));
@@ -250,10 +250,10 @@ pub async fn handle_create_bucket(
 			.key_table
 			.get(&EmptyKey, &la.access_key_id)
 			.await?
-			.ok_or(Error::NoSuchKey)?;
-		let state = key.state.as_option().ok_or(Error::NoSuchKey)?;
+			.ok_or(Error::NoSuchAccessKey)?;
+		let state = key.state.as_option().ok_or(Error::NoSuchAccessKey)?;
 		if matches!(state.local_aliases.get(&la.alias), Some(_)) {
-			return Err(Error::BadRequest("Local alias already exists".into()));
+			return Err(Error::bad_request("Local alias already exists"));
 		}
 	}
 
@@ -333,7 +333,7 @@ pub async fn handle_delete_bucket(
 		)
 		.await?;
 	if !objects.is_empty() {
-		return Err(Error::BadRequest("Bucket is not empty".into()));
+		return Err(Error::bad_request("Bucket is not empty"));
 	}
 
 	// --- done checking, now commit ---

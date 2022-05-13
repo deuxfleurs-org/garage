@@ -38,7 +38,7 @@ macro_rules! router_match {
 					},
 				)*
 				(m, p) => {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::bad_request(format!(
 						"Unknown API endpoint: {} {}",
 						m, p
 					)))
@@ -78,7 +78,7 @@ macro_rules! router_match {
                 )*)?
             }),
             )*
-            (kw, _) => Err(Error::BadRequest(format!("Invalid endpoint: {}", kw)))
+            (kw, _) => Err(Error::bad_request(format!("Invalid endpoint: {}", kw)))
         }
     }};
 
@@ -97,14 +97,14 @@ macro_rules! router_match {
             .take()
             .map(|param| param.parse())
             .transpose()
-            .map_err(|_| Error::BadRequest("Failed to parse query parameter".to_owned()))?
+            .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
     }};
     (@@parse_param $query:expr, parse, $param:ident) => {{
         // extract and parse mandatory query parameter
         // both missing and un-parseable parameters are reported as errors
         $query.$param.take().ok_or_bad_request("Missing argument for endpoint")?
             .parse()
-            .map_err(|_| Error::BadRequest("Failed to parse query parameter".to_owned()))?
+            .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
     }};
     (@func
     $(#[$doc:meta])*
@@ -173,7 +173,7 @@ macro_rules! generateQueryParameters {
                                 false
                             } else if v.as_ref().is_empty() {
                                 if res.keyword.replace(k).is_some() {
-                                    return Err(Error::BadRequest("Multiple keywords".to_owned()));
+                                    return Err(Error::bad_request("Multiple keywords"));
                                 }
                                 continue;
                             } else {
@@ -183,7 +183,7 @@ macro_rules! generateQueryParameters {
                         }
                     };
                     if repeated {
-                        return Err(Error::BadRequest(format!(
+                        return Err(Error::bad_request(format!(
                             "Query parameter repeated: '{}'",
                             k
                         )));
