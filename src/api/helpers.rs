@@ -1,6 +1,6 @@
 use hyper::{Body, Request};
 use idna::domain_to_unicode;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::common_error::{CommonError as Error, *};
 
@@ -278,4 +278,12 @@ mod tests {
 			String::from(char::MAX)
 		);
 	}
+}
+
+#[derive(Serialize)]
+pub(crate) struct CustomApiErrorBody {
+	pub(crate) code: String,
+	pub(crate) message: String,
+	pub(crate) region: String,
+	pub(crate) path: String,
 }

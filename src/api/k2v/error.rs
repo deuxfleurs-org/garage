@@ -7,6 +7,7 @@ use garage_model::helper::error::Error as HelperError;
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
+use crate::helpers::CustomApiErrorBody;
 use crate::signature::error::Error as SignatureError;
 
 /// Errors of this crate
@@ -78,6 +79,23 @@ impl From<SignatureError> for Error {
 	}
 }
 
+impl Error {
+	/// This returns a keyword for the corresponding error.
+	/// Here, these keywords are not necessarily those from AWS S3,
+	/// as we are building a custom API
+	fn code(&self) -> &'static str {
+		match self {
+			Error::CommonError(c) => c.aws_code(),
+			Error::NoSuchKey => "NoSuchKey",
+			Error::NotAcceptable(_) => "NotAcceptable",
+			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
+			Error::InvalidBase64(_) => "InvalidBase64",
+			Error::InvalidHeader(_) => "InvalidHeaderValue",
+			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
+		}
+	}
+}
+
 impl ApiError for Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	fn http_status_code(&self) -> StatusCode {
@@ -97,10 +115,20 @@ impl ApiError for Error {
 	}
 
 	fn http_body(&self, garage_region: &str, path: &str) -> Body {
-		// TODO nice json error
-		Body::from(format!(
-			"ERROR: {}\n\ngarage region: {}\npath: {}",
-			self, garage_region, path
-		))
+		let error = CustomApiErrorBody {
+			code: self.code().to_string(),
+			message: format!("{}", self),
+			path: path.to_string(),
+			region: garage_region.to_string(),
+		};
+		Body::from(serde_json::to_string_pretty(&error).unwrap_or_else(|_| {
+			r#"
+{
+	"code": "InternalError",
+	"message": "JSON encoding of error failed"
+}
+			"#
+			.into()
+		}))
 	}
 }
