@@ -2,11 +2,12 @@ use std::convert::TryInto;
 
 use err_derive::Error;
 use hyper::header::HeaderValue;
-use hyper::{HeaderMap, StatusCode};
+use hyper::{Body, HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
 use garage_util::error::Error as GarageError;
 
+use crate::generic_server::ApiError;
 use crate::s3::xml as s3_xml;
 
 /// Errors of this crate
@@ -142,28 +143,6 @@ impl From<multer::Error> for Error {
 }
 
 impl Error {
-	/// Get the HTTP status code that best represents the meaning of the error for the client
-	pub fn http_status_code(&self) -> StatusCode {
-		match self {
-			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
-			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
-			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
-			Error::Forbidden(_) => StatusCode::FORBIDDEN,
-			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
-			Error::InternalError(
-				GarageError::Timeout
-				| GarageError::RemoteError(_)
-				| GarageError::Quorum(_, _, _, _),
-			) => StatusCode::SERVICE_UNAVAILABLE,
-			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
-				StatusCode::INTERNAL_SERVER_ERROR
-			}
-			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
-			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
-			_ => StatusCode::BAD_REQUEST,
-		}
-	}
-
 	pub fn aws_code(&self) -> &'static str {
 		match self {
 			Error::NoSuchKey => "NoSuchKey",
@@ -187,27 +166,32 @@ impl Error {
 			_ => "InvalidRequest",
 		}
 	}
+}
 
-	pub fn aws_xml(&self, garage_region: &str, path: &str) -> String {
-		let error = s3_xml::Error {
-			code: s3_xml::Value(self.aws_code().to_string()),
-			message: s3_xml::Value(format!("{}", self)),
-			resource: Some(s3_xml::Value(path.to_string())),
-			region: Some(s3_xml::Value(garage_region.to_string())),
-		};
-		s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
-			r#"
-<?xml version="1.0" encoding="UTF-8"?>
-<Error>
-	<Code>InternalError</Code>
-	<Message>XML encoding of error failed</Message>
-</Error>
-			"#
-			.into()
-		})
+impl ApiError for Error {
+	/// Get the HTTP status code that best represents the meaning of the error for the client
+	fn http_status_code(&self) -> StatusCode {
+		match self {
+			Error::NoSuchKey | Error::NoSuchBucket | Error::NoSuchUpload => StatusCode::NOT_FOUND,
+			Error::BucketNotEmpty | Error::BucketAlreadyExists => StatusCode::CONFLICT,
+			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
+			Error::Forbidden(_) => StatusCode::FORBIDDEN,
+			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
+			Error::InternalError(
+				GarageError::Timeout
+				| GarageError::RemoteError(_)
+				| GarageError::Quorum(_, _, _, _),
+			) => StatusCode::SERVICE_UNAVAILABLE,
+			Error::InternalError(_) | Error::Hyper(_) | Error::Http(_) => {
+				StatusCode::INTERNAL_SERVER_ERROR
+			}
+			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
+			Error::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
+			_ => StatusCode::BAD_REQUEST,
+		}
 	}
 
-	pub fn add_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
+	fn add_http_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
 		use hyper::header;
 		#[allow(clippy::single_match)]
 		match self {
@@ -221,6 +205,25 @@ impl Error {
 			}
 			_ => (),
 		}
+	}
+
+	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+		let error = s3_xml::Error {
+			code: s3_xml::Value(self.aws_code().to_string()),
+			message: s3_xml::Value(format!("{}", self)),
+			resource: Some(s3_xml::Value(path.to_string())),
+			region: Some(s3_xml::Value(garage_region.to_string())),
+		};
+		Body::from(s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
+			r#"
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+	<Code>InternalError</Code>
+	<Message>XML encoding of error failed</Message>
+</Error>
+			"#
+			.into()
+		}))
 	}
 }
 

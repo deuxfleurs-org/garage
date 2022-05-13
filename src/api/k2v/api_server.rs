@@ -60,6 +60,7 @@ impl ApiHandler for K2VApiServer {
 	const API_NAME_DISPLAY: &'static str = "K2V";
 
 	type Endpoint = K2VApiEndpoint;
+	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<K2VApiEndpoint, Error> {
 		let (endpoint, bucket_name) = Endpoint::from_request(req)?;

@@ -96,6 +96,7 @@ impl ApiHandler for AdminApiServer {
 	const API_NAME_DISPLAY: &'static str = "Admin";
 
 	type Endpoint = Endpoint;
+	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<Endpoint, Error> {
 		Endpoint::from_request(req)

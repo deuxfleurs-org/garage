@@ -2,6 +2,7 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
+use garage_api::generic_server::ApiError;
 use garage_util::error::Error as GarageError;
 
 /// Errors of this crate
@@ -52,7 +53,7 @@ impl Error {
 	pub fn add_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
 		#[allow(clippy::single_match)]
 		match self {
-			Error::ApiError(e) => e.add_headers(header_map),
+			Error::ApiError(e) => e.add_http_headers(header_map),
 			_ => (),
 		}
 	}

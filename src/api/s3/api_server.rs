@@ -75,6 +75,7 @@ impl ApiHandler for S3ApiServer {
 	const API_NAME_DISPLAY: &'static str = "S3";
 
 	type Endpoint = S3ApiEndpoint;
+	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<S3ApiEndpoint, Error> {
 		let authority = req

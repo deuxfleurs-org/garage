@@ -5,9 +5,11 @@ use async_trait::async_trait;
 
 use futures::future::Future;
 
+use hyper::header::HeaderValue;
 use hyper::server::conn::AddrStream;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
+use hyper::{HeaderMap, StatusCode};
 
 use opentelemetry::{
 	global,
@@ -19,11 +21,15 @@ use opentelemetry::{
 use garage_util::error::Error as GarageError;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
 
-use crate::error::*;
-
 pub(crate) trait ApiEndpoint: Send + Sync + 'static {
 	fn name(&self) -> &'static str;
 	fn add_span_attributes(&self, span: SpanRef<'_>);
+}
+
+pub trait ApiError: std::error::Error + Send + Sync + 'static {
+	fn http_status_code(&self) -> StatusCode;
+	fn add_http_headers(&self, header_map: &mut HeaderMap<HeaderValue>);
+	fn http_body(&self, garage_region: &str, path: &str) -> Body;
 }
 
 #[async_trait]
@@ -32,13 +38,14 @@ pub(crate) trait ApiHandler: Send + Sync + 'static {
 	const API_NAME_DISPLAY: &'static str;
 
 	type Endpoint: ApiEndpoint;
+	type Error: ApiError;
 
-	fn parse_endpoint(&self, r: &Request<Body>) -> Result<Self::Endpoint, Error>;
+	fn parse_endpoint(&self, r: &Request<Body>) -> Result<Self::Endpoint, Self::Error>;
 	async fn handle(
 		&self,
 		req: Request<Body>,
 		endpoint: Self::Endpoint,
-	) -> Result<Response<Body>, Error>;
+	) -> Result<Response<Body>, Self::Error>;
 }
 
 pub(crate) struct ApiServer<A: ApiHandler> {
@@ -142,13 +149,13 @@ impl<A: ApiHandler> ApiServer<A> {
 				Ok(x)
 			}
 			Err(e) => {
-				let body: Body = Body::from(e.aws_xml(&self.region, uri.path()));
+				let body: Body = e.http_body(&self.region, uri.path());
 				let mut http_error_builder = Response::builder()
 					.status(e.http_status_code())
 					.header("Content-Type", "application/xml");
 
 				if let Some(header_map) = http_error_builder.headers_mut() {
-					e.add_headers(header_map)
+					e.add_http_headers(header_map)
 				}
 
 				let http_error = http_error_builder.body(body)?;
@@ -163,7 +170,7 @@ impl<A: ApiHandler> ApiServer<A> {
 		}
 	}
 
-	async fn handler_stage2(&self, req: Request<Body>) -> Result<Response<Body>, Error> {
+	async fn handler_stage2(&self, req: Request<Body>) -> Result<Response<Body>, A::Error> {
 		let endpoint = self.api_handler.parse_endpoint(&req)?;
 		debug!("Endpoint: {}", endpoint.name());
 

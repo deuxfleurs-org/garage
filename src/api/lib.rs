@@ -6,7 +6,7 @@ pub mod error;
 pub use error::Error;
 
 mod encoding;
-mod generic_server;
+pub mod generic_server;
 pub mod helpers;
 mod router_macros;
 /// This mode is public only to help testing. Don't expect stability here
