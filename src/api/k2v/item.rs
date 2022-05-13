@@ -10,7 +10,7 @@ use garage_model::garage::Garage;
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 
 pub const X_GARAGE_CAUSALITY_TOKEN: &str = "X-Garage-Causality-Token";
 

@@ -3,8 +3,6 @@
 extern crate tracing;
 
 pub mod common_error;
-pub mod error;
-pub use error::Error;
 
 mod encoding;
 pub mod generic_server;

@@ -15,7 +15,7 @@ use super::LONG_DATETIME;
 use super::{compute_scope, signing_hmac};
 
 use crate::encoding::uri_encode;
-use crate::error::*;
+use crate::s3::error::*;
 
 pub async fn check_payload_signature(
 	garage: &Garage,

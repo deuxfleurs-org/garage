@@ -9,7 +9,7 @@ use hyper::{header::HeaderName, Body, Method, Request, Response, StatusCode};
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 

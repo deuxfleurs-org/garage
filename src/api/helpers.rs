@@ -7,7 +7,7 @@ use garage_util::data::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
-use crate::error::*;
+use crate::s3::error::*;
 
 /// What kind of authorization is required to perform a given action
 #[derive(Debug, Clone, PartialEq, Eq)]

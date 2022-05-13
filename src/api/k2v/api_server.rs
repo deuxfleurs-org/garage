@@ -12,7 +12,7 @@ use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::generic_server::*;
 
 use crate::signature::payload::check_payload_signature;

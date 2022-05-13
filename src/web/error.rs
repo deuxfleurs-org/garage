@@ -9,7 +9,7 @@ use garage_api::generic_server::ApiError;
 pub enum Error {
 	/// An error received from the API crate
 	#[error(display = "API error: {}", _0)]
-	ApiError(garage_api::Error),
+	ApiError(garage_api::s3::error::Error),
 
 	/// The file does not exist
 	#[error(display = "Not found")]
@@ -22,10 +22,10 @@ pub enum Error {
 
 impl<T> From<T> for Error
 where
-	garage_api::Error: From<T>,
+	garage_api::s3::error::Error: From<T>,
 {
 	fn from(err: T) -> Self {
-		Error::ApiError(garage_api::Error::from(err))
+		Error::ApiError(garage_api::s3::error::Error::from(err))
 	}
 }
 

@@ -12,7 +12,7 @@ use garage_model::garage::Garage;
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::helpers::*;
 use crate::k2v::range::read_range;
 

@@ -4,7 +4,7 @@ use sha2::Sha256;
 
 use garage_util::data::{sha256sum, Hash};
 
-use crate::error::*;
+use crate::s3::error::*;
 
 pub mod payload;
 pub mod streaming;

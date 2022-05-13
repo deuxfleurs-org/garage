@@ -16,7 +16,7 @@ use garage_model::s3::version_table::Version;
 use garage_table::{EmptyKey, EnumerationOrder};
 
 use crate::encoding::*;
-use crate::error::*;
+use crate::s3::error::*;
 use crate::helpers::key_after_prefix;
 use crate::s3::put as s3_put;
 use crate::s3::xml as s3_xml;

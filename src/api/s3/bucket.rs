@@ -14,7 +14,7 @@ use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 

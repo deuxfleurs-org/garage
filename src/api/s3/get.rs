@@ -17,7 +17,7 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
 

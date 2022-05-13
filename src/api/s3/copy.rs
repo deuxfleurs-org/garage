@@ -18,7 +18,7 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::helpers::{parse_bucket_key, resolve_bucket};
 use crate::s3::put::{decode_upload_id, get_headers};
 use crate::s3::xml::{self as s3_xml, xmlns_tag};
