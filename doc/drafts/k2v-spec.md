@@ -195,6 +195,10 @@ TO UNDERSTAND IN ORDER TO USE IT CORRECTLY.**
 
 ## API Endpoints
 
+**Remark.** Example queries and responses here are given in JSON5 format
+for clarity. However the actual K2V API uses basic JSON so all examples
+and responses need to be translated.
+
 ### Operations on single items
 
 **ReadItem: `GET /<bucket>/<partition key>?sort_key=<sort key>`**
@@ -370,8 +374,11 @@ HTTP/1.1 204 NO CONTENT
 **ReadIndex: `GET /<bucket>?start=<start>&end=<end>&limit=<limit>`**
 
 Lists all partition keys in the bucket for which some triplets exist, and gives
-for each the number of triplets (or an approximation thereof, this value is
-    asynchronously updated, and thus eventually consistent).
+for each the number of triplets, total number of values (which might be bigger
+than the number of triplets in case of conflicts), total number of bytes of
+these values, and number of triplets that are in a state of conflict.
+The values returned are an approximation of the true counts in the bucket,
+as these values are asynchronously updated, and thus eventually consistent.
 
 Query parameters:
 
@@ -426,11 +433,41 @@ HTTP/1.1 200 OK
   limit: null,
   reverse: false,
   partitionKeys: [
-    { pk: "keys", n: 3043 },
-    { pk: "mailbox:INBOX", n: 42 },
-    { pk: "mailbox:Junk", n: 2991 },
-    { pk: "mailbox:Trash", n: 10 },
-    { pk: "mailboxes", n: 3 },
+    {
+      pk: "keys",
+      entries: 3043,
+      conflicts: 0,
+      values: 3043,
+      bytes: 121720,
+    },
+    {
+      pk: "mailbox:INBOX",
+      entries: 42,
+      conflicts: 1,
+      values: 43,
+      bytes: 142029,
+    },
+    {
+      pk: "mailbox:Junk",
+      entries: 2991
+      conflicts: 0,
+      values: 2991,
+      bytes: 12019322,
+    },
+    {
+      pk: "mailbox:Trash",
+      entries: 10,
+      conflicts: 0,
+      values: 10,
+      bytes: 32401,
+    },
+    {
+      pk: "mailboxes",
+      entries: 3,
+      conflicts: 0,
+      values: 3,
+      bytes: 3019,
+    },
   ],
   more: false,
   nextStart: null,
