@@ -136,6 +136,7 @@ impl ApiHandler for AdminApiServer {
 				handle_get_key_info(&self.garage, id, search).await
 			}
 			Endpoint::CreateKey => handle_create_key(&self.garage, req).await,
+			Endpoint::ImportKey => handle_import_key(&self.garage, req).await,
 			Endpoint::UpdateKey { id } => handle_update_key(&self.garage, id, req).await,
 			Endpoint::DeleteKey { id } => handle_delete_key(&self.garage, id).await,
 			// Buckets

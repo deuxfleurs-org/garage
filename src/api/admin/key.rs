@@ -80,6 +80,31 @@ struct CreateKeyRequest {
 	name: String,
 }
 
+pub async fn handle_import_key(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<ImportKeyRequest>(req).await?;
+
+	let prev_key = garage.key_table.get(&EmptyKey, &req.access_key_id).await?;
+	if prev_key.is_some() {
+		return Err(Error::KeyAlreadyExists(req.access_key_id.to_string()));
+	}
+
+	let imported_key = Key::import(&req.access_key_id, &req.secret_access_key, &req.name);
+	garage.key_table.insert(&imported_key).await?;
+
+	key_info_results(garage, imported_key).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportKeyRequest {
+	access_key_id: String,
+	secret_access_key: String,
+	name: String,
+}
+
 pub async fn handle_update_key(
 	garage: &Arc<Garage>,
 	id: String,

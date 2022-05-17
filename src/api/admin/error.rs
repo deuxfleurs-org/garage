@@ -20,6 +20,13 @@ pub enum Error {
 	/// The API access key does not exist
 	#[error(display = "Access key not found: {}", _0)]
 	NoSuchAccessKey(String),
+
+	/// In Import key, the key already exists
+	#[error(
+		display = "Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.",
+		_0
+	)]
+	KeyAlreadyExists(String),
 }
 
 impl<T> From<T> for Error
@@ -52,6 +59,7 @@ impl Error {
 		match self {
 			Error::CommonError(c) => c.aws_code(),
 			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",
+			Error::KeyAlreadyExists(_) => "KeyAlreadyExists",
 		}
 	}
 }
@@ -62,6 +70,7 @@ impl ApiError for Error {
 		match self {
 			Error::CommonError(c) => c.http_status_code(),
 			Error::NoSuchAccessKey(_) => StatusCode::NOT_FOUND,
+			Error::KeyAlreadyExists(_) => StatusCode::CONFLICT,
 		}
 	}
 

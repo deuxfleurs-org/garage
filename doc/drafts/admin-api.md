@@ -273,6 +273,20 @@ Request body format:
 }
 ```
 
+### ImportKey `POST /v0/key/import`
+
+Imports an existing API key.
+
+Request body format:
+
+```json
+{
+	"accessKeyId": "GK31c2f218a2e44f485b94239e",
+	"secretAccessKey": "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835",
+	"name": "NameOfMyKey"
+}
+```
+
 ### GetKeyInfo `GET /v0/key?id=<acces key id>`
 ### GetKeyInfo `GET /v0/key?search=<pattern>`
 

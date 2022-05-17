@@ -27,6 +27,7 @@ pub enum Endpoint {
 	// Keys
 	ListKeys,
 	CreateKey,
+	ImportKey,
 	GetKeyInfo {
 		id: Option<String>,
 		search: Option<String>,
@@ -103,6 +104,7 @@ impl Endpoint {
 			GET "/v0/key" if search => GetKeyInfo (query_opt::id, query_opt::search),
 			POST "/v0/key" if id => UpdateKey (query::id),
 			POST "/v0/key" => CreateKey,
+			POST "/v0/key/import" => ImportKey,
 			DELETE "/v0/key" if id => DeleteKey (query::id),
 			GET "/v0/key" => ListKeys,
 			// Bucket endpoints
