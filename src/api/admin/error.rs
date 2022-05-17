@@ -45,9 +45,7 @@ impl From<HelperError> for Error {
 		match err {
 			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
 			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(n) => {
-				Self::Common(CommonError::InvalidBucketName(n))
-			}
+			HelperError::InvalidBucketName(n) => Self::Common(CommonError::InvalidBucketName(n)),
 			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
 			HelperError::NoSuchAccessKey(n) => Self::NoSuchAccessKey(n),
 		}
