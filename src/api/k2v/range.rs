@@ -74,7 +74,11 @@ where
 				}
 			}
 			if let Some(e) = end {
-				if entry.sort_key() == e {
+				let is_finished = match enumeration_order {
+					EnumerationOrder::Forward => entry.sort_key() >= e,
+					EnumerationOrder::Reverse => entry.sort_key() <= e,
+				};
+				if is_finished {
 					return Ok((entries, false, None));
 				}
 			}
