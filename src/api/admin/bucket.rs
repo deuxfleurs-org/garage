@@ -103,18 +103,18 @@ pub async fn handle_get_bucket_info(
 		}
 	};
 
+	bucket_info_results(garage, bucket_id).await
+}
+
+async fn bucket_info_results(
+	garage: &Arc<Garage>,
+	bucket_id: Uuid,
+) -> Result<Response<Body>, Error> {
 	let bucket = garage
 		.bucket_helper()
 		.get_existing_bucket(bucket_id)
 		.await?;
 
-	bucket_info_results(garage, bucket).await
-}
-
-async fn bucket_info_results(
-	garage: &Arc<Garage>,
-	bucket: Bucket,
-) -> Result<Response<Body>, Error> {
 	let mut relevant_keys = HashMap::new();
 	for (k, _) in bucket
 		.state
@@ -299,12 +299,7 @@ pub async fn handle_create_bucket(
 		}
 	}
 
-	let bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket.id)
-		.await?
-		.ok_or_internal_error("Bucket should now exist but doesn't")?;
-	bucket_info_results(garage, bucket).await
+	bucket_info_results(garage, bucket.id).await
 }
 
 #[derive(Deserialize)]
@@ -425,12 +420,7 @@ pub async fn handle_bucket_change_key_perm(
 		.set_bucket_key_permissions(bucket.id, &key.key_id, perm)
 		.await?;
 
-	let bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket.id)
-		.await?
-		.ok_or_internal_error("Bucket should now exist but doesn't")?;
-	bucket_info_results(garage, bucket).await
+	bucket_info_results(garage, bucket.id).await
 }
 
 #[derive(Deserialize)]
