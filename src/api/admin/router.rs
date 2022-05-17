@@ -46,6 +46,12 @@ pub enum Endpoint {
 	DeleteBucket {
 		id: String,
 	},
+	PutBucketWebsite {
+		id: String,
+	},
+	DeleteBucketWebsite {
+		id: String,
+	},
 	// Bucket-Key Permissions
 	BucketAllowKey,
 	BucketDenyKey,
@@ -103,6 +109,8 @@ impl Endpoint {
 			GET "/bucket" => ListBuckets,
 			POST "/bucket" => CreateBucket,
 			DELETE "/bucket" if id => DeleteBucket (query::id),
+			PUT "/bucket/website" if id => PutBucketWebsite (query::id),
+			DELETE "/bucket/website" if id => DeleteBucketWebsite (query::id),
 			// Bucket-key permissions
 			POST "/bucket/allow" => BucketAllowKey,
 			POST "/bucket/deny" => BucketDenyKey,

@@ -457,6 +457,26 @@ Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
 
+### PutBucketWebsite `PUT /bucket/website?id=<bucket id>`
+
+Sets the website configuration for a bucket (this also enables website access for this bucket).
+
+Request body format:
+
+```json
+{
+	"indexDocument": "index.html",
+	"errorDocument": "404.html",
+}
+```
+
+The field `errorDocument` is optional, if no error document is set a generic error message is displayed when errors happen.
+
+
+### DeleteBucketWebsite `DELETE /bucket/website?id=<bucket id>`
+
+Deletes the website configuration for a bucket (disables website access for this bucket).
+
 
 ## Operations on permissions for keys on buckets
 
@@ -501,6 +521,7 @@ Request body format:
 
 Flags in `permissions` which have the value `true` will be deactivated.
 Other flags will remain unchanged.
+
 
 ## Operations on bucket aliases
 

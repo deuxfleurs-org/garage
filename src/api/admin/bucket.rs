@@ -374,6 +374,61 @@ pub async fn handle_delete_bucket(
 		.body(Body::empty())?)
 }
 
+// ---- BUCKET WEBSITE CONFIGURATION ----
+
+pub async fn handle_put_bucket_website(
+	garage: &Arc<Garage>,
+	id: String,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<PutBucketWebsiteRequest>(req).await?;
+	let bucket_id = parse_bucket_id(&id)?;
+
+	let mut bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
+
+	let state = bucket.state.as_option_mut().unwrap();
+	state.website_config.update(Some(WebsiteConfig {
+		index_document: req.index_document,
+		error_document: req.error_document,
+	}));
+
+	garage.bucket_table.insert(&bucket).await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PutBucketWebsiteRequest {
+	index_document: String,
+	#[serde(default)]
+	error_document: Option<String>,
+}
+
+pub async fn handle_delete_bucket_website(
+	garage: &Arc<Garage>,
+	id: String,
+) -> Result<Response<Body>, Error> {
+	let bucket_id = parse_bucket_id(&id)?;
+
+	let mut bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
+
+	let state = bucket.state.as_option_mut().unwrap();
+	state.website_config.update(None);
+
+	garage.bucket_table.insert(&bucket).await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+// ---- BUCKET/KEY PERMISSIONS ----
+
 pub async fn handle_bucket_change_key_perm(
 	garage: &Arc<Garage>,
 	req: Request<Body>,
@@ -425,6 +480,8 @@ struct BucketKeyPermChangeRequest {
 	access_key_id: String,
 	permissions: ApiBucketKeyPerm,
 }
+
+// ---- BUCKET ALIASES ----
 
 pub async fn handle_global_alias_bucket(
 	garage: &Arc<Garage>,
@@ -487,6 +544,8 @@ pub async fn handle_local_unalias_bucket(
 
 	bucket_info_results(garage, bucket_id).await
 }
+
+// ---- HELPER ----
 
 fn parse_bucket_id(id: &str) -> Result<Uuid, Error> {
 	let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
