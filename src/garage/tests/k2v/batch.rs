@@ -92,7 +92,9 @@ async fn test_batch() {
 			br#"[
 	{"partitionKey": "root"},
 	{"partitionKey": "root", "start": "c"},
+	{"partitionKey": "root", "start": "c", "end": "dynamite"},
 	{"partitionKey": "root", "start": "c", "reverse": true, "end": "a"},
+	{"partitionKey": "root", "start": "c", "reverse": true, "end": "azerty"},
 	{"partitionKey": "root", "limit": 1},
 	{"partitionKey": "root", "prefix": "d"}
 		]"#
@@ -151,7 +153,42 @@ async fn test_batch() {
 				"partitionKey": "root",
 				"prefix": null,
 				"start": "c",
+				"end": "dynamite",
+				"limit": null,
+				"reverse": false,
+				"conflictsOnly": false,
+				"tombstones": false,
+				"singleItem": false,
+				"items": [
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap())]},
+				],
+				"more": false,
+				"nextStart": null,
+			},
+			{
+				"partitionKey": "root",
+				"prefix": null,
+				"start": "c",
 				"end": "a",
+				"limit": null,
+				"reverse": true,
+				"conflictsOnly": false,
+				"tombstones": false,
+				"singleItem": false,
+				"items": [
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
+				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [base64::encode(values.get("b").unwrap())]},
+				],
+				"more": false,
+				"nextStart": null,
+			},
+			{
+				"partitionKey": "root",
+				"prefix": null,
+				"start": "c",
+				"end": "azerty",
 				"limit": null,
 				"reverse": true,
 				"conflictsOnly": false,
@@ -465,6 +502,34 @@ async fn test_batch() {
 		])
 	);
 
+	// update our known tombstones
+	for sk in ["a", "b", "d.1", "d.2"] {
+		let res = ctx
+			.k2v
+			.request
+			.builder(bucket.clone())
+			.path("root")
+			.query_param("sort_key", Some(sk))
+			.signed_header("accept", "application/octet-stream")
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(res.status(), 204);
+		assert_eq!(
+			res.headers().get("content-type").unwrap().to_str().unwrap(),
+			"application/octet-stream"
+		);
+		ct.insert(
+			sk,
+			res.headers()
+				.get("x-garage-causality-token")
+				.unwrap()
+				.to_str()
+				.unwrap()
+				.to_string(),
+		);
+	}
+
 	let res = ctx
 		.k2v
 		.request
@@ -473,7 +538,8 @@ async fn test_batch() {
 		.body(
 			br#"[
 	{"partitionKey": "root"},
-	{"partitionKey": "root", "reverse": true}
+	{"partitionKey": "root", "reverse": true},
+	{"partitionKey": "root", "tombstones": true}
 		]"#
 			.to_vec(),
 		)
@@ -516,6 +582,27 @@ async fn test_batch() {
 				"items": [
 				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]},
 				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
+				],
+				"more": false,
+				"nextStart": null,
+			},
+			{
+				"partitionKey": "root",
+				"prefix": null,
+				"start": null,
+				"end": null,
+				"limit": null,
+				"reverse": false,
+				"conflictsOnly": false,
+				"tombstones": true,
+				"singleItem": false,
+				"items": [
+				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [null]},
+				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [null]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [null]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [null]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
