@@ -95,7 +95,7 @@ pub async fn handle_get_bucket_info(
 			.bucket_helper()
 			.resolve_global_bucket_name(&ga)
 			.await?
-			.ok_or_bad_request("Bucket not found")?,
+			.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
 		_ => {
 			return Err(Error::bad_request(
 				"Either id or globalAlias must be provided (but not both)",

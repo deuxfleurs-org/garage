@@ -2,7 +2,7 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{Body, HeaderMap, StatusCode};
 
-use garage_model::helper::error::Error as HelperError;
+pub use garage_model::helper::error::Error as HelperError;
 
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
