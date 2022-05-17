@@ -67,17 +67,16 @@ pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ListBucketResultItem {
 	id: String,
-	#[serde(rename = "globalAliases")]
 	global_aliases: Vec<String>,
-	#[serde(rename = "localAliases")]
 	local_aliases: Vec<BucketLocalAlias>,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct BucketLocalAlias {
-	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
 	alias: String,
 }
@@ -156,42 +155,50 @@ async fn bucket_info_results(
 
 	let state = bucket.state.as_option().unwrap();
 
-	let res = GetBucketInfoResult {
-		id: hex::encode(&bucket.id),
-		global_aliases: state
-			.aliases
-			.items()
-			.iter()
-			.filter(|(_, _, a)| *a)
-			.map(|(n, _, _)| n.to_string())
-			.collect::<Vec<_>>(),
-		keys: relevant_keys
-			.into_iter()
-			.map(|(_, key)| {
-				let p = key.state.as_option().unwrap();
-				GetBucketInfoKey {
-					access_key_id: key.key_id,
-					name: p.name.get().to_string(),
-					permissions: p
-						.authorized_buckets
-						.get(&bucket.id)
-						.map(|p| ApiBucketKeyPerm {
-							read: p.allow_read,
-							write: p.allow_write,
-							owner: p.allow_owner,
-						})
-						.unwrap_or_default(),
-					bucket_local_aliases: p
-						.local_aliases
-						.items()
-						.iter()
-						.filter(|(_, _, b)| *b == Some(bucket.id))
-						.map(|(n, _, _)| n.to_string())
-						.collect::<Vec<_>>(),
+	let res =
+		GetBucketInfoResult {
+			id: hex::encode(&bucket.id),
+			global_aliases: state
+				.aliases
+				.items()
+				.iter()
+				.filter(|(_, _, a)| *a)
+				.map(|(n, _, _)| n.to_string())
+				.collect::<Vec<_>>(),
+			website_access: state.website_config.get().is_some(),
+			website_config: state.website_config.get().clone().map(|wsc| {
+				GetBucketInfoWebsiteResult {
+					index_document: wsc.index_document,
+					error_document: wsc.error_document,
 				}
-			})
-			.collect::<Vec<_>>(),
-	};
+			}),
+			keys: relevant_keys
+				.into_iter()
+				.map(|(_, key)| {
+					let p = key.state.as_option().unwrap();
+					GetBucketInfoKey {
+						access_key_id: key.key_id,
+						name: p.name.get().to_string(),
+						permissions: p
+							.authorized_buckets
+							.get(&bucket.id)
+							.map(|p| ApiBucketKeyPerm {
+								read: p.allow_read,
+								write: p.allow_write,
+								owner: p.allow_owner,
+							})
+							.unwrap_or_default(),
+						bucket_local_aliases: p
+							.local_aliases
+							.items()
+							.iter()
+							.filter(|(_, _, b)| *b == Some(bucket.id))
+							.map(|(n, _, _)| n.to_string())
+							.collect::<Vec<_>>(),
+					}
+				})
+				.collect::<Vec<_>>(),
+		};
 
 	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
 	Ok(Response::builder()
@@ -200,21 +207,29 @@ async fn bucket_info_results(
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct GetBucketInfoResult {
 	id: String,
-	#[serde(rename = "globalAliases")]
 	global_aliases: Vec<String>,
+	website_access: bool,
+	#[serde(default)]
+	website_config: Option<GetBucketInfoWebsiteResult>,
 	keys: Vec<GetBucketInfoKey>,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GetBucketInfoWebsiteResult {
+	index_document: String,
+	error_document: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct GetBucketInfoKey {
-	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
-	#[serde(rename = "name")]
 	name: String,
 	permissions: ApiBucketKeyPerm,
-	#[serde(rename = "bucketLocalAliases")]
 	bucket_local_aliases: Vec<String>,
 }
 
@@ -293,19 +308,18 @@ pub async fn handle_create_bucket(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateBucketRequest {
-	#[serde(rename = "globalAlias")]
 	global_alias: Option<String>,
-	#[serde(rename = "localAlias")]
 	local_alias: Option<CreateBucketLocalAlias>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateBucketLocalAlias {
-	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
 	alias: String,
-	#[serde(rename = "allPermissions", default)]
+	#[serde(default)]
 	all_permissions: bool,
 }
 
@@ -420,10 +434,9 @@ pub async fn handle_bucket_change_key_perm(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BucketKeyPermChangeRequest {
-	#[serde(rename = "bucketId")]
 	bucket_id: String,
-	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
 	permissions: ApiBucketKeyPerm,
 }

@@ -203,28 +203,27 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct GetKeyInfoResult {
 	name: String,
-	#[serde(rename = "accessKeyId")]
 	access_key_id: String,
-	#[serde(rename = "secretAccessKey")]
 	secret_access_key: String,
 	permissions: KeyPerm,
 	buckets: Vec<KeyInfoBucketResult>,
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct KeyPerm {
-	#[serde(rename = "createBucket", default)]
+	#[serde(default)]
 	create_bucket: bool,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct KeyInfoBucketResult {
 	id: String,
-	#[serde(rename = "globalAliases")]
 	global_aliases: Vec<String>,
-	#[serde(rename = "localAliases")]
 	local_aliases: Vec<String>,
 	permissions: ApiBucketKeyPerm,
 }

@@ -76,19 +76,19 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct GetClusterStatusResponse {
 	node: String,
 	garage_version: &'static str,
-	#[serde(rename = "knownNodes")]
 	known_nodes: HashMap<String, KnownNodeResp>,
 	layout: GetClusterLayoutResponse,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct GetClusterLayoutResponse {
 	version: u64,
 	roles: HashMap<String, Option<NodeRole>>,
-	#[serde(rename = "stagedRoleChanges")]
 	staged_role_changes: HashMap<String, Option<NodeRole>>,
 }
 
