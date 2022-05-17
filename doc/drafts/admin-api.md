@@ -94,6 +94,36 @@ Example response body:
 }
 ```
 
+### ConnectClusterNodes `POST /v0/connect`
+
+Instructs this Garage node to connect to other Garage nodes at specified addresses.
+
+Example request body:
+
+```json
+[
+	"ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f@10.0.0.11:3901",
+	"4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff@10.0.0.12:3901"
+]
+```
+
+The format of the string for a node to connect to is: `<node ID>@<ip address>:<port>`, same as in the `garage node connect` CLI call.
+
+Example response:
+
+```json
+[
+	{
+		"success": true,
+		"error": null,
+	},
+	{
+		"success": false,
+		"error": "Handshake error",
+	}
+]
+```
+
 ### GetClusterLayout `GET /v0/layout`
 
 Returns the cluster's current layout in JSON, including:

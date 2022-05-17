@@ -18,6 +18,7 @@ pub enum Endpoint {
 	Options,
 	Metrics,
 	GetClusterStatus,
+	ConnectClusterNodes,
 	// Layout
 	GetClusterLayout,
 	UpdateClusterLayout,
@@ -91,6 +92,7 @@ impl Endpoint {
 			OPTIONS _ => Options,
 			GET "/metrics" => Metrics,
 			GET "/v0/status" => GetClusterStatus,
+			POST "/v0/connect" => ConnectClusterNodes,
 			// Layout endpoints
 			GET "/v0/layout" => GetClusterLayout,
 			POST "/v0/layout" => UpdateClusterLayout,

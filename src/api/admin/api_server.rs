@@ -124,6 +124,7 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::Options => self.handle_options(&req),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
+			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,
 			// Layout
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,
 			Endpoint::UpdateClusterLayout => handle_update_cluster_layout(&self.garage, req).await,

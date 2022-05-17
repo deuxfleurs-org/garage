@@ -45,6 +45,33 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 		.body(Body::from(resp_json))?)
 }
 
+pub async fn handle_connect_cluster_nodes(
+	garage: &Arc<Garage>,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	let req = parse_json_body::<Vec<String>>(req).await?;
+
+	let res = futures::future::join_all(req.iter().map(|node| garage.system.connect(node)))
+		.await
+		.into_iter()
+		.map(|r| match r {
+			Ok(()) => ConnectClusterNodesResponse {
+				success: true,
+				error: None,
+			},
+			Err(e) => ConnectClusterNodesResponse {
+				success: false,
+				error: Some(format!("{}", e)),
+			},
+		})
+		.collect::<Vec<_>>();
+
+	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.body(Body::from(resp_json))?)
+}
+
 pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = get_cluster_layout(garage);
 	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
@@ -82,6 +109,12 @@ struct GetClusterStatusResponse {
 	garage_version: &'static str,
 	known_nodes: HashMap<String, KnownNodeResp>,
 	layout: GetClusterLayoutResponse,
+}
+
+#[derive(Serialize)]
+struct ConnectClusterNodesResponse {
+	success: bool,
+	error: Option<String>,
 }
 
 #[derive(Serialize)]

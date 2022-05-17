@@ -383,10 +383,14 @@ impl System {
 				}
 			}
 		}
-		return Err(Error::Message(format!(
-			"Could not connect to specified peers. Errors: {:?}",
-			errors
-		)));
+		if errors.len() == 1 {
+			return Err(Error::Message(errors[0].1.to_string()));
+		} else {
+			return Err(Error::Message(format!(
+				"Could not connect to specified peers. Errors: {:?}",
+				errors
+			)));
+		}
 	}
 
 	// ---- INTERNALS ----
