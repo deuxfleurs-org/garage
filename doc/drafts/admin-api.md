@@ -501,3 +501,22 @@ Request body format:
 
 Flags in `permissions` which have the value `true` will be deactivated.
 Other flags will remain unchanged.
+
+## Operations on bucket aliases
+
+### GlobalAliasBucket `PUT /bucket/alias/global?id=<bucket id>&alias=<global alias>`
+
+Empty body. Creates a global alias for a bucket.
+
+### GlobalUnaliasBucket `DELETE /bucket/alias/global?id=<bucket id>&alias=<global alias>`
+
+Removes a global alias for a bucket.
+
+### LocalAliasBucket `PUT /bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
+
+Empty body. Creates a local alias for a bucket in the namespace of a specific access key.
+
+### LocalUnaliasBucket `DELETE /bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
+
+Removes a local alias for a bucket in the namespace of a specific access key.
+

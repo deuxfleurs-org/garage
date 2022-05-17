@@ -151,6 +151,23 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::BucketDenyKey => {
 				handle_bucket_change_key_perm(&self.garage, req, false).await
 			}
+			// Bucket aliasing
+			Endpoint::GlobalAliasBucket { id, alias } => {
+				handle_global_alias_bucket(&self.garage, id, alias).await
+			}
+			Endpoint::GlobalUnaliasBucket { id, alias } => {
+				handle_global_unalias_bucket(&self.garage, id, alias).await
+			}
+			Endpoint::LocalAliasBucket {
+				id,
+				access_key_id,
+				alias,
+			} => handle_local_alias_bucket(&self.garage, id, access_key_id, alias).await,
+			Endpoint::LocalUnaliasBucket {
+				id,
+				access_key_id,
+				alias,
+			} => handle_local_unalias_bucket(&self.garage, id, access_key_id, alias).await,
 		}
 	}
 }

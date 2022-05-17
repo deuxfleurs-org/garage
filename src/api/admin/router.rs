@@ -49,6 +49,25 @@ pub enum Endpoint {
 	// Bucket-Key Permissions
 	BucketAllowKey,
 	BucketDenyKey,
+	// Bucket aliases
+	GlobalAliasBucket {
+		id: String,
+		alias: String,
+	},
+	GlobalUnaliasBucket {
+		id: String,
+		alias: String,
+	},
+	LocalAliasBucket {
+		id: String,
+		access_key_id: String,
+		alias: String,
+	},
+	LocalUnaliasBucket {
+		id: String,
+		access_key_id: String,
+		alias: String,
+	},
 }}
 
 impl Endpoint {
@@ -87,6 +106,11 @@ impl Endpoint {
 			// Bucket-key permissions
 			POST "/bucket/allow" => BucketAllowKey,
 			POST "/bucket/deny" => BucketDenyKey,
+			// Bucket aliases
+			PUT "/bucket/alias/global" => GlobalAliasBucket (query::id, query::alias),
+			DELETE "/bucket/alias/global" => GlobalUnaliasBucket (query::id, query::alias),
+			PUT "/bucket/alias/local" => LocalAliasBucket (query::id, query::access_key_id, query::alias),
+			DELETE "/bucket/alias/local" => LocalUnaliasBucket (query::id, query::access_key_id, query::alias),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -107,5 +131,7 @@ impl Endpoint {
 generateQueryParameters! {
 	"id" => id,
 	"search" => search,
-	"globalAlias" => global_alias
+	"globalAlias" => global_alias,
+	"alias" => alias,
+	"accessKeyId" => access_key_id
 }

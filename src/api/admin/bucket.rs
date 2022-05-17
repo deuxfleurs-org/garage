@@ -87,10 +87,7 @@ pub async fn handle_get_bucket_info(
 	global_alias: Option<String>,
 ) -> Result<Response<Body>, Error> {
 	let bucket_id = match (id, global_alias) {
-		(Some(id), None) => {
-			let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
-			Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?
-		}
+		(Some(id), None) => parse_bucket_id(&id)?,
 		(None, Some(ga)) => garage
 			.bucket_helper()
 			.resolve_global_bucket_name(&ga)
@@ -324,8 +321,7 @@ pub async fn handle_delete_bucket(
 ) -> Result<Response<Body>, Error> {
 	let helper = garage.bucket_helper();
 
-	let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
-	let bucket_id = Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?;
+	let bucket_id = parse_bucket_id(&id)?;
 
 	let mut bucket = helper.get_existing_bucket(bucket_id).await?;
 	let state = bucket.state.as_option().unwrap();
@@ -385,8 +381,7 @@ pub async fn handle_bucket_change_key_perm(
 ) -> Result<Response<Body>, Error> {
 	let req = parse_json_body::<BucketKeyPermChangeRequest>(req).await?;
 
-	let id_hex = hex::decode(&req.bucket_id).ok_or_bad_request("Invalid bucket id")?;
-	let bucket_id = Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?;
+	let bucket_id = parse_bucket_id(&req.bucket_id)?;
 
 	let bucket = garage
 		.bucket_helper()
@@ -429,4 +424,71 @@ struct BucketKeyPermChangeRequest {
 	bucket_id: String,
 	access_key_id: String,
 	permissions: ApiBucketKeyPerm,
+}
+
+pub async fn handle_global_alias_bucket(
+	garage: &Arc<Garage>,
+	bucket_id: String,
+	alias: String,
+) -> Result<Response<Body>, Error> {
+	let bucket_id = parse_bucket_id(&bucket_id)?;
+
+	garage
+		.bucket_helper()
+		.set_global_bucket_alias(bucket_id, &alias)
+		.await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+pub async fn handle_global_unalias_bucket(
+	garage: &Arc<Garage>,
+	bucket_id: String,
+	alias: String,
+) -> Result<Response<Body>, Error> {
+	let bucket_id = parse_bucket_id(&bucket_id)?;
+
+	garage
+		.bucket_helper()
+		.unset_global_bucket_alias(bucket_id, &alias)
+		.await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+pub async fn handle_local_alias_bucket(
+	garage: &Arc<Garage>,
+	bucket_id: String,
+	access_key_id: String,
+	alias: String,
+) -> Result<Response<Body>, Error> {
+	let bucket_id = parse_bucket_id(&bucket_id)?;
+
+	garage
+		.bucket_helper()
+		.set_local_bucket_alias(bucket_id, &access_key_id, &alias)
+		.await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+pub async fn handle_local_unalias_bucket(
+	garage: &Arc<Garage>,
+	bucket_id: String,
+	access_key_id: String,
+	alias: String,
+) -> Result<Response<Body>, Error> {
+	let bucket_id = parse_bucket_id(&bucket_id)?;
+
+	garage
+		.bucket_helper()
+		.unset_local_bucket_alias(bucket_id, &access_key_id, &alias)
+		.await?;
+
+	bucket_info_results(garage, bucket_id).await
+}
+
+fn parse_bucket_id(id: &str) -> Result<Uuid, Error> {
+	let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
+	Ok(Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?)
 }
