@@ -14,7 +14,7 @@ use crate::helpers::CustomApiErrorBody;
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	CommonError(CommonError),
+	Common(CommonError),
 
 	// Category: cannot process
 	/// The API access key does not exist
@@ -34,7 +34,7 @@ where
 	CommonError: From<T>,
 {
 	fn from(err: T) -> Self {
-		Error::CommonError(CommonError::from(err))
+		Error::Common(CommonError::from(err))
 	}
 }
 
@@ -43,12 +43,12 @@ impl CommonErrorDerivative for Error {}
 impl From<HelperError> for Error {
 	fn from(err: HelperError) -> Self {
 		match err {
-			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
+			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
+			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
 			HelperError::InvalidBucketName(n) => {
-				Self::CommonError(CommonError::InvalidBucketName(n))
+				Self::Common(CommonError::InvalidBucketName(n))
 			}
-			HelperError::NoSuchBucket(n) => Self::CommonError(CommonError::NoSuchBucket(n)),
+			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
 			HelperError::NoSuchAccessKey(n) => Self::NoSuchAccessKey(n),
 		}
 	}
@@ -57,7 +57,7 @@ impl From<HelperError> for Error {
 impl Error {
 	fn code(&self) -> &'static str {
 		match self {
-			Error::CommonError(c) => c.aws_code(),
+			Error::Common(c) => c.aws_code(),
 			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",
 			Error::KeyAlreadyExists(_) => "KeyAlreadyExists",
 		}
@@ -68,7 +68,7 @@ impl ApiError for Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	fn http_status_code(&self) -> StatusCode {
 		match self {
-			Error::CommonError(c) => c.http_status_code(),
+			Error::Common(c) => c.http_status_code(),
 			Error::NoSuchAccessKey(_) => StatusCode::NOT_FOUND,
 			Error::KeyAlreadyExists(_) => StatusCode::CONFLICT,
 		}

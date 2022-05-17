@@ -17,7 +17,7 @@ use crate::signature::error::Error as SignatureError;
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	CommonError(CommonError),
+	Common(CommonError),
 
 	// Category: cannot process
 	/// Authorization Header Malformed
@@ -80,7 +80,7 @@ where
 	CommonError: From<T>,
 {
 	fn from(err: T) -> Self {
-		Error::CommonError(CommonError::from(err))
+		Error::Common(CommonError::from(err))
 	}
 }
 
@@ -89,12 +89,12 @@ impl CommonErrorDerivative for Error {}
 impl From<HelperError> for Error {
 	fn from(err: HelperError) -> Self {
 		match err {
-			HelperError::Internal(i) => Self::CommonError(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::CommonError(CommonError::BadRequest(b)),
+			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
+			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
 			HelperError::InvalidBucketName(n) => {
-				Self::CommonError(CommonError::InvalidBucketName(n))
+				Self::Common(CommonError::InvalidBucketName(n))
 			}
-			HelperError::NoSuchBucket(n) => Self::CommonError(CommonError::NoSuchBucket(n)),
+			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
 			e => Self::bad_request(format!("{}", e)),
 		}
 	}
@@ -115,7 +115,7 @@ impl From<quick_xml::de::DeError> for Error {
 impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {
 		match err {
-			SignatureError::CommonError(c) => Self::CommonError(c),
+			SignatureError::Common(c) => Self::Common(c),
 			SignatureError::AuthorizationHeaderMalformed(c) => {
 				Self::AuthorizationHeaderMalformed(c)
 			}
@@ -134,7 +134,7 @@ impl From<multer::Error> for Error {
 impl Error {
 	pub fn aws_code(&self) -> &'static str {
 		match self {
-			Error::CommonError(c) => c.aws_code(),
+			Error::Common(c) => c.aws_code(),
 			Error::NoSuchKey => "NoSuchKey",
 			Error::NoSuchUpload => "NoSuchUpload",
 			Error::PreconditionFailed => "PreconditionFailed",
@@ -156,7 +156,7 @@ impl ApiError for Error {
 	/// Get the HTTP status code that best represents the meaning of the error for the client
 	fn http_status_code(&self) -> StatusCode {
 		match self {
-			Error::CommonError(c) => c.http_status_code(),
+			Error::Common(c) => c.http_status_code(),
 			Error::NoSuchKey | Error::NoSuchUpload => StatusCode::NOT_FOUND,
 			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
 			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,

@@ -8,7 +8,7 @@ pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInterna
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	CommonError(CommonError),
+	Common(CommonError),
 
 	/// Authorization Header Malformed
 	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
@@ -29,7 +29,7 @@ where
 	CommonError: From<T>,
 {
 	fn from(err: T) -> Self {
-		Error::CommonError(CommonError::from(err))
+		Error::Common(CommonError::from(err))
 	}
 }
 
