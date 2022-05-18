@@ -8,6 +8,7 @@ pub mod config;
 pub mod crdt;
 pub mod data;
 pub mod error;
+pub mod formater;
 pub mod metrics;
 pub mod persister;
 pub mod sled_counter;

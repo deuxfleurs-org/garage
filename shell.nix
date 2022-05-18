@@ -79,6 +79,8 @@ function refresh_toolchain {
      pkgs.rustfmt
      pkgs.perl
      pkgs.protobuf
+     pkgs.pkg-config
+     pkgs.openssl
      cargo2nix.packages.x86_64-linux.cargo2nix
     ] else [])
    ++

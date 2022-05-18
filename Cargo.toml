@@ -7,8 +7,11 @@ members = [
 	"src/model",
 	"src/api",
 	"src/web",
-	"src/garage"
+	"src/garage",
+	"src/k2v-client",
 ]
+
+default-members = ["src/garage"]
 
 [profile.dev]
 lto = "off"
