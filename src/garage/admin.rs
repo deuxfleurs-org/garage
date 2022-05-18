@@ -22,7 +22,6 @@ use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
 use garage_model::permission::*;
-use garage_model::s3::object_table::ObjectFilter;
 
 use crate::cli::*;
 use crate::repair::Repair;
@@ -213,18 +212,7 @@ impl AdminRpcHandler {
 		}
 
 		// Check bucket is empty
-		let objects = self
-			.garage
-			.object_table
-			.get_range(
-				&bucket_id,
-				None,
-				Some(ObjectFilter::IsData),
-				10,
-				EnumerationOrder::Forward,
-			)
-			.await?;
-		if !objects.is_empty() {
+		if !helper.is_bucket_empty(bucket_id).await? {
 			return Err(Error::BadRequest(format!(
 				"Bucket {} is not empty",
 				query.name

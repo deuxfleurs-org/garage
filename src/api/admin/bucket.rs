@@ -14,7 +14,6 @@ use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::permission::*;
-use garage_model::s3::object_table::ObjectFilter;
 
 use crate::admin::error::*;
 use crate::admin::key::ApiBucketKeyPerm;
@@ -327,17 +326,7 @@ pub async fn handle_delete_bucket(
 	let state = bucket.state.as_option().unwrap();
 
 	// Check bucket is empty
-	let objects = garage
-		.object_table
-		.get_range(
-			&bucket_id,
-			None,
-			Some(ObjectFilter::IsData),
-			10,
-			EnumerationOrder::Forward,
-		)
-		.await?;
-	if !objects.is_empty() {
+	if !helper.is_bucket_empty(bucket_id).await? {
 		return Err(CommonError::BucketNotEmpty.into());
 	}
 

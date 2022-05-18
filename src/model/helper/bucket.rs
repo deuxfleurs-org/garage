@@ -1,8 +1,9 @@
-use garage_table::util::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::{Error as GarageError, OkOrMessage};
 use garage_util::time::*;
+
+use garage_table::util::*;
 
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
@@ -11,6 +12,7 @@ use crate::helper::error::*;
 use crate::helper::key::KeyHelper;
 use crate::key_table::*;
 use crate::permission::BucketKeyPerm;
+use crate::s3::object_table::ObjectFilter;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
 
@@ -426,5 +428,48 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		Ok(())
+	}
+
+	pub async fn is_bucket_empty(&self, bucket_id: Uuid) -> Result<bool, Error> {
+		let objects = self
+			.0
+			.object_table
+			.get_range(
+				&bucket_id,
+				None,
+				Some(ObjectFilter::IsData),
+				10,
+				EnumerationOrder::Forward,
+			)
+			.await?;
+		if !objects.is_empty() {
+			return Ok(false);
+		}
+
+		#[cfg(feature = "k2v")]
+		{
+			use garage_rpc::ring::Ring;
+			use std::sync::Arc;
+
+			let ring: Arc<Ring> = self.0.system.ring.borrow().clone();
+			let k2vindexes = self
+				.0
+				.k2v
+				.counter_table
+				.table
+				.get_range(
+					&bucket_id,
+					None,
+					Some((DeletedFilter::NotDeleted, ring.layout.node_id_vec.clone())),
+					10,
+					EnumerationOrder::Forward,
+				)
+				.await?;
+			if !k2vindexes.is_empty() {
+				return Ok(false);
+			}
+		}
+
+		Ok(true)
 	}
 }
