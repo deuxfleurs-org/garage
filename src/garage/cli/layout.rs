@@ -1,6 +1,7 @@
 use garage_util::crdt::Crdt;
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::formater::format_table;
 
 use garage_rpc::layout::*;
 use garage_rpc::system::*;
