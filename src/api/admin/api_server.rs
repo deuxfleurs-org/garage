@@ -107,17 +107,27 @@ impl ApiHandler for AdminApiServer {
 		req: Request<Body>,
 		endpoint: Endpoint,
 	) -> Result<Response<Body>, Error> {
-		let expected_auth_header = match endpoint.authorization_type() {
-			Authorization::MetricsToken => self.metrics_token.as_ref(),
-			Authorization::AdminToken => self.admin_token.as_ref(),
-		};
+		let expected_auth_header =
+			match endpoint.authorization_type() {
+				Authorization::MetricsToken => self.metrics_token.as_ref(),
+				Authorization::AdminToken => match &self.admin_token {
+					None => return Err(Error::forbidden(
+						"Admin token isn't configured, admin API access is disabled for security.",
+					)),
+					Some(t) => Some(t),
+				},
+			};
 
 		if let Some(h) = expected_auth_header {
 			match req.headers().get("Authorization") {
-				None => Err(Error::forbidden("Authorization token must be provided")),
-				Some(v) if v.to_str().map(|hv| hv == h).unwrap_or(false) => Ok(()),
-				_ => Err(Error::forbidden("Invalid authorization token provided")),
-			}?;
+				None => return Err(Error::forbidden("Authorization token must be provided")),
+				Some(v) => {
+					let authorized = v.to_str().map(|hv| hv.trim() == h).unwrap_or(false);
+					if !authorized {
+						return Err(Error::forbidden("Invalid authorization token provided"));
+					}
+				}
+			}
 		}
 
 		match endpoint {
