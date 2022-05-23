@@ -1,21 +1,30 @@
-# Access control
+# Specification of Garage's administration API
+
+
+**WARNING.** At this point, there is no comittement to stability of the APIs described in this document.
+We will bump the version numbers prefixed to each API endpoint at each time the syntax
+or semantics change, meaning that code that relies on these endpoint will break
+when changes are introduced.
+
+
+## Access control
 
 The admin API uses two different tokens for acces control, that are specified in the config file's `[admin]` section:
 
 - `metrics_token`: the token for accessing the Metrics endpoint (if this token is not set in the config file, the Metrics endpoint can be accessed without access control);
 - `admin_token`: the token for accessing all of the other administration endpoints (if this token is not set in the config file, these endpoints can be accessed without access control).
 
-# Administration API endpoints
+## Administration API endpoints
 
-## Metrics-related endpoints
+### Metrics-related endpoints
 
-### Metrics `GET /metrics`
+#### Metrics `GET /metrics`
 
 Returns internal Garage metrics in Prometheus format.
 
-## Cluster operations
+### Cluster operations
 
-### GetClusterStatus `GET /v0/status`
+#### GetClusterStatus `GET /v0/status`
 
 Returns the cluster's current status in JSON, including:
 
@@ -94,7 +103,7 @@ Example response body:
 }
 ```
 
-### ConnectClusterNodes `POST /v0/connect`
+#### ConnectClusterNodes `POST /v0/connect`
 
 Instructs this Garage node to connect to other Garage nodes at specified addresses.
 
@@ -124,7 +133,7 @@ Example response:
 ]
 ```
 
-### GetClusterLayout `GET /v0/layout`
+#### GetClusterLayout `GET /v0/layout`
 
 Returns the cluster's current layout in JSON, including:
 
@@ -173,7 +182,7 @@ Example response body:
 }
 ```
 
-### UpdateClusterLayout `POST /v0/layout`
+#### UpdateClusterLayout `POST /v0/layout`
 
 Send modifications to the cluster layout. These modifications will
 be included in the staged role changes, visible in subsequent calls
@@ -204,7 +213,7 @@ Contrary to the CLI that may update only a subset of the fields
 values must be specified.
 
 
-### ApplyClusterLayout `POST /v0/layout/apply`
+#### ApplyClusterLayout `POST /v0/layout/apply`
 
 Applies to the cluster the layout changes currently registered as
 staged layout changes.
@@ -221,7 +230,7 @@ Similarly to the CLI, the body must include the version of the new layout
 that will be created, which MUST be 1 + the value of the currently
 existing layout in the cluster.
 
-### RevertClusterLayout `POST /v0/layout/revert`
+#### RevertClusterLayout `POST /v0/layout/revert`
 
 Clears all of the staged layout changes.
 
@@ -240,9 +249,9 @@ version number, which MUST be 1 + the value of the currently
 existing layout in the cluster.
 
 
-## Access key operations
+### Access key operations
 
-### ListKeys `GET /v0/key`
+#### ListKeys `GET /v0/key`
 
 Returns all API access keys in the cluster.
 
@@ -261,7 +270,7 @@ Example response:
 ]
 ```
 
-### CreateKey `POST /v0/key`
+#### CreateKey `POST /v0/key`
 
 Creates a new API access key.
 
@@ -273,7 +282,7 @@ Request body format:
 }
 ```
 
-### ImportKey `POST /v0/key/import`
+#### ImportKey `POST /v0/key/import`
 
 Imports an existing API key.
 
@@ -287,8 +296,8 @@ Request body format:
 }
 ```
 
-### GetKeyInfo `GET /v0/key?id=<acces key id>`
-### GetKeyInfo `GET /v0/key?search=<pattern>`
+#### GetKeyInfo `GET /v0/key?id=<acces key id>`
+#### GetKeyInfo `GET /v0/key?search=<pattern>`
 
 Returns information about the requested API access key.
 
@@ -359,11 +368,11 @@ Example response:
 }
 ```
 
-### DeleteKey `DELETE /v0/key?id=<acces key id>`
+#### DeleteKey `DELETE /v0/key?id=<acces key id>`
 
 Deletes an API access key.
 
-### UpdateKey `POST /v0/key?id=<acces key id>`
+#### UpdateKey `POST /v0/key?id=<acces key id>`
 
 Updates information about the specified API access key.
 
@@ -384,9 +393,9 @@ If they are present, the corresponding modifications are applied to the key, oth
 The possible flags in `allow` and `deny` are: `createBucket`.
 
 
-## Bucket operations
+### Bucket operations
 
-### ListBuckets `GET /v0/bucket`
+#### ListBuckets `GET /v0/bucket`
 
 Returns all storage buckets in the cluster.
 
@@ -428,8 +437,8 @@ Example response:
 ]
 ```
 
-### GetBucketInfo `GET /v0/bucket?id=<bucket id>`
-### GetBucketInfo `GET /v0/bucket?globalAlias=<alias>`
+#### GetBucketInfo `GET /v0/bucket?id=<bucket id>`
+#### GetBucketInfo `GET /v0/bucket?globalAlias=<alias>`
 
 Returns information about the requested storage bucket.
 
@@ -462,7 +471,7 @@ Example response:
 }
 ```
 
-### CreateBucket `POST /v0/bucket`
+#### CreateBucket `POST /v0/bucket`
 
 Creates a new storage bucket.
 
@@ -495,13 +504,13 @@ OR
 Creates a new bucket, either with a global alias, a local one,
 or no alias at all.
 
-### DeleteBucket `DELETE /v0/bucket?id=<bucket id>`
+#### DeleteBucket `DELETE /v0/bucket?id=<bucket id>`
 
 Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
 
-### PutBucketWebsite `PUT /v0/bucket/website?id=<bucket id>`
+#### PutBucketWebsite `PUT /v0/bucket/website?id=<bucket id>`
 
 Sets the website configuration for a bucket (this also enables website access for this bucket).
 
@@ -517,14 +526,14 @@ Request body format:
 The field `errorDocument` is optional, if no error document is set a generic error message is displayed when errors happen.
 
 
-### DeleteBucketWebsite `DELETE /v0/bucket/website?id=<bucket id>`
+#### DeleteBucketWebsite `DELETE /v0/bucket/website?id=<bucket id>`
 
 Deletes the website configuration for a bucket (disables website access for this bucket).
 
 
-## Operations on permissions for keys on buckets
+### Operations on permissions for keys on buckets
 
-### BucketAllowKey `POST /v0/bucket/allow`
+#### BucketAllowKey `POST /v0/bucket/allow`
 
 Allows a key to do read/write/owner operations on a bucket.
 
@@ -545,7 +554,7 @@ Request body format:
 Flags in `permissions` which have the value `true` will be activated.
 Other flags will remain unchanged.
 
-### BucketDenyKey `POST /v0/bucket/deny`
+#### BucketDenyKey `POST /v0/bucket/deny`
 
 Denies a key from doing read/write/owner operations on a bucket.
 
@@ -567,21 +576,21 @@ Flags in `permissions` which have the value `true` will be deactivated.
 Other flags will remain unchanged.
 
 
-## Operations on bucket aliases
+### Operations on bucket aliases
 
-### GlobalAliasBucket `PUT /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+#### GlobalAliasBucket `PUT /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
 
 Empty body. Creates a global alias for a bucket.
 
-### GlobalUnaliasBucket `DELETE /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+#### GlobalUnaliasBucket `DELETE /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
 
 Removes a global alias for a bucket.
 
-### LocalAliasBucket `PUT /v0/bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
+#### LocalAliasBucket `PUT /v0/bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
 
 Empty body. Creates a local alias for a bucket in the namespace of a specific access key.
 
-### LocalUnaliasBucket `DELETE /v0/bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
+#### LocalUnaliasBucket `DELETE /v0/bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
 
 Removes a local alias for a bucket in the namespace of a specific access key.
 
