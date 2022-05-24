@@ -1,7 +1,7 @@
 .PHONY: doc all release shell
 
 all:
-	clear; cargo build --features k2v
+	clear; cargo build --all-features
 
 doc:
 	cd doc/book; mdbook build

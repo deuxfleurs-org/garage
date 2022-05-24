@@ -191,6 +191,10 @@ impl Garage {
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
 		helper::bucket::BucketHelper(self)
 	}
+
+	pub fn key_helper(&self) -> helper::key::KeyHelper {
+		helper::key::KeyHelper(self)
+	}
 }
 
 #[cfg(feature = "k2v")]

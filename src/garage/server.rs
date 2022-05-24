@@ -6,8 +6,7 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
 
-use garage_admin::metrics::*;
-use garage_admin::tracing_setup::*;
+use garage_api::admin::api_server::AdminApiServer;
 use garage_api::s3::api_server::S3ApiServer;
 use garage_model::garage::Garage;
 use garage_web::run_web_server;
@@ -16,6 +15,7 @@ use garage_web::run_web_server;
 use garage_api::k2v::api_server::K2VApiServer;
 
 use crate::admin::*;
+use crate::tracing_setup::*;
 
 async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {
@@ -39,9 +39,6 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		.open()
 		.expect("Unable to open sled DB");
 
-	info!("Initialize admin web server and metric backend...");
-	let admin_server_init = AdminServer::init();
-
 	info!("Initializing background runner...");
 	let watch_cancel = netapp::util::watch_ctrl_c();
 	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
@@ -53,6 +50,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	if let Some(export_to) = config.admin.trace_sink {
 		init_tracing(&export_to, garage.system.id)?;
 	}
+
+	info!("Initialize Admin API server and metrics collector...");
+	let admin_server = AdminApiServer::new(garage.clone());
 
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
 
@@ -80,39 +80,41 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		wait_from(watch_cancel.clone()),
 	));
 
-	let admin_server = if let Some(admin_bind_addr) = config.admin.api_bind_addr {
-		info!("Configure and run admin web server...");
-		Some(tokio::spawn(
-			admin_server_init.run(admin_bind_addr, wait_from(watch_cancel.clone())),
-		))
-	} else {
-		None
-	};
+	info!("Launching Admin API server...");
+	let admin_server = tokio::spawn(admin_server.run(wait_from(watch_cancel.clone())));
 
 	// Stuff runs
 
 	// When a cancel signal is sent, stuff stops
 	if let Err(e) = s3_api_server.await? {
 		warn!("S3 API server exited with error: {}", e);
+	} else {
+		info!("S3 API server exited without error.");
 	}
 	#[cfg(feature = "k2v")]
 	if let Err(e) = k2v_api_server.await? {
 		warn!("K2V API server exited with error: {}", e);
+	} else {
+		info!("K2V API server exited without error.");
 	}
 	if let Err(e) = web_server.await? {
 		warn!("Web server exited with error: {}", e);
+	} else {
+		info!("Web server exited without error.");
 	}
-	if let Some(a) = admin_server {
-		if let Err(e) = a.await? {
-			warn!("Admin web server exited with error: {}", e);
-		}
+	if let Err(e) = admin_server.await? {
+		warn!("Admin web server exited with error: {}", e);
+	} else {
+		info!("Admin API server exited without error.");
 	}
 
 	// Remove RPC handlers for system to break reference cycles
 	garage.system.netapp.drop_all_handlers();
+	opentelemetry::global::shutdown_tracer_provider();
 
 	// Await for netapp RPC system to end
 	run_system.await?;
+	info!("Netapp exited");
 
 	// Drop all references so that stuff can terminate properly
 	drop(garage);

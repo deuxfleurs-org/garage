@@ -4,10 +4,11 @@ use sha2::Sha256;
 
 use garage_util::data::{sha256sum, Hash};
 
-use crate::error::*;
-
+pub mod error;
 pub mod payload;
 pub mod streaming;
+
+use error::*;
 
 pub const SHORT_DATE: &str = "%Y%m%d";
 pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
@@ -16,7 +17,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 pub fn verify_signed_content(expected_sha256: Hash, body: &[u8]) -> Result<(), Error> {
 	if expected_sha256 != sha256sum(body) {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"Request content hash does not match signed hash".to_string(),
 		));
 	}

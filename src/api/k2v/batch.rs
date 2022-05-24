@@ -12,7 +12,8 @@ use garage_model::garage::Garage;
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
-use crate::error::*;
+use crate::helpers::*;
+use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_insert_batch(
@@ -20,9 +21,7 @@ pub async fn handle_insert_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let items: Vec<InsertBatchItem> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let items = parse_json_body::<Vec<InsertBatchItem>>(req).await?;
 
 	let mut items2 = vec![];
 	for it in items {
@@ -52,9 +51,7 @@ pub async fn handle_read_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let queries: Vec<ReadBatchQuery> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let queries = parse_json_body::<Vec<ReadBatchQuery>>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -91,7 +88,7 @@ async fn handle_read_batch_query(
 
 	let (items, more, next_start) = if query.single_item {
 		if query.prefix.is_some() || query.end.is_some() || query.limit.is_some() || query.reverse {
-			return Err(Error::BadRequest("Batch query parameters 'prefix', 'end', 'limit' and 'reverse' must not be set when singleItem is true.".into()));
+			return Err(Error::bad_request("Batch query parameters 'prefix', 'end', 'limit' and 'reverse' must not be set when singleItem is true."));
 		}
 		let sk = query
 			.start
@@ -149,9 +146,7 @@ pub async fn handle_delete_batch(
 	bucket_id: Uuid,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-	let queries: Vec<DeleteBatchQuery> =
-		serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	let queries = parse_json_body::<Vec<DeleteBatchQuery>>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -188,7 +183,7 @@ async fn handle_delete_batch_query(
 
 	let deleted_items = if query.single_item {
 		if query.prefix.is_some() || query.end.is_some() {
-			return Err(Error::BadRequest("Batch query parameters 'prefix' and 'end' must not be set when singleItem is true.".into()));
+			return Err(Error::bad_request("Batch query parameters 'prefix' and 'end' must not be set when singleItem is true."));
 		}
 		let sk = query
 			.start

@@ -1,5 +1,3 @@
-use crate::error::{Error, OkOrBadRequest};
-
 use std::borrow::Cow;
 
 use hyper::header::HeaderValue;
@@ -7,6 +5,7 @@ use hyper::{HeaderMap, Method, Request};
 
 use crate::helpers::Authorization;
 use crate::router_macros::{generateQueryParameters, router_match};
+use crate::s3::error::*;
 
 router_match! {@func
 
@@ -343,7 +342,7 @@ impl Endpoint {
 			Method::POST => Self::from_post(key, &mut query)?,
 			Method::PUT => Self::from_put(key, &mut query, req.headers())?,
 			Method::DELETE => Self::from_delete(key, &mut query)?,
-			_ => return Err(Error::BadRequest("Unknown method".to_owned())),
+			_ => return Err(Error::bad_request("Unknown method")),
 		};
 
 		if let Some(message) = query.nonempty_message() {

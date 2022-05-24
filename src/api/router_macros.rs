@@ -23,6 +23,29 @@ macro_rules! router_match {
             _ => None
         }
     }};
+	(@gen_path_parser ($method:expr, $reqpath:expr, $query:expr)
+	 [
+	 $($meth:ident $path:pat $(if $required:ident)? => $api:ident $(($($conv:ident :: $param:ident),*))?,)*
+	 ]) => {{
+		{
+			use Endpoint::*;
+			match ($method, $reqpath) {
+				$(
+					(&Method::$meth, $path) if true $(&& $query.$required.is_some())? => $api {
+						$($(
+							$param: router_match!(@@parse_param $query, $conv, $param),
+						)*)?
+					},
+				)*
+				(m, p) => {
+					return Err(Error::bad_request(format!(
+						"Unknown API endpoint: {} {}",
+						m, p
+					)))
+				}
+			}
+		}
+	}};
     (@gen_parser ($keyword:expr, $key:ident, $query:expr, $header:expr),
         key: [$($kw_k:ident $(if $required_k:ident)? $(header $header_k:expr)? => $api_k:ident $(($($conv_k:ident :: $param_k:ident),*))?,)*],
         no_key: [$($kw_nk:ident $(if $required_nk:ident)? $(if_header $header_nk:expr)? => $api_nk:ident $(($($conv_nk:ident :: $param_nk:ident),*))?,)*]) => {{
@@ -55,7 +78,7 @@ macro_rules! router_match {
                 )*)?
             }),
             )*
-            (kw, _) => Err(Error::BadRequest(format!("Invalid endpoint: {}", kw)))
+            (kw, _) => Err(Error::bad_request(format!("Invalid endpoint: {}", kw)))
         }
     }};
 
@@ -74,14 +97,14 @@ macro_rules! router_match {
             .take()
             .map(|param| param.parse())
             .transpose()
-            .map_err(|_| Error::BadRequest("Failed to parse query parameter".to_owned()))?
+            .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
     }};
     (@@parse_param $query:expr, parse, $param:ident) => {{
         // extract and parse mandatory query parameter
         // both missing and un-parseable parameters are reported as errors
         $query.$param.take().ok_or_bad_request("Missing argument for endpoint")?
             .parse()
-            .map_err(|_| Error::BadRequest("Failed to parse query parameter".to_owned()))?
+            .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
     }};
     (@func
     $(#[$doc:meta])*
@@ -150,7 +173,7 @@ macro_rules! generateQueryParameters {
                                 false
                             } else if v.as_ref().is_empty() {
                                 if res.keyword.replace(k).is_some() {
-                                    return Err(Error::BadRequest("Multiple keywords".to_owned()));
+                                    return Err(Error::bad_request("Multiple keywords"));
                                 }
                                 continue;
                             } else {
@@ -160,7 +183,7 @@ macro_rules! generateQueryParameters {
                         }
                     };
                     if repeated {
-                        return Err(Error::BadRequest(format!(
+                        return Err(Error::bad_request(format!(
                             "Query parameter repeated: '{}'",
                             k
                         )));

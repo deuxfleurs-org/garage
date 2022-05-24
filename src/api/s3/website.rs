@@ -4,13 +4,12 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
-use garage_table::*;
 use garage_util::data::*;
 
 pub async fn handle_get_website(bucket: &Bucket) -> Result<Response<Body>, Error> {
@@ -47,14 +46,11 @@ pub async fn handle_delete_website(
 	bucket_id: Uuid,
 ) -> Result<Response<Body>, Error> {
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	param.website_config.update(None);
 	garage.bucket_table.insert(&bucket).await?;
@@ -77,14 +73,11 @@ pub async fn handle_put_website(
 	}
 
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
@@ -176,8 +169,8 @@ impl WebsiteConfiguration {
 				|| self.index_document.is_some()
 				|| self.routing_rules.is_some())
 		{
-			return Err(Error::BadRequest(
-				"Bad XML: can't have RedirectAllRequestsTo and other fields".to_owned(),
+			return Err(Error::bad_request(
+				"Bad XML: can't have RedirectAllRequestsTo and other fields",
 			));
 		}
 		if let Some(ref ed) = self.error_document {
@@ -222,8 +215,8 @@ impl WebsiteConfiguration {
 impl Key {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.key.0.is_empty() {
-			Err(Error::BadRequest(
-				"Bad XML: error document specified but empty".to_owned(),
+			Err(Error::bad_request(
+				"Bad XML: error document specified but empty",
 			))
 		} else {
 			Ok(())
@@ -234,8 +227,8 @@ impl Key {
 impl Suffix {
 	pub fn validate(&self) -> Result<(), Error> {
 		if self.suffix.0.is_empty() | self.suffix.0.contains('/') {
-			Err(Error::BadRequest(
-				"Bad XML: index document is empty or contains /".to_owned(),
+			Err(Error::bad_request(
+				"Bad XML: index document is empty or contains /",
 			))
 		} else {
 			Ok(())
@@ -247,7 +240,7 @@ impl Target {
 	pub fn validate(&self) -> Result<(), Error> {
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::BadRequest("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol"));
 			}
 		}
 		Ok(())
@@ -269,19 +262,19 @@ impl Redirect {
 	pub fn validate(&self, has_prefix: bool) -> Result<(), Error> {
 		if self.replace_prefix.is_some() {
 			if self.replace_full.is_some() {
-				return Err(Error::BadRequest(
-					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set".to_owned(),
+				return Err(Error::bad_request(
+					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set",
 				));
 			}
 			if !has_prefix {
-				return Err(Error::BadRequest(
-					"Bad XML: ReplaceKeyPrefixWith is set, but  KeyPrefixEquals isn't".to_owned(),
+				return Err(Error::bad_request(
+					"Bad XML: ReplaceKeyPrefixWith is set, but  KeyPrefixEquals isn't",
 				));
 			}
 		}
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {
-				return Err(Error::BadRequest("Bad XML: invalid protocol".to_owned()));
+				return Err(Error::bad_request("Bad XML: invalid protocol"));
 			}
 		}
 		// TODO there are probably more invalide cases, but which ones?

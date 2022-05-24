@@ -312,6 +312,84 @@ impl System {
 		);
 	}
 
+	// ---- Administrative operations (directly available and
+	//      also available through RPC) ----
+
+	pub fn garage_version(&self) -> &'static str {
+		option_env!("GIT_VERSION").unwrap_or(git_version::git_version!(
+			prefix = "git:",
+			cargo_prefix = "cargo:",
+			fallback = "unknown"
+		))
+	}
+
+	pub fn get_known_nodes(&self) -> Vec<KnownNodeInfo> {
+		let node_status = self.node_status.read().unwrap();
+		let known_nodes = self
+			.fullmesh
+			.get_peer_list()
+			.iter()
+			.map(|n| KnownNodeInfo {
+				id: n.id.into(),
+				addr: n.addr,
+				is_up: n.is_up(),
+				last_seen_secs_ago: n.last_seen.map(|t| (Instant::now() - t).as_secs()),
+				status: node_status
+					.get(&n.id.into())
+					.cloned()
+					.map(|(_, st)| st)
+					.unwrap_or(NodeStatus {
+						hostname: "?".to_string(),
+						replication_factor: 0,
+						cluster_layout_version: 0,
+						cluster_layout_staging_hash: Hash::from([0u8; 32]),
+					}),
+			})
+			.collect::<Vec<_>>();
+		known_nodes
+	}
+
+	pub fn get_cluster_layout(&self) -> ClusterLayout {
+		self.ring.borrow().layout.clone()
+	}
+
+	pub async fn update_cluster_layout(
+		self: &Arc<Self>,
+		layout: &ClusterLayout,
+	) -> Result<(), Error> {
+		self.handle_advertise_cluster_layout(layout).await?;
+		Ok(())
+	}
+
+	pub async fn connect(&self, node: &str) -> Result<(), Error> {
+		let (pubkey, addrs) = parse_and_resolve_peer_addr(node).ok_or_else(|| {
+			Error::Message(format!(
+				"Unable to parse or resolve node specification: {}",
+				node
+			))
+		})?;
+		let mut errors = vec![];
+		for ip in addrs.iter() {
+			match self
+				.netapp
+				.clone()
+				.try_connect(*ip, pubkey)
+				.await
+				.err_context(CONNECT_ERROR_MESSAGE)
+			{
+				Ok(()) => return Ok(()),
+				Err(e) => {
+					errors.push((*ip, e));
+				}
+			}
+		}
+		if errors.len() == 1 {
+			Err(Error::Message(errors[0].1.to_string()))
+		} else {
+			Err(Error::Message(format!("{:?}", errors)))
+		}
+	}
+
 	// ---- INTERNALS ----
 
 	async fn advertise_to_consul(self: Arc<Self>) -> Result<(), Error> {
@@ -384,32 +462,11 @@ impl System {
 		self.local_status.swap(Arc::new(new_si));
 	}
 
+	// --- RPC HANDLERS ---
+
 	async fn handle_connect(&self, node: &str) -> Result<SystemRpc, Error> {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(node).ok_or_else(|| {
-			Error::Message(format!(
-				"Unable to parse or resolve node specification: {}",
-				node
-			))
-		})?;
-		let mut errors = vec![];
-		for ip in addrs.iter() {
-			match self
-				.netapp
-				.clone()
-				.try_connect(*ip, pubkey)
-				.await
-				.err_context(CONNECT_ERROR_MESSAGE)
-			{
-				Ok(()) => return Ok(SystemRpc::Ok),
-				Err(e) => {
-					errors.push((*ip, e));
-				}
-			}
-		}
-		return Err(Error::Message(format!(
-			"Could not connect to specified peers. Errors: {:?}",
-			errors
-		)));
+		self.connect(node).await?;
+		Ok(SystemRpc::Ok)
 	}
 
 	fn handle_pull_cluster_layout(&self) -> SystemRpc {
@@ -418,28 +475,7 @@ impl System {
 	}
 
 	fn handle_get_known_nodes(&self) -> SystemRpc {
-		let node_status = self.node_status.read().unwrap();
-		let known_nodes = self
-			.fullmesh
-			.get_peer_list()
-			.iter()
-			.map(|n| KnownNodeInfo {
-				id: n.id.into(),
-				addr: n.addr,
-				is_up: n.is_up(),
-				last_seen_secs_ago: n.last_seen.map(|t| (Instant::now() - t).as_secs()),
-				status: node_status
-					.get(&n.id.into())
-					.cloned()
-					.map(|(_, st)| st)
-					.unwrap_or(NodeStatus {
-						hostname: "?".to_string(),
-						replication_factor: 0,
-						cluster_layout_version: 0,
-						cluster_layout_staging_hash: Hash::from([0u8; 32]),
-					}),
-			})
-			.collect::<Vec<_>>();
+		let known_nodes = self.get_known_nodes();
 		SystemRpc::ReturnKnownNodes(known_nodes)
 	}
 
@@ -476,7 +512,7 @@ impl System {
 	}
 
 	async fn handle_advertise_cluster_layout(
-		self: Arc<Self>,
+		self: &Arc<Self>,
 		adv: &ClusterLayout,
 	) -> Result<SystemRpc, Error> {
 		let update_ring = self.update_ring.lock().await;

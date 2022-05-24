@@ -8,6 +8,7 @@ mod admin;
 mod cli;
 mod repair;
 mod server;
+mod tracing_setup;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -141,6 +142,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	match cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await {
 		Err(HelperError::Internal(i)) => Err(Error::Message(format!("Internal error: {}", i))),
 		Err(HelperError::BadRequest(b)) => Err(Error::Message(b)),
+		Err(e) => Err(Error::Message(format!("{}", e))),
 		Ok(x) => Ok(x),
 	}
 }

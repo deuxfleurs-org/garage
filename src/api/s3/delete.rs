@@ -8,7 +8,7 @@ use garage_util::time::*;
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 

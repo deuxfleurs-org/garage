@@ -1,4 +1,5 @@
 pub mod api_server;
+pub mod error;
 
 mod bucket;
 mod copy;

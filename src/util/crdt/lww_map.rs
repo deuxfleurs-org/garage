@@ -140,6 +140,11 @@ where
 		self.vals.clear();
 	}
 
+	/// Retain only values that match a certain predicate
+	pub fn retain(&mut self, pred: impl FnMut(&(K, u64, V)) -> bool) {
+		self.vals.retain(pred);
+	}
+
 	/// Get a reference to the value assigned to a key
 	pub fn get(&self, k: &K) -> Option<&V> {
 		match self.vals.binary_search_by(|(k2, _, _)| k2.cmp(k)) {

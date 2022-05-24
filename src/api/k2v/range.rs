@@ -7,8 +7,8 @@ use std::sync::Arc;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
-use crate::error::*;
 use crate::helpers::key_after_prefix;
+use crate::k2v::error::*;
 
 /// Read range in a Garage table.
 /// Returns (entries, more?, nextStart)
@@ -31,7 +31,7 @@ where
 		(None, Some(s)) => (Some(s.clone()), false),
 		(Some(p), Some(s)) => {
 			if !s.starts_with(p) {
-				return Err(Error::BadRequest(format!(
+				return Err(Error::bad_request(format!(
 					"Start key '{}' does not start with prefix '{}'",
 					s, p
 				)));

@@ -9,13 +9,12 @@ use hyper::{header::HeaderName, Body, Method, Request, Response, StatusCode};
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
 use garage_model::bucket_table::{Bucket, CorsRule as GarageCorsRule};
 use garage_model::garage::Garage;
-use garage_table::*;
 use garage_util::data::*;
 
 pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<Body>, Error> {
@@ -48,14 +47,11 @@ pub async fn handle_delete_cors(
 	bucket_id: Uuid,
 ) -> Result<Response<Body>, Error> {
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	param.cors_config.update(None);
 	garage.bucket_table.insert(&bucket).await?;
@@ -78,14 +74,11 @@ pub async fn handle_put_cors(
 	}
 
 	let mut bucket = garage
-		.bucket_table
-		.get(&EmptyKey, &bucket_id)
-		.await?
-		.ok_or(Error::NoSuchBucket)?;
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
+	let param = bucket.params_mut().unwrap();
 
 	let conf: CorsConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
@@ -119,12 +112,7 @@ pub async fn handle_options_s3api(
 		let helper = garage.bucket_helper();
 		let bucket_id = helper.resolve_global_bucket_name(&bn).await?;
 		if let Some(id) = bucket_id {
-			let bucket = garage
-				.bucket_table
-				.get(&EmptyKey, &id)
-				.await?
-				.filter(|b| !b.state.is_deleted())
-				.ok_or(Error::NoSuchBucket)?;
+			let bucket = garage.bucket_helper().get_existing_bucket(id).await?;
 			handle_options_for_bucket(req, &bucket)
 		} else {
 			// If there is a bucket name in the request, but that name
@@ -185,7 +173,7 @@ pub fn handle_options_for_bucket(
 		}
 	}
 
-	Err(Error::Forbidden("This CORS request is not allowed.".into()))
+	Err(Error::forbidden("This CORS request is not allowed."))
 }
 
 pub fn find_matching_cors_rule<'a>(

@@ -8,13 +8,13 @@ use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 use garage_model::permission::BucketKeyPerm;
-use garage_model::s3::object_table::ObjectFilter;
 use garage_table::util::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use crate::error::*;
+use crate::common_error::CommonError;
+use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 
@@ -130,7 +130,7 @@ pub async fn handle_create_bucket(
 
 	if let Some(location_constraint) = cmd {
 		if location_constraint != garage.config.s3_api.s3_region {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"Cannot satisfy location constraint `{}`: buckets can only be created in region `{}`",
 				location_constraint,
 				garage.config.s3_api.s3_region
@@ -158,12 +158,12 @@ pub async fn handle_create_bucket(
 		// otherwise return a forbidden error.
 		let kp = api_key.bucket_permissions(&bucket_id);
 		if !(kp.allow_write || kp.allow_owner) {
-			return Err(Error::BucketAlreadyExists);
+			return Err(CommonError::BucketAlreadyExists.into());
 		}
 	} else {
 		// Create the bucket!
 		if !is_valid_bucket_name(&bucket_name) {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"{}: {}",
 				bucket_name, INVALID_BUCKET_NAME_MESSAGE
 			)));
@@ -228,18 +228,8 @@ pub async fn handle_delete_bucket(
 		// Delete bucket
 
 		// Check bucket is empty
-		let objects = garage
-			.object_table
-			.get_range(
-				&bucket_id,
-				None,
-				Some(ObjectFilter::IsData),
-				10,
-				EnumerationOrder::Forward,
-			)
-			.await?;
-		if !objects.is_empty() {
-			return Err(Error::BucketNotEmpty);
+		if !garage.bucket_helper().is_bucket_empty(bucket_id).await? {
+			return Err(CommonError::BucketNotEmpty.into());
 		}
 
 		// --- done checking, now commit ---

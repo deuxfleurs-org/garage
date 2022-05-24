@@ -7,13 +7,12 @@ use hyper::{Body, Method, Request, Response};
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
-use garage_table::util::*;
 use garage_util::error::Error as GarageError;
 
 use garage_model::garage::Garage;
 
-use crate::error::*;
 use crate::generic_server::*;
+use crate::k2v::error::*;
 
 use crate::signature::payload::check_payload_signature;
 use crate::signature::streaming::*;
@@ -60,6 +59,7 @@ impl ApiHandler for K2VApiServer {
 	const API_NAME_DISPLAY: &'static str = "K2V";
 
 	type Endpoint = K2VApiEndpoint;
+	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<K2VApiEndpoint, Error> {
 		let (endpoint, bucket_name) = Endpoint::from_request(req)?;
@@ -83,13 +83,14 @@ impl ApiHandler for K2VApiServer {
 
 		// The OPTIONS method is procesed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
-			return handle_options_s3api(garage, &req, Some(bucket_name)).await;
+			return Ok(handle_options_s3api(garage, &req, Some(bucket_name))
+				.await
+				.ok_or_bad_request("Error handling OPTIONS")?);
 		}
 
 		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;
-		let api_key = api_key.ok_or_else(|| {
-			Error::Forbidden("Garage does not support anonymous access yet".to_string())
-		})?;
+		let api_key = api_key
+			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
 
 		let req = parse_streaming_body(
 			&api_key,
@@ -99,13 +100,14 @@ impl ApiHandler for K2VApiServer {
 			"k2v",
 		)?;
 
-		let bucket_id = resolve_bucket(&garage, &bucket_name, &api_key).await?;
+		let bucket_id = garage
+			.bucket_helper()
+			.resolve_bucket(&bucket_name, &api_key)
+			.await?;
 		let bucket = garage
-			.bucket_table
-			.get(&EmptyKey, &bucket_id)
-			.await?
-			.filter(|b| !b.state.is_deleted())
-			.ok_or(Error::NoSuchBucket)?;
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
 
 		let allowed = match endpoint.authorization_type() {
 			Authorization::Read => api_key.allow_read(&bucket_id),
@@ -115,9 +117,7 @@ impl ApiHandler for K2VApiServer {
 		};
 
 		if !allowed {
-			return Err(Error::Forbidden(
-				"Operation is not allowed for this key.".to_string(),
-			));
+			return Err(Error::forbidden("Operation is not allowed for this key."));
 		}
 
 		// Look up what CORS rule might apply to response.
@@ -125,7 +125,8 @@ impl ApiHandler for K2VApiServer {
 		// are always preflighted, i.e. the browser should make
 		// an OPTIONS call before to check it is allowed
 		let matching_cors_rule = match *req.method() {
-			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)?,
+			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)
+				.ok_or_internal_error("Error looking up CORS rule")?,
 			_ => None,
 		};
 

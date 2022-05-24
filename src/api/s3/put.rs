@@ -19,7 +19,7 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::error::*;
+use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 
@@ -183,8 +183,8 @@ fn ensure_checksum_matches(
 ) -> Result<(), Error> {
 	if let Some(expected_sha256) = content_sha256 {
 		if expected_sha256 != data_sha256sum {
-			return Err(Error::BadRequest(
-				"Unable to validate x-amz-content-sha256".to_string(),
+			return Err(Error::bad_request(
+				"Unable to validate x-amz-content-sha256",
 			));
 		} else {
 			trace!("Successfully validated x-amz-content-sha256");
@@ -192,9 +192,7 @@ fn ensure_checksum_matches(
 	}
 	if let Some(expected_md5) = content_md5 {
 		if expected_md5.trim_matches('"') != base64::encode(data_md5sum) {
-			return Err(Error::BadRequest(
-				"Unable to validate content-md5".to_string(),
-			));
+			return Err(Error::bad_request("Unable to validate content-md5"));
 		} else {
 			trace!("Successfully validated content-md5");
 		}
@@ -428,7 +426,7 @@ pub async fn handle_put_part(
 	// Check part hasn't already been uploaded
 	if let Some(v) = version {
 		if v.has_part_number(part_number) {
-			return Err(Error::BadRequest(format!(
+			return Err(Error::bad_request(format!(
 				"Part number {} has already been uploaded",
 				part_number
 			)));
@@ -513,7 +511,7 @@ pub async fn handle_complete_multipart_upload(
 
 	let version = version.ok_or(Error::NoSuchKey)?;
 	if version.blocks.is_empty() {
-		return Err(Error::BadRequest("No data was uploaded".to_string()));
+		return Err(Error::bad_request("No data was uploaded"));
 	}
 
 	let headers = match object_version.state {
@@ -574,8 +572,8 @@ pub async fn handle_complete_multipart_upload(
 		.map(|x| x.part_number)
 		.eq(block_parts.into_iter());
 	if !same_parts {
-		return Err(Error::BadRequest(
-			"Part numbers in block list and part list do not match. This can happen if a part was partially uploaded. Please abort the multipart upload and try again.".into(),
+		return Err(Error::bad_request(
+			"Part numbers in block list and part list do not match. This can happen if a part was partially uploaded. Please abort the multipart upload and try again."
 		));
 	}
 

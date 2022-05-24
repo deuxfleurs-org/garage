@@ -16,8 +16,8 @@ use garage_model::s3::version_table::Version;
 use garage_table::{EmptyKey, EnumerationOrder};
 
 use crate::encoding::*;
-use crate::error::*;
 use crate::helpers::key_after_prefix;
+use crate::s3::error::*;
 use crate::s3::put as s3_put;
 use crate::s3::xml as s3_xml;
 
@@ -582,13 +582,19 @@ impl ListObjectsQuery {
 				// representing the key to start with.
 				(Some(token), _) => match &token[..1] {
 					"[" => Ok(RangeBegin::IncludingKey {
-						key: String::from_utf8(base64::decode(token[1..].as_bytes())?)?,
+						key: String::from_utf8(
+							base64::decode(token[1..].as_bytes())
+								.ok_or_bad_request("Invalid continuation token")?,
+						)?,
 						fallback_key: None,
 					}),
 					"]" => Ok(RangeBegin::AfterKey {
-						key: String::from_utf8(base64::decode(token[1..].as_bytes())?)?,
+						key: String::from_utf8(
+							base64::decode(token[1..].as_bytes())
+								.ok_or_bad_request("Invalid continuation token")?,
+						)?,
 					}),
-					_ => Err(Error::BadRequest("Invalid continuation token".to_string())),
+					_ => Err(Error::bad_request("Invalid continuation token")),
 				},
 
 				// StartAfter has defined semantics in the spec:

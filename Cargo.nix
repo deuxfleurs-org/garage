@@ -6,7 +6,6 @@ args@{
   rootFeatures ? [
     "garage_util/default"
     "garage_rpc/default"
-    "garage_admin/default"
     "garage_table/default"
     "garage_block/default"
     "garage_model/default"
@@ -48,7 +47,6 @@ in
   workspace = {
     garage_util = rustPackages.unknown.garage_util."0.7.0";
     garage_rpc = rustPackages.unknown.garage_rpc."0.7.0";
-    garage_admin = rustPackages.unknown.garage_admin."0.7.0";
     garage_table = rustPackages.unknown.garage_table."0.7.0";
     garage_block = rustPackages.unknown.garage_block."0.7.0";
     garage_model = rustPackages.unknown.garage_model."0.7.0";
@@ -1220,7 +1218,7 @@ in
       [ "async-await" ]
       [ "async-await-macro" ]
       [ "channel" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "default")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "default")
       [ "futures-channel" ]
       [ "futures-io" ]
       [ "futures-macro" ]
@@ -1269,18 +1267,20 @@ in
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_admin = rustPackages."unknown".garage_admin."0.7.0" { inherit profileName; };
       garage_api = rustPackages."unknown".garage_api."0.7.0" { inherit profileName; };
       garage_model = rustPackages."unknown".garage_model."0.7.0" { inherit profileName; };
       garage_rpc = rustPackages."unknown".garage_rpc."0.7.0" { inherit profileName; };
       garage_table = rustPackages."unknown".garage_table."0.7.0" { inherit profileName; };
       garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       garage_web = rustPackages."unknown".garage_web."0.7.0" { inherit profileName; };
-      git_version = rustPackages."registry+https://github.com/rust-lang/crates.io-index".git-version."0.3.5" { inherit profileName; };
       hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       sodiumoxide = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; };
       netapp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.4.4" { inherit profileName; };
+      opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
+      opentelemetry_otlp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-otlp."0.10.0" { inherit profileName; };
+      opentelemetry_prometheus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-prometheus."0.10.0" { inherit profileName; };
       pretty_env_logger = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pretty_env_logger."0.4.0" { inherit profileName; };
+      prometheus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".prometheus."0.13.0" { inherit profileName; };
       rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; };
       rmp_serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; };
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.137" { inherit profileName; };
@@ -1302,26 +1302,6 @@ in
       serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.81" { inherit profileName; };
       sha2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".sha2."0.9.9" { inherit profileName; };
       static_init = rustPackages."registry+https://github.com/rust-lang/crates.io-index".static_init."1.0.2" { inherit profileName; };
-    };
-  });
-  
-  "unknown".garage_admin."0.7.0" = overridableMkRustCrate (profileName: rec {
-    name = "garage_admin";
-    version = "0.7.0";
-    registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/admin");
-    dependencies = {
-      futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
-      futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      garage_util = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
-      hex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
-      http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
-      hyper = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.18" { inherit profileName; };
-      opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
-      opentelemetry_otlp = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-otlp."0.10.0" { inherit profileName; };
-      opentelemetry_prometheus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-prometheus."0.10.0" { inherit profileName; };
-      prometheus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".prometheus."0.13.0" { inherit profileName; };
-      tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
     };
   });
   
@@ -1359,8 +1339,11 @@ in
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "multer" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".multer."2.0.2" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "nom" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".nom."7.1.1" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "opentelemetry" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "opentelemetry_otlp" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-otlp."0.10.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "opentelemetry_prometheus" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-prometheus."0.10.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "percent_encoding" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".percent-encoding."2.1.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "pin_project" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.10" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "prometheus" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".prometheus."0.13.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "quick_xml" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".quick-xml."0.21.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "roxmltree" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".roxmltree."0.14.1" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "serde" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.137" { inherit profileName; };
@@ -1506,9 +1489,9 @@ in
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "bytes" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "futures" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.21" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "futures_util" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "garage_admin" else null } = rustPackages."unknown".garage_admin."0.7.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "garage_util" else null } = rustPackages."unknown".garage_util."0.7.0" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "gethostname" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".gethostname."0.2.3" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "git_version" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".git-version."0.3.5" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "hex" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "hyper" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.18" { inherit profileName; };
       ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_rpc" then "k8s_openapi" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.13.1" { inherit profileName; };
@@ -1898,31 +1881,31 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "b26ae0a80afebe130861d90abf98e3814a4f28a4c6ffeb5ab8ebb2be311e0ef2"; };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "client")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "client")
       [ "default" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "full")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "h2")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "http1")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "http2")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "runtime")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "server")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "socket2")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "stream")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "tcp")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "full")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "h2")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "http1")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "http2")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "runtime")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "server")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "socket2")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "stream")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "tcp")
     ];
     dependencies = {
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.1.0" { inherit profileName; };
       futures_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.21" { inherit profileName; };
       futures_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.21" { inherit profileName; };
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client" then "h2" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.12" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client" then "h2" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.12" { inherit profileName; };
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.6" { inherit profileName; };
       http_body = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http-body."0.4.4" { inherit profileName; };
       httparse = rustPackages."registry+https://github.com/rust-lang/crates.io-index".httparse."1.6.0" { inherit profileName; };
       httpdate = rustPackages."registry+https://github.com/rust-lang/crates.io-index".httpdate."1.0.2" { inherit profileName; };
       itoa = rustPackages."registry+https://github.com/rust-lang/crates.io-index".itoa."1.0.1" { inherit profileName; };
       pin_project_lite = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.8" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client" then "socket2" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".socket2."0.4.4" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client" then "socket2" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".socket2."0.4.4" { inherit profileName; };
       tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.17.0" { inherit profileName; };
       tower_service = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tower-service."0.3.1" { inherit profileName; };
       tracing = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
@@ -3341,7 +3324,7 @@ in
       [ "getrandom" ]
       [ "libc" ]
       [ "rand_chacha" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "small_rng")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "small_rng")
       [ "std" ]
       [ "std_rng" ]
     ];
@@ -3434,28 +3417,28 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"; };
     features = builtins.concatLists [
-      [ "aho-corasick" ]
-      [ "default" ]
-      [ "memchr" ]
-      [ "perf" ]
-      [ "perf-cache" ]
-      [ "perf-dfa" ]
-      [ "perf-inline" ]
-      [ "perf-literal" ]
-      [ "std" ]
-      [ "unicode" ]
-      [ "unicode-age" ]
-      [ "unicode-bool" ]
-      [ "unicode-case" ]
-      [ "unicode-gencat" ]
-      [ "unicode-perl" ]
-      [ "unicode-script" ]
-      [ "unicode-segment" ]
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "aho-corasick")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "default")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "memchr")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "perf")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "perf-cache")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "perf-dfa")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "perf-inline")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "perf-literal")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "std")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-age")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-bool")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-case")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-gencat")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-perl")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-script")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "unicode-segment")
     ];
     dependencies = {
-      aho_corasick = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aho-corasick."0.7.18" { inherit profileName; };
-      memchr = rustPackages."registry+https://github.com/rust-lang/crates.io-index".memchr."2.4.1" { inherit profileName; };
-      regex_syntax = rustPackages."registry+https://github.com/rust-lang/crates.io-index".regex-syntax."0.6.25" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "aho_corasick" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".aho-corasick."0.7.18" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "memchr" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".memchr."2.4.1" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "regex_syntax" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".regex-syntax."0.6.25" { inherit profileName; };
     };
   });
   
@@ -4302,8 +4285,8 @@ in
       [ "bytes" ]
       [ "default" ]
       [ "fs" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "full")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "io-std")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "full")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "io-std")
       [ "io-util" ]
       [ "libc" ]
       [ "macros" ]
@@ -4312,8 +4295,8 @@ in
       [ "net" ]
       [ "num_cpus" ]
       [ "once_cell" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "parking_lot")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "process")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "parking_lot")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "process")
       [ "rt" ]
       [ "rt-multi-thread" ]
       [ "signal" ]
@@ -4331,7 +4314,7 @@ in
       mio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".mio."0.8.2" { inherit profileName; };
       num_cpus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".num_cpus."1.13.1" { inherit profileName; };
       once_cell = rustPackages."registry+https://github.com/rust-lang/crates.io-index".once_cell."1.10.0" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "parking_lot" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".parking_lot."0.12.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "parking_lot" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".parking_lot."0.12.0" { inherit profileName; };
       pin_project_lite = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.8" { inherit profileName; };
       ${ if hostPlatform.isUnix then "signal_hook_registry" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".signal-hook-registry."1.4.0" { inherit profileName; };
       socket2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".socket2."0.4.4" { inherit profileName; };
@@ -4409,9 +4392,9 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "9e99e1983e5d376cd8eb4b66604d2e99e79f5bd988c3055891dcd8c9e2604cc0"; };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "codec")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "codec")
       [ "compat" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "default")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "default")
       [ "futures-io" ]
       (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_rpc") "io")
       (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_rpc") "slab")
@@ -4528,43 +4511,43 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "9a89fd63ad6adf737582df5db40d286574513c69a11dac5214dc3b5603d6713e"; };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "__common")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "balance")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "buffer")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "default")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "discover")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "futures-core")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "futures-util")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "indexmap")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "limit")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "load")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "log")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "make")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "pin-project")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "pin-project-lite")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "rand")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "ready-cache")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "__common")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "balance")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "buffer")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "default")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "discover")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "futures-core")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "futures-util")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "indexmap")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "limit")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "load")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "log")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "make")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "pin-project")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "pin-project-lite")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "rand")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "ready-cache")
       (lib.optional (rootFeatures' ? "garage") "retry")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "slab")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "timeout")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "tokio")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "tokio-util")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "tracing")
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "util")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "slab")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web") "timeout")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "tokio")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "tokio-util")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "tracing")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "util")
     ];
     dependencies = {
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "futures_core" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.21" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "futures_util" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "indexmap" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".indexmap."1.8.0" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "pin_project" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.10" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "pin_project_lite" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.8" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "rand" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "slab" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".slab."0.4.5" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "tokio" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.17.0" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "tokio_util" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-util."0.7.0" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "tower_layer" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tower-layer."0.3.1" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "tower_service" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tower-service."0.3.1" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "tracing" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "futures_core" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.21" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "futures_util" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.21" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "indexmap" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".indexmap."1.8.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "pin_project" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.10" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "pin_project_lite" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.8" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "rand" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" then "slab" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".slab."0.4.5" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "tokio" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.17.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "tokio_util" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-util."0.7.0" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "tower_layer" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tower-layer."0.3.1" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "tower_service" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tower-service."0.3.1" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "tracing" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.32" { inherit profileName; };
     };
   });
   
@@ -4617,14 +4600,14 @@ in
     features = builtins.concatLists [
       [ "attributes" ]
       [ "default" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web") "log")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web") "log")
       (lib.optional (rootFeatures' ? "garage") "log-always")
       [ "std" ]
       [ "tracing-attributes" ]
     ];
     dependencies = {
       cfg_if = rustPackages."registry+https://github.com/rust-lang/crates.io-index".cfg-if."1.0.0" { inherit profileName; };
-      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" then "log" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.16" { inherit profileName; };
+      ${ if rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_web" then "log" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.16" { inherit profileName; };
       pin_project_lite = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.8" { inherit profileName; };
       tracing_attributes = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-attributes."0.1.20" { profileName = "__noProfile"; };
       tracing_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-core."0.1.23" { inherit profileName; };
@@ -4986,7 +4969,7 @@ in
       [ "std" ]
       [ "synchapi" ]
       [ "sysinfoapi" ]
-      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_admin" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_block" || rootFeatures' ? "garage_model" || rootFeatures' ? "garage_rpc" || rootFeatures' ? "garage_table" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "threadpoollegacyapiset")
+      (lib.optional (rootFeatures' ? "garage" || rootFeatures' ? "garage_api" || rootFeatures' ? "garage_web" || rootFeatures' ? "k2v-client") "threadpoollegacyapiset")
       [ "timezoneapi" ]
       [ "winbase" ]
       [ "wincon" ]
@@ -5049,8 +5032,8 @@ in
       ${ if hostPlatform.config == "aarch64-uwp-windows-msvc" || hostPlatform.config == "aarch64-pc-windows-msvc" then "windows_aarch64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_aarch64_msvc."0.32.0" { inherit profileName; };
       ${ if hostPlatform.config == "i686-pc-windows-gnu" || hostPlatform.config == "i686-uwp-windows-gnu" then "windows_i686_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_i686_gnu."0.32.0" { inherit profileName; };
       ${ if hostPlatform.config == "i686-uwp-windows-msvc" || hostPlatform.config == "i686-pc-windows-msvc" then "windows_i686_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_i686_msvc."0.32.0" { inherit profileName; };
-      ${ if hostPlatform.config == "x86_64-uwp-windows-gnu" || hostPlatform.config == "x86_64-pc-windows-gnu" then "windows_x86_64_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_gnu."0.32.0" { inherit profileName; };
-      ${ if hostPlatform.config == "x86_64-uwp-windows-msvc" || hostPlatform.config == "x86_64-pc-windows-msvc" then "windows_x86_64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_msvc."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "x86_64-pc-windows-gnu" || hostPlatform.config == "x86_64-uwp-windows-gnu" then "windows_x86_64_gnu" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_gnu."0.32.0" { inherit profileName; };
+      ${ if hostPlatform.config == "x86_64-pc-windows-msvc" || hostPlatform.config == "x86_64-uwp-windows-msvc" then "windows_x86_64_msvc" else null } = rustPackages."registry+https://github.com/rust-lang/crates.io-index".windows_x86_64_msvc."0.32.0" { inherit profileName; };
     };
   });
   

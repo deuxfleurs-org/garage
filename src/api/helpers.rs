@@ -1,11 +1,8 @@
+use hyper::{Body, Request};
 use idna::domain_to_unicode;
+use serde::{Deserialize, Serialize};
 
-use garage_util::data::*;
-
-use garage_model::garage::Garage;
-use garage_model::key_table::Key;
-
-use crate::error::*;
+use crate::common_error::{CommonError as Error, *};
 
 /// What kind of authorization is required to perform a given action
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,7 +47,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 	let mut iter = authority.chars().enumerate();
 	let (_, first_char) = iter
 		.next()
-		.ok_or_else(|| Error::BadRequest("Authority is empty".to_string()))?;
+		.ok_or_else(|| Error::bad_request("Authority is empty".to_string()))?;
 
 	let split = match first_char {
 		'[' => {
@@ -58,7 +55,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 			match iter.next() {
 				Some((_, ']')) => iter.next(),
 				_ => {
-					return Err(Error::BadRequest(format!(
+					return Err(Error::bad_request(format!(
 						"Authority {} has an illegal format",
 						authority
 					)))
@@ -71,34 +68,12 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 	let authority = match split {
 		Some((i, ':')) => Ok(&authority[..i]),
 		None => Ok(authority),
-		Some((_, _)) => Err(Error::BadRequest(format!(
+		Some((_, _)) => Err(Error::bad_request(format!(
 			"Authority {} has an illegal format",
 			authority
 		))),
 	};
 	authority.map(|h| domain_to_unicode(h).0)
-}
-
-#[allow(clippy::ptr_arg)]
-pub async fn resolve_bucket(
-	garage: &Garage,
-	bucket_name: &String,
-	api_key: &Key,
-) -> Result<Uuid, Error> {
-	let api_key_params = api_key
-		.state
-		.as_option()
-		.ok_or_internal_error("Key should not be deleted at this point")?;
-
-	if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
-		Ok(*bucket_id)
-	} else {
-		Ok(garage
-			.bucket_helper()
-			.resolve_global_bucket_name(bucket_name)
-			.await?
-			.ok_or(Error::NoSuchBucket)?)
-	}
 }
 
 /// Extract the bucket name and the key name from an HTTP path and possibly a bucket provided in
@@ -132,7 +107,7 @@ pub fn parse_bucket_key<'a>(
 		None => (path, None),
 	};
 	if bucket.is_empty() {
-		return Err(Error::BadRequest("No bucket specified".to_string()));
+		return Err(Error::bad_request("No bucket specified"));
 	}
 	Ok((bucket, key))
 }
@@ -161,6 +136,12 @@ pub fn key_after_prefix(pfx: &str) -> Option<String> {
 	}
 
 	None
+}
+
+pub async fn parse_json_body<T: for<'de> Deserialize<'de>>(req: Request<Body>) -> Result<T, Error> {
+	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let resp: T = serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
+	Ok(resp)
 }
 
 #[cfg(test)]
@@ -297,4 +278,12 @@ mod tests {
 			String::from(char::MAX)
 		);
 	}
+}
+
+#[derive(Serialize)]
+pub(crate) struct CustomApiErrorBody {
+	pub(crate) code: String,
+	pub(crate) message: String,
+	pub(crate) region: String,
+	pub(crate) path: String,
 }

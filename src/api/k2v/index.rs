@@ -12,7 +12,7 @@ use garage_table::util::*;
 use garage_model::garage::Garage;
 use garage_model::k2v::counter_table::{BYTES, CONFLICTS, ENTRIES, VALUES};
 
-use crate::error::*;
+use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_read_index(
