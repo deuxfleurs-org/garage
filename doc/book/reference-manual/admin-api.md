@@ -1,5 +1,5 @@
 +++
-title = "Specification of Garage's administration API"
+title = "Administration API"
 weight = 16
 +++
 
