@@ -10,6 +10,7 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 
 block_size = 1048576
+block_manager_background_tranquility = 2
 
 replication_mode = "3"
 
@@ -47,6 +48,8 @@ root_domain = ".web.garage"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
+metrics_token = "cacce0b2de4bc2d9f5b5fdff551e01ac1496055aed248202d415398987e35f81"
+admin_token = "ae8cb40ea7368bbdbb6430af11cca7da833d3458a5f52086f4e805a570fb5c2a"
 trace_sink = "http://localhost:4317"
 ```
 
@@ -83,6 +86,17 @@ installation, only files newly uploaded will be affected. Previously uploaded
 files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
+
+### `block_manager_background_tranquility`
+
+This parameter tunes the activity of the background worker responsible for
+resyncing data blocks between nodes. The higher the tranquility value is set,
+the more the background worker will wait between iterations, meaning the load
+on the system (including network usage between nodes) will be reduced. The
+minimal value for this parameter is `0`, where the background worker will
+allways work at maximal throughput to resynchronize blocks. The default value
+is `2`, where the background worker will try to spend at most 1/3 of its time
+working, and 2/3 sleeping in order to reduce system load.
 
 ### `replication_mode`
 
@@ -326,10 +340,24 @@ Garage has a few administration capabilities, in particular to allow remote moni
 ### `api_bind_addr`
 
 If specified, Garage will bind an HTTP server to this port and address, on
-which it will listen to requests for administration features. Currently,
-this endpoint only exposes Garage metrics in the Prometheus format at
-`/metrics`. This endpoint is not authenticated. In the future, bucket and
-access key management might be possible by REST calls to this endpoint.
+which it will listen to requests for administration features.
+See [administration API reference](@/documentation/reference-manual/admin-api.md) to learn more about these features.
+
+### `metrics_token` (since version 0.7.2)
+
+The token for accessing the Metrics endpoint. If this token is not set in
+the config file, the Metrics endpoint can be accessed without access
+control.
+
+You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
+
+### `admin_token` (since version 0.7.2)
+
+The token for accessing all of the other administration endpoints.  If this
+token is not set in the config file, access to these endpoints is disabled
+entirely.
+
+You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
 
 ### `trace_sink`
 

@@ -1,18 +1,41 @@
-# Specification of Garage's administration API
++++
+title = "Specification of Garage's administration API"
+weight = 16
++++
 
+The Garage administration API is accessible through a dedicated server whose
+listen address is specified in the `[admin]` section of the configuration
+file (see [configuration file
+reference](@/documentation/reference-manual/configuration.md))
 
 **WARNING.** At this point, there is no comittement to stability of the APIs described in this document.
 We will bump the version numbers prefixed to each API endpoint at each time the syntax
 or semantics change, meaning that code that relies on these endpoint will break
 when changes are introduced.
 
+The Garage administration API was introduced in version 0.7.2, this document
+does not apply to older versions of Garage.
+
 
 ## Access control
 
 The admin API uses two different tokens for acces control, that are specified in the config file's `[admin]` section:
 
-- `metrics_token`: the token for accessing the Metrics endpoint (if this token is not set in the config file, the Metrics endpoint can be accessed without access control);
-- `admin_token`: the token for accessing all of the other administration endpoints (if this token is not set in the config file, access to these endpoints is disabled entirely).
+- `metrics_token`: the token for accessing the Metrics endpoint (if this token
+  is not set in the config file, the Metrics endpoint can be accessed without
+  access control);
+
+- `admin_token`: the token for accessing all of the other administration
+  endpoints (if this token is not set in the config file, access to these
+  endpoints is disabled entirely).
+
+These tokens are used as simple HTTP bearer tokens. In other words, to
+authenticate access to an admin API endpoint, add the following HTTP header
+to your request:
+
+```
+Authorization: Bearer <token>
+```
 
 ## Administration API endpoints
 
