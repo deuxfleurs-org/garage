@@ -5,6 +5,13 @@ use thiserror::Error;
 /// Errors returned by this crate
 #[derive(Error, Debug)]
 pub enum Error {
+	#[error("{0}, {1}: {2} (path = {3})")]
+	Remote(
+		http::StatusCode,
+		Cow<'static, str>,
+		Cow<'static, str>,
+		Cow<'static, str>,
+	),
 	#[error("received invalid response: {0}")]
 	InvalidResponse(Cow<'static, str>),
 	#[error("not found")]

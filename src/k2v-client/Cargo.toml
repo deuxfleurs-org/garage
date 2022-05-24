@@ -6,6 +6,7 @@ edition = "2018"
 [dependencies]
 base64 = "0.13.0"
 http = "0.2.6"
+log = "0.4"
 rusoto_core = "0.48.0"
 rusoto_credential = "0.48.0"
 rusoto_signature = "0.48.0"
@@ -22,6 +23,10 @@ garage_util = { path = "../util", optional = true }
 [features]
 cli = ["clap", "tokio/fs", "tokio/io-std", "garage_util"]
 
+[lib]
+path = "lib.rs"
+
 [[bin]]
 name = "k2v-cli"
+path = "bin/k2v-cli.rs"
 required-features = ["cli"]

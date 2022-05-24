@@ -4,6 +4,7 @@ use std::time::Duration;
 use http::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
 use http::status::StatusCode;
 use http::HeaderMap;
+use log::{debug, error};
 
 use rusoto_core::{ByteStream, DispatchSignedRequest, HttpClient};
 use rusoto_credential::AwsCredentials;
@@ -310,12 +311,47 @@ impl K2vClient {
 			StatusCode::NO_CONTENT => Vec::new(),
 			StatusCode::NOT_FOUND => return Err(Error::NotFound),
 			StatusCode::NOT_MODIFIED => Vec::new(),
-			_ => {
-				return Err(Error::InvalidResponse(
-					format!("invalid error code: {}", res.status).into(),
-				))
+			s => {
+				let err_body = read_body(&mut res.headers, res.body)
+					.await
+					.unwrap_or_default();
+				let err_body_str = std::str::from_utf8(&err_body)
+					.map(String::from)
+					.unwrap_or_else(|_| base64::encode(&err_body));
+
+				if s.is_client_error() || s.is_server_error() {
+					error!("Error response {}: {}", res.status, err_body_str);
+					let err = match serde_json::from_slice::<ErrorResponse>(&err_body) {
+						Ok(err) => Error::Remote(
+							res.status,
+							err.code.into(),
+							err.message.into(),
+							err.path.into(),
+						),
+						Err(_) => Error::Remote(
+							res.status,
+							"unknown".into(),
+							err_body_str.into(),
+							"?".into(),
+						),
+					};
+					return Err(err);
+				} else {
+					let msg = format!(
+						"Unexpected response code {}. Response body: {}",
+						res.status, err_body_str
+					);
+					error!("{}", msg);
+					return Err(Error::InvalidResponse(msg.into()));
+				}
 			}
 		};
+		debug!(
+			"Response body: {}",
+			std::str::from_utf8(&body)
+				.map(String::from)
+				.unwrap_or_else(|_| base64::encode(&body))
+		);
 
 		Ok(Response {
 			body,
@@ -556,6 +592,15 @@ struct BatchDeleteResponse<'a> {
 	#[allow(dead_code)]
 	filter: BatchDeleteOp<'a>,
 	deleted_items: u64,
+}
+
+#[derive(Deserialize)]
+struct ErrorResponse {
+	code: String,
+	message: String,
+	#[allow(dead_code)]
+	region: String,
+	path: String,
 }
 
 struct Response {

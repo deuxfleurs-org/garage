@@ -1584,6 +1584,7 @@ dependencies = [
  "clap 3.1.18",
  "garage_util 0.7.0",
  "http",
+ "log",
  "rusoto_core",
  "rusoto_credential",
  "rusoto_signature",
