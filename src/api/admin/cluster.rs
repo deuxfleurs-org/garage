@@ -7,14 +7,13 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
 use garage_util::data::*;
-use garage_util::error::Error as GarageError;
 
 use garage_rpc::layout::*;
 
 use garage_model::garage::Garage;
 
 use crate::admin::error::*;
-use crate::helpers::parse_json_body;
+use crate::helpers::{json_ok_response, parse_json_body};
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = GetClusterStatusResponse {
@@ -39,10 +38,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 		layout: get_cluster_layout(garage),
 	};
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_connect_cluster_nodes(
@@ -66,18 +62,13 @@ pub async fn handle_connect_cluster_nodes(
 		})
 		.collect::<Vec<_>>();
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = get_cluster_layout(garage);
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+
+	Ok(json_ok_response(&res)?)
 }
 
 fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {

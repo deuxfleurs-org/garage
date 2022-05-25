@@ -110,8 +110,9 @@ impl ApiError for Error {
 		}
 	}
 
-	fn add_http_headers(&self, _header_map: &mut HeaderMap<HeaderValue>) {
-		// nothing
+	fn add_http_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
+		use hyper::header;
+		header_map.append(header::CONTENT_TYPE, "application/json".parse().unwrap());
 	}
 
 	fn http_body(&self, garage_region: &str, path: &str) -> Body {

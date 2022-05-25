@@ -172,6 +172,9 @@ impl ApiError for Error {
 
 	fn add_http_headers(&self, header_map: &mut HeaderMap<HeaderValue>) {
 		use hyper::header;
+
+		header_map.append(header::CONTENT_TYPE, "application/xml".parse().unwrap());
+
 		#[allow(clippy::single_match)]
 		match self {
 			Error::InvalidRange((_, len)) => {

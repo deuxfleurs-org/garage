@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
 use garage_util::data::*;
-use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
 use garage_table::*;
@@ -19,7 +18,7 @@ use garage_model::permission::*;
 use crate::admin::error::*;
 use crate::admin::key::ApiBucketKeyPerm;
 use crate::common_error::CommonError;
-use crate::helpers::parse_json_body;
+use crate::helpers::{json_ok_response, parse_json_body};
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let buckets = garage
@@ -60,10 +59,7 @@ pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>,
 		})
 		.collect::<Vec<_>>();
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 #[derive(Serialize)]
@@ -197,10 +193,7 @@ async fn bucket_info_results(
 				.collect::<Vec<_>>(),
 		};
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 #[derive(Serialize)]

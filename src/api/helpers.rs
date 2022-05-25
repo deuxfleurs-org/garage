@@ -1,4 +1,4 @@
-use hyper::{Body, Request};
+use hyper::{Body, Request, Response};
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
@@ -142,6 +142,14 @@ pub async fn parse_json_body<T: for<'de> Deserialize<'de>>(req: Request<Body>) -
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let resp: T = serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
 	Ok(resp)
+}
+
+pub fn json_ok_response<T: Serialize>(res: &T) -> Result<Response<Body>, Error> {
+	let resp_json = serde_json::to_string_pretty(res).map_err(garage_util::error::Error::from)?;
+	Ok(Response::builder()
+		.status(hyper::StatusCode::OK)
+		.header(http::header::CONTENT_TYPE, "application/json")
+		.body(Body::from(resp_json))?)
 }
 
 #[cfg(test)]

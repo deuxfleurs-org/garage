@@ -150,9 +150,7 @@ impl<A: ApiHandler> ApiServer<A> {
 			}
 			Err(e) => {
 				let body: Body = e.http_body(&self.region, uri.path());
-				let mut http_error_builder = Response::builder()
-					.status(e.http_status_code())
-					.header("Content-Type", "application/xml");
+				let mut http_error_builder = Response::builder().status(e.http_status_code());
 
 				if let Some(header_map) = http_error_builder.headers_mut() {
 					e.add_http_headers(header_map)

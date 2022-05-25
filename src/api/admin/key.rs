@@ -4,15 +4,13 @@ use std::sync::Arc;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use garage_util::error::Error as GarageError;
-
 use garage_table::*;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::admin::error::*;
-use crate::helpers::parse_json_body;
+use crate::helpers::{json_ok_response, parse_json_body};
 
 pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = garage
@@ -32,10 +30,7 @@ pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Er
 		})
 		.collect::<Vec<_>>();
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 #[derive(Serialize)]
@@ -221,10 +216,7 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 			.collect::<Vec<_>>(),
 	};
 
-	let resp_json = serde_json::to_string_pretty(&res).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&res)?)
 }
 
 #[derive(Serialize)]
