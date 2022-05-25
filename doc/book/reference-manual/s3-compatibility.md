@@ -3,18 +3,28 @@ title = "S3 Compatibility status"
 weight = 20
 +++
 
+## DISCLAIMER
+
+**The compatibility list for other platforms is given only for information purposes and based on available documentation.** They are sometimes completed, in a best effort approach, with the source code and inputs from maintainers when documentation is lacking. We are not proactively monitoring new versions of each software, check the modification history to know when the page has been updated for the last time. Some entries will be inexact or outdated: for any serious decision, you must make your own tests.  
+**The official documentation of each project can be accessed by clicking on the project name in the column header.** 
+
+Feel free to open a PR to fix this table. Minio is missing because they do not provide a public S3 compatibility list.
+
+## Update history
+
+  - 2022-02-07 - First version of this page
+  - 2022-05-25 - Many Ceph S3 endpoints are not documented but implemented. Following a notification from the Ceph community, we added them.
+
 ## Endpoint implementation
 
 All APIs that are missing on Garage will return a 501 Not Implemented.
 Some `x-amz-` headers are not implemented.
 
-*The compatibility list for other platforms is given only for information purposes and based on available documentation. Some entries might be inexact. Feel free to open a PR to fix this table. Minio is missing because they do not provide a public S3 compatibility list.*
-
 ### Features
 
 | Feature                      | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
-| [signature v2](https://docs.aws.amazon.com/general/latest/gr/signature-version-2.html) (deprecated) | ❌ Missing | ✅ |  ❌ | ✅ | ✅ |
+| [signature v2](https://docs.aws.amazon.com/general/latest/gr/signature-version-2.html) (deprecated) | ❌ Missing | ✅ |  ✅ | ✅ | ✅ |
 | [signature v4](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html) |  ✅ Implemented |  ✅ |  ✅ | ❌ | ✅ |
 | [URL path-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access) (eg. `host.tld/bucket/key`) |  ✅ Implemented | ✅ |  ✅ | ❓| ✅ |
 | [URL vhost-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#virtual-hosted-style-access) URL (eg. `bucket.host.tld/key`) |  ✅ Implemented | ❌| ✅| ✅ | ✅ |
@@ -37,7 +47,7 @@ Some `x-amz-` headers are not implemented.
 | [DeleteObjects](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjects.html)                | ✅ Implemented                      |  ✅  | ✅ | ✅ | ✅ |
 | [GetObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)                    | ✅ Implemented                      |  ✅ | ✅ | ✅ | ✅ |
 | [ListObjects](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)                  | ✅ Implemented (see details below)   | ✅ | ✅ |  ✅ | ❌|
-| [ListObjectsV2](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)                | ✅ Implemented                      | ❌| ❌| ❌| ✅ |
+| [ListObjectsV2](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)                | ✅ Implemented                      | ❌|  ✅  | ❌| ✅ |
 | [PostObject](https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPOST.html) (compatibility API)                   |  ❌ Missing                      | ❌| ✅ | ❌| ❌|
 | [PutObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)                    | ✅ Implemented                      | ✅ | ✅ | ✅ | ✅ |
 
@@ -67,9 +77,9 @@ For more information, please refer to our [issue tracker](https://git.deuxfleurs
 | [DeleteBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketWebsite.html)          | ✅ Implemented                      | ❌| ❌| ❌| ❌|
 | [GetBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)             | ✅ Implemented                      |  ❌ | ❌| ❌| ❌|
 | [PutBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)             | ⚠ Partially implemented (see below)| ❌| ❌| ❌| ❌|
-| [DeleteBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)             | ✅ Implemented                      |  ❌| ❌| ❌| ✅ |
-| [GetBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html)                | ✅ Implemented                      |  ❌ | ❌| ❌| ✅ |
-| [PutBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)                | ✅ Implemented                      | ❌| ❌| ❌| ✅ |
+| [DeleteBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)             | ✅ Implemented                      |  ❌|  ✅ | ❌| ✅ |
+| [GetBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html)                | ✅ Implemented                      |  ❌ |  ✅ | ❌| ✅ |
+| [PutBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)                | ✅ Implemented                      | ❌|  ✅ | ❌| ✅ |
 
 **PutBucketWebsite:** Implemented, but only stores the index document suffix and the error document path. Redirects are not supported.
 
@@ -83,16 +93,16 @@ See Garage CLI reference manual to learn how to use Garage's permission system.
 
 | Endpoint                     | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |  
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
-| [DeleteBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketPolicy.html) | ❌ Missing | ❌| ❌| ✅ | ❌|
-| [GetBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicy.html) | ❌ Missing | ❌| ❌| ⚠ | ❌|
-| [GetBucketPolicyStatus](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicyStatus.html) | ❌ Missing | ❌| ❌| ❌| ❌|
-| [PutBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html) | ❌ Missing | ❌| ❌| ⚠ | ❌|
+| [DeleteBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketPolicy.html) | ❌ Missing | ❌|  ✅ | ✅ | ❌|
+| [GetBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicy.html) | ❌ Missing | ❌|  ✅ | ⚠ | ❌|
+| [GetBucketPolicyStatus](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicyStatus.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
+| [PutBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html) | ❌ Missing | ❌|  ✅ | ⚠ | ❌|
 | [GetBucketAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 | [PutBucketAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 | [GetObjectAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 | [PutObjectAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 
-*Notes:* Ceph claims that it supports bucket policies but does not implement any Policy endpoints. They probably refer to their own permission system. Riak CS only supports a subset of the policy configuration.
+*Notes:* Riak CS only supports a subset of the policy configuration.
 
 ### Versioning, Lifecycle endpoints
 
@@ -102,8 +112,8 @@ If you need this feature, please [share your use case in our dedicated issue](ht
 | Endpoint                     | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |  
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
 | [DeleteBucketLifecycle](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketLifecycle.html) | ❌ Missing | ❌| ✅| ❌| ✅|
-| [GetBucketLifecycleConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycleConfiguration.html) | ❌ Missing | ❌| ⚠ | ❌| ✅|
-| [PutBucketLifecycleConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html) | ❌ Missing | ❌| ⚠ | ❌| ✅|
+| [GetBucketLifecycleConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycleConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ✅|
+| [PutBucketLifecycleConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ✅|
 | [GetBucketVersioning](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)          | ❌ Stub (see below)       | ✅| ✅ | ❌| ✅|
 | [ListObjectVersions](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html) | ❌ Missing | ❌| ✅ | ❌| ✅|
 | [PutBucketVersioning](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html) | ❌ Missing | ❌| ✅| ❌| ✅|
@@ -111,8 +121,6 @@ If you need this feature, please [share your use case in our dedicated issue](ht
 
 **GetBucketVersioning:** Stub implementation (Garage does not yet support versionning so this always returns "versionning not enabled").
 
-*Note: Ceph only supports `Expiration`, `NoncurrentVersionExpiration` and `AbortIncompleteMultipartUpload` on its Lifecycle endpoints.*
- 
 ### Replication endpoints
 
 Please open an issue if you have a use case for replication.
@@ -135,8 +143,8 @@ Amazon defines a concept of [object locking](https://docs.aws.amazon.com/AmazonS
 | [PutObjectLegalHold](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLegalHold.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 | [GetObjectRetention](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectRetention.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 | [PutObjectRetention](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectRetention.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
-| [GetObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLockConfiguration.html) | ❌ Missing | ❌| ❌| ❌| ❌|
-| [PutObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLockConfiguration.html) | ❌ Missing | ❌| ❌| ❌| ❌|
+| [GetObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLockConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
+| [PutObjectLockConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectLockConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 
 ### (Server-side) encryption
 
@@ -145,9 +153,9 @@ Please open an issue if you have a use case.
 
 | Endpoint                     | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |  
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
-| [DeleteBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html) | ❌ Missing | ❌| ❌| ❌| ❌|
-| [GetBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketEncryption.html) | ❌ Missing | ❌| ❌| ❌| ❌|
-| [PutBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html) | ❌ Missing | ❌| ❌| ❌| ❌|
+| [DeleteBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
+| [GetBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketEncryption.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
+| [PutBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 
 ### Misc endpoints
 
@@ -155,13 +163,13 @@ Please open an issue if you have a use case.
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
 | [GetBucketNotificationConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 | [PutBucketNotificationConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotificationConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
-| [DeleteBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [GetBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [PutBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [DeleteObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [GetObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [PutObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) | ❌ Missing | ❌| ❌| ❌| ✅ |
-| [GetObjectTorrent](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTorrent.html) | ❌ Missing | ❌| ❌| ❌| ❌|
+| [DeleteBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [GetBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [PutBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [DeleteObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [GetObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [PutObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
+| [GetObjectTorrent](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTorrent.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 
 ### Vendor specific endpoints
 
