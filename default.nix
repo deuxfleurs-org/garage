@@ -69,7 +69,7 @@ in let
      we ask the user (the CI often) to pass the value to Nix.
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
-      name = "garage";
+      name = "garage_rpc";
       overrideAttrs = drv:
         /* [1] */ { hardeningDisable = [ "pie" ]; }
         //
