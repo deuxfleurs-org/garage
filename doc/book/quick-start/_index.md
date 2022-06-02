@@ -249,16 +249,6 @@ mc alias set \
   --api S3v4
 ```
 
-You must also add an environment variable to your configuration to
-inform MinIO of our region (`garage` by default, corresponding to the `s3_region` parameter
-in the configuration file).
-The best way is to add the following snippet to your `$HOME/.bash_profile`
-or `$HOME/.bashrc` file:
-
-```bash
-export MC_REGION=garage
-```
-
 ### Use `mc`
 
 You can not list buckets from `mc` currently.
