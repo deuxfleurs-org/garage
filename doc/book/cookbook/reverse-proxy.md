@@ -100,7 +100,7 @@ server {
 }
 ```
 
-## Exposing the web endpoint
+### Exposing the web endpoint
 
 To better understand the logic involved, you can refer to the [Exposing buckets as websites](/cookbook/exposing_websites.html) section.
 Otherwise, the configuration is very similar to the S3 endpoint.
