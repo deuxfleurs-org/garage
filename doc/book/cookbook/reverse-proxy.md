@@ -140,6 +140,143 @@ server {
 
 @TODO
 
-## Traefik
+## Traefik v2
 
-@TODO
+We will see in this part how to set up a reverse proxy with [Traefik](https://docs.traefik.io/).
+
+Here is [a basic configuration file](https://doc.traefik.io/traefik/https/acme/#configuration-examples):
+
+```toml
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+
+  [entryPoints.websecure]
+    address = ":443"
+
+[certificatesResolvers.myresolver.acme]
+  email = "your-email@example.com"
+  storage = "acme.json"
+  [certificatesResolvers.myresolver.acme.httpChallenge]
+    # used during the challenge
+    entryPoint = "web"
+```
+
+### Add Garage service
+
+To add Garage on Traefik you should declare a new service using its IP address (or hostname) and port:
+
+```toml
+[http.services]
+  [http.services.my_garage_service.loadBalancer]
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+      port = 3900
+```
+
+It's possible to declare multiple Garage servers as back-ends:
+
+```toml
+[http.services]
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+      port = 3900
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://yyy.yyy.yyy.yyy"
+      port = 3900
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://zzz.zzz.zzz.zzz"
+      port = 3900
+```
+
+Traefik can remove unhealthy servers automatically with [a health check configuration](https://doc.traefik.io/traefik/routing/services/#health-check):
+
+```
+[http.services]
+  [http.services.my_garage_service.loadBalancer]
+    [http.services.my_garage_service.loadBalancer.healthCheck]
+      path = "/"
+      interval = "60s"
+      timeout = "5s"
+```
+
+### Adding a website
+
+To add a new website, add the following declaration to your Traefik configuration file:
+
+```toml
+[http.routers]
+  [http.routers.my_website]
+    rule = "Host(`yoururl.example.org`)"
+    service = "my_garage_service"
+    entryPoints = ["web"]
+```
+
+Enable HTTPS access to your website with the following configuration section ([documentation](https://doc.traefik.io/traefik/https/overview/)):
+
+```toml
+...
+    entryPoints = ["websecure"]
+    [http.routers.my_website.tls]
+      certResolver = "myresolver"
+...
+```
+
+### Adding gzip compression
+
+Add the following configuration section [to compress response](https://doc.traefik.io/traefik/middlewares/http/compress/) using [gzip](https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression) before sending them to the client:
+
+```toml
+[http.routers]
+  [http.routers.my_website]
+    ...
+    middlewares = ["gzip_compress"]
+    ...
+[http.middlewares]
+  [http.middlewares.gzip_compress.compress]
+```
+
+### Add caching response
+
+Traefik's caching middleware is only available on [entreprise version](https://doc.traefik.io/traefik-enterprise/middlewares/http-cache/), however the freely-available [Souin plugin](https://github.com/darkweak/souin#tr%C3%A6fik-container) can also do the job. (section to be completed)
+
+### Complete example
+
+```toml
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+
+  [entryPoints.websecure]
+    address = ":443"
+
+[certificatesResolvers.myresolver.acme]
+  email = "your-email@example.com"
+  storage = "acme.json"
+  [certificatesResolvers.myresolver.acme.httpChallenge]
+    # used during the challenge
+    entryPoint = "web"
+
+[http.routers]
+  [http.routers.my_website]
+    rule = "Host(`yoururl.example.org`)"
+    service = "my_garage_service"
+    middlewares = ["gzip_compress"]
+    entryPoints = ["websecure"]
+
+[http.services]
+  [http.services.my_garage_service.loadBalancer]
+    [http.services.my_garage_service.loadBalancer.healthCheck]
+      path = "/"
+      interval = "60s"
+      timeout = "5s"
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://yyy.yyy.yyy.yyy"
+    [[http.services.my_garage_service.loadBalancer.servers]]
+      url = "http://zzz.zzz.zzz.zzz"
+
+[http.middlewares]
+  [http.middlewares.gzip_compress.compress]
+```
