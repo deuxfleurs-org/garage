@@ -1,5 +1,6 @@
 [workspace]
 members = [
+	"src/db",
 	"src/util",
 	"src/rpc",
 	"src/table",

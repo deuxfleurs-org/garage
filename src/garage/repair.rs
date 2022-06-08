@@ -64,13 +64,23 @@ impl Repair {
 
 	async fn repair_versions(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		let mut pos = vec![];
+		let mut i = 0;
 
-		while let Some((item_key, item_bytes)) =
-			self.garage.version_table.data.store.get_gt(&pos)?
-		{
-			pos = item_key.to_vec();
+		while !*must_exit.borrow() {
+			let item_bytes = match self.garage.version_table.data.store.get_gt(pos)? {
+				Some((k, v)) => {
+					pos = k;
+					v
+				}
+				None => break,
+			};
 
-			let version = rmp_serde::decode::from_read_ref::<_, Version>(item_bytes.as_ref())?;
+			i += 1;
+			if i % 1000 == 0 {
+				info!("repair_versions: {}", i);
+			}
+
+			let version = rmp_serde::decode::from_read_ref::<_, Version>(&item_bytes)?;
 			if version.deleted.get() {
 				continue;
 			}
@@ -98,23 +108,30 @@ impl Repair {
 					))
 					.await?;
 			}
-
-			if *must_exit.borrow() {
-				break;
-			}
 		}
+		info!("repair_versions: finished, done {}", i);
 		Ok(())
 	}
 
 	async fn repair_block_ref(&self, must_exit: &watch::Receiver<bool>) -> Result<(), Error> {
 		let mut pos = vec![];
+		let mut i = 0;
 
-		while let Some((item_key, item_bytes)) =
-			self.garage.block_ref_table.data.store.get_gt(&pos)?
-		{
-			pos = item_key.to_vec();
+		while !*must_exit.borrow() {
+			let item_bytes = match self.garage.block_ref_table.data.store.get_gt(pos)? {
+				Some((k, v)) => {
+					pos = k;
+					v
+				}
+				None => break,
+			};
 
-			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(item_bytes.as_ref())?;
+			i += 1;
+			if i % 1000 == 0 {
+				info!("repair_block_ref: {}", i);
+			}
+
+			let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(&item_bytes)?;
 			if block_ref.deleted.get() {
 				continue;
 			}
@@ -139,11 +156,8 @@ impl Repair {
 					})
 					.await?;
 			}
-
-			if *must_exit.borrow() {
-				break;
-			}
 		}
+		info!("repair_block_ref: finished, done {}", i);
 		Ok(())
 	}
 }

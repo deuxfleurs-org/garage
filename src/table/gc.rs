@@ -12,9 +12,10 @@ use futures::select;
 use futures_util::future::*;
 use tokio::sync::watch;
 
+use garage_db::counted_tree_hack::CountedTree;
+
 use garage_util::data::*;
 use garage_util::error::*;
-use garage_util::sled_counter::SledCountedTree;
 use garage_util::time::*;
 
 use garage_rpc::system::System;
@@ -100,18 +101,16 @@ where
 	async fn gc_loop_iter(&self) -> Result<Option<Duration>, Error> {
 		let now = now_msec();
 
-		let mut entries = vec![];
-		let mut excluded = vec![];
-
 		// List entries in the GC todo list
 		// These entries are put there when a tombstone is inserted in the table
 		// (see update_entry in data.rs)
-		for entry_kv in self.data.gc_todo.iter() {
+		let mut candidates = vec![];
+		for entry_kv in self.data.gc_todo.iter()? {
 			let (k, vhash) = entry_kv?;
-			let mut todo_entry = GcTodoEntry::parse(&k, &vhash);
+			let todo_entry = GcTodoEntry::parse(&k, &vhash);
 
 			if todo_entry.deletion_time() > now {
-				if entries.is_empty() && excluded.is_empty() {
+				if candidates.is_empty() {
 					// If the earliest entry in the todo list shouldn't yet be processed,
 					// return a duration to wait in the loop
 					return Ok(Some(Duration::from_millis(
@@ -123,15 +122,23 @@ where
 				}
 			}
 
-			let vhash = Hash::try_from(&vhash[..]).unwrap();
+			candidates.push(todo_entry);
+			if candidates.len() >= 2 * TABLE_GC_BATCH_SIZE {
+				break;
+			}
+		}
 
+		let mut entries = vec![];
+		let mut excluded = vec![];
+		for mut todo_entry in candidates {
 			// Check if the tombstone is still the current value of the entry.
 			// If not, we don't actually want to GC it, and we will remove it
 			// from the gc_todo table later (below).
+			let vhash = todo_entry.value_hash;
 			todo_entry.value = self
 				.data
 				.store
-				.get(&k[..])?
+				.get(&todo_entry.key[..])?
 				.filter(|v| blake2sum(&v[..]) == vhash)
 				.map(|v| v.to_vec());
 
@@ -353,17 +360,17 @@ impl GcTodoEntry {
 	}
 
 	/// Parses a GcTodoEntry from a (k, v) pair stored in the gc_todo tree
-	pub(crate) fn parse(sled_k: &[u8], sled_v: &[u8]) -> Self {
+	pub(crate) fn parse(db_k: &[u8], db_v: &[u8]) -> Self {
 		Self {
-			tombstone_timestamp: u64::from_be_bytes(sled_k[0..8].try_into().unwrap()),
-			key: sled_k[8..].to_vec(),
-			value_hash: Hash::try_from(sled_v).unwrap(),
+			tombstone_timestamp: u64::from_be_bytes(db_k[0..8].try_into().unwrap()),
+			key: db_k[8..].to_vec(),
+			value_hash: Hash::try_from(db_v).unwrap(),
 			value: None,
 		}
 	}
 
 	/// Saves the GcTodoEntry in the gc_todo tree
-	pub(crate) fn save(&self, gc_todo_tree: &SledCountedTree) -> Result<(), Error> {
+	pub(crate) fn save(&self, gc_todo_tree: &CountedTree) -> Result<(), Error> {
 		gc_todo_tree.insert(self.todo_table_key(), self.value_hash.as_slice())?;
 		Ok(())
 	}
@@ -373,9 +380,9 @@ impl GcTodoEntry {
 	/// This is usefull to remove a todo entry only under the condition
 	/// that it has not changed since the time it was read, i.e.
 	/// what we have to do is still the same
-	pub(crate) fn remove_if_equal(&self, gc_todo_tree: &SledCountedTree) -> Result<(), Error> {
-		let _ = gc_todo_tree.compare_and_swap::<_, _, Vec<u8>>(
-			&self.todo_table_key()[..],
+	pub(crate) fn remove_if_equal(&self, gc_todo_tree: &CountedTree) -> Result<(), Error> {
+		gc_todo_tree.compare_and_swap::<_, _, &[u8]>(
+			&self.todo_table_key(),
 			Some(self.value_hash),
 			None,
 		)?;

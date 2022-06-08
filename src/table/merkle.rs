@@ -4,10 +4,9 @@ use std::time::Duration;
 use futures::select;
 use futures_util::future::*;
 use serde::{Deserialize, Serialize};
-use sled::transaction::{
-	ConflictableTransactionError, ConflictableTransactionResult, TransactionalTree,
-};
 use tokio::sync::watch;
+
+use garage_db as db;
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -90,32 +89,32 @@ where
 
 	async fn updater_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) {
 		while !*must_exit.borrow() {
-			if let Some(x) = self.data.merkle_todo.iter().next() {
-				match x {
-					Ok((key, valhash)) => {
-						if let Err(e) = self.update_item(&key[..], &valhash[..]) {
-							warn!(
-								"({}) Error while updating Merkle tree item: {}",
-								F::TABLE_NAME,
-								e
-							);
-						}
-					}
-					Err(e) => {
-						warn!(
-							"({}) Error while iterating on Merkle todo tree: {}",
-							F::TABLE_NAME,
-							e
-						);
-						tokio::time::sleep(Duration::from_secs(10)).await;
+			match self.updater_loop_iter() {
+				Ok(true) => (),
+				Ok(false) => {
+					select! {
+						_ = self.data.merkle_todo_notify.notified().fuse() => {},
+						_ = must_exit.changed().fuse() => {},
 					}
 				}
-			} else {
-				select! {
-					_ = self.data.merkle_todo_notify.notified().fuse() => {},
-					_ = must_exit.changed().fuse() => {},
+				Err(e) => {
+					warn!(
+						"({}) Error while updating Merkle tree item: {}",
+						F::TABLE_NAME,
+						e
+					);
+					tokio::time::sleep(Duration::from_secs(10)).await;
 				}
 			}
+		}
+	}
+
+	fn updater_loop_iter(&self) -> Result<bool, Error> {
+		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
+			self.update_item(&key, &valhash)?;
+			Ok(true)
+		} else {
+			Ok(false)
 		}
 	}
 
@@ -137,13 +136,16 @@ where
 		};
 		self.data
 			.merkle_tree
-			.transaction(|tx| self.update_item_rec(tx, k, &khash, &key, new_vhash))?;
+			.db()
+			.transaction(|mut tx| self.update_item_rec(&mut tx, k, &khash, &key, new_vhash))?;
 
-		let deleted = self
-			.data
-			.merkle_todo
-			.compare_and_swap::<_, _, Vec<u8>>(k, Some(vhash_by), None)?
-			.is_ok();
+		let deleted = self.data.merkle_todo.db().transaction(|mut tx| {
+			let remove = matches!(tx.get(&self.data.merkle_todo, k)?, Some(ov) if ov == vhash_by);
+			if remove {
+				tx.remove(&self.data.merkle_todo, k)?;
+			}
+			Ok(remove)
+		})?;
 
 		if !deleted {
 			debug!(
@@ -157,12 +159,12 @@ where
 
 	fn update_item_rec(
 		&self,
-		tx: &TransactionalTree,
+		tx: &mut db::Transaction<'_>,
 		k: &[u8],
 		khash: &Hash,
 		key: &MerkleNodeKey,
 		new_vhash: Option<Hash>,
-	) -> ConflictableTransactionResult<Option<Hash>, Error> {
+	) -> db::TxResult<Option<Hash>, Error> {
 		let i = key.prefix.len();
 
 		// Read node at current position (defined by the prefix stored in key)
@@ -203,7 +205,7 @@ where
 							}
 							MerkleNode::Intermediate(_) => Some(MerkleNode::Intermediate(children)),
 							x @ MerkleNode::Leaf(_, _) => {
-								tx.remove(key_sub.encode())?;
+								tx.remove(&self.data.merkle_tree, key_sub.encode())?;
 								Some(x)
 							}
 						}
@@ -283,28 +285,27 @@ where
 
 	fn read_node_txn(
 		&self,
-		tx: &TransactionalTree,
+		tx: &mut db::Transaction<'_>,
 		k: &MerkleNodeKey,
-	) -> ConflictableTransactionResult<MerkleNode, Error> {
-		let ent = tx.get(k.encode())?;
-		MerkleNode::decode_opt(ent).map_err(ConflictableTransactionError::Abort)
+	) -> db::TxResult<MerkleNode, Error> {
+		let ent = tx.get(&self.data.merkle_tree, k.encode())?;
+		MerkleNode::decode_opt(&ent).map_err(db::TxError::Abort)
 	}
 
 	fn put_node_txn(
 		&self,
-		tx: &TransactionalTree,
+		tx: &mut db::Transaction<'_>,
 		k: &MerkleNodeKey,
 		v: &MerkleNode,
-	) -> ConflictableTransactionResult<Hash, Error> {
+	) -> db::TxResult<Hash, Error> {
 		trace!("Put Merkle node: {:?} => {:?}", k, v);
 		if *v == MerkleNode::Empty {
-			tx.remove(k.encode())?;
+			tx.remove(&self.data.merkle_tree, k.encode())?;
 			Ok(self.empty_node_hash)
 		} else {
-			let vby = rmp_to_vec_all_named(v)
-				.map_err(|e| ConflictableTransactionError::Abort(e.into()))?;
+			let vby = rmp_to_vec_all_named(v).map_err(|e| db::TxError::Abort(e.into()))?;
 			let rethash = blake2sum(&vby[..]);
-			tx.insert(k.encode(), vby)?;
+			tx.insert(&self.data.merkle_tree, k.encode(), vby)?;
 			Ok(rethash)
 		}
 	}
@@ -312,15 +313,15 @@ where
 	// Access a node in the Merkle tree, used by the sync protocol
 	pub(crate) fn read_node(&self, k: &MerkleNodeKey) -> Result<MerkleNode, Error> {
 		let ent = self.data.merkle_tree.get(k.encode())?;
-		MerkleNode::decode_opt(ent)
+		MerkleNode::decode_opt(&ent)
 	}
 
-	pub fn merkle_tree_len(&self) -> usize {
-		self.data.merkle_tree.len()
+	pub fn merkle_tree_len(&self) -> Result<usize, Error> {
+		Ok(self.data.merkle_tree.len()?)
 	}
 
-	pub fn todo_len(&self) -> usize {
-		self.data.merkle_todo.len()
+	pub fn todo_len(&self) -> Result<usize, Error> {
+		Ok(self.data.merkle_todo.len()?)
 	}
 }
 
@@ -347,7 +348,7 @@ impl MerkleNodeKey {
 }
 
 impl MerkleNode {
-	fn decode_opt(ent: Option<sled::IVec>) -> Result<Self, Error> {
+	fn decode_opt(ent: &Option<db::Value>) -> Result<Self, Error> {
 		match ent {
 			None => Ok(MerkleNode::Empty),
 			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),

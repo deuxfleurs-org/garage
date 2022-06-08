@@ -64,14 +64,19 @@ pub struct Config {
 	#[serde(default)]
 	pub kubernetes_skip_crd: bool,
 
+	// -- DB
+	/// Database engine to use for metadata (options: sled, sqlite, lmdb)
+	#[serde(default = "default_db_engine")]
+	pub db_engine: String,
+
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]
 	pub sled_cache_capacity: u64,
-
 	/// Sled flush interval in milliseconds
 	#[serde(default = "default_sled_flush_every_ms")]
 	pub sled_flush_every_ms: u64,
 
+	// -- APIs
 	/// Configuration for S3 api
 	pub s3_api: S3ApiConfig,
 
@@ -127,6 +132,10 @@ pub struct AdminConfig {
 	pub admin_token: Option<String>,
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
+}
+
+fn default_db_engine() -> String {
+	"sled".into()
 }
 
 fn default_sled_cache_capacity() -> u64 {

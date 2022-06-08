@@ -258,9 +258,9 @@ where
 		while !*must_exit.borrow() {
 			let mut items = Vec::new();
 
-			for item in self.data.store.range(begin.to_vec()..end.to_vec()) {
+			for item in self.data.store.range(begin.to_vec()..end.to_vec())? {
 				let (key, value) = item?;
-				items.push((key.to_vec(), Arc::new(ByteBuf::from(value.as_ref()))));
+				items.push((key.to_vec(), Arc::new(ByteBuf::from(value))));
 
 				if items.len() >= 1024 {
 					break;
@@ -603,8 +603,16 @@ impl SyncTodo {
 			let retain = nodes.contains(&my_id);
 			if !retain {
 				// Check if we have some data to send, otherwise skip
-				if data.store.range(begin..end).next().is_none() {
-					continue;
+				match data.store.range(begin..end) {
+					Ok(mut iter) => {
+						if iter.next().is_none() {
+							continue;
+						}
+					}
+					Err(e) => {
+						warn!("DB error in add_full_sync: {}", e);
+						continue;
+					}
 				}
 			}
 

@@ -26,8 +26,8 @@ pub enum Error {
 	#[error(display = "Netapp error: {}", _0)]
 	Netapp(#[error(source)] netapp::error::Error),
 
-	#[error(display = "Sled error: {}", _0)]
-	Sled(#[error(source)] sled::Error),
+	#[error(display = "DB error: {}", _0)]
+	Db(#[error(source)] garage_db::Error),
 
 	#[error(display = "Messagepack encode error: {}", _0)]
 	RmpEncode(#[error(source)] rmp_serde::encode::Error),
@@ -78,11 +78,11 @@ impl Error {
 	}
 }
 
-impl From<sled::transaction::TransactionError<Error>> for Error {
-	fn from(e: sled::transaction::TransactionError<Error>) -> Error {
+impl From<garage_db::TxError<Error>> for Error {
+	fn from(e: garage_db::TxError<Error>) -> Error {
 		match e {
-			sled::transaction::TransactionError::Abort(x) => x,
-			sled::transaction::TransactionError::Storage(x) => Error::Sled(x),
+			garage_db::TxError::Abort(x) => x,
+			garage_db::TxError::Db(x) => Error::Db(x),
 		}
 	}
 }

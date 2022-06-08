@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use garage_db as db;
+
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
@@ -137,7 +139,12 @@ impl TableSchema for VersionTable {
 	type E = Version;
 	type Filter = DeletedFilter;
 
-	fn updated(&self, old: Option<&Self::E>, new: Option<&Self::E>) {
+	fn updated(
+		&self,
+		_tx: &mut db::Transaction,
+		old: Option<&Self::E>,
+		new: Option<&Self::E>,
+	) -> db::TxOpResult<()> {
 		let block_ref_table = self.block_ref_table.clone();
 		let old = old.cloned();
 		let new = new.cloned();
@@ -160,7 +167,9 @@ impl TableSchema for VersionTable {
 				}
 			}
 			Ok(())
-		})
+		});
+
+		Ok(())
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {

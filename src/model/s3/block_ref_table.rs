@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use garage_db as db;
+
 use garage_util::data::*;
 
 use garage_table::crdt::Crdt;
@@ -51,21 +53,22 @@ impl TableSchema for BlockRefTable {
 	type E = BlockRef;
 	type Filter = DeletedFilter;
 
-	fn updated(&self, old: Option<&Self::E>, new: Option<&Self::E>) {
-		#[allow(clippy::or_fun_call)]
-		let block = &old.or(new).unwrap().block;
+	fn updated(
+		&self,
+		tx: &mut db::Transaction,
+		old: Option<&Self::E>,
+		new: Option<&Self::E>,
+	) -> db::TxOpResult<()> {
+		let block = old.or(new).unwrap().block;
 		let was_before = old.map(|x| !x.deleted.get()).unwrap_or(false);
 		let is_after = new.map(|x| !x.deleted.get()).unwrap_or(false);
 		if is_after && !was_before {
-			if let Err(e) = self.block_manager.block_incref(block) {
-				warn!("block_incref failed for block {:?}: {}", block, e);
-			}
+			self.block_manager.block_incref(tx, block)?;
 		}
 		if was_before && !is_after {
-			if let Err(e) = self.block_manager.block_decref(block) {
-				warn!("block_decref failed for block {:?}: {}", block, e);
-			}
+			self.block_manager.block_decref(tx, block)?;
 		}
+		Ok(())
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {

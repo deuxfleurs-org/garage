@@ -25,11 +25,15 @@ impl Migrate {
 			.open_tree("bucket:table")
 			.map_err(GarageError::from)?;
 
-		for res in tree.iter() {
+		let mut old_buckets = vec![];
+		for res in tree.iter().map_err(GarageError::from)? {
 			let (_k, v) = res.map_err(GarageError::from)?;
 			let bucket = rmp_serde::decode::from_read_ref::<_, old_bucket::Bucket>(&v[..])
 				.map_err(GarageError::from)?;
+			old_buckets.push(bucket);
+		}
 
+		for bucket in old_buckets {
 			if let old_bucket::BucketState::Present(p) = bucket.state.get() {
 				self.migrate_buckets050_do_bucket(&bucket, p).await?;
 			}

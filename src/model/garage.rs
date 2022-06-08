@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use netapp::NetworkKey;
 
+use garage_db as db;
+
 use garage_util::background::*;
 use garage_util::config::*;
 
@@ -33,7 +35,7 @@ pub struct Garage {
 	pub config: Config,
 
 	/// The local database
-	pub db: sled::Db,
+	pub db: db::Db,
 	/// A background job runner
 	pub background: Arc<BackgroundRunner>,
 	/// The membership manager
@@ -71,7 +73,7 @@ pub struct GarageK2V {
 
 impl Garage {
 	/// Create and run garage
-	pub fn new(config: Config, db: sled::Db, background: Arc<BackgroundRunner>) -> Arc<Self> {
+	pub fn new(config: Config, db: db::Db, background: Arc<BackgroundRunner>) -> Arc<Self> {
 		let network_key = NetworkKey::from_slice(
 			&hex::decode(&config.rpc_secret).expect("Invalid RPC secret key")[..],
 		)
@@ -199,7 +201,7 @@ impl Garage {
 
 #[cfg(feature = "k2v")]
 impl GarageK2V {
-	fn new(system: Arc<System>, db: &sled::Db, meta_rep_param: TableShardedReplication) -> Self {
+	fn new(system: Arc<System>, db: &db::Db, meta_rep_param: TableShardedReplication) -> Self {
 		info!("Initialize K2V counter table...");
 		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db);
 		info!("Initialize K2V subscription manager...");

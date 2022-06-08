@@ -13,6 +13,8 @@ use opentelemetry::{
 	Context,
 };
 
+use garage_db as db;
+
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
@@ -69,7 +71,7 @@ where
 {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
-	pub fn new(instance: F, replication: R, system: Arc<System>, db: &sled::Db) -> Arc<Self> {
+	pub fn new(instance: F, replication: R, system: Arc<System>, db: &db::Db) -> Arc<Self> {
 		let endpoint = system
 			.netapp
 			.endpoint(format!("garage_table/table.rs/Rpc:{}", F::TABLE_NAME));

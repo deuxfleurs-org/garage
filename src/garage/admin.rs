@@ -660,11 +660,11 @@ impl AdminRpcHandler {
 			}
 			Ok(AdminRpc::Ok(ret))
 		} else {
-			Ok(AdminRpc::Ok(self.gather_stats_local(opt)))
+			Ok(AdminRpc::Ok(self.gather_stats_local(opt)?))
 		}
 	}
 
-	fn gather_stats_local(&self, opt: StatsOpt) -> String {
+	fn gather_stats_local(&self, opt: StatsOpt) -> Result<String, Error> {
 		let mut ret = String::new();
 		writeln!(
 			&mut ret,
@@ -672,6 +672,7 @@ impl AdminRpcHandler {
 			self.garage.system.garage_version(),
 		)
 		.unwrap();
+		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();
 
 		// Gather ring statistics
 		let ring = self.garage.system.ring.borrow().clone();
@@ -689,59 +690,71 @@ impl AdminRpcHandler {
 			writeln!(&mut ret, "  {:?} {}", n, c).unwrap();
 		}
 
-		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt);
+		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
 
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
 		if opt.detailed {
 			writeln!(
 				&mut ret,
 				"  number of RC entries (~= number of blocks): {}",
-				self.garage.block_manager.rc_len()
+				self.garage.block_manager.rc_len()?
 			)
 			.unwrap();
 		}
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
-			self.garage.block_manager.resync_queue_len()
+			self.garage.block_manager.resync_queue_len()?
 		)
 		.unwrap();
 		writeln!(
 			&mut ret,
 			"  blocks with resync errors: {}",
-			self.garage.block_manager.resync_errors_len()
+			self.garage.block_manager.resync_errors_len()?
 		)
 		.unwrap();
 
-		ret
+		Ok(ret)
 	}
 
-	fn gather_table_stats<F, R>(&self, to: &mut String, t: &Arc<Table<F, R>>, opt: &StatsOpt)
+	fn gather_table_stats<F, R>(
+		&self,
+		to: &mut String,
+		t: &Arc<Table<F, R>>,
+		opt: &StatsOpt,
+	) -> Result<(), Error>
 	where
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
 		writeln!(to, "\nTable stats for {}", F::TABLE_NAME).unwrap();
 		if opt.detailed {
-			writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
+			writeln!(
+				to,
+				"  number of items: {}",
+				t.data.store.len().map_err(GarageError::from)?
+			)
+			.unwrap();
 			writeln!(
 				to,
 				"  Merkle tree size: {}",
-				t.merkle_updater.merkle_tree_len()
+				t.merkle_updater.merkle_tree_len()?
 			)
 			.unwrap();
 		}
 		writeln!(
 			to,
 			"  Merkle updater todo queue length: {}",
-			t.merkle_updater.todo_len()
+			t.merkle_updater.todo_len()?
 		)
 		.unwrap();
-		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
+		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()?).unwrap();
+
+		Ok(())
 	}
 }
 

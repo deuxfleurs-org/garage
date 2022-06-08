@@ -14,6 +14,8 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+garage_db = { version = "0.8.0", path = "../db" }
+
 blake2 = "0.9"
 err-derive = "0.3"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
@@ -21,8 +23,6 @@ hex = "0.4"
 tracing = "0.1.30"
 rand = "0.8"
 sha2 = "0.9"
-
-sled = "0.34"
 
 chrono = "0.4"
 rmp-serde = "0.15"

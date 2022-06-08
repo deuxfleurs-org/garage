@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use garage_db as db;
+
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
@@ -232,7 +234,12 @@ impl TableSchema for ObjectTable {
 	type E = Object;
 	type Filter = ObjectFilter;
 
-	fn updated(&self, old: Option<&Self::E>, new: Option<&Self::E>) {
+	fn updated(
+		&self,
+		_tx: &mut db::Transaction,
+		old: Option<&Self::E>,
+		new: Option<&Self::E>,
+	) -> db::TxOpResult<()> {
 		let version_table = self.version_table.clone();
 		let old = old.cloned();
 		let new = new.cloned();
@@ -259,7 +266,8 @@ impl TableSchema for ObjectTable {
 				}
 			}
 			Ok(())
-		})
+		});
+		Ok(())
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
