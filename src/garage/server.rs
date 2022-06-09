@@ -57,12 +57,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 			db_path.push("db.lmdb");
 			info!("Opening LMDB database at: {}", db_path.display());
 			std::fs::create_dir_all(&db_path).expect("Unable to create LMDB data directory");
-			let map_size = if u32::MAX as usize == usize::MAX {
-				warn!("LMDB is not recommended on 32-bit systems, database size will be limited");
-				1usize << 30 // 1GB for 32-bit systems
-			} else {
-				1usize << 40 // 1TB for 64-bit systems
-			};
+			let map_size = garage_db::lmdb_adapter::recommended_map_size();
 
 			let db = db::lmdb_adapter::heed::EnvOpenOptions::new()
 				.max_dbs(100)
