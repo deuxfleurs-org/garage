@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use futures::future::Future;
 use hyper::header;
-use hyper::{Body, Method, Request, Response};
+use hyper::{Body, Request, Response};
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -167,14 +167,7 @@ impl ApiHandler for S3ApiServer {
 			return Err(Error::forbidden("Operation is not allowed for this key."));
 		}
 
-		// Look up what CORS rule might apply to response.
-		// Requests for methods different than GET, HEAD or POST
-		// are always preflighted, i.e. the browser should make
-		// an OPTIONS call before to check it is allowed
-		let matching_cors_rule = match *req.method() {
-			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)?,
-			_ => None,
-		};
+		let matching_cors_rule = find_matching_cors_rule(&bucket, &req)?;
 
 		let resp = match endpoint {
 			Endpoint::HeadObject {
