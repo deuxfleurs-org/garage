@@ -139,6 +139,14 @@ impl IDb for LmdbDb {
 		Ok(old_val)
 	}
 
+	fn clear(&self, tree: usize) -> Result<()> {
+		let tree = self.get_tree(tree)?;
+		let mut tx = self.db.write_txn()?;
+		tree.clear(&mut tx)?;
+		tx.commit()?;
+		Ok(())
+	}
+
 	fn iter(&self, tree: usize) -> Result<ValueIter<'_>> {
 		let tree = self.get_tree(tree)?;
 		let tx = self.db.read_txn()?;

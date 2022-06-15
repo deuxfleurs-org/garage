@@ -24,11 +24,12 @@ use garage_model::migrate::Migrate;
 use garage_model::permission::*;
 
 use crate::cli::*;
-use crate::repair::Repair;
+use crate::repair::online::OnlineRepair;
 
 pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum AdminRpc {
 	BucketOperation(BucketOperation),
 	KeyOperation(KeyOperation),
@@ -39,7 +40,11 @@ pub enum AdminRpc {
 	// Replies
 	Ok(String),
 	BucketList(Vec<Bucket>),
-	BucketInfo(Bucket, HashMap<String, Key>),
+	BucketInfo {
+		bucket: Bucket,
+		relevant_keys: HashMap<String, Key>,
+		counters: HashMap<String, i64>,
+	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
 }
@@ -72,6 +77,7 @@ impl AdminRpcHandler {
 			BucketOperation::Allow(query) => self.handle_bucket_allow(query).await,
 			BucketOperation::Deny(query) => self.handle_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.handle_bucket_website(query).await,
+			BucketOperation::SetQuotas(query) => self.handle_bucket_set_quotas(query).await,
 		}
 	}
 
@@ -87,6 +93,7 @@ impl AdminRpcHandler {
 				EnumerationOrder::Forward,
 			)
 			.await?;
+
 		Ok(AdminRpc::BucketList(buckets))
 	}
 
@@ -103,6 +110,15 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)
 			.await?;
+
+		let counters = self
+			.garage
+			.object_counter_table
+			.table
+			.get(&bucket_id, &EmptyKey)
+			.await?
+			.map(|x| x.filtered_values(&self.garage.system.ring.borrow()))
+			.unwrap_or_default();
 
 		let mut relevant_keys = HashMap::new();
 		for (k, _) in bucket
@@ -139,7 +155,11 @@ impl AdminRpcHandler {
 			}
 		}
 
-		Ok(AdminRpc::BucketInfo(bucket, relevant_keys))
+		Ok(AdminRpc::BucketInfo {
+			bucket,
+			relevant_keys,
+			counters,
+		})
 	}
 
 	#[allow(clippy::ptr_arg)]
@@ -431,6 +451,60 @@ impl AdminRpcHandler {
 		Ok(AdminRpc::Ok(msg))
 	}
 
+	async fn handle_bucket_set_quotas(&self, query: &SetQuotasOpt) -> Result<AdminRpc, Error> {
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&query.bucket)
+			.await?
+			.ok_or_bad_request("Bucket not found")?;
+
+		let mut bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+		let bucket_state = bucket.state.as_option_mut().unwrap();
+
+		if query.max_size.is_none() && query.max_objects.is_none() {
+			return Err(Error::BadRequest(
+				"You must specify either --max-size or --max-objects (or both) for this command to do something.".to_string(),
+			));
+		}
+
+		let mut quotas = bucket_state.quotas.get().clone();
+
+		match query.max_size.as_ref().map(String::as_ref) {
+			Some("none") => quotas.max_size = None,
+			Some(v) => {
+				let bs = v
+					.parse::<bytesize::ByteSize>()
+					.ok_or_bad_request(format!("Invalid size specified: {}", v))?;
+				quotas.max_size = Some(bs.as_u64());
+			}
+			_ => (),
+		}
+
+		match query.max_objects.as_ref().map(String::as_ref) {
+			Some("none") => quotas.max_objects = None,
+			Some(v) => {
+				let mo = v
+					.parse::<u64>()
+					.ok_or_bad_request(format!("Invalid number specified: {}", v))?;
+				quotas.max_objects = Some(mo);
+			}
+			_ => (),
+		}
+
+		bucket_state.quotas.update(quotas);
+		self.garage.bucket_table.insert(&bucket).await?;
+
+		Ok(AdminRpc::Ok(format!(
+			"Quotas updated for {}",
+			&query.bucket
+		)))
+	}
+
 	async fn handle_key_cmd(&self, cmd: &KeyOperation) -> Result<AdminRpc, Error> {
 		match cmd {
 			KeyOperation::List => self.handle_list_keys().await,
@@ -619,7 +693,7 @@ impl AdminRpcHandler {
 				)))
 			}
 		} else {
-			let repair = Repair {
+			let repair = OnlineRepair {
 				garage: self.garage.clone(),
 			};
 			self.garage

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use garage_table::crdt::Crdt;
+use garage_table::crdt::*;
 use garage_table::*;
 use garage_util::data::*;
 use garage_util::time::*;
@@ -44,6 +44,9 @@ pub struct BucketParams {
 	pub website_config: crdt::Lww<Option<WebsiteConfig>>,
 	/// CORS rules
 	pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+	/// Bucket quotas
+	#[serde(default)]
+	pub quotas: crdt::Lww<BucketQuotas>,
 }
 
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -62,6 +65,18 @@ pub struct CorsRule {
 	pub expose_headers: Vec<String>,
 }
 
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+pub struct BucketQuotas {
+	/// Maximum size in bytes (bucket size = sum of sizes of objects in the bucket)
+	pub max_size: Option<u64>,
+	/// Maximum number of non-deleted objects in the bucket
+	pub max_objects: Option<u64>,
+}
+
+impl AutoCrdt for BucketQuotas {
+	const WARN_IF_DIFFERENT: bool = true;
+}
+
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
 	pub fn new() -> Self {
@@ -72,6 +87,7 @@ impl BucketParams {
 			local_aliases: crdt::LwwMap::new(),
 			website_config: crdt::Lww::new(None),
 			cors_config: crdt::Lww::new(None),
+			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
 }
@@ -86,6 +102,7 @@ impl Crdt for BucketParams {
 
 		self.website_config.merge(&o.website_config);
 		self.cors_config.merge(&o.cors_config);
+		self.quotas.merge(&o.quotas);
 	}
 }
 

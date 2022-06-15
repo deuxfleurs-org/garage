@@ -6,6 +6,7 @@ use garage_db as db;
 
 use garage_util::background::*;
 use garage_util::config::*;
+use garage_util::error::Error;
 
 use garage_rpc::system::System;
 
@@ -22,12 +23,11 @@ use crate::s3::version_table::*;
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
 use crate::helper;
+use crate::index_counter::*;
 use crate::key_table::*;
 
 #[cfg(feature = "k2v")]
-use crate::index_counter::*;
-#[cfg(feature = "k2v")]
-use crate::k2v::{counter_table::*, item_table::*, poll::*, rpc::*};
+use crate::k2v::{item_table::*, poll::*, rpc::*};
 
 /// An entire Garage full of data
 pub struct Garage {
@@ -52,6 +52,8 @@ pub struct Garage {
 
 	/// Table containing S3 objects
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
+	/// Counting table containing object counters
+	pub object_counter_table: Arc<IndexCounter<Object>>,
 	/// Table containing S3 object versions
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	/// Table containing S3 block references (not blocks themselves)
@@ -66,14 +68,57 @@ pub struct GarageK2V {
 	/// Table containing K2V items
 	pub item_table: Arc<Table<K2VItemTable, TableShardedReplication>>,
 	/// Indexing table containing K2V item counters
-	pub counter_table: Arc<IndexCounter<K2VCounterTable>>,
+	pub counter_table: Arc<IndexCounter<K2VItem>>,
 	/// K2V RPC handler
 	pub rpc: Arc<K2VRpcHandler>,
 }
 
 impl Garage {
 	/// Create and run garage
-	pub fn new(config: Config, db: db::Db, background: Arc<BackgroundRunner>) -> Arc<Self> {
+	pub fn new(config: Config, background: Arc<BackgroundRunner>) -> Result<Arc<Self>, Error> {
+		info!("Opening database...");
+		let mut db_path = config.metadata_dir.clone();
+		std::fs::create_dir_all(&db_path).expect("Unable to create Garage meta data directory");
+		let db = match config.db_engine.as_str() {
+			"sled" => {
+				db_path.push("db");
+				info!("Opening Sled database at: {}", db_path.display());
+				let db = db::sled_adapter::sled::Config::default()
+					.path(&db_path)
+					.cache_capacity(config.sled_cache_capacity)
+					.flush_every_ms(Some(config.sled_flush_every_ms))
+					.open()
+					.expect("Unable to open sled DB");
+				db::sled_adapter::SledDb::init(db)
+			}
+			"sqlite" | "sqlite3" | "rusqlite" => {
+				db_path.push("db.sqlite");
+				info!("Opening Sqlite database at: {}", db_path.display());
+				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
+					.expect("Unable to open sqlite DB");
+				db::sqlite_adapter::SqliteDb::init(db)
+			}
+			"lmdb" | "heed" => {
+				db_path.push("db.lmdb");
+				info!("Opening LMDB database at: {}", db_path.display());
+				std::fs::create_dir_all(&db_path).expect("Unable to create LMDB data directory");
+				let map_size = garage_db::lmdb_adapter::recommended_map_size();
+
+				let db = db::lmdb_adapter::heed::EnvOpenOptions::new()
+					.max_dbs(100)
+					.map_size(map_size)
+					.open(&db_path)
+					.expect("Unable to open LMDB DB");
+				db::lmdb_adapter::LmdbDb::init(db)
+			}
+			e => {
+				return Err(Error::Message(format!(
+					"Unsupported DB engine: {} (options: sled, sqlite, lmdb)",
+					e
+				)));
+			}
+		};
+
 		let network_key = NetworkKey::from_slice(
 			&hex::decode(&config.rpc_secret).expect("Invalid RPC secret key")[..],
 		)
@@ -155,12 +200,16 @@ impl Garage {
 			&db,
 		);
 
+		info!("Initialize object counter table...");
+		let object_counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), &db);
+
 		info!("Initialize object_table...");
 		#[allow(clippy::redundant_clone)]
 		let object_table = Table::new(
 			ObjectTable {
 				background: background.clone(),
 				version_table: version_table.clone(),
+				object_counter_table: object_counter_table.clone(),
 			},
 			meta_rep_param.clone(),
 			system.clone(),
@@ -171,9 +220,8 @@ impl Garage {
 		#[cfg(feature = "k2v")]
 		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
 
-		info!("Initialize Garage...");
-
-		Arc::new(Self {
+		// -- done --
+		Ok(Arc::new(Self {
 			config,
 			db,
 			background,
@@ -183,11 +231,12 @@ impl Garage {
 			bucket_alias_table,
 			key_table,
 			object_table,
+			object_counter_table,
 			version_table,
 			block_ref_table,
 			#[cfg(feature = "k2v")]
 			k2v,
-		})
+		}))
 	}
 
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {

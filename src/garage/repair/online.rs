@@ -11,11 +11,11 @@ use garage_util::error::Error;
 
 use crate::*;
 
-pub struct Repair {
+pub struct OnlineRepair {
 	pub garage: Arc<Garage>,
 }
 
-impl Repair {
+impl OnlineRepair {
 	pub async fn repair_worker(&self, opt: RepairOpt, must_exit: watch::Receiver<bool>) {
 		if let Err(e) = self.repair_worker_aux(opt, must_exit).await {
 			warn!("Repair worker failed with error: {}", e);

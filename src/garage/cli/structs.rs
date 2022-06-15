@@ -33,9 +33,14 @@ pub enum Command {
 	#[structopt(name = "migrate")]
 	Migrate(MigrateOpt),
 
-	/// Start repair of node data
+	/// Start repair of node data on remote node
 	#[structopt(name = "repair")]
 	Repair(RepairOpt),
+
+	/// Offline reparation of node data (these repairs must be run offline
+	/// directly on the server node)
+	#[structopt(name = "offline-repair")]
+	OfflineRepair(OfflineRepairOpt),
 
 	/// Gather node statistics
 	#[structopt(name = "stats")]
@@ -175,6 +180,10 @@ pub enum BucketOperation {
 	/// Expose as website or not
 	#[structopt(name = "website")]
 	Website(WebsiteOpt),
+
+	/// Set the quotas for this bucket
+	#[structopt(name = "set-quotas")]
+	SetQuotas(SetQuotasOpt),
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -259,6 +268,21 @@ pub struct PermBucketOpt {
 
 	/// Bucket name
 	pub bucket: String,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct SetQuotasOpt {
+	/// Bucket name
+	pub bucket: String,
+
+	/// Set a maximum size for the bucket (specify a size e.g. in MiB or GiB,
+	/// or `none` for no size restriction)
+	#[structopt(long = "max-size")]
+	pub max_size: Option<String>,
+
+	/// Set a maximum number of objects for the bucket (or `none` for no restriction)
+	#[structopt(long = "max-objects")]
+	pub max_objects: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -403,6 +427,27 @@ pub enum RepairWhat {
 		#[structopt(name = "tranquility", default_value = "2")]
 		tranquility: u32,
 	},
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+pub struct OfflineRepairOpt {
+	/// Confirm the launch of the repair operation
+	#[structopt(long = "yes")]
+	pub yes: bool,
+
+	#[structopt(subcommand)]
+	pub what: OfflineRepairWhat,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum OfflineRepairWhat {
+	/// Repair K2V item counters
+	#[cfg(feature = "k2v")]
+	#[structopt(name = "k2v_item_counters")]
+	K2VItemCounters,
+	/// Repair object counters
+	#[structopt(name = "object_counters")]
+	ObjectCounters,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]

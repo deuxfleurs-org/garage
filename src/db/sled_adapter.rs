@@ -113,6 +113,12 @@ impl IDb for SledDb {
 		Ok(old_val.map(|x| x.to_vec()))
 	}
 
+	fn clear(&self, tree: usize) -> Result<()> {
+		let tree = self.get_tree(tree)?;
+		tree.clear()?;
+		Ok(())
+	}
+
 	fn iter(&self, tree: usize) -> Result<ValueIter<'_>> {
 		let tree = self.get_tree(tree)?;
 		Ok(Box::new(tree.iter().map(|v| {

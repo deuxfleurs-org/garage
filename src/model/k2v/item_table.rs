@@ -10,8 +10,12 @@ use garage_table::*;
 
 use crate::index_counter::*;
 use crate::k2v::causality::*;
-use crate::k2v::counter_table::*;
 use crate::k2v::poll::*;
+
+pub const ENTRIES: &str = "entries";
+pub const CONFLICTS: &str = "conflicts";
+pub const VALUES: &str = "values";
+pub const BYTES: &str = "bytes";
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct K2VItem {
@@ -112,27 +116,6 @@ impl K2VItem {
 			ent.discard();
 		}
 	}
-
-	// returns counters: (non-deleted entries, conflict entries, non-tombstone values, bytes used)
-	fn stats(&self) -> (i64, i64, i64, i64) {
-		let values = self.values();
-
-		let n_entries = if self.is_tombstone() { 0 } else { 1 };
-		let n_conflicts = if values.len() > 1 { 1 } else { 0 };
-		let n_values = values
-			.iter()
-			.filter(|v| matches!(v, DvvsValue::Value(_)))
-			.count() as i64;
-		let n_bytes = values
-			.iter()
-			.map(|v| match v {
-				DvvsValue::Deleted => 0,
-				DvvsValue::Value(v) => v.len() as i64,
-			})
-			.sum();
-
-		(n_entries, n_conflicts, n_values, n_bytes)
-	}
 }
 
 impl DvvsEntry {
@@ -204,7 +187,7 @@ impl Entry<K2VItemPartition, String> for K2VItem {
 }
 
 pub struct K2VItemTable {
-	pub(crate) counter_table: Arc<IndexCounter<K2VCounterTable>>,
+	pub(crate) counter_table: Arc<IndexCounter<K2VItem>>,
 	pub(crate) subscriptions: Arc<SubscriptionManager>,
 }
 
@@ -229,40 +212,14 @@ impl TableSchema for K2VItemTable {
 		new: Option<&Self::E>,
 	) -> db::TxOpResult<()> {
 		// 1. Count
-		let (old_entries, old_conflicts, old_values, old_bytes) = match old {
-			None => (0, 0, 0, 0),
-			Some(e) => e.stats(),
-		};
-		let (new_entries, new_conflicts, new_values, new_bytes) = match new {
-			None => (0, 0, 0, 0),
-			Some(e) => e.stats(),
-		};
-
-		let count_pk = old
-			.map(|e| e.partition.bucket_id)
-			.unwrap_or_else(|| new.unwrap().partition.bucket_id);
-		let count_sk = old
-			.map(|e| &e.partition.partition_key)
-			.unwrap_or_else(|| &new.unwrap().partition.partition_key);
-
-		let counter_res = self.counter_table.count(
-			tx,
-			&count_pk,
-			count_sk,
-			&[
-				(ENTRIES, new_entries - old_entries),
-				(CONFLICTS, new_conflicts - old_conflicts),
-				(VALUES, new_values - old_values),
-				(BYTES, new_bytes - old_bytes),
-			],
-		);
+		let counter_res = self.counter_table.count(tx, old, new);
 		if let Err(e) = db::unabort(counter_res)? {
 			// This result can be returned by `counter_table.count()` for instance
 			// if messagepack serialization or deserialization fails at some step.
 			// Warn admin but ignore this error for now, that's all we can do.
 			error!(
-				"Unable to update K2V item counter for bucket {:?} partition {}: {}. Index values will be wrong!",
-				count_pk, count_sk, e
+				"Unable to update K2V item counter: {}. Index values will be wrong!",
+				e
 			);
 		}
 
@@ -279,6 +236,47 @@ impl TableSchema for K2VItemTable {
 		let v = entry.values();
 		!(filter.conflicts_only && v.len() < 2)
 			&& !(filter.exclude_only_tombstones && entry.is_tombstone())
+	}
+}
+
+impl CountedItem for K2VItem {
+	const COUNTER_TABLE_NAME: &'static str = "k2v_index_counter_v2";
+
+	// Partition key = bucket id
+	type CP = Uuid;
+	// Sort key = K2V item's partition key
+	type CS = String;
+
+	fn counter_partition_key(&self) -> &Uuid {
+		&self.partition.bucket_id
+	}
+	fn counter_sort_key(&self) -> &String {
+		&self.partition.partition_key
+	}
+
+	fn counts(&self) -> Vec<(&'static str, i64)> {
+		let values = self.values();
+
+		let n_entries = if self.is_tombstone() { 0 } else { 1 };
+		let n_conflicts = if values.len() > 1 { 1 } else { 0 };
+		let n_values = values
+			.iter()
+			.filter(|v| matches!(v, DvvsValue::Value(_)))
+			.count() as i64;
+		let n_bytes = values
+			.iter()
+			.map(|v| match v {
+				DvvsValue::Deleted => 0,
+				DvvsValue::Value(v) => v.len() as i64,
+			})
+			.sum();
+
+		vec![
+			(ENTRIES, n_entries),
+			(CONFLICTS, n_conflicts),
+			(VALUES, n_values),
+			(BYTES, n_bytes),
+		]
 	}
 }
 

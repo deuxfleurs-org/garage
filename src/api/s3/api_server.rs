@@ -212,7 +212,7 @@ impl ApiHandler for S3ApiServer {
 				.await
 			}
 			Endpoint::PutObject { key } => {
-				handle_put(garage, req, bucket_id, &key, content_sha256).await
+				handle_put(garage, req, &bucket, &key, content_sha256).await
 			}
 			Endpoint::AbortMultipartUpload { key, upload_id } => {
 				handle_abort_multipart_upload(garage, bucket_id, &key, &upload_id).await
@@ -226,7 +226,7 @@ impl ApiHandler for S3ApiServer {
 					garage,
 					req,
 					&bucket_name,
-					bucket_id,
+					&bucket,
 					&key,
 					&upload_id,
 					content_sha256,

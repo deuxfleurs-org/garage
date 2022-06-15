@@ -197,6 +197,11 @@ impl Tree {
 	pub fn remove<T: AsRef<[u8]>>(&self, key: T) -> Result<Option<Value>> {
 		self.0.remove(self.1, key.as_ref())
 	}
+	/// Clears all values from the tree
+	#[inline]
+	pub fn clear(&self) -> Result<()> {
+		self.0.clear(self.1)
+	}
 
 	#[inline]
 	pub fn iter(&self) -> Result<ValueIter<'_>> {
@@ -311,6 +316,7 @@ pub(crate) trait IDb: Send + Sync {
 
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>>;
 	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
+	fn clear(&self, tree: usize) -> Result<()>;
 
 	fn iter(&self, tree: usize) -> Result<ValueIter<'_>>;
 	fn iter_rev(&self, tree: usize) -> Result<ValueIter<'_>>;

@@ -156,12 +156,7 @@ impl ApiHandler for AdminApiServer {
 			}
 			Endpoint::CreateBucket => handle_create_bucket(&self.garage, req).await,
 			Endpoint::DeleteBucket { id } => handle_delete_bucket(&self.garage, id).await,
-			Endpoint::PutBucketWebsite { id } => {
-				handle_put_bucket_website(&self.garage, id, req).await
-			}
-			Endpoint::DeleteBucketWebsite { id } => {
-				handle_delete_bucket_website(&self.garage, id).await
-			}
+			Endpoint::UpdateBucket { id } => handle_update_bucket(&self.garage, id, req).await,
 			// Bucket-key permissions
 			Endpoint::BucketAllowKey => {
 				handle_bucket_change_key_perm(&self.garage, req, true).await

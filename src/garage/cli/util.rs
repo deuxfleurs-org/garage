@@ -7,6 +7,7 @@ use garage_util::formater::format_table;
 
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
+use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
 
 pub fn print_bucket_list(bl: Vec<Bucket>) {
 	println!("List of buckets:");
@@ -29,11 +30,12 @@ pub fn print_bucket_list(bl: Vec<Bucket>) {
 			[((k, n), _, _)] => format!("{}:{}", k, n),
 			s => format!("[{} local aliases]", s.len()),
 		};
+
 		table.push(format!(
 			"\t{}\t{}\t{}",
 			aliases.join(","),
 			local_aliases_n,
-			hex::encode(bucket.id)
+			hex::encode(bucket.id),
 		));
 	}
 	format_table(table);
@@ -121,7 +123,11 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 	}
 }
 
-pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) {
+pub fn print_bucket_info(
+	bucket: &Bucket,
+	relevant_keys: &HashMap<String, Key>,
+	counters: &HashMap<String, i64>,
+) {
 	let key_name = |k| {
 		relevant_keys
 			.get(k)
@@ -133,7 +139,42 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 	match &bucket.state {
 		Deletable::Deleted => println!("Bucket is deleted."),
 		Deletable::Present(p) => {
-			println!("Website access: {}", p.website_config.get().is_some());
+			let size =
+				bytesize::ByteSize::b(counters.get(BYTES).cloned().unwrap_or_default() as u64);
+			println!(
+				"\nSize: {} ({})",
+				size.to_string_as(true),
+				size.to_string_as(false)
+			);
+			println!(
+				"Objects: {}",
+				counters.get(OBJECTS).cloned().unwrap_or_default()
+			);
+			println!(
+				"Unfinished multipart uploads: {}",
+				counters
+					.get(UNFINISHED_UPLOADS)
+					.cloned()
+					.unwrap_or_default()
+			);
+
+			println!("\nWebsite access: {}", p.website_config.get().is_some());
+
+			let quotas = p.quotas.get();
+			if quotas.max_size.is_some() || quotas.max_objects.is_some() {
+				println!("\nQuotas:");
+				if let Some(ms) = quotas.max_size {
+					let ms = bytesize::ByteSize::b(ms);
+					println!(
+						" maximum size: {} ({})",
+						ms.to_string_as(true),
+						ms.to_string_as(false)
+					);
+				}
+				if let Some(mo) = quotas.max_objects {
+					println!(" maximum number of objects: {}", mo);
+				}
+			}
 
 			println!("\nGlobal aliases:");
 			for (alias, _, active) in p.aliases.items().iter() {

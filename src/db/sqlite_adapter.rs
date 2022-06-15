@@ -182,6 +182,16 @@ impl IDb for SqliteDb {
 		Ok(old_val)
 	}
 
+	fn clear(&self, tree: usize) -> Result<()> {
+		trace!("clear {}: lock db", tree);
+		let this = self.0.lock().unwrap();
+		trace!("clear {}: lock acquired", tree);
+
+		let tree = this.get_tree(tree)?;
+		this.db.execute(&format!("DELETE FROM {}", tree), [])?;
+		Ok(())
+	}
+
 	fn iter(&self, tree: usize) -> Result<ValueIter<'_>> {
 		trace!("iter {}: lock db", tree);
 		let this = self.0.lock().unwrap();

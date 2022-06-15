@@ -11,9 +11,14 @@ use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
+use crate::index_counter::*;
 use crate::s3::version_table::*;
 
 use garage_model_050::object_table as old;
+
+pub const OBJECTS: &str = "objects";
+pub const UNFINISHED_UPLOADS: &str = "unfinished_uploads";
+pub const BYTES: &str = "bytes";
 
 /// An object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -218,6 +223,7 @@ impl Crdt for Object {
 pub struct ObjectTable {
 	pub background: Arc<BackgroundRunner>,
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
+	pub object_counter_table: Arc<IndexCounter<Object>>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -236,10 +242,20 @@ impl TableSchema for ObjectTable {
 
 	fn updated(
 		&self,
-		_tx: &mut db::Transaction,
+		tx: &mut db::Transaction,
 		old: Option<&Self::E>,
 		new: Option<&Self::E>,
 	) -> db::TxOpResult<()> {
+		// 1. Count
+		let counter_res = self.object_counter_table.count(tx, old, new);
+		if let Err(e) = db::unabort(counter_res)? {
+			error!(
+				"Unable to update object counter: {}. Index values will be wrong!",
+				e
+			);
+		}
+
+		// 2. Spawn threads that propagates deletions to version table
 		let version_table = self.version_table.clone();
 		let old = old.cloned();
 		let new = new.cloned();
@@ -280,6 +296,49 @@ impl TableSchema for ObjectTable {
 	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
 		let old_obj = rmp_serde::decode::from_read_ref::<_, old::Object>(bytes).ok()?;
 		Some(migrate_object(old_obj))
+	}
+}
+
+impl CountedItem for Object {
+	const COUNTER_TABLE_NAME: &'static str = "bucket_object_counter";
+
+	// Partition key = bucket id
+	type CP = Uuid;
+	// Sort key = nothing
+	type CS = EmptyKey;
+
+	fn counter_partition_key(&self) -> &Uuid {
+		&self.bucket_id
+	}
+	fn counter_sort_key(&self) -> &EmptyKey {
+		&EmptyKey
+	}
+
+	fn counts(&self) -> Vec<(&'static str, i64)> {
+		let versions = self.versions();
+		let n_objects = if versions.iter().any(|v| v.is_data()) {
+			1
+		} else {
+			0
+		};
+		let n_unfinished_uploads = versions
+			.iter()
+			.filter(|v| matches!(v.state, ObjectVersionState::Uploading(_)))
+			.count();
+		let n_bytes = versions
+			.iter()
+			.map(|v| match &v.state {
+				ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _))
+				| ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta.size,
+				_ => 0,
+			})
+			.sum::<u64>();
+
+		vec![
+			(OBJECTS, n_objects),
+			(UNFINISHED_UPLOADS, n_unfinished_uploads as i64),
+			(BYTES, n_bytes as i64),
+		]
 	}
 }
 

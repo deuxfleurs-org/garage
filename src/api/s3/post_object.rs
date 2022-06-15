@@ -22,7 +22,7 @@ use crate::signature::payload::{parse_date, verify_v4};
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
 	req: Request<Body>,
-	bucket: String,
+	bucket_name: String,
 ) -> Result<Response<Body>, Error> {
 	let boundary = req
 		.headers()
@@ -126,12 +126,17 @@ pub async fn handle_post_object(
 
 	let bucket_id = garage
 		.bucket_helper()
-		.resolve_bucket(&bucket, &api_key)
+		.resolve_bucket(&bucket_name, &api_key)
 		.await?;
 
 	if !api_key.allow_write(&bucket_id) {
 		return Err(Error::forbidden("Operation is not allowed for this key."));
 	}
+
+	let bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
 
 	let decoded_policy = base64::decode(&policy).ok_or_bad_request("Invalid policy")?;
 	let decoded_policy: Policy =
@@ -227,7 +232,7 @@ pub async fn handle_post_object(
 		garage,
 		headers,
 		StreamLimiter::new(stream, conditions.content_length),
-		bucket_id,
+		&bucket,
 		&key,
 		None,
 		None,
@@ -244,7 +249,7 @@ pub async fn handle_post_object(
 	{
 		target
 			.query_pairs_mut()
-			.append_pair("bucket", &bucket)
+			.append_pair("bucket", &bucket_name)
 			.append_pair("key", &key)
 			.append_pair("etag", &etag);
 		let target = target.to_string();
@@ -289,7 +294,7 @@ pub async fn handle_post_object(
 				let xml = s3_xml::PostObject {
 					xmlns: (),
 					location: s3_xml::Value(location),
-					bucket: s3_xml::Value(bucket),
+					bucket: s3_xml::Value(bucket_name),
 					key: s3_xml::Value(key),
 					etag: s3_xml::Value(etag),
 				};

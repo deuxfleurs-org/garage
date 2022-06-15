@@ -61,17 +61,17 @@ async fn main() {
 	pretty_env_logger::init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
+	// Abort on panic (same behavior as in Go)
+	std::panic::set_hook(Box::new(|panic_info| {
+		error!("{}", panic_info.to_string());
+		std::process::abort();
+	}));
+
 	let opt = Opt::from_args();
-
 	let res = match opt.cmd {
-		Command::Server => {
-			// Abort on panic (same behavior as in Go)
-			std::panic::set_hook(Box::new(|panic_info| {
-				error!("{}", panic_info.to_string());
-				std::process::abort();
-			}));
-
-			server::run_server(opt.config_file).await
+		Command::Server => server::run_server(opt.config_file).await,
+		Command::OfflineRepair(repair_opt) => {
+			repair::offline::offline_repair(opt.config_file, repair_opt).await
 		}
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
 			node_id_command(opt.config_file, node_id_opt.quiet)

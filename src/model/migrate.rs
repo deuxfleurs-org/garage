@@ -77,6 +77,7 @@ impl Migrate {
 					local_aliases: LwwMap::new(),
 					website_config: Lww::new(website),
 					cors_config: Lww::new(None),
+					quotas: Lww::new(Default::default()),
 				}),
 			})
 			.await?;

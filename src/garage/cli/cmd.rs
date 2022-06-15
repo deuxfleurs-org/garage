@@ -169,8 +169,12 @@ pub async fn cmd_admin(
 		AdminRpc::BucketList(bl) => {
 			print_bucket_list(bl);
 		}
-		AdminRpc::BucketInfo(bucket, rk) => {
-			print_bucket_info(&bucket, &rk);
+		AdminRpc::BucketInfo {
+			bucket,
+			relevant_keys,
+			counters,
+		} => {
+			print_bucket_info(&bucket, &relevant_keys, &counters);
 		}
 		AdminRpc::KeyList(kl) => {
 			print_key_list(kl);
