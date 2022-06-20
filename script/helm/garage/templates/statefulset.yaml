@@ -26,6 +26,23 @@ spec:
       serviceAccountName: {{ include "garage.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Copies garage.toml from configmap to temporary etc volume and replaces RPC secret placeholder
+        - name: {{ .Chart.Name }}-init
+          image: busybox:1.28
+          command: ["sh", "-c", "sed \"s/__RPC_SECRET_REPLACE__/$RPC_SECRET/\" /mnt/garage.toml > /mnt/etc/garage.toml"]
+          env:
+            - name: RPC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garage.rpcSecretName" . }}
+                  key: rpcSecret
+          volumeMounts:
+            - name: configmap
+              mountPath: /mnt/garage.toml
+              subPath: garage.toml
+            - name: etc
+              mountPath: /mnt/etc
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -57,9 +74,11 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
-        - name: etc
+        - name: configmap
           configMap:
             name: {{ include "garage.fullname" . }}-config
+        - name: etc
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

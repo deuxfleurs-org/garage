@@ -10,7 +10,8 @@ data:
     replication_mode = "{{ .Values.garage.replicationMode }}"
 
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
-    rpc_secret = "{{ .Values.garage.rpcSecret }}"
+    # rpc_secret will be populated by the init container from a k8s secret object
+    rpc_secret = "__RPC_SECRET_REPLACE__"
 
     bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
 

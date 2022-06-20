@@ -8,7 +8,8 @@ garage:
   dataDir: "/mnt/data"
   replicationMode: "3"
   rpcBindAddr: "[::]:3901"
-  rpcSecret: "1799bccfd7411eddcf9ebd316bc1f5287ad12a68094e1c6ac6abde7e6feae1ec"
+  # If not given, a random secret will be generated
+  rpcSecret: ""
   bootstrapPeers: []
   kubernetesSkipCrd: false
   s3:
