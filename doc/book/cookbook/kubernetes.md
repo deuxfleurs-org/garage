@@ -44,8 +44,8 @@ This is an example `values.overrride.yaml` for deploying in a microk8s cluster w
 
 ```yaml
 garage:
-  # Make sure to generate a new secret for your deployment
-  rpcSecret: "1799bccfd7411eddcf9ebd316bc1f5287ad12a68094e1c6ac6abde7e6feae1ec"
+  # Use only 2 replicas per object
+  replicationMode: "3"
 
 # Start 4 instances (StatefulSets) of garage
 replicaCount: 4
