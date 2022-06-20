@@ -16,6 +16,12 @@ With custom values:
 helm install --create-namespace --namespace garage garage ./garage -f values.override.yaml
 ```
 
+After deploying, cluster layout must be configured manually as per garage's documentation. Use the following command to access garage CLI:
+
+```bash
+kubectl exec --stdin --tty -n garage garage-0 -- ./garage status
+```
+
 ## Overriding default values
 
 All possible configuration values can be found in [values.yaml](garage/values.yaml).
