@@ -45,7 +45,7 @@ This is an example `values.overrride.yaml` for deploying in a microk8s cluster w
 ```yaml
 garage:
   # Use only 2 replicas per object
-  replicationMode: "3"
+  replicationMode: "2"
 
 # Start 4 instances (StatefulSets) of garage
 replicaCount: 4
