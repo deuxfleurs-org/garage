@@ -148,7 +148,7 @@ Please open an issue if you have a use case for replication.
 | [PutBucketReplication](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketReplication.html) | ❌ Missing | ❌| ⚠ | ❌| ❌|
 
 *Note: Ceph documentation briefly says that Ceph supports
-[replication though the S3 API](https://docs.ceph.com/en/latest/radosgw/multisite-sync-policy/#s3-replication-api)
+[replication through the S3 API](https://docs.ceph.com/en/latest/radosgw/multisite-sync-policy/#s3-replication-api)
 but with some limitations.
 Additionaly, replication endpoints are not documented in the S3 compatibility page so I don't know what kind of support we can expect.*
 
