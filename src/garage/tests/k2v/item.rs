@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::common;
 
 use assert_json_diff::assert_json_eq;
@@ -86,6 +88,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res_body, content);
 
 		// ReadIndex -- now there should be some stuff
+		tokio::time::sleep(Duration::from_secs(1)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -154,6 +157,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res_body, content2);
 
 		// ReadIndex -- now there should be some stuff
+		tokio::time::sleep(Duration::from_secs(1)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -222,6 +226,7 @@ async fn test_items_and_indices() {
 		);
 
 		// ReadIndex -- now there should be some stuff
+		tokio::time::sleep(Duration::from_secs(1)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -290,6 +295,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res.status(), 204);
 
 		// ReadIndex -- now there should be some stuff
+		tokio::time::sleep(Duration::from_secs(1)).await;
 		let res = ctx
 			.k2v
 			.request
