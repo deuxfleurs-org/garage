@@ -55,6 +55,19 @@ enum Command {
 		#[clap(flatten)]
 		output_kind: ReadOutputKind,
 	},
+	/// Watch changes on  a single value
+	Poll {
+		/// Partition key to delete from
+		partition_key: String,
+		/// Sort key to delete from
+		sort_key: String,
+		/// Causality information
+		#[clap(short, long)]
+		causality: String,
+		/// Output formating
+		#[clap(flatten)]
+		output_kind: ReadOutputKind,
+	},
 	/// Delete a single value
 	Delete {
 		/// Partition key to delete from
@@ -323,6 +336,21 @@ async fn main() -> Result<(), Error> {
 		} => {
 			let res = client.read_item(&partition_key, &sort_key).await?;
 			output_kind.display_output(res);
+		}
+		Command::Poll {
+			partition_key,
+			sort_key,
+			causality,
+			output_kind,
+		} => {
+			let res_opt = client
+				.poll_item(&partition_key, &sort_key, causality.into(), None)
+				.await?;
+			if let Some(res) = res_opt {
+				output_kind.display_output(res);
+			} else {
+				println!("Delay expired and value didn't change.");
+			}
 		}
 		Command::ReadIndex {
 			output_kind,
