@@ -122,13 +122,13 @@ impl K2vClient {
 
 		let res = self.dispatch(req, Some(timeout + DEFAULT_TIMEOUT)).await?;
 
-		let causality = res
-			.causality_token
-			.ok_or_else(|| Error::InvalidResponse("missing causality token".into()))?;
-
 		if res.status == StatusCode::NOT_MODIFIED {
 			return Ok(None);
 		}
+
+		let causality = res
+			.causality_token
+			.ok_or_else(|| Error::InvalidResponse("missing causality token".into()))?;
 
 		if res.status == StatusCode::NO_CONTENT {
 			return Ok(Some(CausalValue {

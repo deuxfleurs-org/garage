@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use k2v_client::*;
 
 use garage_util::formater::format_table;
@@ -64,6 +66,9 @@ enum Command {
 		/// Causality information
 		#[clap(short, long)]
 		causality: String,
+		/// Timeout, in seconds
+		#[clap(short, long)]
+		timeout: Option<u64>,
 		/// Output formating
 		#[clap(flatten)]
 		output_kind: ReadOutputKind,
@@ -341,10 +346,12 @@ async fn main() -> Result<(), Error> {
 			partition_key,
 			sort_key,
 			causality,
+			timeout,
 			output_kind,
 		} => {
+			let timeout = timeout.map(Duration::from_secs);
 			let res_opt = client
-				.poll_item(&partition_key, &sort_key, causality.into(), None)
+				.poll_item(&partition_key, &sort_key, causality.into(), timeout)
 				.await?;
 			if let Some(res) = res_opt {
 				output_kind.display_output(res);
