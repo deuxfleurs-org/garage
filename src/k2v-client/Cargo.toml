@@ -1,7 +1,12 @@
 [package]
 name = "k2v-client"
-version = "0.1.0"
+version = "0.0.1"
+authors = ["Trinity Pointard <trinity.pointard@gmail.com>", "Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
+license = "AGPL-3.0"
+description = "Client library for the Garage K2V protocol"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+readme = "../../README.md"
 
 [dependencies]
 base64 = "0.13.0"
@@ -17,7 +22,7 @@ tokio = "1.17.0"
 
 # cli deps
 clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
-garage_util = { path = "../util", optional = true }
+garage_util = { version = "0.7.0", path = "../util", optional = true }
 
 
 [features]
