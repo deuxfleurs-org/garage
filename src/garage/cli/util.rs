@@ -1,13 +1,18 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
+use garage_util::background::*;
 use garage_util::crdt::*;
 use garage_util::data::Uuid;
 use garage_util::error::*;
 use garage_util::formater::format_table;
+use garage_util::time::*;
 
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
 use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
+
+use crate::cli::structs::WorkerListOpt;
 
 pub fn print_bucket_list(bl: Vec<Bucket>) {
 	println!("List of buckets:");
@@ -234,4 +239,57 @@ pub fn find_matching_node(
 	} else {
 		Ok(candidates[0])
 	}
+}
+
+pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
+	let mut wi = wi.into_iter().collect::<Vec<_>>();
+	wi.sort_by_key(|(tid, info)| {
+		(
+			match info.state {
+				WorkerState::Busy | WorkerState::Throttled(_) => 0,
+				WorkerState::Idle => 1,
+				WorkerState::Done => 2,
+			},
+			*tid,
+		)
+	});
+
+	let mut table = vec![];
+	for (tid, info) in wi.iter() {
+		if wlo.busy && !matches!(info.state, WorkerState::Busy | WorkerState::Throttled(_)) {
+			continue;
+		}
+		if wlo.errors && info.errors == 0 {
+			continue;
+		}
+
+		table.push(format!("{}\t{}\t{}", tid, info.state, info.name));
+		if let Some(i) = &info.info {
+			table.push(format!("\t\t  {}", i));
+		}
+		let tf = timeago::Formatter::new();
+		let (err_ago, err_msg) = info
+			.last_error
+			.as_ref()
+			.map(|(m, t)| {
+				(
+					tf.convert(Duration::from_millis(now_msec() - t)),
+					m.as_str(),
+				)
+			})
+			.unwrap_or(("(?) ago".into(), "(?)"));
+		if info.consecutive_errors > 0 {
+			table.push(format!(
+				"\t\t  {} consecutive errors ({} total), last {}",
+				info.consecutive_errors, info.errors, err_ago,
+			));
+			table.push(format!("\t\t  {}", err_msg));
+		} else if info.errors > 0 {
+			table.push(format!("\t\t  ({} errors, last {})", info.errors, err_ago,));
+			if wlo.errors {
+				table.push(format!("\t\t  {}", err_msg));
+			}
+		}
+	}
+	format_table(table);
 }

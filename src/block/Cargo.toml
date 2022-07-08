@@ -21,6 +21,7 @@ garage_table = { version = "0.7.0", path = "../table" }
 
 opentelemetry = "0.17"
 
+arc-swap = "1.5"
 async-trait = "0.1.7"
 bytes = "1.0"
 hex = "0.4"

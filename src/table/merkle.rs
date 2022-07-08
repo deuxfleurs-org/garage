@@ -1,14 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::select;
-use futures_util::future::*;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 
 use garage_db as db;
 
-use garage_util::background::BackgroundRunner;
+use garage_util::background::*;
 use garage_util::data::*;
 use garage_util::error::Error;
 
@@ -78,43 +77,17 @@ where
 			empty_node_hash,
 		});
 
-		let ret2 = ret.clone();
-		background.spawn_worker(
-			format!("Merkle tree updater for {}", F::TABLE_NAME),
-			|must_exit: watch::Receiver<bool>| ret2.updater_loop(must_exit),
-		);
+		background.spawn_worker(MerkleWorker(ret.clone()));
 
 		ret
 	}
 
-	async fn updater_loop(self: Arc<Self>, mut must_exit: watch::Receiver<bool>) {
-		while !*must_exit.borrow() {
-			match self.updater_loop_iter() {
-				Ok(true) => (),
-				Ok(false) => {
-					select! {
-						_ = self.data.merkle_todo_notify.notified().fuse() => {},
-						_ = must_exit.changed().fuse() => {},
-					}
-				}
-				Err(e) => {
-					warn!(
-						"({}) Error while updating Merkle tree item: {}",
-						F::TABLE_NAME,
-						e
-					);
-					tokio::time::sleep(Duration::from_secs(10)).await;
-				}
-			}
-		}
-	}
-
-	fn updater_loop_iter(&self) -> Result<bool, Error> {
+	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
 			self.update_item(&key, &valhash)?;
-			Ok(true)
+			Ok(WorkerState::Busy)
 		} else {
-			Ok(false)
+			Ok(WorkerState::Idle)
 		}
 	}
 
@@ -322,6 +295,54 @@ where
 
 	pub fn todo_len(&self) -> Result<usize, Error> {
 		Ok(self.data.merkle_todo.len()?)
+	}
+}
+
+struct MerkleWorker<F, R>(Arc<MerkleUpdater<F, R>>)
+where
+	F: TableSchema + 'static,
+	R: TableReplication + 'static;
+
+#[async_trait]
+impl<F, R> Worker for MerkleWorker<F, R>
+where
+	F: TableSchema + 'static,
+	R: TableReplication + 'static,
+{
+	fn name(&self) -> String {
+		format!("{} Merkle tree updater", F::TABLE_NAME)
+	}
+
+	fn info(&self) -> Option<String> {
+		let l = self.0.todo_len().unwrap_or(0);
+		if l > 0 {
+			Some(format!("{} items in queue", l))
+		} else {
+			None
+		}
+	}
+
+	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+		let updater = self.0.clone();
+		tokio::task::spawn_blocking(move || {
+			for _i in 0..100 {
+				let s = updater.updater_loop_iter();
+				if !matches!(s, Ok(WorkerState::Busy)) {
+					return s;
+				}
+			}
+			Ok(WorkerState::Busy)
+		})
+		.await
+		.unwrap()
+	}
+
+	async fn wait_for_work(&mut self, must_exit: &watch::Receiver<bool>) -> WorkerState {
+		if *must_exit.borrow() {
+			return WorkerState::Done;
+		}
+		tokio::time::sleep(Duration::from_secs(10)).await;
+		WorkerState::Busy
 	}
 }
 

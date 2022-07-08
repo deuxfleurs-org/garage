@@ -24,7 +24,7 @@ use garage_model::migrate::Migrate;
 use garage_model::permission::*;
 
 use crate::cli::*;
-use crate::repair::online::OnlineRepair;
+use crate::repair::online::launch_online_repair;
 
 pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 
@@ -36,6 +36,7 @@ pub enum AdminRpc {
 	LaunchRepair(RepairOpt),
 	Migrate(MigrateOpt),
 	Stats(StatsOpt),
+	Worker(WorkerOpt),
 
 	// Replies
 	Ok(String),
@@ -47,6 +48,10 @@ pub enum AdminRpc {
 	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
+	WorkerList(
+		HashMap<usize, garage_util::background::WorkerInfo>,
+		WorkerListOpt,
+	),
 }
 
 impl Rpc for AdminRpc {
@@ -693,15 +698,7 @@ impl AdminRpcHandler {
 				)))
 			}
 		} else {
-			let repair = OnlineRepair {
-				garage: self.garage.clone(),
-			};
-			self.garage
-				.system
-				.background
-				.spawn_worker("Repair worker".into(), move |must_exit| async move {
-					repair.repair_worker(opt, must_exit).await
-				});
+			launch_online_repair(self.garage.clone(), opt).await;
 			Ok(AdminRpc::Ok(format!(
 				"Repair launched on {:?}",
 				self.garage.system.id
@@ -830,6 +827,17 @@ impl AdminRpcHandler {
 
 		Ok(())
 	}
+
+	// ----
+
+	async fn handle_worker_cmd(&self, opt: WorkerOpt) -> Result<AdminRpc, Error> {
+		match opt.cmd {
+			WorkerCmd::List { opt } => {
+				let workers = self.garage.background.get_worker_info();
+				Ok(AdminRpc::WorkerList(workers, opt))
+			}
+		}
+	}
 }
 
 #[async_trait]
@@ -845,6 +853,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Migrate(opt) => self.handle_migrate(opt.clone()).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
+			AdminRpc::Worker(opt) => self.handle_worker_cmd(opt.clone()).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

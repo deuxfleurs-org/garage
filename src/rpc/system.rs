@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -104,6 +104,9 @@ pub struct System {
 
 	/// The job runner of this node
 	pub background: Arc<BackgroundRunner>,
+
+	/// Path to metadata directory
+	pub metadata_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +298,7 @@ impl System {
 			ring,
 			update_ring: Mutex::new(update_ring),
 			background,
+			metadata_dir: config.metadata_dir.clone(),
 		});
 		sys.system_endpoint.set_handler(sys.clone());
 		sys

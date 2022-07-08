@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use log::trace;
+use tracing::trace;
 
 use rusqlite::{params, Connection, Rows, Statement, Transaction};
 

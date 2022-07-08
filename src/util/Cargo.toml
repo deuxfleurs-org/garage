@@ -16,6 +16,7 @@ path = "lib.rs"
 [dependencies]
 garage_db = { version = "0.8.0", path = "../db" }
 
+async-trait = "0.1"
 blake2 = "0.9"
 err-derive = "0.3"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }

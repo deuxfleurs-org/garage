@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Duration;
 
 use garage_util::error::*;
 use garage_util::formater::format_table;
@@ -39,6 +40,7 @@ pub async fn cli_command_dispatch(
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::LaunchRepair(ro)).await
 		}
 		Command::Stats(so) => cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::Stats(so)).await,
+		Command::Worker(wo) => cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::Worker(wo)).await,
 		_ => unreachable!(),
 	}
 }
@@ -100,6 +102,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
 		for adv in status.iter().filter(|adv| !adv.is_up) {
 			if let Some(NodeRoleV(Some(cfg))) = layout.roles.get(&adv.id) {
+				let tf = timeago::Formatter::new();
 				failed_nodes.push(format!(
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
 					id = adv.id,
@@ -110,7 +113,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					capacity = cfg.capacity_string(),
 					last_seen = adv
 						.last_seen_secs_ago
-						.map(|s| format!("{}s ago", s))
+						.map(|s| tf.convert(Duration::from_secs(s)))
 						.unwrap_or_else(|| "never seen".into()),
 				));
 			}
@@ -181,6 +184,9 @@ pub async fn cmd_admin(
 		}
 		AdminRpc::KeyInfo(key, rb) => {
 			print_key_info(&key, &rb);
+		}
+		AdminRpc::WorkerList(wi, wlo) => {
+			print_worker_info(wi, wlo);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
 
+use crate::background::WorkerState;
+
 /// A tranquilizer is a helper object that is used to make
 /// background operations not take up too much time.
 ///
@@ -33,7 +35,7 @@ impl Tranquilizer {
 		}
 	}
 
-	pub async fn tranquilize(&mut self, tranquility: u32) {
+	fn tranquilize_internal(&mut self, tranquility: u32) -> Option<Duration> {
 		let observation = Instant::now() - self.last_step_begin;
 
 		self.observations.push_back(observation);
@@ -45,13 +47,32 @@ impl Tranquilizer {
 
 		if !self.observations.is_empty() {
 			let delay = (tranquility * self.sum_observations) / (self.observations.len() as u32);
-			sleep(delay).await;
+			Some(delay)
+		} else {
+			None
 		}
+	}
 
-		self.reset();
+	pub async fn tranquilize(&mut self, tranquility: u32) {
+		if let Some(delay) = self.tranquilize_internal(tranquility) {
+			sleep(delay).await;
+			self.reset();
+		}
+	}
+
+	#[must_use]
+	pub fn tranquilize_worker(&mut self, tranquility: u32) -> WorkerState {
+		match self.tranquilize_internal(tranquility) {
+			Some(delay) => WorkerState::Throttled(delay.as_secs_f32()),
+			None => WorkerState::Busy,
+		}
 	}
 
 	pub fn reset(&mut self) {
 		self.last_step_begin = Instant::now();
+	}
+
+	pub fn clear(&mut self) {
+		self.observations.clear();
 	}
 }
