@@ -9,7 +9,6 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
-use tracing::*;
 
 use crate::background::WorkerInfo;
 use crate::error::Error;

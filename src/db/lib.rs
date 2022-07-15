@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate tracing;
+
 pub mod lmdb_adapter;
 pub mod sled_adapter;
 pub mod sqlite_adapter;
