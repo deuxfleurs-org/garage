@@ -104,11 +104,16 @@ impl Garage {
 				std::fs::create_dir_all(&db_path).expect("Unable to create LMDB data directory");
 				let map_size = garage_db::lmdb_adapter::recommended_map_size();
 
-				let db = db::lmdb_adapter::heed::EnvOpenOptions::new()
-					.max_dbs(100)
-					.map_size(map_size)
-					.open(&db_path)
-					.expect("Unable to open LMDB DB");
+				use db::lmdb_adapter::heed;
+				let mut env_builder = heed::EnvOpenOptions::new();
+				env_builder.max_dbs(100);
+				env_builder.max_readers(500);
+				env_builder.map_size(map_size);
+				unsafe {
+					env_builder.flag(heed::flags::Flags::MdbNoSync);
+					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
+				}
+				let db = env_builder.open(&db_path).expect("Unable to open LMDB DB");
 				db::lmdb_adapter::LmdbDb::init(db)
 			}
 			e => {

@@ -8,6 +8,11 @@ use hyper::{Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::Sha256;
 
+use opentelemetry::{
+	trace::{FutureExt as OtelFutureExt, TraceContextExt, Tracer},
+	Context,
+};
+
 use garage_table::*;
 use garage_util::async_hash::*;
 use garage_util::data::*;
@@ -279,12 +284,21 @@ async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	first_block_hash: Hash,
 	chunker: &mut StreamChunker<S>,
 ) -> Result<(u64, GenericArray<u8, typenum::U16>, Hash), Error> {
+	let tracer = opentelemetry::global::tracer("garage");
+
 	let first_block = Bytes::from(first_block);
 
 	let md5hasher = AsyncHasher::<Md5>::new();
 	let sha256hasher = AsyncHasher::<Sha256>::new();
-	md5hasher.update(first_block.clone());
-	sha256hasher.update(first_block.clone());
+
+	futures::future::join(
+		md5hasher.update(first_block.clone()),
+		sha256hasher.update(first_block.clone()),
+	)
+	.with_context(Context::current_with_span(
+		tracer.start("Hash first block (md5, sha256)"),
+	))
+	.await;
 
 	let mut next_offset = first_block.len();
 	let mut put_curr_version_block = put_block_meta(
@@ -307,9 +321,15 @@ async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		)?;
 		if let Some(block) = next_block {
 			let block = Bytes::from(block);
-			md5hasher.update(block.clone());
-			sha256hasher.update(block.clone());
-			let block_hash = async_blake2sum(block.clone()).await;
+			let (_, _, block_hash) = futures::future::join3(
+				md5hasher.update(block.clone()),
+				sha256hasher.update(block.clone()),
+				async_blake2sum(block.clone()),
+			)
+			.with_context(Context::current_with_span(
+				tracer.start("Hash block (md5, sha256, blake2)"),
+			))
+			.await;
 			let block_len = block.len();
 			put_curr_version_block = put_block_meta(
 				garage,
