@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use zstd::stream::{decode_all as zstd_decode, Encoder};
 
@@ -61,13 +62,17 @@ impl DataBlock {
 		}
 	}
 
-	pub fn from_buffer(data: Vec<u8>, level: Option<i32>) -> DataBlock {
-		if let Some(level) = level {
-			if let Ok(data) = zstd_encode(&data[..], level) {
-				return DataBlock::Compressed(data);
+	pub async fn from_buffer(data: Bytes, level: Option<i32>) -> DataBlock {
+		tokio::task::spawn_blocking(move || {
+			if let Some(level) = level {
+				if let Ok(data) = zstd_encode(&data[..], level) {
+					return DataBlock::Compressed(data);
+				}
 			}
-		}
-		DataBlock::Plain(data)
+			DataBlock::Plain(data.to_vec()) // TODO: remove to_vec here
+		})
+		.await
+		.unwrap()
 	}
 }
 

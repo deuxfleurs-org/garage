@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use futures::future::*;
@@ -211,14 +212,15 @@ impl BlockManager {
 	}
 
 	/// Send block to nodes that should have it
-	pub async fn rpc_put_block(&self, hash: Hash, data: Vec<u8>) -> Result<(), Error> {
+	pub async fn rpc_put_block(&self, hash: Hash, data: Bytes) -> Result<(), Error> {
 		let who = self.replication.write_nodes(&hash);
-		let data = DataBlock::from_buffer(data, self.compression_level);
+		let data = DataBlock::from_buffer(data, self.compression_level).await;
 		self.system
 			.rpc
 			.try_call_many(
 				&self.endpoint,
 				&who[..],
+				// TODO: remove to_vec() here
 				BlockRpc::PutBlock { hash, data },
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.replication.write_quorum())
