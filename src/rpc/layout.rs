@@ -495,9 +495,7 @@ impl ClusterLayout {
 					zone: _,
 					capacity: Some(c),
 					tags: _,
-				}) => {
-						*c
-				}
+				}) => *c,
 				_ => 0,
 			})
 			.collect();
