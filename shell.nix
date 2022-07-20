@@ -1,8 +1,5 @@
 {
   system ? builtins.currentSystem,
-  rust ? true,
-  integration ? true,
-  release ? true,
 }:
 
 with import ./nix/common.nix;
@@ -16,9 +13,59 @@ let
   winscp = (import ./nix/winscp.nix) pkgs;
 
 in
+  {
 
-pkgs.mkShell {
-  shellHook = ''
+    /* --- Rust Shell ---
+     * Use it to compile Garage
+     */
+    rust = pkgs.mkShell {
+      shellHook = ''
+function refresh_toolchain {
+  nix copy \
+    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
+    $(nix-store -qR \
+      $(nix-build --quiet --no-build-output --no-out-link nix/toolchain.nix))
+}
+      '';
+
+      nativeBuildInputs = [
+        pkgs.rustPlatform.rust.rustc
+        pkgs.rustPlatform.rust.cargo
+        pkgs.clippy
+        pkgs.rustfmt
+        pkgs.perl
+        pkgs.protobuf
+        pkgs.pkg-config
+        pkgs.openssl
+        pkgs.file
+        cargo2nix.packages.x86_64-linux.cargo2nix
+      ];
+    };
+
+    /* --- Integration shell ---
+     * Use it to test Garage with common S3 clients
+     */
+    integration = pkgs.mkShell {
+      nativeBuildInputs = [
+        winscp
+        pkgs.s3cmd
+        pkgs.awscli2
+        pkgs.minio-client
+        pkgs.rclone
+        pkgs.socat
+        pkgs.psmisc
+        pkgs.which
+        pkgs.openssl
+        pkgs.curl
+        pkgs.jq
+      ];
+    };
+
+    /* --- Release shell ---
+     * A shell built to make releasing easier
+     */
+    release = pkgs.mkShell {
+      shellHook = ''
 function to_s3 {
   aws \
       --endpoint-url https://garage.deuxfleurs.fr \
@@ -62,45 +109,12 @@ function refresh_index {
       result/share/_releases.html \
       s3://garagehq.deuxfleurs.fr/
 }
+        '';
+      nativeBuildInputs = [
+        pkgs.awscli2
+        kaniko 
+      ];
+    };
+  }
 
-function refresh_toolchain {
-  nix copy \
-    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-    $(nix-store -qR \
-      $(nix-build --quiet --no-build-output --no-out-link nix/toolchain.nix))
-}
-  '';
 
-  nativeBuildInputs = 
-   (if rust then [
-     pkgs.rustPlatform.rust.rustc
-     pkgs.rustPlatform.rust.cargo
-     pkgs.clippy
-     pkgs.rustfmt
-     pkgs.perl
-     pkgs.protobuf
-     pkgs.pkg-config
-     pkgs.openssl
-     cargo2nix.packages.x86_64-linux.cargo2nix
-    ] else [])
-   ++
-   (if integration then [
-     winscp
-     pkgs.s3cmd
-     pkgs.awscli2
-     pkgs.minio-client
-     pkgs.rclone
-     pkgs.socat
-     pkgs.psmisc
-     pkgs.which
-     pkgs.openssl
-     pkgs.curl
-     pkgs.jq
-    ] else [])
-   ++
-   (if release then [ 
-     pkgs.awscli2
-     kaniko 
-    ] else [])
-   ;
-}
