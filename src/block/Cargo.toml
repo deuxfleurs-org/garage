@@ -27,6 +27,8 @@ bytes = "1.0"
 hex = "0.4"
 tracing = "0.1.30"
 rand = "0.8"
+
+async-compression = { version = "0.3", features = ["tokio", "zstd"] }
 zstd = { version = "0.9", default-features = false }
 
 rmp-serde = "0.15"
@@ -36,3 +38,4 @@ serde_bytes = "0.11"
 futures = "0.3"
 futures-util = "0.3"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+tokio-util = { version = "0.6", features = ["io"] }

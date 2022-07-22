@@ -242,10 +242,13 @@ pub async fn handle_get(
 			Ok(resp_builder.body(body)?)
 		}
 		ObjectVersionData::FirstBlock(_, first_block_hash) => {
-			let read_first_block = garage.block_manager.rpc_get_block(first_block_hash);
+			let read_first_block = garage
+				.block_manager
+				.rpc_get_block_streaming(first_block_hash);
 			let get_next_blocks = garage.version_table.get(&last_v.uuid, &EmptyKey);
 
-			let (first_block, version) = futures::try_join!(read_first_block, get_next_blocks)?;
+			let (first_block_stream, version) =
+				futures::try_join!(read_first_block, get_next_blocks)?;
 			let version = version.ok_or(Error::NoSuchKey)?;
 
 			let mut blocks = version
@@ -254,24 +257,32 @@ pub async fn handle_get(
 				.iter()
 				.map(|(_, vb)| (vb.hash, None))
 				.collect::<Vec<_>>();
-			blocks[0].1 = Some(first_block);
+			blocks[0].1 = Some(first_block_stream);
 
 			let body_stream = futures::stream::iter(blocks)
-				.map(move |(hash, data_opt)| {
+				.map(move |(hash, stream_opt)| {
 					let garage = garage.clone();
 					async move {
-						if let Some(data) = data_opt {
-							Ok(Bytes::from(data))
+						if let Some(stream) = stream_opt {
+							stream
 						} else {
 							garage
 								.block_manager
-								.rpc_get_block(&hash)
+								.rpc_get_block_streaming(&hash)
 								.await
-								.map(Bytes::from)
+								.unwrap_or_else(|_| {
+									Box::pin(futures::stream::once(async move {
+										Err(std::io::Error::new(
+											std::io::ErrorKind::Other,
+											"Could not get next block",
+										))
+									}))
+								})
 						}
 					}
 				})
-				.buffered(2);
+				.buffered(3)
+				.flatten();
 
 			let body = hyper::body::Body::wrap_stream(body_stream);
 			Ok(resp_builder.body(body)?)

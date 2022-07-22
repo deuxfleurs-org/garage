@@ -15,10 +15,13 @@ use opentelemetry::{
 	Context,
 };
 
-pub use netapp::endpoint::{Endpoint, EndpointHandler};
-pub use netapp::message::{Message as Rpc, *};
+pub use netapp::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
+use netapp::message::IntoReq;
+pub use netapp::message::{
+	Message as Rpc, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH, PRIO_NORMAL,
+};
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-pub use netapp::{NetApp, NodeID};
+pub use netapp::{self, NetApp, NodeID};
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -117,7 +120,7 @@ impl RpcHelper {
 	where
 		M: Rpc<Response = Result<S, Error>>,
 		N: IntoReq<M> + Send,
-		H: EndpointHandler<M>,
+		H: StreamingEndpointHandler<M>,
 	{
 		let metric_tags = [
 			KeyValue::new("rpc_endpoint", endpoint.path().to_string()),
@@ -172,7 +175,7 @@ impl RpcHelper {
 	where
 		M: Rpc<Response = Result<S, Error>>,
 		N: IntoReq<M>,
-		H: EndpointHandler<M>,
+		H: StreamingEndpointHandler<M>,
 	{
 		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
 
@@ -197,7 +200,7 @@ impl RpcHelper {
 	where
 		M: Rpc<Response = Result<S, Error>>,
 		N: IntoReq<M>,
-		H: EndpointHandler<M>,
+		H: StreamingEndpointHandler<M>,
 	{
 		let to = self
 			.0
@@ -211,16 +214,17 @@ impl RpcHelper {
 
 	/// Make a RPC call to multiple servers, returning either a Vec of responses,
 	/// or an error if quorum could not be reached due to too many errors
-	pub async fn try_call_many<M, H, S>(
+	pub async fn try_call_many<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strategy: RequestStrategy,
 	) -> Result<Vec<S>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
-		H: EndpointHandler<M> + 'static,
+		N: IntoReq<M>,
+		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
@@ -261,7 +265,7 @@ impl RpcHelper {
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
 		N: IntoReq<M>,
-		H: EndpointHandler<M> + 'static,
+		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
 		let msg = msg.into_req().map_err(netapp::error::Error::from)?;

@@ -51,6 +51,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-compression"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00461f243d703f6999c8e7494f077799f1362720a55ae49a90ffe6214032fc0b"
+dependencies = [
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio",
+ "zstd",
+ "zstd-safe",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1070,6 +1084,7 @@ name = "garage_block"
 version = "0.7.0"
 dependencies = [
  "arc-swap",
+ "async-compression",
  "async-trait",
  "bytes 1.2.0",
  "futures",
@@ -1085,6 +1100,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "tokio",
+ "tokio-util 0.6.9",
  "tracing",
  "zstd",
 ]
@@ -1292,7 +1308,7 @@ version = "0.7.0"
 dependencies = [
  "async-trait",
  "blake2",
- "bytes 1.1.0",
+ "bytes 1.2.0",
  "chrono",
  "digest 0.10.3",
  "err-derive 0.3.1",
