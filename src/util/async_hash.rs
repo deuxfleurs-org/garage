@@ -56,3 +56,9 @@ impl<D: Digest> AsyncHasher<D> {
 		self.task.await.unwrap()
 	}
 }
+
+impl<D: Digest> Default for AsyncHasher<D> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
