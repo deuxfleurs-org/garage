@@ -1000,7 +1000,7 @@ dependencies = [
  "http",
  "hyper",
  "kuska-sodiumoxide",
- "netapp 0.4.4",
+ "netapp 0.5.0",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
@@ -1147,7 +1147,7 @@ dependencies = [
  "garage_table 0.7.0",
  "garage_util 0.7.0",
  "hex",
- "netapp 0.4.4",
+ "netapp 0.5.0",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -1202,7 +1202,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp 0.4.4",
+ "netapp 0.5.0",
  "openssl",
  "opentelemetry",
  "pnet_datalink",
@@ -1301,7 +1301,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "netapp 0.4.4",
+ "netapp 0.5.0",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -2141,8 +2141,8 @@ dependencies = [
 
 [[package]]
 name = "netapp"
-version = "0.4.4"
-source = "git+https://git.deuxfleurs.fr/lx/netapp?branch=stream-body#cbc21e40acfc420a3e452a1fd488c6a96694b0f2"
+version = "0.5.0"
+source = "git+https://git.deuxfleurs.fr/lx/netapp?branch=stream-body#ab80ade4f0034cbdcf15a99c674730f85eb06870"
 dependencies = [
  "arc-swap",
  "async-trait",
