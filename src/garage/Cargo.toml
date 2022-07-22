@@ -63,7 +63,7 @@ prometheus = "0.13"
 aws-sdk-s3 = "0.8"
 chrono = "0.4"
 http = "0.2"
-hmac = "0.10"
+hmac = "0.12"
 hyper = { version = "0.14", features = ["client", "http1", "runtime"] }
 sha2 = "0.10"
 
