@@ -366,10 +366,7 @@ pub async fn handle_upload_part_copy(
 			// we need to insert that data as a new block.
 			async move {
 				if must_upload {
-					garage2
-						.block_manager
-						.rpc_put_block(final_hash, data.into())
-						.await
+					garage2.block_manager.rpc_put_block(final_hash, data).await
 				} else {
 					Ok(())
 				}

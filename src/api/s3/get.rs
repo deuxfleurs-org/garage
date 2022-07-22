@@ -450,7 +450,6 @@ fn body_from_blocks_range(
 			let garage = garage.clone();
 			async move {
 				let data = garage.block_manager.rpc_get_block(&block.hash).await?;
-				let data = Bytes::from(data);
 				let start_in_block = if true_offset > begin {
 					0
 				} else {
