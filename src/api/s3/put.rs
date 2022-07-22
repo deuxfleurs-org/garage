@@ -286,8 +286,6 @@ async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 ) -> Result<(u64, GenericArray<u8, typenum::U16>, Hash), Error> {
 	let tracer = opentelemetry::global::tracer("garage");
 
-	let first_block = Bytes::from(first_block);
-
 	let md5hasher = AsyncHasher::<Md5>::new();
 	let sha256hasher = AsyncHasher::<Sha256>::new();
 
