@@ -36,7 +36,7 @@ pub async fn cmd_assign_role(
 	args: AssignRoleOpt,
 ) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, &SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => nodes,
@@ -245,7 +245,7 @@ pub async fn fetch_layout(
 	rpc_host: NodeID,
 ) -> Result<ClusterLayout, Error> {
 	match rpc_cli
-		.call(&rpc_host, &SystemRpc::PullClusterLayout, PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::PullClusterLayout, PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::AdvertiseClusterLayout(t) => Ok(t),
@@ -261,7 +261,7 @@ pub async fn send_layout(
 	rpc_cli
 		.call(
 			&rpc_host,
-			&SystemRpc::AdvertiseClusterLayout(layout),
+			SystemRpc::AdvertiseClusterLayout(layout),
 			PRIO_NORMAL,
 		)
 		.await??;

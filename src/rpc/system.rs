@@ -16,8 +16,8 @@ use tokio::sync::watch;
 use tokio::sync::Mutex;
 
 use netapp::endpoint::{Endpoint, EndpointHandler};
+use netapp::message::*;
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-use netapp::proto::*;
 use netapp::util::parse_and_resolve_peer_addr;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
@@ -544,7 +544,7 @@ impl System {
 						SystemRpc::AdvertiseClusterLayout(layout),
 						RequestStrategy::with_priority(PRIO_HIGH),
 					)
-					.await;
+					.await?;
 				Ok(())
 			});
 			self.background.spawn(self.clone().save_cluster_layout());
@@ -559,7 +559,8 @@ impl System {
 
 			self.update_local_status();
 			let local_status: NodeStatus = self.local_status.load().as_ref().clone();
-			self.rpc
+			let _ = self
+				.rpc
 				.broadcast(
 					&self.system_endpoint,
 					SystemRpc::AdvertiseStatus(local_status),

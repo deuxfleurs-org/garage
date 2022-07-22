@@ -60,7 +60,7 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 }
 
 /// Trait for the schema used in a table
-pub trait TableSchema: Send + Sync {
+pub trait TableSchema: Send + Sync + 'static {
 	/// The name of the table in the database
 	const TABLE_NAME: &'static str;
 

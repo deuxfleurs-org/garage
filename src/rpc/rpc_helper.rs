@@ -15,9 +15,9 @@ use opentelemetry::{
 	Context,
 };
 
-pub use netapp::endpoint::{Endpoint, EndpointHandler, Message as Rpc};
+pub use netapp::endpoint::{Endpoint, EndpointHandler};
+pub use netapp::message::{Message as Rpc, *};
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-pub use netapp::proto::*;
 pub use netapp::{NetApp, NodeID};
 
 use garage_util::background::BackgroundRunner;
@@ -30,10 +30,8 @@ use crate::ring::Ring;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
-// Try to never have more than 200MB of outgoing requests
-// buffered at the same time. Other requests are queued until
-// space is freed.
-const REQUEST_BUFFER_SIZE: usize = 200 * 1024 * 1024;
+// Don't allow more than 100 concurrent outgoing RPCs.
+const MAX_CONCURRENT_REQUESTS: usize = 100;
 
 /// Strategy to apply when making RPC
 #[derive(Copy, Clone)]
@@ -95,7 +93,7 @@ impl RpcHelper {
 		background: Arc<BackgroundRunner>,
 		ring: watch::Receiver<Arc<Ring>>,
 	) -> Self {
-		let sem = Arc::new(Semaphore::new(REQUEST_BUFFER_SIZE));
+		let sem = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
 
 		let metrics = RpcMetrics::new(sem.clone());
 
@@ -109,29 +107,16 @@ impl RpcHelper {
 		}))
 	}
 
-	pub async fn call<M, H, S>(
+	pub async fn call<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
 		to: Uuid,
-		msg: M,
+		msg: N,
 		strat: RequestStrategy,
 	) -> Result<S, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
-		H: EndpointHandler<M>,
-	{
-		self.call_arc(endpoint, to, Arc::new(msg), strat).await
-	}
-
-	pub async fn call_arc<M, H, S>(
-		&self,
-		endpoint: &Endpoint<M, H>,
-		to: Uuid,
-		msg: Arc<M>,
-		strat: RequestStrategy,
-	) -> Result<S, Error>
-	where
-		M: Rpc<Response = Result<S, Error>>,
+		N: IntoReq<M> + Send,
 		H: EndpointHandler<M>,
 	{
 		let metric_tags = [
@@ -140,11 +125,10 @@ impl RpcHelper {
 			KeyValue::new("to", format!("{:?}", to)),
 		];
 
-		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
 		let permit = self
 			.0
 			.request_buffer_semaphore
-			.acquire_many(msg_size)
+			.acquire()
 			.record_duration(&self.0.metrics.rpc_queueing_time, &metric_tags)
 			.await?;
 
@@ -152,7 +136,7 @@ impl RpcHelper {
 
 		let node_id = to.into();
 		let rpc_call = endpoint
-			.call(&node_id, msg, strat.rs_priority)
+			.call_streaming(&node_id, msg, strat.rs_priority)
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 
 		select! {
@@ -162,7 +146,7 @@ impl RpcHelper {
 				if res.is_err() {
 					self.0.metrics.rpc_netapp_error_counter.add(1, &metric_tags);
 				}
-				let res = res?;
+				let res = res?.into_msg();
 
 				if res.is_err() {
 					self.0.metrics.rpc_garage_error_counter.add(1, &metric_tags);
@@ -178,37 +162,41 @@ impl RpcHelper {
 		}
 	}
 
-	pub async fn call_many<M, H, S>(
+	pub async fn call_many<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strat: RequestStrategy,
-	) -> Vec<(Uuid, Result<S, Error>)>
+	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
+		N: IntoReq<M>,
 		H: EndpointHandler<M>,
 	{
-		let msg = Arc::new(msg);
+		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+
 		let resps = join_all(
 			to.iter()
-				.map(|to| self.call_arc(endpoint, *to, msg.clone(), strat)),
+				.map(|to| self.call(endpoint, *to, msg.clone(), strat)),
 		)
 		.await;
-		to.iter()
+		Ok(to
+			.iter()
 			.cloned()
 			.zip(resps.into_iter())
-			.collect::<Vec<_>>()
+			.collect::<Vec<_>>())
 	}
 
-	pub async fn broadcast<M, H, S>(
+	pub async fn broadcast<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
-		msg: M,
+		msg: N,
 		strat: RequestStrategy,
-	) -> Vec<(Uuid, Result<S, Error>)>
+	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
+		N: IntoReq<M>,
 		H: EndpointHandler<M>,
 	{
 		let to = self
@@ -262,20 +250,21 @@ impl RpcHelper {
 			.await
 	}
 
-	async fn try_call_many_internal<M, H, S>(
+	async fn try_call_many_internal<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strategy: RequestStrategy,
 		quorum: usize,
 	) -> Result<Vec<S>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
+		N: IntoReq<M>,
 		H: EndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
-		let msg = Arc::new(msg);
+		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
 
 		// Build future for each request
 		// They are not started now: they are added below in a FuturesUnordered
@@ -285,7 +274,7 @@ impl RpcHelper {
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();
 			(to, async move {
-				self2.call_arc(&endpoint2, to, msg, strategy).await
+				self2.call(&endpoint2, to, msg, strategy).await
 			})
 		});
 
