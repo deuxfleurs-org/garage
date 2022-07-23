@@ -56,45 +56,47 @@ in let
   */
   overrides = pkgs.rustBuilder.overrides.all ++ [
     /*
-     [1] We need to alter Nix hardening to be able to statically compile: PIE,
+     [1] We need to alter Nix hardening to make static binaries: PIE,
      Position Independent Executables seems to be supported only on amd64. Having
-     this flags set either make our executables crash or compile as dynamic on many platforms.
-     In the following section codegenOpts, we reactive it for the supported targets
-     (only amd64 curently) through the `-static-pie` flag. PIE is a feature used
-     by ASLR, which helps mitigate security issues.
-     Learn more about Nix Hardening: https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/cc-wrapper/add-hardening.sh
-
-     [2] We want to inject the git version while keeping the build deterministic.
-     As we do not want to consider the .git folder as part of the input source,
-     we ask the user (the CI often) to pass the value to Nix.
+     this flag set either 1. make our executables crash or 2. compile as dynamic on some platforms.
+     Here, we deactivate it. Later (find `codegenOpts`), we reactivate it for supported targets
+     (only amd64 curently) through the `-static-pie` flag.
+     PIE is a feature used by ASLR, which helps mitigate security issues.
+     Learn more about Nix Hardening at: https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/cc-wrapper/add-hardening.sh
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage";
+      overrideAttrs = drv: { hardeningDisable = [ "pie" ]; };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_rpc";
+
+      /*
+       [2] We want to inject the git version while keeping the build deterministic.
+       As we do not want to consider the .git folder as part of the input source,
+       we ask the user (the CI often) to pass the value to Nix.
+      */
       overrideAttrs = drv:
-        /* [1] */ { hardeningDisable = [ "pie" ]; }
-        //
-        /* [2] */ (if git_version != null then {
+        (if git_version != null then {
           preConfigure = ''
             ${drv.preConfigure or ""}
             export GIT_VERSION="${git_version}"
           '';
         } else {});
+
+      /*
+       [3] We ship some parts of the code disabled by default by putting them behind a flag.
+       It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
+       But we want to ship these additional features when we release Garage.
+       In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
+       Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
+      */
+      overrideArgs = old: {
+        features = if release then [ "kubernetes-discovery" ] else [];
+      };
     })
 
-    /*
-     We ship some parts of the code disabled by default by putting them behind a flag.
-     It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
-     But we want to ship these additional features when we release Garage.
-     In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
-     Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
-    */
-    (pkgs.rustBuilder.rustLib.makeOverride {
-      name = "garage_rpc";
-      overrideArgs = old:
-        {
-          features = if release then [ "kubernetes-discovery" ] else [];
-        };
-    })
   ];
 
   packageFun = import ./Cargo.nix;
