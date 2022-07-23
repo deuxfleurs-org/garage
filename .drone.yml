@@ -46,7 +46,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --option log-lines 100 --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: unit + func tests
