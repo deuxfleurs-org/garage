@@ -16,30 +16,41 @@ environment:
   HOME: /drone/garage
 
 steps:
-  - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+  - name: nix maintainance
+    image: nixpkgs/nix:nixos-22.05
+    volumes:
+    - name: nix_store
+      path: /mnt
+    - name: nix_config
+      path: /etc/nix
+    commands:
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
+
+  - name: warmup cache
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix --arg release false  -A inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: code quality
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-shell --arg release false --run "cargo fmt -- --check"
-      - nix-shell --arg release false --run "cargo clippy -- --deny warnings"
+      - nix-shell --attr rust --run "cargo fmt -- --check"
+      - nix-shell --attr rust --run "cargo clippy -- --deny warnings"
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -50,7 +61,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: unit + func tests
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     environment:
       GARAGE_TEST_INTEGRATION_EXE: result/bin/garage
     volumes:
@@ -75,7 +86,7 @@ steps:
       - ./result/bin/integration-*
 
   - name: smoke-test
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -83,7 +94,7 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
-      - nix-shell --arg release false --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 trigger:
   event:
@@ -92,9 +103,6 @@ trigger:
   - pull_request
   - tag
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -113,7 +121,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -121,10 +129,10 @@ steps:
       path: /etc/nix
     commands:
       - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix -A inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -132,19 +140,20 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-shell --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -156,10 +165,10 @@ steps:
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
     commands:
-      - nix-shell --arg rust false --arg integration false --run "to_s3"
+      - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -175,16 +184,13 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --arg rust false --arg integration false --run "to_docker"
+      - nix-shell --attr release --run "to_docker"
 
 
 trigger:
   event:
   - promote
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -203,7 +209,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -211,10 +217,10 @@ steps:
       path: /etc/nix
     commands:
       - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix -A inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -222,19 +228,20 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-shell --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -246,10 +253,10 @@ steps:
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
     commands:
-      - nix-shell --arg rust false --arg integration false --run "to_s3"
+      - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -265,15 +272,12 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --arg rust false --arg integration false --run "to_docker"
+      - nix-shell --attr release --run "to_docker"
 
 trigger:
   event:
   - promote
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -292,7 +296,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -300,10 +304,10 @@ steps:
       path: /etc/nix
     commands:
       - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link ./shell.nix --arg rust false --arg integration false -A inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix  -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -311,9 +315,10 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -325,10 +330,10 @@ steps:
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
     commands:
-      - nix-shell --arg rust false --arg integration false --run "to_s3"
+      - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -344,15 +349,12 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --arg rust false --arg integration false --run "to_docker"
+      - nix-shell --attr release --run "to_docker"
 
 trigger:
   event:
   - promote
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -371,7 +373,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -379,10 +381,10 @@ steps:
       path: /etc/nix
     commands:
       - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link --arg rust false --arg integration false -A inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -390,9 +392,10 @@ steps:
       path: /etc/nix
     commands:
       - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -404,10 +407,10 @@ steps:
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
     commands:
-      - nix-shell --arg integration false --arg rust false --run "to_s3"
+      - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -423,15 +426,12 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --arg rust false --arg integration false --run "to_docker"
+      - nix-shell --attr release --run "to_docker"
 
 trigger:
   event:
   - promote
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -445,7 +445,7 @@ volumes:
 
 steps:
   - name: refresh-index
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -456,7 +456,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
     commands:
       - mkdir -p /etc/nix && cp nix/nix.conf /etc/nix/nix.conf
-      - nix-shell --arg integration false --arg rust false --run "refresh_index"
+      - nix-shell --attr release --run "refresh_index"
 
 depends_on:
   - release-linux-x86_64
@@ -469,11 +469,8 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: signature
-hmac: 3fc19d6f9a3555519c8405e3281b2e74289bb802f644740d5481d53df3a01fa4
+hmac: 12b06094741a9b6da448e3a176d2fc37b2c261ab87acefa60a070e67a55352b0
 
 ...
