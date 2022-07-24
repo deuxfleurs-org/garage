@@ -16,19 +16,30 @@ environment:
   HOME: /drone/garage
 
 steps:
-  - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+  - name: nix maintainance
+    image: nixpkgs/nix:nixos-22.05
+    volumes:
+    - name: nix_store
+      path: /mnt
+    - name: nix_config
+      path: /etc/nix
+    commands:
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
+
+  - name: warmup cache
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
       - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: code quality
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -39,7 +50,7 @@ steps:
       - nix-shell --attr rust --run "cargo clippy -- --deny warnings"
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -50,7 +61,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: unit + func tests
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     environment:
       GARAGE_TEST_INTEGRATION_EXE: result/bin/garage
     volumes:
@@ -75,7 +86,7 @@ steps:
       - ./result/bin/integration-*
 
   - name: smoke-test
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -92,9 +103,6 @@ trigger:
   - pull_request
   - tag
   - cron
-
-node:
-  nix: 1
 
 ---
 kind: pipeline
@@ -113,7 +121,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -124,7 +132,7 @@ steps:
       - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -135,7 +143,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -145,7 +153,7 @@ steps:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -160,7 +168,7 @@ steps:
       - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -184,9 +192,6 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: pipeline
 type: docker
@@ -204,7 +209,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -215,7 +220,7 @@ steps:
       - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -226,7 +231,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -236,7 +241,7 @@ steps:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -251,7 +256,7 @@ steps:
       - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -274,9 +279,6 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: pipeline
 type: docker
@@ -294,7 +296,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -305,7 +307,7 @@ steps:
       - nix-build --no-build-output --no-out-link shell.nix  -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -316,7 +318,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -331,7 +333,7 @@ steps:
       - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -354,9 +356,6 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: pipeline
 type: docker
@@ -374,7 +373,7 @@ environment:
 
 steps:
   - name: setup nix
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -385,7 +384,7 @@ steps:
       - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
 
   - name: build
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -396,7 +395,7 @@ steps:
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -411,7 +410,7 @@ steps:
       - nix-shell --attr release --run "to_s3"
 
   - name: docker build and publish
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -434,9 +433,6 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: pipeline
 type: docker
@@ -449,7 +445,7 @@ volumes:
 
 steps:
   - name: refresh-index
-    image: nixpkgs/nix:nixos-21.05
+    image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
       path: /nix
@@ -473,11 +469,8 @@ trigger:
   - promote
   - cron
 
-node:
-  nix: 1
-
 ---
 kind: signature
-hmac: 60fad5d78c12616be848aae35703f250300abab5f2eda08eb48fe3afd6cc58c8
+hmac: 12b06094741a9b6da448e3a176d2fc37b2c261ab87acefa60a070e67a55352b0
 
 ...
