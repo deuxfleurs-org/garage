@@ -6,10 +6,15 @@
 with import ./nix/common.nix;
 
 let 
+  pkgs = import pkgsSrc { };
   compile = import ./nix/compile.nix;
   build_debug_and_release = (target: {
     debug = (compile { inherit target; release = false; }).workspace.garage { compileMode = "build"; }; 
     release = (compile { inherit target; release = true; }).workspace.garage { compileMode = "build"; }; 
+  });
+  test = (rustPkgs: pkgs.symlinkJoin {
+    name ="garage-tests";
+    paths = builtins.map (key: rustPkgs.workspace.${key} { compileMode = "test"; }) (builtins.attrNames rustPkgs.workspace);
   });
 
 in {
@@ -20,13 +25,9 @@ in {
     arm = build_debug_and_release "armv6l-unknown-linux-musleabihf";
   };
   test = {
-    amd64 = let
-        pkgs = import pkgsSrc { };
-        rustPkgs = compile { target = "x86_64-unknown-linux-musl"; }; 
-      in
-      pkgs.symlinkJoin {
-        name ="garage-tests";
-        paths = builtins.map (key: rustPkgs.workspace.${key} { compileMode = "test"; }) (builtins.attrNames rustPkgs.workspace);
-      };
+    amd64 = test (compile { target = "x86_64-unknown-linux-musl"; });
+  };
+  clippy = {
+    amd64 = (compile { compiler = "clippy"; }).workspace.garage { compileMode = "build"; } ;
   };
 }
