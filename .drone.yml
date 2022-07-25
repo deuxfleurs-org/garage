@@ -36,7 +36,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
+      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation
 
   - name: code quality
     image: nixpkgs/nix:nixos-22.05
@@ -57,7 +57,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: unit + func tests
@@ -70,12 +70,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - |
-        nix-build \
-          --no-build-output \
-          --option log-lines 100 \
-          --argstr target x86_64-unknown-linux-musl \
-          --argstr compileMode test
+      - nix-build --no-build-output --attr test.amd64
       - ./result/bin/garage_api-*
       - ./result/bin/garage_model-*
       - ./result/bin/garage_rpc-*
@@ -93,7 +88,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target x86_64-unknown-linux-musl --arg release false --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version $DRONE_COMMIT
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 trigger:
@@ -107,7 +102,7 @@ trigger:
 ---
 kind: pipeline
 type: docker
-name: release-linux-x86_64
+name: release-linux-amd64
 
 volumes:
 - name: nix_store
@@ -116,20 +111,18 @@ volumes:
 - name: nix_config
   temp: {}
 
-environment:
-  TARGET: x86_64-unknown-linux-musl
-
 steps:
-  - name: setup nix
+  - name: nix maintainance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
-      path: /nix
+      path: /mnt
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -139,7 +132,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
@@ -195,7 +188,7 @@ trigger:
 ---
 kind: pipeline
 type: docker
-name: release-linux-i686
+name: release-linux-i386
 
 volumes:
 - name: nix_store
@@ -204,20 +197,18 @@ volumes:
 - name: nix_config
   temp: {}
 
-environment:
-  TARGET: i686-unknown-linux-musl
-
 steps:
-  - name: setup nix
+  - name: nix maintainance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
-      path: /nix
+      path: /mnt
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -227,7 +218,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
@@ -282,7 +273,7 @@ trigger:
 ---
 kind: pipeline
 type: docker
-name: release-linux-aarch64
+name: release-linux-arm64
 
 volumes:
 - name: nix_store
@@ -291,20 +282,18 @@ volumes:
 - name: nix_config
   temp: {}
 
-environment:
-  TARGET: aarch64-unknown-linux-musl
-
 steps:
-  - name: setup nix
+  - name: nix maintainance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
-      path: /nix
+      path: /mnt
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix  -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -314,7 +303,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.arm64.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
@@ -359,7 +348,7 @@ trigger:
 ---
 kind: pipeline
 type: docker
-name: release-linux-armv6l
+name: release-linux-arm
 
 volumes:
 - name: nix_store
@@ -368,20 +357,18 @@ volumes:
 - name: nix_config
   temp: {}
 
-environment:
-  TARGET: armv6l-unknown-linux-musleabihf
-
 steps:
-  - name: setup nix
+  - name: nix maintainance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
-      path: /nix
+      path: /mnt
     - name: nix_config
       path: /etc/nix
     commands:
-      - cp nix/nix.conf /etc/nix/nix.conf
-      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation -A release.inputDerivation
+    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
+    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
+    - cp nix/nix.conf /etc/nix/nix.conf
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -391,7 +378,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --argstr target $TARGET --arg release true --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.arm.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
@@ -459,10 +446,10 @@ steps:
       - nix-shell --attr release --run "refresh_index"
 
 depends_on:
-  - release-linux-x86_64
-  - release-linux-i686
-  - release-linux-aarch64
-  - release-linux-armv6l
+  - release-linux-amd64
+  - release-linux-i386
+  - release-linux-arm64
+  - release-linux-arm
 
 trigger:
   event:
@@ -471,6 +458,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 12b06094741a9b6da448e3a176d2fc37b2c261ab87acefa60a070e67a55352b0
+hmac: 9789d5fd470fc4273adcfd05946833268d1e466462c5f36abeb8f607d62fdb4b
 
 ...
