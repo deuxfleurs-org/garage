@@ -1,6 +1,7 @@
 {
   system ? builtins.currentSystem,
-  target ? "x86_64-unknown-linux-musl",
+  target ? null,
+  compiler ? "rustc",
   release ? false,
   git_version ? null,
 }:
@@ -8,15 +9,13 @@
 with import ./common.nix;
 
 let
-  crossSystem = { config = target; };
-
   log = v: builtins.trace v v;
 
   pkgs = import pkgsSrc {
-    inherit system crossSystem;
+    inherit system; 
+    ${ if target == null then null else "crossSystem" } = { config = target; };
     overlays = [ cargo2nixOverlay ];
   };
-
 
   /*
    Rust and Nix triples are not the same. Cargo2nix has a dedicated library
@@ -38,13 +37,58 @@ let
    In practise, rustOverlay ships rustc+cargo in a single derivation while
    NixOS ships them in separate ones. We reunite them with symlinkJoin.
    */
-  rustChannel = pkgs.symlinkJoin {
-    name ="rust-channel";
-    paths = [ 
-      pkgs.rustPlatform.rust.rustc
-      pkgs.rustPlatform.rust.cargo
-    ];
-  };
+  rustChannel = {
+    rustc = pkgs.symlinkJoin {
+      name = "rust-channel";
+      paths = [ 
+        pkgs.rustPlatform.rust.cargo
+        pkgs.rustPlatform.rust.rustc
+      ];
+    };
+    clippy = pkgs.symlinkJoin {
+      name = "clippy-channel";
+      paths = [ 
+        pkgs.rustPlatform.rust.cargo
+        pkgs.rustPlatform.rust.rustc
+        pkgs.clippy
+      ];
+    };
+  }.${compiler};
+
+  clippyBuilder = pkgs.writeScriptBin "clippy" ''
+    #!${pkgs.stdenv.shell}
+    . ${cargo2nixSrc + "/overlay/utils.sh"}
+    isBuildScript=
+    args=("$@")
+    for i in "''${!args[@]}"; do
+      if [ "xmetadata=" = "x''${args[$i]::9}" ]; then
+        args[$i]=metadata=$NIX_RUST_METADATA
+      elif [ "x--crate-name" = "x''${args[$i]}" ] && [ "xbuild_script_" = "x''${args[$i+1]::13}" ]; then
+        isBuildScript=1
+      fi
+    done
+    if [ "$isBuildScript" ]; then
+      args+=($NIX_RUST_BUILD_LINK_FLAGS)
+    else
+      args+=($NIX_RUST_LINK_FLAGS)
+    fi
+    touch invoke.log
+    echo "''${args[@]}" >>invoke.log
+
+    exec ${rustChannel}/bin/clippy-driver --deny warnings "''${args[@]}"
+  '';
+
+  buildEnv = (drv: {
+    rustc = drv.setBuildEnv;
+    clippy = ''
+      ${drv.setBuildEnv or "" }
+      echo
+      echo --- BUILDING WITH CLIPPY ---
+      echo 
+
+      export RUSTC=${clippyBuilder}/bin/clippy
+    '';
+  }.${compiler});
 
   /*
    Cargo2nix provides many overrides by default, you can take inspiration from them:
@@ -55,47 +99,90 @@ let
   */
   overrides = pkgs.rustBuilder.overrides.all ++ [
     /*
-     [1] We need to alter Nix hardening to make static binaries: PIE,
+     [1] We add some logic to compile our crates with clippy, it provides us many additional lints
+
+     [2] We need to alter Nix hardening to make static binaries: PIE,
      Position Independent Executables seems to be supported only on amd64. Having
      this flag set either 1. make our executables crash or 2. compile as dynamic on some platforms.
      Here, we deactivate it. Later (find `codegenOpts`), we reactivate it for supported targets
      (only amd64 curently) through the `-static-pie` flag.
      PIE is a feature used by ASLR, which helps mitigate security issues.
      Learn more about Nix Hardening at: https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/cc-wrapper/add-hardening.sh
+
+     [3] We want to inject the git version while keeping the build deterministic.
+     As we do not want to consider the .git folder as part of the input source,
+     we ask the user (the CI often) to pass the value to Nix.
+
+     [4] We ship some parts of the code disabled by default by putting them behind a flag.
+     It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
+     But we want to ship these additional features when we release Garage.
+     In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
+     Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage";
-      overrideAttrs = drv: { hardeningDisable = [ "pie" ]; };
+      overrideAttrs = drv: { 
+        /* [1] */ setBuildEnv = (buildEnv drv);
+        /* [2] */ hardeningDisable = [ "pie" ];
+      };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_rpc";
-
-      /*
-       [2] We want to inject the git version while keeping the build deterministic.
-       As we do not want to consider the .git folder as part of the input source,
-       we ask the user (the CI often) to pass the value to Nix.
-      */
       overrideAttrs = drv:
         (if git_version != null then {
-          preConfigure = ''
+          /* [3] */ preConfigure = ''
             ${drv.preConfigure or ""}
             export GIT_VERSION="${git_version}"
           '';
-        } else {});
-
-      /*
-       [3] We ship some parts of the code disabled by default by putting them behind a flag.
-       It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
-       But we want to ship these additional features when we release Garage.
-       In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
-       Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
-      */
+        } else {})
+        // {
+          /* [1] */ setBuildEnv = (buildEnv drv);
+        };
       overrideArgs = old: {
-        features = if release then [ "kubernetes-discovery" ] else [];
+        /* [4] */ features = if release then [ "kubernetes-discovery" ] else [];
       };
     })
 
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_db";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_util";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_table";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_block";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_model";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_api";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "garage_web";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "k2v-client";
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
   ];
 
   packageFun = import ../Cargo.nix;

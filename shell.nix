@@ -29,16 +29,16 @@ function refresh_toolchain {
       '';
 
       nativeBuildInputs = [
-        pkgs.rustPlatform.rust.rustc
+        #pkgs.rustPlatform.rust.rustc
         pkgs.rustPlatform.rust.cargo
-        pkgs.clippy
+        #pkgs.clippy
         pkgs.rustfmt
-        pkgs.perl
-        pkgs.protobuf
-        pkgs.pkg-config
-        pkgs.openssl
+        #pkgs.perl
+        #pkgs.protobuf
+        #pkgs.pkg-config
+        #pkgs.openssl
         pkgs.file
-        cargo2nix.packages.x86_64-linux.cargo2nix
+        #cargo2nix.packages.x86_64-linux.cargo2nix
       ];
     };
 

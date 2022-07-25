@@ -16,7 +16,7 @@ environment:
   HOME: /drone/garage
 
 steps:
-  - name: nix maintainance
+  - name: nix maintenance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -28,17 +28,7 @@ steps:
     - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
     - cp nix/nix.conf /etc/nix/nix.conf
 
-  - name: warmup cache
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
-    commands:
-      - nix-build --no-build-output --no-out-link shell.nix -A rust.inputDerivation -A integration.inputDerivation
-
-  - name: code quality
+  - name: check formatting
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -47,7 +37,6 @@ steps:
       path: /etc/nix
     commands:
       - nix-shell --attr rust --run "cargo fmt -- --check"
-      - nix-shell --attr rust --run "cargo clippy -- --deny warnings"
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -57,8 +46,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version $DRONE_COMMIT
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
 
   - name: unit + func tests
     image: nixpkgs/nix:nixos-22.05
@@ -80,7 +68,7 @@ steps:
       - ./result/bin/garage-*
       - ./result/bin/integration-*
 
-  - name: smoke-test
+  - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -88,7 +76,7 @@ steps:
     - name: nix_config
       path: /etc/nix
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 trigger:
@@ -112,7 +100,7 @@ volumes:
   temp: {}
 
 steps:
-  - name: nix maintainance
+  - name: nix maintenance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -198,7 +186,7 @@ volumes:
   temp: {}
 
 steps:
-  - name: nix maintainance
+  - name: nix maintenance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -283,7 +271,7 @@ volumes:
   temp: {}
 
 steps:
-  - name: nix maintainance
+  - name: nix maintenance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -358,7 +346,7 @@ volumes:
   temp: {}
 
 steps:
-  - name: nix maintainance
+  - name: nix maintenance
     image: nixpkgs/nix:nixos-22.05
     volumes:
     - name: nix_store
@@ -458,6 +446,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 9789d5fd470fc4273adcfd05946833268d1e466462c5f36abeb8f607d62fdb4b
+hmac: 0a72ff9a422018b7b06754bd5b9561d3f4bb0d5af28a20ec365c719ee263378a
 
 ...
