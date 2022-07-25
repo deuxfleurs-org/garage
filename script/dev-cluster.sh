@@ -11,7 +11,7 @@ PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 FANCYCOLORS=("41m" "42m" "44m" "45m" "100m" "104m")
 
 export RUST_BACKTRACE=1 
-export RUST_LOG=garage=info,garage_api=debug
+export RUST_LOG=garage=info,garage_api=debug,netapp=trace
 MAIN_LABEL="\e[${FANCYCOLORS[0]}[main]\e[49m"
 
 WHICH_GARAGE=$(which garage || exit 1)

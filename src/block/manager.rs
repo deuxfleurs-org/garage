@@ -185,6 +185,7 @@ impl BlockManager {
 		hash: &Hash,
 	) -> Result<(DataBlockHeader, ByteStream), Error> {
 		let who = self.replication.read_nodes(hash);
+		//let who = self.system.rpc.request_order(&who);
 
 		for node in who.iter() {
 			let node_id = NodeID::from(*node);
@@ -225,6 +226,7 @@ impl BlockManager {
 	/// Return its entire body
 	async fn rpc_get_raw_block(&self, hash: &Hash) -> Result<DataBlock, Error> {
 		let who = self.replication.read_nodes(hash);
+		//let who = self.system.rpc.request_order(&who);
 
 		for node in who.iter() {
 			let node_id = NodeID::from(*node);
