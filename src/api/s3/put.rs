@@ -434,12 +434,7 @@ impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
 				}
 			}
 			Ok(Some(
-				slices
-					.iter()
-					.map(|x| &x[..])
-					.collect::<Vec<_>>()
-					.concat()
-					.into(),
+				slices.iter().map(|x| &x[..]).collect::<Vec<_>>().concat(),
 			))
 		}
 	}
