@@ -2,49 +2,17 @@
 kind: pipeline
 name: default
 
-workspace:
-  base: /drone/garage
-
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
-- name: nix_config
-  temp: {}
-
-environment:
-  HOME: /drone/garage
+node:
+  nix-daemon: 1
 
 steps:
-  - name: nix maintenance
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /mnt
-    - name: nix_config
-      path: /etc/nix
-    commands:
-    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
-    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
-    - cp nix/nix.conf /etc/nix/nix.conf
-
   - name: check formatting
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-shell --attr rust --run "cargo fmt -- --check"
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
 
@@ -52,11 +20,6 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     environment:
       GARAGE_TEST_INTEGRATION_EXE: result/bin/garage
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr test.amd64
       - ./result/bin/garage_api-*
@@ -70,11 +33,6 @@ steps:
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
@@ -92,54 +50,23 @@ kind: pipeline
 type: docker
 name: release-linux-amd64
 
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
-- name: nix_config
-  temp: {}
+node:
+  nix-daemon: 1
 
 steps:
-  - name: nix maintenance
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /mnt
-    - name: nix_config
-      path: /etc/nix
-    commands:
-    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
-    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
-    - cp nix/nix.conf /etc/nix/nix.conf
-
   - name: build
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: garagehq_aws_access_key_id
@@ -150,11 +77,6 @@ steps:
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       DOCKER_AUTH:
         from_secret: docker_auth
@@ -178,54 +100,23 @@ kind: pipeline
 type: docker
 name: release-linux-i386
 
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
-- name: nix_config
-  temp: {}
+node:
+  nix-daemon: 1
 
 steps:
-  - name: nix maintenance
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /mnt
-    - name: nix_config
-      path: /etc/nix
-    commands:
-    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
-    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
-    - cp nix/nix.conf /etc/nix/nix.conf
-
   - name: build
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: garagehq_aws_access_key_id
@@ -236,11 +127,6 @@ steps:
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       DOCKER_AUTH:
         from_secret: docker_auth
@@ -263,44 +149,18 @@ kind: pipeline
 type: docker
 name: release-linux-arm64
 
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
-- name: nix_config
-  temp: {}
+node:
+  nix-daemon: 1
 
 steps:
-  - name: nix maintenance
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /mnt
-    - name: nix_config
-      path: /etc/nix
-    commands:
-    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
-    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
-    - cp nix/nix.conf /etc/nix/nix.conf
-
   - name: build
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr pkgs.arm64.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: garagehq_aws_access_key_id
@@ -311,11 +171,6 @@ steps:
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       DOCKER_AUTH:
         from_secret: docker_auth
@@ -338,44 +193,18 @@ kind: pipeline
 type: docker
 name: release-linux-arm
 
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
-- name: nix_config
-  temp: {}
+node:
+  nix-daemon: 1
 
 steps:
-  - name: nix maintenance
-    image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /mnt
-    - name: nix_config
-      path: /etc/nix
-    commands:
-    - "[ -d /mnt/store/3vpyn2qz5ay057nq9x68sh0r328d77ng-nix-2.8.1/ ] || (mkdir -p /mnt/store && cp -r /nix/store/* /mnt/store/)"
-    - "[ -d /mnt/var/ ] || cp -r /nix/var /mnt/"
-    - cp nix/nix.conf /etc/nix/nix.conf
-
   - name: build
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     commands:
       - nix-build --no-build-output --attr pkgs.arm.release --argstr git_version $DRONE_COMMIT
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: garagehq_aws_access_key_id
@@ -386,11 +215,6 @@ steps:
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
-    - name: nix_config
-      path: /etc/nix
     environment:
       DOCKER_AUTH:
         from_secret: docker_auth
@@ -413,17 +237,12 @@ kind: pipeline
 type: docker
 name: refresh-release-page
 
-volumes:
-- name: nix_store
-  host:
-    path: /var/lib/drone/nix
+node:
+  nix-daemon: 1
 
 steps:
   - name: refresh-index
     image: nixpkgs/nix:nixos-22.05
-    volumes:
-    - name: nix_store
-      path: /nix
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: garagehq_aws_access_key_id
@@ -446,6 +265,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 0a72ff9a422018b7b06754bd5b9561d3f4bb0d5af28a20ec365c719ee263378a
+hmac: 8495114848396ebb492831fc9bd37b353e1a4add9d72c0a123d109490a5b0db0
 
 ...
