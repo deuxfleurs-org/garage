@@ -72,6 +72,7 @@ steps:
         from_secret: garagehq_aws_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
+      TARGET: "x86_64-unknown-linux-musl"
     commands:
       - nix-shell --attr release --run "to_s3"
 
@@ -122,6 +123,7 @@ steps:
         from_secret: garagehq_aws_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
+      TARGET: "i686-unknown-linux-musl"
     commands:
       - nix-shell --attr release --run "to_s3"
 
@@ -166,6 +168,7 @@ steps:
         from_secret: garagehq_aws_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
+      TARGET: "aarch64-unknown-linux-musl"
     commands:
       - nix-shell --attr release --run "to_s3"
 
@@ -210,6 +213,7 @@ steps:
         from_secret: garagehq_aws_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
+      TARGET: "armv6l-unknown-linux-musleabihf"
     commands:
       - nix-shell --attr release --run "to_s3"
 
@@ -265,6 +269,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 8495114848396ebb492831fc9bd37b353e1a4add9d72c0a123d109490a5b0db0
+hmac: ccec0e06bf6676a705d6a4e63dc322691148bc72e72a4aaa54be6c5fd22652a2
 
 ...
