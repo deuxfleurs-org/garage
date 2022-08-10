@@ -14,7 +14,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
 
   - name: unit + func tests
     image: nixpkgs/nix:nixos-22.05
@@ -34,7 +34,7 @@ steps:
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 trigger:
@@ -57,7 +57,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
@@ -108,7 +108,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration
@@ -158,7 +158,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.arm64.release --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.arm64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
@@ -203,7 +203,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.arm.release --argstr git_version $DRONE_COMMIT
+      - nix-build --no-build-output --attr pkgs.arm.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: push static binary
@@ -269,6 +269,6 @@ trigger:
 
 ---
 kind: signature
-hmac: ccec0e06bf6676a705d6a4e63dc322691148bc72e72a4aaa54be6c5fd22652a2
+hmac: fa1f98f327abf88486c0c54984287285a4b951efa3776af9dd33b4d782b50815
 
 ...
