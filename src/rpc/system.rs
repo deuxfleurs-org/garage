@@ -27,6 +27,7 @@ use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
 use garage_util::time::*;
+use garage_util::version;
 
 use crate::consul::*;
 #[cfg(feature = "kubernetes-discovery")]
@@ -316,11 +317,7 @@ impl System {
 	//      also available through RPC) ----
 
 	pub fn garage_version(&self) -> &'static str {
-		option_env!("GIT_VERSION").unwrap_or(git_version::git_version!(
-			prefix = "git:",
-			cargo_prefix = "cargo:",
-			fallback = "unknown"
-		))
+		version::garage()
 	}
 
 	pub fn get_known_nodes(&self) -> Vec<KnownNodeInfo> {

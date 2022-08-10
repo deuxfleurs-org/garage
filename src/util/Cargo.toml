@@ -21,6 +21,7 @@ hex = "0.4"
 tracing = "0.1.30"
 rand = "0.8"
 sha2 = "0.9"
+git-version = "0.3.4"
 
 sled = "0.34"
 
@@ -41,6 +42,7 @@ http = "0.2"
 hyper = "0.14"
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
+
 
 [features]
 k2v = []

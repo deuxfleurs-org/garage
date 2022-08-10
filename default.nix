@@ -9,8 +9,8 @@ let
   pkgs = import pkgsSrc { };
   compile = import ./nix/compile.nix;
   build_debug_and_release = (target: {
-    debug = (compile { inherit target; release = false; }).workspace.garage { compileMode = "build"; }; 
-    release = (compile { inherit target; release = true; }).workspace.garage { compileMode = "build"; }; 
+    debug = (compile { inherit target git_version; release = false; }).workspace.garage { compileMode = "build"; }; 
+    release = (compile { inherit target git_version; release = true; }).workspace.garage { compileMode = "build"; }; 
   });
   test = (rustPkgs: pkgs.symlinkJoin {
     name ="garage-tests";
@@ -25,9 +25,9 @@ in {
     arm = build_debug_and_release "armv6l-unknown-linux-musleabihf";
   };
   test = {
-    amd64 = test (compile { target = "x86_64-unknown-linux-musl"; });
+    amd64 = test (compile { inherit git_version; target = "x86_64-unknown-linux-musl"; });
   };
   clippy = {
-    amd64 = (compile { compiler = "clippy"; }).workspace.garage { compileMode = "build"; } ;
+    amd64 = (compile { inherit git_version; compiler = "clippy"; }).workspace.garage { compileMode = "build"; } ;
   };
 }

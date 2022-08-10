@@ -22,6 +22,7 @@ use garage_util::error::*;
 
 use garage_rpc::system::*;
 use garage_rpc::*;
+use garage_util::version;
 
 use garage_model::helper::error::Error as HelperError;
 
@@ -29,7 +30,7 @@ use admin::*;
 use cli::*;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "garage")]
+#[structopt(name = "garage", version = version::garage(), about = "S3-compatible object store for self-hosted geo-distributed deployments")]
 struct Opt {
 	/// Host to connect to for admin operations, in the format:
 	/// <public-key>@<ip>:<port>

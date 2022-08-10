@@ -15,3 +15,4 @@ pub mod sled_counter;
 pub mod time;
 pub mod token_bucket;
 pub mod tranquilizer;
+pub mod version;
