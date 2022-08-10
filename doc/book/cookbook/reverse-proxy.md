@@ -280,3 +280,25 @@ Traefik's caching middleware is only available on [entreprise version](https://d
 [http.middlewares]
   [http.middlewares.gzip_compress.compress]
 ```
+
+## Caddy
+
+Your Caddy configuration can be as simple as:
+
+```caddy
+s3.garage.tld, *.s3.garage.tld {
+	reverse_proxy localhost:3900 192.168.1.2:3900 example.tld:3900
+}
+
+*.web.garage.tld {
+	reverse_proxy localhost:3902 192.168.1.2:3900 example.tld:3900
+}
+
+admin.garage.tld {
+	reverse_proxy localhost:3903
+}
+```
+
+But at the same time, the `reverse_proxy` is very flexible.
+For a production deployment, you should [read its documentation](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) as it supports features like DNS discovery of upstreams, load balancing with checks, streaming parameters, etc.
+
