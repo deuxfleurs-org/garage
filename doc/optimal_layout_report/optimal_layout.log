@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020/Debian) (preloaded format=pdflatex 2022.6.23)  18 JUL 2022 22:33
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020/Debian) (preloaded format=pdflatex 2022.6.23)  19 AUG 2022 21:20
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -228,35 +228,30 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 17.
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
-{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2]
-<figures/naive.pdf, id=23, 248.75592pt x 93.43271pt>
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3]
+<figures/naive.pdf, id=28, 248.75592pt x 93.43271pt>
 File: figures/naive.pdf Graphic file (type pdf)
 <use figures/naive.pdf>
-Package pdftex.def Info: figures/naive.pdf  used on input line 117.
+Package pdftex.def Info: figures/naive.pdf  used on input line 121.
 (pdftex.def)             Requested size: 310.4979pt x 116.6252pt.
- [3]
 <figures/flow.pdf, id=29, 263.10938pt x 133.389pt>
 File: figures/flow.pdf Graphic file (type pdf)
 <use figures/flow.pdf>
-Package pdftex.def Info: figures/flow.pdf  used on input line 136.
+Package pdftex.def Info: figures/flow.pdf  used on input line 140.
 (pdftex.def)             Requested size: 207.0021pt x 104.94873pt.
- [4 <./figures/naive.pdf> <./figures/flow.pdf
-
-pdfTeX warning: /usr/bin/pdflatex (file ./figures/flow.pdf): PDF inclusion: mul
-tiple pdfs with page group included in a single page
->] [5]
-<figures/mini_zone.pdf, id=40, 106.06543pt x 133.44284pt>
+ [4 <./figures/naive.pdf>] [5 <./figures/flow.pdf>] [6]
+<figures/mini_zone.pdf, id=44, 106.06543pt x 133.44284pt>
 File: figures/mini_zone.pdf Graphic file (type pdf)
 <use figures/mini_zone.pdf>
-Package pdftex.def Info: figures/mini_zone.pdf  used on input line 221.
+Package pdftex.def Info: figures/mini_zone.pdf  used on input line 225.
 (pdftex.def)             Requested size: 110.39873pt x 138.8974pt.
-<figures/mini_node.pdf, id=41, 183.67638pt x 190.3113pt>
+<figures/mini_node.pdf, id=45, 183.67638pt x 190.3113pt>
 File: figures/mini_node.pdf Graphic file (type pdf)
 <use figures/mini_node.pdf>
-Package pdftex.def Info: figures/mini_node.pdf  used on input line 225.
+Package pdftex.def Info: figures/mini_node.pdf  used on input line 229.
 (pdftex.def)             Requested size: 151.8014pt x 157.28752pt.
- [6]
-Overfull \hbox (6.52959pt too wide) in paragraph at lines 239--240
+
+Overfull \hbox (6.52959pt too wide) in paragraph at lines 243--244
 []\OT1/cmr/m/n/10 Assume that their ex-ist some as-sign-ment $\OML/cmm/m/it/10 
 T[]$ \OT1/cmr/m/n/10 with the same uti-liza-tion $(\OML/cmm/m/it/10 n[]\OT1/cmr
 /m/n/10 )[]$.
@@ -266,38 +261,38 @@ T[]$ \OT1/cmr/m/n/10 with the same uti-liza-tion $(\OML/cmm/m/it/10 n[]\OT1/cmr
 
 pdfTeX warning: /usr/bin/pdflatex (file ./figures/mini_node.pdf): PDF inclusion
 : multiple pdfs with page group included in a single page
->] [8] [9] [10] [11] (./optimal_layout.aux) ) 
+>] [8] [9] [10] [11] [12] [13] (./optimal_layout.aux) ) 
 Here is how much of TeX's memory you used:
  3544 strings out of 481176
  47263 string characters out of 5914226
- 339215 words of memory out of 5000000
+ 336215 words of memory out of 5000000
  20458 multiletter control sequences out of 15000+600000
  413592 words of font info for 65 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
  68i,12n,74p,880b,308s stack positions out of 5000i,500n,10000p,200000b,80000s
- </home/netko/.texlive2020/texmf-v
-ar/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk></usr/share/texlive/texmf-dist/fo
-nts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/texmf-dist/fonts/ty
-pe1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmcsc10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
-amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
-ts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.p
-fb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></us
-r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share
-/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texliv
-e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texlive/texmf-
-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fon
-ts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/publi
-c/amsfonts/cm/cmsy5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfo
-nts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/
-cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/m
-sbm10.pfb>
-Output written on optimal_layout.pdf (11 pages, 279062 bytes).
+ </home/netko/.texlive20
+20/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/share/texlive/texmf-dis
+t/fonts/type1/public/amsfonts/cm/cmbx12.pfb></usr/share/texlive/texmf-dist/font
+s/type1/public/amsfonts/cm/cmcsc10.pfb></usr/share/texlive/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
+lic/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr1
+0.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/sh
+are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmsy5.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
+blic/amsfonts/cm/cmsy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/symbols/msbm10.pfb>
+Output written on optimal_layout.pdf (13 pages, 289460 bytes).
 PDF statistics:
- 127 PDF objects out of 1000 (max. 8388607)
- 90 compressed objects within 1 object stream
+ 135 PDF objects out of 1000 (max. 8388607)
+ 96 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  21 words of extra memory for PDF output out of 10000 (max. 10000000)
 

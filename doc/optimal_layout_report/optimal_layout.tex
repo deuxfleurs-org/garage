@@ -54,6 +54,10 @@ For now, in the following, we ask the following redundancy constraint:
 
 \textbf{Mode 3-strict:}  every partition needs to be assignated to three nodes belonging to three different zones.
 
+\textbf{Mode 3:} every partition needs to be assignated to three nodes. We try to spread the three nodes over different zones as much as possible.
+
+\textbf{Remark: (TODO):} The algorithms below directly adapt to a redundancy of $r$ instead of 3.
+
 \section{Properties of an optimal 3-strict assignment}
 
 \subsection{Optimal assignment}
@@ -384,11 +388,80 @@ The graph $G_T$ has $O(N)$ vertices and $O(N\times \#Z)$ edges under assumption 
 	\end{algorithmic}
 \end{algorithm}
 
+\newpage
+
+\section{Computation of a 3-non-strict assignment}
+
+\subsection{Choices of optimality}
+
+In this mode, we primarily want to store every partition on three nodes, and only secondarily try to spread the nodes among different zone. So we make the choice of not taking the zone repartition in the criterion of optimality.
+
+We try to maximize $s^*$ defined in \eqref{eq:optimal}. So we can compute the optimal utilizations $(n_v)_{v\in V}$ with the only constraint that $n_v \le N$ for every node $v$. As in the previous section, we start with a sub-utilization proportional to $c_v$ (and capped at $N$), and we iteratively increase the $\hat{n}_v$ that is less than $N$ and maximizes the quantity $c_v/(\hat{n}_v+1)$, until the total sum is $3N$.
+
+\subsection{Computation of a candidate assignment}
+
+To compute a candidate assignment (that does not optimize zone spreading nor distance to a previous assignment yet), we can use the folowing flow problem.
+
+Define the oriented weighted graph $(X,E)$. The set of vertices $X$ contains the source $\mathbf{s}$, the sink $\mathbf{t}$, vertices 
+$\mathbf{x}_p, \mathbf{u}^+_p, \mathbf{u}^-_p$ for every partition $p$, vertices $\mathbf{y}_{p,z}$ for every partition $p$ and zone $z$, and vertices $\mathbf{z}_v$ for every node $v$. 
+
+The set of edges is composed of the following arcs:
+\begin{itemize}
+	\item ($\mathbf{s}$,$\mathbf{x}_p$, 3) for every partition $p$;
+	\item ($\mathbf{x}_p$,$\mathbf{u}^+_p$, 3) for every partition $p$;
+	\item ($\mathbf{x}_p$,$\mathbf{u}^-_p$, 2) for every partition $p$;
+	\item ($\mathbf{u}^+_p$,$\mathbf{y}_{p,z}$, 1) for every partition $p$ and zone $z$;
+	\item ($\mathbf{u}^-_p$,$\mathbf{y}_{p,z}$, 2) for every partition $p$ and zone $z$;
+	\item ($\mathbf{y}_{p,z}$,$\mathbf{z}_v$, 1) for every partition $p$, zone $z$ and node $v\in z$;
+	\item ($\mathbf{z}_v$, $\mathbf{t}$, $n_v$) for every node $v$;
+\end{itemize}
+
+One can check that any maximal flow in this graph corresponds to an assignment of partitions to nodes. In such a flow, all the arcs from $\mathbf{s}$ and to $\mathbf{t}$ are saturated. The arc from $\mathbf{y}_{p,z}$ to $\mathbf{z}_v$ is saturated if and only if $p$ is associated to~$v$. 
+Finally the flow from $\mathbf{x}_p$ to $\mathbf{y}_{p,z}$ can go either through $\mathbf{u}^+_p$ or $\mathbf{u}^-_p$.
 
 
-\section{TODO}
 
-- reunion deux fleurs : autres modes, autres contraintes
+\subsection{Maximal spread and minimal transfers}
+Notice that if the arc $\mathbf{u}_p^+\mathbf{y}_{p,z}$ is not saturated but there is some flow in $\mathbf{u}_p^-\mathbf{y}_{p,z}$, then it is possible to transfer a unit of flow from the path  $\mathbf{x}_p\mathbf{u}_p^-\mathbf{y}_{p,z}$ to the path $\mathbf{x}_p\mathbf{u}_p^+\mathbf{y}_{p,z}$. So we can always find an equivalent maximal flow $f^*$ that uses the path through $\mathbf{u}_p^-$ only if the path through $\mathbf{u}_p^+$ is saturated.
+
+We will use this fact to consider the amount of flow going through the vertices $\mathbf{u}^+$ as a measure of how well the partitions are spread over nodes belonging to different zones. If the partition $p$ is associated to 3 different zones, then a flow of 3 will cross $\mathbf{u}_p^+$ in $f^*$ (i.e. a flow of 0 will cross $\mathbf{u}_p^+$). If $p$ is associated to two zones, a flow of $2$ will cross $\mathbf{u}_p^+$. If $p$ is associated to a single zone, a flow of $1$ will cross $\mathbf{u}_p^+$.
+
+Let $N_1, N_2, N_3$ be the number of partitions associated to respectively 1,2 and 3 distinct zones. We will optimize a linear combination of these variables using the discovery of positively weighted circuits in a graph.
+
+At the same step, we will also optimize the distance to a previous assignment $T'$. Let $\alpha> \beta> \gamma \ge 0$ be three parameters.
+
+Given the flow $f$, let $G_f=(X',E_f)$ be the multi-graph where $X' = X\setminus\{\mathbf{s},\mathbf{t}\}$. The set $E_f$ is composed of the arcs:
+\begin{itemize}
+\item As many arcs from $(\mathbf{x}_p, \mathbf{u}^+_p,\alpha), (\mathbf{x}_p, \mathbf{u}^+_p,\beta), (\mathbf{x}_p, \mathbf{u}^+_p,\gamma)$ (selected in this order) as there is flow crossing $\mathbf{u}^+_p$ in $f$;
+\item As many arcs from $(\mathbf{u}^+_p, \mathbf{x}_p,-\gamma), (\mathbf{u}^+_p, \mathbf{x}_p,-\beta), (\mathbf{u}^+_p, \mathbf{x}_p,-\alpha)$ (selected in this order) as there is flow crossing $\mathbf{u}^-_p$ in $f$;
+\item  As many copies of $(\mathbf{x}_p, \mathbf{u}^-_p,0)$ as there is flow through $\mathbf{u}^-_p$;
+\item  As many copies of $(\mathbf{u}^-_p,\mathbf{x}_p,0)$ so that the number of arcs between these two vertices is 2;
+\item $(\mathbf{u}^+_p,\mathbf{y}_{p,z}, 0)$ if the flow between these vertices is 1, and the opposite arc otherwise;
+\item as many copies of $(\mathbf{u}^-_p,\mathbf{y}_{p,z}, 0)$ as the flow between these vertices, and as many copies of the opposite arc as 2~$-$~the flow;
+\item $(\mathbf{y}_{p,z},\mathbf{z}_v, \pm1)$ if it is saturated in $f$, with $+1$ if $v\in T'_p$ and $-1$ otherwise;
+\item $(\mathbf{z}_v,\mathbf{y}_{p,z}, \pm1)$ if it is not saturated in $f$, with $+1$ if $v\notin T'_p$ and $-1$ otherwise.
+\end{itemize}
+To summarize, arcs are oriented left to right if they correspond to a presence of flow in $f$, and right to left if they correspond to an absence of flow. They are positively weighted if we want them to stay at their current state, and negatively if we want them to switch. Let us compute the weight of such graph.
+
+\begin{multline*}
+	w(G_f)  = \sum_{e\in E_f} w(e_f)  \\
+	= 
+	(\alpha - \beta -\gamma) N_1 + (\alpha +\beta - \gamma) N_2 + (\alpha+\beta+\gamma) N_3 
+	\\ + 
+	\#V\times N - 4 \sum_p 3-\#(T_p\cap T'_p) \\ 
+	=(\#V-12+\alpha-\beta-\gamma)\times N + 4Q_V + 2\beta N_2 + 2(\beta+\gamma) N_3 \\
+\end{multline*}
+
+As for the mode 3-strict, one can check that the difference of two such graphs corresponding to the same $(n_v)$ is always eulerian. Hence we can navigate in this class with the same greedy algorithm that discovers positive cycles and flips them.
+
+The function that we optimize is 
+$$
+2Q_V +  \beta N_2 + (\beta+\gamma) N_3.
+$$
+The choice of parameters $\beta$ and $\gamma$ should be lead by the following question: For $\beta$, where to put the tradeoff between zone dispersion and distance to the previous configuration? For $\gamma$, do we prefer to have more partitions spread between 2 zones, or have less between at least 2 zones but more between 3 zones.
+
+The quantity $Q_V$ varies between $0$ and $3N$, it should be of order $N$. The quantity $N_2+N_3$ should also be of order $N$ (it is exactly $N$ in the strict mode). So the two terms of the function are comparable. 
+
 
 \end{document}
 
