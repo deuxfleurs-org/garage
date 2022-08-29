@@ -404,7 +404,7 @@ impl RpcHelper {
 		let mut nodes = nodes
 			.iter()
 			.map(|to| {
-				let peer_zone = match ring.layout.node_role(&to) {
+				let peer_zone = match ring.layout.node_role(to) {
 					Some(pc) => &pc.zone,
 					None => "",
 				};
