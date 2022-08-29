@@ -15,3 +15,4 @@ pub mod persister;
 pub mod time;
 pub mod token_bucket;
 pub mod tranquilizer;
+pub mod version;
