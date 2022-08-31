@@ -449,8 +449,6 @@ impl BlockManager {
 
 		let (header, data) = block.into_parts();
 
-		self.metrics.bytes_read.add(data.len() as u64);
-
 		Resp::new(Ok(BlockRpc::PutBlock {
 			hash: *hash,
 			header,
@@ -460,9 +458,16 @@ impl BlockManager {
 
 	/// Read block from disk, verifying it's integrity
 	pub(crate) async fn read_block(&self, hash: &Hash) -> Result<DataBlock, Error> {
-		self.read_block_internal(hash)
+		let data = self
+			.read_block_internal(hash)
 			.bound_record_duration(&self.metrics.block_read_duration)
-			.await
+			.await?;
+
+		self.metrics
+			.bytes_read
+			.add(data.inner_buffer().len() as u64);
+
+		Ok(data)
 	}
 
 	async fn read_block_internal(&self, hash: &Hash) -> Result<DataBlock, Error> {
