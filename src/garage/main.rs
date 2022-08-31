@@ -61,6 +61,7 @@ async fn main() {
 	}
 	tracing_subscriber::fmt()
 		.with_writer(std::io::stderr)
+		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
 		.init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 

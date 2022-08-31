@@ -35,7 +35,7 @@ bytesize = "1.1"
 timeago = "0.3"
 hex = "0.4"
 tracing = { version = "0.1.30", features = ["log-always"] }
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 async-trait = "0.1.7"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
