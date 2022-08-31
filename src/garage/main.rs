@@ -59,7 +59,9 @@ async fn main() {
 	if std::env::var("RUST_LOG").is_err() {
 		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
 	}
-	tracing_subscriber::fmt::init();
+	tracing_subscriber::fmt()
+		.with_writer(std::io::stderr)
+		.init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
 	// Abort on panic (same behavior as in Go)
