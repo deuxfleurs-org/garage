@@ -25,7 +25,8 @@ use crate::replication::*;
 use crate::schema::*;
 
 const TABLE_GC_BATCH_SIZE: usize = 1024;
-const TABLE_GC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
+// Same timeout as NEED_BLOCK_QUERY_TIMEOUT in block manager
+const TABLE_GC_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
 // GC delay for table entries: 1 day (24 hours)
 // (the delay before the entry is added in the GC todo list

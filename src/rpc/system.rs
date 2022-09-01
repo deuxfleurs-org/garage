@@ -38,7 +38,7 @@ use crate::rpc_helper::*;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
-const PING_TIMEOUT: Duration = Duration::from_secs(2);
+const SYSTEM_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Version tag used for version check upon Netapp connection
 pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650007; // garage 0x0007
@@ -561,7 +561,7 @@ impl System {
 				.broadcast(
 					&self.system_endpoint,
 					SystemRpc::AdvertiseStatus(local_status),
-					RequestStrategy::with_priority(PRIO_HIGH).with_timeout(PING_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
 				)
 				.await;
 
@@ -685,7 +685,7 @@ impl System {
 				&self.system_endpoint,
 				peer,
 				SystemRpc::PullClusterLayout,
-				RequestStrategy::with_priority(PRIO_HIGH).with_timeout(PING_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
 			)
 			.await;
 		if let Ok(SystemRpc::AdvertiseClusterLayout(layout)) = resp {

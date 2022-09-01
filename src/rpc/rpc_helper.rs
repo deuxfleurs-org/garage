@@ -31,7 +31,7 @@ use garage_util::metrics::RecordDuration;
 use crate::metrics::RpcMetrics;
 use crate::ring::Ring;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 // Don't allow more than 100 concurrent outgoing RPCs.
 const MAX_CONCURRENT_REQUESTS: usize = 100;
