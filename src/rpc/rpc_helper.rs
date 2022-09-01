@@ -18,7 +18,7 @@ use opentelemetry::{
 pub use netapp::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
 use netapp::message::IntoReq;
 pub use netapp::message::{
-	Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH, PRIO_NORMAL,
+	Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH, PRIO_NORMAL, PRIO_SECONDARY
 };
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
 pub use netapp::{self, NetApp, NodeID};

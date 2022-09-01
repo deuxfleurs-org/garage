@@ -198,7 +198,7 @@ impl BlockManager {
 			let rpc = self.endpoint.call_streaming(
 				&node_id,
 				BlockRpc::GetBlock(*hash, order_tag),
-				PRIO_NORMAL,
+				PRIO_NORMAL | PRIO_SECONDARY,
 			);
 			tokio::select! {
 				res = rpc => {
@@ -245,7 +245,7 @@ impl BlockManager {
 			let rpc = self.endpoint.call_streaming(
 				&node_id,
 				BlockRpc::GetBlock(*hash, order_tag),
-				PRIO_NORMAL,
+				PRIO_NORMAL | PRIO_SECONDARY,
 			);
 			tokio::select! {
 				res = rpc => {
@@ -336,7 +336,7 @@ impl BlockManager {
 				&self.endpoint,
 				&who[..],
 				put_block_rpc,
-				RequestStrategy::with_priority(PRIO_NORMAL)
+				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_quorum(self.replication.write_quorum())
 					.with_timeout(BLOCK_RW_TIMEOUT),
 			)
