@@ -9,6 +9,7 @@ use bytes::Bytes;
 use hyper::{Body, Request, Response};
 use serde::Serialize;
 
+use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
 use garage_util::data::*;
 use garage_util::time::*;
@@ -306,11 +307,16 @@ pub async fn handle_upload_part_copy(
 	// if and only if the block returned is a block that already existed
 	// in the Garage data store (thus we don't need to save it again).
 	let garage2 = garage.clone();
+	let order_stream = OrderTag::stream();
 	let source_blocks = stream::iter(blocks_to_copy)
-		.flat_map(|(block_hash, range_to_copy)| {
+		.enumerate()
+		.flat_map(|(i, (block_hash, range_to_copy))| {
 			let garage3 = garage2.clone();
 			stream::once(async move {
-				let data = garage3.block_manager.rpc_get_block(&block_hash).await?;
+				let data = garage3
+					.block_manager
+					.rpc_get_block(&block_hash, Some(order_stream.order(i as u64)))
+					.await?;
 				match range_to_copy {
 					Some(r) => Ok((data.slice(r), None)),
 					None => Ok((data, Some(block_hash))),
