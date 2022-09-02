@@ -68,7 +68,7 @@ pub struct BlockManager {
 
 	compression_level: Option<i32>,
 
-	pub(crate) mutation_lock: Mutex<BlockManagerLocked>,
+	mutation_lock: Mutex<BlockManagerLocked>,
 
 	pub(crate) rc: BlockRc,
 	pub resync: BlockResyncManager,
@@ -84,7 +84,7 @@ pub struct BlockManager {
 // This custom struct contains functions that must only be ran
 // when the lock is held. We ensure that it is the case by storing
 // it INSIDE a Mutex.
-pub(crate) struct BlockManagerLocked();
+struct BlockManagerLocked();
 
 impl BlockManager {
 	pub fn new(
@@ -331,15 +331,28 @@ impl BlockManager {
 		Ok(data)
 	}
 
-	/// Check if this node should have a block, but don't actually have it
-	async fn need_block(&self, hash: &Hash) -> Result<bool, Error> {
-		let BlockStatus { exists, needed } = self
-			.mutation_lock
+	/// Check if this node has a block and whether it needs it
+	pub(crate) async fn check_block_status(&self, hash: &Hash) -> Result<BlockStatus, Error> {
+		self.mutation_lock
 			.lock()
 			.await
 			.check_block_status(hash, self)
-			.await?;
+			.await
+	}
+
+	/// Check if this node should have a block, but don't actually have it
+	async fn need_block(&self, hash: &Hash) -> Result<bool, Error> {
+		let BlockStatus { exists, needed } = self.check_block_status(hash).await?;
 		Ok(needed.is_nonzero() && !exists)
+	}
+
+	/// Delete block if it is not needed anymore
+	pub(crate) async fn delete_if_unneeded(&self, hash: &Hash) -> Result<(), Error> {
+		self.mutation_lock
+			.lock()
+			.await
+			.delete_if_unneeded(hash, self)
+			.await
 	}
 
 	/// Utility: gives the path of the directory in which a block should be found
@@ -392,7 +405,7 @@ pub(crate) struct BlockStatus {
 }
 
 impl BlockManagerLocked {
-	pub(crate) async fn check_block_status(
+	async fn check_block_status(
 		&self,
 		hash: &Hash,
 		mgr: &BlockManager,
@@ -479,11 +492,7 @@ impl BlockManagerLocked {
 		Ok(())
 	}
 
-	pub(crate) async fn delete_if_unneeded(
-		&self,
-		hash: &Hash,
-		mgr: &BlockManager,
-	) -> Result<(), Error> {
+	async fn delete_if_unneeded(&self, hash: &Hash, mgr: &BlockManager) -> Result<(), Error> {
 		let BlockStatus { exists, needed } = self.check_block_status(hash, mgr).await?;
 
 		if exists && needed.is_deletable() {

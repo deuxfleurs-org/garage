@@ -282,12 +282,7 @@ impl BlockResyncManager {
 	}
 
 	async fn resync_block(&self, manager: &BlockManager, hash: &Hash) -> Result<(), Error> {
-		let BlockStatus { exists, needed } = manager
-			.mutation_lock
-			.lock()
-			.await
-			.check_block_status(hash, manager)
-			.await?;
+		let BlockStatus { exists, needed } = manager.check_block_status(hash).await?;
 
 		if exists != needed.is_needed() || exists != needed.is_nonzero() {
 			debug!(
@@ -370,12 +365,7 @@ impl BlockResyncManager {
 				who.len()
 			);
 
-			manager
-				.mutation_lock
-				.lock()
-				.await
-				.delete_if_unneeded(hash, manager)
-				.await?;
+			manager.delete_if_unneeded(hash).await?;
 
 			manager.rc.clear_deleted_block_rc(hash)?;
 		}
