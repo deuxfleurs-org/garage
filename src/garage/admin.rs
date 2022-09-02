@@ -781,13 +781,13 @@ impl AdminRpcHandler {
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
-			self.garage.block_manager.resync_queue_len()?
+			self.garage.block_manager.resync.queue_len()?
 		)
 		.unwrap();
 		writeln!(
 			&mut ret,
 			"  blocks with resync errors: {}",
-			self.garage.block_manager.resync_errors_len()?
+			self.garage.block_manager.resync.errors_len()?
 		)
 		.unwrap();
 
@@ -850,7 +850,8 @@ impl AdminRpcHandler {
 				WorkerSetCmd::ResyncTranquility { tranquility } => {
 					self.garage
 						.block_manager
-						.set_resync_tranquility(tranquility)
+						.resync
+						.set_tranquility(tranquility)
 						.await?;
 					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
 				}

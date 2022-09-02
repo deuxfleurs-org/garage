@@ -112,7 +112,9 @@ impl Worker for RepairWorker {
 				}
 
 				for hash in batch_of_hashes.into_iter() {
-					self.manager.put_to_resync(&hash, Duration::from_secs(0))?;
+					self.manager
+						.resync
+						.put_to_resync(&hash, Duration::from_secs(0))?;
 					self.next_start = Some(hash)
 				}
 
@@ -124,7 +126,9 @@ impl Worker for RepairWorker {
 				// This allows us to find blocks we are storing but don't actually need,
 				// so that we can offload them if necessary and then delete them locally.
 				if let Some(hash) = bi.next().await? {
-					self.manager.put_to_resync(&hash, Duration::from_secs(0))?;
+					self.manager
+						.resync
+						.put_to_resync(&hash, Duration::from_secs(0))?;
 					Ok(WorkerState::Busy)
 				} else {
 					Ok(WorkerState::Done)
