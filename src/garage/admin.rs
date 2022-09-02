@@ -15,6 +15,8 @@ use garage_table::*;
 
 use garage_rpc::*;
 
+use garage_block::repair::ScrubWorkerCommand;
+
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
@@ -836,6 +838,23 @@ impl AdminRpcHandler {
 				let workers = self.garage.background.get_worker_info();
 				Ok(AdminRpc::WorkerList(workers, opt))
 			}
+			WorkerCmd::Set { opt } => match opt {
+				WorkerSetCmd::ScrubTranquility { tranquility } => {
+					let scrub_command = ScrubWorkerCommand::SetTranquility(tranquility);
+					self.garage
+						.block_manager
+						.send_scrub_command(scrub_command)
+						.await;
+					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
+				}
+				WorkerSetCmd::ResyncTranquility { tranquility } => {
+					self.garage
+						.block_manager
+						.set_resync_tranquility(tranquility)
+						.await?;
+					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
+				}
+			},
 		}
 	}
 }

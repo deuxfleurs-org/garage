@@ -19,7 +19,17 @@ use garage_util::tranquilizer::Tranquilizer;
 
 use crate::manager::*;
 
-const SCRUB_INTERVAL: Duration = Duration::from_secs(3600 * 24 * 30); // full scrub every 30 days
+// Full scrub every 30 days
+const SCRUB_INTERVAL: Duration = Duration::from_secs(3600 * 24 * 30);
+// Scrub tranquility is initially set to 4, but can be changed in the CLI
+// and the updated version is persisted over Garage restarts
+const INITIAL_SCRUB_TRANQUILITY: u32 = 4;
+
+// ---- ---- ----
+// FIRST KIND OF REPAIR: FINDING MISSING BLOCKS/USELESS BLOCKS
+// This is a one-shot repair operation that can be launched,
+// checks everything, and then exits.
+// ---- ---- ----
 
 pub struct RepairWorker {
 	manager: Arc<BlockManager>,
@@ -128,7 +138,13 @@ impl Worker for RepairWorker {
 	}
 }
 
-// ----
+// ---- ---- ----
+// SECOND KIND OF REPAIR: SCRUBBING THE DATASTORE
+// This is significantly more complex than the process above,
+// as it is a continuously-running task that triggers automatically
+// every SCRUB_INTERVAL, but can also be triggered manually
+// and whose parameter (esp. speed) can be controlled at runtime.
+// ---- ---- ----
 
 pub struct ScrubWorker {
 	manager: Arc<BlockManager>,
@@ -176,7 +192,7 @@ impl ScrubWorker {
 			Ok(v) => v,
 			Err(_) => ScrubWorkerPersisted {
 				time_last_complete_scrub: 0,
-				tranquility: 4,
+				tranquility: INITIAL_SCRUB_TRANQUILITY,
 				corruptions_detected: 0,
 			},
 		};
@@ -343,7 +359,9 @@ impl Worker for ScrubWorker {
 	}
 }
 
-// ----
+// ---- ---- ----
+// UTILITY FOR ENUMERATING THE BLOCK STORE
+// ---- ---- ----
 
 struct BlockStoreIterator {
 	path: Vec<ReadingDir>,
