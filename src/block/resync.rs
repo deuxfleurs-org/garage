@@ -311,7 +311,7 @@ impl BlockResyncManager {
 				}));
 			}
 		}
-		return Ok(None);
+		Ok(None)
 	}
 
 	async fn resync_block(&self, manager: &BlockManager, hash: &Hash) -> Result<(), Error> {
@@ -432,7 +432,7 @@ impl BlockResyncManager {
 	}
 
 	pub async fn set_n_workers(&self, n_workers: usize) -> Result<(), Error> {
-		if n_workers < 1 || n_workers > MAX_RESYNC_WORKERS {
+		if !(1..=MAX_RESYNC_WORKERS).contains(&n_workers) {
 			return Err(Error::Message(format!(
 				"Invalid number of resync workers, must be between 1 and {}",
 				MAX_RESYNC_WORKERS
