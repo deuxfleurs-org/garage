@@ -1,5 +1,6 @@
+use std::collections::HashSet;
 use std::convert::TryInto;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
@@ -44,6 +45,9 @@ pub(crate) const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
 // The minimum retry delay is 60 seconds = 1 minute
 // The maximum retry delay is 60 seconds * 2^6 = 60 seconds << 6 = 64 minutes (~1 hour)
 pub(crate) const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
+
+// No more than 4 resync workers can be running in the system
+pub(crate) const MAX_RESYNC_WORKERS: usize = 4;
 // Resync tranquility is initially set to 2, but can be changed in the CLI
 // and the updated version is persisted over Garage restarts
 const INITIAL_RESYNC_TRANQUILITY: u32 = 2;
@@ -53,12 +57,15 @@ pub struct BlockResyncManager {
 	pub(crate) notify: Notify,
 	pub(crate) errors: CountedTree,
 
+	busy_set: BusySet,
+
 	persister: Persister<ResyncPersistedConfig>,
 	persisted: ArcSwap<ResyncPersistedConfig>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 struct ResyncPersistedConfig {
+	n_workers: usize,
 	tranquility: u32,
 }
 
@@ -66,6 +73,14 @@ enum ResyncIterResult {
 	BusyDidSomething,
 	BusyDidNothing,
 	IdleFor(Duration),
+}
+
+type BusySet = Arc<Mutex<HashSet<Vec<u8>>>>;
+
+struct BusyBlock {
+	time_bytes: Vec<u8>,
+	hash_bytes: Vec<u8>,
+	busy_set: BusySet,
 }
 
 impl BlockResyncManager {
@@ -84,6 +99,7 @@ impl BlockResyncManager {
 		let persisted = match persister.load() {
 			Ok(v) => v,
 			Err(_) => ResyncPersistedConfig {
+				n_workers: 1,
 				tranquility: INITIAL_RESYNC_TRANQUILITY,
 			},
 		};
@@ -92,6 +108,7 @@ impl BlockResyncManager {
 			queue,
 			notify: Notify::new(),
 			errors,
+			busy_set: Arc::new(Mutex::new(HashSet::new())),
 			persister,
 			persisted: ArcSwap::new(Arc::new(persisted)),
 		}
@@ -199,12 +216,12 @@ impl BlockResyncManager {
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
-		if let Some((time_bytes, hash_bytes)) = self.queue.first()? {
-			let time_msec = u64::from_be_bytes(time_bytes[0..8].try_into().unwrap());
+		if let Some(block) = self.get_block_to_resync()? {
+			let time_msec = u64::from_be_bytes(block.time_bytes[0..8].try_into().unwrap());
 			let now = now_msec();
 
 			if now >= time_msec {
-				let hash = Hash::try_from(&hash_bytes[..]).unwrap();
+				let hash = Hash::try_from(&block.hash_bytes[..]).unwrap();
 
 				if let Some(ec) = self.errors.get(hash.as_slice())? {
 					let ec = ErrorCounter::decode(&ec);
@@ -217,7 +234,7 @@ impl BlockResyncManager {
 						// is not removing the one we added just above
 						// (we want to do the remove after the insert to ensure
 						// that the item is not lost if we crash in-between)
-						self.queue.remove(time_bytes)?;
+						self.queue.remove(&block.time_bytes)?;
 						return Ok(ResyncIterResult::BusyDidNothing);
 					}
 				}
@@ -258,10 +275,10 @@ impl BlockResyncManager {
 					// err_counter.next_try() >= now + 1 > now,
 					// the entry we remove from the queue is not
 					// the entry we inserted with put_to_resync_at
-					self.queue.remove(time_bytes)?;
+					self.queue.remove(&block.time_bytes)?;
 				} else {
 					self.errors.remove(hash.as_slice())?;
-					self.queue.remove(time_bytes)?;
+					self.queue.remove(&block.time_bytes)?;
 				}
 
 				Ok(ResyncIterResult::BusyDidSomething)
@@ -279,6 +296,22 @@ impl BlockResyncManager {
 			// back 10 seconds later, which is fine.
 			Ok(ResyncIterResult::IdleFor(Duration::from_secs(10)))
 		}
+	}
+
+	fn get_block_to_resync(&self) -> Result<Option<BusyBlock>, db::Error> {
+		let mut busy = self.busy_set.lock().unwrap();
+		for it in self.queue.iter()? {
+			let (time_bytes, hash_bytes) = it?;
+			if !busy.contains(&time_bytes) {
+				busy.insert(time_bytes.clone());
+				return Ok(Some(BusyBlock {
+					time_bytes,
+					hash_bytes,
+					busy_set: self.busy_set.clone(),
+				}));
+			}
+		}
+		return Ok(None);
 	}
 
 	async fn resync_block(&self, manager: &BlockManager, hash: &Hash) -> Result<(), Error> {
@@ -394,8 +427,18 @@ impl BlockResyncManager {
 		update(&mut cfg);
 		self.persister.save_async(&cfg).await?;
 		self.persisted.store(Arc::new(cfg));
-		self.notify.notify_one();
+		self.notify.notify_waiters();
 		Ok(())
+	}
+
+	pub async fn set_n_workers(&self, n_workers: usize) -> Result<(), Error> {
+		if n_workers < 1 || n_workers > MAX_RESYNC_WORKERS {
+			return Err(Error::Message(format!(
+				"Invalid number of resync workers, must be between 1 and {}",
+				MAX_RESYNC_WORKERS
+			)));
+		}
+		self.update_persisted(|cfg| cfg.n_workers = n_workers).await
 	}
 
 	pub async fn set_tranquility(&self, tranquility: u32) -> Result<(), Error> {
@@ -404,15 +447,24 @@ impl BlockResyncManager {
 	}
 }
 
+impl Drop for BusyBlock {
+	fn drop(&mut self) {
+		let mut busy = self.busy_set.lock().unwrap();
+		busy.remove(&self.time_bytes);
+	}
+}
+
 pub(crate) struct ResyncWorker {
+	index: usize,
 	manager: Arc<BlockManager>,
 	tranquilizer: Tranquilizer,
 	next_delay: Duration,
 }
 
 impl ResyncWorker {
-	pub(crate) fn new(manager: Arc<BlockManager>) -> Self {
+	pub(crate) fn new(index: usize, manager: Arc<BlockManager>) -> Self {
 		Self {
+			index,
 			manager,
 			tranquilizer: Tranquilizer::new(30),
 			next_delay: Duration::from_secs(10),
@@ -423,15 +475,18 @@ impl ResyncWorker {
 #[async_trait]
 impl Worker for ResyncWorker {
 	fn name(&self) -> String {
-		"Block resync worker".into()
+		format!("Block resync worker #{}", self.index + 1)
 	}
 
 	fn info(&self) -> Option<String> {
+		let persisted = self.manager.resync.persisted.load();
+
+		if self.index >= persisted.n_workers {
+			return Some("(unused)".into());
+		}
+
 		let mut ret = vec![];
-		ret.push(format!(
-			"tranquility = {}",
-			self.manager.resync.persisted.load().tranquility
-		));
+		ret.push(format!("tranquility = {}", persisted.tranquility));
 
 		let qlen = self.manager.resync.queue_len().unwrap_or(0);
 		if qlen > 0 {
@@ -447,6 +502,10 @@ impl Worker for ResyncWorker {
 	}
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+		if self.index >= self.manager.resync.persisted.load().n_workers {
+			return Ok(WorkerState::Idle);
+		}
+
 		self.tranquilizer.reset();
 		match self.manager.resync.resync_iter(&self.manager).await {
 			Ok(ResyncIterResult::BusyDidSomething) => Ok(self
@@ -470,10 +529,15 @@ impl Worker for ResyncWorker {
 	}
 
 	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+		while self.index >= self.manager.resync.persisted.load().n_workers {
+			self.manager.resync.notify.notified().await
+		}
+
 		select! {
 			_ = tokio::time::sleep(self.next_delay) => (),
 			_ = self.manager.resync.notify.notified() => (),
 		};
+
 		WorkerState::Busy
 	}
 }

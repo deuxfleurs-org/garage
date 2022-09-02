@@ -524,7 +524,10 @@ pub enum WorkerSetCmd {
 	/// Set tranquility of scrub operations
 	#[structopt(name = "scrub-tranquility", version = version::garage())]
 	ScrubTranquility { tranquility: u32 },
-	/// Set tranquility of resync operations
+	/// Set number of concurrent block resync workers
+	#[structopt(name = "resync-n-workers", version = version::garage())]
+	ResyncNWorkers { n_workers: usize },
+	/// Set tranquility of block resync operations
 	#[structopt(name = "resync-tranquility", version = version::garage())]
 	ResyncTranquility { tranquility: u32 },
 }

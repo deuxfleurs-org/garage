@@ -125,13 +125,11 @@ impl BlockManager {
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
 
-		// Spawn one resync worker
-		let background = block_manager.system.background.clone();
-		let worker = ResyncWorker::new(block_manager.clone());
-		tokio::spawn(async move {
-			tokio::time::sleep(Duration::from_secs(10)).await;
-			background.spawn_worker(worker);
-		});
+		// Spawn a bunch of resync workers
+		for index in 0..MAX_RESYNC_WORKERS {
+			let worker = ResyncWorker::new(index, block_manager.clone());
+			block_manager.system.background.spawn_worker(worker);
+		}
 
 		// Spawn scrub worker
 		let scrub_worker = ScrubWorker::new(block_manager.clone(), scrub_rx);

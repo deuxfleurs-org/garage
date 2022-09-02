@@ -847,6 +847,14 @@ impl AdminRpcHandler {
 						.await;
 					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
 				}
+				WorkerSetCmd::ResyncNWorkers { n_workers } => {
+					self.garage
+						.block_manager
+						.resync
+						.set_n_workers(n_workers)
+						.await?;
+					Ok(AdminRpc::Ok("Number of resync workers updated".into()))
+				}
 				WorkerSetCmd::ResyncTranquility { tranquility } => {
 					self.garage
 						.block_manager
