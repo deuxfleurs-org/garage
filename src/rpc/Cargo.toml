@@ -54,3 +54,4 @@ hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "openssl", "schemars" ]
+system-libs = [ "sodiumoxide/use-pkg-config" ]

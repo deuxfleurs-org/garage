@@ -4140,4 +4140,5 @@ checksum = "2daf2f248d9ea44454bfcb2516534e8b8ad2fc91bf818a1885495fc42bc8ac9f"
 dependencies = [
  "cc",
  "libc",
+ "pkg-config",
 ]
