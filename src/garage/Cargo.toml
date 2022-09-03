@@ -74,6 +74,14 @@ base64 = "0.13"
 
 
 [features]
+default = [ "bundled-libs" ]
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
+
+# NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
+# exactly one of them should be enabled.
+
+# Use bundled libsqlite instead of linking against system-provided.
+bundled-libs = [ "garage_db/bundled-libs" ]
+# Link against system-provided libsodium and libzstd.
 system-libs = [ "garage_block/system-libs", "garage_rpc/system-libs", "sodiumoxide/use-pkg-config" ]
