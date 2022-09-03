@@ -54,10 +54,11 @@ quick-xml = { version = "0.21", features = [ "serialize" ] }
 url = "2.1"
 
 opentelemetry = "0.17"
-opentelemetry-prometheus = "0.10"
+opentelemetry-prometheus = { version = "0.10", optional = true }
 opentelemetry-otlp = { version = "0.10", optional = true }
-prometheus = "0.13"
+prometheus = { version = "0.13", optional = true }
 
 [features]
 k2v = [ "garage_util/k2v", "garage_model/k2v" ]
+metrics = [ "opentelemetry-prometheus", "prometheus" ]
 telemetry-otlp = ["opentelemetry-otlp"]
