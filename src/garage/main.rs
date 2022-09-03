@@ -8,6 +8,7 @@ mod admin;
 mod cli;
 mod repair;
 mod server;
+#[cfg(feature = "telemetry-otlp")]
 mod tracing_setup;
 
 use std::net::SocketAddr;

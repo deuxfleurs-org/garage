@@ -56,7 +56,7 @@ netapp = "0.4"
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio" ] }
 opentelemetry-prometheus = "0.10"
-opentelemetry-otlp = "0.10"
+opentelemetry-otlp = { version = "0.10", optional = true }
 prometheus = "0.13"
 
 [dev-dependencies]
@@ -77,6 +77,8 @@ base64 = "0.13"
 default = [ "bundled-libs" ]
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
+# Exporter for the OpenTelemetry Collector.
+telemetry-otlp = [ "opentelemetry-otlp", "garage_api/telemetry-otlp" ]
 
 # NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
 # exactly one of them should be enabled.
