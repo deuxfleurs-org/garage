@@ -21,7 +21,7 @@ err-derive = "0.3"
 hexdump = "0.1"
 tracing = "0.1.30"
 
-heed = "0.11"
+heed = { version = "0.11", default-features = false, features = ["lmdb"] }
 rusqlite = "0.27"
 sled = "0.34"
 
