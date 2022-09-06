@@ -118,6 +118,10 @@ let
      But we want to ship these additional features when we release Garage.
      In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
      Currently, the only feature of Garage is kubernetes-discovery from the garage_rpc crate.
+
+     [5] We don't want libsodium-sys and zstd-sys to try to use pkgconfig to build against a system library.
+     However the features to do so get activated for some reason (due to a bug in cargo2nix?),
+     so disable them manually here.
     */
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage";
@@ -182,6 +186,20 @@ let
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "k2v-client";
       overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "libsodium-sys";
+      overrideArgs = old: {
+        features = [ ]; /* [5] */
+      };
+    })
+
+    (pkgs.rustBuilder.rustLib.makeOverride {
+      name = "zstd-sys";
+      overrideArgs = old: {
+        features = [ ]; /* [5] */
+      };
     })
   ];
 
