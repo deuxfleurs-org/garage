@@ -9,6 +9,7 @@ use bytes::Bytes;
 use hyper::{Body, Request, Response};
 use serde::Serialize;
 
+use garage_rpc::netapp::bytes_buf::BytesBuf;
 use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
 use garage_util::data::*;
@@ -566,7 +567,7 @@ type BlockStreamItem = Result<BlockStreamItemOk, garage_util::error::Error>;
 struct Defragmenter<S: Stream<Item = BlockStreamItem>> {
 	block_size: usize,
 	block_stream: Pin<Box<stream::Peekable<S>>>,
-	buffer: Vec<u8>,
+	buffer: BytesBuf,
 	hash: Option<Hash>,
 }
 
@@ -575,7 +576,7 @@ impl<S: Stream<Item = BlockStreamItem>> Defragmenter<S> {
 		Self {
 			block_size,
 			block_stream,
-			buffer: vec![],
+			buffer: BytesBuf::new(),
 			hash: None,
 		}
 	}
@@ -593,7 +594,7 @@ impl<S: Stream<Item = BlockStreamItem>> Defragmenter<S> {
 
 			if self.buffer.is_empty() {
 				let (next_block, next_block_hash) = self.block_stream.next().await.unwrap()?;
-				self.buffer = next_block.to_vec(); // TODO TOO MUCH COPY
+				self.buffer.extend(next_block);
 				self.hash = next_block_hash;
 			} else if self.buffer.len() + peeked_next_block.len() > self.block_size {
 				break;
@@ -604,10 +605,7 @@ impl<S: Stream<Item = BlockStreamItem>> Defragmenter<S> {
 			}
 		}
 
-		Ok((
-			Bytes::from(std::mem::take(&mut self.buffer)),
-			self.hash.take(),
-		))
+		Ok((self.buffer.take_all(), self.hash.take()))
 	}
 }
 

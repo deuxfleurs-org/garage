@@ -274,11 +274,11 @@ pub async fn handle_get(
 								.block_manager
 								.rpc_get_block_streaming(&hash, Some(order_stream.order(i as u64)))
 								.await
-								.unwrap_or_else(|_| {
+								.unwrap_or_else(|e| {
 									Box::pin(futures::stream::once(async move {
 										Err(std::io::Error::new(
 											std::io::ErrorKind::Other,
-											"Could not get next block",
+											format!("Could not get block {}: {}", i, e),
 										))
 									}))
 								})
