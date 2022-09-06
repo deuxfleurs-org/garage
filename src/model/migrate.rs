@@ -5,7 +5,7 @@ use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
-use garage_model_050::bucket_table as old_bucket;
+use crate::prev::v051::bucket_table as old_bucket;
 
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;

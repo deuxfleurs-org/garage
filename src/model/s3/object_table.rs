@@ -14,7 +14,7 @@ use garage_table::*;
 use crate::index_counter::*;
 use crate::s3::version_table::*;
 
-use garage_model_050::object_table as old;
+use crate::prev::v051::object_table as old;
 
 pub const OBJECTS: &str = "objects";
 pub const UNFINISHED_UPLOADS: &str = "unfinished_uploads";

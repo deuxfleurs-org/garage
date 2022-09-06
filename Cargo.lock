@@ -970,17 +970,17 @@ dependencies = [
  "garage_api",
  "garage_block",
  "garage_db",
- "garage_model 0.8.0",
- "garage_rpc 0.8.0",
- "garage_table 0.8.0",
- "garage_util 0.8.0",
+ "garage_model",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "garage_web",
  "hex",
  "hmac 0.10.1",
  "http",
  "hyper",
  "kuska-sodiumoxide",
- "netapp 0.4.4",
+ "netapp",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
@@ -1014,10 +1014,10 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_block",
- "garage_model 0.8.0",
- "garage_rpc 0.8.0",
- "garage_table 0.8.0",
- "garage_util 0.8.0",
+ "garage_model",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
  "hmac 0.10.1",
  "http",
@@ -1054,9 +1054,9 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.8.0",
- "garage_table 0.8.0",
- "garage_util 0.8.0",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
  "opentelemetry",
  "rand 0.8.5",
@@ -1085,31 +1085,6 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "584619e8999713d73761775591ad6f01ff8c9d724f3b20984f5932f1fc7f9988"
-dependencies = [
- "arc-swap",
- "async-trait",
- "futures",
- "futures-util",
- "garage_rpc 0.5.1",
- "garage_table 0.5.1",
- "garage_util 0.5.1",
- "hex",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "sled",
- "tokio",
- "zstd",
-]
-
-[[package]]
-name = "garage_model"
 version = "0.8.0"
 dependencies = [
  "arc-swap",
@@ -1121,12 +1096,11 @@ dependencies = [
  "futures-util",
  "garage_block",
  "garage_db",
- "garage_model 0.5.1",
- "garage_rpc 0.8.0",
- "garage_table 0.8.0",
- "garage_util 0.8.0",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
- "netapp 0.4.4",
+ "netapp",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -1139,33 +1113,6 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81e693aa4582cfe7a7ce70c07880e3662544b5d0cd68bc4b59c53febfbb8d1ec"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 1.1.0",
- "futures",
- "futures-util",
- "garage_util 0.5.1",
- "gethostname",
- "hex",
- "hyper",
- "kuska-sodiumoxide",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "serde_json",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
-name = "garage_rpc"
 version = "0.8.0"
 dependencies = [
  "arc-swap",
@@ -1173,14 +1120,14 @@ dependencies = [
  "bytes 1.1.0",
  "futures",
  "futures-util",
- "garage_util 0.8.0",
+ "garage_util",
  "gethostname",
  "hex",
  "hyper",
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp 0.4.4",
+ "netapp",
  "openssl",
  "opentelemetry",
  "pnet_datalink",
@@ -1197,28 +1144,6 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c3557f3757e2acd29eaee86804d4e6c38d2abda81b4b349d8a0d2277044265c"
-dependencies = [
- "async-trait",
- "bytes 1.1.0",
- "futures",
- "futures-util",
- "garage_rpc 0.5.1",
- "garage_util 0.5.1",
- "hexdump",
- "log",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "sled",
- "tokio",
-]
-
-[[package]]
-name = "garage_table"
 version = "0.8.0"
 dependencies = [
  "async-trait",
@@ -1226,8 +1151,8 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.8.0",
- "garage_util 0.8.0",
+ "garage_rpc",
+ "garage_util",
  "hexdump",
  "opentelemetry",
  "rand 0.8.5",
@@ -1236,32 +1161,6 @@ dependencies = [
  "serde_bytes",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "garage_util"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e096994382447431e2f3c70e3685eb8b24c00eceff8667bb22a2a27ff17832f"
-dependencies = [
- "blake2",
- "chrono",
- "err-derive 0.3.1",
- "futures",
- "hex",
- "http",
- "hyper",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_json",
- "sha2",
- "sled",
- "tokio",
- "toml",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -1278,7 +1177,7 @@ dependencies = [
  "hex",
  "http",
  "hyper",
- "netapp 0.4.4",
+ "netapp",
  "opentelemetry",
  "rand 0.8.5",
  "rmp-serde 0.15.5",
@@ -1298,9 +1197,9 @@ dependencies = [
  "err-derive 0.3.1",
  "futures",
  "garage_api",
- "garage_model 0.8.0",
- "garage_table 0.8.0",
- "garage_util 0.8.0",
+ "garage_model",
+ "garage_table",
+ "garage_util",
  "http",
  "hyper",
  "opentelemetry",
@@ -1739,7 +1638,7 @@ version = "0.0.1"
 dependencies = [
  "base64",
  "clap 3.1.18",
- "garage_util 0.8.0",
+ "garage_util",
  "http",
  "log",
  "rusoto_core",
@@ -2083,28 +1982,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "netapp"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac7dcd2c6c5a9d5ea88ffc17d3339d49d308e68c4d8190c494b55ddbf78d80ad"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 0.6.0",
- "err-derive 0.2.4",
- "futures",
- "hex",
- "kuska-handshake",
- "kuska-sodiumoxide",
- "log",
- "rmp-serde 0.14.4",
- "serde",
- "tokio",
- "tokio-stream",
- "tokio-util 0.6.9",
 ]
 
 [[package]]
