@@ -88,7 +88,7 @@ kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).
 metrics = [ "garage_api/metrics", "opentelemetry-prometheus", "prometheus" ]
 # Exporter for the OpenTelemetry Collector.
-telemetry-otlp = [ "opentelemetry-otlp", "garage_api/telemetry-otlp" ]
+telemetry-otlp = [ "opentelemetry-otlp" ]
 
 # NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
 # exactly one of them should be enabled.

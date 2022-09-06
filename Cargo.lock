@@ -1029,7 +1029,6 @@ dependencies = [
  "multer",
  "nom",
  "opentelemetry",
- "opentelemetry-otlp",
  "opentelemetry-prometheus",
  "percent-encoding",
  "pin-project 1.0.10",
