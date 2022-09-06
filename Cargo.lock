@@ -956,7 +956,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -970,10 +970,10 @@ dependencies = [
  "garage_api",
  "garage_block",
  "garage_db",
- "garage_model 0.7.0",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model 0.8.0",
+ "garage_rpc 0.8.0",
+ "garage_table 0.8.0",
+ "garage_util 0.8.0",
  "garage_web",
  "hex",
  "hmac 0.10.1",
@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1014,10 +1014,10 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_block",
- "garage_model 0.7.0",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model 0.8.0",
+ "garage_rpc 0.8.0",
+ "garage_table 0.8.0",
+ "garage_util 0.8.0",
  "hex",
  "hmac 0.10.1",
  "http",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1055,9 +1055,9 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc 0.8.0",
+ "garage_table 0.8.0",
+ "garage_util 0.8.0",
  "hex",
  "opentelemetry",
  "rand 0.8.5",
@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1123,9 +1123,9 @@ dependencies = [
  "garage_block",
  "garage_db",
  "garage_model 0.5.1",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc 0.8.0",
+ "garage_table 0.8.0",
+ "garage_util 0.8.0",
  "hex",
  "netapp 0.4.4",
  "opentelemetry",
@@ -1167,14 +1167,14 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 1.1.0",
  "futures",
  "futures-util",
- "garage_util 0.7.0",
+ "garage_util 0.8.0",
  "gethostname",
  "hex",
  "hyper",
@@ -1220,15 +1220,15 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "bytes 1.1.0",
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc 0.8.0",
+ "garage_util 0.8.0",
  "hexdump",
  "opentelemetry",
  "rand 0.8.5",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "blake2",
@@ -1294,14 +1294,14 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "err-derive 0.3.1",
  "futures",
  "garage_api",
- "garage_model 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model 0.8.0",
+ "garage_table 0.8.0",
+ "garage_util 0.8.0",
  "http",
  "hyper",
  "opentelemetry",
@@ -1740,7 +1740,7 @@ version = "0.0.1"
 dependencies = [
  "base64",
  "clap 3.1.18",
- "garage_util 0.7.0",
+ "garage_util 0.8.0",
  "http",
  "log",
  "rusoto_core",
