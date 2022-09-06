@@ -37,11 +37,11 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone(), background)?;
 
-	if let Some(export_to) = config.admin.trace_sink {
+	if config.admin.trace_sink.is_some() {
 		info!("Initialize tracing...");
 
 		#[cfg(feature = "telemetry-otlp")]
-		init_tracing(&export_to, garage.system.id)?;
+		init_tracing(config.admin.trace_sink.as_ref().unwrap(), garage.system.id)?;
 
 		#[cfg(not(feature = "telemetry-otlp"))]
 		warn!("Garage was built without OTLP exporter, admin.trace_sink is ignored.");
