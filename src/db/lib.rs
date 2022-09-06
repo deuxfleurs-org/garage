@@ -1,8 +1,12 @@
 #[macro_use]
+#[cfg(feature = "sqlite")]
 extern crate tracing;
 
+#[cfg(feature = "lmdb")]
 pub mod lmdb_adapter;
+#[cfg(feature = "sled")]
 pub mod sled_adapter;
+#[cfg(feature = "sqlite")]
 pub mod sqlite_adapter;
 
 pub mod counted_tree_hack;

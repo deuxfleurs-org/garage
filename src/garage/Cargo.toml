@@ -74,9 +74,17 @@ base64 = "0.13"
 
 
 [features]
-default = [ "bundled-libs", "metrics" ]
-kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
+default = [ "bundled-libs", "metrics", "sled" ]
+
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
+
+# Database engines, Sled is still our default even though we don't like it
+sled = [ "garage_model/sled" ]
+lmdb = [ "garage_model/lmdb" ]
+sqlite = [ "garage_model/sqlite" ]
+
+# Automatic registration and discovery via Kubernetes API
+kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).
 metrics = [ "garage_api/metrics", "opentelemetry-prometheus", "prometheus" ]
 # Exporter for the OpenTelemetry Collector.

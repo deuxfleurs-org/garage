@@ -46,3 +46,6 @@ netapp = "0.4"
 
 [features]
 k2v = [ "garage_util/k2v" ]
+lmdb = [ "garage_db/lmdb" ]
+sled = [ "garage_db/sled" ]
+sqlite = [ "garage_db/sqlite" ]
