@@ -1,7 +1,7 @@
 .PHONY: doc all release shell run1 run2 run3
 
 all:
-	clear; cargo build --all-features
+	clear; cargo build
 
 release:
 	nix-build --arg release true

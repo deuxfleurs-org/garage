@@ -164,7 +164,6 @@ impl Garage {
 			&db,
 			config.data_dir.clone(),
 			config.compression_level,
-			config.block_manager_background_tranquility,
 			data_rep_param,
 			system.clone(),
 		);
