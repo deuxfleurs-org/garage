@@ -147,4 +147,3 @@ impl Crdt for Object {
 		}
 	}
 }
-

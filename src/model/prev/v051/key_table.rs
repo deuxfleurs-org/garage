@@ -48,4 +48,3 @@ impl Crdt for Key {
 		}
 	}
 }
-
