@@ -55,9 +55,9 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 netapp = "0.4"
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio" ] }
-opentelemetry-prometheus = "0.10"
-opentelemetry-otlp = "0.10"
-prometheus = "0.13"
+opentelemetry-prometheus = { version = "0.10", optional = true }
+opentelemetry-otlp = { version = "0.10", optional = true }
+prometheus = { version = "0.13", optional = true }
 
 [dev-dependencies]
 aws-sdk-s3 = "0.8"
@@ -74,9 +74,13 @@ base64 = "0.13"
 
 
 [features]
-default = [ "bundled-libs" ]
+default = [ "bundled-libs", "metrics" ]
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
+# Prometheus exporter (/metrics endpoint).
+metrics = [ "garage_api/metrics", "opentelemetry-prometheus", "prometheus" ]
+# Exporter for the OpenTelemetry Collector.
+telemetry-otlp = [ "opentelemetry-otlp", "garage_api/telemetry-otlp" ]
 
 # NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
 # exactly one of them should be enabled.
