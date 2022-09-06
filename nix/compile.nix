@@ -125,14 +125,15 @@ let
         /* [1] */ setBuildEnv = (buildEnv drv);
         /* [2] */ hardeningDisable = [ "pie" ];
       };
+      overrideArgs = old: {
+        /* [4] */ features = [ "bundled-libs" ]
+          ++ (if release then [ "kubernetes-discovery" "telemetry-otlp" "metrics" ] else []);
+      };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_rpc";
       overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
-      overrideArgs = old: {
-        /* [4] */ features = if release then [ "kubernetes-discovery" ] else [];
-      };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
