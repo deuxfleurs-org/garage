@@ -1101,6 +1101,7 @@ dependencies = [
  "garage_util",
  "git-version",
  "hex",
+ "lazy_static",
  "netapp",
  "opentelemetry",
  "rand 0.8.5",

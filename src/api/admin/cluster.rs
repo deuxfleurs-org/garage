@@ -19,6 +19,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 	let res = GetClusterStatusResponse {
 		node: hex::encode(garage.system.id),
 		garage_version: garage_model::version::garage_version(),
+		garage_features: garage_model::version::garage_features(),
 		db_engine: garage.db.engine(),
 		known_nodes: garage
 			.system
@@ -99,6 +100,7 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 struct GetClusterStatusResponse {
 	node: String,
 	garage_version: &'static str,
+	garage_features: Option<&'static [&'static str]>,
 	db_engine: String,
 	known_nodes: HashMap<String, KnownNodeResp>,
 	layout: GetClusterLayoutResponse,

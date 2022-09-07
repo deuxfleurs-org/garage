@@ -25,13 +25,15 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use garage_model::helper::error::Error as HelperError;
-use garage_model::version::garage_version;
 
 use admin::*;
 use cli::*;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "garage", version = garage_version(), about = "S3-compatible object store for self-hosted geo-distributed deployments")]
+#[structopt(
+	name = "garage",
+	about = "S3-compatible object store for self-hosted geo-distributed deployments"
+)]
 struct Opt {
 	/// Host to connect to for admin operations, in the format:
 	/// <public-key>@<ip>:<port>
@@ -69,7 +71,35 @@ async fn main() {
 		std::process::abort();
 	}));
 
-	let opt = Opt::from_args();
+	// Parse opt
+	let features = &[
+		#[cfg(feature = "k2v")]
+		"k2v",
+		#[cfg(feature = "sled")]
+		"sled",
+		#[cfg(feature = "lmdb")]
+		"lmdb",
+		#[cfg(feature = "sqlite")]
+		"sqlite",
+		#[cfg(feature = "kubernetes-discovery")]
+		"kubernetes-discovery",
+		#[cfg(feature = "metrics")]
+		"metrics",
+		#[cfg(feature = "telemetry-otlp")]
+		"telemetry-otlp",
+		#[cfg(feature = "bundled-libs")]
+		"bundled-libs",
+		#[cfg(feature = "system-libs")]
+		"system-libs",
+	][..];
+	let version = format!(
+		"{} [features: {}]",
+		garage_model::version::garage_version(),
+		features.join(", ")
+	);
+	garage_model::version::init_features(features);
+	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
+
 	let res = match opt.cmd {
 		Command::Server => server::run_server(opt.config_file).await,
 		Command::OfflineRepair(repair_opt) => {
