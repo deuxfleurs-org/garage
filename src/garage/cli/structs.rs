@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
-use garage_model::version::garage_version;
+use garage_util::version::garage_version;
 
 #[derive(StructOpt, Debug)]
 pub enum Command {

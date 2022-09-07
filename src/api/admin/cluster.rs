@@ -18,8 +18,8 @@ use crate::helpers::{json_ok_response, parse_json_body};
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = GetClusterStatusResponse {
 		node: hex::encode(garage.system.id),
-		garage_version: garage_model::version::garage_version(),
-		garage_features: garage_model::version::garage_features(),
+		garage_version: garage_util::version::garage_version(),
+		garage_features: garage_util::version::garage_features(),
 		db_engine: garage.db.engine(),
 		known_nodes: garage
 			.system

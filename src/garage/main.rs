@@ -99,14 +99,14 @@ async fn main() {
 		"system-libs",
 	][..];
 	if let Some(git_version) = option_env!("GIT_VERSION") {
-		garage_model::version::init_version(git_version);
+		garage_util::version::init_version(git_version);
 	}
-	garage_model::version::init_features(features);
+	garage_util::version::init_features(features);
 
 	// Parse arguments
 	let version = format!(
 		"{} [features: {}]",
-		garage_model::version::garage_version(),
+		garage_util::version::garage_version(),
 		features.join(", ")
 	);
 	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());

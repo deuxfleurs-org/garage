@@ -742,8 +742,8 @@ impl AdminRpcHandler {
 		writeln!(
 			&mut ret,
 			"\nGarage version: {} [features: {}]",
-			garage_model::version::garage_version(),
-			garage_model::version::garage_features()
+			garage_util::version::garage_version(),
+			garage_util::version::garage_features()
 				.map(|list| list.join(", "))
 				.unwrap_or_else(|| "(unknown)".into()),
 		)
