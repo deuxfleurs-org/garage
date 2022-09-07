@@ -502,7 +502,7 @@ pub enum WorkerCmd {
 		opt: WorkerListOpt,
 	},
 	/// Set worker parameter
-	#[structopt(name = "set", version = version::garage())]
+	#[structopt(name = "set", version = garage_version())]
 	Set {
 		#[structopt(subcommand)]
 		opt: WorkerSetCmd,
@@ -522,12 +522,12 @@ pub struct WorkerListOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum WorkerSetCmd {
 	/// Set tranquility of scrub operations
-	#[structopt(name = "scrub-tranquility", version = version::garage())]
+	#[structopt(name = "scrub-tranquility", version = garage_version())]
 	ScrubTranquility { tranquility: u32 },
 	/// Set number of concurrent block resync workers
-	#[structopt(name = "resync-n-workers", version = version::garage())]
+	#[structopt(name = "resync-n-workers", version = garage_version())]
 	ResyncNWorkers { n_workers: usize },
 	/// Set tranquility of block resync operations
-	#[structopt(name = "resync-tranquility", version = version::garage())]
+	#[structopt(name = "resync-tranquility", version = garage_version())]
 	ResyncTranquility { tranquility: u32 },
 }
