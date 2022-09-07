@@ -81,11 +81,10 @@ pub struct Config {
 	pub s3_api: S3ApiConfig,
 
 	/// Configuration for K2V api
-	#[cfg(feature = "k2v")]
 	pub k2v_api: Option<K2VApiConfig>,
 
 	/// Configuration for serving files as normal web server
-	pub s3_web: WebConfig,
+	pub s3_web: Option<WebConfig>,
 
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
@@ -96,7 +95,7 @@ pub struct Config {
 #[derive(Deserialize, Debug, Clone)]
 pub struct S3ApiConfig {
 	/// Address and port to bind for api serving
-	pub api_bind_addr: SocketAddr,
+	pub api_bind_addr: Option<SocketAddr>,
 	/// S3 region to use
 	pub s3_region: String,
 	/// Suffix to remove from domain name to find bucket. If None,
@@ -105,7 +104,6 @@ pub struct S3ApiConfig {
 }
 
 /// Configuration for K2V api
-#[cfg(feature = "k2v")]
 #[derive(Deserialize, Debug, Clone)]
 pub struct K2VApiConfig {
 	/// Address and port to bind for api serving

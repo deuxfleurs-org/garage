@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -52,15 +53,15 @@ impl AdminApiServer {
 		}
 	}
 
-	pub async fn run(self, shutdown_signal: impl Future<Output = ()>) -> Result<(), GarageError> {
-		if let Some(bind_addr) = self.garage.config.admin.api_bind_addr {
-			let region = self.garage.config.s3_api.s3_region.clone();
-			ApiServer::new(region, self)
-				.run_server(bind_addr, shutdown_signal)
-				.await
-		} else {
-			Ok(())
-		}
+	pub async fn run(
+		self,
+		bind_addr: SocketAddr,
+		shutdown_signal: impl Future<Output = ()>,
+	) -> Result<(), GarageError> {
+		let region = self.garage.config.s3_api.s3_region.clone();
+		ApiServer::new(region, self)
+			.run_server(bind_addr, shutdown_signal)
+			.await
 	}
 
 	fn handle_options(&self, _req: &Request<Body>) -> Result<Response<Body>, Error> {
