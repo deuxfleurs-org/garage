@@ -146,15 +146,7 @@ let
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_util";
-      overrideAttrs = drv:
-        (if git_version != null then {
-          /* [3] */ preConfigure = ''
-            ${drv.preConfigure or ""}
-            export GIT_VERSION="${git_version}"
-          '';
-        } else {})
-        // 
-        { /* [1] */ setBuildEnv = (buildEnv drv); };
+      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
@@ -169,7 +161,15 @@ let
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_model";
-      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+      overrideAttrs = drv:
+        (if git_version != null then {
+          /* [3] */ preConfigure = ''
+            ${drv.preConfigure or ""}
+            export GIT_VERSION="${git_version}"
+          '';
+        } else {})
+        //
+        { /* [1] */ setBuildEnv = (buildEnv drv); };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {

@@ -1,65 +1,65 @@
 use serde::{Deserialize, Serialize};
-
-use garage_util::version;
 use structopt::StructOpt;
+
+use garage_model::version::garage_version;
 
 #[derive(StructOpt, Debug)]
 pub enum Command {
 	/// Run Garage server
-	#[structopt(name = "server", version = version::garage())]
+	#[structopt(name = "server", version = garage_version())]
 	Server,
 
 	/// Get network status
-	#[structopt(name = "status", version = version::garage())]
+	#[structopt(name = "status", version = garage_version())]
 	Status,
 
 	/// Operations on individual Garage nodes
-	#[structopt(name = "node", version = version::garage())]
+	#[structopt(name = "node", version = garage_version())]
 	Node(NodeOperation),
 
 	/// Operations on the assignation of node roles in the cluster layout
-	#[structopt(name = "layout", version = version::garage())]
+	#[structopt(name = "layout", version = garage_version())]
 	Layout(LayoutOperation),
 
 	/// Operations on buckets
-	#[structopt(name = "bucket", version = version::garage())]
+	#[structopt(name = "bucket", version = garage_version())]
 	Bucket(BucketOperation),
 
 	/// Operations on S3 access keys
-	#[structopt(name = "key", version = version::garage())]
+	#[structopt(name = "key", version = garage_version())]
 	Key(KeyOperation),
 
 	/// Run migrations from previous Garage version
 	/// (DO NOT USE WITHOUT READING FULL DOCUMENTATION)
-	#[structopt(name = "migrate", version = version::garage())]
+	#[structopt(name = "migrate", version = garage_version())]
 	Migrate(MigrateOpt),
 
 	/// Start repair of node data on remote node
-	#[structopt(name = "repair", version = version::garage())]
+	#[structopt(name = "repair", version = garage_version())]
 	Repair(RepairOpt),
 
 	/// Offline reparation of node data (these repairs must be run offline
 	/// directly on the server node)
-	#[structopt(name = "offline-repair", version = version::garage())]
+	#[structopt(name = "offline-repair", version = garage_version())]
 	OfflineRepair(OfflineRepairOpt),
 
 	/// Gather node statistics
-	#[structopt(name = "stats", version = version::garage())]
+	#[structopt(name = "stats", version = garage_version())]
 	Stats(StatsOpt),
 
 	/// Manage background workers
-	#[structopt(name = "worker", version = version::garage())]
+	#[structopt(name = "worker", version = garage_version())]
 	Worker(WorkerOpt),
 }
 
 #[derive(StructOpt, Debug)]
 pub enum NodeOperation {
 	/// Print identifier (public key) of this Garage node
-	#[structopt(name = "id", version = version::garage())]
+	#[structopt(name = "id", version = garage_version())]
 	NodeId(NodeIdOpt),
 
 	/// Connect to Garage node that is currently isolated from the system
-	#[structopt(name = "connect", version = version::garage())]
+	#[structopt(name = "connect", version = garage_version())]
 	Connect(ConnectNodeOpt),
 }
 
@@ -80,23 +80,23 @@ pub struct ConnectNodeOpt {
 #[derive(StructOpt, Debug)]
 pub enum LayoutOperation {
 	/// Assign role to Garage node
-	#[structopt(name = "assign", version = version::garage())]
+	#[structopt(name = "assign", version = garage_version())]
 	Assign(AssignRoleOpt),
 
 	/// Remove role from Garage cluster node
-	#[structopt(name = "remove", version = version::garage())]
+	#[structopt(name = "remove", version = garage_version())]
 	Remove(RemoveRoleOpt),
 
 	/// Show roles currently assigned to nodes and changes staged for commit
-	#[structopt(name = "show", version = version::garage())]
+	#[structopt(name = "show", version = garage_version())]
 	Show,
 
 	/// Apply staged changes to cluster layout
-	#[structopt(name = "apply", version = version::garage())]
+	#[structopt(name = "apply", version = garage_version())]
 	Apply(ApplyLayoutOpt),
 
 	/// Revert staged changes to cluster layout
-	#[structopt(name = "revert", version = version::garage())]
+	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
 }
 
@@ -151,43 +151,43 @@ pub struct RevertLayoutOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub enum BucketOperation {
 	/// List buckets
-	#[structopt(name = "list", version = version::garage())]
+	#[structopt(name = "list", version = garage_version())]
 	List,
 
 	/// Get bucket info
-	#[structopt(name = "info", version = version::garage())]
+	#[structopt(name = "info", version = garage_version())]
 	Info(BucketOpt),
 
 	/// Create bucket
-	#[structopt(name = "create", version = version::garage())]
+	#[structopt(name = "create", version = garage_version())]
 	Create(BucketOpt),
 
 	/// Delete bucket
-	#[structopt(name = "delete", version = version::garage())]
+	#[structopt(name = "delete", version = garage_version())]
 	Delete(DeleteBucketOpt),
 
 	/// Alias bucket under new name
-	#[structopt(name = "alias", version = version::garage())]
+	#[structopt(name = "alias", version = garage_version())]
 	Alias(AliasBucketOpt),
 
 	/// Remove bucket alias
-	#[structopt(name = "unalias", version = version::garage())]
+	#[structopt(name = "unalias", version = garage_version())]
 	Unalias(UnaliasBucketOpt),
 
 	/// Allow key to read or write to bucket
-	#[structopt(name = "allow", version = version::garage())]
+	#[structopt(name = "allow", version = garage_version())]
 	Allow(PermBucketOpt),
 
 	/// Deny key from reading or writing to bucket
-	#[structopt(name = "deny", version = version::garage())]
+	#[structopt(name = "deny", version = garage_version())]
 	Deny(PermBucketOpt),
 
 	/// Expose as website or not
-	#[structopt(name = "website", version = version::garage())]
+	#[structopt(name = "website", version = garage_version())]
 	Website(WebsiteOpt),
 
 	/// Set the quotas for this bucket
-	#[structopt(name = "set-quotas", version = version::garage())]
+	#[structopt(name = "set-quotas", version = garage_version())]
 	SetQuotas(SetQuotasOpt),
 }
 
@@ -293,35 +293,35 @@ pub struct SetQuotasOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub enum KeyOperation {
 	/// List keys
-	#[structopt(name = "list", version = version::garage())]
+	#[structopt(name = "list", version = garage_version())]
 	List,
 
 	/// Get key info
-	#[structopt(name = "info", version = version::garage())]
+	#[structopt(name = "info", version = garage_version())]
 	Info(KeyOpt),
 
 	/// Create new key
-	#[structopt(name = "new", version = version::garage())]
+	#[structopt(name = "new", version = garage_version())]
 	New(KeyNewOpt),
 
 	/// Rename key
-	#[structopt(name = "rename", version = version::garage())]
+	#[structopt(name = "rename", version = garage_version())]
 	Rename(KeyRenameOpt),
 
 	/// Delete key
-	#[structopt(name = "delete", version = version::garage())]
+	#[structopt(name = "delete", version = garage_version())]
 	Delete(KeyDeleteOpt),
 
 	/// Set permission flags for key
-	#[structopt(name = "allow", version = version::garage())]
+	#[structopt(name = "allow", version = garage_version())]
 	Allow(KeyPermOpt),
 
 	/// Unset permission flags for key
-	#[structopt(name = "deny", version = version::garage())]
+	#[structopt(name = "deny", version = garage_version())]
 	Deny(KeyPermOpt),
 
 	/// Import key
-	#[structopt(name = "import", version = version::garage())]
+	#[structopt(name = "import", version = garage_version())]
 	Import(KeyImportOpt),
 }
 
@@ -393,7 +393,7 @@ pub struct MigrateOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum MigrateWhat {
 	/// Migrate buckets and permissions from v0.5.0
-	#[structopt(name = "buckets050", version = version::garage())]
+	#[structopt(name = "buckets050", version = garage_version())]
 	Buckets050,
 }
 
@@ -414,19 +414,19 @@ pub struct RepairOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum RepairWhat {
 	/// Only do a full sync of metadata tables
-	#[structopt(name = "tables", version = version::garage())]
+	#[structopt(name = "tables", version = garage_version())]
 	Tables,
 	/// Only repair (resync/rebalance) the set of stored blocks
-	#[structopt(name = "blocks", version = version::garage())]
+	#[structopt(name = "blocks", version = garage_version())]
 	Blocks,
 	/// Only redo the propagation of object deletions to the version table (slow)
-	#[structopt(name = "versions", version = version::garage())]
+	#[structopt(name = "versions", version = garage_version())]
 	Versions,
 	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
-	#[structopt(name = "block_refs", version = version::garage())]
+	#[structopt(name = "block_refs", version = garage_version())]
 	BlockRefs,
 	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
-	#[structopt(name = "scrub", version = version::garage())]
+	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {
 		#[structopt(subcommand)]
 		cmd: ScrubCmd,
@@ -436,19 +436,19 @@ pub enum RepairWhat {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum ScrubCmd {
 	/// Start scrub
-	#[structopt(name = "start", version = version::garage())]
+	#[structopt(name = "start", version = garage_version())]
 	Start,
 	/// Pause scrub (it will resume automatically after 24 hours)
-	#[structopt(name = "pause", version = version::garage())]
+	#[structopt(name = "pause", version = garage_version())]
 	Pause,
 	/// Resume paused scrub
-	#[structopt(name = "resume", version = version::garage())]
+	#[structopt(name = "resume", version = garage_version())]
 	Resume,
 	/// Cancel scrub in progress
-	#[structopt(name = "cancel", version = version::garage())]
+	#[structopt(name = "cancel", version = garage_version())]
 	Cancel,
 	/// Set tranquility level for in-progress and future scrubs
-	#[structopt(name = "set-tranquility", version = version::garage())]
+	#[structopt(name = "set-tranquility", version = garage_version())]
 	SetTranquility {
 		#[structopt()]
 		tranquility: u32,
@@ -469,10 +469,10 @@ pub struct OfflineRepairOpt {
 pub enum OfflineRepairWhat {
 	/// Repair K2V item counters
 	#[cfg(feature = "k2v")]
-	#[structopt(name = "k2v_item_counters", version = version::garage())]
+	#[structopt(name = "k2v_item_counters", version = garage_version())]
 	K2VItemCounters,
 	/// Repair object counters
-	#[structopt(name = "object_counters", version = version::garage())]
+	#[structopt(name = "object_counters", version = garage_version())]
 	ObjectCounters,
 }
 
@@ -496,7 +496,7 @@ pub struct WorkerOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum WorkerCmd {
 	/// List all workers on Garage node
-	#[structopt(name = "list", version = version::garage())]
+	#[structopt(name = "list", version = garage_version())]
 	List {
 		#[structopt(flatten)]
 		opt: WorkerListOpt,

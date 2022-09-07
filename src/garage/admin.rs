@@ -740,7 +740,7 @@ impl AdminRpcHandler {
 		writeln!(
 			&mut ret,
 			"\nGarage version: {}",
-			self.garage.system.garage_version(),
+			garage_model::version::garage_version(),
 		)
 		.unwrap();
 		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();

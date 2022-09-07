@@ -24,7 +24,6 @@ hex = "0.4"
 tracing = "0.1.30"
 rand = "0.8"
 sha2 = "0.9"
-git-version = "0.3.4"
 
 chrono = "0.4"
 rmp-serde = "0.15"

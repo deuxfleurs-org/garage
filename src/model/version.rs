@@ -1,4 +1,4 @@
-pub fn garage() -> &'static str {
+pub fn garage_version() -> &'static str {
 	option_env!("GIT_VERSION").unwrap_or(git_version::git_version!(
 		prefix = "git:",
 		cargo_prefix = "cargo:",
