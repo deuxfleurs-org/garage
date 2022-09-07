@@ -23,10 +23,6 @@ pub struct Config {
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
 
-	/// Size of data blocks to save to disk
-	#[serde(default = "default_block_manager_background_tranquility")]
-	pub block_manager_background_tranquility: u32,
-
 	/// Replication mode. Supported values:
 	/// - none, 1 -> no replication
 	/// - 2 -> 2-way replication
@@ -144,9 +140,6 @@ fn default_sled_flush_every_ms() -> u64 {
 }
 fn default_block_size() -> usize {
 	1048576
-}
-fn default_block_manager_background_tranquility() -> u32 {
-	2
 }
 
 /// Read and parse configuration
