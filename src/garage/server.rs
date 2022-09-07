@@ -114,6 +114,11 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 		));
 	}
 
+	#[cfg(not(feature = "metrics"))]
+	if config.admin_api.metrics_token.is_some() {
+		warn!("This Garage version is built without the metrics feature");
+	}
+
 	// Stuff runs
 
 	// When a cancel signal is sent, stuff stops
