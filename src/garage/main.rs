@@ -77,7 +77,7 @@ async fn main() {
 		std::process::abort();
 	}));
 
-	// Parse opt
+	// Initialize version and features info
 	let features = &[
 		#[cfg(feature = "k2v")]
 		"k2v",
@@ -98,12 +98,17 @@ async fn main() {
 		#[cfg(feature = "system-libs")]
 		"system-libs",
 	][..];
+	if let Some(git_version) = option_env!("GIT_VERSION") {
+		garage_model::version::init_version(git_version);
+	}
+	garage_model::version::init_features(features);
+
+	// Parse arguments
 	let version = format!(
 		"{} [features: {}]",
 		garage_model::version::garage_version(),
 		features.join(", ")
 	);
-	garage_model::version::init_features(features);
 	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
 
 	let res = match opt.cmd {
