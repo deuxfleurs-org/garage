@@ -11,6 +11,12 @@ mod server;
 #[cfg(feature = "telemetry-otlp")]
 mod tracing_setup;
 
+#[cfg(not(any(feature = "bundled-libs", feature = "system-libs")))]
+compile_error!("Either bundled-libs or system-libs Cargo feature must be enabled");
+
+#[cfg(all(feature = "bundled-libs", feature = "system-libs"))]
+compile_error!("Only one of bundled-libs and system-libs Cargo features must be enabled");
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
