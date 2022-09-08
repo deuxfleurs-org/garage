@@ -6,4 +6,4 @@ mod error;
 pub use error::Error;
 
 mod web_server;
-pub use web_server::run_web_server;
+pub use web_server::WebServer;

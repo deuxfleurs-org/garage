@@ -21,9 +21,9 @@ err-derive = "0.3"
 hexdump = "0.1"
 tracing = "0.1.30"
 
-heed = "0.11"
-rusqlite = { version = "0.27", features = ["bundled"] }
-sled = "0.34"
+heed = { version = "0.11", default-features = false, features = ["lmdb"], optional = true }
+rusqlite = { version = "0.27", optional = true }
+sled = { version = "0.34", optional = true }
 
 # cli deps
 clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
@@ -33,4 +33,7 @@ pretty_env_logger = { version = "0.4", optional = true }
 mktemp = "0.4"
 
 [features]
+bundled-libs = [ "rusqlite/bundled" ]
 cli = ["clap", "pretty_env_logger"]
+lmdb = [ "heed" ]
+sqlite = [ "rusqlite" ]

@@ -177,7 +177,7 @@ dependencies = [
  "aws-smithy-types",
  "aws-smithy-xml",
  "aws-types",
- "bytes 1.2.0",
+ "bytes",
  "http",
  "md5",
  "tokio-stream",
@@ -207,7 +207,7 @@ checksum = "51d371fb688d909e5b866ff1f297bbec4621eed4f9fcdac566fcc33541f0c6a6"
 dependencies = [
  "aws-smithy-eventstream",
  "aws-smithy-http",
- "bytes 1.2.0",
+ "bytes",
  "form_urlencoded",
  "hex",
  "http",
@@ -241,7 +241,7 @@ dependencies = [
  "aws-smithy-http",
  "aws-smithy-http-tower",
  "aws-smithy-types",
- "bytes 1.2.0",
+ "bytes",
  "fastrand",
  "http",
  "http-body",
@@ -262,7 +262,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f972226c639e0dc1eca2cb0220c1b5799e2bfc62eda37845b662c5d0cb972371"
 dependencies = [
  "aws-smithy-types",
- "bytes 1.2.0",
+ "bytes",
  "crc32fast",
 ]
 
@@ -274,7 +274,7 @@ checksum = "12c787e24b757634453a60ff05948aa1b450f5b3a7a2094f22acff8a5022635b"
 dependencies = [
  "aws-smithy-eventstream",
  "aws-smithy-types",
- "bytes 1.2.0",
+ "bytes",
  "bytes-utils",
  "futures-core",
  "http",
@@ -294,7 +294,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64f80a2c56fc09fc9a2da3c63f286ec2a89465433219f8165e14e522283a5eb8"
 dependencies = [
  "aws-smithy-http",
- "bytes 1.2.0",
+ "bytes",
  "http",
  "http-body",
  "pin-project 1.0.10",
@@ -408,12 +408,6 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0dcbc35f504eb6fc275a6d20e4ebcda18cf50d40ba6fabff8c711fa16cb3b16"
-
-[[package]]
-name = "bytes"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0b3de4a0c5e67e16066a0715723abd91edc2f9001d09c46e1dca929351e130e"
@@ -424,7 +418,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1934a3ef9cac8efde4966a92781e77713e1ba329f1d42e446c7d7eba340d8ef1"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "either",
 ]
 
@@ -799,20 +793,6 @@ dependencies = [
 
 [[package]]
 name = "err-derive"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22deed3a8124cff5fa835713fa105621e43bbdc46690c3a6b68328a012d350d4"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn",
- "synstructure",
-]
-
-[[package]]
-name = "err-derive"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c34a887c8df3ed90498c1c437ce21f211c8e27672921a8ffa293cb8d6d4caa9e"
@@ -999,13 +979,13 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
  "aws-sdk-s3",
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "bytesize",
  "chrono",
  "futures",
@@ -1013,23 +993,23 @@ dependencies = [
  "garage_api",
  "garage_block",
  "garage_db",
- "garage_model 0.7.0",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "garage_web",
  "hex",
  "hmac 0.12.1",
  "http",
  "hyper",
  "kuska-sodiumoxide",
- "netapp 0.5.0",
+ "netapp",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
  "prometheus",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -1045,22 +1025,22 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-trait",
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "chrono",
  "crypto-common",
- "err-derive 0.3.1",
+ "err-derive",
  "form_urlencoded",
  "futures",
  "futures-util",
  "garage_block",
- "garage_model 0.7.0",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
  "hmac 0.12.1",
  "http",
@@ -1072,7 +1052,6 @@ dependencies = [
  "multer",
  "nom",
  "opentelemetry",
- "opentelemetry-otlp",
  "opentelemetry-prometheus",
  "percent-encoding",
  "pin-project 1.0.10",
@@ -1090,22 +1069,22 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-compression",
  "async-trait",
- "bytes 1.2.0",
+ "bytes",
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1119,7 +1098,7 @@ name = "garage_db"
 version = "0.8.0"
 dependencies = [
  "clap 3.1.18",
- "err-derive 0.3.1",
+ "err-derive",
  "heed",
  "hexdump",
  "mktemp",
@@ -1131,51 +1110,25 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "584619e8999713d73761775591ad6f01ff8c9d724f3b20984f5932f1fc7f9988"
-dependencies = [
- "arc-swap",
- "async-trait",
- "futures",
- "futures-util",
- "garage_rpc 0.5.1",
- "garage_table 0.5.1",
- "garage_util 0.5.1",
- "hex",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "sled",
- "tokio",
- "zstd",
-]
-
-[[package]]
-name = "garage_model"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
  "base64",
  "blake2",
- "err-derive 0.3.1",
+ "err-derive",
  "futures",
  "futures-util",
  "garage_block",
  "garage_db",
- "garage_model 0.5.1",
- "garage_rpc 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc",
+ "garage_table",
+ "garage_util",
  "hex",
- "netapp 0.5.0",
+ "netapp",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1185,53 +1138,26 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81e693aa4582cfe7a7ce70c07880e3662544b5d0cd68bc4b59c53febfbb8d1ec"
+version = "0.8.0"
 dependencies = [
  "arc-swap",
  "async-trait",
- "bytes 1.2.0",
+ "bytes",
  "futures",
  "futures-util",
- "garage_util 0.5.1",
- "gethostname",
- "hex",
- "hyper",
- "kuska-sodiumoxide",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "serde_json",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
-name = "garage_rpc"
-version = "0.7.0"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 1.2.0",
- "futures",
- "futures-util",
- "garage_util 0.7.0",
+ "garage_util",
  "gethostname",
  "hex",
  "hyper",
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp 0.5.0",
+ "netapp",
  "openssl",
  "opentelemetry",
  "pnet_datalink",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "schemars",
  "serde",
  "serde_bytes",
@@ -1243,41 +1169,19 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c3557f3757e2acd29eaee86804d4e6c38d2abda81b4b349d8a0d2277044265c"
+version = "0.8.0"
 dependencies = [
  "async-trait",
- "bytes 1.2.0",
- "futures",
- "futures-util",
- "garage_rpc 0.5.1",
- "garage_util 0.5.1",
- "hexdump",
- "log",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_bytes",
- "sled",
- "tokio",
-]
-
-[[package]]
-name = "garage_table"
-version = "0.7.0"
-dependencies = [
- "async-trait",
- "bytes 1.2.0",
+ "bytes",
  "futures",
  "futures-util",
  "garage_db",
- "garage_rpc 0.7.0",
- "garage_util 0.7.0",
+ "garage_rpc",
+ "garage_util",
  "hexdump",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1286,50 +1190,26 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e096994382447431e2f3c70e3685eb8b24c00eceff8667bb22a2a27ff17832f"
+version = "0.8.0"
 dependencies = [
- "blake2",
- "chrono",
- "err-derive 0.3.1",
- "futures",
- "hex",
- "http",
- "hyper",
- "log",
- "netapp 0.3.1",
- "rand 0.8.5",
- "rmp-serde 0.15.5",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "sled",
- "tokio",
- "toml",
- "xxhash-rust",
-]
-
-[[package]]
-name = "garage_util"
-version = "0.7.0"
-dependencies = [
+ "arc-swap",
  "async-trait",
  "blake2",
- "bytes 1.2.0",
+ "bytes",
  "chrono",
  "digest 0.10.3",
- "err-derive 0.3.1",
+ "err-derive",
  "futures",
  "garage_db",
  "git-version",
  "hex",
  "http",
  "hyper",
- "netapp 0.5.0",
+ "lazy_static",
+ "netapp",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_json",
  "sha2 0.10.2",
@@ -1341,14 +1221,14 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
- "err-derive 0.3.1",
+ "err-derive",
  "futures",
  "garage_api",
- "garage_model 0.7.0",
- "garage_table 0.7.0",
- "garage_util 0.7.0",
+ "garage_model",
+ "garage_table",
+ "garage_util",
  "http",
  "hyper",
  "opentelemetry",
@@ -1415,7 +1295,7 @@ version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62eeb471aa3e3c9197aa4bfeabfe02982f6dc96f750486c0bb0009ac58b26d2b"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "fnv",
  "futures-core",
  "futures-sink",
@@ -1475,7 +1355,6 @@ dependencies = [
  "lmdb-rkv-sys",
  "once_cell",
  "page_size",
- "serde",
  "synchronoise",
  "url",
 ]
@@ -1550,7 +1429,7 @@ version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31f4c6746584866f0feabcc69893c5b51beef3831656a968ed7ae254cdc4fd03"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "fnv",
  "itoa",
 ]
@@ -1561,7 +1440,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ff4f84919677303da5f147645dbea6b1881f368d03ac84e1dc09031ebd7b2c6"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "http",
  "pin-project-lite",
 ]
@@ -1605,7 +1484,7 @@ version = "0.14.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b26ae0a80afebe130861d90abf98e3814a4f28a4c6ffeb5ab8ebb2be311e0ef2"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "futures-channel",
  "futures-core",
  "futures-util",
@@ -1658,7 +1537,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "hyper",
  "native-tls",
  "tokio",
@@ -1787,7 +1666,7 @@ version = "0.0.1"
 dependencies = [
  "base64",
  "clap 3.1.18",
- "garage_util 0.7.0",
+ "garage_util",
  "http",
  "log",
  "rusoto_core",
@@ -1806,7 +1685,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f8de9873b904e74b3533f77493731ee26742418077503683db44e1b3c54aa5c"
 dependencies = [
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "chrono",
  "http",
  "percent-encoding",
@@ -1835,7 +1714,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8cd12d68768b54bbd50547f4c7b57b73cff680ef8da3ba409463ee995cf0d707"
 dependencies = [
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "chrono",
  "dirs-next",
  "either",
@@ -2115,7 +1994,7 @@ version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f8f35e687561d5c1667590911e6698a8cb714a134a7505718a182e7bc9d3836"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "encoding_rs",
  "futures-util",
  "http",
@@ -2153,36 +2032,14 @@ dependencies = [
 
 [[package]]
 name = "netapp"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac7dcd2c6c5a9d5ea88ffc17d3339d49d308e68c4d8190c494b55ddbf78d80ad"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 0.6.0",
- "err-derive 0.2.4",
- "futures",
- "hex",
- "kuska-handshake",
- "kuska-sodiumoxide",
- "log",
- "rmp-serde 0.14.4",
- "serde",
- "tokio",
- "tokio-stream",
- "tokio-util 0.6.9",
-]
-
-[[package]]
-name = "netapp"
 version = "0.5.0"
 source = "git+https://git.deuxfleurs.fr/lx/netapp?branch=stream-body#0f799a7768997c37e3e1b6861c097c4cd934acde"
 dependencies = [
  "arc-swap",
  "async-trait",
- "bytes 1.2.0",
+ "bytes",
  "cfg-if 1.0.0",
- "err-derive 0.3.1",
+ "err-derive",
  "futures",
  "hex",
  "kuska-handshake",
@@ -2192,7 +2049,7 @@ dependencies = [
  "opentelemetry-contrib",
  "pin-project 1.0.10",
  "rand 0.8.5",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "tokio",
  "tokio-stream",
@@ -2674,7 +2531,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "prost-derive",
 ]
 
@@ -2684,7 +2541,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62941722fb675d463659e49c4f3fe1fe792ff24fe5bbaa9c08cd3b98a1c354f5"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "heck 0.3.3",
  "itertools 0.10.3",
  "lazy_static",
@@ -2717,7 +2574,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "534b7a0e836e3c482d2693070f982e39e7611da9695d4d1f5a4b186b51faef0a"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "prost",
 ]
 
@@ -2979,17 +2836,6 @@ dependencies = [
 
 [[package]]
 name = "rmp-serde"
-version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ce7d70c926fe472aed493b902010bccc17fa9f7284145cb8772fd22fdb052d8"
-dependencies = [
- "byteorder",
- "rmp",
- "serde",
-]
-
-[[package]]
-name = "rmp-serde"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "723ecff9ad04f4ad92fe1c8ca6c20d2196d9286e9c60727c4cb5511629260e9d"
@@ -3016,7 +2862,7 @@ checksum = "1db30db44ea73551326269adcf7a2169428a054f14faf9e1768f2163494f2fa2"
 dependencies = [
  "async-trait",
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "crc32fast",
  "futures",
  "http",
@@ -3058,7 +2904,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5ae95491c8b4847931e291b151127eccd6ff8ca13f33603eb3d0035ecb05272"
 dependencies = [
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "chrono",
  "digest 0.9.0",
  "futures",
@@ -3642,7 +3488,7 @@ version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af73ac49756f3f7c01172e34a23e5d0216f6c32333757c2c61feb2bbff5a5ee"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "libc",
  "memchr",
  "mio",
@@ -3715,9 +3561,8 @@ version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e99e1983e5d376cd8eb4b66604d2e99e79f5bd988c3055891dcd8c9e2604cc0"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "futures-core",
- "futures-io",
  "futures-sink",
  "log",
  "pin-project-lite",
@@ -3731,7 +3576,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64910e1b9c1901aaf5375561e35b9c057d95ff41a44ede043a03e09279eabaf1"
 dependencies = [
- "bytes 1.2.0",
+ "bytes",
  "futures-core",
  "futures-io",
  "futures-sink",
@@ -3758,7 +3603,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "futures-core",
  "futures-util",
  "h2",
@@ -3819,7 +3664,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81eca72647e58054bbfa41e6f297c23436f1c60aff6e5eb38455a0f9ca420bb5"
 dependencies = [
  "base64",
- "bytes 1.2.0",
+ "bytes",
  "futures-core",
  "futures-util",
  "http",
@@ -4266,4 +4111,5 @@ checksum = "2daf2f248d9ea44454bfcb2516534e8b8ad2fc91bf818a1885495fc42bc8ac9f"
 dependencies = [
  "cc",
  "libc",
+ "pkg-config",
 ]

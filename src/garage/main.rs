@@ -8,7 +8,14 @@ mod admin;
 mod cli;
 mod repair;
 mod server;
+#[cfg(feature = "telemetry-otlp")]
 mod tracing_setup;
+
+#[cfg(not(any(feature = "bundled-libs", feature = "system-libs")))]
+compile_error!("Either bundled-libs or system-libs Cargo feature must be enabled");
+
+#[cfg(all(feature = "bundled-libs", feature = "system-libs"))]
+compile_error!("Only one of bundled-libs and system-libs Cargo features must be enabled");
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -22,7 +29,6 @@ use garage_util::error::*;
 
 use garage_rpc::system::*;
 use garage_rpc::*;
-use garage_util::version;
 
 use garage_model::helper::error::Error as HelperError;
 
@@ -30,7 +36,10 @@ use admin::*;
 use cli::*;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "garage", version = version::garage(), about = "S3-compatible object store for self-hosted geo-distributed deployments")]
+#[structopt(
+	name = "garage",
+	about = "S3-compatible object store for self-hosted geo-distributed deployments"
+)]
 struct Opt {
 	/// Host to connect to for admin operations, in the format:
 	/// <public-key>@<ip>:<port>
@@ -71,7 +80,40 @@ async fn main() {
 		std::process::abort();
 	}));
 
-	let opt = Opt::from_args();
+	// Initialize version and features info
+	let features = &[
+		#[cfg(feature = "k2v")]
+		"k2v",
+		#[cfg(feature = "sled")]
+		"sled",
+		#[cfg(feature = "lmdb")]
+		"lmdb",
+		#[cfg(feature = "sqlite")]
+		"sqlite",
+		#[cfg(feature = "kubernetes-discovery")]
+		"kubernetes-discovery",
+		#[cfg(feature = "metrics")]
+		"metrics",
+		#[cfg(feature = "telemetry-otlp")]
+		"telemetry-otlp",
+		#[cfg(feature = "bundled-libs")]
+		"bundled-libs",
+		#[cfg(feature = "system-libs")]
+		"system-libs",
+	][..];
+	if let Some(git_version) = option_env!("GIT_VERSION") {
+		garage_util::version::init_version(git_version);
+	}
+	garage_util::version::init_features(features);
+
+	// Parse arguments
+	let version = format!(
+		"{} [features: {}]",
+		garage_util::version::garage_version(),
+		features.join(", ")
+	);
+	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
+
 	let res = match opt.cmd {
 		Command::Server => server::run_server(opt.config_file).await,
 		Command::OfflineRepair(repair_opt) => {

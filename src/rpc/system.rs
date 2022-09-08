@@ -27,7 +27,6 @@ use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
 use garage_util::time::*;
-use garage_util::version;
 
 use crate::consul::*;
 #[cfg(feature = "kubernetes-discovery")]
@@ -40,8 +39,10 @@ const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
 const SYSTEM_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Version tag used for version check upon Netapp connection
-pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650007; // garage 0x0007
+/// Version tag used for version check upon Netapp connection.
+/// Cluster nodes with different version tags are deemed
+/// incompatible and will refuse to connect.
+pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650008; // garage 0x0008
 
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
@@ -319,10 +320,6 @@ impl System {
 
 	// ---- Administrative operations (directly available and
 	//      also available through RPC) ----
-
-	pub fn garage_version(&self) -> &'static str {
-		version::garage()
-	}
 
 	pub fn get_known_nodes(&self) -> Vec<KnownNodeInfo> {
 		let node_status = self.node_status.read().unwrap();

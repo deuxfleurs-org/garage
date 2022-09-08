@@ -1,6 +1,6 @@
 [package]
 name = "garage"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -22,13 +22,13 @@ path = "tests/lib.rs"
 
 [dependencies]
 garage_db = { version = "0.8.0", path = "../db" }
-garage_api = { version = "0.7.0", path = "../api" }
-garage_block = { version = "0.7.0", path = "../block" }
-garage_model = { version = "0.7.0", path = "../model" }
-garage_rpc = { version = "0.7.0", path = "../rpc" }
-garage_table = { version = "0.7.0", path = "../table" }
-garage_util = { version = "0.7.0", path = "../util" }
-garage_web = { version = "0.7.0", path = "../web" }
+garage_api = { version = "0.8.0", path = "../api" }
+garage_block = { version = "0.8.0", path = "../block" }
+garage_model = { version = "0.8.0", path = "../model" }
+garage_rpc = { version = "0.8.0", path = "../rpc" }
+garage_table = { version = "0.8.0", path = "../table" }
+garage_util = { version = "0.8.0", path = "../util" }
+garage_web = { version = "0.8.0", path = "../web" }
 
 bytes = "1.0"
 bytesize = "1.1"
@@ -54,9 +54,9 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 netapp = { version = "0.5", git = "https://git.deuxfleurs.fr/lx/netapp", branch = "stream-body", features = ["telemetry"] }
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio" ] }
-opentelemetry-prometheus = "0.10"
-opentelemetry-otlp = "0.10"
-prometheus = "0.13"
+opentelemetry-prometheus = { version = "0.10", optional = true }
+opentelemetry-otlp = { version = "0.10", optional = true }
+prometheus = { version = "0.13", optional = true }
 
 [dev-dependencies]
 aws-sdk-s3 = "0.8"
@@ -73,5 +73,26 @@ base64 = "0.13"
 
 
 [features]
-kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
+default = [ "bundled-libs", "metrics", "sled" ]
+
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
+
+# Database engines, Sled is still our default even though we don't like it
+sled = [ "garage_model/sled" ]
+lmdb = [ "garage_model/lmdb" ]
+sqlite = [ "garage_model/sqlite" ]
+
+# Automatic registration and discovery via Kubernetes API
+kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
+# Prometheus exporter (/metrics endpoint).
+metrics = [ "garage_api/metrics", "opentelemetry-prometheus", "prometheus" ]
+# Exporter for the OpenTelemetry Collector.
+telemetry-otlp = [ "opentelemetry-otlp" ]
+
+# NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
+# exactly one of them should be enabled.
+
+# Use bundled libsqlite instead of linking against system-provided.
+bundled-libs = [ "garage_db/bundled-libs" ]
+# Link against system-provided libsodium and libzstd.
+system-libs = [ "garage_block/system-libs", "garage_rpc/system-libs", "sodiumoxide/use-pkg-config" ]

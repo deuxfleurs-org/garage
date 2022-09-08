@@ -741,8 +741,11 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 		writeln!(
 			&mut ret,
-			"\nGarage version: {}",
-			self.garage.system.garage_version(),
+			"\nGarage version: {} [features: {}]",
+			garage_util::version::garage_version(),
+			garage_util::version::garage_features()
+				.map(|list| list.join(", "))
+				.unwrap_or_else(|| "(unknown)".into()),
 		)
 		.unwrap();
 		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();
