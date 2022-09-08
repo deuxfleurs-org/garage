@@ -6,7 +6,7 @@ use garage_util::data::*;
 
 use crate::permission::BucketKeyPerm;
 
-use garage_model_050::key_table as old;
+use crate::prev::v051::key_table as old;
 
 /// An api key
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
