@@ -1,6 +1,6 @@
 [package]
 name = "garage_model"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -15,11 +15,10 @@ path = "lib.rs"
 
 [dependencies]
 garage_db = { version = "0.8.0", path = "../db" }
-garage_rpc = { version = "0.7.0", path = "../rpc" }
-garage_table = { version = "0.7.0", path = "../table" }
-garage_block = { version = "0.7.0", path = "../block" }
-garage_util = { version = "0.7.0", path = "../util" }
-garage_model_050 = { package = "garage_model", version = "0.5.1" }
+garage_rpc = { version = "0.8.0", path = "../rpc" }
+garage_table = { version = "0.8.0", path = "../table" }
+garage_block = { version = "0.8.0", path = "../block" }
+garage_util = { version = "0.8.0", path = "../util" }
 
 async-trait = "0.1.7"
 arc-swap = "1.0"
@@ -46,3 +45,6 @@ netapp = "0.4"
 
 [features]
 k2v = [ "garage_util/k2v" ]
+lmdb = [ "garage_db/lmdb" ]
+sled = [ "garage_db/sled" ]
+sqlite = [ "garage_db/sqlite" ]

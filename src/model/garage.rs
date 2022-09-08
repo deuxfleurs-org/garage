@@ -80,6 +80,8 @@ impl Garage {
 		let mut db_path = config.metadata_dir.clone();
 		std::fs::create_dir_all(&db_path).expect("Unable to create Garage meta data directory");
 		let db = match config.db_engine.as_str() {
+			// ---- Sled DB ----
+			#[cfg(feature = "sled")]
 			"sled" => {
 				db_path.push("db");
 				info!("Opening Sled database at: {}", db_path.display());
@@ -91,6 +93,10 @@ impl Garage {
 					.expect("Unable to open sled DB");
 				db::sled_adapter::SledDb::init(db)
 			}
+			#[cfg(not(feature = "sled"))]
+			"sled" => return Err(Error::Message("sled db not available in this build".into())),
+			// ---- Sqlite DB ----
+			#[cfg(feature = "sqlite")]
 			"sqlite" | "sqlite3" | "rusqlite" => {
 				db_path.push("db.sqlite");
 				info!("Opening Sqlite database at: {}", db_path.display());
@@ -98,6 +104,14 @@ impl Garage {
 					.expect("Unable to open sqlite DB");
 				db::sqlite_adapter::SqliteDb::init(db)
 			}
+			#[cfg(not(feature = "sqlite"))]
+			"sqlite" | "sqlite3" | "rusqlite" => {
+				return Err(Error::Message(
+					"sqlite db not available in this build".into(),
+				))
+			}
+			// ---- LMDB DB ----
+			#[cfg(feature = "lmdb")]
 			"lmdb" | "heed" => {
 				db_path.push("db.lmdb");
 				info!("Opening LMDB database at: {}", db_path.display());
@@ -111,10 +125,22 @@ impl Garage {
 					.expect("Unable to open LMDB DB");
 				db::lmdb_adapter::LmdbDb::init(db)
 			}
+			#[cfg(not(feature = "lmdb"))]
+			"lmdb" | "heed" => return Err(Error::Message("lmdb db not available in this build".into())),
+			// ---- Unavailable DB engine ----
 			e => {
 				return Err(Error::Message(format!(
-					"Unsupported DB engine: {} (options: sled, sqlite, lmdb)",
-					e
+					"Unsupported DB engine: {} (options: {})",
+					e,
+					vec![
+						#[cfg(feature = "sled")]
+						"sled",
+						#[cfg(feature = "sqlite")]
+						"sqlite",
+						#[cfg(feature = "lmdb")]
+						"lmdb",
+					]
+					.join(", ")
 				)));
 			}
 		};

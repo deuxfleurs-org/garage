@@ -1,15 +1,17 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 
 use futures::future::Future;
-use http::header::{
-	ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW, CONTENT_TYPE,
-};
+use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
 use hyper::{Body, Request, Response};
 
-use opentelemetry::trace::{SpanRef, Tracer};
+use opentelemetry::trace::SpanRef;
+
+#[cfg(feature = "metrics")]
 use opentelemetry_prometheus::PrometheusExporter;
+#[cfg(feature = "metrics")]
 use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
@@ -25,6 +27,7 @@ use crate::admin::router::{Authorization, Endpoint};
 
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
+	#[cfg(feature = "metrics")]
 	exporter: PrometheusExporter,
 	metrics_token: Option<String>,
 	admin_token: Option<String>,
@@ -32,7 +35,6 @@ pub struct AdminApiServer {
 
 impl AdminApiServer {
 	pub fn new(garage: Arc<Garage>) -> Self {
-		let exporter = opentelemetry_prometheus::exporter().init();
 		let cfg = &garage.config.admin;
 		let metrics_token = cfg
 			.metrics_token
@@ -44,21 +46,22 @@ impl AdminApiServer {
 			.map(|tok| format!("Bearer {}", tok));
 		Self {
 			garage,
-			exporter,
+			#[cfg(feature = "metrics")]
+			exporter: opentelemetry_prometheus::exporter().init(),
 			metrics_token,
 			admin_token,
 		}
 	}
 
-	pub async fn run(self, shutdown_signal: impl Future<Output = ()>) -> Result<(), GarageError> {
-		if let Some(bind_addr) = self.garage.config.admin.api_bind_addr {
-			let region = self.garage.config.s3_api.s3_region.clone();
-			ApiServer::new(region, self)
-				.run_server(bind_addr, shutdown_signal)
-				.await
-		} else {
-			Ok(())
-		}
+	pub async fn run(
+		self,
+		bind_addr: SocketAddr,
+		shutdown_signal: impl Future<Output = ()>,
+	) -> Result<(), GarageError> {
+		let region = self.garage.config.s3_api.s3_region.clone();
+		ApiServer::new(region, self)
+			.run_server(bind_addr, shutdown_signal)
+			.await
 	}
 
 	fn handle_options(&self, _req: &Request<Body>) -> Result<Response<Body>, Error> {
@@ -71,22 +74,31 @@ impl AdminApiServer {
 	}
 
 	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
-		let mut buffer = vec![];
-		let encoder = TextEncoder::new();
+		#[cfg(feature = "metrics")]
+		{
+			use opentelemetry::trace::Tracer;
 
-		let tracer = opentelemetry::global::tracer("garage");
-		let metric_families = tracer.in_span("admin/gather_metrics", |_| {
-			self.exporter.registry().gather()
-		});
+			let mut buffer = vec![];
+			let encoder = TextEncoder::new();
 
-		encoder
-			.encode(&metric_families, &mut buffer)
-			.ok_or_internal_error("Could not serialize metrics")?;
+			let tracer = opentelemetry::global::tracer("garage");
+			let metric_families = tracer.in_span("admin/gather_metrics", |_| {
+				self.exporter.registry().gather()
+			});
 
-		Ok(Response::builder()
-			.status(200)
-			.header(CONTENT_TYPE, encoder.format_type())
-			.body(Body::from(buffer))?)
+			encoder
+				.encode(&metric_families, &mut buffer)
+				.ok_or_internal_error("Could not serialize metrics")?;
+
+			Ok(Response::builder()
+				.status(200)
+				.header(http::header::CONTENT_TYPE, encoder.format_type())
+				.body(Body::from(buffer))?)
+		}
+		#[cfg(not(feature = "metrics"))]
+		Err(Error::bad_request(
+			"Garage was built without the metrics feature".to_string(),
+		))
 	}
 }
 

@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -43,16 +44,13 @@ pub(crate) struct S3ApiEndpoint {
 impl S3ApiServer {
 	pub async fn run(
 		garage: Arc<Garage>,
+		addr: SocketAddr,
+		s3_region: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
-		let addr = garage.config.s3_api.api_bind_addr;
-
-		ApiServer::new(
-			garage.config.s3_api.s3_region.clone(),
-			S3ApiServer { garage },
-		)
-		.run_server(addr, shutdown_signal)
-		.await
+		ApiServer::new(s3_region, S3ApiServer { garage })
+			.run_server(addr, shutdown_signal)
+			.await
 	}
 
 	async fn handle_request_without_bucket(

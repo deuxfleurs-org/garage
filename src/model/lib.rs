@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate tracing;
 
+// For migration from previous versions
+pub(crate) mod prev;
+
 pub mod permission;
 
 pub mod index_counter;

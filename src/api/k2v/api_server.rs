@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -36,20 +37,13 @@ pub(crate) struct K2VApiEndpoint {
 impl K2VApiServer {
 	pub async fn run(
 		garage: Arc<Garage>,
+		bind_addr: SocketAddr,
+		s3_region: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
-		if let Some(cfg) = &garage.config.k2v_api {
-			let bind_addr = cfg.api_bind_addr;
-
-			ApiServer::new(
-				garage.config.s3_api.s3_region.clone(),
-				K2VApiServer { garage },
-			)
+		ApiServer::new(s3_region, K2VApiServer { garage })
 			.run_server(bind_addr, shutdown_signal)
 			.await
-		} else {
-			Ok(())
-		}
 	}
 }
 

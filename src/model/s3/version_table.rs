@@ -12,7 +12,7 @@ use garage_table::*;
 
 use crate::s3::block_ref_table::*;
 
-use garage_model_050::version_table as old;
+use crate::prev::v051::version_table as old;
 
 /// A version of an object
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]

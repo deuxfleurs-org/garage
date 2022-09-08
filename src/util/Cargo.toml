@@ -1,6 +1,6 @@
 [package]
 name = "garage_util"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -16,15 +16,17 @@ path = "lib.rs"
 [dependencies]
 garage_db = { version = "0.8.0", path = "../db" }
 
+arc-swap = "1.0"
 async-trait = "0.1"
 blake2 = "0.9"
 err-derive = "0.3"
+git-version = "0.3.4"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 hex = "0.4"
+lazy_static = "1.4"
 tracing = "0.1.30"
 rand = "0.8"
 sha2 = "0.9"
-git-version = "0.3.4"
 
 chrono = "0.4"
 rmp-serde = "0.15"
