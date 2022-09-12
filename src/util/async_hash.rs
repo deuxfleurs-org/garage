@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use digest::Digest;
 
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::data::*;
@@ -27,18 +27,17 @@ pub async fn async_blake2sum(data: Bytes) -> Hash {
 // ----
 
 pub struct AsyncHasher<D: Digest> {
-	sendblk: mpsc::UnboundedSender<(Bytes, oneshot::Sender<()>)>,
+	sendblk: mpsc::Sender<Bytes>,
 	task: JoinHandle<digest::Output<D>>,
 }
 
 impl<D: Digest> AsyncHasher<D> {
 	pub fn new() -> Self {
-		let (sendblk, mut recvblk) = mpsc::unbounded_channel::<(Bytes, oneshot::Sender<()>)>();
+		let (sendblk, mut recvblk) = mpsc::channel::<Bytes>(1);
 		let task = tokio::task::spawn_blocking(move || {
 			let mut digest = D::new();
-			while let Some((blk, ch)) = recvblk.blocking_recv() {
+			while let Some(blk) = recvblk.blocking_recv() {
 				digest.update(&blk[..]);
-				let _ = ch.send(());
 			}
 			digest.finalize()
 		});
@@ -46,9 +45,7 @@ impl<D: Digest> AsyncHasher<D> {
 	}
 
 	pub async fn update(&self, b: Bytes) {
-		let (tx, rx) = oneshot::channel();
-		self.sendblk.send((b, tx)).unwrap();
-		let _ = rx.await;
+		self.sendblk.send(b).await.unwrap();
 	}
 
 	pub async fn finalize(self) -> digest::Output<D> {
