@@ -1,0 +1,560 @@
+openapi: 3.0.0
+info:
+  version: v0.7.3
+  title: Garage Administration API v0+garage-v0.7.3
+  description: |
+    Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.
+    
+    *Disclaimer: The API is not stable yet, hence its v0 tag. The API can change at any time, and changes can include breaking backward compatibility. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*
+paths: 
+  /status:
+    get:
+      tags: 
+        - Membership
+      summary: "Status of this node and other nodes in the cluster"
+      description: |
+        Returns the cluster's current status, including:
+         - ID of the node being queried and its version of the Garage daemon
+         - Live nodes
+         - Currently configured cluster layout
+         - Staged changes to the cluster layout
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '200':
+          description: |
+            Information about the queried node, its environment and the current layout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  node: 
+                    type: string
+                    example: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
+                  garage_version:
+                    type: string
+                    example: "v0.7.3"
+                  knownNodes:
+                    type: object
+                    example:
+                      "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+                        addr: "10.0.0.11:3901"
+                        is_up: true
+                        last_seen_secs_ago: 9
+                        hostname: orion
+                      "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+                        addr: "10.0.0.12:3901"
+                        is_up: true
+                        last_seen_secs_ago: 13
+                        hostname: pegasus
+                      "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                        addr: "10.0.0.13:3901"
+                        is_up: true
+                        last_seen_secs_ago: 2
+                        hostname: neptune
+                    additionalProperties:
+                      $ref: '#/components/schemas/NodeNetworkInfo'
+                  layout:
+                    $ref: '#/components/schemas/ClusterLayout'
+                          
+  /connect:
+    post:
+      tags:
+        - Membership
+      summary: "Connect target node to other Garage nodes"
+      description: |
+        Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              example:
+                - "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f@10.0.0.11:3901"
+                - "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff@10.0.0.12:3901"
+              items:
+                type: string
+                
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '400':
+          description: |
+            Your request is malformed, check your JSON
+        '200':
+          description: |
+            The request has been handled correctly but it does not mean that all connection requests succeeded; some might have fail, you need to check the body!
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - success: true
+                    error:
+                  - success: false
+                    error: "Handshake error"
+                items:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    error:
+                      type: string
+                      example: 
+                
+  /layout:
+    get:
+      tags:
+        - Layout
+      summary: "Details on the current and staged layout"
+      description: |
+        Returns the cluster's current layout, including:
+          - Currently configured cluster layout
+          - Staged changes to the cluster layout
+          
+        *The info returned by this endpoint is a subset of the info returned by `GET /status`.*
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '200':
+          description: |
+            Returns the cluster's current cluster layout:
+              - Currently configured cluster layout
+              - Staged changes to the cluster layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterLayout'
+                
+    post:
+      tags:
+        - Layout
+      summary: "Send modifications to the cluster layout"
+      description: |
+        Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
+      requestBody:
+        description: |
+          To add a new node to the layout or to change the configuration of an existing node, simply set the values you want.
+          To remove a node, set it to `null` instead of passing a configuration object.
+        
+          Contrary to the CLI that may update only a subset of the fields capacity, zone and tags, when calling this API all of these values must be specified.
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                  zone: "geneva"
+                  capacity: 4
+                  tags:
+                    - gateway
+                "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+                
+              additionalProperties:
+                $ref: '#/components/schemas/NodeClusterInfo'
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The layout modification has been correctly staged"
+          
+  /layout/apply:
+    post:
+      tags:
+        - Layout
+      summary: "Apply staged layout"
+      description: |
+        Applies to the cluster the layout changes currently registered as staged layout changes.
+      requestBody:
+        description: |
+          Similarly to the CLI, the body must include the version of the new layout that will be created, which MUST be 1 + the value of the currently existing layout in the cluster.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayoutVersion'
+              
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The staged layout has been applied as the new layout of the cluster, a rebalance has been triggered."
+          
+  /layout/revert:
+    post:
+      tags:
+        - Layout
+      summary: "Clear staged layout"
+      description: |
+        Clears all of the staged layout changes.
+      requestBody:
+        description: |
+          Reverting the staged changes is done by incrementing the version number and clearing the contents of the staged change list. Similarly to the CLI, the body must include the incremented version number, which MUST be 1 + the value of the currently existing layout in the cluster.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayoutVersion'
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The staged layout has been cleared, you can start again sending modification from a fresh copy with `POST /layout`."
+          
+  /key:
+    get:
+      tags:
+        - Key
+      operationId: "ListKeys"
+      summary: "List all keys"
+      description: |
+        Returns all API access keys in the cluster.
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - id: "GK31c2f218a2e44f485b94239e"
+                    name: "test-key"
+                  - id: "GKe10061ac9c2921f09e4c5540"
+                    name: ""
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+    post:
+      tags:
+        - Key
+      summary: "Create a new API key"
+      description: |
+        Creates a new API access key.
+      requestBody:
+        description: |
+          "You can optionnaly set a friendly name for this key"
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The key has been added"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+          
+  "/key?id={access_key}":
+    get:
+      tags:
+        - Key
+      summary: "Get key information"
+      description: |
+        Return information about a specific key and return its information
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+              
+    delete:
+      tags: 
+        - Key
+      summary: "Delete a key"
+        
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: "The key has been deleted"
+
+        
+    post:
+      tags:
+        - Key
+      summary: "Update a key"
+      description: |
+        Updates information about the specified API access key.
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      requestBody:
+        description: |
+          For a given key, provide a first set with the permissions to grant, and a second set with the permissions to remove
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+                allow:
+                  type: object
+                  example:
+                  properties:
+                    createBucket:
+                      type: boolean
+                      example: true
+                deny:
+                  type: object
+                  properties:
+                    createBucket:
+                      type: boolean
+                      example: true
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+
+        
+  "/key?search={pattern}":
+    get:
+      tags:
+        - Key
+      summary: "Select key by pattern"
+      description: |
+        Find the first key matching the given pattern based on its identifier aor friendly name and return its information.
+      parameters:
+        - name: pattern
+          in: path
+          required: true
+          description: "A pattern (beginning or full string) corresponding to a key identifier or friendly name"
+          example: "test-k"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+
+  /key/import:
+    post:
+      tags:
+        - Key
+      summary: "Import an existing key"
+      description: |
+        Imports an existing API key. This feature must only be used for migrations and backup restore.
+
+        **Do not use it to generate custom key identifiers or you will break your Garage cluster.**
+      requestBody:
+        description: |
+          Information on the key to import
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                secretAccessKey:
+                  type: string
+                  example: "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835"
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The key has been imported into the system"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+
+      
+        
+components:
+  schemas:
+    NodeNetworkInfo:
+      type: object
+      properties:
+        addr:
+          type: string
+          example: "10.0.0.11:3901"
+        is_up:
+          type: boolean
+          example: true
+        last_seen_secs_ago:
+          type: integer
+          example: 9
+        hostname:
+          type: string
+          example: "node1"
+    NodeClusterInfo:
+      properties:
+        zone:
+          type: string
+          example: dc1
+        capacity:
+          type: integer
+          example: 4
+        tags:
+          type: array
+          description: |
+            User defined tags, put whatever makes sense for you, these tags are not interpreted by Garage
+          example:
+            - gateway
+            - fast
+          items:
+            type: string
+    ClusterLayout:
+      type: object
+      properties:
+        version:
+          type: integer
+          example: 12
+        roles:
+          type: object
+          example:
+            "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+              zone: "madrid"
+              capacity: 3
+              tags:
+                - fast
+                - amd64
+            "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+              zone: "geneva"
+              capacity: 7
+              tags:
+                - arm64
+          additionalProperties:
+            $ref: '#/components/schemas/NodeClusterInfo'
+        stagedRoleChanges:
+          type: object
+          example:
+            "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+              zone: "geneva"
+              capacity: 4
+              tags:
+                - gateway
+          additionalProperties:
+            $ref: '#/components/schemas/NodeClusterInfo'
+    LayoutVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+          example: 13
+          
+    KeyInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "test-key"
+        accessKeyId:
+          type: string
+          example: "GK31c2f218a2e44f485b94239e"
+        secretAccessKey:
+          type: string
+          example: "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835"
+        permissions:
+          type: object
+          properties:
+            createBucket:
+              type: boolean
+              example: false
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033"
+              globalAliases:
+                type: array
+                items:
+                  type: string
+                  example: "my-bucket"
+              localAliases:
+                type: array
+                items:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e:localname"
+              permissions:
+                type: object
+                properties:
+                  read:
+                    type: boolean
+                    example: true
+                  write:
+                    type: boolean
+                    example: true
+                  owner:
+                    type: boolean
+                    example: false
+                
+servers:
+  - description: A local server
+    url: http://localhost:3903/v0/
