@@ -429,11 +429,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/KeyInfo'
-
-      
+                $ref: '#/components/schemas/KeyInfo' 
         
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   schemas:
     NodeNetworkInfo:
       type: object
@@ -554,7 +556,10 @@ components:
                   owner:
                     type: boolean
                     example: false
-                
+
+security:
+  - bearerAuth: []
+
 servers:
   - description: A local server
     url: http://localhost:3903/v0/
