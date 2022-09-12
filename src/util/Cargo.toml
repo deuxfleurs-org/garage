@@ -19,6 +19,8 @@ garage_db = { version = "0.8.0", path = "../db" }
 arc-swap = "1.0"
 async-trait = "0.1"
 blake2 = "0.9"
+bytes = "1.0"
+digest = "0.10"
 err-derive = "0.3"
 git-version = "0.3.4"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
@@ -26,7 +28,7 @@ hex = "0.4"
 lazy_static = "1.4"
 tracing = "0.1.30"
 rand = "0.8"
-sha2 = "0.9"
+sha2 = "0.10"
 
 chrono = "0.4"
 rmp-serde = "0.15"

@@ -35,7 +35,7 @@ bytesize = "1.1"
 timeago = "0.3"
 hex = "0.4"
 tracing = { version = "0.1.30", features = ["log-always"] }
-pretty_env_logger = "0.4"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 async-trait = "0.1.7"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
@@ -63,9 +63,9 @@ prometheus = { version = "0.13", optional = true }
 aws-sdk-s3 = "0.8"
 chrono = "0.4"
 http = "0.2"
-hmac = "0.10"
+hmac = "0.12"
 hyper = { version = "0.14", features = ["client", "http1", "runtime"] }
-sha2 = "0.9"
+sha2 = "0.10"
 
 static_init = "1.0"
 assert-json-diff = "2.0"
