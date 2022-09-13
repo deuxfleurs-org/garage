@@ -34,7 +34,7 @@ paths:
                   node: 
                     type: string
                     example: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
-                  garage_version:
+                  garageVersion:
                     type: string
                     example: "v0.7.3"
                   knownNodes:
