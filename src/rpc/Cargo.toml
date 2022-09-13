@@ -45,8 +45,7 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 tokio-stream = { version = "0.1", features = ["net"] }
 opentelemetry = "0.17"
 
-#netapp = { version = "0.4.5", features = ["telemetry"] }
-netapp = { version = "0.5.0", git = "https://git.deuxfleurs.fr/lx/netapp", branch = "stream-body", features = ["telemetry"] }
+netapp = { version = "0.5.0", features = ["telemetry"] }
 
 hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
