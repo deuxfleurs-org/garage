@@ -24,7 +24,8 @@ use crate::merkle::*;
 use crate::replication::*;
 use crate::*;
 
-const TABLE_SYNC_RPC_TIMEOUT: Duration = Duration::from_secs(30);
+// Sync RPC can contain a lot of data, so have a 1min timeout
+const TABLE_SYNC_RPC_TIMEOUT: Duration = Duration::from_secs(60);
 
 // Do anti-entropy every 10 minutes
 const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);

@@ -47,7 +47,7 @@ pub async fn cli_command_dispatch(
 
 pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, &SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => nodes,
@@ -149,7 +149,7 @@ pub async fn cmd_connect(
 	args: ConnectNodeOpt,
 ) -> Result<(), Error> {
 	match rpc_cli
-		.call(&rpc_host, &SystemRpc::Connect(args.node), PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::Connect(args.node), PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::Ok => {
@@ -165,7 +165,7 @@ pub async fn cmd_admin(
 	rpc_host: NodeID,
 	args: AdminRpc,
 ) -> Result<(), HelperError> {
-	match rpc_cli.call(&rpc_host, &args, PRIO_NORMAL).await?? {
+	match rpc_cli.call(&rpc_host, args, PRIO_NORMAL).await?? {
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}

@@ -683,7 +683,7 @@ impl AdminRpcHandler {
 					.endpoint
 					.call(
 						&node,
-						&AdminRpc::LaunchRepair(opt_to_send.clone()),
+						AdminRpc::LaunchRepair(opt_to_send.clone()),
 						PRIO_NORMAL,
 					)
 					.await;
@@ -723,7 +723,7 @@ impl AdminRpcHandler {
 				let node_id = (*node).into();
 				match self
 					.endpoint
-					.call(&node_id, &AdminRpc::Stats(opt), PRIO_NORMAL)
+					.call(&node_id, AdminRpc::Stats(opt), PRIO_NORMAL)
 					.await?
 				{
 					Ok(AdminRpc::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),

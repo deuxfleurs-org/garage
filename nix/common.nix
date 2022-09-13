@@ -8,10 +8,10 @@ rec {
     sha256 = "1xy9zpypqfxs5gcq5dcla4bfkhxmh5nzn9dyqkr03lqycm9wg5cr";
   };
   cargo2nixSrc = fetchGit {
-    # As of 2022-03-17
-    url = "https://github.com/superboum/cargo2nix";
-    ref = "dedup_propagate";
-    rev = "486675c67249e735dd7eb68e1b9feac9db102be7";
+    # As of 2022-08-29, stacking two patches: superboum@dedup_propagate and Alexis211@fix_fetchcrategit
+    url = "https://github.com/Alexis211/cargo2nix";
+    ref = "fix_fetchcrategit";
+    rev = "4b31c0cc05b6394916d46e9289f51263d81973b9";
   };
 
   /*

@@ -31,7 +31,7 @@ use crate::schema::*;
 use crate::sync::*;
 use crate::util::*;
 
-pub const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
+pub const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
 	pub system: Arc<System>,

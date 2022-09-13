@@ -60,6 +60,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-compression"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00461f243d703f6999c8e7494f077799f1362720a55ae49a90ffe6214032fc0b"
+dependencies = [
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio",
+ "zstd",
+ "zstd-safe",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,9 +408,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
+checksum = "f0b3de4a0c5e67e16066a0715723abd91edc2f9001d09c46e1dca929351e130e"
 
 [[package]]
 name = "bytes-utils"
@@ -1058,6 +1072,7 @@ name = "garage_block"
 version = "0.8.0"
 dependencies = [
  "arc-swap",
+ "async-compression",
  "async-trait",
  "bytes",
  "futures",
@@ -1073,6 +1088,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "tokio",
+ "tokio-util 0.6.9",
  "tracing",
  "zstd",
 ]
@@ -2016,9 +2032,9 @@ dependencies = [
 
 [[package]]
 name = "netapp"
-version = "0.4.5"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38e390e559aff9e3865c7cd326c691cbf25c580a96f259d2debc35bd4e14018e"
+checksum = "14fa05cce4c65d4cc5277b2525c5054fca0e51db82416d9f43fb916575233774"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -2032,6 +2048,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-contrib",
+ "pin-project 1.0.10",
  "rand 0.8.5",
  "rmp-serde",
  "serde",

@@ -16,8 +16,8 @@ use tokio::sync::watch;
 use tokio::sync::Mutex;
 
 use netapp::endpoint::{Endpoint, EndpointHandler};
+use netapp::message::*;
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-use netapp::proto::*;
 use netapp::util::parse_and_resolve_peer_addr;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
@@ -37,7 +37,7 @@ use crate::rpc_helper::*;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
-const PING_TIMEOUT: Duration = Duration::from_secs(2);
+const SYSTEM_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Version tag used for version check upon Netapp connection.
 /// Cluster nodes with different version tags are deemed
@@ -538,7 +538,7 @@ impl System {
 						SystemRpc::AdvertiseClusterLayout(layout),
 						RequestStrategy::with_priority(PRIO_HIGH),
 					)
-					.await;
+					.await?;
 				Ok(())
 			});
 			self.background.spawn(self.clone().save_cluster_layout());
@@ -553,11 +553,12 @@ impl System {
 
 			self.update_local_status();
 			let local_status: NodeStatus = self.local_status.load().as_ref().clone();
-			self.rpc
+			let _ = self
+				.rpc
 				.broadcast(
 					&self.system_endpoint,
 					SystemRpc::AdvertiseStatus(local_status),
-					RequestStrategy::with_priority(PRIO_HIGH).with_timeout(PING_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
 				)
 				.await;
 
@@ -681,7 +682,7 @@ impl System {
 				&self.system_endpoint,
 				peer,
 				SystemRpc::PullClusterLayout,
-				RequestStrategy::with_priority(PRIO_HIGH).with_timeout(PING_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
 			)
 			.await;
 		if let Ok(SystemRpc::AdvertiseClusterLayout(layout)) = resp {
