@@ -10,7 +10,8 @@ paths:
   /status:
     get:
       tags: 
-        - Membership
+        - Nodes
+      operationId: "GetNodes"
       summary: "Status of this node and other nodes in the cluster"
       description: |
         Returns the cluster's current status, including:
@@ -62,7 +63,8 @@ paths:
   /connect:
     post:
       tags:
-        - Membership
+        - Nodes
+      operationId: "AddNode"
       summary: "Connect target node to other Garage nodes"
       description: |
         Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
@@ -110,6 +112,7 @@ paths:
     get:
       tags:
         - Layout
+      operationId: "GetLayout"
       summary: "Details on the current and staged layout"
       description: |
         Returns the cluster's current layout, including:
@@ -134,6 +137,7 @@ paths:
     post:
       tags:
         - Layout
+      operationId: "AddLayout"
       summary: "Send modifications to the cluster layout"
       description: |
         Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
@@ -169,6 +173,7 @@ paths:
     post:
       tags:
         - Layout
+      operationId: "ApplyLayout"
       summary: "Apply staged layout"
       description: |
         Applies to the cluster the layout changes currently registered as staged layout changes.
@@ -192,6 +197,7 @@ paths:
     post:
       tags:
         - Layout
+      operationId: "RevertLayout"
       summary: "Clear staged layout"
       description: |
         Clears all of the staged layout changes.
@@ -243,6 +249,7 @@ paths:
     post:
       tags:
         - Key
+      operationId: "AddKey"
       summary: "Create a new API key"
       description: |
         Creates a new API access key.
@@ -273,6 +280,7 @@ paths:
     get:
       tags:
         - Key
+      operationId: "GetKey"
       summary: "Get key information"
       description: |
         Return information about a specific key and return its information
@@ -298,8 +306,10 @@ paths:
     delete:
       tags: 
         - Key
+      operationId: "DeleteKey"
       summary: "Delete a key"
-        
+      description: |
+       Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. 
       parameters:
         - name: access_key
           in: path
@@ -318,6 +328,7 @@ paths:
     post:
       tags:
         - Key
+      operationId: "UpdateKey"
       summary: "Update a key"
       description: |
         Updates information about the specified API access key.
@@ -371,6 +382,7 @@ paths:
     get:
       tags:
         - Key
+      operationId: "SearchKey"
       summary: "Select key by pattern"
       description: |
         Find the first key matching the given pattern based on its identifier aor friendly name and return its information.
@@ -397,6 +409,7 @@ paths:
     post:
       tags:
         - Key
+      operationId: "ImportKey"
       summary: "Import an existing key"
       description: |
         Imports an existing API key. This feature must only be used for migrations and backup restore.
