@@ -6,7 +6,7 @@ use garage_db as db;
 
 use garage_util::background::*;
 use garage_util::config::*;
-use garage_util::error::Error;
+use garage_util::error::*;
 
 use garage_rpc::system::System;
 
@@ -76,9 +76,14 @@ pub struct GarageK2V {
 impl Garage {
 	/// Create and run garage
 	pub fn new(config: Config, background: Arc<BackgroundRunner>) -> Result<Arc<Self>, Error> {
+		// Create meta dir and data dir if they don't exist already
+		std::fs::create_dir_all(&config.metadata_dir)
+			.ok_or_message("Unable to create Garage metadata directory")?;
+		std::fs::create_dir_all(&config.data_dir)
+			.ok_or_message("Unable to create Garage data directory")?;
+
 		info!("Opening database...");
 		let mut db_path = config.metadata_dir.clone();
-		std::fs::create_dir_all(&db_path).expect("Unable to create Garage meta data directory");
 		let db = match config.db_engine.as_str() {
 			// ---- Sled DB ----
 			#[cfg(feature = "sled")]
