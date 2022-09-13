@@ -56,7 +56,7 @@ pub async fn get_kubernetes_nodes(
 	let mut ret = Vec::with_capacity(nodes.items.len());
 
 	for node in nodes {
-		println!("Found Pod: {:?}", node.metadata.name);
+		info!("Found Pod: {:?}", node.metadata.name);
 
 		let pubkey = &node
 			.metadata

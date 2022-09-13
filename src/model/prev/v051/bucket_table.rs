@@ -10,7 +10,7 @@ use super::key_table::PermissionSet;
 /// Its parameters are not directly accessible as:
 ///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
 ///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
 	/// Name of the bucket
 	pub name: String,
@@ -19,7 +19,7 @@ pub struct Bucket {
 }
 
 /// State of a bucket
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum BucketState {
 	/// The bucket is deleted
 	Deleted,
@@ -41,7 +41,7 @@ impl Crdt for BucketState {
 }
 
 /// Configuration for a bucket
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
 	/// Map of key with access to the bucket, and what kind of access they give
 	pub authorized_keys: crdt::LwwMap<String, PermissionSet>,

@@ -6,7 +6,7 @@ use garage_table::crdt::*;
 use garage_table::*;
 
 /// A version of an object
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
 	/// UUID of the version, used as partition key
 	pub uuid: Uuid,

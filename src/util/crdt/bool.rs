@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::crdt::crdt::*;
 
 /// Boolean, where `true` is an absorbing state
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Bool(bool);
 
 impl Bool {

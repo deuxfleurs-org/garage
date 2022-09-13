@@ -9,7 +9,7 @@ use crate::permission::BucketKeyPerm;
 use crate::prev::v051::key_table as old;
 
 /// An api key
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Key {
 	/// The id of the key (immutable), used as partition key
 	pub key_id: String,
@@ -19,7 +19,7 @@ pub struct Key {
 }
 
 /// Configuration for a key
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct KeyParams {
 	/// The secret_key associated (immutable)
 	pub secret_key: String,

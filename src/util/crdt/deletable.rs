@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::crdt::crdt::*;
 
 /// Deletable object (once deleted, cannot go back)
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Deletable<T> {
 	Present(T),
 	Deleted,

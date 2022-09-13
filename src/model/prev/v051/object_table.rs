@@ -6,7 +6,7 @@ use garage_util::data::*;
 use garage_table::crdt::*;
 
 /// An object
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
 	/// The bucket in which the object is stored, used as partition key
 	pub bucket: String,
@@ -26,7 +26,7 @@ impl Object {
 }
 
 /// Informations about a version of an object
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersion {
 	/// Id of the version
 	pub uuid: Uuid,
@@ -37,7 +37,7 @@ pub struct ObjectVersion {
 }
 
 /// State of an object version
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionState {
 	/// The version is being received
 	Uploading(ObjectVersionHeaders),
