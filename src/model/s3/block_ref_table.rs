@@ -10,7 +10,7 @@ use garage_table::*;
 
 use garage_block::manager::*;
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct BlockRef {
 	/// Hash (blake2 sum) of the block, used as partition key
 	pub block: Hash,

@@ -609,7 +609,7 @@ impl<S: Stream<Item = BlockStreamItem>> Defragmenter<S> {
 	}
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct CopyObjectResult {
 	#[serde(rename = "LastModified")]
 	pub last_modified: s3_xml::Value,
@@ -617,7 +617,7 @@ pub struct CopyObjectResult {
 	pub etag: s3_xml::Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct CopyPartResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),

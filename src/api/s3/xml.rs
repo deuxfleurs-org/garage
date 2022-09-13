@@ -25,7 +25,7 @@ impl From<&str> for Value {
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntValue(#[serde(rename = "$value")] pub i64);
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Bucket {
 	#[serde(rename = "CreationDate")]
 	pub creation_date: Value,
@@ -33,7 +33,7 @@ pub struct Bucket {
 	pub name: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Owner {
 	#[serde(rename = "DisplayName")]
 	pub display_name: Value,
@@ -41,13 +41,13 @@ pub struct Owner {
 	pub id: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct BucketList {
 	#[serde(rename = "Bucket")]
 	pub entries: Vec<Bucket>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListAllMyBucketsResult {
 	#[serde(rename = "Buckets")]
 	pub buckets: BucketList,
@@ -55,7 +55,7 @@ pub struct ListAllMyBucketsResult {
 	pub owner: Owner,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct LocationConstraint {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -63,7 +63,7 @@ pub struct LocationConstraint {
 	pub region: String,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Deleted {
 	#[serde(rename = "Key")]
 	pub key: Value,
@@ -73,7 +73,7 @@ pub struct Deleted {
 	pub delete_marker_version_id: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Error {
 	#[serde(rename = "Code")]
 	pub code: Value,
@@ -85,7 +85,7 @@ pub struct Error {
 	pub region: Option<Value>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct DeleteError {
 	#[serde(rename = "Code")]
 	pub code: Value,
@@ -97,7 +97,7 @@ pub struct DeleteError {
 	pub version_id: Option<Value>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct DeleteResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -107,7 +107,7 @@ pub struct DeleteResult {
 	pub errors: Vec<DeleteError>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct InitiateMultipartUploadResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -119,7 +119,7 @@ pub struct InitiateMultipartUploadResult {
 	pub upload_id: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct CompleteMultipartUploadResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -133,7 +133,7 @@ pub struct CompleteMultipartUploadResult {
 	pub etag: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct Initiator {
 	#[serde(rename = "DisplayName")]
 	pub display_name: Value,
@@ -141,7 +141,7 @@ pub struct Initiator {
 	pub id: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListMultipartItem {
 	#[serde(rename = "Initiated")]
 	pub initiated: Value,
@@ -157,7 +157,7 @@ pub struct ListMultipartItem {
 	pub storage_class: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListMultipartUploadsResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -187,7 +187,7 @@ pub struct ListMultipartUploadsResult {
 	pub encoding_type: Option<Value>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct PartItem {
 	#[serde(rename = "ETag")]
 	pub etag: Value,
@@ -199,7 +199,7 @@ pub struct PartItem {
 	pub size: IntValue,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListPartsResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -227,7 +227,7 @@ pub struct ListPartsResult {
 	pub storage_class: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListBucketItem {
 	#[serde(rename = "Key")]
 	pub key: Value,
@@ -241,13 +241,13 @@ pub struct ListBucketItem {
 	pub storage_class: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct CommonPrefix {
 	#[serde(rename = "Prefix")]
 	pub prefix: Value,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct ListBucketResult {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -281,7 +281,7 @@ pub struct ListBucketResult {
 	pub common_prefixes: Vec<CommonPrefix>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct VersioningConfiguration {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),
@@ -289,7 +289,7 @@ pub struct VersioningConfiguration {
 	pub status: Option<Value>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct PostObject {
 	#[serde(serialize_with = "xmlns_tag")]
 	pub xmlns: (),

@@ -21,7 +21,7 @@ pub const UNFINISHED_UPLOADS: &str = "unfinished_uploads";
 pub const BYTES: &str = "bytes";
 
 /// An object
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Object {
 	/// The bucket in which the object is stored, used as partition key
 	pub bucket_id: Uuid,
@@ -70,7 +70,7 @@ impl Object {
 }
 
 /// Informations about a version of an object
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectVersion {
 	/// Id of the version
 	pub uuid: Uuid,
@@ -81,7 +81,7 @@ pub struct ObjectVersion {
 }
 
 /// State of an object version
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectVersionState {
 	/// The version is being received
 	Uploading(ObjectVersionHeaders),

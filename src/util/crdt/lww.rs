@@ -37,7 +37,7 @@ use crate::crdt::crdt::*;
 ///
 /// This scheme is used by AWS S3 or Soundcloud and often without knowing
 /// in enterprise when reconciliating databases with ad-hoc scripts.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Lww<T> {
 	ts: u64,
 	v: T,

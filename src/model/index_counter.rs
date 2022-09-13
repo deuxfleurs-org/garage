@@ -81,7 +81,7 @@ impl<T: CountedItem> CounterEntry<T> {
 }
 
 /// A counter entry in the global table
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct CounterValue {
 	pub node_values: BTreeMap<Uuid, (u64, i64)>,
 }

@@ -12,7 +12,7 @@ use crate::permission::BucketKeyPerm;
 /// Its parameters are not directly accessible as:
 ///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
 ///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct Bucket {
 	/// ID of the bucket
 	pub id: Uuid,
@@ -21,7 +21,7 @@ pub struct Bucket {
 }
 
 /// Configuration for a bucket
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketParams {
 	/// Bucket's creation date
 	pub creation_date: u64,
