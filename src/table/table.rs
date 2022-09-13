@@ -113,7 +113,6 @@ where
 	async fn insert_internal(&self, e: &F::E) -> Result<(), Error> {
 		let hash = e.partition_key().hash();
 		let who = self.data.replication.write_nodes(&hash);
-		//eprintln!("insert who: {:?}", who);
 
 		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);

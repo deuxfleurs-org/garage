@@ -662,7 +662,6 @@ mod tests {
 			last_modified: s3_xml::Value("2011-04-11T20:34:56.000Z".into()),
 			etag: s3_xml::Value("\"9b2cf535f27731c974343645a3985328\"".into()),
 		};
-		println!("{}", to_xml_with_header(&v)?);
 
 		assert_eq!(to_xml_with_header(&v)?, expected_retval);
 
