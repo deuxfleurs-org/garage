@@ -169,7 +169,7 @@ impl Garage {
 			background.clone(),
 			replication_mode.replication_factor(),
 			&config,
-		);
+		)?;
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),

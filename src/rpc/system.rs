@@ -198,7 +198,7 @@ impl System {
 		background: Arc<BackgroundRunner>,
 		replication_factor: usize,
 		config: &Config,
-	) -> Arc<Self> {
+	) -> Result<Arc<Self>, Error> {
 		let node_key =
 			gen_node_key(&config.metadata_dir).expect("Unable to read or generate node ID");
 		info!(
@@ -206,11 +206,21 @@ impl System {
 			hex::encode(&node_key.public_key()[..8])
 		);
 
-		let persist_cluster_layout = Persister::new(&config.metadata_dir, "cluster_layout");
+		let persist_cluster_layout: Persister<ClusterLayout> =
+			Persister::new(&config.metadata_dir, "cluster_layout");
 		let persist_peer_list = Persister::new(&config.metadata_dir, "peer_list");
 
 		let cluster_layout = match persist_cluster_layout.load() {
-			Ok(x) => x,
+			Ok(x) => {
+				if x.replication_factor != replication_factor {
+					return Err(Error::Message(format!(
+						"Prevous cluster layout has replication factor {}, which is different than the one specified in the config file ({}). The previous cluster layout can be purged, if you know what you are doing, simply by deleting the `cluster_layout` file in your metadata directory.",
+						x.replication_factor,
+						replication_factor
+					)));
+				}
+				x
+			}
 			Err(e) => {
 				info!(
 					"No valid previous cluster layout stored ({}), starting fresh.",
@@ -303,7 +313,7 @@ impl System {
 			metadata_dir: config.metadata_dir.clone(),
 		});
 		sys.system_endpoint.set_handler(sys.clone());
-		sys
+		Ok(sys)
 	}
 
 	/// Perform bootstraping, starting the ping loop
@@ -485,7 +495,7 @@ impl System {
 		let local_info = self.local_status.load();
 
 		if local_info.replication_factor < info.replication_factor {
-			error!("Some node have a higher replication factor ({}) than this one ({}). This is not supported and might lead to bugs",
+			error!("Some node have a higher replication factor ({}) than this one ({}). This is not supported and will lead to data corruption. Shutting down for safety.",
 				info.replication_factor,
 				local_info.replication_factor);
 			std::process::exit(1);
@@ -513,6 +523,16 @@ impl System {
 		self: &Arc<Self>,
 		adv: &ClusterLayout,
 	) -> Result<SystemRpc, Error> {
+		if adv.replication_factor != self.replication_factor {
+			let msg = format!(
+				"Received a cluster layout from another node with replication factor {}, which is different from what we have in our configuration ({}). Discarding the cluster layout we received.",
+				adv.replication_factor,
+				self.replication_factor
+			);
+			error!("{}", msg);
+			return Err(Error::Message(msg));
+		}
+
 		let update_ring = self.update_ring.lock().await;
 		let mut layout: ClusterLayout = self.ring.borrow().layout.clone();
 
