@@ -162,7 +162,13 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
 			.err_context(READ_KEY_ERROR)?;
-		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr) {
+		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr.as_ref()) {
+			use std::net::ToSocketAddrs;
+			let a = a
+				.to_socket_addrs()
+				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?
+				.next()
+				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?;
 			(node_id, a)
 		} else {
 			let default_addr = SocketAddr::new(
