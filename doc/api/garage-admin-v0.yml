@@ -108,6 +108,7 @@ paths:
                       example: true
                     error:
                       type: string
+                      nullable: true
                       example: 
                 
   /layout:
