@@ -3,11 +3,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
-
-use netapp::util::parse_and_resolve_peer_addr;
-use netapp::NodeID;
 
 use crate::error::Error;
 
@@ -43,11 +39,11 @@ pub struct Config {
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
 	/// Public IP address of this node
-	pub rpc_public_addr: Option<SocketAddr>,
+	pub rpc_public_addr: Option<String>,
 
 	/// Bootstrap peers RPC address
-	#[serde(deserialize_with = "deserialize_vec_addr", default)]
-	pub bootstrap_peers: Vec<(NodeID, SocketAddr)>,
+	#[serde(default)]
+	pub bootstrap_peers: Vec<String>,
 	/// Consul host to connect to to discover more peers
 	pub consul_host: Option<String>,
 	/// Consul service name to use
@@ -152,24 +148,6 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	file.read_to_string(&mut config)?;
 
 	Ok(toml::from_str(&config)?)
-}
-
-fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<(NodeID, SocketAddr)>, D::Error>
-where
-	D: de::Deserializer<'de>,
-{
-	let mut ret = vec![];
-
-	for peer in <Vec<&str>>::deserialize(deserializer)? {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer).ok_or_else(|| {
-			D::Error::custom(format!("Unable to parse or resolve peer: {}", peer))
-		})?;
-		for ip in addrs {
-			ret.push((pubkey, ip));
-		}
-	}
-
-	Ok(ret)
 }
 
 fn default_compression() -> Option<i32> {
