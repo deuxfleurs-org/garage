@@ -30,6 +30,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [ node, garageVersion, knownNodes, layout ]
                 properties:
                   node: 
                     type: string
@@ -69,6 +70,7 @@ paths:
       description: |
         Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -147,6 +149,7 @@ paths:
           To remove a node, set it to `null` instead of passing a configuration object.
         
           Contrary to the CLI that may update only a subset of the fields capacity, zone and tags, when calling this API all of these values must be specified.
+        required: true
         content:
           application/json:
             schema:
@@ -180,6 +183,7 @@ paths:
       requestBody:
         description: |
           Similarly to the CLI, the body must include the version of the new layout that will be created, which MUST be 1 + the value of the currently existing layout in the cluster.
+        required: true
         content:
           application/json:
             schema:
@@ -204,6 +208,7 @@ paths:
       requestBody:
         description: |
           Reverting the staged changes is done by incrementing the version number and clearing the contents of the staged change list. Similarly to the CLI, the body must include the incremented version number, which MUST be 1 + the value of the currently existing layout in the cluster.
+        required: true
         content:
           application/json:
             schema:
@@ -241,6 +246,7 @@ paths:
                     name: ""
                 items:
                   type: object
+                  required: [ id ]
                   properties:
                     id:
                       type: string
@@ -255,7 +261,8 @@ paths:
         Creates a new API access key.
       requestBody:
         description: |
-          "You can optionnaly set a friendly name for this key"
+          "You can set a friendly name for this key, send an empty string instead"
+        required: true
         content:
           application/json:
             schema:
@@ -343,6 +350,7 @@ paths:
       requestBody:
         description: |
           For a given key, provide a first set with the permissions to grant, and a second set with the permissions to remove
+        required: true
         content:
           application/json:
             schema:
@@ -418,10 +426,12 @@ paths:
       requestBody:
         description: |
           Information on the key to import
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [ name, accessKeyId, secretAccessKey ]
               properties:
                 name:
                   type: string
@@ -452,6 +462,7 @@ components:
   schemas:
     NodeNetworkInfo:
       type: object
+      required: [ addr, is_up, last_seen_secs_ago, hostname ]
       properties:
         addr:
           type: string
@@ -461,11 +472,14 @@ components:
           example: true
         last_seen_secs_ago:
           type: integer
+          nullable: true
           example: 9
         hostname:
           type: string
           example: "node1"
     NodeClusterInfo:
+      type: object
+      required: [ zone, capacity, tags ]
       properties:
         zone:
           type: string
@@ -484,6 +498,7 @@ components:
             type: string
     ClusterLayout:
       type: object
+      required: [ version, roles, stagedRoleChanges ]
       properties:
         version:
           type: integer
