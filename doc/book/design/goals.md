@@ -1,13 +1,13 @@
 +++
 title = "Goals and use cases"
-weight = 5
+weight = 10
 +++
 
 ## Goals and non-goals
 
 Garage is a lightweight geo-distributed data store that implements the
 [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
-object storage protocole. It enables applications to store large blobs such
+object storage protocol. It enables applications to store large blobs such
 as pictures, video, images, documents, etc., in a redundant multi-node
 setting. S3 is versatile enough to also be used to publish a static
 website.

@@ -1,6 +1,6 @@
 +++
-title = "Design draft"
-weight = 25
+title = "Design draft (obsolete)"
+weight = 50
 +++
 
 **WARNING: this documentation is a design draft which was written before Garage's actual implementation.

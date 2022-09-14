@@ -1,6 +1,6 @@
 +++
 title = "Benchmarks"
-weight = 10
+weight = 40
 +++
 
 With Garage, we wanted to build a software defined storage service that follow the [KISS principle](https://en.wikipedia.org/wiki/KISS_principle),

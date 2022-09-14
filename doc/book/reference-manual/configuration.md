@@ -1,6 +1,6 @@
 +++
 title = "Configuration file format"
-weight = 5
+weight = 20
 +++
 
 Here is an example `garage.toml` configuration file that illustrates all of the possible options:
@@ -10,7 +10,6 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 
 block_size = 1048576
-block_manager_background_tranquility = 2
 
 replication_mode = "3"
 
@@ -86,17 +85,6 @@ installation, only files newly uploaded will be affected. Previously uploaded
 files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
-
-### `block_manager_background_tranquility`
-
-This parameter tunes the activity of the background worker responsible for
-resyncing data blocks between nodes. The higher the tranquility value is set,
-the more the background worker will wait between iterations, meaning the load
-on the system (including network usage between nodes) will be reduced. The
-minimal value for this parameter is `0`, where the background worker will
-allways work at maximal throughput to resynchronize blocks. The default value
-is `2`, where the background worker will try to spend at most 1/3 of its time
-working, and 2/3 sleeping in order to reduce system load.
 
 ### `replication_mode`
 
