@@ -64,14 +64,13 @@ pub async fn handle_delete(
 	bucket_id: Uuid,
 	key: &str,
 ) -> Result<Response<Body>, Error> {
-	let (_deleted_version, delete_marker_version) =
-		handle_delete_internal(&garage, bucket_id, key).await?;
-
-	Ok(Response::builder()
-		.header("x-amz-version-id", hex::encode(delete_marker_version))
-		.status(StatusCode::NO_CONTENT)
-		.body(Body::from(vec![]))
-		.unwrap())
+	match handle_delete_internal(&garage, bucket_id, key).await {
+		Ok(_) | Err(Error::NoSuchKey) => Ok(Response::builder()
+			.status(StatusCode::NO_CONTENT)
+			.body(Body::from(vec![]))
+			.unwrap()),
+		Err(e) => Err(e),
+	}
 }
 
 pub async fn handle_delete_objects(

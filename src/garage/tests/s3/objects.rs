@@ -263,4 +263,13 @@ async fn test_deleteobject() {
 		.unwrap();
 
 	assert!(l.contents.is_none());
+
+	// Deleting a non-existing object shouldn't be a problem
+	ctx.client
+		.delete_object()
+		.bucket(&bucket)
+		.key("l-0")
+		.send()
+		.await
+		.unwrap();
 }
