@@ -26,6 +26,11 @@ a storage plan that best exploits the available storage capacity while satisfyin
 To learn more about geo-distributed Garage clusters,
 read our documentation on [setting up a real-world deployment](@/documentation/cookbook/real-world.md).
 
+### Standalone/self-contained
+
+Garage is extremely simple to deploy, and does not depend on any external service to run.
+This makes setting up and administering storage clusters, we hope, as easy as it could be.
+
 ### Flexible topology
 
 A Garage cluster can very easily evolve over time, as storage nodes are added or removed.
@@ -42,11 +47,11 @@ of going through a central bottleneck (the leader node).
 As a consequence, requests can be handled much faster, even in cases where latency
 between cluster nodes is important (see our [benchmarks](@/documentation/design/benchmarks/index.md) for data on this).
 This is particularly usefull when nodes are far from one another and talk to one other through standard Internet connections.
- 
+
 ### Several replication modes
 
 Garage supports a variety of replication modes, with 1 copy, 2 copies or 3 copies of your data,
-and with various levels of consistency. 
+and with various levels of consistency, in order to adapt to a variety of usage scenarios.
 Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication-mode)
 to select the replication mode best suited to your use case (hint: in most cases, `replication_mode = "3"` is what you want).
 
@@ -54,32 +59,67 @@ to select the replication mode best suited to your use case (hint: in most cases
 
 A storage bucket can easily be configured to be served directly by Garage as a static web site.
 Domain names for multiple websites directly map to bucket names, making it easy to build
-a platform for your user's to autonomously build and host their websites over Garage.
+a platform for your users to autonomously build and host their websites over Garage.
 Surprisingly, none of the other alternative S3 implementations we surveyed (such as Minio
 or CEPH) support publishing static websites from S3 buckets, a feature that is however
 directly inherited from S3 on AWS.
+Read more on our [dedicated documentation page](@/documentation/cookbook/exposing-websites.md).
 
 ### Bucket names as aliases
 
- - the same bucket may have multiple names (useful when exposing websites for example)
+In Garage, a bucket may have several names, known as aliases.
+Aliases can easily be added and removed on demand:
+this allows to easily rename buckets if needed
+without having to copy all of their content, something that cannot be done on AWS.
+For buckets served as static websites, having multiple aliases for a bucket can allow
+exposing the same content under different domain names.
 
- - bucket renaming is possible
+Garage also supports bucket aliases which are local to a single user:
+this allows different users to have different buckets with the same name, thus avoiding naming collisions.
+This can be helpfull for instance if you want to write an application that creates per-user buckets with always the same name.
 
- - Scoped buckets: 2 users can have a different bucket with the same name -> avoid collision. Helpful if you want to write an application that creates per-user bucket always with the same name.
-
-### Standalone/self contained
-
- 
-### Integration with Kubernetes and Nomad
-
-Many node discovery methods: Kubernetes integration, Nomad integration through Consul
- 
-### Support for changing IP addresses
-
-(as long as all nodes don't change their IP at the same time)
+This feature is totally invisible to S3 clients and does not break compatibility with AWS.
 
 ### Cluster administration API
 
+Garage provides a fully-fledged REST API to administer your cluster programatically.
+Functionnality included in the admin API include: setting up and monitoring
+cluster nodes, managing access credentials, and managing storage buckets and bucket aliases.
+A full reference of the administration API is available [here](@/documentation/reference-manual/admin-api.md).
+
 ### Metrics and traces
- 
-### (experimental) K2V API
+
+Garage makes some internal metrics available in the Prometheus data format,
+which allows you to build interactive dashboards to visualize the load and internal state of your storage cluster.
+
+For developpers and performance-savvy administrators,
+Garage also supports exporting traces of what it does internally in OpenTelemetry format.
+This allows to monitor the time spent at various steps of the processing of requests,
+in order to detect potential performance bottlenecks.
+
+### Kubernetes and Nomad integrations
+
+Garage can automatically discover other nodes in the cluster thanks to integration
+with orchestrators such as Kubernetes and Nomad (when used with Consul).
+This eases the configuration of your cluster as it removes one step where nodes need
+to be manually connected to one another.
+
+### Support for changing IP addresses
+
+As long as all of your nodes don't thange their IP address at the same time,
+Garage should be able to tolerate nodes with changing/dynamic IP addresses,
+as nodes will regularly exchange the IP addresses of their peers and try to
+reconnect using newer addresses when existing connections are broken.
+
+### K2V API (experimental)
+
+As part of an ongoing research project, Garage can expose an experimental key/value storage API called K2V.
+K2V is made for the storage and retrieval of many small key/value pairs that need to be processed in bulk.
+This completes the S3 API with an alternative that can be used to easily store and access metadata
+related to objects stored in an S3 bucket.
+
+In the context of our research project, [Aérogramme](https://aerogramme.deuxfleurs.fr),
+K2V is used to provide metadata and log storage for operations on encrypted e-mail storage.
+
+Learn more on the specification of K2V [here](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/k2v/doc/drafts/k2v-spec.md)
+and on how to enable it in Garage [here](@/documentation/reference-manual/k2v.md).

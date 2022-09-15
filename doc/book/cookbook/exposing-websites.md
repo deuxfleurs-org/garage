@@ -5,11 +5,13 @@ weight = 25
 
 ## Configuring a bucket for website access
 
-There are two methods to expose buckets as website:
+There are three methods to expose buckets as website:
 
 1. using the PutBucketWebsite S3 API call, which is allowed for access keys that have the owner permission bit set
 
 2. from the Garage CLI, by an adminstrator of the cluster
+
+3. using the Garage administration API
 
 The `PutBucketWebsite` API endpoint [is documented](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html) in the official AWS docs.
 This endpoint can also be called [using `aws s3api`](https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-website.html) on the command line.
