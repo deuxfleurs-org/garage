@@ -24,9 +24,6 @@ use crate::merkle::*;
 use crate::replication::*;
 use crate::*;
 
-// Sync RPC can contain a lot of data, so have a 1min timeout
-const TABLE_SYNC_RPC_TIMEOUT: Duration = Duration::from_secs(60);
-
 // Do anti-entropy every 10 minutes
 const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
@@ -248,9 +245,7 @@ where
 				&self.endpoint,
 				nodes,
 				SyncRpc::Items(values),
-				RequestStrategy::with_priority(PRIO_BACKGROUND)
-					.with_quorum(nodes.len())
-					.with_timeout(TABLE_SYNC_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_BACKGROUND).with_quorum(nodes.len()),
 			)
 			.await?;
 
@@ -311,8 +306,7 @@ where
 				&self.endpoint,
 				who,
 				SyncRpc::RootCkHash(partition.partition, root_ck_hash),
-				RequestStrategy::with_priority(PRIO_BACKGROUND)
-					.with_timeout(TABLE_SYNC_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_BACKGROUND),
 			)
 			.await?;
 
@@ -368,8 +362,7 @@ where
 							&self.endpoint,
 							who,
 							SyncRpc::GetNode(key.clone()),
-							RequestStrategy::with_priority(PRIO_BACKGROUND)
-								.with_timeout(TABLE_SYNC_RPC_TIMEOUT),
+							RequestStrategy::with_priority(PRIO_BACKGROUND),
 						)
 						.await?
 					{
@@ -445,8 +438,7 @@ where
 				&self.endpoint,
 				who,
 				SyncRpc::Items(values),
-				RequestStrategy::with_priority(PRIO_BACKGROUND)
-					.with_timeout(TABLE_SYNC_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_BACKGROUND),
 			)
 			.await?;
 		if let SyncRpc::Ok = rpc_resp {

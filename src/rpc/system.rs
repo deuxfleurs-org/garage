@@ -37,7 +37,6 @@ use crate::rpc_helper::*;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
-const SYSTEM_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Version tag used for version check upon Netapp connection.
 /// Cluster nodes with different version tags are deemed
@@ -280,6 +279,9 @@ impl System {
 
 		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
 		let fullmesh = FullMeshPeeringStrategy::new(netapp.clone(), vec![], rpc_public_addr);
+		if let Some(ping_timeout) = config.rpc_ping_timeout_msec {
+			fullmesh.set_ping_timeout_millis(ping_timeout);
+		}
 
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
 
@@ -317,7 +319,13 @@ impl System {
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
 			fullmesh: fullmesh.clone(),
-			rpc: RpcHelper::new(netapp.id.into(), fullmesh, background.clone(), ring.clone()),
+			rpc: RpcHelper::new(
+				netapp.id.into(),
+				fullmesh,
+				background.clone(),
+				ring.clone(),
+				config.rpc_timeout_msec.map(Duration::from_millis),
+			),
 			system_endpoint,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
@@ -600,7 +608,7 @@ impl System {
 				.broadcast(
 					&self.system_endpoint,
 					SystemRpc::AdvertiseStatus(local_status),
-					RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_HIGH),
 				)
 				.await;
 
@@ -724,7 +732,7 @@ impl System {
 				&self.system_endpoint,
 				peer,
 				SystemRpc::PullClusterLayout,
-				RequestStrategy::with_priority(PRIO_HIGH).with_timeout(SYSTEM_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_HIGH),
 			)
 			.await;
 		if let Ok(SystemRpc::AdvertiseClusterLayout(layout)) = resp {

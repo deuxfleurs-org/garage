@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::stream::*;
@@ -30,8 +29,6 @@ use crate::replication::*;
 use crate::schema::*;
 use crate::sync::*;
 use crate::util::*;
-
-pub const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
 	pub system: Arc<System>,
@@ -124,8 +121,7 @@ where
 				&who[..],
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(self.data.replication.write_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT),
+					.with_quorum(self.data.replication.write_quorum()),
 			)
 			.await?;
 
@@ -177,7 +173,7 @@ where
 					&self.endpoint,
 					node,
 					rpc,
-					RequestStrategy::with_priority(PRIO_NORMAL).with_timeout(TABLE_RPC_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_NORMAL),
 				)
 				.await?;
 			Ok::<_, Error>((node, resp))
@@ -234,7 +230,6 @@ where
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.read_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT)
 					.interrupt_after_quorum(true),
 			)
 			.await?;
@@ -329,7 +324,6 @@ where
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.read_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT)
 					.interrupt_after_quorum(true),
 			)
 			.await?;
@@ -406,9 +400,7 @@ where
 				&self.endpoint,
 				who,
 				TableRpc::<F>::Update(vec![what_enc]),
-				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(who.len())
-					.with_timeout(TABLE_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_NORMAL).with_quorum(who.len()),
 			)
 			.await?;
 		Ok(())

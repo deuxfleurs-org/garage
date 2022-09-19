@@ -41,9 +41,6 @@ use crate::resync::*;
 /// Size under which data will be stored inlined in database instead of as files
 pub const INLINE_THRESHOLD: usize = 3072;
 
-// Timeout for RPCs that read and write blocks to remote nodes
-pub(crate) const BLOCK_RW_TIMEOUT: Duration = Duration::from_secs(60);
-
 // The delay between the moment when the reference counter
 // drops to zero, and the moment where we allow ourselves
 // to delete the block locally.
@@ -183,7 +180,7 @@ impl BlockManager {
 					};
 					return Ok((header, stream));
 				}
-				_ = tokio::time::sleep(BLOCK_RW_TIMEOUT) => {
+				_ = tokio::time::sleep(self.system.rpc.rpc_timeout()) => {
 					debug!("Node {:?} didn't return block in time, trying next.", node);
 				}
 			};
@@ -235,7 +232,7 @@ impl BlockManager {
 						}
 					}
 				}
-				_ = tokio::time::sleep(BLOCK_RW_TIMEOUT) => {
+				_ = tokio::time::sleep(self.system.rpc.rpc_timeout()) => {
 					debug!("Node {:?} didn't return block in time, trying next.", node);
 				}
 			};
@@ -300,8 +297,7 @@ impl BlockManager {
 				&who[..],
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
-					.with_quorum(self.replication.write_quorum())
-					.with_timeout(BLOCK_RW_TIMEOUT),
+					.with_quorum(self.replication.write_quorum()),
 			)
 			.await?;
 
@@ -336,7 +332,10 @@ impl BlockManager {
 			// we will fecth it from someone.
 			let this = self.clone();
 			tokio::spawn(async move {
-				if let Err(e) = this.resync.put_to_resync(&hash, 2 * BLOCK_RW_TIMEOUT) {
+				if let Err(e) = this
+					.resync
+					.put_to_resync(&hash, 2 * this.system.rpc.rpc_timeout())
+				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
 			});
@@ -444,7 +443,8 @@ impl BlockManager {
 			Ok(c) => c,
 			Err(e) => {
 				// Not found but maybe we should have had it ??
-				self.resync.put_to_resync(hash, 2 * BLOCK_RW_TIMEOUT)?;
+				self.resync
+					.put_to_resync(hash, 2 * self.system.rpc.rpc_timeout())?;
 				return Err(Into::into(e));
 			}
 		};
