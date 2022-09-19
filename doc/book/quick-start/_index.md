@@ -9,6 +9,15 @@ Let's start your Garage journey!
 In this chapter, we explain how to deploy Garage as a single-node server
 and how to interact with it.
 
+## What is Garage?
+
+Before jumping in, you might be interested in reading the following pages:
+
+- [Goals and use cases](@/documentation/design/goals.md)
+- [List of features](@/documentation/reference-manual/features.md)
+
+## Scope of this tutorial
+
 Our goal is to introduce you to Garage's workflows.
 Following this guide is recommended before moving on to
 [configuring a multi-node cluster](@/documentation/cookbook/real-world.md).

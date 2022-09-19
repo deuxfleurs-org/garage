@@ -1,6 +1,6 @@
 +++
 title = "S3 Compatibility status"
-weight = 20
+weight = 40
 +++
 
 ## DISCLAIMER
