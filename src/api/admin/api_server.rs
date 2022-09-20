@@ -34,7 +34,10 @@ pub struct AdminApiServer {
 }
 
 impl AdminApiServer {
-	pub fn new(garage: Arc<Garage>) -> Self {
+	pub fn new(
+		garage: Arc<Garage>,
+		#[cfg(feature = "metrics")] exporter: PrometheusExporter,
+	) -> Self {
 		let cfg = &garage.config.admin;
 		let metrics_token = cfg
 			.metrics_token
@@ -47,7 +50,7 @@ impl AdminApiServer {
 		Self {
 			garage,
 			#[cfg(feature = "metrics")]
-			exporter: opentelemetry_prometheus::exporter().init(),
+			exporter,
 			metrics_token,
 			admin_token,
 		}

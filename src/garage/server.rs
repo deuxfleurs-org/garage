@@ -32,6 +32,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 
 	// ---- Initialize Garage internals ----
 
+	#[cfg(feature = "metrics")]
+	let metrics_exporter = opentelemetry_prometheus::exporter().init();
+
 	info!("Initializing background runner...");
 	let watch_cancel = netapp::util::watch_ctrl_c();
 	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
@@ -50,7 +53,11 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	}
 
 	info!("Initialize Admin API server and metrics collector...");
-	let admin_server = AdminApiServer::new(garage.clone());
+	let admin_server = AdminApiServer::new(
+		garage.clone(),
+		#[cfg(feature = "metrics")]
+		metrics_exporter,
+	);
 
 	info!("Launching internal Garage cluster communications...");
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
