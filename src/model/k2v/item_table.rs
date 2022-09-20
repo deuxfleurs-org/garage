@@ -17,7 +17,7 @@ pub const CONFLICTS: &str = "conflicts";
 pub const VALUES: &str = "values";
 pub const BYTES: &str = "bytes";
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct K2VItem {
 	pub partition: K2VItemPartition,
 	pub sort_key: String,
@@ -25,19 +25,19 @@ pub struct K2VItem {
 	items: BTreeMap<K2VNodeId, DvvsEntry>,
 }
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Hash, Eq)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct K2VItemPartition {
 	pub bucket_id: Uuid,
 	pub partition_key: String,
 }
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 struct DvvsEntry {
 	t_discard: u64,
 	values: Vec<(u64, DvvsValue)>,
 }
 
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum DvvsValue {
 	Value(#[serde(with = "serde_bytes")] Vec<u8>),
 	Deleted,

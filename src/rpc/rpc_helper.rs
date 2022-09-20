@@ -44,8 +44,15 @@ pub struct RequestStrategy {
 	pub rs_interrupt_after_quorum: bool,
 	/// Request priority
 	pub rs_priority: RequestPriority,
-	/// Deactivate timeout for this request
-	pub rs_no_timeout: bool,
+	/// Custom timeout for this request
+	rs_timeout: Timeout,
+}
+
+#[derive(Copy, Clone)]
+enum Timeout {
+	None,
+	Default,
+	Custom(Duration),
 }
 
 impl RequestStrategy {
@@ -55,7 +62,7 @@ impl RequestStrategy {
 			rs_quorum: None,
 			rs_interrupt_after_quorum: false,
 			rs_priority: prio,
-			rs_no_timeout: false,
+			rs_timeout: Timeout::Default,
 		}
 	}
 	/// Set quorum to be reached for request
@@ -71,7 +78,12 @@ impl RequestStrategy {
 	}
 	/// Deactivate timeout for this request
 	pub fn without_timeout(mut self) -> Self {
-		self.rs_no_timeout = true;
+		self.rs_timeout = Timeout::None;
+		self
+	}
+	/// Set custom timeout for this request
+	pub fn with_custom_timeout(mut self, timeout: Duration) -> Self {
+		self.rs_timeout = Timeout::Custom(timeout);
 		self
 	}
 }
@@ -138,10 +150,10 @@ impl RpcHelper {
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 
 		let timeout = async {
-			if strat.rs_no_timeout {
-				futures::future::pending().await
-			} else {
-				tokio::time::sleep(self.0.rpc_timeout).await
+			match strat.rs_timeout {
+				Timeout::None => futures::future::pending().await,
+				Timeout::Default => tokio::time::sleep(self.0.rpc_timeout).await,
+				Timeout::Custom(t) => tokio::time::sleep(t).await,
 			}
 		};
 
@@ -412,7 +424,7 @@ impl RpcHelper {
 					.iter()
 					.find(|x| x.id.as_ref() == to.as_slice())
 					.and_then(|pi| pi.avg_ping)
-					.unwrap_or_else(|| Duration::from_secs(1));
+					.unwrap_or_else(|| Duration::from_secs(10));
 				(
 					*to != self.0.our_node_id,
 					peer_zone != our_zone,
