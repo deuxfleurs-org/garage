@@ -15,7 +15,7 @@ pub fn make_node_id(node_id: Uuid) -> K2VNodeId {
 	u64::from_be_bytes(tmp)
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct CausalContext {
 	pub vector_clock: BTreeMap<K2VNodeId, u64>,
 }

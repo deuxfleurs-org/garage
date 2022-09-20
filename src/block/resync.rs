@@ -33,14 +33,6 @@ use garage_table::replication::TableReplication;
 
 use crate::manager::*;
 
-// Timeout for RPCs that ask other nodes whether they need a copy
-// of a given block before we delete it locally
-// The timeout here is relatively low because we don't want to block
-// the entire resync loop when some nodes are not responding.
-// Nothing will be deleted if the nodes don't answer the queries,
-// we will just retry later.
-const NEED_BLOCK_QUERY_TIMEOUT: Duration = Duration::from_secs(15);
-
 // The delay between the time where a resync operation fails
 // and the time when it is retried, with exponential backoff
 // (multiplied by 2, 4, 8, 16, etc. for every consecutive failure).
@@ -346,8 +338,7 @@ impl BlockResyncManager {
 					&manager.endpoint,
 					&who,
 					BlockRpc::NeedBlockQuery(*hash),
-					RequestStrategy::with_priority(PRIO_BACKGROUND)
-						.with_timeout(NEED_BLOCK_QUERY_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_BACKGROUND),
 				)
 				.await?;
 
@@ -394,8 +385,7 @@ impl BlockResyncManager {
 						&need_nodes[..],
 						put_block_message,
 						RequestStrategy::with_priority(PRIO_BACKGROUND)
-							.with_quorum(need_nodes.len())
-							.with_timeout(BLOCK_RW_TIMEOUT),
+							.with_quorum(need_nodes.len()),
 					)
 					.await
 					.err_context("PutBlock RPC")?;

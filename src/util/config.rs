@@ -41,6 +41,11 @@ pub struct Config {
 	/// Public IP address of this node
 	pub rpc_public_addr: Option<String>,
 
+	/// Timeout for Netapp's ping messagess
+	pub rpc_ping_timeout_msec: Option<u64>,
+	/// Timeout for Netapp RPC calls
+	pub rpc_timeout_msec: Option<u64>,
+
 	/// Bootstrap peers RPC address
 	#[serde(default)]
 	pub bootstrap_peers: Vec<String>,
