@@ -345,11 +345,11 @@ where
 					// Just send that item directly
 					if let Some(val) = self.data.store.get(&ik[..])? {
 						if blake2sum(&val[..]) != ivhash {
-							warn!("({}) Hashes differ between stored value and Merkle tree, key: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", F::TABLE_NAME, ik);
+							debug!("({}) Hashes differ between stored value and Merkle tree, key: {} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", F::TABLE_NAME, hex::encode(ik));
 						}
 						todo_items.push(val.to_vec());
 					} else {
-						warn!("({}) Item from Merkle tree not found in store: {:?} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", F::TABLE_NAME, ik);
+						debug!("({}) Item from Merkle tree not found in store: {} (if your server is very busy, don't worry, this happens when the Merkle tree can't be updated fast enough)", F::TABLE_NAME, hex::encode(ik));
 					}
 				}
 				MerkleNode::Intermediate(l) => {

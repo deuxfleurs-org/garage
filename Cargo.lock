@@ -1179,6 +1179,7 @@ dependencies = [
  "garage_db",
  "garage_rpc",
  "garage_util",
+ "hex",
  "hexdump",
  "opentelemetry",
  "rand 0.8.5",
