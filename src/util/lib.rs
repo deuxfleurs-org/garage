@@ -4,7 +4,6 @@
 extern crate tracing;
 
 pub mod background;
-pub mod bipartite;
 pub mod config;
 pub mod crdt;
 pub mod data;

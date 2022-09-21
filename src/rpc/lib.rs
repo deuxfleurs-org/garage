@@ -8,8 +8,10 @@ mod consul;
 mod kubernetes;
 
 pub mod layout;
+pub mod graph_algo;
 pub mod ring;
 pub mod system;
+
 
 mod metrics;
 pub mod rpc_helper;

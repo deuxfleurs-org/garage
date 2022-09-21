@@ -97,6 +97,7 @@ pub struct System {
 	kubernetes_discovery: Option<KubernetesDiscoveryParam>,
 
 	replication_factor: usize,
+    zone_redundancy: usize,
 
 	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
@@ -192,6 +193,7 @@ impl System {
 		network_key: NetworkKey,
 		background: Arc<BackgroundRunner>,
 		replication_factor: usize,
+        zone_redundancy: usize,
 		config: &Config,
 	) -> Arc<Self> {
 		let node_key =
@@ -211,7 +213,7 @@ impl System {
 					"No valid previous cluster layout stored ({}), starting fresh.",
 					e
 				);
-				ClusterLayout::new(replication_factor)
+				ClusterLayout::new(replication_factor, zone_redundancy)
 			}
 		};
 
@@ -285,6 +287,7 @@ impl System {
 			rpc: RpcHelper::new(netapp.id.into(), fullmesh, background.clone(), ring.clone()),
 			system_endpoint,
 			replication_factor,
+            zone_redundancy,
 			rpc_listen_addr: config.rpc_bind_addr,
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),

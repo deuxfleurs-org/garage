@@ -100,13 +100,12 @@ Again, we will represent an assignment $\alpha$ as a flow in a specific graph $G
 Given some candidate size value $s$, we describe the oriented weighted graph $G=(V,E)$ with vertex set $V$ arc set $E$.
 
 The set of vertices $V$ contains the source $\mathbf{s}$, the sink $\mathbf{t}$, vertices 
-$\mathbf{p, p^+, p^-}$ for every partition $p$, vertices $\mathbf{x}_{p,z}$ for every partition $p$ and zone $z$, and vertices $\mathbf{n}$ for every node $n$. 
+$\mathbf{p^+, p^-}$ for every partition $p$, vertices $\mathbf{x}_{p,z}$ for every partition $p$ and zone $z$, and vertices $\mathbf{n}$ for every node $n$. 
 
 The set of arcs $E$ contains:
 \begin{itemize}
-	\item ($\mathbf{s}$,$\mathbf{p}$, $\rho_\mathbf{N}$) for every partition $p$;
-	\item ($\mathbf{p}$,$\mathbf{p}^+$, $\rho_\mathbf{Z}$) for every partition $p$;
-	\item ($\mathbf{p}$,$\mathbf{p}^+$, $\rho_\mathbf{N}-\rho_\mathbf{Z}$) for every partition $p$;
+	\item ($\mathbf{s}$,$\mathbf{p}^+$, $\rho_\mathbf{Z}$) for every partition $p$;
+	\item ($\mathbf{s}$,$\mathbf{p}^-$, $\rho_\mathbf{N}-\rho_\mathbf{Z}$) for every partition $p$;
 	\item ($\mathbf{p}^+$,$\mathbf{x}_{p,z}$, 1) for every partition $p$ and zone $z$;
 	\item ($\mathbf{p}^-$,$\mathbf{x}_{p,z}$, $\rho_\mathbf{N}-\rho_\mathbf{Z}$) for every partition $p$ and zone $z$;
 	\item ($\mathbf{x}_{p,z}$,$\mathbf{n}$, 1) for every partition $p$, zone $z$ and node $n\in z$;
@@ -119,7 +118,7 @@ In the following complexity calculations, we will use the number of vertices and
 	An assignment $\alpha$ is realizable with partition size $s$ and the redundancy constraints $(\rho_\mathbf{N},\rho_\mathbf{Z})$ if and only if there exists a maximal flow function $f$ in $G$ with total flow $\rho_\mathbf{N}P$, such that the arcs ($\mathbf{x}_{p,z}$,$\mathbf{n}$, 1) used are exactly those for which $p$ is associated to $n$ in $\alpha$.
 \end{proposition}
 \begin{proof}
-	Given such flow $f$, we can reconstruct a candidate $\alpha$. In $f$, the flow passing through every $\mathbf{p}$ is $\rho_\mathbf{N}$, and since the outgoing capacity of every $\mathbf{x}_{p,z}$ is 1, every partition is associated to $\rho_\mathbf{N}$ distinct nodes. The fraction $\rho_\mathbf{Z}$ of the flow passing through every $\mathbf{p^+}$ must be spread over as many distinct zones as every arc outgoing from $\mathbf{p^+}$ has capacity 1. So the reconstructed $\alpha$ verifies the redundancy constraints. For every node $n$, the flow between $\mathbf{n}$ and $\mathbf{t}$ corresponds to the number of partitions associated to $n$. By construction of $f$, this does not exceed $\lfloor c_n/s \rfloor$. We assumed that the partition size is $s$, hence this association does not exceed the storage capacity of the nodes.
+	Given such flow $f$, we can reconstruct a candidate $\alpha$. In $f$, the flow passing through $\mathbf{p^+}$ and $\mathbf{p^-}$ is $\rho_\mathbf{N}$, and since the outgoing capacity of every $\mathbf{x}_{p,z}$ is 1, every partition is associated to $\rho_\mathbf{N}$ distinct nodes. The fraction $\rho_\mathbf{Z}$ of the flow passing through every $\mathbf{p^+}$ must be spread over as many distinct zones as every arc outgoing from $\mathbf{p^+}$ has capacity 1. So the reconstructed $\alpha$ verifies the redundancy constraints. For every node $n$, the flow between $\mathbf{n}$ and $\mathbf{t}$ corresponds to the number of partitions associated to $n$. By construction of $f$, this does not exceed $\lfloor c_n/s \rfloor$. We assumed that the partition size is $s$, hence this association does not exceed the storage capacity of the nodes.
 	
 	In the other direction, given an assignment $\alpha$, one can similarly check that the facts that $\alpha$ respects the redundancy constraints, and the storage capacities of the nodes, are necessary condition to construct a maximal flow function $f$.
 \end{proof}
@@ -272,16 +271,16 @@ The distance $d(f,f')$ is bounded by the maximal number of differences in the as
 
 The detection of negative cycle is done with the Bellman-Ford algorithm, whose complexity should normally be $O(\#E\#V)$. In our case, it amounts to $O(P^2ZN)$. Multiplied by the complexity of the outer loop, it amounts to $O(P^3ZN)$ which is a lot when the number of partitions and nodes starts to be large. To avoid that, we adapt the Bellman-Ford algorithm.
 
-The Bellman-Ford algorithm runs $\#V$ iterations of an outer loop, and an inner loop over $E$. The idea is to compute the shortest paths from a source vertex $v$ to all other vertices. After $k$ iterations of the outer loop, the algorithm has computed all shortest path of length at most $k$. All shortest path have length at most $\#V$, so if there is an update in the last iteration of the loop, it means that there is a negative cycle in the graph. The observation that will enable us to improve the complexity is the following:
+The Bellman-Ford algorithm runs $\#V$ iterations of an outer loop, and an inner loop over $E$. The idea is to compute the shortest paths from a source vertex $v$ to all other vertices. After $k$ iterations of the outer loop, the algorithm has computed all shortest path of length at most $k$. All simple paths have length at most $\#V-1$, so if there is an update in the last iteration of the loop, it means that there is a negative cycle in the graph. The observation that will enable us to improve the complexity is the following:
 
 \begin{proposition}
-	In the graph $G_f$ (and $G$), all simple paths and cycles have a length at most $6N$.
+	In the graph $G_f$ (and $G$), all simple paths have a length at most $4N$.
 \end{proposition}
 \begin{proof}
-	Since $f$ is a maximal flow, there is no outgoing edge from $\mathbf{s}$ in $G_f$. One can thus check than any simple path of length 6 must contain at least to node of type $\mathbf{n}$. Hence on a cycle, at most 6 arcs separate two successive nodes of type $\mathbf{n}$. 
+	Since $f$ is a maximal flow, there is no outgoing edge from $\mathbf{s}$ in $G_f$. One can thus check than any simple path of length 4 must contain at least two node of type $\mathbf{n}$. Hence on a path, at most 4 arcs separate two successive nodes of type $\mathbf{n}$. 
 \end{proof}
 
-Thus, in the absence of negative cycles, shortest paths in $G_f$ have length at most $6N$. So we can do only $6N$ iterations of the outer loop in Bellman-Ford algorithm. This makes the complexity of the detection of one set of cycle to be $O(N\#E) = O(N^2 P)$.
+Thus, in the absence of negative cycles, shortest paths in $G_f$ have length at most $4N$. So we can do only $4N+1$ iterations of the outer loop in Bellman-Ford algorithm. This makes the complexity of the detection of one set of cycle to be $O(N\#E) = O(N^2 P)$.
 
 With this improvement, the complexity of the whole algorithm is, in the worst case, $O(N^2P^2)$. However, since we detect several cycles at once and we start with a flow that might be close to the previous one, the number of iterations of the outer loop might be smaller in practice.
 

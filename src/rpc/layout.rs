@@ -1,16 +1,22 @@
-use std::cmp::min;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::collections::HashSet;
+
+use hex::ToHex;
 
 use serde::{Deserialize, Serialize};
 
-use garage_util::bipartite::*;
 use garage_util::crdt::{AutoCrdt, Crdt, LwwMap};
 use garage_util::data::*;
 
-use rand::prelude::SliceRandom;
+use crate::graph_algo::*;
 
 use crate::ring::*;
+
+use std::convert::TryInto;
+
+//The Message type will be used to collect information on the algorithm.
+type Message = Vec<String>;
 
 /// The layout of the cluster, i.e. the list of roles
 /// which are assigned to each cluster node
@@ -19,12 +25,21 @@ pub struct ClusterLayout {
 	pub version: u64,
 
 	pub replication_factor: usize,
+    #[serde(default="default_one")]
+    pub zone_redundancy: usize,
+  
+    //This attribute is only used to retain the previously computed partition size, 
+    //to know to what extent does it change with the layout update.
+    #[serde(default="default_zero")]
+    pub partition_size: u32,
+
 	pub roles: LwwMap<Uuid, NodeRoleV>,
 
 	/// node_id_vec: a vector of node IDs with a role assigned
 	/// in the system (this includes gateway nodes).
 	/// The order here is different than the vec stored by `roles`, because:
-	/// 1. non-gateway nodes are first so that they have lower numbers
+	/// 1. non-gateway nodes are first so that they have lower numbers holding
+    ///     in u8 (the number of non-gateway nodes is at most 256).
 	/// 2. nodes that don't have a role are excluded (but they need to
 	///    stay in the CRDT as tombstones)
 	pub node_id_vec: Vec<Uuid>,
@@ -37,6 +52,15 @@ pub struct ClusterLayout {
 	pub staging: LwwMap<Uuid, NodeRoleV>,
 	pub staging_hash: Hash,
 }
+
+fn default_one() -> usize{
+    return 1;
+}
+fn default_zero() -> u32{
+    return 0;
+}
+
+const NB_PARTITIONS : usize = 1usize << PARTITION_BITS;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeRoleV(pub Option<NodeRole>);
@@ -66,16 +90,31 @@ impl NodeRole {
 			None => "gateway".to_string(),
 		}
 	}
+
+    pub fn tags_string(&self) -> String {
+        let mut tags = String::new();
+        if self.tags.len() == 0 {
+            return tags
+        }
+        tags.push_str(&self.tags[0].clone());
+        for t in 1..self.tags.len(){
+            tags.push_str(",");
+            tags.push_str(&self.tags[t].clone());
+        }
+        return tags;
+    }
 }
 
 impl ClusterLayout {
-	pub fn new(replication_factor: usize) -> Self {
+	pub fn new(replication_factor: usize, zone_redundancy: usize) -> Self {
 		let empty_lwwmap = LwwMap::new();
 		let empty_lwwmap_hash = blake2sum(&rmp_to_vec_all_named(&empty_lwwmap).unwrap()[..]);
 
 		ClusterLayout {
 			version: 0,
 			replication_factor,
+            zone_redundancy,
+            partition_size: 0,
 			roles: LwwMap::new(),
 			node_id_vec: Vec::new(),
 			ring_assignation_data: Vec::new(),
@@ -121,6 +160,44 @@ impl ClusterLayout {
 			_ => None,
 		}
 	}
+
+    ///Returns the uuids of the non_gateway nodes in self.node_id_vec.
+    pub fn useful_nodes(&self) -> Vec<Uuid> {
+        let mut result = Vec::<Uuid>::new();
+        for uuid in self.node_id_vec.iter() {
+            match self.node_role(uuid) {
+                Some(role) if role.capacity != None => result.push(*uuid),
+                _ => ()
+            }
+        }
+        return result;
+    }
+
+    ///Given a node uuids, this function returns the label of its zone
+    pub fn get_node_zone(&self, uuid : &Uuid) -> Result<String,String> {
+        match self.node_role(uuid) {
+            Some(role) => return Ok(role.zone.clone()),
+            _ => return Err("The Uuid does not correspond to a node present in the cluster.".to_string())
+        }
+    }
+    
+    ///Given a node uuids, this function returns its capacity or fails if it does not have any
+    pub fn get_node_capacity(&self, uuid : &Uuid) -> Result<u32,String> {
+        match self.node_role(uuid) {
+            Some(NodeRole{capacity : Some(cap), zone: _, tags: _}) => return Ok(*cap),
+            _ => return Err("The Uuid does not correspond to a node present in the cluster or this node does not have a positive capacity.".to_string())
+        }
+    }
+
+    ///Returns the sum of capacities of non gateway nodes in the cluster
+    pub fn get_total_capacity(&self) -> Result<u32,String> {
+        let mut total_capacity = 0;
+        for uuid in self.useful_nodes().iter() {
+            total_capacity += self.get_node_capacity(uuid)?;
+        }
+        return Ok(total_capacity);
+    }
+
 
 	/// Check a cluster layout for internal consistency
 	/// returns true if consistent, false if error
@@ -168,341 +245,411 @@ impl ClusterLayout {
 		true
 	}
 
+}
+
+impl ClusterLayout {
 	/// This function calculates a new partition-to-node assignation.
-	/// The computed assignation maximizes the capacity of a
+	/// The computed assignation respects the node replication factor
+    /// and the zone redundancy parameter It maximizes the capacity of a
 	/// partition (assuming all partitions have the same size).
 	/// Among such optimal assignation, it minimizes the distance to
 	/// the former assignation (if any) to minimize the amount of
-	/// data to be moved. A heuristic ensures node triplets
-	/// dispersion (in garage_util::bipartite::optimize_matching()).
-	pub fn calculate_partition_assignation(&mut self) -> bool {
+	/// data to be moved. 
+	pub fn calculate_partition_assignation(&mut self, replication:usize, redundancy:usize) -> Result<Message,String> {
 		//The nodes might have been updated, some might have been deleted.
 		//So we need to first update the list of nodes and retrieve the
 		//assignation.
-		let old_node_assignation = self.update_nodes_and_ring();
+        
+        //We update the node ids, since the node list might have changed with the staged
+        //changes in the layout. We retrieve the old_assignation reframed with the new ids
+        let old_assignation_opt = self.update_node_id_vec()?;
+        self.replication_factor = replication;
+        self.zone_redundancy = redundancy;
+        
+        let mut msg = Message::new();
+        msg.push(format!("Computation of a new cluster layout where partitions are 
+        replicated {} times on at least {} distinct zones.", replication, redundancy));
 
-		let (node_zone, _) = self.get_node_zone_capacity();
+        //We generate for once numerical ids for the zone, to use them as indices in the 
+        //flow graphs.
+        let (id_to_zone , zone_to_id) = self.generate_zone_ids()?;
 
-		//We compute the optimal number of partition to assign to
-		//every node and zone.
-		if let Some((part_per_nod, part_per_zone)) = self.optimal_proportions() {
-			//We collect part_per_zone in a vec to not rely on the
-			//arbitrary order in which elements are iterated in
-			//Hashmap::iter()
-			let part_per_zone_vec = part_per_zone
-				.iter()
-				.map(|(x, y)| (x.clone(), *y))
-				.collect::<Vec<(String, usize)>>();
-			//We create an indexing of the zones
-			let mut zone_id = HashMap::<String, usize>::new();
-			for (i, ppz) in part_per_zone_vec.iter().enumerate() {
-				zone_id.insert(ppz.0.clone(), i);
-			}
+        msg.push(format!("The cluster contains {} nodes spread over {} zones.", 
+                         self.useful_nodes().len(), id_to_zone.len()));
+        
+        //We compute the optimal partition size
+        let partition_size = self.compute_optimal_partition_size(&zone_to_id)?;
+        if old_assignation_opt != None  {
+            msg.push(format!("Given the replication and redundancy constraint, the 
+                optimal size of a partition is {}. In the previous layout, it used to 
+                be {}.", partition_size, self.partition_size));
+        }
+        else {
+            msg.push(format!("Given the replication and redundancy constraints, the 
+                optimal size of a partition is {}.", partition_size));
+        }
+        self.partition_size = partition_size;
 
-			//We compute a candidate for the new partition to zone
-			//assignation.
-			let nb_zones = part_per_zone.len();
-			let nb_nodes = part_per_nod.len();
-			let nb_partitions = 1 << PARTITION_BITS;
-			let left_cap_vec = vec![self.replication_factor as u32; nb_partitions];
-			let right_cap_vec = part_per_zone_vec.iter().map(|(_, y)| *y as u32).collect();
-			let mut zone_assignation = dinic_compute_matching(left_cap_vec, right_cap_vec);
+        //We compute a first flow/assignment that is heuristically close to the previous
+        //assignment
+        let mut gflow = self.compute_candidate_assignment( &zone_to_id, &old_assignation_opt)?;
 
-			//We create the structure for the partition-to-node assignation.
-			let mut node_assignation = vec![vec![None; self.replication_factor]; nb_partitions];
-			//We will decrement part_per_nod to keep track of the number
-			//of partitions that we still have to associate.
-			let mut part_per_nod = part_per_nod;
+        if let Some(assoc) = &old_assignation_opt {
+            //We minimize the distance to the previous assignment.
+            self.minimize_rebalance_load(&mut gflow, &zone_to_id, &assoc)?;
+        }
 
-			//We minimize the distance to the former assignation(if any)
+        msg.append(&mut self.output_stat(&gflow, &old_assignation_opt, &zone_to_id,&id_to_zone)?);
 
-			//We get the id of the zones of the former assignation
-			//(and the id no_zone if there is no node assignated)
-			let no_zone = part_per_zone_vec.len();
-			let old_zone_assignation: Vec<Vec<usize>> = old_node_assignation
-				.iter()
-				.map(|x| {
-					x.iter()
-						.map(|id| match *id {
-							Some(i) => zone_id[&node_zone[i]],
-							None => no_zone,
-						})
-						.collect()
-				})
-				.collect();
-
-			//We minimize the distance to the former zone assignation
-			zone_assignation =
-				optimize_matching(&old_zone_assignation, &zone_assignation, nb_zones + 1); //+1 for no_zone
-
-			//We need to assign partitions to nodes in their zone
-			//We first put the nodes assignation that can stay the same
-			for i in 0..nb_partitions {
-				for j in 0..self.replication_factor {
-					if let Some(Some(former_node)) = old_node_assignation[i].iter().find(|x| {
-						if let Some(id) = x {
-							zone_id[&node_zone[*id]] == zone_assignation[i][j]
-						} else {
-							false
-						}
-					}) {
-						if part_per_nod[*former_node] > 0 {
-							node_assignation[i][j] = Some(*former_node);
-							part_per_nod[*former_node] -= 1;
-						}
-					}
-				}
-			}
-
-			//We complete the assignation of partitions to nodes
-			let mut rng = rand::thread_rng();
-			for i in 0..nb_partitions {
-				for j in 0..self.replication_factor {
-					if node_assignation[i][j] == None {
-						let possible_nodes: Vec<usize> = (0..nb_nodes)
-							.filter(|id| {
-								zone_id[&node_zone[*id]] == zone_assignation[i][j]
-									&& part_per_nod[*id] > 0
-							})
-							.collect();
-						assert!(!possible_nodes.is_empty());
-						//We randomly pick a node
-						if let Some(nod) = possible_nodes.choose(&mut rng) {
-							node_assignation[i][j] = Some(*nod);
-							part_per_nod[*nod] -= 1;
-						}
-					}
-				}
-			}
-
-			//We write the assignation in the 1D table
-			self.ring_assignation_data = Vec::<CompactNodeType>::new();
-			for ass in node_assignation {
-				for nod in ass {
-					if let Some(id) = nod {
-						self.ring_assignation_data.push(id as CompactNodeType);
-					} else {
-						panic!()
-					}
-				}
-			}
-
-			true
-		} else {
-			false
-		}
-	}
+        //We update the layout structure
+        self.update_ring_from_flow(id_to_zone.len() , &gflow)?;
+        return Ok(msg);
+    }
 
 	/// The LwwMap of node roles might have changed. This function updates the node_id_vec
 	/// and returns the assignation given by ring, with the new indices of the nodes, and
-	/// None of the node is not present anymore.
+	/// None if the node is not present anymore.
 	/// We work with the assumption that only this function and calculate_new_assignation
 	/// do modify assignation_ring and node_id_vec.
-	fn update_nodes_and_ring(&mut self) -> Vec<Vec<Option<usize>>> {
+    fn update_node_id_vec(&mut self) -> Result< Option< Vec<Vec<usize> > > ,String> {
+        // (1) We compute the new node list
+        //Non gateway nodes should be coded on 8bits, hence they must be first in the list
+	    //We build the new node ids	 
+		let mut new_non_gateway_nodes: Vec<Uuid> = self.roles.items().iter()
+            .filter(|(_, _, v)| 
+                        match &v.0 {Some(r) if r.capacity != None => true, _=> false })
+            .map(|(k, _, _)| *k).collect();
+        
+        if new_non_gateway_nodes.len() > MAX_NODE_NUMBER {
+            return Err(format!("There are more than {} non-gateway nodes in the new layout. This is not allowed.", MAX_NODE_NUMBER).to_string());
+        }
+
+		let mut new_gateway_nodes: Vec<Uuid> = self.roles.items().iter()
+            .filter(|(_, _, v)| 
+                        match v {NodeRoleV(Some(r)) if r.capacity == None => true, _=> false })
+            .map(|(k, _, _)| *k).collect();
+
+        let nb_useful_nodes = new_non_gateway_nodes.len();
+        let mut new_node_id_vec = Vec::<Uuid>::new();
+        new_node_id_vec.append(&mut new_non_gateway_nodes);
+        new_node_id_vec.append(&mut new_gateway_nodes);
+        
+        
+        // (2) We retrieve the old association
+        //We rewrite the old association with the new indices. We only consider partition
+        //to node assignations where the node is still in use.
+        let nb_partitions = 1usize << PARTITION_BITS;
+        let mut old_assignation = vec![ Vec::<usize>::new() ; nb_partitions];
+        
+        if self.ring_assignation_data.len() == 0 {
+            //This is a new association
+            return Ok(None);
+        }
+        if self.ring_assignation_data.len() != nb_partitions * self.replication_factor {
+            return Err("The old assignation does not have a size corresponding to the old replication factor or the number of partitions.".to_string());
+        }
+
+        //We build a translation table between the uuid and new ids
+        let mut uuid_to_new_id = HashMap::<Uuid, usize>::new();
+        
+        //We add the indices of only the new non-gateway nodes that can be used in the
+        //association ring
+        for i in 0..nb_useful_nodes {
+            uuid_to_new_id.insert(new_node_id_vec[i], i );
+        }
+
+        let rf= self.replication_factor;
+        for p in 0..nb_partitions {
+            for old_id in &self.ring_assignation_data[p*rf..(p+1)*rf] {
+                let uuid = self.node_id_vec[*old_id as usize];
+                if uuid_to_new_id.contains_key(&uuid) {
+                    old_assignation[p].push(uuid_to_new_id[&uuid]);
+                }
+            }
+        }
+
+        //We write the results
+        self.node_id_vec = new_node_id_vec;
+        self.ring_assignation_data = Vec::<CompactNodeType>::new();
+
+        return Ok(Some(old_assignation));
+	}
+
+
+    ///This function generates ids for the zone of the nodes appearing in 
+    ///self.node_id_vec.
+    fn generate_zone_ids(&self) -> Result<(Vec<String>, HashMap<String, usize>),String>{
+        let mut id_to_zone = Vec::<String>::new();
+        let mut zone_to_id = HashMap::<String,usize>::new();
+
+        for uuid in self.node_id_vec.iter() {
+            if self.roles.get(uuid) == None {
+                return Err("The uuid was not found in the node roles (this should not happen, it might be a critical error).".to_string());
+            }
+            match self.node_role(&uuid) {
+                Some(r) => if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
+                            zone_to_id.insert(r.zone.clone() , id_to_zone.len());
+                            id_to_zone.push(r.zone.clone());
+                        }
+                _ => ()
+            }
+        }
+        return Ok((id_to_zone, zone_to_id));
+    }
+
+    ///This function computes by dichotomy the largest realizable partition size, given
+    ///the layout.
+    fn compute_optimal_partition_size(&self, zone_to_id: &HashMap<String, usize>) -> Result<u32,String>{
+        let nb_partitions = 1usize << PARTITION_BITS;
+        let empty_set = HashSet::<(usize,usize)>::new();
+        let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set)?;
+        g.compute_maximal_flow()?;
+        if g.get_flow_value()? < (nb_partitions*self.replication_factor).try_into().unwrap() {
+            return Err("The storage capacity of he cluster is to small. It is impossible to store partitions of size 1.".to_string());
+        }
+
+        let mut s_down = 1;
+        let mut s_up = self.get_total_capacity()?;
+        while s_down +1 < s_up {
+            g = self.generate_flow_graph((s_down+s_up)/2, zone_to_id, &empty_set)?;
+            g.compute_maximal_flow()?;
+            if g.get_flow_value()? < (nb_partitions*self.replication_factor).try_into().unwrap() {
+                s_up = (s_down+s_up)/2;
+            }
+            else {
+                s_down = (s_down+s_up)/2;
+            }
+        }
+
+        return Ok(s_down);
+    }
+    
+    fn generate_graph_vertices(nb_zones : usize, nb_nodes : usize) -> Vec<Vertex> {
+        let mut vertices = vec![Vertex::Source, Vertex::Sink];
+        for p in 0..NB_PARTITIONS {
+            vertices.push(Vertex::Pup(p));
+            vertices.push(Vertex::Pdown(p));
+            for z in 0..nb_zones {
+                vertices.push(Vertex::PZ(p, z));
+            }
+        }
+        for n in 0..nb_nodes {
+            vertices.push(Vertex::N(n));
+        }
+        return vertices;
+    }
+
+    fn generate_flow_graph(&self, size: u32, zone_to_id: &HashMap<String, usize>, exclude_assoc : &HashSet<(usize,usize)>) -> Result<Graph<FlowEdge>, String> {
+        let vertices = ClusterLayout::generate_graph_vertices(zone_to_id.len(), 
+                                                        self.useful_nodes().len());
+        let mut g= Graph::<FlowEdge>::new(&vertices);
+        let nb_zones = zone_to_id.len();
+        for p in 0..NB_PARTITIONS {
+            g.add_edge(Vertex::Source, Vertex::Pup(p), self.zone_redundancy as u32)?;
+            g.add_edge(Vertex::Source, Vertex::Pdown(p), (self.replication_factor - self.zone_redundancy) as u32)?;
+            for z in 0..nb_zones {
+                g.add_edge(Vertex::Pup(p) , Vertex::PZ(p,z) , 1)?;
+                g.add_edge(Vertex::Pdown(p) , Vertex::PZ(p,z) , 
+                            self.replication_factor as u32)?;
+            }
+        }
+        for n in 0..self.useful_nodes().len() {
+            let node_capacity = self.get_node_capacity(&self.node_id_vec[n])?;
+            let node_zone = zone_to_id[&self.get_node_zone(&self.node_id_vec[n])?]; 
+            g.add_edge(Vertex::N(n), Vertex::Sink, node_capacity/size)?;
+            for p in 0..NB_PARTITIONS {
+                if !exclude_assoc.contains(&(p,n))  {
+                    g.add_edge(Vertex::PZ(p, node_zone), Vertex::N(n), 1)?;
+                }
+            }
+        }
+        return Ok(g);
+    }
+
+
+    fn compute_candidate_assignment(&self, zone_to_id: &HashMap<String, usize>, 
+        old_assoc_opt : &Option<Vec< Vec<usize> >>) -> Result<Graph<FlowEdge>, String > {
+        
+        //We list the edges that are not used in the old association
+        let mut exclude_edge = HashSet::<(usize,usize)>::new();
+        if let Some(old_assoc) = old_assoc_opt {
+            let nb_nodes = self.useful_nodes().len();
+            for p in 0..NB_PARTITIONS {
+                for n in 0..nb_nodes {
+                    exclude_edge.insert((p,n));
+                }
+                for n in old_assoc[p].iter() {
+                    exclude_edge.remove(&(p,*n));
+                }
+            }
+        }
+
+        //We compute the best flow using only the edges used in the old assoc
+        let mut g = self.generate_flow_graph(self.partition_size, zone_to_id, &exclude_edge )?;
+        g.compute_maximal_flow()?;
+        for (p,n) in exclude_edge.iter() {
+            let node_zone = zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]; 
+            g.add_edge(Vertex::PZ(*p,node_zone), Vertex::N(*n), 1)?;
+        }
+        g.compute_maximal_flow()?;
+        return Ok(g);
+    }
+
+    fn minimize_rebalance_load(&self, gflow: &mut Graph<FlowEdge>, zone_to_id: &HashMap<String, usize>, old_assoc : &Vec< Vec<usize> >) -> Result<(), String > {
+        let mut cost = CostFunction::new();
+        for p in 0..NB_PARTITIONS {
+            for n in old_assoc[p].iter() {
+                let node_zone = zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]; 
+                cost.insert((Vertex::PZ(p,node_zone), Vertex::N(*n)), -1);
+            }
+        }
+        let nb_nodes = self.useful_nodes().len();
+        let path_length = 4*nb_nodes;
+        gflow.optimize_flow_with_cost(&cost, path_length)?;
+
+        return Ok(());
+    }
+
+    fn update_ring_from_flow(&mut self, nb_zones : usize, gflow: &Graph<FlowEdge> ) -> Result<(), String>{
+        self.ring_assignation_data = Vec::<CompactNodeType>::new();
+        for p in 0..NB_PARTITIONS {
+            for z in 0..nb_zones {
+                let assoc_vertex = gflow.get_positive_flow_from(Vertex::PZ(p,z))?;
+                for vertex in assoc_vertex.iter() {
+                    match vertex{
+                        Vertex::N(n) => self.ring_assignation_data.push((*n).try_into().unwrap()),
+                        _ => ()
+                    }
+                }
+            }
+        }
+
+        if self.ring_assignation_data.len() != NB_PARTITIONS*self.replication_factor {
+            return Err("Critical Error : the association ring we produced does not have the right size.".to_string());
+        }
+        return Ok(());
+    }
+    
+
+    //This function returns a message summing up the partition repartition of the new
+    //layout.
+    fn output_stat(&self , gflow : &Graph<FlowEdge>, 
+                    old_assoc_opt : &Option< Vec<Vec<usize>> >,
+                    zone_to_id: &HashMap<String, usize>, 
+                    id_to_zone : &Vec<String>) -> Result<Message, String>{
+        let mut msg = Message::new();
+        
 		let nb_partitions = 1usize << PARTITION_BITS;
-		let mut node_assignation = vec![vec![None; self.replication_factor]; nb_partitions];
-		let rf = self.replication_factor;
-		let ring = &self.ring_assignation_data;
+        let used_cap = self.partition_size * nb_partitions as u32 * 
+                self.replication_factor as u32;
+        let total_cap = self.get_total_capacity()?;
+        let percent_cap = 100.0*(used_cap as f32)/(total_cap as f32);
+        msg.push(format!("Available capacity / Total cluster capacity: {} / {} ({:.1} %)",
+            used_cap , total_cap , percent_cap ));
+        msg.push(format!("If the percentage is to low, it might be that the replication/redundancy constraints force the use of nodes/zones with small storage capacities. 
+        You might want to rebalance the storage capacities or relax the constraints. See the detailed statistics below and look for saturated nodes/zones."));
+        msg.push(format!("Recall that because of the replication, the actual available storage capacity is {} / {} = {}.", used_cap , self.replication_factor , used_cap/self.replication_factor as u32));
+       
+        //We define and fill in the following tables
+        let storing_nodes = self.useful_nodes();
+        let mut new_partitions = vec![0; storing_nodes.len()];
+        let mut stored_partitions = vec![0; storing_nodes.len()];
 
-		let new_node_id_vec: Vec<Uuid> = self.roles.items().iter().map(|(k, _, _)| *k).collect();
+        let mut new_partitions_zone = vec![0; id_to_zone.len()];
+        let mut stored_partitions_zone = vec![0; id_to_zone.len()];
 
-		if ring.len() == rf * nb_partitions {
-			for i in 0..nb_partitions {
-				for j in 0..self.replication_factor {
-					node_assignation[i][j] = new_node_id_vec
-						.iter()
-						.position(|id| *id == self.node_id_vec[ring[i * rf + j] as usize]);
-				}
-			}
-		}
+        for p in 0..nb_partitions {
+            for z in 0..id_to_zone.len() {
+                let pz_nodes = gflow.get_positive_flow_from(Vertex::PZ(p,z))?;
+                if pz_nodes.len() > 0 {
+                    stored_partitions_zone[z] += 1;
+                }
+                for vert in pz_nodes.iter() {
+                    if let Vertex::N(n) = *vert {
+                        stored_partitions[n] += 1;
+                        if let Some(old_assoc) = old_assoc_opt {
+                            if !old_assoc[p].contains(&n) {
+                                new_partitions[n] += 1;
+                            }
+                        }
+                    }
+                }
+                if let Some(old_assoc) = old_assoc_opt {
+                    let mut old_zones_of_p = Vec::<usize>::new();
+                    for n in old_assoc[p].iter() {
+                        old_zones_of_p.push(
+                            zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]);
+                    }
+                    if !old_zones_of_p.contains(&z) {
+                        new_partitions_zone[z] += 1;
+                    }
+                }
+            }
+        }
+        
+        //We display the statistics
 
-		self.node_id_vec = new_node_id_vec;
-		self.ring_assignation_data = vec![];
-		node_assignation
-	}
+        if *old_assoc_opt != None {
+            let total_new_partitions : usize = new_partitions.iter().sum();
+            msg.push(format!("A total of {} new copies of partitions need to be \
+                             transferred.", total_new_partitions));
+        }
+        msg.push(format!(""));
+        msg.push(format!("Detailed statistics by zones and nodes."));
+        
+        for z in 0..id_to_zone.len(){
+            let mut nodes_of_z = Vec::<usize>::new();
+            for n in 0..storing_nodes.len(){
+                if self.get_node_zone(&self.node_id_vec[n])? == id_to_zone[z] {
+                    nodes_of_z.push(n);
+                }
+            }
+            let replicated_partitions : usize = nodes_of_z.iter()
+                    .map(|n| stored_partitions[*n]).sum();
+            msg.push(format!(""));
+            
+            if *old_assoc_opt != None {
+                msg.push(format!("Zone {}: {} distinct partitions stored ({} new, \
+                {} partition copies) ", id_to_zone[z], stored_partitions_zone[z], 
+                                 new_partitions_zone[z], replicated_partitions));
+            }
+            else{
+                msg.push(format!("Zone {}: {} distinct partitions stored ({} partition \
+                    copies) ", 
+                    id_to_zone[z], stored_partitions_zone[z], replicated_partitions));
+            }
+            
+            let available_cap_z : u32 = self.partition_size*replicated_partitions as u32;
+            let mut total_cap_z = 0;
+            for n in nodes_of_z.iter() {
+                total_cap_z += self.get_node_capacity(&self.node_id_vec[*n])?;
+            }
+            let percent_cap_z = 100.0*(available_cap_z as f32)/(total_cap_z as f32);
+            msg.push(format!("        Available capacity / Total capacity: {}/{} ({:.1}%).",
+                available_cap_z, total_cap_z, percent_cap_z));
+            msg.push(format!(""));
+            
+            for n in nodes_of_z.iter() {
+                let available_cap_n = stored_partitions[*n] as u32 *self.partition_size;
+                let total_cap_n =self.get_node_capacity(&self.node_id_vec[*n])?;
+                let tags_n = (self.node_role(&self.node_id_vec[*n])
+                                .ok_or("Node not found."))?.tags_string();
+                msg.push(format!("        Node {}: {} partitions ({} new) ; \
+                                 available/total capacity: {} / {} ({:.1}%) ; tags:{}", 
+                        &self.node_id_vec[*n].to_vec().encode_hex::<String>(), 
+                        stored_partitions[*n], 
+                        new_partitions[*n], available_cap_n, total_cap_n,
+                        (available_cap_n as f32)/(total_cap_n as f32)*100.0 ,
+                        tags_n));
+            }
+        }
 
-	///This function compute the number of partition to assign to
-	///every node and zone, so that every partition is replicated
-	///self.replication_factor times and the capacity of a partition
-	///is maximized.
-	fn optimal_proportions(&mut self) -> Option<(Vec<usize>, HashMap<String, usize>)> {
-		let mut zone_capacity: HashMap<String, u32> = HashMap::new();
-
-		let (node_zone, node_capacity) = self.get_node_zone_capacity();
-		let nb_nodes = self.node_id_vec.len();
-
-		for i in 0..nb_nodes {
-			if zone_capacity.contains_key(&node_zone[i]) {
-				zone_capacity.insert(
-					node_zone[i].clone(),
-					zone_capacity[&node_zone[i]] + node_capacity[i],
-				);
-			} else {
-				zone_capacity.insert(node_zone[i].clone(), node_capacity[i]);
-			}
-		}
-
-		//Compute the optimal number of partitions per zone
-		let sum_capacities: u32 = zone_capacity.values().sum();
-
-		if sum_capacities == 0 {
-			println!("No storage capacity in the network.");
-			return None;
-		}
-
-		let nb_partitions = 1 << PARTITION_BITS;
-
-		//Initially we would like to use zones porportionally to
-		//their capacity.
-		//However, a large zone can be associated to at most
-		//nb_partitions to ensure replication of the date.
-		//So we take the min with nb_partitions:
-		let mut part_per_zone: HashMap<String, usize> = zone_capacity
-			.iter()
-			.map(|(k, v)| {
-				(
-					k.clone(),
-					min(
-						nb_partitions,
-						(self.replication_factor * nb_partitions * *v as usize)
-							/ sum_capacities as usize,
-					),
-				)
-			})
-			.collect();
-
-		//The replication_factor-1 upper bounds the number of
-		//part_per_zones that are greater than nb_partitions
-		for _ in 1..self.replication_factor {
-			//The number of partitions that are not assignated to
-			//a zone that takes nb_partitions.
-			let sum_capleft: u32 = zone_capacity
-				.keys()
-				.filter(|k| part_per_zone[*k] < nb_partitions)
-				.map(|k| zone_capacity[k])
-				.sum();
-
-			//The number of replication of the data that we need
-			//to ensure.
-			let repl_left = self.replication_factor
-				- part_per_zone
-					.values()
-					.filter(|x| **x == nb_partitions)
-					.count();
-			if repl_left == 0 {
-				break;
-			}
-
-			for k in zone_capacity.keys() {
-				if part_per_zone[k] != nb_partitions {
-					part_per_zone.insert(
-						k.to_string(),
-						min(
-							nb_partitions,
-							(nb_partitions * zone_capacity[k] as usize * repl_left)
-								/ sum_capleft as usize,
-						),
-					);
-				}
-			}
-		}
-
-		//Now we divide the zone's partition share proportionally
-		//between their nodes.
-
-		let mut part_per_nod: Vec<usize> = (0..nb_nodes)
-			.map(|i| {
-				(part_per_zone[&node_zone[i]] * node_capacity[i] as usize)
-					/ zone_capacity[&node_zone[i]] as usize
-			})
-			.collect();
-
-		//We must update the part_per_zone to make it correspond to
-		//part_per_nod (because of integer rounding)
-		part_per_zone = part_per_zone.iter().map(|(k, _)| (k.clone(), 0)).collect();
-		for i in 0..nb_nodes {
-			part_per_zone.insert(
-				node_zone[i].clone(),
-				part_per_zone[&node_zone[i]] + part_per_nod[i],
-			);
-		}
-
-		//Because of integer rounding, the total sum of part_per_nod
-		//might not be replication_factor*nb_partitions.
-		// We need at most to add 1 to every non maximal value of
-		// part_per_nod. The capacity of a partition will be bounded
-		// by the minimal value of
-		// node_capacity_vec[i]/part_per_nod[i]
-		// so we try to maximize this minimal value, keeping the
-		// part_per_zone capped
-
-		let discrepancy: usize =
-			nb_partitions * self.replication_factor - part_per_nod.iter().sum::<usize>();
-
-		//We use a stupid O(N^2) algorithm. If the number of nodes
-		//is actually expected to be high, one should optimize this.
-
-		for _ in 0..discrepancy {
-			if let Some(idmax) = (0..nb_nodes)
-				.filter(|i| part_per_zone[&node_zone[*i]] < nb_partitions)
-				.max_by(|i, j| {
-					(node_capacity[*i] * (part_per_nod[*j] + 1) as u32)
-						.cmp(&(node_capacity[*j] * (part_per_nod[*i] + 1) as u32))
-				}) {
-				part_per_nod[idmax] += 1;
-				part_per_zone.insert(
-					node_zone[idmax].clone(),
-					part_per_zone[&node_zone[idmax]] + 1,
-				);
-			}
-		}
-
-		//We check the algorithm consistency
-
-		let discrepancy: usize =
-			nb_partitions * self.replication_factor - part_per_nod.iter().sum::<usize>();
-		assert!(discrepancy == 0);
-		assert!(if let Some(v) = part_per_zone.values().max() {
-			*v <= nb_partitions
-		} else {
-			false
-		});
-
-		Some((part_per_nod, part_per_zone))
-	}
-
-	//Returns vectors of zone and capacity; indexed by the same (temporary)
-	//indices as node_id_vec.
-	fn get_node_zone_capacity(&self) -> (Vec<String>, Vec<u32>) {
-		let node_zone = self
-			.node_id_vec
-			.iter()
-			.map(|id_nod| match self.node_role(id_nod) {
-				Some(NodeRole {
-					zone,
-					capacity: _,
-					tags: _,
-				}) => zone.clone(),
-				_ => "".to_string(),
-			})
-			.collect();
-
-		let node_capacity = self
-			.node_id_vec
-			.iter()
-			.map(|id_nod| match self.node_role(id_nod) {
-				Some(NodeRole {
-					zone: _,
-					capacity: Some(c),
-					tags: _,
-				}) => *c,
-				_ => 0,
-			})
-			.collect();
-
-		(node_zone, node_capacity)
-	}
+        return Ok(msg);
+    }
+    
 }
+
+//====================================================================================
 
 #[cfg(test)]
 mod tests {
