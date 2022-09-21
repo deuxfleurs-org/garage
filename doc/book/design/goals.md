@@ -14,10 +14,10 @@ website.
 
 Garage is an opinionated object storage solutoin, we focus on the following **desirable properties**:
 
+  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
   - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
   - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
   - **Simple**: simple to understand, simple to operate, simple to debug.
-  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
 
 We also noted that the pursuit of some other goals are detrimental to our initial goals.
 The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):
