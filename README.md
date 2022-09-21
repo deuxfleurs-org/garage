@@ -15,18 +15,24 @@ Garage [![Build Status](https://drone.deuxfleurs.fr/api/badges/Deuxfleurs/garage
 	]
 </p>
 
-Garage is a lightweight S3-compatible distributed object store, with the following goals:
+Garage is an S3-compatible distributed object storage service
+designed for self-hosting at a small-to-medium scale.
 
-- As self-contained as possible
-- Easy to set up
-- Highly resilient to network failures, network latency, disk failures, sysadmin failures
-- Relatively simple
-- Made for multi-datacenter deployments
+Garage is designed for storage clusters composed of nodes running
+at different physical locations,
+in order to easily provide a storage service that replicates data at these different
+locations and stays available even when some servers are unreachable.
+Garage also focuses on being lightweight, easy to operate, and highly resilient to
+machine failures.
 
-Non-goals include:
+Garage is built by [Deuxfleurs](https://deuxfleurs.fr),
+an experimental small-scale self hosted service provider,
+which has been using it in production since its first release in 2020.
 
-- Extremely high performance
-- Complete implementation of the S3 API
-- Erasure coding (our replication model is simply to copy the data as is on several nodes, in different datacenters if possible)
+Learn more on our dedicated documentation pages:
 
-Our main use case is to provide a distributed storage layer for small-scale self hosted services such as [Deuxfleurs](https://deuxfleurs.fr).
+- [Goals and use cases](https://garagehq.deuxfleurs.fr/documentation/design/goals/)
+- [Features](https://garagehq.deuxfleurs.fr/documentation/reference-manual/features/)
+- [Quick start](https://garagehq.deuxfleurs.fr/documentation/quick-start/)
+
+Garage is entirely free software released under the terms of the AGPLv3.
