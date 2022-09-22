@@ -182,7 +182,7 @@ impl Graph<FlowEdge>{
         //assignation, we shuffle the neighbours of the nodes. Hence,
         //the vertices do not consider their neighbours in the same order.
         self.shuffle_edges();
-
+        
         //We run Dinic's max flow algorithm
         loop {
             //We build the level array from Dinic's algorithm.
@@ -206,7 +206,6 @@ impl Graph<FlowEdge>{
                 //There is no residual flow
                 break;
             }
-
             //Now we run DFS respecting the level array
             let mut next_nbd = vec![0; nb_vertices];
             let mut lifo = VecDeque::new();
@@ -220,14 +219,12 @@ impl Graph<FlowEdge>{
                     //The DFS reached the sink, we can add a
                     //residual flow.
                     lifo.pop_back();
-                    while !lifo.is_empty() {
-                        if let Some((id, _)) = lifo.pop_back() {
-                            let nbd = next_nbd[id];
-                            self.graph[id][nbd].flow += f as i32;
-                            let id_rev = self.graph[id][nbd].dest;
-                            let nbd_rev = self.graph[id][nbd].rev;
-                            self.graph[id_rev][nbd_rev].flow -= f as i32;
-                        }
+                    while let Some((id, _)) = lifo.pop_back() {
+                        let nbd = next_nbd[id];
+                        self.graph[id][nbd].flow += f as i32;
+                        let id_rev = self.graph[id][nbd].dest;
+                        let nbd_rev = self.graph[id][nbd].rev;
+                        self.graph[id_rev][nbd_rev].flow -= f as i32;
                     }
                     lifo.push_back((idsource, flow_upper_bound));
                     continue;
@@ -243,10 +240,14 @@ impl Graph<FlowEdge>{
                     continue;
                 }
                 //else we can try to send flow from id to its nbd
-                let new_flow = min(f, self.graph[id][nbd].cap - self.graph[id][nbd].flow as u32 );
+                let new_flow = min(f as i32, self.graph[id][nbd].cap as i32 - self.graph[id][nbd].flow) as u32;
+                if new_flow == 0 {
+                    next_nbd[id] += 1;
+                    continue;
+                }
                 if let (Some(lvldest), Some(lvlid)) =
                                 (level[self.graph[id][nbd].dest], level[id]){
-                    if lvldest <= lvlid || new_flow == 0 {
+                    if lvldest <= lvlid  {
                         //We cannot send flow to nbd.
                         next_nbd[id] += 1;
                         continue;
@@ -266,7 +267,6 @@ impl Graph<FlowEdge>{
     // one needs to be present in the cost function.
     pub fn optimize_flow_with_cost(&mut self , cost: &CostFunction, path_length: usize )
         -> Result<(),String>{
-        
         //We build the weighted graph g where we will look for negative cycle
         let mut gf = self.build_cost_graph(cost)?;
         let mut cycles = gf.list_negative_cycles(path_length);
@@ -364,6 +364,7 @@ impl Graph<WeightedEdge>{
             }
         }
 
+
         //If self.graph contains a negative cycle, then at this point the graph described
         //by prev (which is a directed 1-forest/functional graph) 
         //must contain a cycle. We list the cycles of prev.
@@ -401,8 +402,9 @@ fn cycles_of_1_forest(forest: &[Option<usize>])  -> Vec<Vec<usize>> {
             //We discovered an id that we explored at this iteration t.
             //It means we are on a cycle
             let mut cy = vec![id; 1];
-            let id2 = id;
-            while let Some(id2) = forest[id2] {
+            let mut id2 = id;
+            while let Some(id_next) = forest[id2] {
+                id2 = id_next;
                 if id2 != id {
                     cy.push(id2);
                 }
@@ -429,12 +431,5 @@ fn cycles_of_1_forest(forest: &[Option<usize>])  -> Vec<Vec<usize>> {
 mod tests {
 	use super::*;
 
-	#[test]
-	fn test_flow() {
-		let left_vec = vec![3; 8];
-		let right_vec = vec![0, 4, 8, 4, 8];
-		//There are asserts in the function that computes the flow
-	}
-
-	//maybe add tests relative to the matching optilization ?
 }
+

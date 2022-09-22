@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use hex::ToHex;
+use itertools::Itertools;
 
 use serde::{Deserialize, Serialize};
 
@@ -185,7 +186,8 @@ impl ClusterLayout {
     pub fn get_node_capacity(&self, uuid : &Uuid) -> Result<u32,String> {
         match self.node_role(uuid) {
             Some(NodeRole{capacity : Some(cap), zone: _, tags: _}) => return Ok(*cap),
-            _ => return Err("The Uuid does not correspond to a node present in the cluster or this node does not have a positive capacity.".to_string())
+            _ => return Err("The Uuid does not correspond to a node present in the \
+                    cluster or this node does not have a positive capacity.".to_string())
         }
     }
 
@@ -242,6 +244,47 @@ impl ClusterLayout {
 			}
 		}
 
+        //Check that every partition is associated to distinct nodes
+        let rf = self.replication_factor;
+        for p in 0..(1 << PARTITION_BITS) {
+            let nodes_of_p = self.ring_assignation_data[rf*p..rf*(p+1)].to_vec();
+            if nodes_of_p.iter().unique().count() != rf {
+                return false;
+            }
+            //Check that every partition is spread over at least zone_redundancy zones.
+            let zones_of_p = nodes_of_p.iter()
+                    .map(|n| self.get_node_zone(&self.node_id_vec[*n as usize])
+                         .expect("Zone not found."));
+            if zones_of_p.unique().count() < self.zone_redundancy {
+                return false;
+            }
+        }
+
+        //Check that the nodes capacities is consistent with the stored partitions
+        let mut node_usage = vec![0; MAX_NODE_NUMBER];
+        for n in self.ring_assignation_data.iter() {
+            node_usage[*n as usize] += 1;
+        }
+        for n in 0..MAX_NODE_NUMBER {
+            if node_usage[n] > 0 {
+                let uuid = self.node_id_vec[n];
+                if node_usage[n]*self.partition_size > self.get_node_capacity(&uuid)
+                                .expect("Critical Error"){
+                    return false;
+                }
+            }
+        }
+
+        //Check that the partition size stored is the one computed by the asignation
+        //algorithm.
+        let cl2 = self.clone();
+        let (_ , zone_to_id) = cl2.generate_zone_ids().expect("Critical Error");
+        let partition_size = cl2.compute_optimal_partition_size(&zone_to_id).expect("Critical Error");
+        if partition_size != self.partition_size {
+            return false;
+        }
+
+
 		true
 	}
 
@@ -267,7 +310,7 @@ impl ClusterLayout {
         self.zone_redundancy = redundancy;
         
         let mut msg = Message::new();
-        msg.push(format!("Computation of a new cluster layout where partitions are 
+        msg.push(format!("Computation of a new cluster layout where partitions are \
         replicated {} times on at least {} distinct zones.", replication, redundancy));
 
         //We generate for once numerical ids for the zone, to use them as indices in the 
@@ -276,16 +319,19 @@ impl ClusterLayout {
 
         msg.push(format!("The cluster contains {} nodes spread over {} zones.", 
                          self.useful_nodes().len(), id_to_zone.len()));
-        
+       
         //We compute the optimal partition size
+        //Capacities should be given in a unit so that partition size is at least 100.
+        //In this case, integer rounding plays a marginal role in the percentages of 
+        //optimality.
         let partition_size = self.compute_optimal_partition_size(&zone_to_id)?;
         if old_assignation_opt != None  {
-            msg.push(format!("Given the replication and redundancy constraint, the 
-                optimal size of a partition is {}. In the previous layout, it used to 
+            msg.push(format!("Given the replication and redundancy constraint, the \
+                optimal size of a partition is {}. In the previous layout, it used to \
                 be {}.", partition_size, self.partition_size));
         }
         else {
-            msg.push(format!("Given the replication and redundancy constraints, the 
+            msg.push(format!("Given the replication and redundancy constraints, the \
                 optimal size of a partition is {}.", partition_size));
         }
         self.partition_size = partition_size;
@@ -293,13 +339,13 @@ impl ClusterLayout {
         //We compute a first flow/assignment that is heuristically close to the previous
         //assignment
         let mut gflow = self.compute_candidate_assignment( &zone_to_id, &old_assignation_opt)?;
-
         if let Some(assoc) = &old_assignation_opt {
             //We minimize the distance to the previous assignment.
             self.minimize_rebalance_load(&mut gflow, &zone_to_id, &assoc)?;
         }
 
         msg.append(&mut self.output_stat(&gflow, &old_assignation_opt, &zone_to_id,&id_to_zone)?);
+        msg.push("".to_string());
 
         //We update the layout structure
         self.update_ring_from_flow(id_to_zone.len() , &gflow)?;
@@ -321,7 +367,8 @@ impl ClusterLayout {
             .map(|(k, _, _)| *k).collect();
         
         if new_non_gateway_nodes.len() > MAX_NODE_NUMBER {
-            return Err(format!("There are more than {} non-gateway nodes in the new layout. This is not allowed.", MAX_NODE_NUMBER).to_string());
+            return Err(format!("There are more than {} non-gateway nodes in the new \
+                            layout. This is not allowed.", MAX_NODE_NUMBER).to_string());
         }
 
 		let mut new_gateway_nodes: Vec<Uuid> = self.roles.items().iter()
@@ -346,7 +393,8 @@ impl ClusterLayout {
             return Ok(None);
         }
         if self.ring_assignation_data.len() != nb_partitions * self.replication_factor {
-            return Err("The old assignation does not have a size corresponding to the old replication factor or the number of partitions.".to_string());
+            return Err("The old assignation does not have a size corresponding to \
+                the old replication factor or the number of partitions.".to_string());
         }
 
         //We build a translation table between the uuid and new ids
@@ -384,7 +432,8 @@ impl ClusterLayout {
 
         for uuid in self.node_id_vec.iter() {
             if self.roles.get(uuid) == None {
-                return Err("The uuid was not found in the node roles (this should not happen, it might be a critical error).".to_string());
+                return Err("The uuid was not found in the node roles (this should \
+                    not happen, it might be a critical error).".to_string());
             }
             match self.node_role(&uuid) {
                 Some(r) => if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
@@ -405,7 +454,8 @@ impl ClusterLayout {
         let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set)?;
         g.compute_maximal_flow()?;
         if g.get_flow_value()? < (nb_partitions*self.replication_factor).try_into().unwrap() {
-            return Err("The storage capacity of he cluster is to small. It is impossible to store partitions of size 1.".to_string());
+            return Err("The storage capacity of he cluster is to small. It is \
+                       impossible to store partitions of size 1.".to_string());
         }
 
         let mut s_down = 1;
@@ -525,11 +575,12 @@ impl ClusterLayout {
         }
 
         if self.ring_assignation_data.len() != NB_PARTITIONS*self.replication_factor {
-            return Err("Critical Error : the association ring we produced does not have the right size.".to_string());
+            return Err("Critical Error : the association ring we produced does not \
+                       have the right size.".to_string());
         }
         return Ok(());
     }
-    
+     
 
     //This function returns a message summing up the partition repartition of the new
     //layout.
@@ -546,9 +597,16 @@ impl ClusterLayout {
         let percent_cap = 100.0*(used_cap as f32)/(total_cap as f32);
         msg.push(format!("Available capacity / Total cluster capacity: {} / {} ({:.1} %)",
             used_cap , total_cap , percent_cap ));
-        msg.push(format!("If the percentage is to low, it might be that the replication/redundancy constraints force the use of nodes/zones with small storage capacities. 
-        You might want to rebalance the storage capacities or relax the constraints. See the detailed statistics below and look for saturated nodes/zones."));
-        msg.push(format!("Recall that because of the replication, the actual available storage capacity is {} / {} = {}.", used_cap , self.replication_factor , used_cap/self.replication_factor as u32));
+        msg.push(format!(""));
+        msg.push(format!("If the percentage is to low, it might be that the \
+        replication/redundancy constraints force the use of nodes/zones with small \
+        storage capacities. \
+        You might want to rebalance the storage capacities or relax the constraints. \
+        See the detailed statistics below and look for saturated nodes/zones."));
+        msg.push(format!("Recall that because of the replication, the actual available \
+                         storage capacity is {} / {} = {}.", 
+                        used_cap , self.replication_factor , 
+                        used_cap/self.replication_factor as u32));
        
         //We define and fill in the following tables
         let storing_nodes = self.useful_nodes();
@@ -563,6 +621,16 @@ impl ClusterLayout {
                 let pz_nodes = gflow.get_positive_flow_from(Vertex::PZ(p,z))?;
                 if pz_nodes.len() > 0 {
                     stored_partitions_zone[z] += 1;
+                    if let Some(old_assoc) = old_assoc_opt {
+                        let mut old_zones_of_p = Vec::<usize>::new();
+                        for n in old_assoc[p].iter() {
+                            old_zones_of_p.push(
+                                zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]);
+                        }
+                        if !old_zones_of_p.contains(&z) {
+                            new_partitions_zone[z] += 1;
+                        }
+                    }
                 }
                 for vert in pz_nodes.iter() {
                     if let Vertex::N(n) = *vert {
@@ -574,21 +642,17 @@ impl ClusterLayout {
                         }
                     }
                 }
-                if let Some(old_assoc) = old_assoc_opt {
-                    let mut old_zones_of_p = Vec::<usize>::new();
-                    for n in old_assoc[p].iter() {
-                        old_zones_of_p.push(
-                            zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]);
-                    }
-                    if !old_zones_of_p.contains(&z) {
-                        new_partitions_zone[z] += 1;
-                    }
-                }
             }
+        }
+
+        if *old_assoc_opt == None {
+            new_partitions = stored_partitions.clone();
+            new_partitions_zone = stored_partitions_zone.clone();
         }
         
         //We display the statistics
 
+        msg.push(format!(""));
         if *old_assoc_opt != None {
             let total_new_partitions : usize = new_partitions.iter().sum();
             msg.push(format!("A total of {} new copies of partitions need to be \
@@ -608,16 +672,9 @@ impl ClusterLayout {
                     .map(|n| stored_partitions[*n]).sum();
             msg.push(format!(""));
             
-            if *old_assoc_opt != None {
-                msg.push(format!("Zone {}: {} distinct partitions stored ({} new, \
+            msg.push(format!("Zone {}: {} distinct partitions stored ({} new, \
                 {} partition copies) ", id_to_zone[z], stored_partitions_zone[z], 
                                  new_partitions_zone[z], replicated_partitions));
-            }
-            else{
-                msg.push(format!("Zone {}: {} distinct partitions stored ({} partition \
-                    copies) ", 
-                    id_to_zone[z], stored_partitions_zone[z], replicated_partitions));
-            }
             
             let available_cap_z : u32 = self.partition_size*replicated_partitions as u32;
             let mut total_cap_z = 0;
@@ -625,18 +682,17 @@ impl ClusterLayout {
                 total_cap_z += self.get_node_capacity(&self.node_id_vec[*n])?;
             }
             let percent_cap_z = 100.0*(available_cap_z as f32)/(total_cap_z as f32);
-            msg.push(format!("        Available capacity / Total capacity: {}/{} ({:.1}%).",
+            msg.push(format!("  Available capacity / Total capacity: {}/{} ({:.1}%).",
                 available_cap_z, total_cap_z, percent_cap_z));
-            msg.push(format!(""));
             
             for n in nodes_of_z.iter() {
                 let available_cap_n = stored_partitions[*n] as u32 *self.partition_size;
                 let total_cap_n =self.get_node_capacity(&self.node_id_vec[*n])?;
                 let tags_n = (self.node_role(&self.node_id_vec[*n])
                                 .ok_or("Node not found."))?.tags_string();
-                msg.push(format!("        Node {}: {} partitions ({} new) ; \
+                msg.push(format!("  Node {}: {} partitions ({} new) ; \
                                  available/total capacity: {} / {} ({:.1}%) ; tags:{}", 
-                        &self.node_id_vec[*n].to_vec().encode_hex::<String>(), 
+                        &self.node_id_vec[*n].to_vec()[0..2].to_vec().encode_hex::<String>(), 
                         stored_partitions[*n], 
                         new_partitions[*n], available_cap_n, total_cap_n,
                         (available_cap_n as f32)/(total_cap_n as f32)*100.0 ,
@@ -654,15 +710,13 @@ impl ClusterLayout {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use itertools::Itertools;
-
+    use std::io::*;
+//	use itertools::Itertools;
+/*
 	fn check_assignation(cl: &ClusterLayout) {
 		//Check that input data has the right format
 		let nb_partitions = 1usize << PARTITION_BITS;
-		assert!([1, 2, 3].contains(&cl.replication_factor));
 		assert!(cl.ring_assignation_data.len() == nb_partitions * cl.replication_factor);
-
-		let (node_zone, node_capacity) = cl.get_node_zone_capacity();
 
 		//Check that is is a correct assignation with zone redundancy
 		let rf = cl.replication_factor;
@@ -743,6 +797,13 @@ mod tests {
 			}
 		}
 	}
+*/
+    
+    fn show_msg(msg  : &Message) {
+        for s in msg.iter(){
+            println!("{}",s);
+        }
+    }
 
 	fn update_layout(
 		cl: &mut ClusterLayout,
@@ -769,7 +830,8 @@ mod tests {
 
 	#[test]
 	fn test_assignation() {
-		let mut node_id_vec = vec![1, 2, 3];
+        std::io::stdout().flush().ok().expect("Could not flush stdout");
+        let mut node_id_vec = vec![1, 2, 3];
 		let mut node_capacity_vec = vec![4000, 1000, 2000];
 		let mut node_zone_vec = vec!["A", "B", "C"]
 			.into_iter()
@@ -782,14 +844,16 @@ mod tests {
 			roles: LwwMap::new(),
 
 			replication_factor: 3,
+            zone_redundancy: 1,
+            partition_size: 0,
 			ring_assignation_data: vec![],
 			version: 0,
 			staging: LwwMap::new(),
-			staging_hash: sha256sum(&[1; 32]),
+			staging_hash: blake2sum(&rmp_to_vec_all_named(&LwwMap::<Uuid, NodeRoleV>::new()).unwrap()[..]),
 		};
 		update_layout(&mut cl, &node_id_vec, &node_capacity_vec, &node_zone_vec);
-		cl.calculate_partition_assignation();
-		check_assignation(&cl);
+		show_msg(&cl.calculate_partition_assignation(3,3).unwrap());
+		assert!(cl.check());
 
 		node_id_vec = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
 		node_capacity_vec = vec![4000, 1000, 1000, 3000, 1000, 1000, 2000, 10000, 2000];
@@ -798,17 +862,18 @@ mod tests {
 			.map(|x| x.to_string())
 			.collect();
 		update_layout(&mut cl, &node_id_vec, &node_capacity_vec, &node_zone_vec);
-		cl.calculate_partition_assignation();
-		check_assignation(&cl);
+		show_msg(&cl.calculate_partition_assignation(3,3).unwrap());
+		assert!(cl.check());
 
 		node_capacity_vec = vec![4000, 1000, 2000, 7000, 1000, 1000, 2000, 10000, 2000];
 		update_layout(&mut cl, &node_id_vec, &node_capacity_vec, &node_zone_vec);
-		cl.calculate_partition_assignation();
-		check_assignation(&cl);
+		show_msg(&cl.calculate_partition_assignation(3,3).unwrap());
+		assert!(cl.check());
 
-		node_capacity_vec = vec![4000, 4000, 2000, 7000, 1000, 9000, 2000, 10, 2000];
+		node_capacity_vec = vec![4000000, 4000000, 2000000, 7000000, 1000000, 9000000, 2000000, 10000, 2000000];
 		update_layout(&mut cl, &node_id_vec, &node_capacity_vec, &node_zone_vec);
-		cl.calculate_partition_assignation();
-		check_assignation(&cl);
+		show_msg(&cl.calculate_partition_assignation(3,1).unwrap());
+		assert!(cl.check());
+
 	}
 }
