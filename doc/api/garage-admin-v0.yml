@@ -144,6 +144,7 @@ paths:
       summary: "Send modifications to the cluster layout"
       description: |
         Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
+        Note that setting the capacity to `null` will configure the node as a gateway.
       requestBody:
         description: |
           To add a new node to the layout or to change the configuration of an existing node, simply set the values you want.
@@ -487,6 +488,7 @@ components:
           example: dc1
         capacity:
           type: integer
+          nullable: true
           example: 4
         tags:
           type: array
