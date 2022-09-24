@@ -607,7 +607,7 @@ impl BlockManagerLocked {
 		path2.set_extension("tmp");
 		let mut f = fs::File::create(&path2).await?;
 		f.write_all(data).await?;
-		f.sync_all().await?;
+		//f.sync_all().await?;
 		drop(f);
 
 		fs::rename(path2, path).await?;
@@ -620,13 +620,13 @@ impl BlockManagerLocked {
 		// Now, we do an fsync on the containing directory, to ensure that the rename
 		// is persisted properly. See:
 		// http://thedjbway.b0llix.net/qmail/syncdir.html
-		let dir = fs::OpenOptions::new()
+		/*let dir = fs::OpenOptions::new()
 			.read(true)
 			.mode(0)
 			.open(directory)
 			.await?;
 		dir.sync_all().await?;
-		drop(dir);
+		drop(dir);*/
 
 		Ok(())
 	}
