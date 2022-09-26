@@ -10,6 +10,7 @@ let
     overlays = [ cargo2nixOverlay ];
   };
   kaniko = (import ./nix/kaniko.nix) pkgs;
+  manifest-tool = (import ./nix/manifest-tool.nix) pkgs;
   winscp = (import ./nix/winscp.nix) pkgs;
 
 in
@@ -84,6 +85,34 @@ function to_docker {
     --verbosity=debug
 }
 
+function multiarch_docker {
+        manifest-tool push from-spec <(cat <<EOF
+image: dxflrs/garage:''${CONTAINER_TAG}
+manifests:
+  -
+    image: dxflrs/arm64_garage:''${CONTAINER_TAG}
+    platform:
+      architecture: arm64
+      os: linux
+  -
+    image: dxflrs/amd64_garage:''${CONTAINER_TAG}
+    platform:
+      architecture: amd64
+      os: linux
+  -
+    image: dxflrs/386_garage:''${CONTAINER_TAG}
+    platform:
+      architecture: 386
+      os: linux
+  -
+    image: dxflrs/arm_garage:''${CONTAINER_TAG}
+    platform:
+      architecture: arm
+      os: linux
+EOF
+        )
+}
+
 function refresh_index {
   aws \
       --endpoint-url https://garage.deuxfleurs.fr \
@@ -113,6 +142,7 @@ function refresh_index {
       nativeBuildInputs = [
         pkgs.awscli2
         kaniko 
+        manifest-tool
       ];
     };
   }
