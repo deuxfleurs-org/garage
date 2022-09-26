@@ -51,15 +51,15 @@ to store 2 TB of data in total.
 
 ## Get a Docker image
 
-Our docker image is currently named `dxflrs/amd64_garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/amd64_garage/tags?page=1&ordering=last_updated).
-We encourage you to use a fixed tag (eg. `v0.4.0`) and not the `latest` tag.
-For this example, we will use the latest published version at the time of the writing which is `v0.4.0` but it's up to you
-to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/amd64_garage/tags?page=1&ordering=last_updated).
+Our docker image is currently named `dxflrs/garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
+We encourage you to use a fixed tag (eg. `v0.8.0`) and not the `latest` tag.
+For this example, we will use the latest published version at the time of the writing which is `v0.8.0` but it's up to you
+to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull dxflrs/amd64_garage:v0.4.0
+sudo docker pull dxflrs/garage:v0.8.0
 ```
 
 ## Deploying and configuring Garage
@@ -125,7 +125,7 @@ docker run \
   -v /etc/garage.toml:/etc/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
-  lxpz/garage_amd64:v0.4.0
+  dxflrs/garage:v0.8.0
 ```
 
 It should be restarted automatically at each reboot.
