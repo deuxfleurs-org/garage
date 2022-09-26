@@ -174,7 +174,11 @@ impl<A: ApiHandler> ApiServer<A> {
 
 		let current_context = Context::current();
 		let current_span = current_context.span();
-		current_span.update_name::<String>(format!("S3 API {}", endpoint.name()));
+		current_span.update_name::<String>(format!(
+			"{} API {}",
+			A::API_NAME_DISPLAY,
+			endpoint.name()
+		));
 		current_span.set_attribute(KeyValue::new("endpoint", endpoint.name()));
 		endpoint.add_span_attributes(current_span);
 
