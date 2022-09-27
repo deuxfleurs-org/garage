@@ -9,6 +9,8 @@ Here is an example `garage.toml` configuration file that illustrates all of the 
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 
+db_engine = "lmdb"
+
 block_size = 1048576
 
 replication_mode = "3"
@@ -70,6 +72,47 @@ The directory in which Garage will store the data blocks of objects.
 This folder can be placed on an HDD. The space available for `data_dir`
 should be counted to determine a node's capacity
 when [adding it to the cluster layout](@/documentation/cookbook/real-world.md).
+
+### `db_engine` (since `v0.8.0`)
+
+By default, Garage uses the Sled embedded database library
+to store its metadata on-disk. Since `v0.8.0`, Garage can use alternative storage backends as follows:
+
+| DB engine | `db_engine` value | Database path |
+| --------- | ----------------- | ------------- |
+| [Sled](https://sled.rs) | `"sled"` | `<metadata_dir>/db/` |
+| [LMDB](https://www.lmdb.tech) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [Sqlite](https://sqlite.org) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+
+Performance characteristics of the different DB engines are as follows:
+
+- Sled: the default database engine, which tends to produce
+  large data files and also has performance issues, especially when the metadata folder
+  is on a traditionnal HDD and not on SSD.
+- LMDB: the recommended alternative on 64-bit systems,
+  much more space-efficiant and slightly faster. Note that the data format of LMDB is not portable
+  between architectures, so for instance the Garage database of an x86-64
+  node cannot be moved to an ARM64 node. Also note that, while LMDB can technically be used on 32-bit systems,
+  this will limit your node to very small database sizes due to how LMDB works; it is therefore not recommended.
+- Sqlite: Garage supports Sqlite as a storage backend for metadata,
+  however it may have issues and is also very slow in its current implementation,
+  so it is not recommended to be used for now.
+
+It is possible to convert Garage's metadata directory from one format to another with a small utility named `convert_db`,
+which can be downloaded at the following locations:
+[for amd64](https://garagehq.deuxfleurs.fr/_releases/convert_db/amd64/convert_db),
+[for i386](https://garagehq.deuxfleurs.fr/_releases/convert_db/i386/convert_db),
+[for arm64](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm64/convert_db),
+[for arm](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm/convert_db).
+The `convert_db` utility is used as folows:
+
+```
+convert-db -a <input db engine> -i <input db path> \
+  		   -b <output db engine> -o <output db path>
+```
+
+Make sure to specify the full database path as presented in the table above,
+and not just the path to the metadata directory.
 
 ### `block_size`
 
