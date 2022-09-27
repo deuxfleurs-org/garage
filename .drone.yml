@@ -245,6 +245,17 @@ node:
   nix-daemon: 1
 
 steps:
+  - name: multiarch-docker
+    image: nixpkgs/nix:nixos-22.05
+    environment:
+      DOCKER_AUTH:
+        from_secret: docker_auth
+      HOME: "/root"
+    commands:
+      - mkdir -p /root/.docker
+      - echo $DOCKER_AUTH > /root/.docker/config.json
+      - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
+      - nix-shell --attr release --run "multiarch_docker"
   - name: refresh-index
     image: nixpkgs/nix:nixos-22.05
     environment:
@@ -269,6 +280,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 362639b4c9541ad9bd06ff7f72b5235b2b0216bcb16eececd25285b6fe94ba6f
+hmac: 103a04785c98f5376a63ce22865c2576963019bbc4d828f200d2a470a3c821ea
 
 ...
