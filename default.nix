@@ -16,6 +16,7 @@ let
     name ="garage-tests";
     paths = builtins.map (key: rustPkgs.workspace.${key} { compileMode = "test"; }) (builtins.attrNames rustPkgs.workspace);
   });
+  build_convert_db = (target: (compile { inherit target git_version; release = true; }).workspace.garage_db { compileMode = "build"; });
 
 in {
   pkgs = {
@@ -23,6 +24,12 @@ in {
     i386 = build_debug_and_release "i686-unknown-linux-musl";
     arm64 = build_debug_and_release "aarch64-unknown-linux-musl";
     arm = build_debug_and_release "armv6l-unknown-linux-musleabihf";
+    convert_db = {
+      amd64 = build_convert_db "x86_64-unknown-linux-musl";
+      i386 = build_convert_db "i686-unknown-linux-musl";
+      arm64 = build_convert_db "aarch64-unknown-linux-musl";
+      arm = build_convert_db "armv6l-unknown-linux-musleabihf";
+    };
   };
   test = {
     amd64 = test (compile { inherit git_version; target = "x86_64-unknown-linux-musl"; });

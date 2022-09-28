@@ -149,7 +149,10 @@ let
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "garage_db";
-      overrideAttrs = drv: { /* [1] */ setBuildEnv = (buildEnv drv); };
+      overrideAttrs = drv: {
+        /* [1] */ setBuildEnv = (buildEnv drv);
+        /* [2] */ hardeningDisable = [ "pie" ];
+      };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
