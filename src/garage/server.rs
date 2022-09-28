@@ -36,7 +36,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let metrics_exporter = opentelemetry_prometheus::exporter().init();
 
 	info!("Initializing background runner...");
-	let watch_cancel = netapp::util::watch_ctrl_c();
+	let watch_cancel = watch_shutdown_signal();
 	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
 
 	info!("Initializing Garage main data store...");
@@ -156,4 +156,45 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Cleaning up...");
 
 	Ok(())
+}
+
+#[cfg(unix)]
+fn watch_shutdown_signal() -> watch::Receiver<bool> {
+	use tokio::signal::unix::*;
+
+	let (send_cancel, watch_cancel) = watch::channel(false);
+	tokio::spawn(async move {
+		let mut sigint = signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
+		let mut sigterm =
+			signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+		let mut sighup = signal(SignalKind::hangup()).expect("Failed to install SIGHUP handler");
+		tokio::select! {
+			_ = sigint.recv() => info!("Received SIGINT, shutting down."),
+			_ = sigterm.recv() => info!("Received SIGTERM, shutting down."),
+			_ = sighup.recv() => info!("Received SIGHUP, shutting down."),
+		}
+		send_cancel.send(true).unwrap();
+	});
+	watch_cancel
+}
+
+#[cfg(windows)]
+fn watch_shutdown_signal() -> watch::Receiver<bool> {
+	use tokio::signal::windows::*;
+
+	let (send_cancel, watch_cancel) = watch::channel(false);
+	tokio::spawn(async move {
+		let mut sigint = ctrl_c().expect("Failed to install Ctrl-C handler");
+		let mut sigclose = ctrl_close().expect("Failed to install Ctrl-Close handler");
+		let mut siglogoff = ctrl_logoff().expect("Failed to install Ctrl-Logoff handler");
+		let mut sigsdown = ctrl_shutdown().expect("Failed to install Ctrl-Shutdown handler");
+		tokio::select! {
+			_ = sigint.recv() => info!("Received Ctrl-C, shutting down."),
+			_ = sigclose.recv() => info!("Received Ctrl-Close, shutting down."),
+			_ = siglogoff.recv() => info!("Received Ctrl-Logoff, shutting down."),
+			_ = sigsdown.recv() => info!("Received Ctrl-Shutdown, shutting down."),
+		}
+		send_cancel.send(true).unwrap();
+	});
+	watch_cancel
 }
