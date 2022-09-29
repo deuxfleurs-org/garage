@@ -607,7 +607,7 @@ impl<F: TableSchema + 'static, R: TableReplication + 'static> Worker for SyncWor
 					self.add_full_sync();
 				}
 			},
-			_ = tokio::time::sleep(self.next_full_sync - Instant::now()) => {
+			_ = tokio::time::sleep_until(self.next_full_sync.into()) => {
 				self.add_full_sync();
 			}
 		}

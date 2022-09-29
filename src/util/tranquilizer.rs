@@ -36,7 +36,7 @@ impl Tranquilizer {
 	}
 
 	fn tranquilize_internal(&mut self, tranquility: u32) -> Option<Duration> {
-		let observation = Instant::now() - self.last_step_begin;
+		let observation = Instant::now().saturating_duration_since(self.last_step_begin);
 
 		self.observations.push_back(observation);
 		self.sum_observations += observation;
