@@ -369,7 +369,9 @@ impl System {
 				id: n.id.into(),
 				addr: n.addr,
 				is_up: n.is_up(),
-				last_seen_secs_ago: n.last_seen.map(|t| (Instant::now() - t).as_secs()),
+				last_seen_secs_ago: n
+					.last_seen
+					.map(|t| (Instant::now().saturating_duration_since(t)).as_secs()),
 				status: node_status
 					.get(&n.id.into())
 					.cloned()
