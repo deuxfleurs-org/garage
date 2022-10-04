@@ -97,7 +97,6 @@ pub struct System {
 	kubernetes_discovery: Option<KubernetesDiscoveryParam>,
 
 	replication_factor: usize,
-    zone_redundancy: usize,
 
 	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
@@ -287,7 +286,6 @@ impl System {
 			rpc: RpcHelper::new(netapp.id.into(), fullmesh, background.clone(), ring.clone()),
 			system_endpoint,
 			replication_factor,
-            zone_redundancy,
 			rpc_listen_addr: config.rpc_bind_addr,
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
