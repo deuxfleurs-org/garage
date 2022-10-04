@@ -23,7 +23,7 @@ use crate::crdt::crdt::*;
 /// However, note that even if we were using a more efficient data structure such as a `BTreeMap`,
 /// the serialization cost `O(n)` would still have to be paid at each modification, so we are
 /// actually not losing anything here.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LwwMap<K, V> {
 	vals: Vec<(K, u64, V)>,
 }
@@ -138,6 +138,11 @@ where
 	/// Removes all values from the map
 	pub fn clear(&mut self) {
 		self.vals.clear();
+	}
+
+	/// Retain only values that match a certain predicate
+	pub fn retain(&mut self, pred: impl FnMut(&(K, u64, V)) -> bool) {
+		self.vals.retain(pred);
 	}
 
 	/// Get a reference to the value assigned to a key

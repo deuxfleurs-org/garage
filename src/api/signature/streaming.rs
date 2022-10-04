@@ -1,18 +1,67 @@
 use std::pin::Pin;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use futures::prelude::*;
 use futures::task;
+use garage_model::key_table::Key;
+use hmac::Mac;
 use hyper::body::Bytes;
+use hyper::{Body, Request};
 
 use garage_util::data::Hash;
-use hmac::Mac;
 
-use super::sha256sum;
-use super::HmacSha256;
-use super::LONG_DATETIME;
+use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
 
-use crate::error::*;
+use crate::signature::error::*;
+
+pub fn parse_streaming_body(
+	api_key: &Key,
+	req: Request<Body>,
+	content_sha256: &mut Option<Hash>,
+	region: &str,
+	service: &str,
+) -> Result<Request<Body>, Error> {
+	match req.headers().get("x-amz-content-sha256") {
+		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
+			let signature = content_sha256
+				.take()
+				.ok_or_bad_request("No signature provided")?;
+
+			let secret_key = &api_key
+				.state
+				.as_option()
+				.ok_or_internal_error("Deleted key state")?
+				.secret_key;
+
+			let date = req
+				.headers()
+				.get("x-amz-date")
+				.ok_or_bad_request("Missing X-Amz-Date field")?
+				.to_str()?;
+			let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
+				.ok_or_bad_request("Invalid date")?;
+			let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+
+			let scope = compute_scope(&date, region, service);
+			let signing_hmac = crate::signature::signing_hmac(&date, secret_key, region, service)
+				.ok_or_internal_error("Unable to build signing HMAC")?;
+
+			Ok(req.map(move |body| {
+				Body::wrap_stream(
+					SignedPayloadStream::new(
+						body.map_err(Error::from),
+						signing_hmac,
+						date,
+						&scope,
+						signature,
+					)
+					.map_err(Error::from),
+				)
+			}))
+		}
+		_ => Ok(req),
+	}
+}
 
 /// Result of `sha256("")`
 const EMPTY_STRING_HEX_DIGEST: &str =
@@ -38,7 +87,7 @@ fn compute_streaming_payload_signature(
 	let mut hmac = signing_hmac.clone();
 	hmac.update(string_to_sign.as_bytes());
 
-	Hash::try_from(&hmac.finalize().into_bytes()).ok_or_internal_error("Invalid signature")
+	Ok(Hash::try_from(&hmac.finalize().into_bytes()).ok_or_internal_error("Invalid signature")?)
 }
 
 mod payload {
@@ -114,10 +163,10 @@ impl From<SignedPayloadStreamError> for Error {
 		match err {
 			SignedPayloadStreamError::Stream(e) => e,
 			SignedPayloadStreamError::InvalidSignature => {
-				Error::BadRequest("Invalid payload signature".into())
+				Error::bad_request("Invalid payload signature")
 			}
 			SignedPayloadStreamError::Message(e) => {
-				Error::BadRequest(format!("Chunk format error: {}", e))
+				Error::bad_request(format!("Chunk format error: {}", e))
 			}
 		}
 	}
@@ -295,7 +344,7 @@ mod tests {
 			.with_timezone(&Utc);
 		let secret_key = "test";
 		let region = "test";
-		let scope = crate::signature::compute_scope(&datetime, region);
+		let scope = crate::signature::compute_scope(&datetime, region, "s3");
 		let signing_hmac =
 			crate::signature::signing_hmac(&datetime, secret_key, region, "s3").unwrap();
 

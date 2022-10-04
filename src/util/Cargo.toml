@@ -1,6 +1,6 @@
 [package]
 name = "garage_util"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,15 +14,21 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+garage_db = { version = "0.8.0", path = "../db" }
+
+arc-swap = "1.0"
+async-trait = "0.1"
 blake2 = "0.9"
+bytes = "1.0"
+digest = "0.10"
 err-derive = "0.3"
+git-version = "0.3.4"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 hex = "0.4"
+lazy_static = "1.4"
 tracing = "0.1.30"
 rand = "0.8"
-sha2 = "0.9"
-
-sled = "0.34"
+sha2 = "0.10"
 
 chrono = "0.4"
 rmp-serde = "0.15"
@@ -33,11 +39,13 @@ toml = "0.5"
 futures = "0.3"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 
-#netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }
-#netapp = { version = "0.4", path = "../../../netapp" }
-netapp = "0.4"
+netapp = "0.5"
 
 http = "0.2"
 hyper = "0.14"
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
+
+
+[features]
+k2v = []

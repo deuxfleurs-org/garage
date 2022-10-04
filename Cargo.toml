@@ -1,15 +1,19 @@
 [workspace]
+resolver = "2"
 members = [
+	"src/db",
 	"src/util",
 	"src/rpc",
 	"src/table",
 	"src/block",
 	"src/model",
-	"src/admin",
 	"src/api",
 	"src/web",
-	"src/garage"
+	"src/garage",
+	"src/k2v-client",
 ]
+
+default-members = ["src/garage"]
 
 [profile.dev]
 lto = "off"

@@ -3,9 +3,8 @@ mod common;
 
 mod admin;
 mod bucket;
-mod list;
-mod multipart;
-mod objects;
-mod simple;
-mod streaming_signature;
-mod website;
+
+mod s3;
+
+#[cfg(feature = "k2v")]
+mod k2v;

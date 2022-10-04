@@ -7,7 +7,7 @@ use garage_table::*;
 
 /// The bucket alias table holds the names given to buckets
 /// in the global namespace.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct BucketAlias {
 	name: String,
 	pub state: crdt::Lww<Option<Uuid>>,

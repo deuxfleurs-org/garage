@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use garage_db as db;
 use garage_util::data::*;
 
 use crate::crdt::Crdt;
@@ -59,7 +60,7 @@ pub trait Entry<P: PartitionKey, S: SortKey>:
 }
 
 /// Trait for the schema used in a table
-pub trait TableSchema: Send + Sync {
+pub trait TableSchema: Send + Sync + 'static {
 	/// The name of the table in the database
 	const TABLE_NAME: &'static str;
 
@@ -82,11 +83,19 @@ pub trait TableSchema: Send + Sync {
 		None
 	}
 
-	// Updated triggers some stuff downstream, but it is not supposed to block or fail,
-	// as the update itself is an unchangeable fact that will never go back
-	// due to CRDT logic. Typically errors in propagation of info should be logged
-	// to stderr.
-	fn updated(&self, _old: Option<Self::E>, _new: Option<Self::E>) {}
+	/// Actions triggered by data changing in a table. If such actions
+	/// include updates to the local database that should be applied
+	/// atomically with the item update itself, a db transaction is
+	/// provided on which these changes should be done.
+	/// This function can return a DB error but that's all.
+	fn updated(
+		&self,
+		_tx: &mut db::Transaction,
+		_old: Option<&Self::E>,
+		_new: Option<&Self::E>,
+	) -> db::TxOpResult<()> {
+		Ok(())
+	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool;
 }

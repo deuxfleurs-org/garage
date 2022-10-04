@@ -8,6 +8,14 @@ mod admin;
 mod cli;
 mod repair;
 mod server;
+#[cfg(feature = "telemetry-otlp")]
+mod tracing_setup;
+
+#[cfg(not(any(feature = "bundled-libs", feature = "system-libs")))]
+compile_error!("Either bundled-libs or system-libs Cargo feature must be enabled");
+
+#[cfg(all(feature = "bundled-libs", feature = "system-libs"))]
+compile_error!("Only one of bundled-libs and system-libs Cargo features must be enabled");
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -28,7 +36,10 @@ use admin::*;
 use cli::*;
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "garage")]
+#[structopt(
+	name = "garage",
+	about = "S3-compatible object store for self-hosted geo-distributed deployments"
+)]
 struct Opt {
 	/// Host to connect to for admin operations, in the format:
 	/// <public-key>@<ip>:<port>
@@ -57,20 +68,56 @@ async fn main() {
 	if std::env::var("RUST_LOG").is_err() {
 		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
 	}
-	pretty_env_logger::init();
+	tracing_subscriber::fmt()
+		.with_writer(std::io::stderr)
+		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
+		.init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
-	let opt = Opt::from_args();
+	// Abort on panic (same behavior as in Go)
+	std::panic::set_hook(Box::new(|panic_info| {
+		error!("{}", panic_info.to_string());
+		std::process::abort();
+	}));
+
+	// Initialize version and features info
+	let features = &[
+		#[cfg(feature = "k2v")]
+		"k2v",
+		#[cfg(feature = "sled")]
+		"sled",
+		#[cfg(feature = "lmdb")]
+		"lmdb",
+		#[cfg(feature = "sqlite")]
+		"sqlite",
+		#[cfg(feature = "kubernetes-discovery")]
+		"kubernetes-discovery",
+		#[cfg(feature = "metrics")]
+		"metrics",
+		#[cfg(feature = "telemetry-otlp")]
+		"telemetry-otlp",
+		#[cfg(feature = "bundled-libs")]
+		"bundled-libs",
+		#[cfg(feature = "system-libs")]
+		"system-libs",
+	][..];
+	if let Some(git_version) = option_env!("GIT_VERSION") {
+		garage_util::version::init_version(git_version);
+	}
+	garage_util::version::init_features(features);
+
+	// Parse arguments
+	let version = format!(
+		"{} [features: {}]",
+		garage_util::version::garage_version(),
+		features.join(", ")
+	);
+	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
 
 	let res = match opt.cmd {
-		Command::Server => {
-			// Abort on panic (same behavior as in Go)
-			std::panic::set_hook(Box::new(|panic_info| {
-				error!("{}", panic_info.to_string());
-				std::process::abort();
-			}));
-
-			server::run_server(opt.config_file).await
+		Command::Server => server::run_server(opt.config_file).await,
+		Command::OfflineRepair(repair_opt) => {
+			repair::offline::offline_repair(opt.config_file, repair_opt).await
 		}
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
 			node_id_command(opt.config_file, node_id_opt.quiet)
@@ -115,7 +162,13 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
 			.err_context(READ_KEY_ERROR)?;
-		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr) {
+		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr.as_ref()) {
+			use std::net::ToSocketAddrs;
+			let a = a
+				.to_socket_addrs()
+				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?
+				.next()
+				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?;
 			(node_id, a)
 		} else {
 			let default_addr = SocketAddr::new(
@@ -141,6 +194,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	match cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await {
 		Err(HelperError::Internal(i)) => Err(Error::Message(format!("Internal error: {}", i))),
 		Err(HelperError::BadRequest(b)) => Err(Error::Message(b)),
+		Err(e) => Err(Error::Message(format!("{}", e))),
 		Ok(x) => Ok(x),
 	}
 }

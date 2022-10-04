@@ -16,7 +16,7 @@ use crate::crdt::crdt::*;
 /// However, note that even if we were using a more efficient data structure such as a `BTreeMap`,
 /// the serialization cost `O(n)` would still have to be paid at each modification, so we are
 /// actually not losing anything here.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Map<K, V> {
 	vals: Vec<(K, V)>,
 }

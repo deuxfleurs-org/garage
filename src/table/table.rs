@@ -1,6 +1,6 @@
-use std::collections::{BTreeMap, HashMap};
+use std::borrow::Borrow;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::stream::*;
@@ -11,6 +11,8 @@ use opentelemetry::{
 	trace::{FutureExt, TraceContextExt, Tracer},
 	Context,
 };
+
+use garage_db as db;
 
 use garage_util::data::*;
 use garage_util::error::Error;
@@ -26,8 +28,7 @@ use crate::merkle::*;
 use crate::replication::*;
 use crate::schema::*;
 use crate::sync::*;
-
-const TABLE_RPC_TIMEOUT: Duration = Duration::from_secs(10);
+use crate::util::*;
 
 pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
 	pub system: Arc<System>,
@@ -45,7 +46,13 @@ pub(crate) enum TableRpc<F: TableSchema> {
 	ReadEntryResponse(Option<ByteBuf>),
 
 	// Read range: read all keys in partition P, possibly starting at a certain sort key offset
-	ReadRange(F::P, Option<F::S>, Option<F::Filter>, usize),
+	ReadRange {
+		partition: F::P,
+		begin_sort_key: Option<F::S>,
+		filter: Option<F::Filter>,
+		limit: usize,
+		enumeration_order: EnumerationOrder,
+	},
 
 	Update(Vec<Arc<ByteBuf>>),
 }
@@ -61,7 +68,7 @@ where
 {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
-	pub fn new(instance: F, replication: R, system: Arc<System>, db: &sled::Db) -> Arc<Self> {
+	pub fn new(instance: F, replication: R, system: Arc<System>, db: &db::Db) -> Arc<Self> {
 		let endpoint = system
 			.netapp
 			.endpoint(format!("garage_table/table.rs/Rpc:{}", F::TABLE_NAME));
@@ -103,7 +110,6 @@ where
 	async fn insert_internal(&self, e: &F::E) -> Result<(), Error> {
 		let hash = e.partition_key().hash();
 		let who = self.data.replication.write_nodes(&hash);
-		//eprintln!("insert who: {:?}", who);
 
 		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
@@ -115,17 +121,20 @@ where
 				&who[..],
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(self.data.replication.write_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT),
+					.with_quorum(self.data.replication.write_quorum()),
 			)
 			.await?;
 
 		Ok(())
 	}
 
-	pub async fn insert_many(&self, entries: &[F::E]) -> Result<(), Error> {
+	pub async fn insert_many<I, IE>(&self, entries: I) -> Result<(), Error>
+	where
+		I: IntoIterator<Item = IE> + Send + Sync,
+		IE: Borrow<F::E> + Send + Sync,
+	{
 		let tracer = opentelemetry::global::tracer("garage_table");
-		let span = tracer.start(format!("{} insert_many {}", F::TABLE_NAME, entries.len()));
+		let span = tracer.start(format!("{} insert_many", F::TABLE_NAME));
 
 		self.insert_many_internal(entries)
 			.bound_record_duration(&self.data.metrics.put_request_duration)
@@ -137,10 +146,15 @@ where
 		Ok(())
 	}
 
-	async fn insert_many_internal(&self, entries: &[F::E]) -> Result<(), Error> {
+	async fn insert_many_internal<I, IE>(&self, entries: I) -> Result<(), Error>
+	where
+		I: IntoIterator<Item = IE> + Send + Sync,
+		IE: Borrow<F::E> + Send + Sync,
+	{
 		let mut call_list: HashMap<_, Vec<_>> = HashMap::new();
 
-		for entry in entries.iter() {
+		for entry in entries.into_iter() {
+			let entry = entry.borrow();
 			let hash = entry.partition_key().hash();
 			let who = self.data.replication.write_nodes(&hash);
 			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
@@ -159,7 +173,7 @@ where
 					&self.endpoint,
 					node,
 					rpc,
-					RequestStrategy::with_priority(PRIO_NORMAL).with_timeout(TABLE_RPC_TIMEOUT),
+					RequestStrategy::with_priority(PRIO_NORMAL),
 				)
 				.await?;
 			Ok::<_, Error>((node, resp))
@@ -216,7 +230,6 @@ where
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.read_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT)
 					.interrupt_after_quorum(true),
 			)
 			.await?;
@@ -261,12 +274,19 @@ where
 		begin_sort_key: Option<F::S>,
 		filter: Option<F::Filter>,
 		limit: usize,
+		enumeration_order: EnumerationOrder,
 	) -> Result<Vec<F::E>, Error> {
 		let tracer = opentelemetry::global::tracer("garage_table");
 		let span = tracer.start(format!("{} get_range", F::TABLE_NAME));
 
 		let res = self
-			.get_range_internal(partition_key, begin_sort_key, filter, limit)
+			.get_range_internal(
+				partition_key,
+				begin_sort_key,
+				filter,
+				limit,
+				enumeration_order,
+			)
 			.bound_record_duration(&self.data.metrics.get_request_duration)
 			.with_context(Context::current_with_span(span))
 			.await?;
@@ -282,11 +302,18 @@ where
 		begin_sort_key: Option<F::S>,
 		filter: Option<F::Filter>,
 		limit: usize,
+		enumeration_order: EnumerationOrder,
 	) -> Result<Vec<F::E>, Error> {
 		let hash = partition_key.hash();
 		let who = self.data.replication.read_nodes(&hash);
 
-		let rpc = TableRpc::<F>::ReadRange(partition_key.clone(), begin_sort_key, filter, limit);
+		let rpc = TableRpc::<F>::ReadRange {
+			partition: partition_key.clone(),
+			begin_sort_key,
+			filter,
+			limit,
+			enumeration_order,
+		};
 
 		let resps = self
 			.system
@@ -297,49 +324,69 @@ where
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.read_quorum())
-					.with_timeout(TABLE_RPC_TIMEOUT)
 					.interrupt_after_quorum(true),
 			)
 			.await?;
 
-		let mut ret = BTreeMap::new();
-		let mut to_repair = BTreeMap::new();
+		let mut ret: BTreeMap<Vec<u8>, F::E> = BTreeMap::new();
+		let mut to_repair = BTreeSet::new();
 		for resp in resps {
 			if let TableRpc::Update(entries) = resp {
 				for entry_bytes in entries.iter() {
 					let entry = self.data.decode_entry(entry_bytes.as_slice())?;
 					let entry_key = self.data.tree_key(entry.partition_key(), entry.sort_key());
-					match ret.remove(&entry_key) {
-						None => {
-							ret.insert(entry_key, Some(entry));
-						}
-						Some(Some(mut prev)) => {
-							let must_repair = prev != entry;
-							prev.merge(&entry);
-							if must_repair {
-								to_repair.insert(entry_key.clone(), Some(prev.clone()));
+					match ret.get_mut(&entry_key) {
+						Some(e) => {
+							if *e != entry {
+								e.merge(&entry);
+								to_repair.insert(entry_key.clone());
 							}
-							ret.insert(entry_key, Some(prev));
 						}
-						Some(None) => unreachable!(),
+						None => {
+							ret.insert(entry_key, entry);
+						}
 					}
 				}
+			} else {
+				return Err(Error::unexpected_rpc_message(resp));
 			}
 		}
+
 		if !to_repair.is_empty() {
 			let self2 = self.clone();
+			let to_repair = to_repair
+				.into_iter()
+				.map(|k| ret.get(&k).unwrap().clone())
+				.collect::<Vec<_>>();
 			self.system.background.spawn_cancellable(async move {
-				for (_, v) in to_repair.iter_mut() {
-					self2.repair_on_read(&who[..], v.take().unwrap()).await?;
+				for v in to_repair {
+					self2.repair_on_read(&who[..], v).await?;
 				}
 				Ok(())
 			});
 		}
-		let ret_vec = ret
-			.iter_mut()
-			.take(limit)
-			.map(|(_k, v)| v.take().unwrap())
-			.collect::<Vec<_>>();
+
+		// At this point, the `ret` btreemap might contain more than `limit`
+		// items, because nodes might have returned us each `limit` items
+		// but for different keys. We have to take only the first `limit` items
+		// in this map, in the specified enumeration order, for two reasons:
+		// 1. To return to the user no more than the number of items that they requested
+		// 2. To return only items for which we have a read quorum: we do not know
+		//    that we have a read quorum for the items after the first `limit`
+		//    of them
+		let ret_vec = match enumeration_order {
+			EnumerationOrder::Forward => ret
+				.into_iter()
+				.take(limit)
+				.map(|(_k, v)| v)
+				.collect::<Vec<_>>(),
+			EnumerationOrder::Reverse => ret
+				.into_iter()
+				.rev()
+				.take(limit)
+				.map(|(_k, v)| v)
+				.collect::<Vec<_>>(),
+		};
 		Ok(ret_vec)
 	}
 
@@ -353,9 +400,7 @@ where
 				&self.endpoint,
 				who,
 				TableRpc::<F>::Update(vec![what_enc]),
-				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(who.len())
-					.with_timeout(TABLE_RPC_TIMEOUT),
+				RequestStrategy::with_priority(PRIO_NORMAL).with_quorum(who.len()),
 			)
 			.await?;
 		Ok(())
@@ -378,8 +423,20 @@ where
 				let value = self.data.read_entry(key, sort_key)?;
 				Ok(TableRpc::ReadEntryResponse(value))
 			}
-			TableRpc::ReadRange(key, begin_sort_key, filter, limit) => {
-				let values = self.data.read_range(key, begin_sort_key, filter, *limit)?;
+			TableRpc::ReadRange {
+				partition,
+				begin_sort_key,
+				filter,
+				limit,
+				enumeration_order,
+			} => {
+				let values = self.data.read_range(
+					partition,
+					begin_sort_key,
+					filter,
+					*limit,
+					*enumeration_order,
+				)?;
 				Ok(TableRpc::Update(values))
 			}
 			TableRpc::Update(pairs) => {

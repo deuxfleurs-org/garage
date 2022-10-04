@@ -1,6 +1,6 @@
 [package]
 name = "garage_api"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,28 +14,31 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_model = { version = "0.7.0", path = "../model" }
-garage_table = { version = "0.7.0", path = "../table" }
-garage_block = { version = "0.7.0", path = "../block" }
-garage_util = { version = "0.7.0", path = "../util" }
+garage_model = { version = "0.8.0", path = "../model" }
+garage_table = { version = "0.8.0", path = "../table" }
+garage_block = { version = "0.8.0", path = "../block" }
+garage_util = { version = "0.8.0", path = "../util" }
+garage_rpc = { version = "0.8.0", path = "../rpc" }
 
+async-trait = "0.1.7"
 base64 = "0.13"
 bytes = "1.0"
 chrono = "0.4"
-crypto-mac = "0.10"
+crypto-common = "0.1"
 err-derive = "0.3"
 hex = "0.4"
-hmac = "0.10"
+hmac = "0.12"
 idna = "0.2"
 tracing = "0.1.30"
-md-5 = "0.9"
+md-5 = "0.10"
 nom = "7.1"
-sha2 = "0.9"
+sha2 = "0.10"
 
 futures = "0.3"
 futures-util = "0.3"
 pin-project = "1.0"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+tokio-stream = "0.1"
 
 form_urlencoded = "1.0.0"
 http = "0.2"
@@ -52,3 +55,9 @@ quick-xml = { version = "0.21", features = [ "serialize" ] }
 url = "2.1"
 
 opentelemetry = "0.17"
+opentelemetry-prometheus = { version = "0.10", optional = true }
+prometheus = { version = "0.13", optional = true }
+
+[features]
+k2v = [ "garage_util/k2v", "garage_model/k2v" ]
+metrics = [ "opentelemetry-prometheus", "prometheus" ]

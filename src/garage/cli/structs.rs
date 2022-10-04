@@ -1,55 +1,65 @@
 use serde::{Deserialize, Serialize};
-
 use structopt::StructOpt;
+
+use garage_util::version::garage_version;
 
 #[derive(StructOpt, Debug)]
 pub enum Command {
 	/// Run Garage server
-	#[structopt(name = "server")]
+	#[structopt(name = "server", version = garage_version())]
 	Server,
 
 	/// Get network status
-	#[structopt(name = "status")]
+	#[structopt(name = "status", version = garage_version())]
 	Status,
 
 	/// Operations on individual Garage nodes
-	#[structopt(name = "node")]
+	#[structopt(name = "node", version = garage_version())]
 	Node(NodeOperation),
 
 	/// Operations on the assignation of node roles in the cluster layout
-	#[structopt(name = "layout")]
+	#[structopt(name = "layout", version = garage_version())]
 	Layout(LayoutOperation),
 
 	/// Operations on buckets
-	#[structopt(name = "bucket")]
+	#[structopt(name = "bucket", version = garage_version())]
 	Bucket(BucketOperation),
 
 	/// Operations on S3 access keys
-	#[structopt(name = "key")]
+	#[structopt(name = "key", version = garage_version())]
 	Key(KeyOperation),
 
 	/// Run migrations from previous Garage version
 	/// (DO NOT USE WITHOUT READING FULL DOCUMENTATION)
-	#[structopt(name = "migrate")]
+	#[structopt(name = "migrate", version = garage_version())]
 	Migrate(MigrateOpt),
 
-	/// Start repair of node data
-	#[structopt(name = "repair")]
+	/// Start repair of node data on remote node
+	#[structopt(name = "repair", version = garage_version())]
 	Repair(RepairOpt),
 
+	/// Offline reparation of node data (these repairs must be run offline
+	/// directly on the server node)
+	#[structopt(name = "offline-repair", version = garage_version())]
+	OfflineRepair(OfflineRepairOpt),
+
 	/// Gather node statistics
-	#[structopt(name = "stats")]
+	#[structopt(name = "stats", version = garage_version())]
 	Stats(StatsOpt),
+
+	/// Manage background workers
+	#[structopt(name = "worker", version = garage_version())]
+	Worker(WorkerOpt),
 }
 
 #[derive(StructOpt, Debug)]
 pub enum NodeOperation {
 	/// Print identifier (public key) of this Garage node
-	#[structopt(name = "id")]
+	#[structopt(name = "id", version = garage_version())]
 	NodeId(NodeIdOpt),
 
 	/// Connect to Garage node that is currently isolated from the system
-	#[structopt(name = "connect")]
+	#[structopt(name = "connect", version = garage_version())]
 	Connect(ConnectNodeOpt),
 }
 
@@ -70,23 +80,23 @@ pub struct ConnectNodeOpt {
 #[derive(StructOpt, Debug)]
 pub enum LayoutOperation {
 	/// Assign role to Garage node
-	#[structopt(name = "assign")]
+	#[structopt(name = "assign", version = garage_version())]
 	Assign(AssignRoleOpt),
 
 	/// Remove role from Garage cluster node
-	#[structopt(name = "remove")]
+	#[structopt(name = "remove", version = garage_version())]
 	Remove(RemoveRoleOpt),
 
 	/// Show roles currently assigned to nodes and changes staged for commit
-	#[structopt(name = "show")]
+	#[structopt(name = "show", version = garage_version())]
 	Show,
 
 	/// Apply staged changes to cluster layout
-	#[structopt(name = "apply")]
+	#[structopt(name = "apply", version = garage_version())]
 	Apply(ApplyLayoutOpt),
 
 	/// Revert staged changes to cluster layout
-	#[structopt(name = "revert")]
+	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
 }
 
@@ -141,40 +151,44 @@ pub struct RevertLayoutOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub enum BucketOperation {
 	/// List buckets
-	#[structopt(name = "list")]
+	#[structopt(name = "list", version = garage_version())]
 	List,
 
 	/// Get bucket info
-	#[structopt(name = "info")]
+	#[structopt(name = "info", version = garage_version())]
 	Info(BucketOpt),
 
 	/// Create bucket
-	#[structopt(name = "create")]
+	#[structopt(name = "create", version = garage_version())]
 	Create(BucketOpt),
 
 	/// Delete bucket
-	#[structopt(name = "delete")]
+	#[structopt(name = "delete", version = garage_version())]
 	Delete(DeleteBucketOpt),
 
 	/// Alias bucket under new name
-	#[structopt(name = "alias")]
+	#[structopt(name = "alias", version = garage_version())]
 	Alias(AliasBucketOpt),
 
 	/// Remove bucket alias
-	#[structopt(name = "unalias")]
+	#[structopt(name = "unalias", version = garage_version())]
 	Unalias(UnaliasBucketOpt),
 
 	/// Allow key to read or write to bucket
-	#[structopt(name = "allow")]
+	#[structopt(name = "allow", version = garage_version())]
 	Allow(PermBucketOpt),
 
 	/// Deny key from reading or writing to bucket
-	#[structopt(name = "deny")]
+	#[structopt(name = "deny", version = garage_version())]
 	Deny(PermBucketOpt),
 
 	/// Expose as website or not
-	#[structopt(name = "website")]
+	#[structopt(name = "website", version = garage_version())]
 	Website(WebsiteOpt),
+
+	/// Set the quotas for this bucket
+	#[structopt(name = "set-quotas", version = garage_version())]
+	SetQuotas(SetQuotasOpt),
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -262,37 +276,52 @@ pub struct PermBucketOpt {
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct SetQuotasOpt {
+	/// Bucket name
+	pub bucket: String,
+
+	/// Set a maximum size for the bucket (specify a size e.g. in MiB or GiB,
+	/// or `none` for no size restriction)
+	#[structopt(long = "max-size")]
+	pub max_size: Option<String>,
+
+	/// Set a maximum number of objects for the bucket (or `none` for no restriction)
+	#[structopt(long = "max-objects")]
+	pub max_objects: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub enum KeyOperation {
 	/// List keys
-	#[structopt(name = "list")]
+	#[structopt(name = "list", version = garage_version())]
 	List,
 
 	/// Get key info
-	#[structopt(name = "info")]
+	#[structopt(name = "info", version = garage_version())]
 	Info(KeyOpt),
 
 	/// Create new key
-	#[structopt(name = "new")]
+	#[structopt(name = "new", version = garage_version())]
 	New(KeyNewOpt),
 
 	/// Rename key
-	#[structopt(name = "rename")]
+	#[structopt(name = "rename", version = garage_version())]
 	Rename(KeyRenameOpt),
 
 	/// Delete key
-	#[structopt(name = "delete")]
+	#[structopt(name = "delete", version = garage_version())]
 	Delete(KeyDeleteOpt),
 
 	/// Set permission flags for key
-	#[structopt(name = "allow")]
+	#[structopt(name = "allow", version = garage_version())]
 	Allow(KeyPermOpt),
 
 	/// Unset permission flags for key
-	#[structopt(name = "deny")]
+	#[structopt(name = "deny", version = garage_version())]
 	Deny(KeyPermOpt),
 
 	/// Import key
-	#[structopt(name = "import")]
+	#[structopt(name = "import", version = garage_version())]
 	Import(KeyImportOpt),
 }
 
@@ -364,7 +393,7 @@ pub struct MigrateOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum MigrateWhat {
 	/// Migrate buckets and permissions from v0.5.0
-	#[structopt(name = "buckets050")]
+	#[structopt(name = "buckets050", version = garage_version())]
 	Buckets050,
 }
 
@@ -385,24 +414,66 @@ pub struct RepairOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum RepairWhat {
 	/// Only do a full sync of metadata tables
-	#[structopt(name = "tables")]
+	#[structopt(name = "tables", version = garage_version())]
 	Tables,
 	/// Only repair (resync/rebalance) the set of stored blocks
-	#[structopt(name = "blocks")]
+	#[structopt(name = "blocks", version = garage_version())]
 	Blocks,
 	/// Only redo the propagation of object deletions to the version table (slow)
-	#[structopt(name = "versions")]
+	#[structopt(name = "versions", version = garage_version())]
 	Versions,
 	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
-	#[structopt(name = "block_refs")]
+	#[structopt(name = "block_refs", version = garage_version())]
 	BlockRefs,
 	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
-	#[structopt(name = "scrub")]
+	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {
-		/// Tranquility factor (see tranquilizer documentation)
-		#[structopt(name = "tranquility", default_value = "2")]
+		#[structopt(subcommand)]
+		cmd: ScrubCmd,
+	},
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum ScrubCmd {
+	/// Start scrub
+	#[structopt(name = "start", version = garage_version())]
+	Start,
+	/// Pause scrub (it will resume automatically after 24 hours)
+	#[structopt(name = "pause", version = garage_version())]
+	Pause,
+	/// Resume paused scrub
+	#[structopt(name = "resume", version = garage_version())]
+	Resume,
+	/// Cancel scrub in progress
+	#[structopt(name = "cancel", version = garage_version())]
+	Cancel,
+	/// Set tranquility level for in-progress and future scrubs
+	#[structopt(name = "set-tranquility", version = garage_version())]
+	SetTranquility {
+		#[structopt()]
 		tranquility: u32,
 	},
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+pub struct OfflineRepairOpt {
+	/// Confirm the launch of the repair operation
+	#[structopt(long = "yes")]
+	pub yes: bool,
+
+	#[structopt(subcommand)]
+	pub what: OfflineRepairWhat,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum OfflineRepairWhat {
+	/// Repair K2V item counters
+	#[cfg(feature = "k2v")]
+	#[structopt(name = "k2v_item_counters", version = garage_version())]
+	K2VItemCounters,
+	/// Repair object counters
+	#[structopt(name = "object_counters", version = garage_version())]
+	ObjectCounters,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
@@ -414,4 +485,49 @@ pub struct StatsOpt {
 	/// Gather detailed statistics (this can be long)
 	#[structopt(short = "d", long = "detailed")]
 	pub detailed: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+pub struct WorkerOpt {
+	#[structopt(subcommand)]
+	pub cmd: WorkerCmd,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum WorkerCmd {
+	/// List all workers on Garage node
+	#[structopt(name = "list", version = garage_version())]
+	List {
+		#[structopt(flatten)]
+		opt: WorkerListOpt,
+	},
+	/// Set worker parameter
+	#[structopt(name = "set", version = garage_version())]
+	Set {
+		#[structopt(subcommand)]
+		opt: WorkerSetCmd,
+	},
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
+pub struct WorkerListOpt {
+	/// Show only busy workers
+	#[structopt(short = "b", long = "busy")]
+	pub busy: bool,
+	/// Show only workers with errors
+	#[structopt(short = "e", long = "errors")]
+	pub errors: bool,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum WorkerSetCmd {
+	/// Set tranquility of scrub operations
+	#[structopt(name = "scrub-tranquility", version = garage_version())]
+	ScrubTranquility { tranquility: u32 },
+	/// Set number of concurrent block resync workers
+	#[structopt(name = "resync-n-workers", version = garage_version())]
+	ResyncNWorkers { n_workers: usize },
+	/// Set tranquility of block resync operations
+	#[structopt(name = "resync-tranquility", version = garage_version())]
+	ResyncTranquility { tranquility: u32 },
 }

@@ -1,5 +1,7 @@
 use std::convert::TryInto;
 
+use garage_db as db;
+
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::time::*;
@@ -7,31 +9,41 @@ use garage_util::time::*;
 use crate::manager::BLOCK_GC_DELAY;
 
 pub struct BlockRc {
-	pub(crate) rc: sled::Tree,
+	pub(crate) rc: db::Tree,
 }
 
 impl BlockRc {
-	pub(crate) fn new(rc: sled::Tree) -> Self {
+	pub(crate) fn new(rc: db::Tree) -> Self {
 		Self { rc }
 	}
 
 	/// Increment the reference counter associated to a hash.
 	/// Returns true if the RC goes from zero to nonzero.
-	pub(crate) fn block_incref(&self, hash: &Hash) -> Result<bool, Error> {
-		let old_rc = self
-			.rc
-			.fetch_and_update(&hash, |old| RcEntry::parse_opt(old).increment().serialize())?;
-		let old_rc = RcEntry::parse_opt(old_rc);
+	pub(crate) fn block_incref(
+		&self,
+		tx: &mut db::Transaction,
+		hash: &Hash,
+	) -> db::TxOpResult<bool> {
+		let old_rc = RcEntry::parse_opt(tx.get(&self.rc, &hash)?);
+		match old_rc.increment().serialize() {
+			Some(x) => tx.insert(&self.rc, &hash, x)?,
+			None => unreachable!(),
+		};
 		Ok(old_rc.is_zero())
 	}
 
 	/// Decrement the reference counter associated to a hash.
 	/// Returns true if the RC is now zero.
-	pub(crate) fn block_decref(&self, hash: &Hash) -> Result<bool, Error> {
-		let new_rc = self
-			.rc
-			.update_and_fetch(&hash, |old| RcEntry::parse_opt(old).decrement().serialize())?;
-		let new_rc = RcEntry::parse_opt(new_rc);
+	pub(crate) fn block_decref(
+		&self,
+		tx: &mut db::Transaction,
+		hash: &Hash,
+	) -> db::TxOpResult<bool> {
+		let new_rc = RcEntry::parse_opt(tx.get(&self.rc, &hash)?).decrement();
+		match new_rc.serialize() {
+			Some(x) => tx.insert(&self.rc, &hash, x)?,
+			None => tx.remove(&self.rc, &hash)?,
+		};
 		Ok(matches!(new_rc, RcEntry::Deletable { .. }))
 	}
 
@@ -44,12 +56,15 @@ impl BlockRc {
 	/// deletion time has passed
 	pub(crate) fn clear_deleted_block_rc(&self, hash: &Hash) -> Result<(), Error> {
 		let now = now_msec();
-		self.rc.update_and_fetch(&hash, |rcval| {
-			let updated = match RcEntry::parse_opt(rcval) {
-				RcEntry::Deletable { at_time } if now > at_time => RcEntry::Absent,
-				v => v,
+		self.rc.db().transaction(|mut tx| {
+			let rcval = RcEntry::parse_opt(tx.get(&self.rc, &hash)?);
+			match rcval {
+				RcEntry::Deletable { at_time } if now > at_time => {
+					tx.remove(&self.rc, &hash)?;
+				}
+				_ => (),
 			};
-			updated.serialize()
+			tx.commit(())
 		})?;
 		Ok(())
 	}

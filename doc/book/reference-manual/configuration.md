@@ -1,6 +1,6 @@
 +++
 title = "Configuration file format"
-weight = 5
+weight = 20
 +++
 
 Here is an example `garage.toml` configuration file that illustrates all of the possible options:
@@ -8,6 +8,8 @@ Here is an example `garage.toml` configuration file that illustrates all of the 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
+
+db_engine = "lmdb"
 
 block_size = 1048576
 
@@ -47,6 +49,8 @@ root_domain = ".web.garage"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
+metrics_token = "cacce0b2de4bc2d9f5b5fdff551e01ac1496055aed248202d415398987e35f81"
+admin_token = "ae8cb40ea7368bbdbb6430af11cca7da833d3458a5f52086f4e805a570fb5c2a"
 trace_sink = "http://localhost:4317"
 ```
 
@@ -68,6 +72,47 @@ The directory in which Garage will store the data blocks of objects.
 This folder can be placed on an HDD. The space available for `data_dir`
 should be counted to determine a node's capacity
 when [adding it to the cluster layout](@/documentation/cookbook/real-world.md).
+
+### `db_engine` (since `v0.8.0`)
+
+By default, Garage uses the Sled embedded database library
+to store its metadata on-disk. Since `v0.8.0`, Garage can use alternative storage backends as follows:
+
+| DB engine | `db_engine` value | Database path |
+| --------- | ----------------- | ------------- |
+| [Sled](https://sled.rs) | `"sled"` | `<metadata_dir>/db/` |
+| [LMDB](https://www.lmdb.tech) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [Sqlite](https://sqlite.org) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+
+Performance characteristics of the different DB engines are as follows:
+
+- Sled: the default database engine, which tends to produce
+  large data files and also has performance issues, especially when the metadata folder
+  is on a traditionnal HDD and not on SSD.
+- LMDB: the recommended alternative on 64-bit systems,
+  much more space-efficiant and slightly faster. Note that the data format of LMDB is not portable
+  between architectures, so for instance the Garage database of an x86-64
+  node cannot be moved to an ARM64 node. Also note that, while LMDB can technically be used on 32-bit systems,
+  this will limit your node to very small database sizes due to how LMDB works; it is therefore not recommended.
+- Sqlite: Garage supports Sqlite as a storage backend for metadata,
+  however it may have issues and is also very slow in its current implementation,
+  so it is not recommended to be used for now.
+
+It is possible to convert Garage's metadata directory from one format to another with a small utility named `convert_db`,
+which can be downloaded at the following locations:
+[for amd64](https://garagehq.deuxfleurs.fr/_releases/convert_db/amd64/convert_db),
+[for i386](https://garagehq.deuxfleurs.fr/_releases/convert_db/i386/convert_db),
+[for arm64](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm64/convert_db),
+[for arm](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm/convert_db).
+The `convert_db` utility is used as folows:
+
+```
+convert-db -a <input db engine> -i <input db path> \
+  		   -b <output db engine> -o <output db path>
+```
+
+Make sure to specify the full database path as presented in the table above,
+and not just the path to the metadata directory.
 
 ### `block_size`
 
@@ -326,10 +371,24 @@ Garage has a few administration capabilities, in particular to allow remote moni
 ### `api_bind_addr`
 
 If specified, Garage will bind an HTTP server to this port and address, on
-which it will listen to requests for administration features. Currently,
-this endpoint only exposes Garage metrics in the Prometheus format at
-`/metrics`. This endpoint is not authenticated. In the future, bucket and
-access key management might be possible by REST calls to this endpoint.
+which it will listen to requests for administration features.
+See [administration API reference](@/documentation/reference-manual/admin-api.md) to learn more about these features.
+
+### `metrics_token` (since version 0.7.2)
+
+The token for accessing the Metrics endpoint. If this token is not set in
+the config file, the Metrics endpoint can be accessed without access
+control.
+
+You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
+
+### `admin_token` (since version 0.7.2)
+
+The token for accessing all of the other administration endpoints.  If this
+token is not set in the config file, access to these endpoints is disabled
+entirely.
+
+You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
 
 ### `trace_sink`
 

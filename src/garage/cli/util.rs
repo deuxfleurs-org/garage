@@ -1,11 +1,18 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
+use garage_util::background::*;
 use garage_util::crdt::*;
 use garage_util::data::Uuid;
 use garage_util::error::*;
+use garage_util::formater::format_table;
+use garage_util::time::*;
 
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
+use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
+
+use crate::cli::structs::WorkerListOpt;
 
 pub fn print_bucket_list(bl: Vec<Bucket>) {
 	println!("List of buckets:");
@@ -28,11 +35,12 @@ pub fn print_bucket_list(bl: Vec<Bucket>) {
 			[((k, n), _, _)] => format!("{}:{}", k, n),
 			s => format!("[{} local aliases]", s.len()),
 		};
+
 		table.push(format!(
 			"\t{}\t{}\t{}",
 			aliases.join(","),
 			local_aliases_n,
-			hex::encode(bucket.id)
+			hex::encode(bucket.id),
 		));
 	}
 	format_table(table);
@@ -120,7 +128,11 @@ pub fn print_key_info(key: &Key, relevant_buckets: &HashMap<Uuid, Bucket>) {
 	}
 }
 
-pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) {
+pub fn print_bucket_info(
+	bucket: &Bucket,
+	relevant_keys: &HashMap<String, Key>,
+	counters: &HashMap<String, i64>,
+) {
 	let key_name = |k| {
 		relevant_keys
 			.get(k)
@@ -132,7 +144,42 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 	match &bucket.state {
 		Deletable::Deleted => println!("Bucket is deleted."),
 		Deletable::Present(p) => {
-			println!("Website access: {}", p.website_config.get().is_some());
+			let size =
+				bytesize::ByteSize::b(counters.get(BYTES).cloned().unwrap_or_default() as u64);
+			println!(
+				"\nSize: {} ({})",
+				size.to_string_as(true),
+				size.to_string_as(false)
+			);
+			println!(
+				"Objects: {}",
+				counters.get(OBJECTS).cloned().unwrap_or_default()
+			);
+			println!(
+				"Unfinished multipart uploads: {}",
+				counters
+					.get(UNFINISHED_UPLOADS)
+					.cloned()
+					.unwrap_or_default()
+			);
+
+			println!("\nWebsite access: {}", p.website_config.get().is_some());
+
+			let quotas = p.quotas.get();
+			if quotas.max_size.is_some() || quotas.max_objects.is_some() {
+				println!("\nQuotas:");
+				if let Some(ms) = quotas.max_size {
+					let ms = bytesize::ByteSize::b(ms);
+					println!(
+						" maximum size: {} ({})",
+						ms.to_string_as(true),
+						ms.to_string_as(false)
+					);
+				}
+				if let Some(mo) = quotas.max_objects {
+					println!(" maximum number of objects: {}", mo);
+				}
+			}
 
 			println!("\nGlobal aliases:");
 			for (alias, _, active) in p.aliases.items().iter() {
@@ -173,42 +220,13 @@ pub fn print_bucket_info(bucket: &Bucket, relevant_keys: &HashMap<String, Key>) 
 	};
 }
 
-pub fn format_table(data: Vec<String>) {
-	let data = data
-		.iter()
-		.map(|s| s.split('\t').collect::<Vec<_>>())
-		.collect::<Vec<_>>();
-
-	let columns = data.iter().map(|row| row.len()).fold(0, std::cmp::max);
-	let mut column_size = vec![0; columns];
-
-	let mut out = String::new();
-
-	for row in data.iter() {
-		for (i, col) in row.iter().enumerate() {
-			column_size[i] = std::cmp::max(column_size[i], col.chars().count());
-		}
-	}
-
-	for row in data.iter() {
-		for (col, col_len) in row[..row.len() - 1].iter().zip(column_size.iter()) {
-			out.push_str(col);
-			(0..col_len - col.chars().count() + 2).for_each(|_| out.push(' '));
-		}
-		out.push_str(row[row.len() - 1]);
-		out.push('\n');
-	}
-
-	print!("{}", out);
-}
-
 pub fn find_matching_node(
 	cand: impl std::iter::Iterator<Item = Uuid>,
 	pattern: &str,
 ) -> Result<Uuid, Error> {
 	let mut candidates = vec![];
 	for c in cand {
-		if hex::encode(&c).starts_with(&pattern) {
+		if hex::encode(&c).starts_with(&pattern) && !candidates.contains(&c) {
 			candidates.push(c);
 		}
 	}
@@ -221,4 +239,57 @@ pub fn find_matching_node(
 	} else {
 		Ok(candidates[0])
 	}
+}
+
+pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
+	let mut wi = wi.into_iter().collect::<Vec<_>>();
+	wi.sort_by_key(|(tid, info)| {
+		(
+			match info.state {
+				WorkerState::Busy | WorkerState::Throttled(_) => 0,
+				WorkerState::Idle => 1,
+				WorkerState::Done => 2,
+			},
+			*tid,
+		)
+	});
+
+	let mut table = vec![];
+	for (tid, info) in wi.iter() {
+		if wlo.busy && !matches!(info.state, WorkerState::Busy | WorkerState::Throttled(_)) {
+			continue;
+		}
+		if wlo.errors && info.errors == 0 {
+			continue;
+		}
+
+		table.push(format!("{}\t{}\t{}", tid, info.state, info.name));
+		if let Some(i) = &info.info {
+			table.push(format!("\t\t  {}", i));
+		}
+		let tf = timeago::Formatter::new();
+		let (err_ago, err_msg) = info
+			.last_error
+			.as_ref()
+			.map(|(m, t)| {
+				(
+					tf.convert(Duration::from_millis(now_msec() - t)),
+					m.as_str(),
+				)
+			})
+			.unwrap_or(("(?) ago".into(), "(?)"));
+		if info.consecutive_errors > 0 {
+			table.push(format!(
+				"\t\t  {} consecutive errors ({} total), last {}",
+				info.consecutive_errors, info.errors, err_ago,
+			));
+			table.push(format!("\t\t  {}", err_msg));
+		} else if info.errors > 0 {
+			table.push(format!("\t\t  ({} errors, last {})", info.errors, err_ago,));
+			if wlo.errors {
+				table.push(format!("\t\t  {}", err_msg));
+			}
+		}
+	}
+	format_table(table);
 }

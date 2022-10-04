@@ -16,7 +16,7 @@ The migration steps are as follows:
 1. Do `garage repair --all-nodes --yes tables` and `garage repair --all-nodes --yes blocks`,
    check the logs and check that all data seems to be synced correctly between
    nodes. If you have time, do additional checks (`scrub`, `block_refs`, etc.)
-2. Disable api and web access. Garage does not support disabling
+2. Disable API and web access. Garage does not support disabling
    these endpoints but you can change the port number or stop your reverse
    proxy for instance.
 3. Check once again that your cluster is healty. Run again `garage repair --all-nodes --yes tables` which is quick.

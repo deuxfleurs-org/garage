@@ -10,7 +10,7 @@ pub fn build_client(instance: &Instance) -> Client {
 		None,
 		"garage-integ-test",
 	);
-	let endpoint = Endpoint::immutable(instance.uri());
+	let endpoint = Endpoint::immutable(instance.s3_uri());
 
 	let config = Config::builder()
 		.region(super::REGION)

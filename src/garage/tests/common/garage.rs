@@ -22,7 +22,9 @@ pub struct Instance {
 	process: process::Child,
 	pub path: PathBuf,
 	pub key: Key,
-	pub api_port: u16,
+	pub s3_port: u16,
+	pub k2v_port: u16,
+	pub web_port: u16,
 }
 
 impl Instance {
@@ -58,8 +60,11 @@ rpc_secret = "{secret}"
 
 [s3_api]
 s3_region = "{region}"
-api_bind_addr = "127.0.0.1:{api_port}"
+api_bind_addr = "127.0.0.1:{s3_port}"
 root_domain = ".s3.garage"
+
+[k2v_api]
+api_bind_addr = "127.0.0.1:{k2v_port}"
 
 [s3_web]
 bind_addr = "127.0.0.1:{web_port}"
@@ -72,10 +77,11 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			path = path.display(),
 			secret = GARAGE_TEST_SECRET,
 			region = super::REGION,
-			api_port = port,
-			rpc_port = port + 1,
-			web_port = port + 2,
-			admin_port = port + 3,
+			s3_port = port,
+			k2v_port = port + 1,
+			rpc_port = port + 2,
+			web_port = port + 3,
+			admin_port = port + 4,
 		);
 		fs::write(path.join("config.toml"), config).expect("Could not write garage config file");
 
@@ -88,7 +94,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			.arg("server")
 			.stdout(stdout)
 			.stderr(stderr)
-			.env("RUST_LOG", "garage=info,garage_api=debug")
+			.env("RUST_LOG", "garage=info,garage_api=trace")
 			.spawn()
 			.expect("Could not start garage");
 
@@ -96,7 +102,9 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			process: child,
 			path,
 			key: Key::default(),
-			api_port: port,
+			s3_port: port,
+			k2v_port: port + 1,
+			web_port: port + 3,
 		}
 	}
 
@@ -147,8 +155,14 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		String::from_utf8(output.stdout).unwrap()
 	}
 
-	pub fn uri(&self) -> http::Uri {
-		format!("http://127.0.0.1:{api_port}", api_port = self.api_port)
+	pub fn s3_uri(&self) -> http::Uri {
+		format!("http://127.0.0.1:{s3_port}", s3_port = self.s3_port)
+			.parse()
+			.expect("Could not build garage endpoint URI")
+	}
+
+	pub fn k2v_uri(&self) -> http::Uri {
+		format!("http://127.0.0.1:{k2v_port}", k2v_port = self.k2v_port)
 			.parse()
 			.expect("Could not build garage endpoint URI")
 	}

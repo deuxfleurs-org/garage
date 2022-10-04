@@ -1,6 +1,6 @@
 [package]
 name = "garage_rpc"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,8 +14,7 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { version = "0.7.0", path = "../util" }
-garage_admin = { version = "0.7.0", path = "../admin" }
+garage_util = { version = "0.8.0", path = "../util" }
 
 arc-swap = "1.0"
 bytes = "1.0"
@@ -47,11 +46,11 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 tokio-stream = { version = "0.1", features = ["net"] }
 opentelemetry = "0.17"
 
-#netapp = { version = "0.3.0", git = "https://git.deuxfleurs.fr/lx/netapp" }
-#netapp = { version = "0.4", path = "../../../netapp", features = ["telemetry"] }
-netapp = { version = "0.4.2", features = ["telemetry"] }
+netapp = { version = "0.5.2", features = ["telemetry"] }
 
 hyper = { version = "0.14", features = ["client", "http1", "runtime", "tcp"] }
 
+
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "openssl", "schemars" ]
+system-libs = [ "sodiumoxide/use-pkg-config" ]

@@ -1,6 +1,6 @@
 [package]
 name = "garage_table"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,18 +14,18 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_rpc = { version = "0.7.0", path = "../rpc" }
-garage_util = { version = "0.7.0", path = "../util" }
+garage_db = { version = "0.8.0", path = "../db" }
+garage_rpc = { version = "0.8.0", path = "../rpc" }
+garage_util = { version = "0.8.0", path = "../util" }
 
 opentelemetry = "0.17"
 
 async-trait = "0.1.7"
 bytes = "1.0"
+hex = "0.4"
 hexdump = "0.1"
 tracing = "0.1.30"
 rand = "0.8"
-
-sled = "0.34"
 
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }

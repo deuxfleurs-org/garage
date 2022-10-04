@@ -11,14 +11,15 @@ use garage_util::data::Hash;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use super::signing_hmac;
-use super::{LONG_DATETIME, SHORT_DATE};
+use super::LONG_DATETIME;
+use super::{compute_scope, signing_hmac};
 
 use crate::encoding::uri_encode;
-use crate::error::*;
+use crate::signature::error::*;
 
 pub async fn check_payload_signature(
 	garage: &Garage,
+	service: &str,
 	request: &Request<Body>,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
@@ -64,6 +65,7 @@ pub async fn check_payload_signature(
 
 	let key = verify_v4(
 		garage,
+		service,
 		&authorization.credential,
 		&authorization.date,
 		&authorization.signature,
@@ -103,7 +105,7 @@ fn parse_authorization(
 	let (auth_kind, rest) = authorization.split_at(first_space);
 
 	if auth_kind != "AWS4-HMAC-SHA256" {
-		return Err(Error::BadRequest("Unsupported authorization method".into()));
+		return Err(Error::bad_request("Unsupported authorization method"));
 	}
 
 	let mut auth_params = HashMap::new();
@@ -127,10 +129,11 @@ fn parse_authorization(
 	let date = headers
 		.get("x-amz-date")
 		.ok_or_bad_request("Missing X-Amz-Date field")
+		.map_err(Error::from)
 		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::hours(24) {
-		return Err(Error::BadRequest("Date is too old".to_string()));
+		return Err(Error::bad_request("Date is too old".to_string()));
 	}
 
 	let auth = Authorization {
@@ -154,7 +157,7 @@ fn parse_query_authorization(
 	headers: &HashMap<String, String>,
 ) -> Result<Authorization, Error> {
 	if algorithm != "AWS4-HMAC-SHA256" {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"Unsupported authorization method".to_string(),
 		));
 	}
@@ -177,10 +180,10 @@ fn parse_query_authorization(
 		.get("x-amz-expires")
 		.ok_or_bad_request("X-Amz-Expires not found in query parameters")?
 		.parse()
-		.map_err(|_| Error::BadRequest("X-Amz-Expires is not a number".to_string()))?;
+		.map_err(|_| Error::bad_request("X-Amz-Expires is not a number".to_string()))?;
 
 	if duration > 7 * 24 * 3600 {
-		return Err(Error::BadRequest(
+		return Err(Error::bad_request(
 			"X-Amz-Exprires may not exceed a week".to_string(),
 		));
 	}
@@ -188,10 +191,11 @@ fn parse_query_authorization(
 	let date = headers
 		.get("x-amz-date")
 		.ok_or_bad_request("Missing X-Amz-Date field")
+		.map_err(Error::from)
 		.and_then(|d| parse_date(d))?;
 
 	if Utc::now() - date > Duration::seconds(duration) {
-		return Err(Error::BadRequest("Date is too old".to_string()));
+		return Err(Error::bad_request("Date is too old".to_string()));
 	}
 
 	Ok(Authorization {
@@ -281,6 +285,7 @@ pub fn parse_date(date: &str) -> Result<DateTime<Utc>, Error> {
 
 pub async fn verify_v4(
 	garage: &Garage,
+	service: &str,
 	credential: &str,
 	date: &DateTime<Utc>,
 	signature: &str,
@@ -288,11 +293,7 @@ pub async fn verify_v4(
 ) -> Result<Key, Error> {
 	let (key_id, scope) = parse_credential(credential)?;
 
-	let scope_expected = format!(
-		"{}/{}/s3/aws4_request",
-		date.format(SHORT_DATE),
-		garage.config.s3_api.s3_region
-	);
+	let scope_expected = compute_scope(date, &garage.config.s3_api.s3_region, service);
 	if scope != scope_expected {
 		return Err(Error::AuthorizationHeaderMalformed(scope.to_string()));
 	}
@@ -302,20 +303,20 @@ pub async fn verify_v4(
 		.get(&EmptyKey, &key_id)
 		.await?
 		.filter(|k| !k.state.is_deleted())
-		.ok_or_else(|| Error::Forbidden(format!("No such key: {}", &key_id)))?;
+		.ok_or_else(|| Error::forbidden(format!("No such key: {}", &key_id)))?;
 	let key_p = key.params().unwrap();
 
 	let mut hmac = signing_hmac(
 		date,
 		&key_p.secret_key,
 		&garage.config.s3_api.s3_region,
-		"s3",
+		service,
 	)
 	.ok_or_internal_error("Unable to build signing HMAC")?;
 	hmac.update(payload);
 	let our_signature = hex::encode(hmac.finalize().into_bytes());
 	if signature != our_signature {
-		return Err(Error::Forbidden("Invalid signature".to_string()));
+		return Err(Error::forbidden("Invalid signature".to_string()));
 	}
 
 	Ok(key)

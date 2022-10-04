@@ -3,7 +3,7 @@ title = "Websites (Hugo, Jekyll, Publii...)"
 weight = 10
 +++
 
-Garage is also suitable to host static websites.
+Garage is also suitable [to host static websites](@/documentation/cookbook/exposing-websites.md).
 While they can be deployed with traditional CLI tools, some static website generators have integrated options to ease your workflow.
 
 | Name | Status | Note |

@@ -1,23 +1,23 @@
 +++
 title = "Goals and use cases"
-weight = 5
+weight = 10
 +++
 
 ## Goals and non-goals
 
 Garage is a lightweight geo-distributed data store that implements the
 [Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
-object storage protocole. It enables applications to store large blobs such
+object storage protocol. It enables applications to store large blobs such
 as pictures, video, images, documents, etc., in a redundant multi-node
 setting. S3 is versatile enough to also be used to publish a static
 website.
 
 Garage is an opinionated object storage solutoin, we focus on the following **desirable properties**:
 
+  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
   - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
   - **Highly resilient**: highly resilient to network failures, network latency, disk failures, sysadmin failures.
   - **Simple**: simple to understand, simple to operate, simple to debug.
-  - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
 
 We also noted that the pursuit of some other goals are detrimental to our initial goals.
 The following has been identified as **non-goals** (if these points matter to you, you should not use Garage):

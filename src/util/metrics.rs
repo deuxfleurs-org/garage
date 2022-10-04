@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::Instant;
 
 use futures::{future::BoxFuture, Future, FutureExt};
 use rand::Rng;
@@ -28,10 +28,12 @@ where
 		attributes: &'a [KeyValue],
 	) -> BoxFuture<'a, Self::Output> {
 		async move {
-			let request_start = SystemTime::now();
+			let request_start = Instant::now();
 			let res = self.await;
 			r.record(
-				request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()),
+				Instant::now()
+					.saturating_duration_since(request_start)
+					.as_secs_f64(),
 				attributes,
 			);
 			res
@@ -41,9 +43,13 @@ where
 
 	fn bound_record_duration(self, r: &'a BoundValueRecorder<f64>) -> BoxFuture<'a, Self::Output> {
 		async move {
-			let request_start = SystemTime::now();
+			let request_start = Instant::now();
 			let res = self.await;
-			r.record(request_start.elapsed().map_or(0.0, |d| d.as_secs_f64()));
+			r.record(
+				Instant::now()
+					.saturating_duration_since(request_start)
+					.as_secs_f64(),
+			);
 			res
 		}
 		.boxed()

@@ -7,7 +7,7 @@ use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
 use futures_util::future::FutureExt;
 use tokio::select;
-use tokio::sync::{watch, Semaphore};
+use tokio::sync::watch;
 
 use opentelemetry::KeyValue;
 use opentelemetry::{
@@ -15,10 +15,14 @@ use opentelemetry::{
 	Context,
 };
 
-pub use netapp::endpoint::{Endpoint, EndpointHandler, Message as Rpc};
+pub use netapp::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
+use netapp::message::IntoReq;
+pub use netapp::message::{
+	Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH, PRIO_NORMAL,
+	PRIO_SECONDARY,
+};
 use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-pub use netapp::proto::*;
-pub use netapp::{NetApp, NodeID};
+pub use netapp::{self, NetApp, NodeID};
 
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -28,34 +32,37 @@ use garage_util::metrics::RecordDuration;
 use crate::metrics::RpcMetrics;
 use crate::ring::Ring;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
-
-// Try to never have more than 200MB of outgoing requests
-// buffered at the same time. Other requests are queued until
-// space is freed.
-const REQUEST_BUFFER_SIZE: usize = 200 * 1024 * 1024;
+// Default RPC timeout = 5 minutes
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Strategy to apply when making RPC
 #[derive(Copy, Clone)]
 pub struct RequestStrategy {
-	/// Max time to wait for reponse
-	pub rs_timeout: Duration,
 	/// Min number of response to consider the request successful
 	pub rs_quorum: Option<usize>,
 	/// Should requests be dropped after enough response are received
 	pub rs_interrupt_after_quorum: bool,
 	/// Request priority
 	pub rs_priority: RequestPriority,
+	/// Custom timeout for this request
+	rs_timeout: Timeout,
+}
+
+#[derive(Copy, Clone)]
+enum Timeout {
+	None,
+	Default,
+	Custom(Duration),
 }
 
 impl RequestStrategy {
 	/// Create a RequestStrategy with default timeout and not interrupting when quorum reached
 	pub fn with_priority(prio: RequestPriority) -> Self {
 		RequestStrategy {
-			rs_timeout: DEFAULT_TIMEOUT,
 			rs_quorum: None,
 			rs_interrupt_after_quorum: false,
 			rs_priority: prio,
+			rs_timeout: Timeout::Default,
 		}
 	}
 	/// Set quorum to be reached for request
@@ -63,15 +70,20 @@ impl RequestStrategy {
 		self.rs_quorum = Some(quorum);
 		self
 	}
-	/// Set timeout of the strategy
-	pub fn with_timeout(mut self, timeout: Duration) -> Self {
-		self.rs_timeout = timeout;
-		self
-	}
 	/// Set if requests can be dropped after quorum has been reached
 	/// In general true for read requests, and false for write
 	pub fn interrupt_after_quorum(mut self, interrupt: bool) -> Self {
 		self.rs_interrupt_after_quorum = interrupt;
+		self
+	}
+	/// Deactivate timeout for this request
+	pub fn without_timeout(mut self) -> Self {
+		self.rs_timeout = Timeout::None;
+		self
+	}
+	/// Set custom timeout for this request
+	pub fn with_custom_timeout(mut self, timeout: Duration) -> Self {
+		self.rs_timeout = Timeout::Custom(timeout);
 		self
 	}
 }
@@ -84,8 +96,8 @@ struct RpcHelperInner {
 	fullmesh: Arc<FullMeshPeeringStrategy>,
 	background: Arc<BackgroundRunner>,
 	ring: watch::Receiver<Arc<Ring>>,
-	request_buffer_semaphore: Arc<Semaphore>,
 	metrics: RpcMetrics,
+	rpc_timeout: Duration,
 }
 
 impl RpcHelper {
@@ -94,45 +106,35 @@ impl RpcHelper {
 		fullmesh: Arc<FullMeshPeeringStrategy>,
 		background: Arc<BackgroundRunner>,
 		ring: watch::Receiver<Arc<Ring>>,
+		rpc_timeout: Option<Duration>,
 	) -> Self {
-		let sem = Arc::new(Semaphore::new(REQUEST_BUFFER_SIZE));
-
-		let metrics = RpcMetrics::new(sem.clone());
+		let metrics = RpcMetrics::new();
 
 		Self(Arc::new(RpcHelperInner {
 			our_node_id,
 			fullmesh,
 			background,
 			ring,
-			request_buffer_semaphore: sem,
 			metrics,
+			rpc_timeout: rpc_timeout.unwrap_or(DEFAULT_TIMEOUT),
 		}))
 	}
 
-	pub async fn call<M, H, S>(
-		&self,
-		endpoint: &Endpoint<M, H>,
-		to: Uuid,
-		msg: M,
-		strat: RequestStrategy,
-	) -> Result<S, Error>
-	where
-		M: Rpc<Response = Result<S, Error>>,
-		H: EndpointHandler<M>,
-	{
-		self.call_arc(endpoint, to, Arc::new(msg), strat).await
+	pub fn rpc_timeout(&self) -> Duration {
+		self.0.rpc_timeout
 	}
 
-	pub async fn call_arc<M, H, S>(
+	pub async fn call<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
 		to: Uuid,
-		msg: Arc<M>,
+		msg: N,
 		strat: RequestStrategy,
 	) -> Result<S, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
-		H: EndpointHandler<M>,
+		N: IntoReq<M> + Send,
+		H: StreamingEndpointHandler<M>,
 	{
 		let metric_tags = [
 			KeyValue::new("rpc_endpoint", endpoint.path().to_string()),
@@ -140,29 +142,27 @@ impl RpcHelper {
 			KeyValue::new("to", format!("{:?}", to)),
 		];
 
-		let msg_size = rmp_to_vec_all_named(&msg)?.len() as u32;
-		let permit = self
-			.0
-			.request_buffer_semaphore
-			.acquire_many(msg_size)
-			.record_duration(&self.0.metrics.rpc_queueing_time, &metric_tags)
-			.await?;
-
 		self.0.metrics.rpc_counter.add(1, &metric_tags);
 
 		let node_id = to.into();
 		let rpc_call = endpoint
-			.call(&node_id, msg, strat.rs_priority)
+			.call_streaming(&node_id, msg, strat.rs_priority)
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
+
+		let timeout = async {
+			match strat.rs_timeout {
+				Timeout::None => futures::future::pending().await,
+				Timeout::Default => tokio::time::sleep(self.0.rpc_timeout).await,
+				Timeout::Custom(t) => tokio::time::sleep(t).await,
+			}
+		};
 
 		select! {
 			res = rpc_call => {
-				drop(permit);
-
 				if res.is_err() {
 					self.0.metrics.rpc_netapp_error_counter.add(1, &metric_tags);
 				}
-				let res = res?;
+				let res = res?.into_msg();
 
 				if res.is_err() {
 					self.0.metrics.rpc_garage_error_counter.add(1, &metric_tags);
@@ -170,46 +170,49 @@ impl RpcHelper {
 
 				Ok(res?)
 			}
-			_ = tokio::time::sleep(strat.rs_timeout) => {
-				drop(permit);
+			() = timeout => {
 				self.0.metrics.rpc_timeout_counter.add(1, &metric_tags);
 				Err(Error::Timeout)
 			}
 		}
 	}
 
-	pub async fn call_many<M, H, S>(
+	pub async fn call_many<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strat: RequestStrategy,
-	) -> Vec<(Uuid, Result<S, Error>)>
+	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
-		H: EndpointHandler<M>,
+		N: IntoReq<M>,
+		H: StreamingEndpointHandler<M>,
 	{
-		let msg = Arc::new(msg);
+		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+
 		let resps = join_all(
 			to.iter()
-				.map(|to| self.call_arc(endpoint, *to, msg.clone(), strat)),
+				.map(|to| self.call(endpoint, *to, msg.clone(), strat)),
 		)
 		.await;
-		to.iter()
+		Ok(to
+			.iter()
 			.cloned()
 			.zip(resps.into_iter())
-			.collect::<Vec<_>>()
+			.collect::<Vec<_>>())
 	}
 
-	pub async fn broadcast<M, H, S>(
+	pub async fn broadcast<M, N, H, S>(
 		&self,
 		endpoint: &Endpoint<M, H>,
-		msg: M,
+		msg: N,
 		strat: RequestStrategy,
-	) -> Vec<(Uuid, Result<S, Error>)>
+	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
-		H: EndpointHandler<M>,
+		N: IntoReq<M>,
+		H: StreamingEndpointHandler<M>,
 	{
 		let to = self
 			.0
@@ -223,16 +226,17 @@ impl RpcHelper {
 
 	/// Make a RPC call to multiple servers, returning either a Vec of responses,
 	/// or an error if quorum could not be reached due to too many errors
-	pub async fn try_call_many<M, H, S>(
+	pub async fn try_call_many<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strategy: RequestStrategy,
 	) -> Result<Vec<S>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
-		H: EndpointHandler<M> + 'static,
+		N: IntoReq<M>,
+		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
@@ -262,20 +266,21 @@ impl RpcHelper {
 			.await
 	}
 
-	async fn try_call_many_internal<M, H, S>(
+	async fn try_call_many_internal<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
-		msg: M,
+		msg: N,
 		strategy: RequestStrategy,
 		quorum: usize,
 	) -> Result<Vec<S>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
-		H: EndpointHandler<M> + 'static,
+		N: IntoReq<M>,
+		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
-		let msg = Arc::new(msg);
+		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
 
 		// Build future for each request
 		// They are not started now: they are added below in a FuturesUnordered
@@ -285,7 +290,7 @@ impl RpcHelper {
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();
 			(to, async move {
-				self2.call_arc(&endpoint2, to, msg, strategy).await
+				self2.call(&endpoint2, to, msg, strategy).await
 			})
 		});
 
@@ -299,47 +304,19 @@ impl RpcHelper {
 			// to reach a quorum, priorizing nodes with the lowest latency.
 			// When there are errors, we start new requests to compensate.
 
-			// Retrieve some status variables that we will use to sort requests
-			let peer_list = self.0.fullmesh.get_peer_list();
-			let ring: Arc<Ring> = self.0.ring.borrow().clone();
-			let our_zone = match ring.layout.node_role(&self.0.our_node_id) {
-				Some(pc) => &pc.zone,
-				None => "",
-			};
-
-			// Augment requests with some information used to sort them.
-			// The tuples are as follows:
-			//         (is another node?, is another zone?, latency, node ID, request future)
-			// We store all of these tuples in a vec that we can sort.
-			// By sorting this vec, we priorize ourself, then nodes in the same zone,
-			// and within a same zone we priorize nodes with the lowest latency.
-			let mut requests = requests
-				.map(|(to, fut)| {
-					let peer_zone = match ring.layout.node_role(&to) {
-						Some(pc) => &pc.zone,
-						None => "",
-					};
-					let peer_avg_ping = peer_list
-						.iter()
-						.find(|x| x.id.as_ref() == to.as_slice())
-						.and_then(|pi| pi.avg_ping)
-						.unwrap_or_else(|| Duration::from_secs(1));
-					(
-						to != self.0.our_node_id,
-						peer_zone != our_zone,
-						peer_avg_ping,
-						to,
-						fut,
-					)
-				})
+			// Reorder requests to priorize closeness / low latency
+			let request_order = self.request_order(to);
+			let mut ord_requests = vec![(); request_order.len()]
+				.into_iter()
+				.map(|_| None)
 				.collect::<Vec<_>>();
-
-			// Sort requests by (priorize ourself, priorize same zone, priorize low latency)
-			requests
-				.sort_by_key(|(diffnode, diffzone, ping, _to, _fut)| (*diffnode, *diffzone, *ping));
+			for (to, fut) in requests {
+				let i = request_order.iter().position(|x| *x == to).unwrap();
+				ord_requests[i] = Some((to, fut));
+			}
 
 			// Make an iterator to take requests in their sorted order
-			let mut requests = requests.into_iter();
+			let mut requests = ord_requests.into_iter().map(Option::unwrap);
 
 			// resp_stream will contain all of the requests that are currently in flight.
 			// (for the moment none, they will be added in the loop below)
@@ -350,7 +327,7 @@ impl RpcHelper {
 				// If the current set of requests that are running is not enough to possibly
 				// reach quorum, start some new requests.
 				while successes.len() + resp_stream.len() < quorum {
-					if let Some((_, _, _, req_to, fut)) = requests.next() {
+					if let Some((req_to, fut)) = requests.next() {
 						let tracer = opentelemetry::global::tracer("garage");
 						let span = tracer.start(format!("RPC to {:?}", req_to));
 						resp_stream.push(tokio::spawn(
@@ -419,5 +396,50 @@ impl RpcHelper {
 			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
 			Err(Error::Quorum(quorum, successes.len(), to.len(), errors))
 		}
+	}
+
+	pub fn request_order(&self, nodes: &[Uuid]) -> Vec<Uuid> {
+		// Retrieve some status variables that we will use to sort requests
+		let peer_list = self.0.fullmesh.get_peer_list();
+		let ring: Arc<Ring> = self.0.ring.borrow().clone();
+		let our_zone = match ring.layout.node_role(&self.0.our_node_id) {
+			Some(pc) => &pc.zone,
+			None => "",
+		};
+
+		// Augment requests with some information used to sort them.
+		// The tuples are as follows:
+		//         (is another node?, is another zone?, latency, node ID, request future)
+		// We store all of these tuples in a vec that we can sort.
+		// By sorting this vec, we priorize ourself, then nodes in the same zone,
+		// and within a same zone we priorize nodes with the lowest latency.
+		let mut nodes = nodes
+			.iter()
+			.map(|to| {
+				let peer_zone = match ring.layout.node_role(to) {
+					Some(pc) => &pc.zone,
+					None => "",
+				};
+				let peer_avg_ping = peer_list
+					.iter()
+					.find(|x| x.id.as_ref() == to.as_slice())
+					.and_then(|pi| pi.avg_ping)
+					.unwrap_or_else(|| Duration::from_secs(10));
+				(
+					*to != self.0.our_node_id,
+					peer_zone != our_zone,
+					peer_avg_ping,
+					*to,
+				)
+			})
+			.collect::<Vec<_>>();
+
+		// Sort requests by (priorize ourself, priorize same zone, priorize low latency)
+		nodes.sort_by_key(|(diffnode, diffzone, ping, _to)| (*diffnode, *diffzone, *ping));
+
+		nodes
+			.into_iter()
+			.map(|(_, _, _, to)| to)
+			.collect::<Vec<_>>()
 	}
 }

@@ -3,11 +3,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde::de::Error as SerdeError;
 use serde::{de, Deserialize};
-
-use netapp::util::parse_and_resolve_peer_addr;
-use netapp::NodeID;
 
 use crate::error::Error;
 
@@ -22,10 +18,6 @@ pub struct Config {
 	/// Size of data blocks to save to disk
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,
-
-	/// Size of data blocks to save to disk
-	#[serde(default = "default_block_manager_background_tranquility")]
-	pub block_manager_background_tranquility: u32,
 
 	/// Replication mode. Supported values:
 	/// - none, 1 -> no replication
@@ -47,11 +39,16 @@ pub struct Config {
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
 	/// Public IP address of this node
-	pub rpc_public_addr: Option<SocketAddr>,
+	pub rpc_public_addr: Option<String>,
+
+	/// Timeout for Netapp's ping messagess
+	pub rpc_ping_timeout_msec: Option<u64>,
+	/// Timeout for Netapp RPC calls
+	pub rpc_timeout_msec: Option<u64>,
 
 	/// Bootstrap peers RPC address
-	#[serde(deserialize_with = "deserialize_vec_addr", default)]
-	pub bootstrap_peers: Vec<(NodeID, SocketAddr)>,
+	#[serde(default)]
+	pub bootstrap_peers: Vec<String>,
 	/// Consul host to connect to to discover more peers
 	pub consul_host: Option<String>,
 	/// Consul service name to use
@@ -64,19 +61,27 @@ pub struct Config {
 	#[serde(default)]
 	pub kubernetes_skip_crd: bool,
 
+	// -- DB
+	/// Database engine to use for metadata (options: sled, sqlite, lmdb)
+	#[serde(default = "default_db_engine")]
+	pub db_engine: String,
+
 	/// Sled cache size, in bytes
 	#[serde(default = "default_sled_cache_capacity")]
 	pub sled_cache_capacity: u64,
-
 	/// Sled flush interval in milliseconds
 	#[serde(default = "default_sled_flush_every_ms")]
 	pub sled_flush_every_ms: u64,
 
+	// -- APIs
 	/// Configuration for S3 api
-	pub s3_api: ApiConfig,
+	pub s3_api: S3ApiConfig,
+
+	/// Configuration for K2V api
+	pub k2v_api: Option<K2VApiConfig>,
 
 	/// Configuration for serving files as normal web server
-	pub s3_web: WebConfig,
+	pub s3_web: Option<WebConfig>,
 
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
@@ -85,14 +90,21 @@ pub struct Config {
 
 /// Configuration for S3 api
 #[derive(Deserialize, Debug, Clone)]
-pub struct ApiConfig {
+pub struct S3ApiConfig {
 	/// Address and port to bind for api serving
-	pub api_bind_addr: SocketAddr,
+	pub api_bind_addr: Option<SocketAddr>,
 	/// S3 region to use
 	pub s3_region: String,
 	/// Suffix to remove from domain name to find bucket. If None,
 	/// vhost-style S3 request are disabled
 	pub root_domain: Option<String>,
+}
+
+/// Configuration for K2V api
+#[derive(Deserialize, Debug, Clone)]
+pub struct K2VApiConfig {
+	/// Address and port to bind for api serving
+	pub api_bind_addr: SocketAddr,
 }
 
 /// Configuration for serving files as normal web server
@@ -109,8 +121,16 @@ pub struct WebConfig {
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
 	pub api_bind_addr: Option<SocketAddr>,
+	/// Bearer token to use to scrape metrics
+	pub metrics_token: Option<String>,
+	/// Bearer token to use to access Admin API endpoints
+	pub admin_token: Option<String>,
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
+}
+
+fn default_db_engine() -> String {
+	"sled".into()
 }
 
 fn default_sled_cache_capacity() -> u64 {
@@ -121,9 +141,6 @@ fn default_sled_flush_every_ms() -> u64 {
 }
 fn default_block_size() -> usize {
 	1048576
-}
-fn default_block_manager_background_tranquility() -> u32 {
-	2
 }
 
 /// Read and parse configuration
@@ -136,24 +153,6 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	file.read_to_string(&mut config)?;
 
 	Ok(toml::from_str(&config)?)
-}
-
-fn deserialize_vec_addr<'de, D>(deserializer: D) -> Result<Vec<(NodeID, SocketAddr)>, D::Error>
-where
-	D: de::Deserializer<'de>,
-{
-	let mut ret = vec![];
-
-	for peer in <Vec<&str>>::deserialize(deserializer)? {
-		let (pubkey, addrs) = parse_and_resolve_peer_addr(peer).ok_or_else(|| {
-			D::Error::custom(format!("Unable to parse or resolve peer: {}", peer))
-		})?;
-		for ip in addrs {
-			ret.push((pubkey, ip));
-		}
-	}
-
-	Ok(ret)
 }
 
 fn default_compression() -> Option<i32> {

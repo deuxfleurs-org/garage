@@ -1,0 +1,37 @@
+[package]
+name = "k2v-client"
+version = "0.0.1"
+authors = ["Trinity Pointard <trinity.pointard@gmail.com>", "Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+license = "AGPL-3.0"
+description = "Client library for the Garage K2V protocol"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+readme = "../../README.md"
+
+[dependencies]
+base64 = "0.13.0"
+http = "0.2.6"
+log = "0.4"
+rusoto_core = "0.48.0"
+rusoto_credential = "0.48.0"
+rusoto_signature = "0.48.0"
+serde = "1.0.137"
+serde_json = "1.0.81"
+thiserror = "1.0.31"
+tokio = "1.17.0"
+
+# cli deps
+clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
+garage_util = { version = "0.8.0", path = "../util", optional = true }
+
+
+[features]
+cli = ["clap", "tokio/fs", "tokio/io-std", "garage_util"]
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "k2v-cli"
+path = "bin/k2v-cli.rs"
+required-features = ["cli"]

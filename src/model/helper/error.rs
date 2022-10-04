@@ -10,6 +10,16 @@ pub enum Error {
 
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+
+	/// Bucket name is not valid according to AWS S3 specs
+	#[error(display = "Invalid bucket name: {}", _0)]
+	InvalidBucketName(String),
+
+	#[error(display = "Access key not found: {}", _0)]
+	NoSuchAccessKey(String),
+
+	#[error(display = "Bucket not found: {}", _0)]
+	NoSuchBucket(String),
 }
 
 impl From<netapp::error::Error> for Error {

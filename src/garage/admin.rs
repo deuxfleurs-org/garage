@@ -15,34 +15,45 @@ use garage_table::*;
 
 use garage_rpc::*;
 
+use garage_block::repair::ScrubWorkerCommand;
+
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
-use garage_model::object_table::ObjectFilter;
 use garage_model::permission::*;
 
 use crate::cli::*;
-use crate::repair::Repair;
+use crate::repair::online::launch_online_repair;
 
 pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum AdminRpc {
 	BucketOperation(BucketOperation),
 	KeyOperation(KeyOperation),
 	LaunchRepair(RepairOpt),
 	Migrate(MigrateOpt),
 	Stats(StatsOpt),
+	Worker(WorkerOpt),
 
 	// Replies
 	Ok(String),
 	BucketList(Vec<Bucket>),
-	BucketInfo(Bucket, HashMap<String, Key>),
+	BucketInfo {
+		bucket: Bucket,
+		relevant_keys: HashMap<String, Key>,
+		counters: HashMap<String, i64>,
+	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
+	WorkerList(
+		HashMap<usize, garage_util::background::WorkerInfo>,
+		WorkerListOpt,
+	),
 }
 
 impl Rpc for AdminRpc {
@@ -73,6 +84,7 @@ impl AdminRpcHandler {
 			BucketOperation::Allow(query) => self.handle_bucket_allow(query).await,
 			BucketOperation::Deny(query) => self.handle_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.handle_bucket_website(query).await,
+			BucketOperation::SetQuotas(query) => self.handle_bucket_set_quotas(query).await,
 		}
 	}
 
@@ -80,8 +92,15 @@ impl AdminRpcHandler {
 		let buckets = self
 			.garage
 			.bucket_table
-			.get_range(&EmptyKey, None, Some(DeletedFilter::NotDeleted), 10000)
+			.get_range(
+				&EmptyKey,
+				None,
+				Some(DeletedFilter::NotDeleted),
+				10000,
+				EnumerationOrder::Forward,
+			)
 			.await?;
+
 		Ok(AdminRpc::BucketList(buckets))
 	}
 
@@ -98,6 +117,15 @@ impl AdminRpcHandler {
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)
 			.await?;
+
+		let counters = self
+			.garage
+			.object_counter_table
+			.table
+			.get(&bucket_id, &EmptyKey)
+			.await?
+			.map(|x| x.filtered_values(&self.garage.system.ring.borrow()))
+			.unwrap_or_default();
 
 		let mut relevant_keys = HashMap::new();
 		for (k, _) in bucket
@@ -134,7 +162,11 @@ impl AdminRpcHandler {
 			}
 		}
 
-		Ok(AdminRpc::BucketInfo(bucket, relevant_keys))
+		Ok(AdminRpc::BucketInfo {
+			bucket,
+			relevant_keys,
+			counters,
+		})
 	}
 
 	#[allow(clippy::ptr_arg)]
@@ -207,12 +239,7 @@ impl AdminRpcHandler {
 		}
 
 		// Check bucket is empty
-		let objects = self
-			.garage
-			.object_table
-			.get_range(&bucket_id, None, Some(ObjectFilter::IsData), 10)
-			.await?;
-		if !objects.is_empty() {
+		if !helper.is_bucket_empty(bucket_id).await? {
 			return Err(Error::BadRequest(format!(
 				"Bucket {} is not empty",
 				query.name
@@ -249,6 +276,7 @@ impl AdminRpcHandler {
 
 	async fn handle_alias_bucket(&self, query: &AliasBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.existing_bucket)
@@ -256,7 +284,7 @@ impl AdminRpcHandler {
 			.ok_or_bad_request("Bucket not found")?;
 
 		if let Some(key_pattern) = &query.local {
-			let key = helper.get_existing_matching_key(key_pattern).await?;
+			let key = key_helper.get_existing_matching_key(key_pattern).await?;
 
 			helper
 				.set_local_bucket_alias(bucket_id, &key.key_id, &query.new_name)
@@ -278,9 +306,10 @@ impl AdminRpcHandler {
 
 	async fn handle_unalias_bucket(&self, query: &UnaliasBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		if let Some(key_pattern) = &query.local {
-			let key = helper.get_existing_matching_key(key_pattern).await?;
+			let key = key_helper.get_existing_matching_key(key_pattern).await?;
 
 			let bucket_id = key
 				.state
@@ -319,12 +348,15 @@ impl AdminRpcHandler {
 
 	async fn handle_bucket_allow(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		let allow_read = query.read || key.allow_read(&bucket_id);
 		let allow_write = query.write || key.allow_write(&bucket_id);
@@ -351,12 +383,15 @@ impl AdminRpcHandler {
 
 	async fn handle_bucket_deny(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
 		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
 		let bucket_id = helper
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		let allow_read = !query.read && key.allow_read(&bucket_id);
 		let allow_write = !query.write && key.allow_write(&bucket_id);
@@ -423,6 +458,60 @@ impl AdminRpcHandler {
 		Ok(AdminRpc::Ok(msg))
 	}
 
+	async fn handle_bucket_set_quotas(&self, query: &SetQuotasOpt) -> Result<AdminRpc, Error> {
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&query.bucket)
+			.await?
+			.ok_or_bad_request("Bucket not found")?;
+
+		let mut bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+		let bucket_state = bucket.state.as_option_mut().unwrap();
+
+		if query.max_size.is_none() && query.max_objects.is_none() {
+			return Err(Error::BadRequest(
+				"You must specify either --max-size or --max-objects (or both) for this command to do something.".to_string(),
+			));
+		}
+
+		let mut quotas = bucket_state.quotas.get().clone();
+
+		match query.max_size.as_ref().map(String::as_ref) {
+			Some("none") => quotas.max_size = None,
+			Some(v) => {
+				let bs = v
+					.parse::<bytesize::ByteSize>()
+					.ok_or_bad_request(format!("Invalid size specified: {}", v))?;
+				quotas.max_size = Some(bs.as_u64());
+			}
+			_ => (),
+		}
+
+		match query.max_objects.as_ref().map(String::as_ref) {
+			Some("none") => quotas.max_objects = None,
+			Some(v) => {
+				let mo = v
+					.parse::<u64>()
+					.ok_or_bad_request(format!("Invalid number specified: {}", v))?;
+				quotas.max_objects = Some(mo);
+			}
+			_ => (),
+		}
+
+		bucket_state.quotas.update(quotas);
+		self.garage.bucket_table.insert(&bucket).await?;
+
+		Ok(AdminRpc::Ok(format!(
+			"Quotas updated for {}",
+			&query.bucket
+		)))
+	}
+
 	async fn handle_key_cmd(&self, cmd: &KeyOperation) -> Result<AdminRpc, Error> {
 		match cmd {
 			KeyOperation::List => self.handle_list_keys().await,
@@ -445,6 +534,7 @@ impl AdminRpcHandler {
 				None,
 				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
 				10000,
+				EnumerationOrder::Forward,
 			)
 			.await?
 			.iter()
@@ -456,7 +546,7 @@ impl AdminRpcHandler {
 	async fn handle_key_info(&self, query: &KeyOpt) -> Result<AdminRpc, Error> {
 		let key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		self.key_info_result(key).await
@@ -471,7 +561,7 @@ impl AdminRpcHandler {
 	async fn handle_rename_key(&self, query: &KeyRenameOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		key.params_mut()
@@ -483,9 +573,11 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_delete_key(&self, query: &KeyDeleteOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
+		let key_helper = self.garage.key_helper();
 
-		let mut key = helper.get_existing_matching_key(&query.key_pattern).await?;
+		let mut key = key_helper
+			.get_existing_matching_key(&query.key_pattern)
+			.await?;
 
 		if !query.yes {
 			return Err(Error::BadRequest(
@@ -493,32 +585,7 @@ impl AdminRpcHandler {
 			));
 		}
 
-		let state = key.state.as_option_mut().unwrap();
-
-		// --- done checking, now commit ---
-		// (the step at unset_local_bucket_alias will fail if a bucket
-		// does not have another alias, the deletion will be
-		// interrupted in the middle if that happens)
-
-		// 1. Delete local aliases
-		for (alias, _, to) in state.local_aliases.items().iter() {
-			if let Some(bucket_id) = to {
-				helper
-					.unset_local_bucket_alias(*bucket_id, &key.key_id, alias)
-					.await?;
-			}
-		}
-
-		// 2. Remove permissions on all authorized buckets
-		for (ab_id, _auth) in state.authorized_buckets.items().iter() {
-			helper
-				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::NO_PERMISSIONS)
-				.await?;
-		}
-
-		// 3. Actually delete key
-		key.state = Deletable::delete();
-		self.garage.key_table.insert(&key).await?;
+		key_helper.delete_key(&mut key).await?;
 
 		Ok(AdminRpc::Ok(format!(
 			"Key {} was deleted successfully.",
@@ -529,7 +596,7 @@ impl AdminRpcHandler {
 	async fn handle_allow_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		if query.create_bucket {
@@ -542,7 +609,7 @@ impl AdminRpcHandler {
 	async fn handle_deny_key(&self, query: &KeyPermOpt) -> Result<AdminRpc, Error> {
 		let mut key = self
 			.garage
-			.bucket_helper()
+			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 		if query.create_bucket {
@@ -616,7 +683,7 @@ impl AdminRpcHandler {
 					.endpoint
 					.call(
 						&node,
-						&AdminRpc::LaunchRepair(opt_to_send.clone()),
+						AdminRpc::LaunchRepair(opt_to_send.clone()),
 						PRIO_NORMAL,
 					)
 					.await;
@@ -633,15 +700,7 @@ impl AdminRpcHandler {
 				)))
 			}
 		} else {
-			let repair = Repair {
-				garage: self.garage.clone(),
-			};
-			self.garage
-				.system
-				.background
-				.spawn_worker("Repair worker".into(), move |must_exit| async move {
-					repair.repair_worker(opt, must_exit).await
-				});
+			launch_online_repair(self.garage.clone(), opt).await;
 			Ok(AdminRpc::Ok(format!(
 				"Repair launched on {:?}",
 				self.garage.system.id
@@ -664,7 +723,7 @@ impl AdminRpcHandler {
 				let node_id = (*node).into();
 				match self
 					.endpoint
-					.call(&node_id, &AdminRpc::Stats(opt), PRIO_NORMAL)
+					.call(&node_id, AdminRpc::Stats(opt), PRIO_NORMAL)
 					.await?
 				{
 					Ok(AdminRpc::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),
@@ -674,22 +733,22 @@ impl AdminRpcHandler {
 			}
 			Ok(AdminRpc::Ok(ret))
 		} else {
-			Ok(AdminRpc::Ok(self.gather_stats_local(opt)))
+			Ok(AdminRpc::Ok(self.gather_stats_local(opt)?))
 		}
 	}
 
-	fn gather_stats_local(&self, opt: StatsOpt) -> String {
+	fn gather_stats_local(&self, opt: StatsOpt) -> Result<String, Error> {
 		let mut ret = String::new();
 		writeln!(
 			&mut ret,
-			"\nGarage version: {}",
-			option_env!("GIT_VERSION").unwrap_or(git_version::git_version!(
-				prefix = "git:",
-				cargo_prefix = "cargo:",
-				fallback = "unknown"
-			))
+			"\nGarage version: {} [features: {}]",
+			garage_util::version::garage_version(),
+			garage_util::version::garage_features()
+				.map(|list| list.join(", "))
+				.unwrap_or_else(|| "(unknown)".into()),
 		)
 		.unwrap();
+		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();
 
 		// Gather ring statistics
 		let ring = self.garage.system.ring.borrow().clone();
@@ -707,59 +766,108 @@ impl AdminRpcHandler {
 			writeln!(&mut ret, "  {:?} {}", n, c).unwrap();
 		}
 
-		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt);
-		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt);
+		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt)?;
+		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
 
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
 		if opt.detailed {
 			writeln!(
 				&mut ret,
 				"  number of RC entries (~= number of blocks): {}",
-				self.garage.block_manager.rc_len()
+				self.garage.block_manager.rc_len()?
 			)
 			.unwrap();
 		}
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
-			self.garage.block_manager.resync_queue_len()
+			self.garage.block_manager.resync.queue_len()?
 		)
 		.unwrap();
 		writeln!(
 			&mut ret,
 			"  blocks with resync errors: {}",
-			self.garage.block_manager.resync_errors_len()
+			self.garage.block_manager.resync.errors_len()?
 		)
 		.unwrap();
 
-		ret
+		Ok(ret)
 	}
 
-	fn gather_table_stats<F, R>(&self, to: &mut String, t: &Arc<Table<F, R>>, opt: &StatsOpt)
+	fn gather_table_stats<F, R>(
+		&self,
+		to: &mut String,
+		t: &Arc<Table<F, R>>,
+		opt: &StatsOpt,
+	) -> Result<(), Error>
 	where
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
 		writeln!(to, "\nTable stats for {}", F::TABLE_NAME).unwrap();
 		if opt.detailed {
-			writeln!(to, "  number of items: {}", t.data.store.len()).unwrap();
+			writeln!(
+				to,
+				"  number of items: {}",
+				t.data.store.len().map_err(GarageError::from)?
+			)
+			.unwrap();
 			writeln!(
 				to,
 				"  Merkle tree size: {}",
-				t.merkle_updater.merkle_tree_len()
+				t.merkle_updater.merkle_tree_len()?
 			)
 			.unwrap();
 		}
 		writeln!(
 			to,
 			"  Merkle updater todo queue length: {}",
-			t.merkle_updater.todo_len()
+			t.merkle_updater.todo_len()?
 		)
 		.unwrap();
-		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()).unwrap();
+		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()?).unwrap();
+
+		Ok(())
+	}
+
+	// ----
+
+	async fn handle_worker_cmd(&self, opt: WorkerOpt) -> Result<AdminRpc, Error> {
+		match opt.cmd {
+			WorkerCmd::List { opt } => {
+				let workers = self.garage.background.get_worker_info();
+				Ok(AdminRpc::WorkerList(workers, opt))
+			}
+			WorkerCmd::Set { opt } => match opt {
+				WorkerSetCmd::ScrubTranquility { tranquility } => {
+					let scrub_command = ScrubWorkerCommand::SetTranquility(tranquility);
+					self.garage
+						.block_manager
+						.send_scrub_command(scrub_command)
+						.await;
+					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
+				}
+				WorkerSetCmd::ResyncNWorkers { n_workers } => {
+					self.garage
+						.block_manager
+						.resync
+						.set_n_workers(n_workers)
+						.await?;
+					Ok(AdminRpc::Ok("Number of resync workers updated".into()))
+				}
+				WorkerSetCmd::ResyncTranquility { tranquility } => {
+					self.garage
+						.block_manager
+						.resync
+						.set_tranquility(tranquility)
+						.await?;
+					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
+				}
+			},
+		}
 	}
 }
 
@@ -776,6 +884,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Migrate(opt) => self.handle_migrate(opt.clone()).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
+			AdminRpc::Worker(opt) => self.handle_worker_cmd(opt.clone()).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

@@ -1,6 +1,6 @@
 +++
 title = "Garage CLI"
-weight = 15
+weight = 30
 +++
 
 The Garage CLI is mostly self-documented. Make use of the `help` subcommand

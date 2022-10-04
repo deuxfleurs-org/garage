@@ -9,6 +9,15 @@ Let's start your Garage journey!
 In this chapter, we explain how to deploy Garage as a single-node server
 and how to interact with it.
 
+## What is Garage?
+
+Before jumping in, you might be interested in reading the following pages:
+
+- [Goals and use cases](@/documentation/design/goals.md)
+- [List of features](@/documentation/reference-manual/features.md)
+
+## Scope of this tutorial
+
 Our goal is to introduce you to Garage's workflows.
 Following this guide is recommended before moving on to
 [configuring a multi-node cluster](@/documentation/cookbook/real-world.md).
@@ -247,16 +256,6 @@ mc alias set \
   <access key> \
   <secret key> \
   --api S3v4
-```
-
-You must also add an environment variable to your configuration to
-inform MinIO of our region (`garage` by default, corresponding to the `s3_region` parameter
-in the configuration file).
-The best way is to add the following snippet to your `$HOME/.bash_profile`
-or `$HOME/.bashrc` file:
-
-```bash
-export MC_REGION=garage
 ```
 
 ### Use `mc`

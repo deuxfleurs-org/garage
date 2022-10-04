@@ -1,15 +1,18 @@
-use garage_table::util::EmptyKey;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::{Error as GarageError, OkOrMessage};
 use garage_util::time::*;
 
+use garage_table::util::*;
+
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
 use crate::garage::Garage;
 use crate::helper::error::*;
-use crate::key_table::{Key, KeyFilter};
+use crate::helper::key::KeyHelper;
+use crate::key_table::*;
 use crate::permission::BucketKeyPerm;
+use crate::s3::object_table::ObjectFilter;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
 
@@ -49,6 +52,23 @@ impl<'a> BucketHelper<'a> {
 		}
 	}
 
+	#[allow(clippy::ptr_arg)]
+	pub async fn resolve_bucket(&self, bucket_name: &String, api_key: &Key) -> Result<Uuid, Error> {
+		let api_key_params = api_key
+			.state
+			.as_option()
+			.ok_or_message("Key should not be deleted at this point")?;
+
+		if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
+			Ok(*bucket_id)
+		} else {
+			Ok(self
+				.resolve_global_bucket_name(bucket_name)
+				.await?
+				.ok_or_else(|| Error::NoSuchBucket(bucket_name.to_string()))?)
+		}
+	}
+
 	/// Returns a Bucket if it is present in bucket table,
 	/// even if it is in deleted state. Querying a non-existing
 	/// bucket ID returns an internal error.
@@ -71,63 +91,7 @@ impl<'a> BucketHelper<'a> {
 			.get(&EmptyKey, &bucket_id)
 			.await?
 			.filter(|b| !b.is_deleted())
-			.ok_or_bad_request(format!(
-				"Bucket {:?} does not exist or has been deleted",
-				bucket_id
-			))
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// even if it is in deleted state. Querying a non-existing
-	/// key ID returns an internal error.
-	pub async fn get_internal_key(&self, key_id: &String) -> Result<Key, Error> {
-		Ok(self
-			.0
-			.key_table
-			.get(&EmptyKey, key_id)
-			.await?
-			.ok_or_message(format!("Key {} does not exist", key_id))?)
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// only if it is in non-deleted state.
-	/// Querying a non-existing key ID or a deleted key
-	/// returns a bad request error.
-	pub async fn get_existing_key(&self, key_id: &String) -> Result<Key, Error> {
-		self.0
-			.key_table
-			.get(&EmptyKey, key_id)
-			.await?
-			.filter(|b| !b.state.is_deleted())
-			.ok_or_bad_request(format!("Key {} does not exist or has been deleted", key_id))
-	}
-
-	/// Returns a Key if it is present in key table,
-	/// looking it up by key ID or by a match on its name,
-	/// only if it is in non-deleted state.
-	/// Querying a non-existing key ID or a deleted key
-	/// returns a bad request error.
-	pub async fn get_existing_matching_key(&self, pattern: &str) -> Result<Key, Error> {
-		let candidates = self
-			.0
-			.key_table
-			.get_range(
-				&EmptyKey,
-				None,
-				Some(KeyFilter::MatchesAndNotDeleted(pattern.to_string())),
-				10,
-			)
-			.await?
-			.into_iter()
-			.collect::<Vec<_>>();
-		if candidates.len() != 1 {
-			Err(Error::BadRequest(format!(
-				"{} matching keys",
-				candidates.len()
-			)))
-		} else {
-			Ok(candidates.into_iter().next().unwrap())
-		}
+			.ok_or_else(|| Error::NoSuchBucket(hex::encode(bucket_id)))
 	}
 
 	/// Sets a new alias for a bucket in global namespace.
@@ -141,10 +105,7 @@ impl<'a> BucketHelper<'a> {
 		alias_name: &String,
 	) -> Result<(), Error> {
 		if !is_valid_bucket_name(alias_name) {
-			return Err(Error::BadRequest(format!(
-				"{}: {}",
-				alias_name, INVALID_BUCKET_NAME_MESSAGE
-			)));
+			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
@@ -175,7 +136,7 @@ impl<'a> BucketHelper<'a> {
 
 		let alias = match alias {
 			None => BucketAlias::new(alias_name.clone(), alias_ts, Some(bucket_id))
-				.ok_or_bad_request(format!("{}: {}", alias_name, INVALID_BUCKET_NAME_MESSAGE))?,
+				.ok_or_else(|| Error::InvalidBucketName(alias_name.clone()))?,
 			Some(mut a) => {
 				a.state = Lww::raw(alias_ts, Some(bucket_id));
 				a
@@ -263,7 +224,7 @@ impl<'a> BucketHelper<'a> {
 			.bucket_alias_table
 			.get(&EmptyKey, alias_name)
 			.await?
-			.ok_or_message(format!("Alias {} not found", alias_name))?;
+			.ok_or_else(|| Error::NoSuchBucket(alias_name.to_string()))?;
 
 		// Checks ok, remove alias
 		let alias_ts = match bucket.state.as_option() {
@@ -302,15 +263,14 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		if !is_valid_bucket_name(alias_name) {
-			return Err(Error::BadRequest(format!(
-				"{}: {}",
-				alias_name, INVALID_BUCKET_NAME_MESSAGE
-			)));
+			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
-		let mut key = self.get_existing_key(key_id).await?;
+		let mut key = key_helper.get_existing_key(key_id).await?;
 
 		let mut key_param = key.state.as_option_mut().unwrap();
 
@@ -359,8 +319,10 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
-		let mut key = self.get_existing_key(key_id).await?;
+		let mut key = key_helper.get_existing_key(key_id).await?;
 
 		let mut bucket_p = bucket.state.as_option_mut().unwrap();
 
@@ -428,8 +390,10 @@ impl<'a> BucketHelper<'a> {
 		key_id: &String,
 		mut perm: BucketKeyPerm,
 	) -> Result<(), Error> {
+		let key_helper = KeyHelper(self.0);
+
 		let mut bucket = self.get_internal_bucket(bucket_id).await?;
-		let mut key = self.get_internal_key(key_id).await?;
+		let mut key = key_helper.get_internal_key(key_id).await?;
 
 		if let Some(bstate) = bucket.state.as_option() {
 			if let Some(kp) = bstate.authorized_keys.get(key_id) {
@@ -464,5 +428,48 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		Ok(())
+	}
+
+	pub async fn is_bucket_empty(&self, bucket_id: Uuid) -> Result<bool, Error> {
+		let objects = self
+			.0
+			.object_table
+			.get_range(
+				&bucket_id,
+				None,
+				Some(ObjectFilter::IsData),
+				10,
+				EnumerationOrder::Forward,
+			)
+			.await?;
+		if !objects.is_empty() {
+			return Ok(false);
+		}
+
+		#[cfg(feature = "k2v")]
+		{
+			use garage_rpc::ring::Ring;
+			use std::sync::Arc;
+
+			let ring: Arc<Ring> = self.0.system.ring.borrow().clone();
+			let k2vindexes = self
+				.0
+				.k2v
+				.counter_table
+				.table
+				.get_range(
+					&bucket_id,
+					None,
+					Some((DeletedFilter::NotDeleted, ring.layout.node_id_vec.clone())),
+					10,
+					EnumerationOrder::Forward,
+				)
+				.await?;
+			if !k2vindexes.is_empty() {
+				return Ok(false);
+			}
+		}
+
+		Ok(true)
 	}
 }

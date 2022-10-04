@@ -17,18 +17,27 @@ pub struct Context {
 	pub garage: &'static garage::Instance,
 	pub client: Client,
 	pub custom_request: CustomRequester,
+	pub k2v: K2VContext,
+}
+
+pub struct K2VContext {
+	pub request: CustomRequester,
 }
 
 impl Context {
 	fn new() -> Self {
 		let garage = garage::instance();
 		let client = client::build_client(garage);
-		let custom_request = CustomRequester::new(garage);
+		let custom_request = CustomRequester::new_s3(garage);
+		let k2v_request = CustomRequester::new_k2v(garage);
 
 		Context {
 			garage,
 			client,
 			custom_request,
+			k2v: K2VContext {
+				request: k2v_request,
+			},
 		}
 	}
 

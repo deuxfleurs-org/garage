@@ -1,6 +1,8 @@
 use std::collections::HashSet;
+use std::time::Duration;
 
 use garage_util::error::*;
+use garage_util::formater::format_table;
 
 use garage_rpc::layout::*;
 use garage_rpc::system::*;
@@ -38,13 +40,14 @@ pub async fn cli_command_dispatch(
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::LaunchRepair(ro)).await
 		}
 		Command::Stats(so) => cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::Stats(so)).await,
+		Command::Worker(wo) => cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::Worker(wo)).await,
 		_ => unreachable!(),
 	}
 }
 
 pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, &SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => nodes,
@@ -85,19 +88,21 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	format_table(healthy_nodes);
 
 	let status_keys = status.iter().map(|adv| adv.id).collect::<HashSet<_>>();
-	let failure_case_1 = status.iter().any(|adv| !adv.is_up);
+	let failure_case_1 = status
+		.iter()
+		.any(|adv| !adv.is_up && matches!(layout.roles.get(&adv.id), Some(NodeRoleV(Some(_)))));
 	let failure_case_2 = layout
 		.roles
 		.items()
 		.iter()
-		.filter(|(_, _, v)| v.0.is_some())
-		.any(|(id, _, _)| !status_keys.contains(id));
+		.any(|(id, _, v)| !status_keys.contains(id) && v.0.is_some());
 	if failure_case_1 || failure_case_2 {
 		println!("\n==== FAILED NODES ====");
 		let mut failed_nodes =
 			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
 		for adv in status.iter().filter(|adv| !adv.is_up) {
 			if let Some(NodeRoleV(Some(cfg))) = layout.roles.get(&adv.id) {
+				let tf = timeago::Formatter::new();
 				failed_nodes.push(format!(
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
 					id = adv.id,
@@ -108,7 +113,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					capacity = cfg.capacity_string(),
 					last_seen = adv
 						.last_seen_secs_ago
-						.map(|s| format!("{}s ago", s))
+						.map(|s| tf.convert(Duration::from_secs(s)))
 						.unwrap_or_else(|| "never seen".into()),
 				));
 			}
@@ -144,7 +149,7 @@ pub async fn cmd_connect(
 	args: ConnectNodeOpt,
 ) -> Result<(), Error> {
 	match rpc_cli
-		.call(&rpc_host, &SystemRpc::Connect(args.node), PRIO_NORMAL)
+		.call(&rpc_host, SystemRpc::Connect(args.node), PRIO_NORMAL)
 		.await??
 	{
 		SystemRpc::Ok => {
@@ -160,21 +165,28 @@ pub async fn cmd_admin(
 	rpc_host: NodeID,
 	args: AdminRpc,
 ) -> Result<(), HelperError> {
-	match rpc_cli.call(&rpc_host, &args, PRIO_NORMAL).await?? {
+	match rpc_cli.call(&rpc_host, args, PRIO_NORMAL).await?? {
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}
 		AdminRpc::BucketList(bl) => {
 			print_bucket_list(bl);
 		}
-		AdminRpc::BucketInfo(bucket, rk) => {
-			print_bucket_info(&bucket, &rk);
+		AdminRpc::BucketInfo {
+			bucket,
+			relevant_keys,
+			counters,
+		} => {
+			print_bucket_info(&bucket, &relevant_keys, &counters);
 		}
 		AdminRpc::KeyList(kl) => {
 			print_key_list(kl);
 		}
 		AdminRpc::KeyInfo(key, rb) => {
 			print_key_info(&key, &rb);
+		}
+		AdminRpc::WorkerList(wi, wlo) => {
+			print_worker_info(wi, wlo);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);
