@@ -162,7 +162,12 @@ pub async fn handle_apply_cluster_layout(
 	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
 
 	let layout = garage.system.get_cluster_layout();
-	let layout = layout.apply_staged_changes(Some(param.version))?;
+	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
+    //TODO : how to display msg ? Should it be in the Body Response ?
+    for s in msg.iter() {
+        println!("{}", s);
+    }
+
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()

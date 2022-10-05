@@ -188,19 +188,23 @@ pub async fn cmd_show_layout(
 
 		// this will print the stats of what partitions
 		// will move around when we apply
-		if layout.calculate_partition_assignation() {
-			println!("To enact the staged role changes, type:");
-			println!();
-			println!("    garage layout apply --version {}", layout.version + 1);
-			println!();
-			println!(
-				"You can also revert all proposed changes with: garage layout revert --version {}",
-				layout.version + 1
-			);
-		} else {
-			println!("Not enough nodes have an assigned role to maintain enough copies of data.");
-			println!("This new layout cannot yet be applied.");
-		}
+        match layout.calculate_partition_assignation() {
+            Ok(msg) => { 
+                for line in msg.iter() {
+                    println!("{}", line);
+                }
+                println!("To enact the staged role changes, type:");
+                println!();
+                println!("    garage layout apply --version {}", layout.version + 1);
+                println!();
+                println!(
+                    "You can also revert all proposed changes with: garage layout revert --version {}",
+                    layout.version + 1)},
+            Err(Error::Message(s)) => {
+                println!("Error while trying to compute the assignation: {}", s);
+			    println!("This new layout cannot yet be applied.");},
+            _ => { println!("Unknown Error"); },
+        }
 	}
 
 	Ok(())
@@ -213,7 +217,10 @@ pub async fn cmd_apply_layout(
 ) -> Result<(), Error> {
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
-	let layout = layout.apply_staged_changes(apply_opt.version)?;
+	let (layout, msg) = layout.apply_staged_changes(apply_opt.version)?;
+    for line in msg.iter() {
+        println!("{}", line);
+    }
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 

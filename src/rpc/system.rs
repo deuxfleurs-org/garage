@@ -196,7 +196,6 @@ impl System {
 		network_key: NetworkKey,
 		background: Arc<BackgroundRunner>,
 		replication_factor: usize,
-        zone_redundancy: usize,
 		config: &Config,
 	) -> Result<Arc<Self>, Error> {
 		let node_key =
@@ -226,7 +225,7 @@ impl System {
 					"No valid previous cluster layout stored ({}), starting fresh.",
 					e
 				);
-				ClusterLayout::new(replication_factor, zone_redundancy)
+				ClusterLayout::new(replication_factor)
 			}
 		};
 
