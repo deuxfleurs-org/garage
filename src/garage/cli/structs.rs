@@ -86,6 +86,10 @@ pub enum LayoutOperation {
 	/// Remove role from Garage cluster node
 	#[structopt(name = "remove", version = garage_version())]
 	Remove(RemoveRoleOpt),
+    
+    /// Configure parameters value for the layout computation
+	#[structopt(name = "config", version = garage_version())]
+    Config(ConfigLayoutOpt),
 
 	/// Show roles currently assigned to nodes and changes staged for commit
 	#[structopt(name = "show", version = garage_version())]
@@ -100,6 +104,7 @@ pub enum LayoutOperation {
 	Revert(RevertLayoutOpt),
 }
 
+
 #[derive(StructOpt, Debug)]
 pub struct AssignRoleOpt {
 	/// Node(s) to which to assign role (prefix of hexadecimal node id)
@@ -110,7 +115,7 @@ pub struct AssignRoleOpt {
 	#[structopt(short = "z", long = "zone")]
 	pub(crate) zone: Option<String>,
 
-	/// Capacity (in relative terms, use 1 to represent your smallest server)
+	/// Capacity (in relative terms)
 	#[structopt(short = "c", long = "capacity")]
 	pub(crate) capacity: Option<u32>,
 
@@ -131,6 +136,13 @@ pub struct AssignRoleOpt {
 pub struct RemoveRoleOpt {
 	/// Node whose role to remove (prefix of hexadecimal node id)
 	pub(crate) node_id: String,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct ConfigLayoutOpt {
+	/// Zone redundancy parameter
+	#[structopt(short = "r", long = "redundancy")]
+	pub(crate) redundancy: Option<usize>,
 }
 
 #[derive(StructOpt, Debug)]

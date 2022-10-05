@@ -14,8 +14,8 @@ pub async fn cli_layout_command_dispatch(
 	rpc_host: NodeID,
 ) -> Result<(), Error> {
 	match cmd {
-		LayoutOperation::Assign(configure_opt) => {
-			cmd_assign_role(system_rpc_endpoint, rpc_host, configure_opt).await
+		LayoutOperation::Assign(assign_opt) => {
+			cmd_assign_role(system_rpc_endpoint, rpc_host, assign_opt).await
 		}
 		LayoutOperation::Remove(remove_opt) => {
 			cmd_remove_role(system_rpc_endpoint, rpc_host, remove_opt).await
@@ -27,6 +27,9 @@ pub async fn cli_layout_command_dispatch(
 		LayoutOperation::Revert(revert_opt) => {
 			cmd_revert_layout(system_rpc_endpoint, rpc_host, revert_opt).await
 		}
+        LayoutOperation::Config(config_opt) => {
+            cmd_config_layout(system_rpc_endpoint, rpc_host, config_opt).await
+        }
 	}
 }
 
@@ -243,6 +246,34 @@ pub async fn cmd_revert_layout(
 
 	println!("All proposed role changes in cluster layout have been canceled.");
 	Ok(())
+}
+
+pub async fn cmd_config_layout(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+	config_opt: ConfigLayoutOpt,
+) -> Result<(), Error> {
+	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+    
+    match config_opt.redundancy {
+        None => (),
+        Some(r) => {
+            if r > layout.replication_factor {
+                println!("The zone redundancy must be smaller or equal to the \
+                replication factor ({}).", layout.replication_factor);
+            }
+            else if r < 1 {
+                println!("The zone redundancy must be at least 1.");
+            }
+            else {
+                layout.parameters.update(LayoutParameters{ zone_redundancy: r });
+                println!("The new zone redundancy has been staged.");
+            }
+        }
+    }
+
+	send_layout(rpc_cli, rpc_host, layout).await?;
+    Ok(())
 }
 
 // --- utility ---
