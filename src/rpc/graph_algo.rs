@@ -59,10 +59,10 @@ pub type CostFunction = HashMap<(Vertex,Vertex), i32>;
 impl<E : Edge> Graph<E>{
     pub fn new(vertices : &[Vertex]) -> Self {
         let mut map = HashMap::<Vertex, usize>::new();
-        for i in 0..vertices.len() {
-            map.insert(vertices[i] , i);
+        for (i, vert) in vertices.iter().enumerate(){
+            map.insert(*vert , i);
         }
-        return Graph::<E> {
+        Graph::<E> {
                 vertextoid : map,
                 idtovertex: vertices.to_vec(),
                 graph : vec![Vec::< E >::new(); vertices.len() ]
@@ -99,7 +99,7 @@ impl Graph<FlowEdge>{
                 result.push(self.idtovertex[edge.dest]);
             }
         }
-        return Ok(result);
+        Ok(result)
     }
     
     
@@ -113,7 +113,7 @@ impl Graph<FlowEdge>{
         for edge in self.graph[idv].iter() {
             result += max(0,self.graph[edge.dest][edge.rev].flow);
         }
-        return Ok(result);
+        Ok(result)
     }
 
     //This function returns the value of the flow outgoing from v.
@@ -126,13 +126,13 @@ impl Graph<FlowEdge>{
         for edge in self.graph[idv].iter() {
             result += max(0,edge.flow);
         }
-        return Ok(result);
+        Ok(result)
     }
 
     //This function computes the flow total value by computing the outgoing flow
     //from the source.
     pub fn get_flow_value(&mut self) -> Result<i32, String> {
-        return self.get_outflow(Vertex::Source);
+        self.get_outflow(Vertex::Source)
     }
 
     //This function shuffles the order of the edge lists. It keeps the ids of the
@@ -157,7 +157,7 @@ impl Graph<FlowEdge>{
         for edge in self.graph[idsource].iter(){
             flow_upper_bound += edge.cap;
         }
-        return flow_upper_bound;
+        flow_upper_bound
     }
     
     //This function computes the maximal flow using Dinic's algorithm. It starts with
@@ -270,7 +270,7 @@ impl Graph<FlowEdge>{
         //We build the weighted graph g where we will look for negative cycle
         let mut gf = self.build_cost_graph(cost)?;
         let mut cycles = gf.list_negative_cycles(path_length);
-        while cycles.len() > 0 {
+        while !cycles.is_empty() {
             //we enumerate negative cycles
             for c in cycles.iter(){
                 for i in 0..c.len(){
@@ -293,7 +293,7 @@ impl Graph<FlowEdge>{
             gf = self.build_cost_graph(cost)?;
             cycles = gf.list_negative_cycles(path_length);
         }
-        return Ok(());
+        Ok(())
     }
 
     //Construct the weighted graph G_f from the flow and the cost function
@@ -319,7 +319,7 @@ impl Graph<FlowEdge>{
                 }
             }
         }
-        return Ok(g);
+        Ok(g)
 
     }
 
@@ -334,7 +334,7 @@ impl Graph<WeightedEdge>{
         }
         let idu = self.vertextoid[&u];
         let idv = self.vertextoid[&v];
-        self.graph[idu].push( WeightedEdge{w: w , dest: idv} );
+        self.graph[idu].push( WeightedEdge{ w , dest: idv} );
         Ok(())
     }
 
@@ -415,7 +415,7 @@ fn cycles_of_1_forest(forest: &[Option<usize>])  -> Vec<Vec<usize>> {
             cycles.push(cy);
         }
     }
-    return cycles;
+    cycles
 }
 
 

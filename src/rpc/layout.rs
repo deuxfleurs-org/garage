@@ -56,7 +56,7 @@ pub struct ClusterLayout {
 }
 
 fn default_partition_size() -> u32{
-    return 0;
+    0
 }
 
 fn default_layout_parameters() -> Lww<LayoutParameters>{
@@ -107,15 +107,15 @@ impl NodeRole {
 
     pub fn tags_string(&self) -> String {
         let mut tags = String::new();
-        if self.tags.len() == 0 {
+        if self.tags.is_empty() {
             return tags
         }
         tags.push_str(&self.tags[0].clone());
         for t in 1..self.tags.len(){
-            tags.push_str(",");
+            tags.push(',');
             tags.push_str(&self.tags[t].clone());
         }
-        return tags;
+        tags
     }
 }
 
@@ -246,22 +246,22 @@ To know the correct value of the new layout version, invoke `garage layout show`
                 _ => ()
             }
         }
-        return result;
+        result
     }
 
     ///Given a node uuids, this function returns the label of its zone
     pub fn get_node_zone(&self, uuid : &Uuid) -> Result<String,Error> {
         match self.node_role(uuid) {
-            Some(role) => return Ok(role.zone.clone()),
-            _ => return Err(Error::Message("The Uuid does not correspond to a node present in the cluster.".into()))
+            Some(role) => Ok(role.zone.clone()),
+            _ => Err(Error::Message("The Uuid does not correspond to a node present in the cluster.".into()))
         }
     }
     
     ///Given a node uuids, this function returns its capacity or fails if it does not have any
     pub fn get_node_capacity(&self, uuid : &Uuid) -> Result<u32,Error> {
         match self.node_role(uuid) {
-            Some(NodeRole{capacity : Some(cap), zone: _, tags: _}) => return Ok(*cap),
-            _ => return Err(Error::Message("The Uuid does not correspond to a node present in the \
+            Some(NodeRole{capacity : Some(cap), zone: _, tags: _}) => Ok(*cap),
+            _ => Err(Error::Message("The Uuid does not correspond to a node present in the \
                     cluster or this node does not have a positive capacity.".into()))
         }
     }
@@ -272,7 +272,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
         for uuid in self.useful_nodes().iter() {
             total_capacity += self.get_node_capacity(uuid)?;
         }
-        return Ok(total_capacity);
+        Ok(total_capacity)
     }
 
 
@@ -341,10 +341,10 @@ To know the correct value of the new layout version, invoke `garage layout show`
         for n in self.ring_assignation_data.iter() {
             node_usage[*n as usize] += 1;
         }
-        for n in 0..MAX_NODE_NUMBER {
-            if node_usage[n] > 0 {
+        for (n, usage) in node_usage.iter().enumerate(){
+            if *usage > 0 {
                 let uuid = self.node_id_vec[n];
-                if node_usage[n]*self.partition_size > self.get_node_capacity(&uuid)
+                if usage*self.partition_size > self.get_node_capacity(&uuid)
                                 .expect("Critical Error"){
                     return false;
                 }
@@ -435,7 +435,7 @@ impl ClusterLayout {
         let mut gflow = self.compute_candidate_assignment( &zone_to_id, &old_assignation_opt)?;
         if let Some(assoc) = &old_assignation_opt {
             //We minimize the distance to the previous assignment.
-            self.minimize_rebalance_load(&mut gflow, &zone_to_id, &assoc)?;
+            self.minimize_rebalance_load(&mut gflow, &zone_to_id, assoc)?;
         }
 
         msg.append(&mut self.output_stat(&gflow, &old_assignation_opt, &zone_to_id,&id_to_zone)?);
@@ -443,7 +443,7 @@ impl ClusterLayout {
 
         //We update the layout structure
         self.update_ring_from_flow(id_to_zone.len() , &gflow)?;
-        return Ok(msg);
+        Ok(msg)
     }
 
 	/// The LwwMap of node roles might have changed. This function updates the node_id_vec
@@ -456,21 +456,18 @@ impl ClusterLayout {
         //Non gateway nodes should be coded on 8bits, hence they must be first in the list
 	    //We build the new node ids	 
 		let mut new_non_gateway_nodes: Vec<Uuid> = self.roles.items().iter()
-            .filter(|(_, _, v)| 
-                        match &v.0 {Some(r) if r.capacity != None => true, _=> false })
+            .filter(|(_, _, v)| matches!(&v.0, Some(r) if r.capacity != None))
             .map(|(k, _, _)| *k).collect();
         
         if new_non_gateway_nodes.len() > MAX_NODE_NUMBER {
             return Err(Error::Message(format!("There are more than {} non-gateway nodes in the new \
-                            layout. This is not allowed.", MAX_NODE_NUMBER).into() ));
+                            layout. This is not allowed.", MAX_NODE_NUMBER) ));
         }
 
 		let mut new_gateway_nodes: Vec<Uuid> = self.roles.items().iter()
-            .filter(|(_, _, v)| 
-                        match v {NodeRoleV(Some(r)) if r.capacity == None => true, _=> false })
+            .filter(|(_, _, v)| matches!(v, NodeRoleV(Some(r)) if r.capacity == None)) 
             .map(|(k, _, _)| *k).collect();
         
-        let nb_useful_nodes = new_non_gateway_nodes.len();
         let mut new_node_id_vec = Vec::<Uuid>::new();
         new_node_id_vec.append(&mut new_non_gateway_nodes);
         new_node_id_vec.append(&mut new_gateway_nodes);
@@ -484,7 +481,7 @@ impl ClusterLayout {
         let nb_partitions = 1usize << PARTITION_BITS;
         let mut old_assignation = vec![ Vec::<usize>::new() ; nb_partitions];
         
-        if self.ring_assignation_data.len() == 0 {
+        if self.ring_assignation_data.is_empty() {
             //This is a new association
             return Ok(None);
         }
@@ -498,16 +495,16 @@ impl ClusterLayout {
         
         //We add the indices of only the new non-gateway nodes that can be used in the
         //association ring
-        for i in 0..nb_useful_nodes {
-            uuid_to_new_id.insert(new_node_id_vec[i], i );
+        for (i, uuid) in new_node_id_vec.iter().enumerate() {
+            uuid_to_new_id.insert(*uuid, i );
         }
 
         let rf= self.replication_factor;
-        for p in 0..nb_partitions {
+        for (p, old_assign_p) in old_assignation.iter_mut().enumerate() {
             for old_id in &self.ring_assignation_data[p*rf..(p+1)*rf] {
                 let uuid = old_node_id_vec[*old_id as usize];
                 if uuid_to_new_id.contains_key(&uuid) {
-                    old_assignation[p].push(uuid_to_new_id[&uuid]);
+                    old_assign_p.push(uuid_to_new_id[&uuid]);
                 }
             }
         }
@@ -515,7 +512,7 @@ impl ClusterLayout {
         //We write the ring
         self.ring_assignation_data = Vec::<CompactNodeType>::new();
 
-        return Ok(Some(old_assignation));
+        Ok(Some(old_assignation))
 	}
 
 
@@ -530,15 +527,14 @@ impl ClusterLayout {
                 return Err(Error::Message("The uuid was not found in the node roles (this should \
                     not happen, it might be a critical error).".into()));
             }
-            match self.node_role(&uuid) {
-                Some(r) => if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
-                            zone_to_id.insert(r.zone.clone() , id_to_zone.len());
-                            id_to_zone.push(r.zone.clone());
-                        }
-                _ => ()
+            if let Some(r) = self.node_role(uuid) {
+                if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
+                        zone_to_id.insert(r.zone.clone() , id_to_zone.len());
+                        id_to_zone.push(r.zone.clone());
+                }
             }
         }
-        return Ok((id_to_zone, zone_to_id));
+        Ok((id_to_zone, zone_to_id))
     }
 
     ///This function computes by dichotomy the largest realizable partition size, given
@@ -566,7 +562,7 @@ impl ClusterLayout {
             }
         }
 
-        return Ok(s_down);
+        Ok(s_down)
     }
     
     fn generate_graph_vertices(nb_zones : usize, nb_nodes : usize) -> Vec<Vertex> {
@@ -581,7 +577,7 @@ impl ClusterLayout {
         for n in 0..nb_nodes {
             vertices.push(Vertex::N(n));
         }
-        return vertices;
+        vertices
     }
 
     fn generate_flow_graph(&self, size: u32, zone_to_id: &HashMap<String, usize>, exclude_assoc : &HashSet<(usize,usize)>) -> Result<Graph<FlowEdge>, Error> {
@@ -609,7 +605,7 @@ impl ClusterLayout {
                 }
             }
         }
-        return Ok(g);
+        Ok(g)
     }
 
 
@@ -620,11 +616,11 @@ impl ClusterLayout {
         let mut exclude_edge = HashSet::<(usize,usize)>::new();
         if let Some(old_assoc) = old_assoc_opt {
             let nb_nodes = self.useful_nodes().len();
-            for p in 0..NB_PARTITIONS {
+            for (p, old_assoc_p) in old_assoc.iter().enumerate() {
                 for n in 0..nb_nodes {
                     exclude_edge.insert((p,n));
                 }
-                for n in old_assoc[p].iter() {
+                for n in old_assoc_p.iter() {
                     exclude_edge.remove(&(p,*n));
                 }
             }
@@ -638,13 +634,13 @@ impl ClusterLayout {
             g.add_edge(Vertex::PZ(*p,node_zone), Vertex::N(*n), 1)?;
         }
         g.compute_maximal_flow()?;
-        return Ok(g);
+        Ok(g)
     }
 
-    fn minimize_rebalance_load(&self, gflow: &mut Graph<FlowEdge>, zone_to_id: &HashMap<String, usize>, old_assoc : &Vec< Vec<usize> >) -> Result<(), Error > {
+    fn minimize_rebalance_load(&self, gflow: &mut Graph<FlowEdge>, zone_to_id: &HashMap<String, usize>, old_assoc : &[Vec<usize> ]) -> Result<(), Error > {
         let mut cost = CostFunction::new();
-        for p in 0..NB_PARTITIONS {
-            for n in old_assoc[p].iter() {
+        for (p, assoc_p) in old_assoc.iter().enumerate(){
+            for n in assoc_p.iter() {
                 let node_zone = zone_to_id[&self.get_node_zone(&self.node_id_vec[*n])?]; 
                 cost.insert((Vertex::PZ(p,node_zone), Vertex::N(*n)), -1);
             }
@@ -653,7 +649,7 @@ impl ClusterLayout {
         let path_length = 4*nb_nodes;
         gflow.optimize_flow_with_cost(&cost, path_length)?;
 
-        return Ok(());
+        Ok(())
     }
 
     fn update_ring_from_flow(&mut self, nb_zones : usize, gflow: &Graph<FlowEdge> ) -> Result<(), Error>{
@@ -662,9 +658,8 @@ impl ClusterLayout {
             for z in 0..nb_zones {
                 let assoc_vertex = gflow.get_positive_flow_from(Vertex::PZ(p,z))?;
                 for vertex in assoc_vertex.iter() {
-                    match vertex{
-                        Vertex::N(n) => self.ring_assignation_data.push((*n).try_into().unwrap()),
-                        _ => ()
+                    if let Vertex::N(n) = vertex {
+                        self.ring_assignation_data.push((*n).try_into().unwrap());
                     }
                 }
             }
@@ -674,7 +669,7 @@ impl ClusterLayout {
             return Err(Error::Message("Critical Error : the association ring we produced does not \
                        have the right size.".into()));
         }
-        return Ok(());
+        Ok(())
     }
      
 
@@ -683,7 +678,7 @@ impl ClusterLayout {
     fn output_stat(&self , gflow : &Graph<FlowEdge>, 
                     old_assoc_opt : &Option< Vec<Vec<usize>> >,
                     zone_to_id: &HashMap<String, usize>, 
-                    id_to_zone : &Vec<String>) -> Result<Message, Error>{
+                    id_to_zone : &[String]) -> Result<Message, Error>{
         let mut msg = Message::new();
         
 		let nb_partitions = 1usize << PARTITION_BITS;
@@ -693,12 +688,12 @@ impl ClusterLayout {
         let percent_cap = 100.0*(used_cap as f32)/(total_cap as f32);
         msg.push(format!("Available capacity / Total cluster capacity: {} / {} ({:.1} %)",
             used_cap , total_cap , percent_cap ));
-        msg.push(format!(""));
-        msg.push(format!("If the percentage is to low, it might be that the \
+        msg.push("".into());
+        msg.push("If the percentage is to low, it might be that the \
         replication/redundancy constraints force the use of nodes/zones with small \
         storage capacities. \
         You might want to rebalance the storage capacities or relax the constraints. \
-        See the detailed statistics below and look for saturated nodes/zones."));
+        See the detailed statistics below and look for saturated nodes/zones.".into());
         msg.push(format!("Recall that because of the replication factor, the actual available \
                          storage capacity is {} / {} = {}.", 
                         used_cap , self.replication_factor , 
@@ -715,7 +710,7 @@ impl ClusterLayout {
         for p in 0..nb_partitions {
             for z in 0..id_to_zone.len() {
                 let pz_nodes = gflow.get_positive_flow_from(Vertex::PZ(p,z))?;
-                if pz_nodes.len() > 0 {
+                if !pz_nodes.is_empty() {
                     stored_partitions_zone[z] += 1;
                     if let Some(old_assoc) = old_assoc_opt {
                         let mut old_zones_of_p = Vec::<usize>::new();
@@ -748,14 +743,14 @@ impl ClusterLayout {
         
         //We display the statistics
 
-        msg.push(format!(""));
+        msg.push("".into());
         if *old_assoc_opt != None {
             let total_new_partitions : usize = new_partitions.iter().sum();
             msg.push(format!("A total of {} new copies of partitions need to be \
                              transferred.", total_new_partitions));
         }
-        msg.push(format!(""));
-        msg.push(format!("==== DETAILED STATISTICS BY ZONES AND NODES ===="));
+        msg.push("".into());
+        msg.push("==== DETAILED STATISTICS BY ZONES AND NODES ====".into());
         
         for z in 0..id_to_zone.len(){
             let mut nodes_of_z = Vec::<usize>::new();
@@ -766,7 +761,7 @@ impl ClusterLayout {
             }
             let replicated_partitions : usize = nodes_of_z.iter()
                     .map(|n| stored_partitions[*n]).sum();
-            msg.push(format!(""));
+            msg.push("".into());
             
             msg.push(format!("Zone {}: {} distinct partitions stored ({} new, \
                 {} partition copies) ", id_to_zone[z], stored_partitions_zone[z], 
@@ -796,7 +791,7 @@ impl ClusterLayout {
             }
         }
 
-        return Ok(msg);
+        Ok(msg)
     }
     
 }
