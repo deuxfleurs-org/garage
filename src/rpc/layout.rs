@@ -150,15 +150,17 @@ impl ClusterLayout {
 				true
 			}
 			Ordering::Equal => {
+                let param_changed = self.parameters.get() != other.parameters.get();
                 self.parameters.merge(&other.parameters);
 				self.staging.merge(&other.staging);
 
+
 				let new_staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
-				let changed = new_staging_hash != self.staging_hash;
+				let stage_changed = new_staging_hash != self.staging_hash;
 
 				self.staging_hash = new_staging_hash;
 
-				changed
+				stage_changed || param_changed
 			}
 			Ordering::Less => false,
 		}
@@ -352,7 +354,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
         //Check that the partition size stored is the one computed by the asignation
         //algorithm.
         let cl2 = self.clone();
-        let (_ , zone_to_id) = cl2.generate_zone_ids().expect("Critical Error");
+        let (_ , zone_to_id) = cl2.generate_useful_zone_ids().expect("Critical Error");
         let partition_size = cl2.compute_optimal_partition_size(&zone_to_id).expect("Critical Error");
         if partition_size != self.partition_size {
             return false;
@@ -371,13 +373,14 @@ impl ClusterLayout {
 	/// partition (assuming all partitions have the same size).
 	/// Among such optimal assignation, it minimizes the distance to
 	/// the former assignation (if any) to minimize the amount of
-	/// data to be moved. 
+	/// data to be moved.
+    /// Staged changes must be merged with nodes roles before calling this function.
 	pub fn calculate_partition_assignation(&mut self) -> Result<Message,Error> {
 		//The nodes might have been updated, some might have been deleted.
 		//So we need to first update the list of nodes and retrieve the
 		//assignation.
-        
-        //We update the node ids, since the node list might have changed with the staged
+       
+        //We update the node ids, since the node role list might have changed with the 
         //changes in the layout. We retrieve the old_assignation reframed with the new ids
         let old_assignation_opt = self.update_node_id_vec()?;
         
@@ -387,12 +390,23 @@ impl ClusterLayout {
         msg.push(format!("Computation of a new cluster layout where partitions are \
         replicated {} times on at least {} distinct zones.", self.replication_factor, redundancy));
 
-        //We generate for once numerical ids for the zone, to use them as indices in the 
-        //flow graphs.
-        let (id_to_zone , zone_to_id) = self.generate_zone_ids()?;
+        //We generate for once numerical ids for the zones of non gateway nodes, 
+        //to use them as indices in the flow graphs.
+        let (id_to_zone , zone_to_id) = self.generate_useful_zone_ids()?;
 
+        let nb_useful_nodes = self.useful_nodes().len();
         msg.push(format!("The cluster contains {} nodes spread over {} zones.", 
-                         self.useful_nodes().len(), id_to_zone.len()));
+                         nb_useful_nodes, id_to_zone.len()));
+        if nb_useful_nodes < self.replication_factor{
+            return Err(Error::Message(format!("The number of nodes with positive \
+            capacity ({}) is smaller than the replication factor ({}).",
+            nb_useful_nodes, self.replication_factor)));
+        }
+        if id_to_zone.len() < redundancy {
+            return Err(Error::Message(format!("The number of zones with non-gateway \
+            nodes ({}) is smaller than the redundancy parameter ({})",
+            id_to_zone.len() , redundancy)));
+        }
        
         //We compute the optimal partition size
         //Capacities should be given in a unit so that partition size is at least 100.
@@ -413,8 +427,7 @@ impl ClusterLayout {
 
         if partition_size < 100 {
             msg.push("WARNING: The partition size is low (< 100), you might consider to \
-            give the nodes capacities in a smaller unit (e.g. Mb instead of Gb) to \
-            achieve a more tailored use of your storage ressources.".into());
+            provide the nodes capacities in a smaller unit (e.g. Mb instead of Gb).".into());
         }
 
         //We compute a first flow/assignment that is heuristically close to the previous
@@ -456,12 +469,14 @@ impl ClusterLayout {
             .filter(|(_, _, v)| 
                         match v {NodeRoleV(Some(r)) if r.capacity == None => true, _=> false })
             .map(|(k, _, _)| *k).collect();
-
+        
         let nb_useful_nodes = new_non_gateway_nodes.len();
         let mut new_node_id_vec = Vec::<Uuid>::new();
         new_node_id_vec.append(&mut new_non_gateway_nodes);
         new_node_id_vec.append(&mut new_gateway_nodes);
         
+        let old_node_id_vec = self.node_id_vec.clone();
+        self.node_id_vec = new_node_id_vec.clone();
         
         // (2) We retrieve the old association
         //We rewrite the old association with the new indices. We only consider partition
@@ -490,15 +505,14 @@ impl ClusterLayout {
         let rf= self.replication_factor;
         for p in 0..nb_partitions {
             for old_id in &self.ring_assignation_data[p*rf..(p+1)*rf] {
-                let uuid = self.node_id_vec[*old_id as usize];
+                let uuid = old_node_id_vec[*old_id as usize];
                 if uuid_to_new_id.contains_key(&uuid) {
                     old_assignation[p].push(uuid_to_new_id[&uuid]);
                 }
             }
         }
 
-        //We write the results
-        self.node_id_vec = new_node_id_vec;
+        //We write the ring
         self.ring_assignation_data = Vec::<CompactNodeType>::new();
 
         return Ok(Some(old_assignation));
@@ -507,11 +521,11 @@ impl ClusterLayout {
 
     ///This function generates ids for the zone of the nodes appearing in 
     ///self.node_id_vec.
-    fn generate_zone_ids(&self) -> Result<(Vec<String>, HashMap<String, usize>),Error>{
+    fn generate_useful_zone_ids(&self) -> Result<(Vec<String>, HashMap<String, usize>),Error>{
         let mut id_to_zone = Vec::<String>::new();
         let mut zone_to_id = HashMap::<String,usize>::new();
-
-        for uuid in self.node_id_vec.iter() {
+        
+        for uuid in self.useful_nodes().iter() {
             if self.roles.get(uuid) == None {
                 return Err(Error::Message("The uuid was not found in the node roles (this should \
                     not happen, it might be a critical error).".into()));
@@ -685,7 +699,7 @@ impl ClusterLayout {
         storage capacities. \
         You might want to rebalance the storage capacities or relax the constraints. \
         See the detailed statistics below and look for saturated nodes/zones."));
-        msg.push(format!("Recall that because of the replication, the actual available \
+        msg.push(format!("Recall that because of the replication factor, the actual available \
                          storage capacity is {} / {} = {}.", 
                         used_cap , self.replication_factor , 
                         used_cap/self.replication_factor as u32));
@@ -741,7 +755,7 @@ impl ClusterLayout {
                              transferred.", total_new_partitions));
         }
         msg.push(format!(""));
-        msg.push(format!("Detailed statistics by zones and nodes."));
+        msg.push(format!("==== DETAILED STATISTICS BY ZONES AND NODES ===="));
         
         for z in 0..id_to_zone.len(){
             let mut nodes_of_z = Vec::<usize>::new();

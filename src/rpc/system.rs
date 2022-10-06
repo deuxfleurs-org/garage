@@ -565,6 +565,7 @@ impl System {
 			return Err(Error::Message(msg));
 		}
 
+
 		let update_ring = self.update_ring.lock().await;
 		let mut layout: ClusterLayout = self.ring.borrow().layout.clone();
 

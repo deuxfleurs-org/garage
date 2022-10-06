@@ -188,6 +188,10 @@ pub async fn cmd_show_layout(
 			println!("No nodes have a role in the new layout.");
 		}
 		println!();
+        
+		println!("==== PARAMETERS OF THE LAYOUT COMPUTATION ====");
+        println!("Zone redundancy: {}", layout.parameters.get().zone_redundancy);
+		println!();
 
 		// this will print the stats of what partitions
 		// will move around when we apply
@@ -267,7 +271,7 @@ pub async fn cmd_config_layout(
             }
             else {
                 layout.parameters.update(LayoutParameters{ zone_redundancy: r });
-                println!("The new zone redundancy has been staged.");
+                println!("The new zone redundancy has been saved ({}).", r);
             }
         }
     }
