@@ -190,7 +190,7 @@ pub async fn cmd_show_layout(
 		println!();
         
 		println!("==== PARAMETERS OF THE LAYOUT COMPUTATION ====");
-        println!("Zone redundancy: {}", layout.parameters.get().zone_redundancy);
+        println!("Zone redundancy: {}", layout.staged_parameters.get().zone_redundancy);
 		println!();
 
 		// this will print the stats of what partitions
@@ -270,7 +270,7 @@ pub async fn cmd_config_layout(
                 println!("The zone redundancy must be at least 1.");
             }
             else {
-                layout.parameters.update(LayoutParameters{ zone_redundancy: r });
+                layout.staged_parameters.update(LayoutParameters{ zone_redundancy: r });
                 println!("The new zone redundancy has been saved ({}).", r);
             }
         }
