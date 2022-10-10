@@ -163,10 +163,10 @@ pub async fn handle_apply_cluster_layout(
 
 	let layout = garage.system.get_cluster_layout();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
-    //TODO : how to display msg ? Should it be in the Body Response ?
-    for s in msg.iter() {
-        println!("{}", s);
-    }
+	//TODO : how to display msg ? Should it be in the Body Response ?
+	for s in msg.iter() {
+		println!("{}", s);
+	}
 
 	garage.system.update_cluster_layout(&layout).await?;
 

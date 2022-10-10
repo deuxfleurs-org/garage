@@ -7,11 +7,10 @@ mod consul;
 #[cfg(feature = "kubernetes-discovery")]
 mod kubernetes;
 
-pub mod layout;
 pub mod graph_algo;
+pub mod layout;
 pub mod ring;
 pub mod system;
-
 
 mod metrics;
 pub mod rpc_helper;

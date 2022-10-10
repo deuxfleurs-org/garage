@@ -86,10 +86,10 @@ pub enum LayoutOperation {
 	/// Remove role from Garage cluster node
 	#[structopt(name = "remove", version = garage_version())]
 	Remove(RemoveRoleOpt),
-    
-    /// Configure parameters value for the layout computation
+
+	/// Configure parameters value for the layout computation
 	#[structopt(name = "config", version = garage_version())]
-    Config(ConfigLayoutOpt),
+	Config(ConfigLayoutOpt),
 
 	/// Show roles currently assigned to nodes and changes staged for commit
 	#[structopt(name = "show", version = garage_version())]
@@ -103,7 +103,6 @@ pub enum LayoutOperation {
 	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
 }
-
 
 #[derive(StructOpt, Debug)]
 pub struct AssignRoleOpt {

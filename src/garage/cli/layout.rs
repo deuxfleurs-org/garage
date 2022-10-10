@@ -27,9 +27,9 @@ pub async fn cli_layout_command_dispatch(
 		LayoutOperation::Revert(revert_opt) => {
 			cmd_revert_layout(system_rpc_endpoint, rpc_host, revert_opt).await
 		}
-        LayoutOperation::Config(config_opt) => {
-            cmd_config_layout(system_rpc_endpoint, rpc_host, config_opt).await
-        }
+		LayoutOperation::Config(config_opt) => {
+			cmd_config_layout(system_rpc_endpoint, rpc_host, config_opt).await
+		}
 	}
 }
 
@@ -188,30 +188,37 @@ pub async fn cmd_show_layout(
 			println!("No nodes have a role in the new layout.");
 		}
 		println!();
-        
+
 		println!("==== PARAMETERS OF THE LAYOUT COMPUTATION ====");
-        println!("Zone redundancy: {}", layout.staged_parameters.get().zone_redundancy);
+		println!(
+			"Zone redundancy: {}",
+			layout.staged_parameters.get().zone_redundancy
+		);
 		println!();
 
 		// this will print the stats of what partitions
 		// will move around when we apply
-        match layout.calculate_partition_assignation() {
-            Ok(msg) => { 
-                for line in msg.iter() {
-                    println!("{}", line);
-                }
-                println!("To enact the staged role changes, type:");
-                println!();
-                println!("    garage layout apply --version {}", layout.version + 1);
-                println!();
-                println!(
+		match layout.calculate_partition_assignation() {
+			Ok(msg) => {
+				for line in msg.iter() {
+					println!("{}", line);
+				}
+				println!("To enact the staged role changes, type:");
+				println!();
+				println!("    garage layout apply --version {}", layout.version + 1);
+				println!();
+				println!(
                     "You can also revert all proposed changes with: garage layout revert --version {}",
-                    layout.version + 1)},
-            Err(Error::Message(s)) => {
-                println!("Error while trying to compute the assignation: {}", s);
-			    println!("This new layout cannot yet be applied.");},
-            _ => { println!("Unknown Error"); },
-        }
+                    layout.version + 1)
+			}
+			Err(Error::Message(s)) => {
+				println!("Error while trying to compute the assignation: {}", s);
+				println!("This new layout cannot yet be applied.");
+			}
+			_ => {
+				println!("Unknown Error");
+			}
+		}
 	}
 
 	Ok(())
@@ -225,9 +232,9 @@ pub async fn cmd_apply_layout(
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	let (layout, msg) = layout.apply_staged_changes(apply_opt.version)?;
-    for line in msg.iter() {
-        println!("{}", line);
-    }
+	for line in msg.iter() {
+		println!("{}", line);
+	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
@@ -258,26 +265,29 @@ pub async fn cmd_config_layout(
 	config_opt: ConfigLayoutOpt,
 ) -> Result<(), Error> {
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
-    
-    match config_opt.redundancy {
-        None => (),
-        Some(r) => {
-            if r > layout.replication_factor {
-                println!("The zone redundancy must be smaller or equal to the \
-                replication factor ({}).", layout.replication_factor);
-            }
-            else if r < 1 {
-                println!("The zone redundancy must be at least 1.");
-            }
-            else {
-                layout.staged_parameters.update(LayoutParameters{ zone_redundancy: r });
-                println!("The new zone redundancy has been saved ({}).", r);
-            }
-        }
-    }
+
+	match config_opt.redundancy {
+		None => (),
+		Some(r) => {
+			if r > layout.replication_factor {
+				println!(
+					"The zone redundancy must be smaller or equal to the \
+                replication factor ({}).",
+					layout.replication_factor
+				);
+			} else if r < 1 {
+				println!("The zone redundancy must be at least 1.");
+			} else {
+				layout
+					.staged_parameters
+					.update(LayoutParameters { zone_redundancy: r });
+				println!("The new zone redundancy has been saved ({}).", r);
+			}
+		}
+	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
-    Ok(())
+	Ok(())
 }
 
 // --- utility ---
