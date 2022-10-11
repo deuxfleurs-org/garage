@@ -6,10 +6,10 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 
-//Vertex data structures used in all the graphs used in layout.rs.
-//usize parameters correspond to node/zone/partitions ids.
-//To understand the vertex roles below, please refer to the formal description
-//of the layout computation algorithm.
+///Vertex data structures used in all the graphs used in layout.rs.
+///usize parameters correspond to node/zone/partitions ids.
+///To understand the vertex roles below, please refer to the formal description
+///of the layout computation algorithm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Vertex {
 	Source,
@@ -20,8 +20,7 @@ pub enum Vertex {
 	Sink,
 }
 
-//Edge data structure for the flow algorithm.
-//The graph is stored as an adjacency list
+///Edge data structure for the flow algorithm.
 #[derive(Clone, Copy, Debug)]
 pub struct FlowEdge {
 	cap: u32,    //flow maximal capacity of the edge
@@ -30,8 +29,7 @@ pub struct FlowEdge {
 	rev: usize,  //index of the reversed edge (v, self) in the edge list of vertex v
 }
 
-//Edge data structure for the detection of negative cycles.
-//The graph is stored as a list of edges (u,v).
+///Edge data structure for the detection of negative cycles.
 #[derive(Clone, Copy, Debug)]
 pub struct WeightedEdge {
 	w: i32, //weight of the edge
@@ -42,13 +40,14 @@ pub trait Edge: Clone + Copy {}
 impl Edge for FlowEdge {}
 impl Edge for WeightedEdge {}
 
-//Struct for the graph structure. We do encapsulation here to be able to both
-//provide user friendly Vertex enum to address vertices, and to use usize indices
-//and Vec instead of HashMap in the graph algorithm to optimize execution speed.
+///Struct for the graph structure. We do encapsulation here to be able to both
+///provide user friendly Vertex enum to address vertices, and to use internally usize
+///indices and Vec instead of HashMap in the graph algorithm to optimize execution speed.
 pub struct Graph<E: Edge> {
 	vertextoid: HashMap<Vertex, usize>,
 	idtovertex: Vec<Vertex>,
 
+	//The graph is stored as an adjacency list
 	graph: Vec<Vec<E>>,
 }
 
@@ -69,8 +68,8 @@ impl<E: Edge> Graph<E> {
 }
 
 impl Graph<FlowEdge> {
-	//This function adds a directed edge to the graph with capacity c, and the
-	//corresponding reversed edge with capacity 0.
+	///This function adds a directed edge to the graph with capacity c, and the
+	///corresponding reversed edge with capacity 0.
 	pub fn add_edge(&mut self, u: Vertex, v: Vertex, c: u32) -> Result<(), String> {
 		if !self.vertextoid.contains_key(&u) || !self.vertextoid.contains_key(&v) {
 			return Err("The graph does not contain the provided vertex.".to_string());
@@ -94,8 +93,8 @@ impl Graph<FlowEdge> {
 		Ok(())
 	}
 
-	//This function returns the list of vertices that receive a positive flow from
-	//vertex v.
+	///This function returns the list of vertices that receive a positive flow from
+	///vertex v.
 	pub fn get_positive_flow_from(&self, v: Vertex) -> Result<Vec<Vertex>, String> {
 		if !self.vertextoid.contains_key(&v) {
 			return Err("The graph does not contain the provided vertex.".to_string());
@@ -110,7 +109,7 @@ impl Graph<FlowEdge> {
 		Ok(result)
 	}
 
-	//This function returns the value of the flow incoming to v.
+	///This function returns the value of the flow incoming to v.
 	pub fn get_inflow(&self, v: Vertex) -> Result<i32, String> {
 		if !self.vertextoid.contains_key(&v) {
 			return Err("The graph does not contain the provided vertex.".to_string());
@@ -123,7 +122,7 @@ impl Graph<FlowEdge> {
 		Ok(result)
 	}
 
-	//This function returns the value of the flow outgoing from v.
+	///This function returns the value of the flow outgoing from v.
 	pub fn get_outflow(&self, v: Vertex) -> Result<i32, String> {
 		if !self.vertextoid.contains_key(&v) {
 			return Err("The graph does not contain the provided vertex.".to_string());
@@ -136,14 +135,14 @@ impl Graph<FlowEdge> {
 		Ok(result)
 	}
 
-	//This function computes the flow total value by computing the outgoing flow
-	//from the source.
+	///This function computes the flow total value by computing the outgoing flow
+	///from the source.
 	pub fn get_flow_value(&mut self) -> Result<i32, String> {
 		self.get_outflow(Vertex::Source)
 	}
 
-	//This function shuffles the order of the edge lists. It keeps the ids of the
-	//reversed edges consistent.
+	///This function shuffles the order of the edge lists. It keeps the ids of the
+	///reversed edges consistent.
 	fn shuffle_edges(&mut self) {
 		let mut rng = rand::thread_rng();
 		for i in 0..self.graph.len() {
@@ -157,7 +156,7 @@ impl Graph<FlowEdge> {
 		}
 	}
 
-	//Computes an upper bound of the flow n the graph
+	///Computes an upper bound of the flow on the graph
 	pub fn flow_upper_bound(&self) -> u32 {
 		let idsource = self.vertextoid[&Vertex::Source];
 		let mut flow_upper_bound = 0;
@@ -167,9 +166,9 @@ impl Graph<FlowEdge> {
 		flow_upper_bound
 	}
 
-	//This function computes the maximal flow using Dinic's algorithm. It starts with
-	//the flow values already present in the graph. So it is possible to add some edge to
-	//the graph, compute a flow, add other edges, update the flow.
+	///This function computes the maximal flow using Dinic's algorithm. It starts with
+	///the flow values already present in the graph. So it is possible to add some edge to
+	///the graph, compute a flow, add other edges, update the flow.
 	pub fn compute_maximal_flow(&mut self) -> Result<(), String> {
 		if !self.vertextoid.contains_key(&Vertex::Source) {
 			return Err("The graph does not contain a source.".to_string());
@@ -270,11 +269,11 @@ impl Graph<FlowEdge> {
 		Ok(())
 	}
 
-	//This function takes a flow, and a cost function on the edges, and tries to find an
-	// equivalent flow with a better cost, by finding improving overflow cycles. It uses
-	// as subroutine the Bellman Ford algorithm run up to path_length.
-	// We assume that the cost of edge (u,v) is the opposite of the cost of (v,u), and only
-	// one needs to be present in the cost function.
+	///This function takes a flow, and a cost function on the edges, and tries to find an
+	/// equivalent flow with a better cost, by finding improving overflow cycles. It uses
+	/// as subroutine the Bellman Ford algorithm run up to path_length.
+	/// We assume that the cost of edge (u,v) is the opposite of the cost of (v,u), and
+	/// only one needs to be present in the cost function.
 	pub fn optimize_flow_with_cost(
 		&mut self,
 		cost: &CostFunction,
@@ -309,7 +308,7 @@ impl Graph<FlowEdge> {
 		Ok(())
 	}
 
-	//Construct the weighted graph G_f from the flow and the cost function
+	///Construct the weighted graph G_f from the flow and the cost function
 	fn build_cost_graph(&self, cost: &CostFunction) -> Result<Graph<WeightedEdge>, String> {
 		let mut g = Graph::<WeightedEdge>::new(&self.idtovertex);
 		let nb_vertices = self.idtovertex.len();
@@ -334,7 +333,7 @@ impl Graph<FlowEdge> {
 }
 
 impl Graph<WeightedEdge> {
-	//This function adds a single directed weighted edge to the graph.
+	///This function adds a single directed weighted edge to the graph.
 	pub fn add_edge(&mut self, u: Vertex, v: Vertex, w: i32) -> Result<(), String> {
 		if !self.vertextoid.contains_key(&u) || !self.vertextoid.contains_key(&v) {
 			return Err("The graph does not contain the provided vertex.".to_string());
@@ -345,12 +344,12 @@ impl Graph<WeightedEdge> {
 		Ok(())
 	}
 
-	//This function lists the negative cycles it manages to find after path_length
-	//iterations of the main loop of the Bellman-Ford algorithm. For the classical
-	//algorithm, path_length needs to be equal to the number of vertices. However,
-	//for particular graph structures like our case, the algorithm is still correct
-	//when path_length is the length of the longest possible simple path.
-	//See the formal description of the algorithm for more details.
+	///This function lists the negative cycles it manages to find after path_length
+	///iterations of the main loop of the Bellman-Ford algorithm. For the classical
+	///algorithm, path_length needs to be equal to the number of vertices. However,
+	///for particular graph structures like in our case, the algorithm is still correct
+	///when path_length is the length of the longest possible simple path.
+	///See the formal description of the algorithm for more details.
 	fn list_negative_cycles(&self, path_length: usize) -> Vec<Vec<Vertex>> {
 		let nb_vertices = self.graph.len();
 
@@ -384,8 +383,8 @@ impl Graph<WeightedEdge> {
 	}
 }
 
-//This function returns the list of cycles of a directed 1 forest. It does not
-//check for the consistency of the input.
+///This function returns the list of cycles of a directed 1 forest. It does not
+///check for the consistency of the input.
 fn cycles_of_1_forest(forest: &[Option<usize>]) -> Vec<Vec<usize>> {
 	let mut cycles = Vec::<Vec<usize>>::new();
 	let mut time_of_discovery = vec![None; forest.len()];
