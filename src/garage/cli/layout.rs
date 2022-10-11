@@ -169,7 +169,7 @@ pub async fn cmd_show_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
 ) -> Result<(), Error> {
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	println!("==== CURRENT CLUSTER LAYOUT ====");
 	if !print_cluster_layout(&layout) {
@@ -179,41 +179,40 @@ pub async fn cmd_show_layout(
 	println!();
 	println!("Current cluster layout version: {}", layout.version);
 
-	if print_staging_role_changes(&layout) {
-		layout.roles.merge(&layout.staging);
-
-		println!();
-		println!("==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====");
-		if !print_cluster_layout(&layout) {
-			println!("No nodes have a role in the new layout.");
-		}
-		println!();
-
-		println!("==== PARAMETERS OF THE LAYOUT COMPUTATION ====");
-		println!(
-			"Zone redundancy: {}",
-			layout.staged_parameters.get().zone_redundancy
-		);
-		println!();
+	let has_role_changes = print_staging_role_changes(&layout);
+	let has_param_changes = print_staging_parameters_changes(&layout);
+	if has_role_changes || has_param_changes {
+		let v = layout.version;
+		let res_apply = layout.apply_staged_changes(Some(v + 1));
 
 		// this will print the stats of what partitions
 		// will move around when we apply
-		match layout.calculate_partition_assignation() {
-			Ok(msg) => {
+		match res_apply {
+			Ok((layout, msg)) => {
+				println!();
+				println!("==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====");
+				if !print_cluster_layout(&layout) {
+					println!("No nodes have a role in the new layout.");
+				}
+				println!();
+
 				for line in msg.iter() {
 					println!("{}", line);
 				}
 				println!("To enact the staged role changes, type:");
 				println!();
-				println!("    garage layout apply --version {}", layout.version + 1);
+				println!("    garage layout apply --version {}", v + 1);
 				println!();
 				println!(
                     "You can also revert all proposed changes with: garage layout revert --version {}",
-                    layout.version + 1)
+                    v + 1)
 			}
 			Err(Error::Message(s)) => {
 				println!("Error while trying to compute the assignation: {}", s);
 				println!("This new layout cannot yet be applied.");
+				println!(
+                    "You can also revert all proposed changes with: garage layout revert --version {}",
+                    v + 1)
 			}
 			_ => {
 				println!("Unknown Error");
@@ -321,27 +320,49 @@ pub async fn send_layout(
 }
 
 pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
-	let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
+	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable".to_string()];
 	for (id, _, role) in layout.roles.items().iter() {
 		let role = match &role.0 {
 			Some(r) => r,
 			_ => continue,
 		};
 		let tags = role.tags.join(",");
+		let usage = layout.get_node_usage(id).unwrap_or(0);
+		let capacity = layout.get_node_capacity(id).unwrap_or(1);
 		table.push(format!(
-			"{:?}\t{}\t{}\t{}",
+			"{:?}\t{}\t{}\t{}\t{} ({:.1}%)",
 			id,
 			tags,
 			role.zone,
-			role.capacity_string()
+			role.capacity_string(),
+			usage as u32 * layout.partition_size,
+			(100.0 * usage as f32 * layout.partition_size as f32) / (capacity as f32)
 		));
 	}
+	println!();
+	println!("Parameters of the layout computation:");
+	println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
+	println!();
 	if table.len() == 1 {
 		false
 	} else {
 		format_table(table);
 		true
 	}
+}
+
+pub fn print_staging_parameters_changes(layout: &ClusterLayout) -> bool {
+	let has_changes = layout.staged_parameters.get().clone() != layout.parameters;
+	if has_changes {
+		println!();
+		println!("==== NEW LAYOUT PARAMETERS ====");
+		println!(
+			"Zone redundancy: {}",
+			layout.staged_parameters.get().zone_redundancy
+		);
+		println!();
+	}
+	has_changes
 }
 
 pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
