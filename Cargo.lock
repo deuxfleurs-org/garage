@@ -248,7 +248,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "lazy_static",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "pin-project-lite",
  "tokio",
  "tower",
@@ -281,7 +281,7 @@ dependencies = [
  "http-body",
  "hyper",
  "percent-encoding",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "tokio",
  "tokio-util 0.6.9",
  "tracing",
@@ -297,7 +297,7 @@ dependencies = [
  "bytes",
  "http",
  "http-body",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "tower",
  "tracing",
 ]
@@ -1054,7 +1054,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-prometheus",
  "percent-encoding",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "prometheus",
  "quick-xml",
  "roxmltree",
@@ -1731,7 +1731,7 @@ dependencies = [
  "kube-core",
  "openssl",
  "pem",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1786,7 +1786,7 @@ dependencies = [
  "json-patch",
  "k8s-openapi",
  "kube-client",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "serde",
  "serde_json",
  "smallvec",
@@ -2050,7 +2050,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-contrib",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "rand 0.8.5",
  "rmp-serde",
  "serde",
@@ -2187,7 +2187,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "percent-encoding",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "rand 0.8.5",
  "thiserror",
  "tokio",
@@ -2382,11 +2382,11 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.0.10"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58ad3879ad3baf4e44784bc6a718a8698867bb991f8ce24d1bcbe2cfb4c3a75e"
+checksum = "ad29a609b6bcd67fee905812e544992d216af9d755757c05ed2d0e15a74c6ecc"
 dependencies = [
- "pin-project-internal 1.0.10",
+ "pin-project-internal 1.0.12",
 ]
 
 [[package]]
@@ -2402,9 +2402,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-internal"
-version = "1.0.10"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "744b6f092ba29c3650faf274db506afd39944f48420f6c86b17cfe0ee1cb36bb"
+checksum = "069bdb1e05adc7a8990dce9cc75370895fbe4e3d58b9b73bf1aee56359344a55"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3615,7 +3615,7 @@ dependencies = [
  "hyper",
  "hyper-timeout",
  "percent-encoding",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "prost",
  "prost-derive",
  "tokio",
@@ -3649,7 +3649,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "indexmap",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "pin-project-lite",
  "rand 0.8.5",
  "slab",
@@ -3672,7 +3672,7 @@ dependencies = [
  "futures-util",
  "http",
  "http-body",
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -3730,7 +3730,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
- "pin-project 1.0.10",
+ "pin-project 1.0.12",
  "tracing",
 ]
 
