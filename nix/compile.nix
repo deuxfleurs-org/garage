@@ -13,9 +13,10 @@ let
   log = v: builtins.trace v v;
 
   pkgs = import pkgsSrc {
-    inherit system; 
+    inherit system;
     crossSystem = {
       config = target;
+      isStatic = true;
     };
     overlays = [ cargo2nixOverlay ];
   };
@@ -30,26 +31,22 @@ let
    we emulate the structure of the Rust object created by rustOverlay.
    In practise, rustOverlay ships rustc+cargo in a single derivation while
    NixOS ships them in separate ones. We reunite them with symlinkJoin.
-   */
-   /*
-  rustToolchain = {
-    rustc = pkgs.symlinkJoin {
-      name = "rust-channel";
-      paths = [ 
-        pkgs.rustPlatform.rust.cargo
-        pkgs.rustPlatform.rust.rustc
-      ];
-    };
-    clippy = pkgs.symlinkJoin {
-      name = "clippy-channel";
-      paths = [ 
-        pkgs.rustPlatform.rust.cargo
-        pkgs.rustPlatform.rust.rustc
-        pkgs.clippy
-      ];
-    };
-  }.${compiler};
   */
+  toolchainOptions =
+    if target == "x86_64-unknown-linux-musl" || target == "aarch64-unknown-linux-musl" then {
+      rustVersion = "1.63.0";
+      extraRustComponents = [ "clippy" ];
+    } else {
+      rustToolchain = pkgs.symlinkJoin {
+        name = "rust-static-toolchain-${target}";
+        paths = [
+          pkgs.rustPlatform.rust.cargo
+          pkgs.rustPlatform.rust.rustc
+          # clippy not needed, it only runs on amd64
+        ];
+      };
+    };
+
 
   buildEnv = (drv: {
     rustc = drv.setBuildEnv;
@@ -57,7 +54,7 @@ let
       ${drv.setBuildEnv or "" }
       echo
       echo --- BUILDING WITH CLIPPY ---
-      echo 
+      echo
 
       export NIX_RUST_BUILD_FLAGS="''${NIX_RUST_BUILD_FLAGS} --deny warnings"
       export RUSTC="''${CLIPPY_DRIVER}"
@@ -215,12 +212,7 @@ let
     else target;
 
 in
-  pkgs.rustBuilder.makePackageSet {
+  pkgs.rustBuilder.makePackageSet ({
     inherit release packageFun packageOverrides codegenOpts rootFeatures;
-
-    #inherit rustToolchain;
-    rustVersion = "1.63.0";
-
     target = rustTarget;
-    extraRustComponents = [ "clippy" ];
-  }
+  } // toolchainOptions)

@@ -43,10 +43,13 @@ in {
       target = "x86_64-unknown-linux-musl";
       features = [
         "garage/bundled-libs"
-        "garage/sled"
         "garage/k2v"
+        "garage/sled"
         "garage/lmdb"
         "garage/sqlite"
+        "garage_db/sled"
+        "garage_db/lmdb"
+        "garage_db/sqlite"
       ];
     });
   };
