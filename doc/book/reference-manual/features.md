@@ -106,7 +106,7 @@ to be manually connected to one another.
 
 ### Support for changing IP addresses
 
-As long as all of your nodes don't thange their IP address at the same time,
+As long as all of your nodes don't change their IP address at the same time,
 Garage should be able to tolerate nodes with changing/dynamic IP addresses,
 as nodes will regularly exchange the IP addresses of their peers and try to
 reconnect using newer addresses when existing connections are broken.
