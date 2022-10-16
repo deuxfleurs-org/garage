@@ -6,7 +6,7 @@ use assert_json_diff::assert_json_eq;
 use serde_json::json;
 
 use super::json_body;
-use hyper::Method;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_batch() {
@@ -49,7 +49,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	for sk in ["a", "b", "c", "d.1", "d.2", "e"] {
 		let res = ctx
@@ -62,7 +62,7 @@ async fn test_batch() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::OK);
 		assert_eq!(
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/octet-stream"
@@ -104,7 +104,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	let json_res = json_body(res).await;
 	assert_json_eq!(
 		json_res,
@@ -266,7 +266,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	for sk in ["b", "c", "d.1", "d.2"] {
 		let res = ctx
@@ -280,9 +280,9 @@ async fn test_batch() {
 			.await
 			.unwrap();
 		if sk == "b" {
-			assert_eq!(res.status(), 204);
+			assert_eq!(res.status(), StatusCode::NO_CONTENT);
 		} else {
-			assert_eq!(res.status(), 200);
+			assert_eq!(res.status(), StatusCode::OK);
 		}
 		ct.insert(
 			sk,
@@ -317,7 +317,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	let json_res = json_body(res).await;
 	assert_json_eq!(
 		json_res,
@@ -478,7 +478,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	let json_res = json_body(res).await;
 	assert_json_eq!(
 		json_res,
@@ -514,7 +514,7 @@ async fn test_batch() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 204);
+		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 		assert_eq!(
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/octet-stream"
@@ -547,7 +547,7 @@ async fn test_batch() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	let json_res = json_body(res).await;
 	assert_json_eq!(
 		json_res,

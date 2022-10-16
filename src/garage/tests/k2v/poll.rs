@@ -1,4 +1,4 @@
-use hyper::Method;
+use hyper::{Method, StatusCode};
 use std::time::Duration;
 
 use crate::common;
@@ -20,7 +20,7 @@ async fn test_poll() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// Retrieve initial value to get its causality token
 	let res2 = ctx
@@ -33,7 +33,7 @@ async fn test_poll() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res2.status(), 200);
+	assert_eq!(res2.status(), StatusCode::OK);
 	let ct = res2
 		.headers()
 		.get("x-garage-causality-token")
@@ -80,7 +80,7 @@ async fn test_poll() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// Check poll finishes with correct value
 	let poll_res = tokio::select! {
@@ -88,7 +88,7 @@ async fn test_poll() {
 		res = poll => res.unwrap().unwrap(),
 	};
 
-	assert_eq!(poll_res.status(), 200);
+	assert_eq!(poll_res.status(), StatusCode::OK);
 
 	let poll_res_body = hyper::body::to_bytes(poll_res.into_body())
 		.await

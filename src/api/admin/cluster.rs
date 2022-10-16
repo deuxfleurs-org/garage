@@ -151,7 +151,7 @@ pub async fn handle_update_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()
-		.status(StatusCode::OK)
+		.status(StatusCode::NO_CONTENT)
 		.body(Body::empty())?)
 }
 
@@ -166,7 +166,7 @@ pub async fn handle_apply_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()
-		.status(StatusCode::OK)
+		.status(StatusCode::NO_CONTENT)
 		.body(Body::empty())?)
 }
 
@@ -181,7 +181,7 @@ pub async fn handle_revert_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()
-		.status(StatusCode::OK)
+		.status(StatusCode::NO_CONTENT)
 		.body(Body::empty())?)
 }
 
