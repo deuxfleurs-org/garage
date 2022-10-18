@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use netapp::NodeID;
 
+use garage_util::config::KubernetesDiscoveryConfig;
+
 static K8S_GROUP: &str = "deuxfleurs.fr";
 
 #[derive(CustomResource, Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -41,15 +43,14 @@ pub async fn create_kubernetes_crd() -> Result<(), kube::Error> {
 }
 
 pub async fn get_kubernetes_nodes(
-	kubernetes_service_name: &str,
-	kubernetes_namespace: &str,
+	kubernetes_config: &KubernetesDiscoveryConfig,
 ) -> Result<Vec<(NodeID, SocketAddr)>, kube::Error> {
 	let client = Client::try_default().await?;
-	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), kubernetes_namespace);
+	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), &kubernetes_config.namespace);
 
 	let lp = ListParams::default().labels(&format!(
 		"garage.{}/service={}",
-		K8S_GROUP, kubernetes_service_name
+		K8S_GROUP, kubernetes_config.service_name
 	));
 
 	let nodes = nodes.list(&lp).await?;
@@ -73,8 +74,7 @@ pub async fn get_kubernetes_nodes(
 }
 
 pub async fn publish_kubernetes_node(
-	kubernetes_service_name: &str,
-	kubernetes_namespace: &str,
+	kubernetes_config: &KubernetesDiscoveryConfig,
 	node_id: NodeID,
 	hostname: &str,
 	rpc_public_addr: SocketAddr,
@@ -93,13 +93,13 @@ pub async fn publish_kubernetes_node(
 	let labels = node.metadata.labels.insert(BTreeMap::new());
 	labels.insert(
 		format!("garage.{}/service", K8S_GROUP),
-		kubernetes_service_name.to_string(),
+		kubernetes_config.service_name.to_string(),
 	);
 
 	debug!("Node object to be applied: {:#?}", node);
 
 	let client = Client::try_default().await?;
-	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), kubernetes_namespace);
+	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), &kubernetes_config.namespace);
 
 	if let Ok(old_node) = nodes.get(&node_pubkey).await {
 		node.metadata.resource_version = old_node.metadata.resource_version;

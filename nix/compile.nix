@@ -177,6 +177,7 @@ let
        "garage/sled"
        "garage/k2v"
      ] ++ (if release then [
+       "garage/consul-discovery"
        "garage/kubernetes-discovery"
        "garage/metrics"
        "garage/telemetry-otlp"
