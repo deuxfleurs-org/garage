@@ -66,6 +66,18 @@ function refresh_toolchain {
   rm /tmp/nix-signing-key.sec
 }
 
+function refresh_cache {
+  pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
+  for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.{debug,release}; do
+    echo "Updating cache for ''${attr}"
+    derivation=$(nix-instantiate --attr ''${attr})
+    nix copy \
+      --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
+      $(nix-store -qR ''${derivation%\!bin})
+  done
+  rm /tmp/nix-signing-key.sec
+}
+
 function to_s3 {
   aws \
       --endpoint-url https://garage.deuxfleurs.fr \
