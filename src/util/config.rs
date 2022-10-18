@@ -46,20 +46,17 @@ pub struct Config {
 	/// Timeout for Netapp RPC calls
 	pub rpc_timeout_msec: Option<u64>,
 
+	// -- Bootstraping and discovery
 	/// Bootstrap peers RPC address
 	#[serde(default)]
 	pub bootstrap_peers: Vec<String>,
-	/// Consul host to connect to to discover more peers
-	pub consul_host: Option<String>,
-	/// Consul service name to use
-	pub consul_service_name: Option<String>,
-	/// Kubernetes namespace the service discovery resources are be created in
-	pub kubernetes_namespace: Option<String>,
-	/// Service name to filter for in k8s custom resources
-	pub kubernetes_service_name: Option<String>,
-	/// Skip creation of the garagenodes CRD
+
+	/// Configuration for automatic node discovery through Consul
 	#[serde(default)]
-	pub kubernetes_skip_crd: bool,
+	pub consul_discovery: Option<ConsulDiscoveryConfig>,
+	/// Configuration for automatic node discovery through Kubernetes
+	#[serde(default)]
+	pub kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
 	// -- DB
 	/// Database engine to use for metadata (options: sled, sqlite, lmdb)
@@ -127,6 +124,34 @@ pub struct AdminConfig {
 	pub admin_token: Option<String>,
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ConsulDiscoveryConfig {
+	/// Consul host to connect to to discover more peers
+	pub consul_host: String,
+	/// Consul service name to use
+	pub service_name: String,
+	/// CA TLS certificate to use when connecting to Consul
+	pub ca_cert: Option<String>,
+	/// Client TLS certificate to use when connecting to Consul
+	pub client_cert: Option<String>,
+	/// Client TLS key to use when connecting to Consul
+	pub client_key: Option<String>,
+	/// Skip TLS hostname verification
+	#[serde(default)]
+	pub tls_skip_verify: bool,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct KubernetesDiscoveryConfig {
+	/// Kubernetes namespace the service discovery resources are be created in
+	pub namespace: String,
+	/// Service name to filter for in k8s custom resources
+	pub service_name: String,
+	/// Skip creation of the garagenodes CRD
+	#[serde(default)]
+	pub skip_crd: bool,
 }
 
 fn default_db_engine() -> String {

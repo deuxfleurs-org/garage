@@ -90,6 +90,8 @@ async fn main() {
 		"lmdb",
 		#[cfg(feature = "sqlite")]
 		"sqlite",
+		#[cfg(feature = "consul-discovery")]
+		"consul-discovery",
 		#[cfg(feature = "kubernetes-discovery")]
 		"kubernetes-discovery",
 		#[cfg(feature = "metrics")]
