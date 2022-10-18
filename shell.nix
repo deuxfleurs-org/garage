@@ -71,7 +71,7 @@ function to_s3 {
       --endpoint-url https://garage.deuxfleurs.fr \
       --region garage \
     s3 cp \
-      ./result/bin/garage \
+      ./result-bin/bin/garage \
       s3://garagehq.deuxfleurs.fr/_releases/''${DRONE_TAG:-$DRONE_COMMIT}/''${TARGET}/garage
 }
 

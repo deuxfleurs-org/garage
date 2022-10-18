@@ -8,7 +8,7 @@ SCRIPT_FOLDER="`dirname \"$0\"`"
 REPO_FOLDER="${SCRIPT_FOLDER}/../"
 GARAGE_DEBUG="${REPO_FOLDER}/target/debug/"
 GARAGE_RELEASE="${REPO_FOLDER}/target/release/"
-NIX_RELEASE="${REPO_FOLDER}/result/bin/"
+NIX_RELEASE="${REPO_FOLDER}/result/bin/:${REPO_FOLDER}/result-bin/bin/"
 PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 CMDOUT=/tmp/garage.cmd.tmp
 
