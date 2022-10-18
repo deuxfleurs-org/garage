@@ -290,6 +290,14 @@ impl System {
 
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
 
+		#[cfg(feature = "consul-discovery")]
+		let consul_discovery = match &config.consul_discovery {
+			Some(cfg) => Some(
+				ConsulDiscovery::new(cfg.clone())
+					.ok_or_message("Invalid Consul discovery configuration")?,
+			),
+			None => None,
+		};
 		#[cfg(not(feature = "consul-discovery"))]
 		if config.consul_discovery.is_some() {
 			warn!("Consul discovery is not enabled in this build.");
@@ -299,15 +307,6 @@ impl System {
 		if config.kubernetes_discovery.is_some() {
 			warn!("Kubernetes discovery is not enabled in this build.");
 		}
-
-		#[cfg(feature = "consul-discovery")]
-		let consul_discovery = match &config.consul_discovery {
-			Some(cfg) => Some(
-				ConsulDiscovery::new(cfg.clone())
-					.ok_or_message("Invalid Consul discovery configuration")?,
-			),
-			None => None,
-		};
 
 		let sys = Arc::new(System {
 			id: netapp.id.into(),
