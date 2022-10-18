@@ -3,20 +3,20 @@ rec {
    * Fixed dependencies
    */
   pkgsSrc = fetchTarball {
-    # As of 2021-10-04
-    url = "https://github.com/NixOS/nixpkgs/archive/b27d18a412b071f5d7991d1648cfe78ee7afe68a.tar.gz";
-    sha256 = "1xy9zpypqfxs5gcq5dcla4bfkhxmh5nzn9dyqkr03lqycm9wg5cr";
+    # As of 2022-10-13
+    url = "https://github.com/NixOS/nixpkgs/archive/a3073c49bc0163fea6a121c276f526837672b555.zip";
+    sha256 = "1bz632psfbpmicyzjb8b4265y50shylccvfm6ry6mgnv5hvz324s";
   };
   cargo2nixSrc = fetchGit {
-    # As of 2022-08-29, stacking two patches: superboum@dedup_propagate and Alexis211@fix_fetchcrategit
+    # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
     url = "https://github.com/Alexis211/cargo2nix";
-    ref = "fix_fetchcrategit";
-    rev = "4b31c0cc05b6394916d46e9289f51263d81973b9";
+    ref = "custom_unstable";
+    rev = "a7a61179b66054904ef6a195d8da736eaaa06c36";
   };
 
   /*
    * Shared objects
    */
   cargo2nix = import cargo2nixSrc;
-  cargo2nixOverlay = import "${cargo2nixSrc}/overlay";
+  cargo2nixOverlay = cargo2nix.overlays.default;
 }

@@ -1,9 +1,10 @@
 {
   system ? builtins.currentSystem,
-  target ? null,
+  target,
   compiler ? "rustc",
   release ? false,
   git_version ? null,
+  features ? null,
 }:
 
 with import ./common.nix;
@@ -12,71 +13,41 @@ let
   log = v: builtins.trace v v;
 
   pkgs = import pkgsSrc {
-    inherit system; 
-    ${ if target == null then null else "crossSystem" } = { config = target; };
+    inherit system;
+    crossSystem = {
+      config = target;
+      isStatic = true;
+    };
     overlays = [ cargo2nixOverlay ];
   };
 
   /*
-   Rust and Nix triples are not the same. Cargo2nix has a dedicated library
-   to convert Nix triples to Rust ones. We need this conversion as we want to
-   set later options linked to our (rust) target in a generic way. Not only
-   the triple terminology is different, but also the "roles" are named differently.
-   Nix uses a build/host/target terminology where Nix's "host" maps to Cargo's "target".
-  */
-  rustTarget = log (pkgs.rustBuilder.rustLib.rustTriple pkgs.stdenv.hostPlatform);
-
-  /*
    Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
-   We want our own Rust to avoid incompatibilities, like we had with musl 1.2.0.
-   rustc was built with musl < 1.2.0 and nix shipped musl >= 1.2.0 which lead to compilation breakage.
+   This is fine for 64-bit platforms, but for 32-bit platforms, we need our own Rust
+   to avoid incompatibilities with time_t between different versions of musl
+   (>= 1.2.0 shipped by NixOS, < 1.2.0 with which rustc was built), which lead to compilation breakage.
    So we want a Rust release that is bound to our Nix repository to avoid these problems.
    See here for more info: https://musl.libc.org/time64.html
    Because Cargo2nix does not support the Rust environment shipped by NixOS,
    we emulate the structure of the Rust object created by rustOverlay.
    In practise, rustOverlay ships rustc+cargo in a single derivation while
    NixOS ships them in separate ones. We reunite them with symlinkJoin.
-   */
-  rustChannel = {
-    rustc = pkgs.symlinkJoin {
-      name = "rust-channel";
-      paths = [ 
-        pkgs.rustPlatform.rust.cargo
-        pkgs.rustPlatform.rust.rustc
-      ];
+  */
+  toolchainOptions =
+    if target == "x86_64-unknown-linux-musl" || target == "aarch64-unknown-linux-musl" then {
+      rustVersion = "1.63.0";
+      extraRustComponents = [ "clippy" ];
+    } else {
+      rustToolchain = pkgs.symlinkJoin {
+        name = "rust-static-toolchain-${target}";
+        paths = [
+          pkgs.rustPlatform.rust.cargo
+          pkgs.rustPlatform.rust.rustc
+          # clippy not needed, it only runs on amd64
+        ];
+      };
     };
-    clippy = pkgs.symlinkJoin {
-      name = "clippy-channel";
-      paths = [ 
-        pkgs.rustPlatform.rust.cargo
-        pkgs.rustPlatform.rust.rustc
-        pkgs.clippy
-      ];
-    };
-  }.${compiler};
 
-  clippyBuilder = pkgs.writeScriptBin "clippy" ''
-    #!${pkgs.stdenv.shell}
-    . ${cargo2nixSrc + "/overlay/utils.sh"}
-    isBuildScript=
-    args=("$@")
-    for i in "''${!args[@]}"; do
-      if [ "xmetadata=" = "x''${args[$i]::9}" ]; then
-        args[$i]=metadata=$NIX_RUST_METADATA
-      elif [ "x--crate-name" = "x''${args[$i]}" ] && [ "xbuild_script_" = "x''${args[$i+1]::13}" ]; then
-        isBuildScript=1
-      fi
-    done
-    if [ "$isBuildScript" ]; then
-      args+=($NIX_RUST_BUILD_LINK_FLAGS)
-    else
-      args+=($NIX_RUST_LINK_FLAGS)
-    fi
-    touch invoke.log
-    echo "''${args[@]}" >>invoke.log
-
-    exec ${rustChannel}/bin/clippy-driver --deny warnings "''${args[@]}"
-  '';
 
   buildEnv = (drv: {
     rustc = drv.setBuildEnv;
@@ -84,9 +55,10 @@ let
       ${drv.setBuildEnv or "" }
       echo
       echo --- BUILDING WITH CLIPPY ---
-      echo 
+      echo
 
-      export RUSTC=${clippyBuilder}/bin/clippy
+      export NIX_RUST_BUILD_FLAGS="''${NIX_RUST_BUILD_FLAGS} --deny warnings"
+      export RUSTC="''${CLIPPY_DRIVER}"
     '';
   }.${compiler});
 
@@ -97,7 +69,7 @@ let
    You can have a complete list of the available options by looking at the overriden object, mkcrate:
    https://github.com/cargo2nix/cargo2nix/blob/master/overlay/mkcrate.nix
   */
-  overrides = pkgs.rustBuilder.overrides.all ++ [
+  packageOverrides = pkgs: pkgs.rustBuilder.overrides.all ++ [
     /*
      [1] We add some logic to compile our crates with clippy, it provides us many additional lints
 
@@ -113,12 +85,7 @@ let
      As we do not want to consider the .git folder as part of the input source,
      we ask the user (the CI often) to pass the value to Nix.
 
-     [4] We ship some parts of the code disabled by default by putting them behind a flag.
-     It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
-     But we want to ship these additional features when we release Garage.
-     In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
-
-     [5] We don't want libsodium-sys and zstd-sys to try to use pkgconfig to build against a system library.
+     [4] We don't want libsodium-sys and zstd-sys to try to use pkgconfig to build against a system library.
      However the features to do so get activated for some reason (due to a bug in cargo2nix?),
      so disable them manually here.
     */
@@ -135,10 +102,6 @@ let
       {
         /* [1] */ setBuildEnv = (buildEnv drv);
         /* [2] */ hardeningDisable = [ "pie" ];
-      };
-      overrideArgs = old: {
-        /* [4] */ features = [ "bundled-libs" "sled" "metrics" "k2v" ]
-          ++ (if release then [ "kubernetes-discovery" "telemetry-otlp" "lmdb" "sqlite" ] else []);
       };
     })
 
@@ -190,17 +153,37 @@ let
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "libsodium-sys";
       overrideArgs = old: {
-        features = [ ]; /* [5] */
+        features = [ ]; /* [4] */
       };
     })
 
     (pkgs.rustBuilder.rustLib.makeOverride {
       name = "zstd-sys";
       overrideArgs = old: {
-        features = [ ]; /* [5] */
+        features = [ ]; /* [4] */
       };
     })
   ];
+
+  /*
+    We ship some parts of the code disabled by default by putting them behind a flag.
+    It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
+    But we want to ship these additional features when we release Garage.
+    In the end, we chose to exclude all features from debug builds while putting (all of) them in the release builds.
+  */
+  rootFeatures = if features != null then features else
+     ([
+       "garage/bundled-libs"
+       "garage/sled"
+       "garage/k2v"
+     ] ++ (if release then [
+       "garage/kubernetes-discovery"
+       "garage/metrics"
+       "garage/telemetry-otlp"
+       "garage/lmdb"
+       "garage/sqlite"
+     ] else []));
+
 
   packageFun = import ../Cargo.nix;
 
@@ -222,23 +205,15 @@ let
    "x86_64-unknown-linux-musl" = [ "target-feature=+crt-static" "link-arg=-static-pie" ];
   };
 
-in
   /*
-   The following definition is not elegant as we use a low level function of Cargo2nix
-   that enables us to pass our custom rustChannel object. We need this low level definition
-   to pass Nix's Rust toolchains instead of Mozilla's one.
+    NixOS and Rust/Cargo triples do not match for ARM, fix it here.
+  */
+  rustTarget = if target == "armv6l-unknown-linux-musleabihf"
+    then "arm-unknown-linux-musleabihf"
+    else target;
 
-   target is mandatory but must be kept to null to allow cargo2nix to set it to the appropriate value
-   for each crate.
-  */ 
-  pkgs.rustBuilder.makePackageSet {
-    inherit packageFun rustChannel release codegenOpts;
-    packageOverrides = overrides;
-    target = null;
-
-    buildRustPackages = pkgs.buildPackages.rustBuilder.makePackageSet {
-      inherit rustChannel packageFun codegenOpts;
-      packageOverrides = overrides;
-      target = null;
-    };
-  }
+in
+  pkgs.rustBuilder.makePackageSet ({
+    inherit release packageFun packageOverrides codegenOpts rootFeatures;
+    target = rustTarget;
+  } // toolchainOptions)
