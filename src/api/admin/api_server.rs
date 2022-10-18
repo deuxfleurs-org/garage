@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use futures::future::Future;
 use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request, Response, StatusCode};
 
 use opentelemetry::trace::SpanRef;
 
@@ -69,7 +69,7 @@ impl AdminApiServer {
 
 	fn handle_options(&self, _req: &Request<Body>) -> Result<Response<Body>, Error> {
 		Ok(Response::builder()
-			.status(204)
+			.status(StatusCode::NO_CONTENT)
 			.header(ALLOW, "OPTIONS, GET, POST")
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, GET, POST")
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
@@ -94,7 +94,7 @@ impl AdminApiServer {
 				.ok_or_internal_error("Could not serialize metrics")?;
 
 			Ok(Response::builder()
-				.status(200)
+				.status(StatusCode::OK)
 				.header(http::header::CONTENT_TYPE, encoder.format_type())
 				.body(Body::from(buffer))?)
 		}

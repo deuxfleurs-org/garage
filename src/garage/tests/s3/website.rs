@@ -4,7 +4,7 @@ use aws_sdk_s3::{
 	model::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
 	types::ByteStream,
 };
-use http::Request;
+use http::{Request, StatusCode};
 use hyper::{
 	body::{to_bytes, Body},
 	Client,
@@ -43,7 +43,7 @@ async fn test_website() {
 
 	let mut resp = client.request(req()).await.unwrap();
 
-	assert_eq!(resp.status(), 404);
+	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
 		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 		BODY.as_ref()
@@ -56,7 +56,7 @@ async fn test_website() {
 		.expect_success_status("Could not allow website on bucket");
 
 	resp = client.request(req()).await.unwrap();
-	assert_eq!(resp.status(), 200);
+	assert_eq!(resp.status(), StatusCode::OK);
 	assert_eq!(
 		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 		BODY.as_ref()
@@ -69,7 +69,7 @@ async fn test_website() {
 		.expect_success_status("Could not deny website on bucket");
 
 	resp = client.request(req()).await.unwrap();
-	assert_eq!(resp.status(), 404);
+	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
 		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 		BODY.as_ref()
@@ -175,7 +175,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 200);
+		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
 			resp.headers().get("access-control-allow-origin").unwrap(),
 			"*"
@@ -200,7 +200,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 404);
+		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 		assert_eq!(
 			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 			BODY_ERR.as_ref()
@@ -220,7 +220,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 200);
+		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
 			resp.headers().get("access-control-allow-origin").unwrap(),
 			"*"
@@ -244,7 +244,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 403);
+		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
 			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 			BODY.as_ref()
@@ -285,7 +285,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 403);
+		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
 			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 			BODY.as_ref()
@@ -311,7 +311,7 @@ async fn test_website_s3_api() {
 
 		let mut resp = client.request(req).await.unwrap();
 
-		assert_eq!(resp.status(), 404);
+		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 		assert_ne!(
 			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 			BODY_ERR.as_ref()

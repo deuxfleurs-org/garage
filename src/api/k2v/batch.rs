@@ -42,7 +42,7 @@ pub async fn handle_insert_batch(
 	garage.k2v.rpc.insert_batch(bucket_id, items2).await?;
 
 	Ok(Response::builder()
-		.status(StatusCode::OK)
+		.status(StatusCode::NO_CONTENT)
 		.body(Body::empty())?)
 }
 
