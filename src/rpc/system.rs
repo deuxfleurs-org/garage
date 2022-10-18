@@ -23,8 +23,6 @@ use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
 use garage_util::background::BackgroundRunner;
 use garage_util::config::Config;
-#[cfg(feature = "consul-discovery")]
-use garage_util::config::ConsulDiscoveryConfig;
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
 use garage_util::data::*;
@@ -33,7 +31,7 @@ use garage_util::persister::Persister;
 use garage_util::time::*;
 
 #[cfg(feature = "consul-discovery")]
-use crate::consul::{get_consul_nodes, publish_consul_service};
+use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::*;
@@ -100,7 +98,7 @@ pub struct System {
 	bootstrap_peers: Vec<String>,
 
 	#[cfg(feature = "consul-discovery")]
-	consul_discovery: Option<ConsulDiscoveryConfig>,
+	consul_discovery: Option<ConsulDiscovery>,
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
@@ -302,6 +300,15 @@ impl System {
 			warn!("Kubernetes discovery is not enabled in this build.");
 		}
 
+		#[cfg(feature = "consul-discovery")]
+		let consul_discovery = match &config.consul_discovery {
+			Some(cfg) => Some(
+				ConsulDiscovery::new(cfg.clone())
+					.ok_or_message("Invalid Consul discovery configuration")?,
+			),
+			None => None,
+		};
+
 		let sys = Arc::new(System {
 			id: netapp.id.into(),
 			persist_cluster_layout,
@@ -324,7 +331,7 @@ impl System {
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
-			consul_discovery: config.consul_discovery.clone(),
+			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
 
@@ -440,8 +447,7 @@ impl System {
 			}
 		};
 
-		publish_consul_service(
-			c,
+		c.publish_consul_service(
 			self.netapp.id,
 			&self.local_status.load_full().hostname,
 			rpc_public_addr,
@@ -638,7 +644,7 @@ impl System {
 				// Fetch peer list from Consul
 				#[cfg(feature = "consul-discovery")]
 				if let Some(c) = &self.consul_discovery {
-					match get_consul_nodes(c).await {
+					match c.get_consul_nodes().await {
 						Ok(node_list) => {
 							ping_list.extend(node_list);
 						}
