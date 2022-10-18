@@ -100,8 +100,8 @@ impl ConsulDiscovery {
 
 	pub async fn get_consul_nodes(&self) -> Result<Vec<(NodeID, SocketAddr)>, ConsulError> {
 		let url = format!(
-			"http://{}/v1/catalog/service/{}",
-			self.config.consul_host, self.config.service_name
+			"{}/v1/catalog/service/{}",
+			self.config.consul_http_addr, self.config.service_name
 		);
 
 		let http = self.client.get(&url).send().await?;
@@ -158,7 +158,7 @@ impl ConsulDiscovery {
 			},
 		};
 
-		let url = format!("http://{}/v1/catalog/register", self.config.consul_host);
+		let url = format!("{}/v1/catalog/register", self.config.consul_http_addr);
 
 		let http = self.client.put(&url).json(&advertisement).send().await?;
 		http.error_for_status()?;

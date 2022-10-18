@@ -33,7 +33,7 @@ bootstrap_peers = [
 
 
 [consul_discovery]
-consul_host = "consul.service"
+consul_http_addr = "http://127.0.0.1:8500"
 service_name = "garage-daemon"
 ca_cert = "/etc/consul/consul-ca.crt"
 client_cert = "/etc/consul/consul-client.crt"
@@ -306,9 +306,9 @@ Garage supports discovering other nodes of the cluster using Consul.  For this
 to work correctly, nodes need to know their IP address by which they can be
 reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
-### `consul_host` and `service_name`
+### `consul_http_addr` and `service_name`
 
-The `consul_host` parameter should be set to the full HTTP(S) address of the Consul server.
+The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
 
 ### `service_name`
 

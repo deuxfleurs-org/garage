@@ -128,8 +128,8 @@ pub struct AdminConfig {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
-	/// Consul host to connect to to discover more peers
-	pub consul_host: String,
+	/// Consul http or https address to connect to to discover more peers
+	pub consul_http_addr: String,
 	/// Consul service name to use
 	pub service_name: String,
 	/// CA TLS certificate to use when connecting to Consul
