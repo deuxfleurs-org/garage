@@ -19,7 +19,7 @@ rec {
     # As of 2022-10-14: (TODO)
     url = "https://github.com/Alexis211/cargo2nix";
     ref = "custom_unstable";
-    rev = "15543df35485bef9e2092391ecafa78eae5fa740";
+    rev = "a7a61179b66054904ef6a195d8da736eaaa06c36";
   };
 
   /*
