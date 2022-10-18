@@ -23,8 +23,9 @@ let
 
   /*
    Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
-   We want our own Rust to avoid incompatibilities, like we had with musl 1.2.0.
-   rustc was built with musl < 1.2.0 and nix shipped musl >= 1.2.0 which lead to compilation breakage.
+   This is fine for 64-bit platforms, but for 32-bit platforms, we need our own Rust
+   to avoid incompatibilities with time_t between different versions of musl
+   (>= 1.2.0 shipped by NixOS, < 1.2.0 with which rustc was built), which lead to compilation breakage.
    So we want a Rust release that is bound to our Nix repository to avoid these problems.
    See here for more info: https://musl.libc.org/time64.html
    Because Cargo2nix does not support the Rust environment shipped by NixOS,

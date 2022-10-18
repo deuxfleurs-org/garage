@@ -47,9 +47,6 @@ in {
         "garage/sled"
         "garage/lmdb"
         "garage/sqlite"
-        "garage_db/sled"
-        "garage_db/lmdb"
-        "garage_db/sqlite"
       ];
     });
   };
@@ -58,6 +55,8 @@ in {
       inherit git_version;
       target = "x86_64-unknown-linux-musl";
       compiler = "clippy";
-    }).workspace.garage {} ;
+    }).workspace.garage {
+      compileMode = "build";
+    };
   };
 }
