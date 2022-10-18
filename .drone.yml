@@ -22,6 +22,7 @@ steps:
       GARAGE_TEST_INTEGRATION_EXE: result/bin/garage
     commands:
       - nix-build --no-build-output --attr test.amd64
+      - ./result/bin/garage_db-*
       - ./result/bin/garage_api-*
       - ./result/bin/garage_model-*
       - ./result/bin/garage_rpc-*
@@ -280,6 +281,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 103a04785c98f5376a63ce22865c2576963019bbc4d828f200d2a470a3c821ea
+hmac: 90878eb81f4384a15e5dfb7f215b09c11f2f0ff804e0b34397e31d3694bdd378
 
 ...
