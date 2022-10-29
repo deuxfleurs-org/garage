@@ -1,15 +1,17 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: {{ .Values.deployment.kind }}
 metadata:
   name: {{ include "garage.fullname" . }}
   labels:
     {{- include "garage.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "garage.selectorLabels" . | nindent 6 }}
+  {{- if eq .Values.deployment.kind "StatefulSet" }}
+  replicas: {{ .Values.deployment.replicaCount }}
   serviceName: {{ include "garage.fullname" . }}
+  {{- end }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -79,6 +81,21 @@ spec:
             name: {{ include "garage.fullname" . }}-config
         - name: etc
           emptyDir: {}
+        {{- if eq .Values.deployment.kind "DaemonSet" }}
+        {{- if .Values.persistence.enabled }}
+        - name: meta
+          hostPath:
+            path: {{ .Values.persistence.meta.hostPath }}
+        - name: data
+          hostPath:
+            path: {{ .Values.persistence.data.hostPath }}
+        {{- else }}
+        {{- end }}
+        - name: meta
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -91,7 +108,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- if .Values.persistence.enabled }}
+  {{- if and .Values.persistence.enabled (eq .Values.deployment.kind "StatefulSet") }}
   volumeClaimTemplates:
   - metadata:
       name: meta
