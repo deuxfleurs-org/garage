@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::{Error as GarageError, OkOrMessage};
@@ -12,7 +14,7 @@ use crate::helper::error::*;
 use crate::helper::key::KeyHelper;
 use crate::key_table::*;
 use crate::permission::BucketKeyPerm;
-use crate::s3::object_table::ObjectFilter;
+use crate::s3::object_table::*;
 
 pub struct BucketHelper<'a>(pub(crate) &'a Garage);
 
@@ -471,5 +473,70 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		Ok(true)
+	}
+
+	// ----
+
+	/// Deletes all incomplete multipart uploads that are older than a certain time.
+	/// Returns the number of uploads aborted
+	pub async fn cleanup_incomplete_uploads(
+		&self,
+		bucket_id: &Uuid,
+		older_than: Duration,
+	) -> Result<usize, Error> {
+		let older_than = now_msec() - older_than.as_millis() as u64;
+
+		let mut ret = 0usize;
+		let mut start = None;
+
+		loop {
+			let objects = self
+				.0
+				.object_table
+				.get_range(
+					bucket_id,
+					start,
+					Some(ObjectFilter::IsUploading),
+					1000,
+					EnumerationOrder::Forward,
+				)
+				.await?;
+
+			let abortions = objects
+				.iter()
+				.filter_map(|object| {
+					let aborted_versions = object
+						.versions()
+						.iter()
+						.filter(|v| v.is_uploading() && v.timestamp < older_than)
+						.map(|v| ObjectVersion {
+							state: ObjectVersionState::Aborted,
+							uuid: v.uuid,
+							timestamp: v.timestamp,
+						})
+						.collect::<Vec<_>>();
+					if !aborted_versions.is_empty() {
+						Some(Object::new(
+							object.bucket_id,
+							object.key.clone(),
+							aborted_versions,
+						))
+					} else {
+						None
+					}
+				})
+				.collect::<Vec<_>>();
+
+			ret += abortions.len();
+			self.0.object_table.insert_many(abortions).await?;
+
+			if objects.len() < 1000 {
+				break;
+			} else {
+				start = Some(objects.last().unwrap().key.clone());
+			}
+		}
+
+		Ok(ret)
 	}
 }
