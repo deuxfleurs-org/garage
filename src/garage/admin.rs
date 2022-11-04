@@ -526,12 +526,12 @@ impl AdminRpcHandler {
 					.bucket_helper()
 					.resolve_global_bucket_name(b)
 					.await?
-					.ok_or_bad_request("Bucket not found")?,
+					.ok_or_bad_request(format!("Bucket not found: {}", b))?,
 			);
 		}
 
 		let duration = parse_duration::parse::parse(&query.older_than)
-			.ok_or_bad_request("Invalid duration")?;
+			.ok_or_bad_request("Invalid duration passed for --older-than parameter")?;
 
 		let mut ret = String::new();
 		for bucket in bucket_ids {
