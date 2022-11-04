@@ -85,6 +85,9 @@ impl AdminRpcHandler {
 			BucketOperation::Deny(query) => self.handle_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.handle_bucket_website(query).await,
 			BucketOperation::SetQuotas(query) => self.handle_bucket_set_quotas(query).await,
+			BucketOperation::CleanupIncompleteUploads(query) => {
+				self.handle_bucket_cleanup_incomplete_uploads(query).await
+			}
 		}
 	}
 
@@ -510,6 +513,42 @@ impl AdminRpcHandler {
 			"Quotas updated for {}",
 			&query.bucket
 		)))
+	}
+
+	async fn handle_bucket_cleanup_incomplete_uploads(
+		&self,
+		query: &CleanupIncompleteUploadsOpt,
+	) -> Result<AdminRpc, Error> {
+		let mut bucket_ids = vec![];
+		for b in query.buckets.iter() {
+			bucket_ids.push(
+				self.garage
+					.bucket_helper()
+					.resolve_global_bucket_name(b)
+					.await?
+					.ok_or_bad_request("Bucket not found")?,
+			);
+		}
+
+		let duration = parse_duration::parse::parse(&query.older_than)
+			.ok_or_bad_request("Invalid duration")?;
+
+		let mut ret = String::new();
+		for bucket in bucket_ids {
+			let count = self
+				.garage
+				.bucket_helper()
+				.cleanup_incomplete_uploads(&bucket, duration)
+				.await?;
+			writeln!(
+				&mut ret,
+				"Bucket {:?}: {} incomplete uploads aborted",
+				bucket, count
+			)
+			.unwrap();
+		}
+
+		Ok(AdminRpc::Ok(ret))
 	}
 
 	async fn handle_key_cmd(&self, cmd: &KeyOperation) -> Result<AdminRpc, Error> {

@@ -33,6 +33,7 @@ garage_web = { version = "0.8.0", path = "../web" }
 bytes = "1.0"
 bytesize = "1.1"
 timeago = "0.3"
+parse_duration = "2.1"
 hex = "0.4"
 tracing = { version = "0.1.30", features = ["log-always"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

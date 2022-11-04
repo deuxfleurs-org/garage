@@ -189,6 +189,10 @@ pub enum BucketOperation {
 	/// Set the quotas for this bucket
 	#[structopt(name = "set-quotas", version = garage_version())]
 	SetQuotas(SetQuotasOpt),
+
+	/// Clean up (abort) old incomplete multipart uploads
+	#[structopt(name = "cleanup-incomplete-uploads", version = garage_version())]
+	CleanupIncompleteUploads(CleanupIncompleteUploadsOpt),
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -288,6 +292,17 @@ pub struct SetQuotasOpt {
 	/// Set a maximum number of objects for the bucket (or `none` for no restriction)
 	#[structopt(long = "max-objects")]
 	pub max_objects: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug)]
+pub struct CleanupIncompleteUploadsOpt {
+	/// Abort multipart uploads older than this value
+	#[structopt(long = "older-than", default_value = "1d")]
+	pub older_than: String,
+
+	/// Name of bucket(s) to clean up
+	#[structopt(required = true)]
+	pub buckets: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
