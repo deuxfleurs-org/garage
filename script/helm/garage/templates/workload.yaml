@@ -86,9 +86,11 @@ spec:
         - name: meta
           hostPath:
             path: {{ .Values.persistence.meta.hostPath }}
+            type: DirectoryOrCreate
         - name: data
           hostPath:
             path: {{ .Values.persistence.data.hostPath }}
+            type: DirectoryOrCreate
         {{- end }}
         {{- else }}
         - name: meta
