@@ -81,16 +81,16 @@ spec:
             name: {{ include "garage.fullname" . }}-config
         - name: etc
           emptyDir: {}
-        {{- if eq .Values.deployment.kind "DaemonSet" }}
         {{- if .Values.persistence.enabled }}
+        {{- if eq .Values.deployment.kind "DaemonSet" }}
         - name: meta
           hostPath:
             path: {{ .Values.persistence.meta.hostPath }}
         - name: data
           hostPath:
             path: {{ .Values.persistence.data.hostPath }}
-        {{- else }}
         {{- end }}
+        {{- else }}
         - name: meta
           emptyDir: {}
         - name: data
