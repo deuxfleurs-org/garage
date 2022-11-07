@@ -355,17 +355,22 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		// Check that every partition is associated to distinct nodes
 		let rf = self.replication_factor;
 		for p in 0..(1 << PARTITION_BITS) {
-			let nodes_of_p = self.ring_assignation_data[rf * p..rf * (p + 1)].to_vec();
+			let mut nodes_of_p = self.ring_assignation_data[rf * p..rf * (p + 1)].to_vec();
+			nodes_of_p.sort();
 			if nodes_of_p.iter().unique().count() != rf {
 				return false;
 			}
 			// Check that every partition is spread over at least zone_redundancy zones.
-			let zones_of_p = nodes_of_p.iter().map(|n| {
-				self.get_node_zone(&self.node_id_vec[*n as usize])
-					.expect("Zone not found.")
-			});
+			let mut zones_of_p = nodes_of_p
+				.iter()
+				.map(|n| {
+					self.get_node_zone(&self.node_id_vec[*n as usize])
+						.expect("Zone not found.")
+				})
+				.collect::<Vec<_>>();
+			zones_of_p.sort();
 			let redundancy = self.parameters.zone_redundancy;
-			if zones_of_p.unique().count() < redundancy {
+			if zones_of_p.iter().unique().count() < redundancy {
 				return false;
 			}
 		}
@@ -378,9 +383,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		for (n, usage) in node_usage.iter().enumerate() {
 			if *usage > 0 {
 				let uuid = self.node_id_vec[n];
-				if usage * self.partition_size
-					> self.get_node_capacity(&uuid).expect("Critical Error")
-				{
+				if usage * self.partition_size > self.get_node_capacity(&uuid).unwrap() {
 					return false;
 				}
 			}
@@ -389,7 +392,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		// Check that the partition size stored is the one computed by the asignation
 		// algorithm.
 		let cl2 = self.clone();
-		let (_, zone_to_id) = cl2.generate_nongateway_zone_ids().expect("Critical Error");
+		let (_, zone_to_id) = cl2.generate_nongateway_zone_ids().unwrap();
 		match cl2.compute_optimal_partition_size(&zone_to_id) {
 			Ok(s) if s != self.partition_size => return false,
 			Err(_) => return false,
@@ -484,12 +487,7 @@ impl ClusterLayout {
 		}
 
 		// We display statistics of the computation
-		msg.append(&mut self.output_stat(
-			&gflow,
-			&old_assignation_opt,
-			&zone_to_id,
-			&id_to_zone,
-		)?);
+		msg.extend(self.output_stat(&gflow, &old_assignation_opt, &zone_to_id, &id_to_zone)?);
 		msg.push("".to_string());
 
 		// We update the layout structure
