@@ -1215,6 +1215,7 @@ dependencies = [
  "arc-swap",
  "async-trait",
  "bytes",
+ "bytesize",
  "err-derive",
  "futures",
  "futures-util",

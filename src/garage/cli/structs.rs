@@ -114,9 +114,9 @@ pub struct AssignRoleOpt {
 	#[structopt(short = "z", long = "zone")]
 	pub(crate) zone: Option<String>,
 
-	/// Capacity (in relative terms)
+	/// Storage capacity, in bytes (supported suffixes: B, KB, MB, GB, TB, PB)
 	#[structopt(short = "c", long = "capacity")]
-	pub(crate) capacity: Option<u32>,
+	pub(crate) capacity: Option<bytesize::ByteSize>,
 
 	/// Gateway-only node
 	#[structopt(short = "g", long = "gateway")]

@@ -23,8 +23,8 @@ pub enum Vertex {
 /// Edge data structure for the flow algorithm.
 #[derive(Clone, Copy, Debug)]
 pub struct FlowEdge {
-	cap: u32,    // flow maximal capacity of the edge
-	flow: i32,   // flow value on the edge
+	cap: u64,    // flow maximal capacity of the edge
+	flow: i64,   // flow value on the edge
 	dest: usize, // destination vertex id
 	rev: usize,  // index of the reversed edge (v, self) in the edge list of vertex v
 }
@@ -32,7 +32,7 @@ pub struct FlowEdge {
 /// Edge data structure for the detection of negative cycles.
 #[derive(Clone, Copy, Debug)]
 pub struct WeightedEdge {
-	w: i32, // weight of the edge
+	w: i64, // weight of the edge
 	dest: usize,
 }
 
@@ -51,7 +51,7 @@ pub struct Graph<E: Edge> {
 	graph: Vec<Vec<E>>,
 }
 
-pub type CostFunction = HashMap<(Vertex, Vertex), i32>;
+pub type CostFunction = HashMap<(Vertex, Vertex), i64>;
 
 impl<E: Edge> Graph<E> {
 	pub fn new(vertices: &[Vertex]) -> Self {
@@ -77,7 +77,7 @@ impl<E: Edge> Graph<E> {
 impl Graph<FlowEdge> {
 	/// This function adds a directed edge to the graph with capacity c, and the
 	/// corresponding reversed edge with capacity 0.
-	pub fn add_edge(&mut self, u: Vertex, v: Vertex, c: u32) -> Result<(), String> {
+	pub fn add_edge(&mut self, u: Vertex, v: Vertex, c: u64) -> Result<(), String> {
 		let idu = self.get_vertex_id(&u)?;
 		let idv = self.get_vertex_id(&v)?;
 		if idu == idv {
@@ -115,7 +115,7 @@ impl Graph<FlowEdge> {
 	}
 
 	/// This function returns the value of the flow incoming to v.
-	pub fn get_inflow(&self, v: Vertex) -> Result<i32, String> {
+	pub fn get_inflow(&self, v: Vertex) -> Result<i64, String> {
 		let idv = self.get_vertex_id(&v)?;
 		let mut result = 0;
 		for edge in self.graph[idv].iter() {
@@ -125,7 +125,7 @@ impl Graph<FlowEdge> {
 	}
 
 	/// This function returns the value of the flow outgoing from v.
-	pub fn get_outflow(&self, v: Vertex) -> Result<i32, String> {
+	pub fn get_outflow(&self, v: Vertex) -> Result<i64, String> {
 		let idv = self.get_vertex_id(&v)?;
 		let mut result = 0;
 		for edge in self.graph[idv].iter() {
@@ -136,7 +136,7 @@ impl Graph<FlowEdge> {
 
 	/// This function computes the flow total value by computing the outgoing flow
 	/// from the source.
-	pub fn get_flow_value(&mut self) -> Result<i32, String> {
+	pub fn get_flow_value(&mut self) -> Result<i64, String> {
 		self.get_outflow(Vertex::Source)
 	}
 
@@ -156,7 +156,7 @@ impl Graph<FlowEdge> {
 	}
 
 	/// Computes an upper bound of the flow on the graph
-	pub fn flow_upper_bound(&self) -> Result<u32, String> {
+	pub fn flow_upper_bound(&self) -> Result<u64, String> {
 		let idsource = self.get_vertex_id(&Vertex::Source)?;
 		let mut flow_upper_bound = 0;
 		for edge in self.graph[idsource].iter() {
@@ -193,7 +193,7 @@ impl Graph<FlowEdge> {
 					// it means id has not yet been reached
 					level[id] = Some(lvl);
 					for edge in self.graph[id].iter() {
-						if edge.cap as i32 - edge.flow > 0 {
+						if edge.cap as i64 - edge.flow > 0 {
 							fifo.push_back((edge.dest, lvl + 1));
 						}
 					}
@@ -216,10 +216,10 @@ impl Graph<FlowEdge> {
 					lifo.pop();
 					while let Some((id, _)) = lifo.pop() {
 						let nbd = next_nbd[id];
-						self.graph[id][nbd].flow += f as i32;
+						self.graph[id][nbd].flow += f as i64;
 						let id_rev = self.graph[id][nbd].dest;
 						let nbd_rev = self.graph[id][nbd].rev;
-						self.graph[id_rev][nbd_rev].flow -= f as i32;
+						self.graph[id_rev][nbd_rev].flow -= f as i64;
 					}
 					lifo.push((idsource, flow_upper_bound));
 					continue;
@@ -236,9 +236,9 @@ impl Graph<FlowEdge> {
 				}
 				// else we can try to send flow from id to its nbd
 				let new_flow = min(
-					f as i32,
-					self.graph[id][nbd].cap as i32 - self.graph[id][nbd].flow,
-				) as u32;
+					f as i64,
+					self.graph[id][nbd].cap as i64 - self.graph[id][nbd].flow,
+				) as u64;
 				if new_flow == 0 {
 					next_nbd[id] += 1;
 					continue;
@@ -302,7 +302,7 @@ impl Graph<FlowEdge> {
 		let nb_vertices = self.id_to_vertex.len();
 		for i in 0..nb_vertices {
 			for edge in self.graph[i].iter() {
-				if edge.cap as i32 - edge.flow > 0 {
+				if edge.cap as i64 - edge.flow > 0 {
 					// It is possible to send overflow through this edge
 					let u = self.id_to_vertex[i];
 					let v = self.id_to_vertex[edge.dest];
@@ -322,7 +322,7 @@ impl Graph<FlowEdge> {
 
 impl Graph<WeightedEdge> {
 	/// This function adds a single directed weighted edge to the graph.
-	pub fn add_edge(&mut self, u: Vertex, v: Vertex, w: i32) -> Result<(), String> {
+	pub fn add_edge(&mut self, u: Vertex, v: Vertex, w: i64) -> Result<(), String> {
 		let idu = self.get_vertex_id(&u)?;
 		let idv = self.get_vertex_id(&v)?;
 		self.graph[idu].push(WeightedEdge { w, dest: idv });

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use hex::ToHex;
+use bytesize::ByteSize;
 use itertools::Itertools;
 
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ pub struct ClusterLayout {
 
 	/// This attribute is only used to retain the previously computed partition size,
 	/// to know to what extent does it change with the layout update.
-	pub partition_size: u32,
+	pub partition_size: u64,
 	/// Parameters used to compute the assignation currently given by
 	/// ring_assignation_data
 	pub parameters: LayoutParameters,
@@ -86,8 +86,7 @@ pub struct NodeRole {
 	/// The capacity of the node
 	/// If this is set to None, the node does not participate in storing data for the system
 	/// and is only active as an API gateway to other nodes
-	// TODO : change the capacity to u64 and use byte unit input/output
-	pub capacity: Option<u32>,
+	pub capacity: Option<u64>,
 	/// A set of tags to recognize the node
 	pub tags: Vec<String>,
 }
@@ -95,7 +94,7 @@ pub struct NodeRole {
 impl NodeRole {
 	pub fn capacity_string(&self) -> String {
 		match self.capacity {
-			Some(c) => format!("{}", c),
+			Some(c) => ByteSize::b(c).to_string_as(false),
 			None => "gateway".to_string(),
 		}
 	}
@@ -264,7 +263,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	}
 
 	/// Given a node uuids, this function returns its capacity or fails if it does not have any
-	pub fn get_node_capacity(&self, uuid: &Uuid) -> Result<u32, Error> {
+	pub fn get_node_capacity(&self, uuid: &Uuid) -> Result<u64, Error> {
 		match self.node_role(uuid) {
 			Some(NodeRole {
 				capacity: Some(cap),
@@ -300,7 +299,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	}
 
 	/// Returns the sum of capacities of non gateway nodes in the cluster
-	pub fn get_total_capacity(&self) -> Result<u32, Error> {
+	pub fn get_total_capacity(&self) -> Result<u64, Error> {
 		let mut total_capacity = 0;
 		for uuid in self.nongateway_nodes().iter() {
 			total_capacity += self.get_node_capacity(uuid)?;
@@ -458,13 +457,14 @@ impl ClusterLayout {
 		if old_assignation_opt != None {
 			msg.push(format!(
 				"Optimal size of a partition: {} (was {} in the previous layout).",
-				partition_size, self.partition_size
+				ByteSize::b(partition_size).to_string_as(false),
+				ByteSize::b(self.partition_size).to_string_as(false)
 			));
 		} else {
 			msg.push(format!(
 				"Given the replication and redundancy constraints, the \
                 optimal size of a partition is {}.",
-				partition_size
+				ByteSize::b(partition_size).to_string_as(false)
 			));
 		}
 		// We write the partition size.
@@ -613,7 +613,7 @@ impl ClusterLayout {
 	fn compute_optimal_partition_size(
 		&self,
 		zone_to_id: &HashMap<String, usize>,
-	) -> Result<u32, Error> {
+	) -> Result<u64, Error> {
 		let empty_set = HashSet::<(usize, usize)>::new();
 		let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set)?;
 		g.compute_maximal_flow()?;
@@ -672,7 +672,7 @@ impl ClusterLayout {
 	/// previous one.
 	fn generate_flow_graph(
 		&self,
-		partition_size: u32,
+		partition_size: u64,
 		zone_to_id: &HashMap<String, usize>,
 		exclude_assoc: &HashSet<(usize, usize)>,
 	) -> Result<Graph<FlowEdge>, Error> {
@@ -682,18 +682,18 @@ impl ClusterLayout {
 		let nb_zones = zone_to_id.len();
 		let redundancy = self.parameters.zone_redundancy;
 		for p in 0..NB_PARTITIONS {
-			g.add_edge(Vertex::Source, Vertex::Pup(p), redundancy as u32)?;
+			g.add_edge(Vertex::Source, Vertex::Pup(p), redundancy as u64)?;
 			g.add_edge(
 				Vertex::Source,
 				Vertex::Pdown(p),
-				(self.replication_factor - redundancy) as u32,
+				(self.replication_factor - redundancy) as u64,
 			)?;
 			for z in 0..nb_zones {
 				g.add_edge(Vertex::Pup(p), Vertex::PZ(p, z), 1)?;
 				g.add_edge(
 					Vertex::Pdown(p),
 					Vertex::PZ(p, z),
-					self.replication_factor as u32,
+					self.replication_factor as u64,
 				)?;
 			}
 		}
@@ -813,17 +813,19 @@ impl ClusterLayout {
 	) -> Result<Message, Error> {
 		let mut msg = Message::new();
 
-		let used_cap = self.partition_size * NB_PARTITIONS as u32 * self.replication_factor as u32;
+		let used_cap = self.partition_size * NB_PARTITIONS as u64 * self.replication_factor as u64;
 		let total_cap = self.get_total_capacity()?;
 		let percent_cap = 100.0 * (used_cap as f32) / (total_cap as f32);
 		msg.push("".into());
 		msg.push(format!(
 			"Usable capacity / Total cluster capacity: {} / {} ({:.1} %)",
-			used_cap, total_cap, percent_cap
+			ByteSize::b(used_cap).to_string_as(false),
+			ByteSize::b(total_cap).to_string_as(false),
+			percent_cap
 		));
 		msg.push("".into());
 		msg.push(
-			"If the percentage is to low, it might be that the \
+			"If the percentage is too low, it might be that the \
         replication/redundancy constraints force the use of nodes/zones with small \
         storage capacities. \
         You might want to rebalance the storage capacities or relax the constraints. \
@@ -833,9 +835,9 @@ impl ClusterLayout {
 		msg.push(format!(
 			"Recall that because of the replication factor, the actual available \
                          storage capacity is {} / {} = {}.",
-			used_cap,
+			ByteSize::b(used_cap).to_string_as(false),
 			self.replication_factor,
-			used_cap / self.replication_factor as u32
+			ByteSize::b(used_cap / self.replication_factor as u64).to_string_as(false)
 		));
 
 		// We define and fill in the following tables
@@ -914,34 +916,34 @@ impl ClusterLayout {
 				replicated_partitions
 			));
 
-			let available_cap_z: u32 = self.partition_size * replicated_partitions as u32;
+			let available_cap_z: u64 = self.partition_size * replicated_partitions as u64;
 			let mut total_cap_z = 0;
 			for n in nodes_of_z.iter() {
 				total_cap_z += self.get_node_capacity(&self.node_id_vec[*n])?;
 			}
 			let percent_cap_z = 100.0 * (available_cap_z as f32) / (total_cap_z as f32);
 			msg.push(format!(
-				"  Usable capacity / Total capacity: {}/{} ({:.1}%).",
-				available_cap_z, total_cap_z, percent_cap_z
+				"  Usable capacity / Total capacity: {} / {} ({:.1}%).",
+				ByteSize::b(available_cap_z).to_string_as(false),
+				ByteSize::b(total_cap_z).to_string_as(false),
+				percent_cap_z
 			));
 
 			for n in nodes_of_z.iter() {
-				let available_cap_n = stored_partitions[*n] as u32 * self.partition_size;
+				let available_cap_n = stored_partitions[*n] as u64 * self.partition_size;
 				let total_cap_n = self.get_node_capacity(&self.node_id_vec[*n])?;
 				let tags_n = (self
 					.node_role(&self.node_id_vec[*n])
 					.ok_or("Node not found."))?
 				.tags_string();
 				msg.push(format!(
-					"  Node {}: {} partitions ({} new) ; \
+					"  Node {:?}: {} partitions ({} new) ; \
                                  usable/total capacity: {} / {} ({:.1}%) ; tags:{}",
-					&self.node_id_vec[*n].to_vec()[0..2]
-						.to_vec()
-						.encode_hex::<String>(),
+					self.node_id_vec[*n],
 					stored_partitions[*n],
 					new_partitions[*n],
-					available_cap_n,
-					total_cap_n,
+					ByteSize::b(available_cap_n).to_string_as(false),
+					ByteSize::b(total_cap_n).to_string_as(false),
 					(available_cap_n as f32) / (total_cap_n as f32) * 100.0,
 					tags_n
 				));
@@ -1041,7 +1043,7 @@ mod tests {
 	fn update_layout(
 		cl: &mut ClusterLayout,
 		node_id_vec: &Vec<u8>,
-		node_capacity_vec: &Vec<u32>,
+		node_capacity_vec: &Vec<u64>,
 		node_zone_vec: &Vec<String>,
 		zone_redundancy: usize,
 	) {

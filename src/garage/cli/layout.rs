@@ -1,3 +1,5 @@
+use bytesize::ByteSize;
+
 use garage_util::crdt::Crdt;
 use garage_util::error::*;
 use garage_util::formater::format_table;
@@ -86,7 +88,7 @@ pub async fn cmd_assign_role(
 		return Err(Error::Message(
 				"-c and -g are mutually exclusive, please configure node either with c>0 to act as a storage node or with -g to act as a gateway node".into()));
 	}
-	if args.capacity == Some(0) {
+	if args.capacity == Some(ByteSize::b(0)) {
 		return Err(Error::Message("Invalid capacity value: 0".into()));
 	}
 
@@ -94,7 +96,7 @@ pub async fn cmd_assign_role(
 		let new_entry = match roles.get(&added_node) {
 			Some(NodeRoleV(Some(old))) => {
 				let capacity = match args.capacity {
-					Some(c) => Some(c),
+					Some(c) => Some(c.as_u64()),
 					None if args.gateway => None,
 					None => old.capacity,
 				};
@@ -111,7 +113,7 @@ pub async fn cmd_assign_role(
 			}
 			_ => {
 				let capacity = match args.capacity {
-					Some(c) => Some(c),
+					Some(c) => Some(c.as_u64()),
 					None if args.gateway => None,
 					None => return Err(Error::Message(
 							"Please specify a capacity with the -c flag, or set node explicitly as gateway with -g".into())),
@@ -265,6 +267,7 @@ pub async fn cmd_config_layout(
 ) -> Result<(), Error> {
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
+	let mut did_something = false;
 	match config_opt.redundancy {
 		None => (),
 		Some(r) => {
@@ -282,7 +285,14 @@ pub async fn cmd_config_layout(
 					.update(LayoutParameters { zone_redundancy: r });
 				println!("The new zone redundancy has been saved ({}).", r);
 			}
+			did_something = true;
 		}
+	}
+
+	if !did_something {
+		return Err(Error::Message(
+			"Please specify an action for `garage layout config` to do".into(),
+		));
 	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
@@ -335,7 +345,7 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 			tags,
 			role.zone,
 			role.capacity_string(),
-			usage as u32 * layout.partition_size,
+			ByteSize::b(usage as u64 * layout.partition_size).to_string_as(false),
 			(100.0 * usage as f32 * layout.partition_size as f32) / (capacity as f32)
 		));
 	}
