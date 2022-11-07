@@ -13,6 +13,9 @@ db_engine = "lmdb"
 
 block_size = 1048576
 
+sled_cache_capacity = 134217728
+sled_flush_every_ms = 2000
+
 replication_mode = "3"
 
 compression_level = 1
@@ -28,15 +31,20 @@ bootstrap_peers = [
     "212fd62eeaca72c122b45a7f4fa0f55e012aa5e24ac384a72a3016413fa724ff@[fc00:F::1]:3901",
 ]
 
-consul_host = "consul.service"
-consul_service_name = "garage-daemon"
 
-kubernetes_namespace = "garage"
-kubernetes_service_name = "garage-daemon"
-kubernetes_skip_crd = false
+[consul_discovery]
+consul_http_addr = "http://127.0.0.1:8500"
+service_name = "garage-daemon"
+ca_cert = "/etc/consul/consul-ca.crt"
+client_cert = "/etc/consul/consul-client.crt"
+client_key = "/etc/consul/consul-key.crt"
+tls_skip_verify = false
 
-sled_cache_capacity = 134217728
-sled_flush_every_ms = 2000
+[kubernetes_discovery]
+namespace = "garage"
+service_name = "garage-daemon"
+skip_crd = false
+
 
 [s3_api]
 api_bind_addr = "[::]:3900"
@@ -128,6 +136,21 @@ installation, only files newly uploaded will be affected. Previously uploaded
 files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
+
+### `sled_cache_capacity`
+
+This parameter can be used to tune the capacity of the cache used by
+[sled](https://sled.rs), the database Garage uses internally to store metadata.
+Tune this to fit the RAM you wish to make available to your Garage instance.
+This value has a conservative default (128MB) so that Garage doesn't use too much
+RAM by default, but feel free to increase this for higher performance.
+
+### `sled_flush_every_ms`
+
+This parameters can be used to tune the flushing interval of sled.
+Increase this if sled is thrashing your SSD, at the risk of losing more data in case
+of a power outage (though this should not matter much as data is replicated on other
+nodes). The default value, 2000ms, should be appropriate for most use cases.
 
 ### `replication_mode`
 
@@ -276,47 +299,57 @@ be obtained by running `garage node id` and then included directly in the
 key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
-### `consul_host` and `consul_service_name`
+
+## The `[consul_discovery]` section
 
 Garage supports discovering other nodes of the cluster using Consul.  For this
 to work correctly, nodes need to know their IP address by which they can be
 reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
-The `consul_host` parameter should be set to the hostname of the Consul server,
-and `consul_service_name` should be set to the service name under which Garage's
+### `consul_http_addr` and `service_name`
+
+The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
+
+### `service_name`
+
+`service_name` should be set to the service name under which Garage's
 RPC ports are announced.
 
-Garage does not yet support talking to Consul over TLS.
+### `client_cert`, `client_key`
 
-### `kubernetes_namespace`, `kubernetes_service_name` and `kubernetes_skip_crd`
+TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
+
+### `ca_cert`
+
+TLS CA certificate to use when communicating with Consul over TLS.
+
+### `tls_skip_verify`
+
+Skip server hostname verification in TLS handshake.
+`ca_cert` is ignored when this is set.
+
+
+## The `[kubernetes_discovery]` section
 
 Garage supports discovering other nodes of the cluster using kubernetes custom
-resources. For this to work `kubernetes_namespace` and `kubernetes_service_name`
-need to be configured.
+resources. For this to work, a `[kubernetes_discovery]` section must be present
+with at least the `namespace` and `service_name` parameters.
 
-`kubernetes_namespace` sets the namespace in which the custom resources are
-configured. `kubernetes_service_name` is added as a label to these resources to
+### `namespace`
+
+`namespace` sets the namespace in which the custom resources are
+configured.
+
+### `service_name`
+
+`service_name` is added as a label to the advertised resources to
 filter them, to allow for multiple deployments in a single namespace.
 
-`kubernetes_skip_crd` can be set to true to disable the automatic creation and
+### `skip_crd`
+
+`skip_crd` can be set to true to disable the automatic creation and
 patching of the `garagenodes.deuxfleurs.fr` CRD. You will need to create the CRD
 manually.
-
-### `sled_cache_capacity`
-
-This parameter can be used to tune the capacity of the cache used by
-[sled](https://sled.rs), the database Garage uses internally to store metadata.
-Tune this to fit the RAM you wish to make available to your Garage instance.
-This value has a conservative default (128MB) so that Garage doesn't use too much
-RAM by default, but feel free to increase this for higher performance.
-
-### `sled_flush_every_ms`
-
-This parameters can be used to tune the flushing interval of sled.
-Increase this if sled is thrashing your SSD, at the risk of losing more data in case
-of a power outage (though this should not matter much as data is replicated on other
-nodes). The default value, 2000ms, should be appropriate for most use cases.
-
 
 
 ## The `[s3_api]` section

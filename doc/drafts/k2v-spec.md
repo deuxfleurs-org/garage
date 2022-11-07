@@ -206,8 +206,8 @@ and responses need to be translated.
 
 Query parameters:
 
-| name | default value | meaning |
-| - | - | - |
+| name       | default value | meaning                          |
+|------------|---------------|----------------------------------|
 | `sort_key` | **mandatory** | The sort key of the item to read |
 
 Returns the item with specified partition key and sort key. Values can be
@@ -317,11 +317,11 @@ an HTTP 304 NOT MODIFIED is returned.
 
 Query parameters:
 
-| name | default value | meaning |
-| - | - | - |
-| `sort_key` | **mandatory** | The sort key of the item to read |
-| `causality_token` | **mandatory** | The causality token of the last known value or set of values |
-| `timeout` | 300 | The timeout before 304 NOT MODIFIED is returned if the value isn't updated |
+| name              | default value | meaning                                                                    |
+|-------------------|---------------|----------------------------------------------------------------------------|
+| `sort_key`        | **mandatory** | The sort key of the item to read                                           |
+| `causality_token` | **mandatory** | The causality token of the last known value or set of values               |
+| `timeout`         | 300           | The timeout before 304 NOT MODIFIED is returned if the value isn't updated |
 
 The timeout can be set to any number of seconds, with a maximum of 600 seconds (10 minutes).
 
@@ -346,7 +346,7 @@ myblobblahblahblah
 Example response:
 
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 204 No Content
 ```
 
 **DeleteItem: `DELETE /<bucket>/<partition key>?sort_key=<sort_key>`**
@@ -382,13 +382,13 @@ as these values are asynchronously updated, and thus eventually consistent.
 
 Query parameters:
 
-| name | default value | meaning |
-| - | - | - |
-| `prefix` | `null` | Restrict listing to partition keys that start with this prefix |
-| `start` | `null` | First partition key to list, in lexicographical order |
-| `end` | `null` | Last partition key to list (excluded) |
-| `limit` | `null` | Maximum number of partition keys to list |
-| `reverse` | `false` | Iterate in reverse lexicographical order |
+| name      | default value | meaning                                                        |
+|-----------|---------------|----------------------------------------------------------------|
+| `prefix`  | `null`        | Restrict listing to partition keys that start with this prefix |
+| `start`   | `null`        | First partition key to list, in lexicographical order          |
+| `end`     | `null`        | Last partition key to list (excluded)                          |
+| `limit`   | `null`        | Maximum number of partition keys to list                       |
+| `reverse` | `false`       | Iterate in reverse lexicographical order                       |
 
 The response consists in a JSON object that repeats the parameters of the query and gives the result (see below).
 
@@ -512,7 +512,7 @@ POST /my_bucket HTTP/1.1
 Example response:
 
 ```
-HTTP/1.1 200 OK
+HTTP/1.1 204 NO CONTENT
 ```
 
 
@@ -525,17 +525,17 @@ The request body is a JSON list of searches, that each specify a range of
 items to get (to get single items, set `singleItem` to `true`). A search is a
 JSON struct with the following fields:
 
-| name | default value | meaning |
-| - | - | - |
-| `partitionKey` | **mandatory** | The partition key in which to search |
-| `prefix` | `null` | Restrict items to list to those whose sort keys start with this prefix |
-| `start` | `null` | The sort key of the first item to read |
-| `end` | `null` | The sort key of the last item to read (excluded) |
-| `limit` | `null` | The maximum number of items to return |
-| `reverse` | `false` | Iterate in reverse lexicographical order on sort keys |
-| `singleItem` | `false` | Whether to return only the item with sort key `start` |
-| `conflictsOnly` | `false` | Whether to return only items that have several concurrent values |
-| `tombstones` | `false` | Whether or not to return tombstone lines to indicate the presence of old deleted items |
+| name            | default value | meaning                                                                                |
+|-----------------|---------------|----------------------------------------------------------------------------------------|
+| `partitionKey`  | **mandatory** | The partition key in which to search                                                   |
+| `prefix`        | `null`        | Restrict items to list to those whose sort keys start with this prefix                 |
+| `start`         | `null`        | The sort key of the first item to read                                                 |
+| `end`           | `null`        | The sort key of the last item to read (excluded)                                       |
+| `limit`         | `null`        | The maximum number of items to return                                                  |
+| `reverse`       | `false`       | Iterate in reverse lexicographical order on sort keys                                  |
+| `singleItem`    | `false`       | Whether to return only the item with sort key `start`                                  |
+| `conflictsOnly` | `false`       | Whether to return only items that have several concurrent values                       |
+| `tombstones`    | `false`       | Whether or not to return tombstone lines to indicate the presence of old deleted items |
 
 
 For each of the searches, triplets are listed and returned separately. The
@@ -683,7 +683,7 @@ POST /my_bucket?delete HTTP/1.1
 
 Example response:
 
-```
+```json
 HTTP/1.1 200 OK
 
 [

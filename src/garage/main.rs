@@ -65,21 +65,6 @@ struct Opt {
 
 #[tokio::main]
 async fn main() {
-	if std::env::var("RUST_LOG").is_err() {
-		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
-	}
-	tracing_subscriber::fmt()
-		.with_writer(std::io::stderr)
-		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
-		.init();
-	sodiumoxide::init().expect("Unable to init sodiumoxide");
-
-	// Abort on panic (same behavior as in Go)
-	std::panic::set_hook(Box::new(|panic_info| {
-		error!("{}", panic_info.to_string());
-		std::process::abort();
-	}));
-
 	// Initialize version and features info
 	let features = &[
 		#[cfg(feature = "k2v")]
@@ -90,6 +75,8 @@ async fn main() {
 		"lmdb",
 		#[cfg(feature = "sqlite")]
 		"sqlite",
+		#[cfg(feature = "consul-discovery")]
+		"consul-discovery",
 		#[cfg(feature = "kubernetes-discovery")]
 		"kubernetes-discovery",
 		#[cfg(feature = "metrics")]
@@ -106,12 +93,51 @@ async fn main() {
 	}
 	garage_util::version::init_features(features);
 
-	// Parse arguments
 	let version = format!(
 		"{} [features: {}]",
 		garage_util::version::garage_version(),
 		features.join(", ")
 	);
+
+	// Initialize panic handler that aborts on panic and shows a nice message.
+	// By default, Tokio continues runing normally when a task panics. We want
+	// to avoid this behavior in Garage as this would risk putting the process in an
+	// unknown/uncontrollable state. We prefer to exit the process and restart it
+	// from scratch, so that it boots back into a fresh, known state.
+	let panic_version_info = version.clone();
+	std::panic::set_hook(Box::new(move |panic_info| {
+		eprintln!("======== PANIC (internal Garage error) ========");
+		eprintln!("{}", panic_info);
+		eprintln!();
+		eprintln!("Panics are internal errors that Garage is unable to handle on its own.");
+		eprintln!("They can be caused by bugs in Garage's code, or by corrupted data in");
+		eprintln!("the node's storage. If you feel that this error is likely to be a bug");
+		eprintln!("in Garage, please report it on our issue tracker a the following address:");
+		eprintln!();
+		eprintln!("        https://git.deuxfleurs.fr/Deuxfleurs/garage/issues");
+		eprintln!();
+		eprintln!("Please include the last log messages and the the full backtrace below in");
+		eprintln!("your bug report, as well as any relevant information on the context in");
+		eprintln!("which Garage was running when this error occurred.");
+		eprintln!();
+		eprintln!("GARAGE VERSION: {}", panic_version_info);
+		eprintln!();
+		eprintln!("BACKTRACE:");
+		eprintln!("{:?}", backtrace::Backtrace::new());
+		std::process::abort();
+	}));
+
+	// Initialize logging as well as other libraries used in Garage
+	if std::env::var("RUST_LOG").is_err() {
+		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
+	}
+	tracing_subscriber::fmt()
+		.with_writer(std::io::stderr)
+		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
+		.init();
+	sodiumoxide::init().expect("Unable to init sodiumoxide");
+
+	// Parse arguments and dispatch command line
 	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
 
 	let res = match opt.cmd {

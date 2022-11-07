@@ -318,7 +318,7 @@ fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
 		}
 		Some(_) => match path_utf8 {
 			Cow::Borrowed(pu8) => Ok((&pu8[1..]).into()),
-			Cow::Owned(pu8) => Ok((&pu8[1..]).to_string().into()),
+			Cow::Owned(pu8) => Ok(pu8[1..].to_string().into()),
 		},
 	}
 }

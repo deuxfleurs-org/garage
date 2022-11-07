@@ -1,13 +1,13 @@
 use crate::common;
 
-use hyper::Method;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_error_codes() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("test-k2v-error-codes");
 
-	// Regular insert should work (code 200)
+	// Regular insert should work (code 204)
 	let res = ctx
 		.k2v
 		.request
@@ -19,7 +19,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// Insert with trash causality token: invalid request
 	let res = ctx
@@ -34,7 +34,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Search without partition key: invalid request
 	let res = ctx
@@ -52,7 +52,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Search with start that is not in prefix: invalid request
 	let res = ctx
@@ -70,7 +70,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Search with invalid json: 400
 	let res = ctx
@@ -88,7 +88,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Batch insert with invalid causality token: 400
 	let res = ctx
@@ -105,7 +105,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Batch insert with invalid data: 400
 	let res = ctx
@@ -122,7 +122,7 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 
 	// Poll with invalid causality token: 400
 	let res = ctx
@@ -137,5 +137,5 @@ async fn test_error_codes() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 400);
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 }

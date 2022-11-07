@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate tracing;
 
+#[cfg(feature = "consul-discovery")]
 mod consul;
 #[cfg(feature = "kubernetes-discovery")]
 mod kubernetes;

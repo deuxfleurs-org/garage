@@ -15,9 +15,10 @@ data:
 
     bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
 
-    kubernetes_namespace = "{{ .Release.Namespace }}"
-    kubernetes_service_name = "{{ include "garage.fullname" . }}"
-    kubernetes_skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
+    [kubernetes_discovery]
+    namespace = "{{ .Release.Namespace }}"
+    service_name = "{{ include "garage.fullname" . }}"
+    skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
 
     [s3_api]
     s3_region = "{{ .Values.garage.s3.api.region }}"

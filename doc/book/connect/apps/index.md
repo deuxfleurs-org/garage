@@ -9,7 +9,7 @@ In this section, we cover the following web applications:
 |------|--------|------|
 | [Nextcloud](#nextcloud)     | ✅       |  Both Primary Storage and External Storage are supported    |
 | [Peertube](#peertube)     | ✅       | Must be configured with the website endpoint     |
-| [Mastodon](#mastodon)     | ❓       | Not yet tested     |
+| [Mastodon](#mastodon)     | ✅       | Natively supported    |
 | [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
 | [Pixelfed](#pixelfed)     | ❓       |  Not yet tested    |
 | [Pleroma](#pleroma)     | ❓       |  Not yet tested    |
@@ -224,7 +224,135 @@ You can now reload the page and see in your browser console that data are fetche
 
 ## Mastodon
 
-https://docs.joinmastodon.org/admin/config/#cdn
+Mastodon natively supports the S3 protocol to store media files, and it works out-of-the-box with Garage.
+You will need to expose your Garage bucket as a website: that way, media files will be served directly from Garage.
+
+### Performance considerations
+
+Mastodon tends to store many small objects over time: expect hundreds of thousands of objects,
+with average object size ranging from 50 KB to 150 KB.
+
+As such, your Garage cluster should be configured appropriately for good performance:
+
+- use Garage v0.8.0 or higher with the [LMDB database engine](@documentation/reference-manual/configuration.md#db-engine-since-v0-8-0).
+  With the default Sled database engine, your database could quickly end up taking tens of GB of disk space.
+- the Garage database should be stored on a SSD
+
+### Creating your bucket
+
+This is the usual Garage setup:
+
+```bash
+garage key new --name mastodon-key
+garage bucket create mastodon-data
+garage bucket allow mastodon-data --read --write --key mastodon-key
+```
+
+Note the Key ID and Secret Key.
+
+### Exposing your bucket as a website
+
+Create a DNS name to serve your media files, such as `my-social-media.mydomain.tld`.
+This name will be publicly exposed to the users of your Mastodon instance: they
+will load images directly from this DNS name.
+
+As [documented here](@/documentation/cookbook/exposing-websites.md),
+add this DNS name as alias to your bucket, and expose it as a website:
+
+```bash
+garage bucket alias mastodon-data my-social-media.mydomain.tld
+garage bucket website --allow mastodon-data
+```
+
+Then you will likely need to [setup a reverse proxy](@/documentation/cookbook/reverse-proxy.md)
+in front of it to serve your media files over HTTPS.
+
+### Cleaning up old media files before migration
+
+Mastodon instance quickly accumulate a lot of media files from the federation.
+Most of them are not strictly necessary because they can be fetched again from
+other servers.  As such, it is highly recommended to clean them up before
+migration, this will greatly reduce the migration time.
+
+From the [official Mastodon documentation](https://docs.joinmastodon.org/admin/tootctl/#media):
+
+```bash
+$ RAILS_ENV=production bin/tootctl media remove --days 3
+$ RAILS_ENV=production bin/tootctl media remove-orphans
+$ RAILS_ENV=production bin/tootctl preview_cards remove --days 15
+```
+
+Here is a typical disk usage for a small but multi-year instance after cleanup:
+
+```bash
+$ RAILS_ENV=production bin/tootctl media usage
+Attachments:	5.67 GB (1.14 GB local)
+Custom emoji:	295 MB (0 Bytes local)
+Preview cards:	154 MB
+Avatars:	3.77 GB (127 KB local)
+Headers:	8.72 GB (242 KB local)
+Backups:	0 Bytes
+Imports:	1.7 KB
+Settings:	0 Bytes
+```
+
+Unfortunately, [old avatars and headers cannot currently be cleaned up](https://github.com/mastodon/mastodon/issues/9567).
+
+### Migrating your data
+
+Data migration should be done with an efficient S3 client.
+The [minio client](@documentation/connect/cli.md#minio-client) is a good choice
+thanks to its mirror mode:
+
+```bash
+mc mirror ./public/system/ garage/mastodon-data
+```
+
+Here is a typical bucket usage after all data has been migrated:
+
+```bash
+$ garage bucket info mastodon-data
+
+Size: 20.3 GiB (21.8 GB)
+Objects: 175968
+```
+
+### Configuring Mastodon
+
+In your `.env.production` configuration file:
+
+```bash
+S3_ENABLED=true
+# Internal access to Garage
+S3_ENDPOINT=http://my-garage-instance.mydomain.tld:3900
+S3_REGION=garage
+S3_BUCKET=mastodon-data
+# Change this (Key ID and Secret Key of your Garage key)
+AWS_ACCESS_KEY_ID=GKe88df__CHANGETHIS__c5145
+AWS_SECRET_ACCESS_KEY=a2f7__CHANGETHIS__77fcfcf7a58f47a4aa4431f2e675c56da37821a1070000
+# What name gets exposed to users (HTTPS is implicit)
+S3_ALIAS_HOST=my-social-media.mydomain.tld
+```
+
+For more details, see the [reference Mastodon documentation](https://docs.joinmastodon.org/admin/config/#cdn).
+
+Restart all Mastodon services and everything should now be using Garage!
+You can check the URLs of images in the Mastodon web client, they should start
+with `https://my-social-media.mydomain.tld`.
+
+### Last migration sync
+
+After Mastodon is successfully using Garage, you can run a last sync from the local filesystem to Garage:
+
+```bash
+mc mirror --newer-than "3h" ./public/system/ garage/mastodon-data
+```
+
+### References
+
+[cybrespace's guide to migrate to S3](https://github.com/cybrespace/cybrespace-meta/blob/master/s3.md)
+(the guide is for Amazon S3, so the configuration is a bit different, but the rest is similar)
+
 
 ## Matrix
 

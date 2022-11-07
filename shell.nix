@@ -15,20 +15,10 @@ let
 
 in
   {
-
     /* --- Rust Shell ---
      * Use it to compile Garage
      */
     rust = pkgs.mkShell {
-      shellHook = ''
-function refresh_toolchain {
-  nix copy \
-    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-    $(nix-store -qR \
-      $(nix-build --quiet --no-build-output --no-out-link nix/toolchain.nix))
-}
-      '';
-
       nativeBuildInputs = [
         #pkgs.rustPlatform.rust.rustc
         pkgs.rustPlatform.rust.cargo
@@ -67,12 +57,33 @@ function refresh_toolchain {
      */
     release = pkgs.mkShell {
       shellHook = ''
+function refresh_toolchain {
+  pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
+  nix copy \
+    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
+    $(nix-store -qR \
+      $(nix-build --no-build-output --no-out-link nix/toolchain.nix))
+  rm /tmp/nix-signing-key.sec
+}
+
+function refresh_cache {
+  pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
+  for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.{debug,release}; do
+    echo "Updating cache for ''${attr}"
+    derivation=$(nix-instantiate --attr ''${attr})
+    nix copy \
+      --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
+      $(nix-store -qR ''${derivation%\!bin})
+  done
+  rm /tmp/nix-signing-key.sec
+}
+
 function to_s3 {
   aws \
       --endpoint-url https://garage.deuxfleurs.fr \
       --region garage \
     s3 cp \
-      ./result/bin/garage \
+      ./result-bin/bin/garage \
       s3://garagehq.deuxfleurs.fr/_releases/''${DRONE_TAG:-$DRONE_COMMIT}/''${TARGET}/garage
 }
 

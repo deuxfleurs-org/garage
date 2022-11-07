@@ -1,6 +1,6 @@
 use crate::common;
 
-use hyper::Method;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_simple() {
@@ -18,7 +18,7 @@ async fn test_simple() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	let res2 = ctx
 		.k2v
@@ -30,7 +30,7 @@ async fn test_simple() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res2.status(), 200);
+	assert_eq!(res2.status(), StatusCode::OK);
 
 	let res2_body = hyper::body::to_bytes(res2.into_body())
 		.await

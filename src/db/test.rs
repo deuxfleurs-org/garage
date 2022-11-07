@@ -1,9 +1,5 @@
 use crate::*;
 
-use crate::lmdb_adapter::LmdbDb;
-use crate::sled_adapter::SledDb;
-use crate::sqlite_adapter::SqliteDb;
-
 fn test_suite(db: Db) {
 	let tree = db.open_tree("tree").unwrap();
 
@@ -80,7 +76,10 @@ fn test_suite(db: Db) {
 }
 
 #[test]
+#[cfg(feature = "lmdb")]
 fn test_lmdb_db() {
+	use crate::lmdb_adapter::LmdbDb;
+
 	let path = mktemp::Temp::new_dir().unwrap();
 	let db = heed::EnvOpenOptions::new()
 		.max_dbs(100)
@@ -92,7 +91,10 @@ fn test_lmdb_db() {
 }
 
 #[test]
+#[cfg(feature = "sled")]
 fn test_sled_db() {
+	use crate::sled_adapter::SledDb;
+
 	let path = mktemp::Temp::new_dir().unwrap();
 	let db = SledDb::init(sled::open(path.to_path_buf()).unwrap());
 	test_suite(db);
@@ -100,7 +102,10 @@ fn test_sled_db() {
 }
 
 #[test]
+#[cfg(feature = "sqlite")]
 fn test_sqlite_db() {
+	use crate::sqlite_adapter::SqliteDb;
+
 	let db = SqliteDb::init(rusqlite::Connection::open_in_memory().unwrap());
 	test_suite(db);
 }

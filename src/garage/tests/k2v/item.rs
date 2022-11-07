@@ -6,7 +6,7 @@ use assert_json_diff::assert_json_eq;
 use serde_json::json;
 
 use super::json_body;
-use hyper::Method;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_items_and_indices() {
@@ -56,7 +56,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 		// Get value back
 		let res = ctx
@@ -69,7 +69,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::OK);
 		assert_eq!(
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/octet-stream"
@@ -132,7 +132,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 		// Get value back
 		let res = ctx
@@ -145,7 +145,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::OK);
 		assert_eq!(
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/octet-stream"
@@ -201,7 +201,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 		// Get value back
 		let res = ctx
@@ -214,7 +214,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::OK);
 		assert_eq!(
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/json"
@@ -271,7 +271,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 200);
+		assert_eq!(res.status(), StatusCode::OK);
 		let ct = res
 			.headers()
 			.get("x-garage-causality-token")
@@ -292,7 +292,7 @@ async fn test_items_and_indices() {
 			.send()
 			.await
 			.unwrap();
-		assert_eq!(res.status(), 204);
+		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 		// ReadIndex -- now there should be some stuff
 		tokio::time::sleep(Duration::from_secs(1)).await;
@@ -364,7 +364,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// f0: either
 	let res = ctx
@@ -377,7 +377,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/octet-stream"
@@ -405,7 +405,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -424,7 +424,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/octet-stream"
@@ -446,7 +446,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -466,7 +466,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// f0: either
 	let res = ctx
@@ -479,7 +479,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -503,7 +503,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -528,7 +528,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 409); // CONFLICT
+	assert_eq!(res.status(), StatusCode::CONFLICT); // CONFLICT
 
 	// f3: json
 	let res = ctx
@@ -541,7 +541,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -568,7 +568,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 204);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// f0: either
 	let res = ctx
@@ -581,7 +581,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -599,7 +599,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -625,7 +625,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 409); // CONFLICT
+	assert_eq!(res.status(), StatusCode::CONFLICT); // CONFLICT
 
 	// f3: json
 	let res = ctx
@@ -638,7 +638,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -658,7 +658,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 204);
+	assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 	// f0: either
 	let res = ctx
@@ -671,7 +671,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 204); // NO CONTENT
+	assert_eq!(res.status(), StatusCode::NO_CONTENT); // NO CONTENT
 
 	// f1: not specified
 	let res = ctx
@@ -683,7 +683,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"
@@ -702,7 +702,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 204); // NO CONTENT
+	assert_eq!(res.status(), StatusCode::NO_CONTENT); // NO CONTENT
 
 	// f3: json
 	let res = ctx
@@ -715,7 +715,7 @@ async fn test_item_return_format() {
 		.send()
 		.await
 		.unwrap();
-	assert_eq!(res.status(), 200);
+	assert_eq!(res.status(), StatusCode::OK);
 	assert_eq!(
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/json"

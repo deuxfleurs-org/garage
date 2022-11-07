@@ -30,9 +30,11 @@ garage_table = { version = "0.8.0", path = "../table" }
 garage_util = { version = "0.8.0", path = "../util" }
 garage_web = { version = "0.8.0", path = "../web" }
 
+backtrace = "0.3"
 bytes = "1.0"
 bytesize = "1.1"
 timeago = "0.3"
+parse_duration = "2.1"
 hex = "0.4"
 tracing = { version = "0.1.30", features = ["log-always"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -58,7 +60,7 @@ opentelemetry-otlp = { version = "0.10", optional = true }
 prometheus = { version = "0.13", optional = true }
 
 [dev-dependencies]
-aws-sdk-s3 = "0.8"
+aws-sdk-s3 = "0.19"
 chrono = "0.4"
 http = "0.2"
 hmac = "0.12"
@@ -81,6 +83,8 @@ sled = [ "garage_model/sled" ]
 lmdb = [ "garage_model/lmdb" ]
 sqlite = [ "garage_model/sqlite" ]
 
+# Automatic registration and discovery via Consul API
+consul-discovery = [ "garage_rpc/consul-discovery" ]
 # Automatic registration and discovery via Kubernetes API
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).
