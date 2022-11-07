@@ -86,7 +86,7 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 			.map(|(k, _, v)| (hex::encode(k), v.0.clone()))
 			.collect(),
 		staged_role_changes: layout
-			.staging
+			.staging_roles
 			.items()
 			.iter()
 			.filter(|(k, _, v)| layout.roles.get(k) != Some(v))
@@ -137,14 +137,14 @@ pub async fn handle_update_cluster_layout(
 	let mut layout = garage.system.get_cluster_layout();
 
 	let mut roles = layout.roles.clone();
-	roles.merge(&layout.staging);
+	roles.merge(&layout.staging_roles);
 
 	for (node, role) in updates {
 		let node = hex::decode(node).ok_or_bad_request("Invalid node identifier")?;
 		let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
 
 		layout
-			.staging
+			.staging_roles
 			.merge(&roles.update_mutator(node, NodeRoleV(role)));
 	}
 

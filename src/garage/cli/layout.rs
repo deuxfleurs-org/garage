@@ -63,14 +63,14 @@ pub async fn cmd_assign_role(
 		.collect::<Result<Vec<_>, _>>()?;
 
 	let mut roles = layout.roles.clone();
-	roles.merge(&layout.staging);
+	roles.merge(&layout.staging_roles);
 
 	for replaced in args.replace.iter() {
 		let replaced_node = find_matching_node(layout.node_ids().iter().cloned(), replaced)?;
 		match roles.get(&replaced_node) {
 			Some(NodeRoleV(Some(_))) => {
 				layout
-					.staging
+					.staging_roles
 					.merge(&roles.update_mutator(replaced_node, NodeRoleV(None)));
 			}
 			_ => {
@@ -128,7 +128,7 @@ pub async fn cmd_assign_role(
 		};
 
 		layout
-			.staging
+			.staging_roles
 			.merge(&roles.update_mutator(added_node, NodeRoleV(Some(new_entry))));
 	}
 
@@ -148,13 +148,13 @@ pub async fn cmd_remove_role(
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	let mut roles = layout.roles.clone();
-	roles.merge(&layout.staging);
+	roles.merge(&layout.staging_roles);
 
 	let deleted_node =
 		find_matching_node(roles.items().iter().map(|(id, _, _)| *id), &args.node_id)?;
 
 	layout
-		.staging
+		.staging_roles
 		.merge(&roles.update_mutator(deleted_node, NodeRoleV(None)));
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
@@ -278,7 +278,7 @@ pub async fn cmd_config_layout(
 				println!("The zone redundancy must be at least 1.");
 			} else {
 				layout
-					.staged_parameters
+					.staging_parameters
 					.update(LayoutParameters { zone_redundancy: r });
 				println!("The new zone redundancy has been saved ({}).", r);
 			}
@@ -352,13 +352,13 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 }
 
 pub fn print_staging_parameters_changes(layout: &ClusterLayout) -> bool {
-	let has_changes = layout.staged_parameters.get().clone() != layout.parameters;
+	let has_changes = layout.staging_parameters.get().clone() != layout.parameters;
 	if has_changes {
 		println!();
 		println!("==== NEW LAYOUT PARAMETERS ====");
 		println!(
 			"Zone redundancy: {}",
-			layout.staged_parameters.get().zone_redundancy
+			layout.staging_parameters.get().zone_redundancy
 		);
 		println!();
 	}
@@ -367,7 +367,7 @@ pub fn print_staging_parameters_changes(layout: &ClusterLayout) -> bool {
 
 pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
 	let has_changes = layout
-		.staging
+		.staging_roles
 		.items()
 		.iter()
 		.any(|(k, _, v)| layout.roles.get(k) != Some(v));
@@ -376,7 +376,7 @@ pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
 		println!();
 		println!("==== STAGED ROLE CHANGES ====");
 		let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
-		for (id, _, role) in layout.staging.items().iter() {
+		for (id, _, role) in layout.staging_roles.items().iter() {
 			if layout.roles.get(id) == Some(role) {
 				continue;
 			}
