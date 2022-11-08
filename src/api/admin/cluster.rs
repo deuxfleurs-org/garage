@@ -163,16 +163,13 @@ pub async fn handle_apply_cluster_layout(
 
 	let layout = garage.system.get_cluster_layout();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
-	//TODO : how to display msg ? Should it be in the Body Response ?
-	for s in msg.iter() {
-		println!("{}", s);
-	}
 
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.header(http::header::CONTENT_TYPE, "text/plain")
+		.body(Body::from(msg.join("\n")))?)
 }
 
 pub async fn handle_revert_cluster_layout(

@@ -2,8 +2,6 @@
 #[cfg(feature = "sqlite")]
 extern crate tracing;
 
-#[cfg(not(any(feature = "lmdb", feature = "sled", feature = "sqlite")))]
-//compile_error!("Must activate the Cargo feature for at least one DB engine: lmdb, sled or sqlite.");
 #[cfg(feature = "lmdb")]
 pub mod lmdb_adapter;
 #[cfg(feature = "sled")]

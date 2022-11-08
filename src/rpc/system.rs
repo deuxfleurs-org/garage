@@ -565,9 +565,9 @@ impl System {
 		let update_ring = self.update_ring.lock().await;
 		let mut layout: ClusterLayout = self.ring.borrow().layout.clone();
 
-		let prev_layout_check = layout.check();
+		let prev_layout_check = layout.check().is_ok();
 		if layout.merge(adv) {
-			if prev_layout_check && !layout.check() {
+			if prev_layout_check && !layout.check().is_ok() {
 				error!("New cluster layout is invalid, discarding.");
 				return Err(Error::Message(
 					"New cluster layout is invalid, discarding.".into(),
@@ -620,7 +620,7 @@ impl System {
 
 	async fn discovery_loop(self: &Arc<Self>, mut stop_signal: watch::Receiver<bool>) {
 		while !*stop_signal.borrow() {
-			let not_configured = !self.ring.borrow().layout.check();
+			let not_configured = !self.ring.borrow().layout.check().is_ok();
 			let no_peers = self.fullmesh.get_peer_list().len() < self.replication_factor;
 			let expected_n_nodes = self.ring.borrow().layout.num_nodes();
 			let bad_peers = self

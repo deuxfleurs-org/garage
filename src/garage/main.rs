@@ -17,6 +17,9 @@ compile_error!("Either bundled-libs or system-libs Cargo feature must be enabled
 #[cfg(all(feature = "bundled-libs", feature = "system-libs"))]
 compile_error!("Only one of bundled-libs and system-libs Cargo features must be enabled");
 
+#[cfg(not(any(feature = "lmdb", feature = "sled", feature = "sqlite")))]
+compile_error!("Must activate the Cargo feature for at least one DB engine: lmdb, sled or sqlite.");
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 

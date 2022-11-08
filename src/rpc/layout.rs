@@ -187,10 +187,10 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		self.roles.retain(|(_, _, v)| v.0.is_some());
 		self.parameters = self.staging_parameters.get().clone();
 
-		let msg = self.calculate_partition_assignation()?;
-
 		self.staging_roles.clear();
 		self.staging_hash = self.calculate_staging_hash();
+
+		let msg = self.calculate_partition_assignation()?;
 
 		self.version += 1;
 
@@ -214,8 +214,8 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		self.staging_roles.clear();
-		self.staging_hash = self.calculate_staging_hash();
 		self.staging_parameters.update(self.parameters.clone());
+		self.staging_hash = self.calculate_staging_hash();
 
 		self.version += 1;
 
@@ -310,11 +310,11 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	/// Check a cluster layout for internal consistency
 	/// (assignation, roles, parameters, partition size)
 	/// returns true if consistent, false if error
-	pub fn check(&self) -> bool {
+	pub fn check(&self) -> Result<(), String> {
 		// Check that the hash of the staging data is correct
 		let staging_hash = self.calculate_staging_hash();
 		if staging_hash != self.staging_hash {
-			return false;
+			return Err("staging_hash is incorrect".into());
 		}
 
 		// Check that node_id_vec contains the correct list of nodes
@@ -329,12 +329,17 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		let mut node_id_vec = self.node_id_vec.clone();
 		node_id_vec.sort();
 		if expected_nodes != node_id_vec {
-			return false;
+			return Err(format!("node_id_vec does not contain the correct set of nodes\nnode_id_vec: {:?}\nexpected: {:?}", node_id_vec, expected_nodes));
 		}
 
 		// Check that the assignation data has the correct length
-		if self.ring_assignation_data.len() != (1 << PARTITION_BITS) * self.replication_factor {
-			return false;
+		let expected_assignation_data_len = (1 << PARTITION_BITS) * self.replication_factor;
+		if self.ring_assignation_data.len() != expected_assignation_data_len {
+			return Err(format!(
+				"ring_assignation_data has incorrect length {} instead of {}",
+				self.ring_assignation_data.len(),
+				expected_assignation_data_len
+			));
 		}
 
 		// Check that the assigned nodes are correct identifiers
@@ -342,12 +347,15 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		// and that role is not the role of a gateway nodes
 		for x in self.ring_assignation_data.iter() {
 			if *x as usize >= self.node_id_vec.len() {
-				return false;
+				return Err(format!(
+					"ring_assignation_data contains invalid node id {}",
+					*x
+				));
 			}
 			let node = self.node_id_vec[*x as usize];
 			match self.roles.get(&node) {
 				Some(NodeRoleV(Some(x))) if x.capacity.is_some() => (),
-				_ => return false,
+				_ => return Err("ring_assignation_data contains id of a gateway node".into()),
 			}
 		}
 
@@ -357,7 +365,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 			let mut nodes_of_p = self.ring_assignation_data[rf * p..rf * (p + 1)].to_vec();
 			nodes_of_p.sort();
 			if nodes_of_p.iter().unique().count() != rf {
-				return false;
+				return Err(format!("partition does not contain {} unique node ids", rf));
 			}
 			// Check that every partition is spread over at least zone_redundancy zones.
 			let mut zones_of_p = nodes_of_p
@@ -370,7 +378,10 @@ To know the correct value of the new layout version, invoke `garage layout show`
 			zones_of_p.sort();
 			let redundancy = self.parameters.zone_redundancy;
 			if zones_of_p.iter().unique().count() < redundancy {
-				return false;
+				return Err(format!(
+					"nodes of partition are in less than {} distinct zones",
+					redundancy
+				));
 			}
 		}
 
@@ -382,8 +393,14 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		for (n, usage) in node_usage.iter().enumerate() {
 			if *usage > 0 {
 				let uuid = self.node_id_vec[n];
-				if usage * self.partition_size > self.get_node_capacity(&uuid).unwrap() {
-					return false;
+				let partusage = usage * self.partition_size;
+				let nodecap = self.get_node_capacity(&uuid).unwrap();
+				if partusage > nodecap {
+					return Err(format!(
+						"node usage ({}) is bigger than node capacity ({})",
+						usage * self.partition_size,
+						nodecap
+					));
 				}
 			}
 		}
@@ -393,12 +410,17 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		let cl2 = self.clone();
 		let (_, zone_to_id) = cl2.generate_nongateway_zone_ids().unwrap();
 		match cl2.compute_optimal_partition_size(&zone_to_id) {
-			Ok(s) if s != self.partition_size => return false,
-			Err(_) => return false,
+			Ok(s) if s != self.partition_size => {
+				return Err(format!(
+					"partition_size ({}) is different than optimal value ({})",
+					self.partition_size, s
+				))
+			}
+			Err(e) => return Err(format!("could not calculate optimal partition size: {}", e)),
 			_ => (),
 		}
 
-		true
+		Ok(())
 	}
 }
 
@@ -493,9 +515,9 @@ impl ClusterLayout {
 		// We update the layout structure
 		self.update_ring_from_flow(id_to_zone.len(), &gflow)?;
 
-		if !self.check() {
+		if let Err(e) = self.check() {
 			return Err(Error::Message(
-				"Critical error: The computed layout happens to be incorrect".into(),
+				format!("Layout check returned an error: {}\nOriginal result of computation: <<<<\n{}\n>>>>", e, msg.join("\n"))
 			));
 		}
 
@@ -1062,9 +1084,9 @@ mod tests {
 			);
 			cl.staging_roles.merge(&update);
 		}
-		cl.staging_hash = cl.calculate_staging_hash();
 		cl.staging_parameters
 			.update(LayoutParameters { zone_redundancy });
+		cl.staging_hash = cl.calculate_staging_hash();
 	}
 
 	#[test]
@@ -1081,7 +1103,7 @@ mod tests {
 		let v = cl.version;
 		let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
 		show_msg(&msg);
-		assert!(cl.check());
+		assert_eq!(cl.check(), Ok(()));
 		assert!(matches!(check_against_naive(&cl), Ok(true)));
 
 		node_id_vec = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -1094,7 +1116,7 @@ mod tests {
 		let v = cl.version;
 		let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
 		show_msg(&msg);
-		assert!(cl.check());
+		assert_eq!(cl.check(), Ok(()));
 		assert!(matches!(check_against_naive(&cl), Ok(true)));
 
 		node_capacity_vec = vec![4000, 1000, 2000, 7000, 1000, 1000, 2000, 10000, 2000];
@@ -1102,7 +1124,7 @@ mod tests {
 		let v = cl.version;
 		let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
 		show_msg(&msg);
-		assert!(cl.check());
+		assert_eq!(cl.check(), Ok(()));
 		assert!(matches!(check_against_naive(&cl), Ok(true)));
 
 		node_capacity_vec = vec![
@@ -1112,7 +1134,7 @@ mod tests {
 		let v = cl.version;
 		let (cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
 		show_msg(&msg);
-		assert!(cl.check());
+		assert_eq!(cl.check(), Ok(()));
 		assert!(matches!(check_against_naive(&cl), Ok(true)));
 	}
 }

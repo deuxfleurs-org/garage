@@ -330,7 +330,7 @@ pub async fn send_layout(
 }
 
 pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
-	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable".to_string()];
+	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable capacity".to_string()];
 	for (id, _, role) in layout.roles.items().iter() {
 		let role = match &role.0 {
 			Some(r) => r,
@@ -338,16 +338,26 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 		};
 		let tags = role.tags.join(",");
 		let usage = layout.get_node_usage(id).unwrap_or(0);
-		let capacity = layout.get_node_capacity(id).unwrap_or(1);
-		table.push(format!(
-			"{:?}\t{}\t{}\t{}\t{} ({:.1}%)",
-			id,
-			tags,
-			role.zone,
-			role.capacity_string(),
-			ByteSize::b(usage as u64 * layout.partition_size).to_string_as(false),
-			(100.0 * usage as f32 * layout.partition_size as f32) / (capacity as f32)
-		));
+		let capacity = layout.get_node_capacity(id).unwrap_or(0);
+		if capacity > 0 {
+			table.push(format!(
+				"{:?}\t{}\t{}\t{}\t{} ({:.1}%)",
+				id,
+				tags,
+				role.zone,
+				role.capacity_string(),
+				ByteSize::b(usage as u64 * layout.partition_size).to_string_as(false),
+				(100.0 * usage as f32 * layout.partition_size as f32) / (capacity as f32)
+			));
+		} else {
+			table.push(format!(
+				"{:?}\t{}\t{}\t{}",
+				id,
+				tags,
+				role.zone,
+				role.capacity_string(),
+			));
+		};
 	}
 	println!();
 	println!("Parameters of the layout computation:");
