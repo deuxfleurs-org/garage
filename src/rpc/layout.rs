@@ -100,16 +100,7 @@ impl NodeRole {
 	}
 
 	pub fn tags_string(&self) -> String {
-		let mut tags = String::new();
-		if self.tags.is_empty() {
-			return tags;
-		}
-		tags.push_str(&self.tags[0].clone());
-		for t in 1..self.tags.len() {
-			tags.push(',');
-			tags.push_str(&self.tags[t].clone());
-		}
-		tags
+		self.tags.join(",")
 	}
 }
 
@@ -241,7 +232,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	}
 
 	/// Returns the uuids of the non_gateway nodes in self.node_id_vec.
-	pub fn nongateway_nodes(&self) -> Vec<Uuid> {
+	fn nongateway_nodes(&self) -> Vec<Uuid> {
 		let mut result = Vec::<Uuid>::new();
 		for uuid in self.node_id_vec.iter() {
 			match self.node_role(uuid) {
@@ -253,7 +244,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	}
 
 	/// Given a node uuids, this function returns the label of its zone
-	pub fn get_node_zone(&self, uuid: &Uuid) -> Result<String, Error> {
+	fn get_node_zone(&self, uuid: &Uuid) -> Result<String, Error> {
 		match self.node_role(uuid) {
 			Some(role) => Ok(role.zone.clone()),
 			_ => Err(Error::Message(
@@ -299,7 +290,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	}
 
 	/// Returns the sum of capacities of non gateway nodes in the cluster
-	pub fn get_total_capacity(&self) -> Result<u64, Error> {
+	fn get_total_capacity(&self) -> Result<u64, Error> {
 		let mut total_capacity = 0;
 		for uuid in self.nongateway_nodes().iter() {
 			total_capacity += self.get_node_capacity(uuid)?;
@@ -494,8 +485,7 @@ impl ClusterLayout {
 
 		if partition_size < 100 {
 			msg.push(
-				"WARNING: The partition size is low (< 100), you might consider to \
-            provide the nodes capacities in a smaller unit (e.g. Mb instead of Gb)."
+				"WARNING: The partition size is low (< 100), make sure the capacities of your nodes are correct and are of at least a few MB"
 					.into(),
 			);
 		}
@@ -533,7 +523,7 @@ impl ClusterLayout {
 		// (1) We compute the new node list
 		// Non gateway nodes should be coded on 8bits, hence they must be first in the list
 		// We build the new node ids
-		let mut new_non_gateway_nodes: Vec<Uuid> = self
+		let new_non_gateway_nodes: Vec<Uuid> = self
 			.roles
 			.items()
 			.iter()
@@ -549,7 +539,7 @@ impl ClusterLayout {
 			)));
 		}
 
-		let mut new_gateway_nodes: Vec<Uuid> = self
+		let new_gateway_nodes: Vec<Uuid> = self
 			.roles
 			.items()
 			.iter()
@@ -558,8 +548,8 @@ impl ClusterLayout {
 			.collect();
 
 		let mut new_node_id_vec = Vec::<Uuid>::new();
-		new_node_id_vec.append(&mut new_non_gateway_nodes);
-		new_node_id_vec.append(&mut new_gateway_nodes);
+		new_node_id_vec.extend(new_non_gateway_nodes);
+		new_node_id_vec.extend(new_gateway_nodes);
 
 		let old_node_id_vec = self.node_id_vec.clone();
 		self.node_id_vec = new_node_id_vec.clone();
@@ -567,12 +557,11 @@ impl ClusterLayout {
 		// (2) We retrieve the old association
 		// We rewrite the old association with the new indices. We only consider partition
 		// to node assignations where the node is still in use.
-		let mut old_assignation = vec![Vec::<usize>::new(); NB_PARTITIONS];
-
 		if self.ring_assignation_data.is_empty() {
 			// This is a new association
 			return Ok(None);
 		}
+
 		if self.ring_assignation_data.len() != NB_PARTITIONS * self.replication_factor {
 			return Err(Error::Message(
 				"The old assignation does not have a size corresponding to \
@@ -590,7 +579,9 @@ impl ClusterLayout {
 			uuid_to_new_id.insert(*uuid, i);
 		}
 
+		let mut old_assignation = vec![Vec::<usize>::new(); NB_PARTITIONS];
 		let rf = self.replication_factor;
+
 		for (p, old_assign_p) in old_assignation.iter_mut().enumerate() {
 			for old_id in &self.ring_assignation_data[p * rf..(p + 1) * rf] {
 				let uuid = old_node_id_vec[*old_id as usize];
@@ -613,18 +604,10 @@ impl ClusterLayout {
 		let mut zone_to_id = HashMap::<String, usize>::new();
 
 		for uuid in self.nongateway_nodes().iter() {
-			if self.roles.get(uuid) == None {
-				return Err(Error::Message(
-					"The uuid was not found in the node roles (this should \
-                    not happen, it might be a critical error)."
-						.into(),
-				));
-			}
-			if let Some(r) = self.node_role(uuid) {
-				if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
-					zone_to_id.insert(r.zone.clone(), id_to_zone.len());
-					id_to_zone.push(r.zone.clone());
-				}
+			let r = self.node_role(uuid).unwrap();
+			if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
+				zone_to_id.insert(r.zone.clone(), id_to_zone.len());
+				id_to_zone.push(r.zone.clone());
 			}
 		}
 		Ok((id_to_zone, zone_to_id))
@@ -639,11 +622,7 @@ impl ClusterLayout {
 		let empty_set = HashSet::<(usize, usize)>::new();
 		let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set)?;
 		g.compute_maximal_flow()?;
-		if g.get_flow_value()?
-			< (NB_PARTITIONS * self.replication_factor)
-				.try_into()
-				.unwrap()
-		{
+		if g.get_flow_value()? < (NB_PARTITIONS * self.replication_factor) as i64 {
 			return Err(Error::Message(
 				"The storage capacity of he cluster is to small. It is \
                        impossible to store partitions of size 1."
@@ -656,11 +635,7 @@ impl ClusterLayout {
 		while s_down + 1 < s_up {
 			g = self.generate_flow_graph((s_down + s_up) / 2, zone_to_id, &empty_set)?;
 			g.compute_maximal_flow()?;
-			if g.get_flow_value()?
-				< (NB_PARTITIONS * self.replication_factor)
-					.try_into()
-					.unwrap()
-			{
+			if g.get_flow_value()? < (NB_PARTITIONS * self.replication_factor) as i64 {
 				s_up = (s_down + s_up) / 2;
 			} else {
 				s_down = (s_down + s_up) / 2;

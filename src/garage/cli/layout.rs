@@ -209,15 +209,12 @@ pub async fn cmd_show_layout(
                     "You can also revert all proposed changes with: garage layout revert --version {}",
                     v + 1)
 			}
-			Err(Error::Message(s)) => {
-				println!("Error while trying to compute the assignation: {}", s);
+			Err(e) => {
+				println!("Error while trying to compute the assignation: {}", e);
 				println!("This new layout cannot yet be applied.");
 				println!(
                     "You can also revert all proposed changes with: garage layout revert --version {}",
                     v + 1)
-			}
-			_ => {
-				println!("Unknown Error");
 			}
 		}
 	}
@@ -355,7 +352,7 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 				id,
 				tags,
 				role.zone,
-				role.capacity_string(),
+				role.capacity_string()
 			));
 		};
 	}
@@ -372,7 +369,7 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 }
 
 pub fn print_staging_parameters_changes(layout: &ClusterLayout) -> bool {
-	let has_changes = layout.staging_parameters.get().clone() != layout.parameters;
+	let has_changes = *layout.staging_parameters.get() != layout.parameters;
 	if has_changes {
 		println!();
 		println!("==== NEW LAYOUT PARAMETERS ====");
