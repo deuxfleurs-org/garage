@@ -126,7 +126,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		self.command()
 			.args(["layout", "assign"])
 			.arg(node_short_id)
-			.args(["-c", "1", "-z", "unzonned"])
+			.args(["-c", "1G", "-z", "unzonned"])
 			.quiet()
 			.expect_success_status("Could not assign garage node layout");
 		self.command()
