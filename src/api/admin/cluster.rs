@@ -167,7 +167,7 @@ pub async fn handle_apply_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	Ok(Response::builder()
-		.status(StatusCode::NO_CONTENT)
+		.status(StatusCode::OK)
 		.header(http::header::CONTENT_TYPE, "text/plain")
 		.body(Body::from(msg.join("\n")))?)
 }
