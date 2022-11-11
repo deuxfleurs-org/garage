@@ -518,8 +518,51 @@ paths:
       operationId: "CreateBucket"
       summary: "Create a bucket"
       description: |
-        Create a bucket and set zero or more global or local alias.
-      
+        Creates a new bucket, either with a global alias, a local one, or no alias at all.
+        Technically, you can also specify both `globalAlias` and `localAlias` and that would create two aliases.
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ ]
+              properties:
+                globalAlias:
+                  type: string
+                  example: "my_documents"
+                localAlias:
+                  type: object
+                  properties:
+                    accessKeyId:
+                      type: string
+                    alias:
+                      type: string
+                    allow:
+                      type: object
+                      properties:
+                        read:
+                          type: boolean
+                          example: true
+                        write:
+                          type: boolean
+                          example: true
+                        owner:
+                          type: boolean
+                          example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "The payload is not formatted correctly"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
 
   "/bucket?id={bucket_id}":
@@ -563,6 +606,25 @@ paths:
         Delete a bucket.Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
         **Warning:** this will delete all aliases associated with the bucket!
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bucket is not empty"
+        '404':
+          description: "Bucket not found"
+        '204':
+          description: Bucket has been deleted
+
+
       
     put:
       tags:
@@ -581,6 +643,53 @@ paths:
         In `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`
         to remove the quotas. An absent value will be considered the same as a `null`. It is not possible
         to change only one of the two quotas.
+      requestBody:
+        description: |
+          Requested changes on the bucket. Both root fields are optionals.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ ]
+              properties:
+                websiteAccess:
+                  type: object
+                  properties:
+                    enabled: 
+                      type: boolean
+                      example: true
+                    indexDocument:
+                      type: string
+                      example: "index.html"
+                    errorDocument:
+                      type: string
+                      example: "error/400.html"
+                quotas:
+                  type: object
+                  properties:
+                    maxSize: 
+                      type: integer
+                      nullable: true
+                      example: 19029801
+                    maxObjects:
+                      type: integer
+                      nullable: true
+                      example: null
+
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your body."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
   "/bucket?globalAlias={alias}":
     get:
@@ -590,6 +699,25 @@ paths:
       summary: "Find a bucket"
       description: |
         Find a bucket by its global alias
+      parameters:
+        - name: alias
+          in: path
+          required: true
+          description: "The exact global alias of one of the existing buckets"
+          example: "my_documents"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
   /bucket/allow:
     post:
