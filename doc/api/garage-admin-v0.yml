@@ -455,6 +455,197 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KeyInfo' 
+
+  /bucket:
+    get:
+      tags:
+        - Bucket
+      operationId: "ListBuckets"
+      summary: "List all buckets"
+      description: |
+        List all the buckets on the cluster with their UUID and their global and local aliases.
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns the UUID of the bucket and all its aliases
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - id: "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033"
+                    globalAliases: 
+                      - "container_registry"
+                  - id: "96470e0df00ec28807138daf01915cfda2bee8eccc91dea9558c0b4855b5bf95"
+                    localAliases:
+                      - alias: "my_documents"
+                        accessKeyid: "GK31c2f218a2e44f485b94239e"
+                  - id: "d7452a935e663fc1914f3a5515163a6d3724010ce8dfd9e4743ca8be5974f995"
+                    globalAliases:
+                      - "example.com"
+                      - "www.example.com"
+                    localAliases:
+                      - alias: "corp_website"
+                        accessKeyId: "GKe10061ac9c2921f09e4c5540"
+                      - alias: "web"
+                        accessKeyid: "GK31c2f218a2e44f485b94239e"
+                  - id: ""
+                items:
+                  type: object
+                  required: [ id ]
+                  properties:
+                    id:
+                      type: string
+                    globalAliases:
+                      type: array
+                      items:
+                        type: string
+                    localAliases:
+                      type: array
+                      items:
+                        type: object
+                        required: [ alias, accessKeyId ]
+                        properties:
+                          alias:
+                            type: string
+                          accessKeyId:
+                            type: string
+    post:
+      tags:
+        - Bucket
+      operationId: "CreateBucket"
+      summary: "Create a bucket"
+      description: |
+        Create a bucket and set zero or more global or local alias.
+      
+
+
+  "/bucket?id={bucket_id}":
+    get:
+      tags:
+        - Bucket
+      operationId: "GetBucketInfo"
+      summary: "Get a bucket"
+      description: |
+        Given a bucket identifier, get its information.
+        It includes its aliases, its web configuration, keys that have some permissions
+        on it, some statistics (number of objects, size), number of dangling multipart uploads,
+        and its quotas (if any).
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucket"
+      summary: "Delete a bucket"
+      description: |
+        Delete a bucket.Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
+
+        **Warning:** this will delete all aliases associated with the bucket!
+      
+    put:
+      tags:
+        - Bucket
+      operationId: "UpdateBucket"
+      summary: "Update a bucket"
+      description: |
+        All fields (`websiteAccess` and `quotas`) are optionnal.
+        If they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.
+
+        In `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.
+        The field `errorDocument` is optional, if no error document is set a generic
+        error message is displayed when errors happen. Conversely, if `enabled` is
+        `false`, neither `indexDocument` nor `errorDocument` must be specified.
+
+        In `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`
+        to remove the quotas. An absent value will be considered the same as a `null`. It is not possible
+        to change only one of the two quotas.
+
+  "/bucket?globalAlias={alias}":
+    get:
+      tags:
+        - Bucket
+      operationId: "FindBucketInfo"
+      summary: "Find a bucket"
+      description: |
+        Find a bucket by its global alias
+
+  /bucket/allow:
+    post:
+      tags:
+        - Bucket
+      operationId: "AllowBucketKey"
+      summary: "Allow key"
+      description: |
+        Allows a key to do read/write/owner operations on a bucket.
+
+        Flags in permissions which have the value true will be activated. Other flags will remain unchanged.
+
+  /bucket/deny:
+    post:
+      tags:
+        - Bucket
+      operationId: "DenyBucketKey"
+      summary: "Deny key"
+      description: |
+        Denies a key from doing read/write/owner operations on a bucket.
+
+        Flags in permissions which have the value true will be deactivated. Other flags will remain unchanged.
+
+  /bucket/alias/global:
+    put:
+      tags:
+        - Bucket
+      operationId: "PutBucketGlobalAlias"
+      summary: "Add a global alias"
+      description: |
+        Add a global alias to the target bucket
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucketGlobalAlias"
+      summary: "Delete a global alias"
+      description: |
+        Delete a global alias from the target bucket
+
+  /bucket/alias/local:
+    put:
+      tags:
+        - Bucket
+      operationId: "PutBucketLocalAlias"
+      summary: "Add a local alias"
+      description: |
+        Add a local alias, bound to specified account, to the target bucket
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucketLocalAlias"
+      summary: "Delete a local alias"
+      description: |
+        Delete a local alias, bound to specified account, from the target bucket
         
 components:
   securitySchemes:
@@ -587,6 +778,82 @@ components:
                   owner:
                     type: boolean
                     example: false
+    BucketInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          required: true
+          example: afa8f0a22b40b1247ccd0affb869b0af5cff980924a20e4b5e0720a44deb8d39
+        globalAliases:
+          type: array
+          items:
+            type: string
+            example: "my_documents"
+        websiteAccess:
+          type: bool
+          example: true
+        websiteConfig:
+          type: object
+          nullable: true
+          properties:
+            indexDocument:
+              type: string
+              example: "index.html"
+            errorDocument:
+              type: string
+              example: "error/400.html"
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/BucketKeyInfo'
+        objects:
+          type: integer
+          example: 14827
+        bytes:
+          type: integer
+          example: 13189855625
+        unfinishedUploads:
+          type: integer
+          example: 0
+        quotas:
+          type: object
+          properties:
+            maxSize:
+              nullable: true
+              type: integer
+              example: null
+            maxObjects:
+              nullable: true
+              type: integer
+              example: null
+
+
+    BucketKeyInfo:
+      type: object
+      properties:
+        accessKeyId:
+          type: string
+        name:
+          type: string
+        permissions:
+          type: object
+          properties:
+            read:
+              type: boolean
+              example: true
+            write:
+              type: boolean
+              example: true
+            owner:
+              type: boolean
+              example: true
+        bucketLocalAliases:
+          type: array
+          items:
+            type: string
+            example: "my_documents"
+
 
 security:
   - bearerAuth: []
