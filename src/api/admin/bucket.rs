@@ -210,7 +210,7 @@ async fn bucket_info_results(
 				.collect::<Vec<_>>(),
 			objects: counters.get(OBJECTS).cloned().unwrap_or_default(),
 			bytes: counters.get(BYTES).cloned().unwrap_or_default(),
-			unfinshed_uploads: counters
+			unfinished_uploads: counters
 				.get(UNFINISHED_UPLOADS)
 				.cloned()
 				.unwrap_or_default(),
@@ -234,7 +234,7 @@ struct GetBucketInfoResult {
 	keys: Vec<GetBucketInfoKey>,
 	objects: i64,
 	bytes: i64,
-	unfinshed_uploads: i64,
+	unfinished_uploads: i64,
 	quotas: ApiBucketQuotas,
 }
 
