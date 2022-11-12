@@ -643,6 +643,14 @@ paths:
         In `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`
         to remove the quotas. An absent value will be considered the same as a `null`. It is not possible
         to change only one of the two quotas.
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string       
       requestBody:
         description: |
           Requested changes on the bucket. Both root fields are optionals.
