@@ -851,11 +851,15 @@ paths:
         - name: id
           in: query
           required: true
+          schema:
+            type: string
           example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
         - name: alias
           in: query
           required: true
           example: my_documents
+          schema:
+            type: string
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -881,10 +885,14 @@ paths:
         - name: id
           in: query
           required: true
+          schema:
+            type: string
           example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
         - name: alias
           in: query
           required: true
+          schema:
+            type: string
           example: my_documents
       responses:
         '500': 
@@ -912,14 +920,20 @@ paths:
         - name: id
           in: query
           required: true
+          schema:
+            type: string
           example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
         - name: accessKeyId
           in: query
           required: true
+          schema:
+            type: string
           example: GK31c2f218a2e44f485b94239e
         - name: alias
           in: query
           required: true
+          schema:
+            type: string
           example: my_documents
       responses:
         '500': 
@@ -946,13 +960,19 @@ paths:
         - name: id
           in: query
           required: true
+          schema:
+            type: string
           example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
         - name: accessKeyId
           in: query
+          schema:
+            type: string
           required: true
           example: GK31c2f218a2e44f485b94239e
         - name: alias
           in: query
+          schema:
+            type: string
           required: true
           example: my_documents
       responses:
@@ -1105,7 +1125,6 @@ components:
       properties:
         id:
           type: string
-          required: true
           example: afa8f0a22b40b1247ccd0affb869b0af5cff980924a20e4b5e0720a44deb8d39
         globalAliases:
           type: array
@@ -1113,7 +1132,7 @@ components:
             type: string
             example: "my_documents"
         websiteAccess:
-          type: bool
+          type: boolean
           example: true
         websiteConfig:
           type: object
