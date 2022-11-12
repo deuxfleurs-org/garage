@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
-  version: v0.7.3
-  title: Garage Administration API v0+garage-v0.7.3
+  version: v0.8.0
+  title: Garage Administration API v0+garage-v0.8.0
   description: |
     Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.
     
@@ -726,9 +726,58 @@ paths:
       operationId: "AllowBucketKey"
       summary: "Allow key"
       description: |
+        ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
+
         Allows a key to do read/write/owner operations on a bucket.
 
-        Flags in permissions which have the value true will be activated. Other flags will remain unchanged.
+        Flags in permissions which have the value true will be activated. Other flags will remain unchanged (ie. they will keep their internal value).
+
+        For example, if you set read to true, the key will be allowed to read the bucket.
+        If you set it to false, the key will keeps its previous read permission.
+        If you want to disallow read for the key, check the DenyBucketKey operation.
+
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ bucketId, accessKeyId, permissions ]
+              properties:
+                bucketId:
+                  type: string
+                  example: "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                permissions:
+                  type: object
+                  required: [ read, write, owner ]
+                  properties:
+                    read:
+                      type: boolean
+                      example: true
+                    write:
+                      type: boolean
+                      example: true
+                    owner:
+                      type: boolean
+                      example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
   /bucket/deny:
     post:
@@ -737,9 +786,58 @@ paths:
       operationId: "DenyBucketKey"
       summary: "Deny key"
       description: |
+        ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
+
         Denies a key from doing read/write/owner operations on a bucket.
 
         Flags in permissions which have the value true will be deactivated. Other flags will remain unchanged.
+
+        For example, if you set read to true, the key will be denied from reading.
+        If you set read to false,  the key will keep its previous permissions.
+        If you want the key to have the reading permission, check the AllowBucketKey operation.
+
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ bucketId, accessKeyId, permissions ]
+              properties:
+                bucketId:
+                  type: string
+                  example: "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                permissions:
+                  type: object
+                  required: [ read, write, owner ]
+                  properties:
+                    read:
+                      type: boolean
+                      example: true
+                    write:
+                      type: boolean
+                      example: true
+                    owner:
+                      type: boolean
+                      example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
   /bucket/alias/global:
     put:
@@ -749,6 +847,28 @@ paths:
       summary: "Add a global alias"
       description: |
         Add a global alias to the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: alias
+          in: query
+          required: true
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
     delete:
       tags:
@@ -757,6 +877,28 @@ paths:
       summary: "Delete a global alias"
       description: |
         Delete a global alias from the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: alias
+          in: query
+          required: true
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
   /bucket/alias/local:
     put:
@@ -766,6 +908,32 @@ paths:
       summary: "Add a local alias"
       description: |
         Add a local alias, bound to specified account, to the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: accessKeyId
+          in: query
+          required: true
+          example: GK31c2f218a2e44f485b94239e
+        - name: alias
+          in: query
+          required: true
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
 
     delete:
       tags:
@@ -774,6 +942,32 @@ paths:
       summary: "Delete a local alias"
       description: |
         Delete a local alias, bound to specified account, from the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: accessKeyId
+          in: query
+          required: true
+          example: GK31c2f218a2e44f485b94239e
+        - name: alias
+          in: query
+          required: true
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
         
 components:
   securitySchemes:
