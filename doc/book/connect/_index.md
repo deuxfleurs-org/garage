@@ -1,5 +1,5 @@
 +++
-title = "Integrations"
+title = "Existing integrations"
 weight = 3
 sort_by = "weight"
 template = "documentation.html"
@@ -14,7 +14,6 @@ In particular, you will find here instructions to connect it with:
   - [Applications](@/documentation/connect/apps/index.md)
   - [Website hosting](@/documentation/connect/websites.md)
   - [Software repositories](@/documentation/connect/repositories.md)
-  - [Your own code](@/documentation/connect/code.md)
   - [FUSE](@/documentation/connect/fs.md)
 
 ### Generic instructions

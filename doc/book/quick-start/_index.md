@@ -305,16 +305,16 @@ creating a bucket, pre-signing a request or managing your website.
 [Read the full documentation to know more](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/index.html).
 
 Some features are however not implemented like ACL or policy.
-Check [our s3 compatibility list](@/documentation/reference-manual/s3-compatibility/).
+Check [our s3 compatibility list](@/documentation/reference-manual/s3-compatibility.md).
 
 ### Other tools for interacting with Garage
 
 The following tools can also be used to send and recieve files from/to Garage:
 
-- [minio-client](@/documentation/connect/cli/#minio-client) 
-- [s3cmd](@/documentation/connect/cli/#s3cmd) 
-- [rclone](@/documentation/connect/cli/#rclone)
-- [Cyberduck](@/documentation/connect/cli/#cyberduck)
-- [WinSCP](@/documentation/connect/cli/#winscp) 
+- [minio-client](@/documentation/connect/cli.md#minio-client) 
+- [s3cmd](@/documentation/connect/cli.md#s3cmd) 
+- [rclone](@/documentation/connect/cli.md#rclone)
+- [Cyberduck](@/documentation/connect/cli.md#cyberduck)
+- [WinSCP](@/documentation/connect/cli.md#winscp) 
 
 An exhaustive list is maintained in the ["Integrations" > "Browsing tools" section](@/documentation/connect/_index.md).
