@@ -1,6 +1,6 @@
 +++
 title = "Design draft (obsolete)"
-weight = 50
+weight = 900
 +++
 
 **WARNING: this documentation is a design draft which was written before Garage's actual implementation.
