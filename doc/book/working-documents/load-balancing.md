@@ -1,6 +1,6 @@
 +++
 title = "Load balancing data (obsolete)"
-weight = 60
+weight = 910
 +++
 
 **This is being yet improved in release 0.5. The working document has not been updated yet, it still only applies to Garage 0.2 through 0.4.**
