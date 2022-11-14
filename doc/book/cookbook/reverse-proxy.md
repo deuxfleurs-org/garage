@@ -70,14 +70,16 @@ A possible configuration:
 
 ```nginx
 upstream s3_backend {
-  # if you have a garage instance locally
+  # If you have a garage instance locally.
   server 127.0.0.1:3900;
-  # you can also put your other instances
+  # You can also put your other instances.
   server 192.168.1.3:3900;
-  # domain names also work
+  # Domain names also work.
   server garage1.example.com:3900;
-  # you can assign weights if you have some servers 
-  # that are more powerful than others
+  # A "backup" server is only used if all others have failed.
+  server garage-remote.example.com:3900 backup;
+  # You can assign weights if you have some servers
+  # that can serve more requests than others.
   server garage2.example.com:3900 weight=2;
 }
 
@@ -96,6 +98,8 @@ server {
     proxy_pass http://s3_backend;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header Host $host;
+    # Disable buffering to a temporary file.
+    proxy_max_temp_file_size 0;
   }
 }
 ```
