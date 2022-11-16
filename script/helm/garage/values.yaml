@@ -4,8 +4,6 @@
 
 # Garage configuration. These values go to garage.toml
 garage:
-  metadataDir: "/mnt/meta"
-  dataDir: "/mnt/data"
   # Default to 3 replicas, see the replication_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
   replicationMode: "3"
@@ -26,8 +24,8 @@ garage:
   # Values can be templated
   # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
   garage.toml: |-
-    metadata_dir = "{{ .Values.garage.metadataDir }}"
-    data_dir = "{{ .Values.garage.dataDir }}"
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
 
     replication_mode = "{{ .Values.garage.replicationMode }}"
 
