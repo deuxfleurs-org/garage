@@ -54,14 +54,13 @@ to generate unique and private secrets for security reasons:
 cat > garage.toml <<EOF
 metadata_dir = "/tmp/meta"
 data_dir = "/tmp/data"
+db_engine = "lmdb"
 
 replication_mode = "none"
 
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "127.0.0.1:3901"
 rpc_secret = "$(openssl rand -hex 32)"
-
-bootstrap_peers = []
 
 [s3_api]
 s3_region = "garage"
