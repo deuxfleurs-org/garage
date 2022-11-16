@@ -85,12 +85,12 @@ service:
 ingress:
   s3:
     api:
-      enabled: true
+      enabled: false
       # Rely either on the className or the annotation below but not both
       # replace "nginx" by an Ingress controller
       # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
-      className: "nginx"
-      annotations:
+      # className: "nginx"
+      annotations: {}
         # kubernetes.io/ingress.class: "nginx"
         # kubernetes.io/tls-acme: "true"
       hosts:
@@ -107,8 +107,11 @@ ingress:
       #    hosts:
       #      - kubernetes.docker.internal
     web:
-      enabled: true
-      className: "nginx"
+      enabled: false
+      # Rely either on the className or the annotation below but not both
+      # replace "nginx" by an Ingress controller
+      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
+      # className: "nginx"
       annotations: {}
         # kubernetes.io/ingress.class: nginx
         # kubernetes.io/tls-acme: "true"
