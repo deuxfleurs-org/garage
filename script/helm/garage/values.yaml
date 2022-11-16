@@ -93,6 +93,7 @@ ingress:
       annotations: {}
         # kubernetes.io/ingress.class: "nginx"
         # kubernetes.io/tls-acme: "true"
+      labels: {}
       hosts:
         - host: "s3.garage.tld" # garage S3 API endpoint
           paths:
@@ -115,6 +116,7 @@ ingress:
       annotations: {}
         # kubernetes.io/ingress.class: nginx
         # kubernetes.io/tls-acme: "true"
+      labels: {}
       hosts:
        - host: "*.web.garage.tld" # wildcard website access with bucket name prefix
          paths:
