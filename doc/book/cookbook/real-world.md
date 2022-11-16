@@ -11,8 +11,9 @@ We recommend first following the [quick start guide](@/documentation/quick-start
 to get familiar with Garage's command line and usage patterns.
 
 
+## Preparing your environment
 
-## Prerequisites
+### Prerequisites
 
 To run a real-world deployment, make sure the following conditions are met:
 
@@ -20,10 +21,6 @@ To run a real-world deployment, make sure the following conditions are met:
 
 - Each machine has a public IP address which is reachable by other machines.
   Running behind a NAT is likely to be possible but hasn't been tested for the latest version (TODO).
-
-- Ideally, each machine should have a SSD available in addition to the HDD you are dedicating
-  to Garage. This will allow for faster access to metadata and has the potential
-  to significantly reduce Garage's response times.
 
 - This guide will assume you are using Docker containers to deploy Garage on each node. 
   Garage can also be run independently, for instance as a [Systemd service](@/documentation/cookbook/systemd.md).
@@ -48,6 +45,42 @@ To make better use of the available hardware, you should ensure that the capacit
 available in the different locations of your cluster is roughly the same.
 For instance, here, the Mercury node could be moved to Brussels; this would allow the cluster
 to store 2 TB of data in total.
+
+### Best practices
+
+- If you have fast dedicated networking between all your nodes, and are planing to store
+  very large files, bump the `block_size` configuration parameter to 10 MB
+  (`block_size = 10485760`).
+
+- Garage stores its files in two locations: it uses a metadata directory to store frequently-accessed
+  small metadata items, and a data directory to store data blocks of uploaded objects.
+  Ideally, the metadata directory would be stored on an SSD (smaller but faster),
+  and the data directory would be stored on an HDD (larger but slower).
+
+- For the data directory, Garage already does checksumming and integrity verification,
+  so there is no need to use a filesystem such as BTRFS or ZFS that does it.
+  We recommend using XFS for the data partition, as it has the best performance.
+  EXT4 is not recommended as it has more strict limitations on the number of inodes,
+  which might cause issues with Garage when large numbers of objects are stored.
+
+- If you only have an HDD and no SSD, it's fine to put your metadata alongside the data
+  on the same drive. Having lots of RAM for your kernel to cache the metadata will
+  help a lot with performance.  Make sure to use the LMDB database engine,
+  instead of Sled, which suffers from quite bad performance degradation on HDDs.
+  Sled is still the default for legacy reasons, but is not recommended anymore.
+
+- For the metadata storage, Garage does not do checksumming and integrity
+  verification on its own. If you are afraid of bitrot/data corruption,
+  put your metadata directory on a BTRFS partition. Otherwise, just use regular
+  EXT4 or XFS.
+
+- Having a single server with several storage drives is currently not very well
+  supported in Garage ([#218](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/218)).
+  For an easy setup, just put all your drives in a RAID0 or a ZFS RAIDZ array.
+  If you're adventurous, you can try to format each of your disk as
+  a separate XFS partition, and then run one `garage` daemon per disk drive,
+  or use something like [`mergerfs`](https://github.com/trapexit/mergerfs) to merge
+  all your disks in a single union filesystem that spreads load over them.
 
 ## Get a Docker image
 
@@ -81,6 +114,7 @@ A valid `/etc/garage/garage.toml` for our cluster would look as follows:
 ```toml
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
+db_engine = "lmdb"
 
 replication_mode = "3"
 
@@ -89,8 +123,6 @@ compression_level = 2
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "<this node's public IP>:3901"
 rpc_secret = "<RPC secret>"
-
-bootstrap_peers = []
 
 [s3_api]
 s3_region = "garage"
@@ -131,6 +163,21 @@ docker run \
 It should be restarted automatically at each reboot.
 Please note that we use host networking as otherwise Docker containers
 can not communicate with IPv6.
+
+If you want to use `docker-compose`, you may use the following `docker-compose.yml` file as a reference:
+
+```yaml
+version: "3"
+services:
+  garage:
+    image: dxflrs/garage:v0.8.0
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - /etc/garage.toml:/etc/garage.toml
+      - /var/lib/garage/meta:/var/lib/garage/meta
+      - /var/lib/garage/data:/var/lib/garage/data
+```
 
 Upgrading between Garage versions should be supported transparently,
 but please check the relase notes before doing so!
