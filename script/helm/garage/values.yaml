@@ -22,6 +22,35 @@ garage:
     web:
       rootDomain: ".web.garage.tld"
       index: "index.html"
+  # Template for the garage configuration
+  # Values can be templated
+  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  garage.toml: |-
+    metadata_dir = "{{ .Values.garage.metadataDir }}"
+    data_dir = "{{ .Values.garage.dataDir }}"
+
+    replication_mode = "{{ .Values.garage.replicationMode }}"
+
+    rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
+    # rpc_secret will be populated by the init container from a k8s secret object
+    rpc_secret = "__RPC_SECRET_REPLACE__"
+
+    bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
+
+    [kubernetes_discovery]
+    namespace = "{{ .Release.Namespace }}"
+    service_name = "{{ include "garage.fullname" . }}"
+    skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
+
+    [s3_api]
+    s3_region = "{{ .Values.garage.s3.api.region }}"
+    api_bind_addr = "[::]:3900"
+    root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
+    index = "{{ .Values.garage.s3.web.index }}"
 
 # Data persistence
 persistence:
