@@ -1,5 +1,5 @@
 {
-  system ? builtins.currentSystem,
+    system ? builtins.currentSystem,
 }:
 
 with import ./nix/common.nix;
