@@ -33,7 +33,8 @@ spec:
       initContainers:
         # Copies garage.toml from configmap to temporary etc volume and replaces RPC secret placeholder
         - name: {{ .Chart.Name }}-init
-          image: busybox:1.28
+          image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+          imagePullPolicy: {{ .Values.initImage.pullPolicy }}
           command: ["sh", "-c", "sed \"s/__RPC_SECRET_REPLACE__/$RPC_SECRET/\" /mnt/garage.toml > /mnt/etc/garage.toml"]
           env:
             - name: RPC_SECRET

@@ -77,6 +77,11 @@ image:
   tag: ""
   pullPolicy: IfNotPresent
 
+initImage:
+  repository: busybox
+  tag: 1.28
+  pullPolicy: IfNotPresent
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
