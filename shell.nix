@@ -71,9 +71,21 @@ function refresh_cache {
   for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.{debug,release}; do
     echo "Updating cache for ''${attr}"
     derivation=$(nix-instantiate --attr ''${attr})
-    nix copy \
+    nix copy -j8 \
       --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
       $(nix-store -qR ''${derivation%\!bin})
+  done
+  rm /tmp/nix-signing-key.sec
+}
+
+function refresh_flake_cache {
+  pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
+  for attr in packages.x86_64-linux.default; do
+    echo "Updating cache for ''${attr}"
+    derivation=$(nix path-info --derivation ".#''${attr}")
+    nix copy -j8 \
+      --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
+      $(nix-store -qR ''${derivation})
   done
   rm /tmp/nix-signing-key.sec
 }

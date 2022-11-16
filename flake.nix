@@ -9,7 +9,7 @@
   };
 
   outputs = { self, nixpkgs, cargo2nix }: let
-    git_version = "v0.8.0-rc2";
+    git_version = self.lastModifiedDate;
     compile = import ./nix/compile.nix;
     forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
   in
