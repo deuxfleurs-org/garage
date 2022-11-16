@@ -42,15 +42,16 @@ you can [build Garage from source](@/documentation/cookbook/from-source.md).
 
 ## Configuring and starting Garage
 
-### Writing a first configuration file
+### Generating a first configuration file
 
 This first configuration file should allow you to get started easily with the simplest
 possible Garage deployment.
-**Save it as `/etc/garage.toml`.**
-You can also store it somewhere else, but you will have to specify `-c path/to/garage.toml`
-at each invocation of the `garage` binary (for example: `garage -c ./garage.toml server`, `garage -c ./garage.toml status`).
 
-```toml
+We will create it with the following command line
+to generate unique and private secrets for security reasons:
+
+```bash
+cat > garage.toml <<EOF
 metadata_dir = "/tmp/meta"
 data_dir = "/tmp/data"
 
@@ -58,7 +59,7 @@ replication_mode = "none"
 
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "127.0.0.1:3901"
-rpc_secret = "1799bccfd7411eddcf9ebd316bc1f5287ad12a68094e1c6ac6abde7e6feae1ec"
+rpc_secret = "$(openssl rand -hex 32)"
 
 bootstrap_peers = []
 
@@ -71,12 +72,26 @@ root_domain = ".s3.garage.localhost"
 bind_addr = "[::]:3902"
 root_domain = ".web.garage.localhost"
 index = "index.html"
+
+[k2v_api]
+api_bind_addr = "[::]:3904"
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+admin_token = "$(openssl rand -base64 32)"
+EOF
 ```
 
-The `rpc_secret` value provided above is just an example. It will work, but in
-order to secure your cluster you will need to use another one. You can generate
-such a value with `openssl rand -hex 32`.
+Now that your configuration file has been created, you can put
+it in the right place. By default, garage looks at **`/etc/garage.toml`.**
 
+You can also store it somewhere else, but you will have to specify `-c path/to/garage.toml`
+at each invocation of the `garage` binary (for example: `garage -c ./garage.toml server`, `garage -c ./garage.toml status`).
+
+As you can see, the `rpc_secret` is a 32 bytes hexadecimal string.
+You can regenerate it with `openssl rand -hex 32`.
+If you target a cluster deployment with multiple nodes, make sure that
+you use the same value for all nodes.
 
 As you can see in the `metadata_dir` and `data_dir` parameters, we are saving Garage's data
 in `/tmp` which gets erased when your system reboots. This means that data stored on this
@@ -219,6 +234,7 @@ Now that we have a bucket and a key, we need to give permissions to the key on t
 garage bucket allow \
   --read \
   --write \
+  --owner \
   nextcloud-bucket \
   --key nextcloud-app-key
 ```
@@ -232,54 +248,73 @@ garage bucket info nextcloud-bucket
 
 ## Uploading and downlading from Garage
 
-We recommend the use of MinIO Client to interact with Garage files (`mc`).
-Instructions to install it and use it are provided on the
-[MinIO website](https://docs.min.io/docs/minio-client-quickstart-guide.html).
-Before reading the following, you need a working `mc` command on your path.
+To download and upload files on garage, we can use a third-party tool named `awscli`.
 
-Note that on certain Linux distributions such as Arch Linux, the Minio client binary
-is called `mcli` instead of `mc` (to avoid name clashes with the Midnight Commander).
 
-### Configure `mc`
+### Install and configure `awscli`
 
-You need your access key and secret key created above.
-We will assume you are invoking `mc` on the same machine as the Garage server,
-your S3 API endpoint is therefore `http://127.0.0.1:3900`.
-For this whole configuration, you must set an alias name: we chose `my-garage`, that you will used for all commands.
-
-Adapt the following command accordingly and run it:
+If you have python on your system, you can install it with:
 
 ```bash
-mc alias set \
-  my-garage \
-  http://127.0.0.1:3900 \
-  <access key> \
-  <secret key> \
-  --api S3v4
+python -m pip install --user awscli
 ```
 
-### Use `mc`
-
-You can not list buckets from `mc` currently.
-
-But the following commands and many more should work:
+Now that `awscli` is installed, you must configure it to talk to your Garage instance,
+with your key. There are multiple ways to do that, the simplest one is to create a file
+named `~/.awsrc` with this content:
 
 ```bash
-mc cp image.png my-garage/nextcloud-bucket
-mc cp my-garage/nextcloud-bucket/image.png .
-mc ls my-garage/nextcloud-bucket
-mc mirror localdir/ my-garage/another-bucket
+export AWS_ACCESS_KEY_ID=xxxx      # put your Key ID here
+export AWS_SECRET_ACCESS_KEY=xxxx  # put your Secret key here
+export AWS_DEFAULT_REGION='garage'
+export AWS_ENDPOINT='http://localhost:3900'
+
+function aws { command aws --endpoint-url $AWS_ENDPOINT $@ ; }
+aws --version
 ```
 
+Now, each time you want to use `awscli` on this target, run:
+
+```bash
+source ~/.awsrc
+```
+
+*You can create multiple files with different names if you 
+have multiple Garage clusters or different keys.
+Switching from one cluster to another is as simple as
+sourcing the right file.*
+
+### Example usage of `awscli`
+
+```bash
+# list buckets
+aws s3 ls
+
+# list objects of a bucket
+aws s3 ls s3://my_files
+
+# copy from your filesystem to garage
+aws s3 cp /proc/cpuinfo s3://my_files/cpuinfo.txt
+
+# copy from garage to your filesystem
+aws s3 cp s3/my_files/cpuinfo.txt /tmp/cpuinfo.txt
+```
+
+Note that you can use `awscli` for more advanced operations like
+creating a bucket, pre-signing a request or managing your website.
+[Read the full documentation to know more](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3/index.html).
+
+Some features are however not implemented like ACL or policy.
+Check [our s3 compatibility list](@/documentation/reference-manual/s3-compatibility.md).
 
 ### Other tools for interacting with Garage
 
 The following tools can also be used to send and recieve files from/to Garage:
 
-- the [AWS CLI](https://aws.amazon.com/cli/)
-- [`rclone`](https://rclone.org/)
-- [Cyberduck](https://cyberduck.io/)
-- [`s3cmd`](https://s3tools.org/s3cmd)
+- [minio-client](@/documentation/connect/cli.md#minio-client) 
+- [s3cmd](@/documentation/connect/cli.md#s3cmd) 
+- [rclone](@/documentation/connect/cli.md#rclone)
+- [Cyberduck](@/documentation/connect/cli.md#cyberduck)
+- [WinSCP](@/documentation/connect/cli.md#winscp) 
 
-Refer to the ["Integrations" section](@/documentation/connect/_index.md) to learn how to
-configure application and command line utilities to integrate with Garage.
+An exhaustive list is maintained in the ["Integrations" > "Browsing tools" section](@/documentation/connect/_index.md).

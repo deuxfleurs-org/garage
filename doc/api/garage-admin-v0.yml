@@ -1,0 +1,1212 @@
+openapi: 3.0.0
+info:
+  version: v0.8.0
+  title: Garage Administration API v0+garage-v0.8.0
+  description: |
+    Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.
+    
+    *Disclaimer: The API is not stable yet, hence its v0 tag. The API can change at any time, and changes can include breaking backward compatibility. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*
+paths: 
+  /status:
+    get:
+      tags: 
+        - Nodes
+      operationId: "GetNodes"
+      summary: "Status of this node and other nodes in the cluster"
+      description: |
+        Returns the cluster's current status, including:
+         - ID of the node being queried and its version of the Garage daemon
+         - Live nodes
+         - Currently configured cluster layout
+         - Staged changes to the cluster layout
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '200':
+          description: |
+            Information about the queried node, its environment and the current layout
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ node, garageVersion, knownNodes, layout ]
+                properties:
+                  node: 
+                    type: string
+                    example: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
+                  garageVersion:
+                    type: string
+                    example: "v0.7.3"
+                  knownNodes:
+                    type: object
+                    example:
+                      "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+                        addr: "10.0.0.11:3901"
+                        is_up: true
+                        last_seen_secs_ago: 9
+                        hostname: orion
+                      "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+                        addr: "10.0.0.12:3901"
+                        is_up: true
+                        last_seen_secs_ago: 13
+                        hostname: pegasus
+                      "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                        addr: "10.0.0.13:3901"
+                        is_up: true
+                        last_seen_secs_ago: 2
+                        hostname: neptune
+                    additionalProperties:
+                      $ref: '#/components/schemas/NodeNetworkInfo'
+                  layout:
+                    $ref: '#/components/schemas/ClusterLayout'
+                          
+  /connect:
+    post:
+      tags:
+        - Nodes
+      operationId: "AddNode"
+      summary: "Connect target node to other Garage nodes"
+      description: |
+        Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              example:
+                - "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f@10.0.0.11:3901"
+                - "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff@10.0.0.12:3901"
+              items:
+                type: string
+                
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '400':
+          description: |
+            Your request is malformed, check your JSON
+        '200':
+          description: |
+            The request has been handled correctly but it does not mean that all connection requests succeeded; some might have fail, you need to check the body!
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - success: true
+                    error:
+                  - success: false
+                    error: "Handshake error"
+                items:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+                    error:
+                      type: string
+                      nullable: true
+                      example: 
+                
+  /layout:
+    get:
+      tags:
+        - Layout
+      operationId: "GetLayout"
+      summary: "Details on the current and staged layout"
+      description: |
+        Returns the cluster's current layout, including:
+          - Currently configured cluster layout
+          - Staged changes to the cluster layout
+          
+        *The info returned by this endpoint is a subset of the info returned by `GET /status`.*
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '200':
+          description: |
+            Returns the cluster's current cluster layout:
+              - Currently configured cluster layout
+              - Staged changes to the cluster layout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterLayout'
+                
+    post:
+      tags:
+        - Layout
+      operationId: "AddLayout"
+      summary: "Send modifications to the cluster layout"
+      description: |
+        Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
+        Note that setting the capacity to `null` will configure the node as a gateway.
+      requestBody:
+        description: |
+          To add a new node to the layout or to change the configuration of an existing node, simply set the values you want.
+          To remove a node, set it to `null` instead of passing a configuration object.
+        
+          Contrary to the CLI that may update only a subset of the fields capacity, zone and tags, when calling this API all of these values must be specified.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                  zone: "geneva"
+                  capacity: 4
+                  tags:
+                    - gateway
+                "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+                
+              additionalProperties:
+                $ref: '#/components/schemas/NodeClusterInfo'
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The layout modification has been correctly staged"
+          
+  /layout/apply:
+    post:
+      tags:
+        - Layout
+      operationId: "ApplyLayout"
+      summary: "Apply staged layout"
+      description: |
+        Applies to the cluster the layout changes currently registered as staged layout changes.
+      requestBody:
+        description: |
+          Similarly to the CLI, the body must include the version of the new layout that will be created, which MUST be 1 + the value of the currently existing layout in the cluster.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayoutVersion'
+              
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The staged layout has been applied as the new layout of the cluster, a rebalance has been triggered."
+          
+  /layout/revert:
+    post:
+      tags:
+        - Layout
+      operationId: "RevertLayout"
+      summary: "Clear staged layout"
+      description: |
+        Clears all of the staged layout changes.
+      requestBody:
+        description: |
+          Reverting the staged changes is done by incrementing the version number and clearing the contents of the staged change list. Similarly to the CLI, the body must include the incremented version number, which MUST be 1 + the value of the currently existing layout in the cluster.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LayoutVersion'
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The staged layout has been cleared, you can start again sending modification from a fresh copy with `POST /layout`."
+          
+  /key:
+    get:
+      tags:
+        - Key
+      operationId: "ListKeys"
+      summary: "List all keys"
+      description: |
+        Returns all API access keys in the cluster.
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - id: "GK31c2f218a2e44f485b94239e"
+                    name: "test-key"
+                  - id: "GKe10061ac9c2921f09e4c5540"
+                    name: ""
+                items:
+                  type: object
+                  required: [ id ]
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+    post:
+      tags:
+        - Key
+      operationId: "AddKey"
+      summary: "Create a new API key"
+      description: |
+        Creates a new API access key.
+      requestBody:
+        description: |
+          "You can set a friendly name for this key, send an empty string instead"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The key has been added"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+          
+  "/key?id={access_key}":
+    get:
+      tags:
+        - Key
+      operationId: "GetKey"
+      summary: "Get key information"
+      description: |
+        Return information about a specific key and return its information
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+              
+    delete:
+      tags: 
+        - Key
+      operationId: "DeleteKey"
+      summary: "Delete a key"
+      description: |
+       Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. 
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: "The key has been deleted"
+
+        
+    post:
+      tags:
+        - Key
+      operationId: "UpdateKey"
+      summary: "Update a key"
+      description: |
+        Updates information about the specified API access key.
+      parameters:
+        - name: access_key
+          in: path
+          required: true
+          description: "The exact API access key generated by Garage"
+          example: "GK31c2f218a2e44f485b94239e"
+          schema:
+            type: string
+      requestBody:
+        description: |
+          For a given key, provide a first set with the permissions to grant, and a second set with the permissions to remove
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+                allow:
+                  type: object
+                  example:
+                  properties:
+                    createBucket:
+                      type: boolean
+                      example: true
+                deny:
+                  type: object
+                  properties:
+                    createBucket:
+                      type: boolean
+                      example: true
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+
+        
+  "/key?search={pattern}":
+    get:
+      tags:
+        - Key
+      operationId: "SearchKey"
+      summary: "Select key by pattern"
+      description: |
+        Find the first key matching the given pattern based on its identifier aor friendly name and return its information.
+      parameters:
+        - name: pattern
+          in: path
+          required: true
+          description: "A pattern (beginning or full string) corresponding to a key identifier or friendly name"
+          example: "test-k"
+          schema:
+            type: string
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns information about the key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo'
+
+  /key/import:
+    post:
+      tags:
+        - Key
+      operationId: "ImportKey"
+      summary: "Import an existing key"
+      description: |
+        Imports an existing API key. This feature must only be used for migrations and backup restore.
+
+        **Do not use it to generate custom key identifiers or you will break your Garage cluster.**
+      requestBody:
+        description: |
+          Information on the key to import
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ name, accessKeyId, secretAccessKey ]
+              properties:
+                name:
+                  type: string
+                  example: "test-key"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                secretAccessKey:
+                  type: string
+                  example: "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835"
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Invalid syntax or requested change"
+        '200':
+          description: "The key has been imported into the system"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyInfo' 
+
+  /bucket:
+    get:
+      tags:
+        - Bucket
+      operationId: "ListBuckets"
+      summary: "List all buckets"
+      description: |
+        List all the buckets on the cluster with their UUID and their global and local aliases.
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '200':
+          description: |
+            Returns the UUID of the bucket and all its aliases
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - id: "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033"
+                    globalAliases: 
+                      - "container_registry"
+                  - id: "96470e0df00ec28807138daf01915cfda2bee8eccc91dea9558c0b4855b5bf95"
+                    localAliases:
+                      - alias: "my_documents"
+                        accessKeyid: "GK31c2f218a2e44f485b94239e"
+                  - id: "d7452a935e663fc1914f3a5515163a6d3724010ce8dfd9e4743ca8be5974f995"
+                    globalAliases:
+                      - "example.com"
+                      - "www.example.com"
+                    localAliases:
+                      - alias: "corp_website"
+                        accessKeyId: "GKe10061ac9c2921f09e4c5540"
+                      - alias: "web"
+                        accessKeyid: "GK31c2f218a2e44f485b94239e"
+                  - id: ""
+                items:
+                  type: object
+                  required: [ id ]
+                  properties:
+                    id:
+                      type: string
+                    globalAliases:
+                      type: array
+                      items:
+                        type: string
+                    localAliases:
+                      type: array
+                      items:
+                        type: object
+                        required: [ alias, accessKeyId ]
+                        properties:
+                          alias:
+                            type: string
+                          accessKeyId:
+                            type: string
+    post:
+      tags:
+        - Bucket
+      operationId: "CreateBucket"
+      summary: "Create a bucket"
+      description: |
+        Creates a new bucket, either with a global alias, a local one, or no alias at all.
+        Technically, you can also specify both `globalAlias` and `localAlias` and that would create two aliases.
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ ]
+              properties:
+                globalAlias:
+                  type: string
+                  example: "my_documents"
+                localAlias:
+                  type: object
+                  properties:
+                    accessKeyId:
+                      type: string
+                    alias:
+                      type: string
+                    allow:
+                      type: object
+                      properties:
+                        read:
+                          type: boolean
+                          example: true
+                        write:
+                          type: boolean
+                          example: true
+                        owner:
+                          type: boolean
+                          example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "The payload is not formatted correctly"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+
+  "/bucket?id={bucket_id}":
+    get:
+      tags:
+        - Bucket
+      operationId: "GetBucketInfo"
+      summary: "Get a bucket"
+      description: |
+        Given a bucket identifier, get its information.
+        It includes its aliases, its web configuration, keys that have some permissions
+        on it, some statistics (number of objects, size), number of dangling multipart uploads,
+        and its quotas (if any).
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucket"
+      summary: "Delete a bucket"
+      description: |
+        Delete a bucket.Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
+
+        **Warning:** this will delete all aliases associated with the bucket!
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bucket is not empty"
+        '404':
+          description: "Bucket not found"
+        '204':
+          description: Bucket has been deleted
+
+
+      
+    put:
+      tags:
+        - Bucket
+      operationId: "UpdateBucket"
+      summary: "Update a bucket"
+      description: |
+        All fields (`websiteAccess` and `quotas`) are optionnal.
+        If they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.
+
+        In `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.
+        The field `errorDocument` is optional, if no error document is set a generic
+        error message is displayed when errors happen. Conversely, if `enabled` is
+        `false`, neither `indexDocument` nor `errorDocument` must be specified.
+
+        In `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`
+        to remove the quotas. An absent value will be considered the same as a `null`. It is not possible
+        to change only one of the two quotas.
+      parameters:
+        - name: bucket_id
+          in: path
+          required: true
+          description: "The exact bucket identifier, a 32 bytes hexadecimal string"
+          example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
+          schema:
+            type: string       
+      requestBody:
+        description: |
+          Requested changes on the bucket. Both root fields are optionals.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ ]
+              properties:
+                websiteAccess:
+                  type: object
+                  properties:
+                    enabled: 
+                      type: boolean
+                      example: true
+                    indexDocument:
+                      type: string
+                      example: "index.html"
+                    errorDocument:
+                      type: string
+                      example: "error/400.html"
+                quotas:
+                  type: object
+                  properties:
+                    maxSize: 
+                      type: integer
+                      nullable: true
+                      example: 19029801
+                    maxObjects:
+                      type: integer
+                      nullable: true
+                      example: null
+
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your body."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+  "/bucket?globalAlias={alias}":
+    get:
+      tags:
+        - Bucket
+      operationId: "FindBucketInfo"
+      summary: "Find a bucket"
+      description: |
+        Find a bucket by its global alias
+      parameters:
+        - name: alias
+          in: path
+          required: true
+          description: "The exact global alias of one of the existing buckets"
+          example: "my_documents"
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+  /bucket/allow:
+    post:
+      tags:
+        - Bucket
+      operationId: "AllowBucketKey"
+      summary: "Allow key"
+      description: |
+        ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
+
+        Allows a key to do read/write/owner operations on a bucket.
+
+        Flags in permissions which have the value true will be activated. Other flags will remain unchanged (ie. they will keep their internal value).
+
+        For example, if you set read to true, the key will be allowed to read the bucket.
+        If you set it to false, the key will keeps its previous read permission.
+        If you want to disallow read for the key, check the DenyBucketKey operation.
+
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ bucketId, accessKeyId, permissions ]
+              properties:
+                bucketId:
+                  type: string
+                  example: "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                permissions:
+                  type: object
+                  required: [ read, write, owner ]
+                  properties:
+                    read:
+                      type: boolean
+                      example: true
+                    write:
+                      type: boolean
+                      example: true
+                    owner:
+                      type: boolean
+                      example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+  /bucket/deny:
+    post:
+      tags:
+        - Bucket
+      operationId: "DenyBucketKey"
+      summary: "Deny key"
+      description: |
+        ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
+
+        Denies a key from doing read/write/owner operations on a bucket.
+
+        Flags in permissions which have the value true will be deactivated. Other flags will remain unchanged.
+
+        For example, if you set read to true, the key will be denied from reading.
+        If you set read to false,  the key will keep its previous permissions.
+        If you want the key to have the reading permission, check the AllowBucketKey operation.
+
+      requestBody:
+        description: |
+          Aliases to put on the new bucket
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ bucketId, accessKeyId, permissions ]
+              properties:
+                bucketId:
+                  type: string
+                  example: "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b"
+                accessKeyId:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e"
+                permissions:
+                  type: object
+                  required: [ read, write, owner ]
+                  properties:
+                    read:
+                      type: boolean
+                      example: true
+                    write:
+                      type: boolean
+                      example: true
+                    owner:
+                      type: boolean
+                      example: true
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+  /bucket/alias/global:
+    put:
+      tags:
+        - Bucket
+      operationId: "PutBucketGlobalAlias"
+      summary: "Add a global alias"
+      description: |
+        Add a global alias to the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: alias
+          in: query
+          required: true
+          example: my_documents
+          schema:
+            type: string
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucketGlobalAlias"
+      summary: "Delete a global alias"
+      description: |
+        Delete a global alias from the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: alias
+          in: query
+          required: true
+          schema:
+            type: string
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+  /bucket/alias/local:
+    put:
+      tags:
+        - Bucket
+      operationId: "PutBucketLocalAlias"
+      summary: "Add a local alias"
+      description: |
+        Add a local alias, bound to specified account, to the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: accessKeyId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: GK31c2f218a2e44f485b94239e
+        - name: alias
+          in: query
+          required: true
+          schema:
+            type: string
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+
+    delete:
+      tags:
+        - Bucket
+      operationId: "DeleteBucketLocalAlias"
+      summary: "Delete a local alias"
+      description: |
+        Delete a local alias, bound to specified account, from the target bucket
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+        - name: accessKeyId
+          in: query
+          schema:
+            type: string
+          required: true
+          example: GK31c2f218a2e44f485b94239e
+        - name: alias
+          in: query
+          schema:
+            type: string
+          required: true
+          example: my_documents
+      responses:
+        '500': 
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "Bad request, check your request body"
+        '404':
+          description: "Bucket not found"
+        '200':
+          description: Returns exhaustive information about the bucket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
+        
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    NodeNetworkInfo:
+      type: object
+      required: [ addr, is_up, last_seen_secs_ago, hostname ]
+      properties:
+        addr:
+          type: string
+          example: "10.0.0.11:3901"
+        is_up:
+          type: boolean
+          example: true
+        last_seen_secs_ago:
+          type: integer
+          nullable: true
+          example: 9
+        hostname:
+          type: string
+          example: "node1"
+    NodeClusterInfo:
+      type: object
+      required: [ zone, capacity, tags ]
+      properties:
+        zone:
+          type: string
+          example: dc1
+        capacity:
+          type: integer
+          nullable: true
+          example: 4
+        tags:
+          type: array
+          description: |
+            User defined tags, put whatever makes sense for you, these tags are not interpreted by Garage
+          example:
+            - gateway
+            - fast
+          items:
+            type: string
+    ClusterLayout:
+      type: object
+      required: [ version, roles, stagedRoleChanges ]
+      properties:
+        version:
+          type: integer
+          example: 12
+        roles:
+          type: object
+          example:
+            "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+              zone: "madrid"
+              capacity: 3
+              tags:
+                - fast
+                - amd64
+            "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+              zone: "geneva"
+              capacity: 7
+              tags:
+                - arm64
+          additionalProperties:
+            $ref: '#/components/schemas/NodeClusterInfo'
+        stagedRoleChanges:
+          type: object
+          example:
+            "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+              zone: "geneva"
+              capacity: 4
+              tags:
+                - gateway
+          additionalProperties:
+            $ref: '#/components/schemas/NodeClusterInfo'
+    LayoutVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+          example: 13
+          
+    KeyInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "test-key"
+        accessKeyId:
+          type: string
+          example: "GK31c2f218a2e44f485b94239e"
+        secretAccessKey:
+          type: string
+          example: "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835"
+        permissions:
+          type: object
+          properties:
+            createBucket:
+              type: boolean
+              example: false
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: "70dc3bed7fe83a75e46b66e7ddef7d56e65f3c02f9f80b6749fb97eccb5e1033"
+              globalAliases:
+                type: array
+                items:
+                  type: string
+                  example: "my-bucket"
+              localAliases:
+                type: array
+                items:
+                  type: string
+                  example: "GK31c2f218a2e44f485b94239e:localname"
+              permissions:
+                type: object
+                properties:
+                  read:
+                    type: boolean
+                    example: true
+                  write:
+                    type: boolean
+                    example: true
+                  owner:
+                    type: boolean
+                    example: false
+    BucketInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: afa8f0a22b40b1247ccd0affb869b0af5cff980924a20e4b5e0720a44deb8d39
+        globalAliases:
+          type: array
+          items:
+            type: string
+            example: "my_documents"
+        websiteAccess:
+          type: boolean
+          example: true
+        websiteConfig:
+          type: object
+          nullable: true
+          properties:
+            indexDocument:
+              type: string
+              example: "index.html"
+            errorDocument:
+              type: string
+              example: "error/400.html"
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/BucketKeyInfo'
+        objects:
+          type: integer
+          example: 14827
+        bytes:
+          type: integer
+          example: 13189855625
+        unfinishedUploads:
+          type: integer
+          example: 0
+        quotas:
+          type: object
+          properties:
+            maxSize:
+              nullable: true
+              type: integer
+              example: null
+            maxObjects:
+              nullable: true
+              type: integer
+              example: null
+
+
+    BucketKeyInfo:
+      type: object
+      properties:
+        accessKeyId:
+          type: string
+        name:
+          type: string
+        permissions:
+          type: object
+          properties:
+            read:
+              type: boolean
+              example: true
+            write:
+              type: boolean
+              example: true
+            owner:
+              type: boolean
+              example: true
+        bucketLocalAliases:
+          type: array
+          items:
+            type: string
+            example: "my_documents"
+
+
+security:
+  - bearerAuth: []
+
+servers:
+  - description: A local server
+    url: http://localhost:3903/v0/
