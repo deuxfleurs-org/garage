@@ -92,18 +92,19 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
 
 securityContext:
   # The default security context is heavily restricted
   # feel free to tune it to your requirements
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
 
 service:
   # You can rely on any service to expose your cluster

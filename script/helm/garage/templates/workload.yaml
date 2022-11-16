@@ -41,6 +41,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "garage.rpcSecretName" . }}
                   key: rpcSecret
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:
             - name: configmap
               mountPath: /mnt/garage.toml
