@@ -193,6 +193,7 @@ block_resync_queue_length 0
 
 The number of block hashes that we were unable to resync last time we tried.
 **THIS SHOULD BE ZERO, OR FALL BACK TO ZERO RAPIDLY, IN A HEALTHY CLUSTER.**
+Persistent nonzero values indicate that some data is likely to be lost.
 
 ```
 block_resync_errored_blocks 0
@@ -211,7 +212,7 @@ rpc_request_counter{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc
 
 #### `rpc_netapp_error_counter` (counter)
 
-Number of communication errors (errors in the Netapp library)
+Number of communication errors (errors in the Netapp library, generally due to disconnected nodes)
 
 ```
 rpc_netapp_error_counter{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc",to="<remote node>"} 354
@@ -219,7 +220,7 @@ rpc_netapp_error_counter{from="<this node>",rpc_endpoint="garage_block/manager.r
 
 #### `rpc_timeout_counter` (counter)
 
-Number of RPC timeouts
+Number of RPC timeouts, should be close to zero in a healthy cluster.
 
 ```
 rpc_timeout_counter{from="<this node>",rpc_endpoint="garage_rpc/membership.rs/SystemRpc",to="<remote node>"} 1

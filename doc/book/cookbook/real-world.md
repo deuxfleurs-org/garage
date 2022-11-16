@@ -60,7 +60,7 @@ to store 2 TB of data in total.
 - For the data directory, Garage already does checksumming and integrity verification,
   so there is no need to use a filesystem such as BTRFS or ZFS that does it.
   We recommend using XFS for the data partition, as it has the best performance.
-  Ext4 is not recommended as it has more strict limitations on the number of inodes,
+  EXT4 is not recommended as it has more strict limitations on the number of inodes,
   which might cause issues with Garage when large numbers of objects are stored.
 
 - If you only have an HDD and no SSD, it's fine to put your metadata alongside the data
