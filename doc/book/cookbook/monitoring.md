@@ -56,7 +56,7 @@ We detail below the list of exposed metrics and their meaning.
 ## List of exported metrics
 
 
-### API endpoints
+### Metrics of the API endpoints
 
 #### `api_admin_request_counter` (counter)
 
@@ -107,7 +107,7 @@ api_s3_request_duration_count{api_endpoint="CreateMultipartUpload"} 1
 Same as for S3, for the K2V API.
 
 
-### Web endpoint
+### Metrics of the Web endpoint
 
 
 #### `web_request_counter` (counter)
@@ -137,7 +137,7 @@ web_error_counter{method="GET",status_code="404 Not Found"} 64
 ```
 
 
-### Data block manager
+### Metrics of the data block manager
 
 #### `block_bytes_read`, `block_bytes_written` (counter)
 
@@ -199,7 +199,7 @@ block_resync_errored_blocks 0
 ```
 
 
-### RPC (remote procedure calls) between nodes
+### Metrics related to RPCs (remote procedure calls) between nodes
 
 #### `rpc_netapp_request_counter` (counter)
 
@@ -236,7 +236,7 @@ rpc_duration_count{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc"
 ```
 
 
-### Metadata table manager
+### Metrics of the metadata table manager
 
 #### `table_gc_todo_queue_length` (gauge)
 

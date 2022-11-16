@@ -164,6 +164,21 @@ It should be restarted automatically at each reboot.
 Please note that we use host networking as otherwise Docker containers
 can not communicate with IPv6.
 
+If you want to use `docker-compose`, you may use the following `docker-compose.yml` file as a reference:
+
+```yaml
+version: "3"
+services:
+  garage:
+    image: dxflrs/garage:v0.8.0
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - /etc/garage.toml:/etc/garage.toml
+      - /var/lib/garage/meta:/var/lib/garage/meta
+      - /var/lib/garage/data:/var/lib/garage/data
+```
+
 Upgrading between Garage versions should be supported transparently,
 but please check the relase notes before doing so!
 To upgrade, simply stop and remove this container and
