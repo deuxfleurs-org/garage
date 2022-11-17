@@ -49,6 +49,12 @@ garage:
     bind_addr = "[::]:3902"
     root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
     index = "{{ .Values.garage.s3.web.index }}"
+    
+    [admin]
+    api_bind_addr = "[::]:3903"
+    {{- if .Values.monitoring.tracing.sink }}
+    trace_sink = "{{ .Values.monitoring.tracing.sink }}"
+    {{- end }}
 
 # Data persistence
 persistence:
@@ -123,6 +129,7 @@ service:
     web:
       port: 3902
     # NOTE: the admin API is excluded for now as it is not consistent across nodes
+
 ingress:
   s3:
     api:
@@ -186,3 +193,23 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+monitoring:
+  metrics:
+    # If true, a service for monitoring is created with a prometheus.io/scrape annotation
+    enabled: false
+    serviceMonitor:
+      # If true, a ServiceMonitor CRD is created for a prometheus operator
+      # https://github.com/coreos/prometheus-operator
+      #
+      enabled: false
+      path: /metrics
+      #  namespace: monitoring  (defaults to use the namespace this chart is deployed to)
+      labels: {}
+      interval: 15s
+      scheme: http
+      tlsConfig: {}
+      scrapeTimeout: 10s
+      relabelings: []
+  tracing:
+    sink: ""
