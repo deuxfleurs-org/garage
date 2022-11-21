@@ -254,9 +254,11 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		match self.initial_partition_assignation() {
 			Some(initial_partitions) => {
 				for (part, ipart) in partitions.iter_mut().zip(initial_partitions.iter()) {
-					for (id, info) in ipart.nodes.iter() {
-						if part.nodes.len() < self.replication_factor {
-							part.add(None, n_zones, id, info.unwrap());
+					for _ in 0..2 {
+						for (id, info) in ipart.nodes.iter() {
+							if part.nodes.len() < self.replication_factor {
+								part.add(None, n_zones, id, info.unwrap());
+							}
 						}
 					}
 					assert!(part.nodes.len() == self.replication_factor);
