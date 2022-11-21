@@ -14,7 +14,7 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_db = { version = "0.8.0", path = "../db" }
+garage_db = { version = "0.8.0", default-features = false, path = "../db" }
 garage_rpc = { version = "0.8.0", path = "../rpc" }
 garage_table = { version = "0.8.0", path = "../table" }
 garage_block = { version = "0.8.0", path = "../block" }
@@ -42,6 +42,7 @@ opentelemetry = "0.17"
 netapp = "0.5"
 
 [features]
+default = [ "sled" ]
 k2v = [ "garage_util/k2v" ]
 lmdb = [ "garage_db/lmdb" ]
 sled = [ "garage_db/sled" ]
