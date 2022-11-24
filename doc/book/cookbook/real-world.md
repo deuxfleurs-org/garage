@@ -109,7 +109,7 @@ especially you must consider the following folders/files:
   this folder will be your main data storage and must be on a large storage (e.g. large HDD)
 
 
-A valid `/etc/garage/garage.toml` for our cluster would look as follows:
+A valid `/etc/garage.toml` for our cluster would look as follows:
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
