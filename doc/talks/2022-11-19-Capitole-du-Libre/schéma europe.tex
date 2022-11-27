@@ -1,0 +1,52 @@
+\begin{tikzpicture}
+\node (carte) {\includegraphics[width=\textwidth]{carte-Europe.pdf}};
+
+% \personnage{position X}{position Y}{facteur d'échelle}
+\newcommand{\personnage}[4]
+{
+\fill[#4] ({#1-(0.4 * #3)},{#2-(0.9 * #3)}) .. controls ({#1-(0.4 * #3)},#2) and ({#1+(0.4 * #3)},#2) .. ({#1+(0.4 * #3)},{#2-(0.9 * #3)}) -- ({#1-(0.4 * #3)},{#2-(0.9 * #3)});
+\fill[#4] (#1,#2) circle ({0.25 * #3});
+}
+
+\onslide<1-11>{\personnage{-2.25}{-0.75}{0.75}{green}}
+\onslide<1-11>{\draw (-1.9,-1.6) rectangle ++(1,1.2);}
+\onslide<2-11>{\draw[fill=green] (-1.8,-1.525) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 1};}
+\onslide<4-5>{\draw[fill=red] (-1.8,-1.15) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 3};}
+\onslide<7-11>{\draw[fill=yellow] (-1.8,-1.15) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 4};}
+\onslide<9-11>{\draw[fill=red] (-1.8,-0.775) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 6};}
+\onslide<3-11>{\draw[fill=blue] (-1.35,-1.525) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 2};}
+\onslide<8-11>{\draw[fill=blue] (-1.35,-1.15) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 5};}
+\onslide<11-11>{\draw[fill=yellow] (-1.35,-0.775) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 8};}
+
+\personnage{1.65}{1.5}{0.75}{blue}
+\draw (0.3,0.7) rectangle ++(1,1.2);
+\onslide<2->{\draw[fill=green] (0.4,0.775) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 1};}
+\onslide<4->{\draw[fill=red] (0.4,1.15) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 3};}
+\onslide<10->{\draw[fill=green] (0.4,1.525) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 7};}
+\onslide<3->{\draw[fill=blue] (0.85,0.775) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 2};}
+\onslide<9->{\draw[fill=red] (0.85,1.15) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 6};}
+\onslide<11->{\draw[fill=yellow] (0.85,1.525) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 8};}
+
+\personnage{1.85}{-2.3}{0.75}{red}
+\draw (0.5,-3.15) rectangle ++(1,1.2);
+\onslide<2->{\draw[fill=green] (0.6,-3.075) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 1};}
+\onslide<4-5>{\draw[fill=red] (0.6,-2.7) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 3};}
+\onslide<7->{\draw[fill=yellow] (0.6,-2.7) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 4};}
+\onslide<9->{\draw[fill=red] (0.6,-2.325) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 6};}
+\onslide<3-5>{\draw[fill=blue] (1.05,-3.075) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 2};}
+\onslide<6->{\draw[fill=red] (1.05,-3.075) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 3};}
+\onslide<8->{\draw[fill=blue] (1.05,-2.7) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 5};}
+\onslide<10->{\draw[fill=green] (1.05,-2.325) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 7};}
+
+\onslide<5->{\personnage{1.05}{-0.15}{0.75}{yellow}}
+\onslide<5->{\draw (-0.35,-1) rectangle ++(1,1.2);}
+\onslide<6->{\draw[fill=blue] (-0.25,-0.925) rectangle ++(0.35,0.3) node[pos=0.5, white] {\tiny 2};}
+\onslide<7->{\draw[fill=yellow] (-0.25,-0.55) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 4};}
+\onslide<10->{\draw[fill=green] (-0.25,-0.175) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 7};}
+\onslide<6->{\draw[fill=red] (0.2,-0.925) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 3};}
+\onslide<8->{\draw[fill=blue] (0.2,-0.55) rectangle ++(0.35,0.3) node[pos=0.5,white] {\tiny 5};}
+\onslide<11->{\draw[fill=yellow] (0.2,-0.175) rectangle ++(0.35,0.3) node[pos=0.5] {\tiny 8};}
+
+\onslide<12->{\draw[line width=0.25cm] (-2.15,-0.5) -- ++(1,-1);}
+\onslide<12->{\draw[line width=0.25cm] (-2.15,-1.5) -- ++(1,1);}
+\end{tikzpicture}
