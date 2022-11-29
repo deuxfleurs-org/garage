@@ -5398,7 +5398,6 @@ in
       [ "attributes" ]
       [ "default" ]
       [ "log" ]
-      [ "log-always" ]
       [ "std" ]
       [ "tracing-attributes" ]
     ];
