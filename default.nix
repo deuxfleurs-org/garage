@@ -11,14 +11,14 @@ let
 
   build_debug_and_release = (target: {
     debug = (compile {
-      inherit target git_version;
+      inherit system target git_version pkgsSrc cargo2nixOverlay;
       release = false;
     }).workspace.garage {
       compileMode = "build";
     };
 
     release = (compile {
-      inherit target git_version;
+      inherit system target git_version pkgsSrc cargo2nixOverlay;
       release = true;
     }).workspace.garage {
       compileMode = "build";
@@ -39,7 +39,7 @@ in {
   };
   test = {
     amd64 = test (compile {
-      inherit git_version;
+      inherit system git_version pkgsSrc cargo2nixOverlay;
       target = "x86_64-unknown-linux-musl";
       features = [
         "garage/bundled-libs"
@@ -52,7 +52,7 @@ in {
   };
   clippy = {
     amd64 = (compile {
-      inherit git_version;
+      inherit system git_version pkgsSrc cargo2nixOverlay;
       target = "x86_64-unknown-linux-musl";
       compiler = "clippy";
     }).workspace.garage {

@@ -1,25 +1,32 @@
 {
-  system ? builtins.currentSystem,
-  target,
+  system,
+  target ? null,
+  pkgsSrc,
+  cargo2nixOverlay,
   compiler ? "rustc",
   release ? false,
   git_version ? null,
   features ? null,
 }:
 
-with import ./common.nix;
-
 let
   log = v: builtins.trace v v;
 
-  pkgs = import pkgsSrc {
-    inherit system;
-    crossSystem = {
-      config = target;
-      isStatic = true;
-    };
-    overlays = [ cargo2nixOverlay ];
-  };
+  pkgs =
+    if target != null then
+      import pkgsSrc {
+        inherit system;
+        crossSystem = {
+          config = target;
+          isStatic = true;
+        };
+        overlays = [ cargo2nixOverlay ];
+      }
+    else
+      import pkgsSrc {
+        inherit system;
+        overlays = [ cargo2nixOverlay ];
+      };
 
   /*
    Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
@@ -34,7 +41,7 @@ let
    NixOS ships them in separate ones. We reunite them with symlinkJoin.
   */
   toolchainOptions =
-    if target == "x86_64-unknown-linux-musl" || target == "aarch64-unknown-linux-musl" then {
+    if target == null || target == "x86_64-unknown-linux-musl" || target == "aarch64-unknown-linux-musl" then {
       rustVersion = "1.63.0";
       extraRustComponents = [ "clippy" ];
     } else {
