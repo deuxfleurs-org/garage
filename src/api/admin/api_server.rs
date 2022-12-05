@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -78,7 +77,7 @@ impl AdminApiServer {
 			.body(Body::empty())?)
 	}
 
-	fn handle_health(&self, format: Option<&str>) -> Result<Response<Body>, Error> {
+	fn handle_health(&self) -> Result<Response<Body>, Error> {
 		let health = self.garage.system.health();
 
 		let (status, status_str) = match health.status {
@@ -92,47 +91,15 @@ impl AdminApiServer {
 				"Quorum is not available for some/all partitions, reads and writes will fail",
 			),
 		};
+		let status_str = format!(
+			"{}\nConsult the full health check API endpoint at /v0/health for more details\n",
+			status_str
+		);
 
-		let resp = Response::builder().status(status);
-
-		if matches!(format, Some("json")) {
-			let resp_json =
-				serde_json::to_string_pretty(&health).map_err(garage_util::error::Error::from)?;
-			Ok(resp
-				.header(http::header::CONTENT_TYPE, "application/json")
-				.body(Body::from(resp_json))?)
-		} else {
-			let mut buf = status_str.to_string();
-			writeln!(
-				&mut buf,
-				"\nAll nodes: {} connected, {} known",
-				health.connected_nodes, health.known_nodes,
-			)
-			.unwrap();
-			writeln!(
-				&mut buf,
-				"Storage nodes: {} connected, {} in layout",
-				health.storage_nodes_ok, health.storage_nodes
-			)
-			.unwrap();
-			writeln!(&mut buf, "Number of partitions: {}", health.partitions).unwrap();
-			writeln!(
-				&mut buf,
-				"Partitions with quorum: {}",
-				health.partitions_quorum
-			)
-			.unwrap();
-			writeln!(
-				&mut buf,
-				"Partitions with all nodes available: {}",
-				health.partitions_all_ok
-			)
-			.unwrap();
-
-			Ok(resp
-				.header(http::header::CONTENT_TYPE, "text/plain")
-				.body(Body::from(buf))?)
-		}
+		Ok(Response::builder()
+			.status(status)
+			.header(http::header::CONTENT_TYPE, "text/plain")
+			.body(Body::from(status_str))?)
 	}
 
 	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
@@ -207,9 +174,10 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
-			Endpoint::Health { format } => self.handle_health(format.as_deref()),
+			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
+			Endpoint::GetClusterHealth => handle_get_cluster_health(&self.garage).await,
 			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,
 			// Layout
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,

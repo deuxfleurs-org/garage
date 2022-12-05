@@ -9,6 +9,7 @@ use garage_util::crdt::*;
 use garage_util::data::*;
 
 use garage_rpc::layout::*;
+use garage_rpc::system::ClusterHealthStatus;
 
 use garage_model::garage::Garage;
 
@@ -41,6 +42,22 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 	};
 
 	Ok(json_ok_response(&res)?)
+}
+
+pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	let health = garage.system.health();
+
+	let status = match health.status {
+		ClusterHealthStatus::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+		_ => StatusCode::OK,
+	};
+
+	let resp_json =
+		serde_json::to_string_pretty(&health).map_err(garage_util::error::Error::from)?;
+	Ok(Response::builder()
+		.status(status)
+		.header(http::header::CONTENT_TYPE, "application/json")
+		.body(Body::from(resp_json))?)
 }
 
 pub async fn handle_connect_cluster_nodes(
