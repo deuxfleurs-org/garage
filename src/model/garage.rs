@@ -8,10 +8,10 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::*;
 
+use garage_rpc::replication_mode::ReplicationMode;
 use garage_rpc::system::System;
 
 use garage_block::manager::*;
-use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
@@ -167,12 +167,7 @@ impl Garage {
 			.expect("Invalid replication_mode in config file.");
 
 		info!("Initialize membership management system...");
-		let system = System::new(
-			network_key,
-			background.clone(),
-			replication_mode.replication_factor(),
-			&config,
-		)?;
+		let system = System::new(network_key, background.clone(), replication_mode, &config)?;
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),

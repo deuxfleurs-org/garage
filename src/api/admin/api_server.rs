@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -17,8 +16,7 @@ use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
-use garage_rpc::layout::NodeRoleV;
-use garage_util::data::Uuid;
+use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
 
 use crate::generic_server::*;
@@ -80,92 +78,61 @@ impl AdminApiServer {
 			.body(Body::empty())?)
 	}
 
-	fn handle_health(&self) -> Result<Response<Body>, Error> {
-		let ring: Arc<_> = self.garage.system.ring.borrow().clone();
-		let quorum = self.garage.replication_mode.write_quorum();
-		let replication_factor = self.garage.replication_mode.replication_factor();
+	fn handle_health(&self, format: Option<&str>) -> Result<Response<Body>, Error> {
+		let health = self.garage.system.health();
 
-		let nodes = self
-			.garage
-			.system
-			.get_known_nodes()
-			.into_iter()
-			.map(|n| (n.id, n))
-			.collect::<HashMap<Uuid, _>>();
-		let n_nodes_connected = nodes.iter().filter(|(_, n)| n.is_up).count();
-
-		let storage_nodes = ring
-			.layout
-			.roles
-			.items()
-			.iter()
-			.filter(|(_, _, v)| matches!(v, NodeRoleV(Some(r)) if r.capacity.is_some()))
-			.collect::<Vec<_>>();
-		let n_storage_nodes_ok = storage_nodes
-			.iter()
-			.filter(|(x, _, _)| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
-			.count();
-
-		let partitions = ring.partitions();
-		let partitions_n_up = partitions
-			.iter()
-			.map(|(_, h)| {
-				let pn = ring.get_nodes(h, ring.replication_factor);
-				pn.iter()
-					.filter(|x| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
-					.count()
-			})
-			.collect::<Vec<usize>>();
-		let n_partitions_full_ok = partitions_n_up
-			.iter()
-			.filter(|c| **c == replication_factor)
-			.count();
-		let n_partitions_quorum = partitions_n_up.iter().filter(|c| **c >= quorum).count();
-
-		let (status, status_str) = if n_partitions_quorum == partitions.len()
-			&& n_storage_nodes_ok == storage_nodes.len()
-		{
-			(StatusCode::OK, "Garage is fully operational")
-		} else if n_partitions_quorum == partitions.len() {
-			(
+		let (status, status_str) = match health.status {
+			ClusterHealthStatus::Healthy => (StatusCode::OK, "Garage is fully operational"),
+			ClusterHealthStatus::Degraded => (
 				StatusCode::OK,
 				"Garage is operational but some storage nodes are unavailable",
-			)
-		} else {
-			(
+			),
+			ClusterHealthStatus::Unavailable => (
 				StatusCode::SERVICE_UNAVAILABLE,
 				"Quorum is not available for some/all partitions, reads and writes will fail",
-			)
+			),
 		};
 
-		let mut buf = status_str.to_string();
-		writeln!(
-			&mut buf,
-			"\nAll nodes: {} connected, {} known",
-			n_nodes_connected,
-			nodes.len()
-		)
-		.unwrap();
-		writeln!(
-			&mut buf,
-			"Storage nodes: {} connected, {} in layout",
-			n_storage_nodes_ok,
-			storage_nodes.len()
-		)
-		.unwrap();
-		writeln!(&mut buf, "Number of partitions: {}", partitions.len()).unwrap();
-		writeln!(&mut buf, "Partitions with quorum: {}", n_partitions_quorum).unwrap();
-		writeln!(
-			&mut buf,
-			"Partitions with all nodes available: {}",
-			n_partitions_full_ok
-		)
-		.unwrap();
+		let resp = Response::builder().status(status);
 
-		Ok(Response::builder()
-			.status(status)
-			.header(http::header::CONTENT_TYPE, "text/plain")
-			.body(Body::from(buf))?)
+		if matches!(format, Some("json")) {
+			let resp_json =
+				serde_json::to_string_pretty(&health).map_err(garage_util::error::Error::from)?;
+			Ok(resp
+				.header(http::header::CONTENT_TYPE, "application/json")
+				.body(Body::from(resp_json))?)
+		} else {
+			let mut buf = status_str.to_string();
+			writeln!(
+				&mut buf,
+				"\nAll nodes: {} connected, {} known",
+				health.connected_nodes, health.known_nodes,
+			)
+			.unwrap();
+			writeln!(
+				&mut buf,
+				"Storage nodes: {} connected, {} in layout",
+				health.storage_nodes_ok, health.storage_nodes
+			)
+			.unwrap();
+			writeln!(&mut buf, "Number of partitions: {}", health.partitions).unwrap();
+			writeln!(
+				&mut buf,
+				"Partitions with quorum: {}",
+				health.partitions_quorum
+			)
+			.unwrap();
+			writeln!(
+				&mut buf,
+				"Partitions with all nodes available: {}",
+				health.partitions_all_ok
+			)
+			.unwrap();
+
+			Ok(resp
+				.header(http::header::CONTENT_TYPE, "text/plain")
+				.body(Body::from(buf))?)
+		}
 	}
 
 	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
@@ -240,7 +207,7 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
-			Endpoint::Health => self.handle_health(),
+			Endpoint::Health { format } => self.handle_health(format.as_deref()),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
 			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,

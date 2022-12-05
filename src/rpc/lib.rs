@@ -9,6 +9,7 @@ mod consul;
 mod kubernetes;
 
 pub mod layout;
+pub mod replication_mode;
 pub mod ring;
 pub mod system;
 

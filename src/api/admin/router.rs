@@ -17,7 +17,9 @@ router_match! {@func
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Endpoint {
 	Options,
-	Health,
+	Health {
+		format: Option<String>,
+	},
 	Metrics,
 	GetClusterStatus,
 	ConnectClusterNodes,
@@ -90,7 +92,7 @@ impl Endpoint {
 
 		let res = router_match!(@gen_path_parser (req.method(), path, query) [
 			OPTIONS _ => Options,
-			GET "/health" => Health,
+			GET "/health" => Health (query_opt::format),
 			GET "/metrics" => Metrics,
 			GET "/v0/status" => GetClusterStatus,
 			POST "/v0/connect" => ConnectClusterNodes,
@@ -133,7 +135,7 @@ impl Endpoint {
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
-			Self::Health => Authorization::None,
+			Self::Health { .. } => Authorization::None,
 			Self::Metrics => Authorization::MetricsToken,
 			_ => Authorization::AdminToken,
 		}
@@ -141,6 +143,7 @@ impl Endpoint {
 }
 
 generateQueryParameters! {
+	"format" => format,
 	"id" => id,
 	"search" => search,
 	"globalAlias" => global_alias,
