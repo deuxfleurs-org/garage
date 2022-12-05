@@ -34,6 +34,9 @@ pub struct Garage {
 	/// The parsed configuration Garage is running
 	pub config: Config,
 
+	/// The replication mode of this cluster
+	pub replication_mode: ReplicationMode,
+
 	/// The local database
 	pub db: db::Db,
 	/// A background job runner
@@ -258,6 +261,7 @@ impl Garage {
 		// -- done --
 		Ok(Arc::new(Self {
 			config,
+			replication_mode,
 			db,
 			background,
 			system,
