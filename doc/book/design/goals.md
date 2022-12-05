@@ -12,7 +12,7 @@ as pictures, video, images, documents, etc., in a redundant multi-node
 setting. S3 is versatile enough to also be used to publish a static
 website.
 
-Garage is an opinionated object storage solutoin, we focus on the following **desirable properties**:
+Garage is an opinionated object storage solution, we focus on the following **desirable properties**:
 
   - **Internet enabled**: made for multi-sites (eg. datacenters, offices, households, etc.) interconnected through regular Internet connections.
   - **Self-contained & lightweight**: works everywhere and integrates well in existing environments to target [hyperconverged infrastructures](https://en.wikipedia.org/wiki/Hyper-converged_infrastructure).
