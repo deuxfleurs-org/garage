@@ -83,7 +83,7 @@ This feature is totally invisible to S3 clients and does not break compatibility
 ### Cluster administration API
 
 Garage provides a fully-fledged REST API to administer your cluster programatically.
-Functionnality included in the admin API include: setting up and monitoring
+Functionality included in the admin API include: setting up and monitoring
 cluster nodes, managing access credentials, and managing storage buckets and bucket aliases.
 A full reference of the administration API is available [here](@/documentation/reference-manual/admin-api.md).
 
