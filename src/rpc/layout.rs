@@ -353,20 +353,18 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		// Check that every partition is associated to distinct nodes
 		let rf = self.replication_factor;
 		for p in 0..(1 << PARTITION_BITS) {
-			let mut nodes_of_p = self.ring_assignation_data[rf * p..rf * (p + 1)].to_vec();
-			nodes_of_p.sort();
+			let nodes_of_p = self.ring_assignation_data[rf * p..rf * (p + 1)].to_vec();
 			if nodes_of_p.iter().unique().count() != rf {
 				return Err(format!("partition does not contain {} unique node ids", rf));
 			}
 			// Check that every partition is spread over at least zone_redundancy zones.
-			let mut zones_of_p = nodes_of_p
+			let zones_of_p = nodes_of_p
 				.iter()
 				.map(|n| {
 					self.get_node_zone(&self.node_id_vec[*n as usize])
 						.expect("Zone not found.")
 				})
 				.collect::<Vec<_>>();
-			zones_of_p.sort();
 			let redundancy = self.parameters.zone_redundancy;
 			if zones_of_p.iter().unique().count() < redundancy {
 				return Err(format!(
