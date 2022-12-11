@@ -71,7 +71,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				));
 			}
 			_ => {
-				let new_role = match layout.staging.get(&adv.id) {
+				let new_role = match layout.staging_roles.get(&adv.id) {
 					Some(NodeRoleV(Some(_))) => "(pending)",
 					_ => "NO ROLE ASSIGNED",
 				};

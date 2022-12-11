@@ -40,6 +40,7 @@ pub struct Ring {
 // Type to store compactly the id of a node in the system
 // Change this to u16 the day we want to have more than 256 nodes in a cluster
 pub type CompactNodeType = u8;
+pub const MAX_NODE_NUMBER: usize = 256;
 
 // The maximum number of times an object might get replicated
 // This must be at least 3 because Garage supports 3-way replication
