@@ -47,15 +47,10 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let health = garage.system.health();
 
-	let status = match health.status {
-		ClusterHealthStatus::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-		_ => StatusCode::OK,
-	};
-
 	let resp_json =
 		serde_json::to_string_pretty(&health).map_err(garage_util::error::Error::from)?;
 	Ok(Response::builder()
-		.status(status)
+		.status(StatusCode::OK)
 		.header(http::header::CONTENT_TYPE, "application/json")
 		.body(Body::from(resp_json))?)
 }
