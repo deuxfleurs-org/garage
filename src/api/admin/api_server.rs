@@ -15,6 +15,7 @@ use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
+use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
 
 use crate::generic_server::*;
@@ -76,6 +77,31 @@ impl AdminApiServer {
 			.body(Body::empty())?)
 	}
 
+	fn handle_health(&self) -> Result<Response<Body>, Error> {
+		let health = self.garage.system.health();
+
+		let (status, status_str) = match health.status {
+			ClusterHealthStatus::Healthy => (StatusCode::OK, "Garage is fully operational"),
+			ClusterHealthStatus::Degraded => (
+				StatusCode::OK,
+				"Garage is operational but some storage nodes are unavailable",
+			),
+			ClusterHealthStatus::Unavailable => (
+				StatusCode::SERVICE_UNAVAILABLE,
+				"Quorum is not available for some/all partitions, reads and writes will fail",
+			),
+		};
+		let status_str = format!(
+			"{}\nConsult the full health check API endpoint at /v0/health for more details\n",
+			status_str
+		);
+
+		Ok(Response::builder()
+			.status(status)
+			.header(http::header::CONTENT_TYPE, "text/plain")
+			.body(Body::from(status_str))?)
+	}
+
 	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
 		#[cfg(feature = "metrics")]
 		{
@@ -124,6 +150,7 @@ impl ApiHandler for AdminApiServer {
 	) -> Result<Response<Body>, Error> {
 		let expected_auth_header =
 			match endpoint.authorization_type() {
+				Authorization::None => None,
 				Authorization::MetricsToken => self.metrics_token.as_ref(),
 				Authorization::AdminToken => match &self.admin_token {
 					None => return Err(Error::forbidden(
@@ -147,8 +174,10 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
+			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
+			Endpoint::GetClusterHealth => handle_get_cluster_health(&self.garage).await,
 			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,
 			// Layout
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,

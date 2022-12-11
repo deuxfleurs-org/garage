@@ -43,6 +43,11 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 	Ok(json_ok_response(&res)?)
 }
 
+pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	let health = garage.system.health();
+	Ok(json_ok_response(&health)?)
+}
+
 pub async fn handle_connect_cluster_nodes(
 	garage: &Arc<Garage>,
 	req: Request<Body>,

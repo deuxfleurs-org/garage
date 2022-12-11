@@ -8,10 +8,10 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::*;
 
+use garage_rpc::replication_mode::ReplicationMode;
 use garage_rpc::system::System;
 
 use garage_block::manager::*;
-use garage_table::replication::ReplicationMode;
 use garage_table::replication::TableFullReplication;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
@@ -33,6 +33,9 @@ use crate::k2v::{item_table::*, poll::*, rpc::*};
 pub struct Garage {
 	/// The parsed configuration Garage is running
 	pub config: Config,
+
+	/// The replication mode of this cluster
+	pub replication_mode: ReplicationMode,
 
 	/// The local database
 	pub db: db::Db,
@@ -164,12 +167,7 @@ impl Garage {
 			.expect("Invalid replication_mode in config file.");
 
 		info!("Initialize membership management system...");
-		let system = System::new(
-			network_key,
-			background.clone(),
-			replication_mode.replication_factor(),
-			&config,
-		)?;
+		let system = System::new(network_key, background.clone(), replication_mode, &config)?;
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),
@@ -258,6 +256,7 @@ impl Garage {
 		// -- done --
 		Ok(Arc::new(Self {
 			config,
+			replication_mode,
 			db,
 			background,
 			system,

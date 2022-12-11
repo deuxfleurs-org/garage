@@ -6,6 +6,7 @@ use crate::admin::error::*;
 use crate::router_macros::*;
 
 pub enum Authorization {
+	None,
 	MetricsToken,
 	AdminToken,
 }
@@ -16,8 +17,10 @@ router_match! {@func
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Endpoint {
 	Options,
+	Health,
 	Metrics,
 	GetClusterStatus,
+	GetClusterHealth,
 	ConnectClusterNodes,
 	// Layout
 	GetClusterLayout,
@@ -88,8 +91,10 @@ impl Endpoint {
 
 		let res = router_match!(@gen_path_parser (req.method(), path, query) [
 			OPTIONS _ => Options,
+			GET "/health" => Health,
 			GET "/metrics" => Metrics,
 			GET "/v0/status" => GetClusterStatus,
+			GET "/v0/health" => GetClusterHealth,
 			POST "/v0/connect" => ConnectClusterNodes,
 			// Layout endpoints
 			GET "/v0/layout" => GetClusterLayout,
@@ -130,6 +135,7 @@ impl Endpoint {
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
+			Self::Health => Authorization::None,
 			Self::Metrics => Authorization::MetricsToken,
 			_ => Authorization::AdminToken,
 		}
@@ -137,6 +143,7 @@ impl Endpoint {
 }
 
 generateQueryParameters! {
+	"format" => format,
 	"id" => id,
 	"search" => search,
 	"globalAlias" => global_alias,

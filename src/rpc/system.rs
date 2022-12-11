@@ -35,6 +35,7 @@ use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::*;
+use crate::replication_mode::*;
 use crate::ring::*;
 use crate::rpc_helper::*;
 
@@ -102,6 +103,7 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
+	replication_mode: ReplicationMode,
 	replication_factor: usize,
 
 	/// The ring
@@ -134,6 +136,37 @@ pub struct KnownNodeInfo {
 	pub is_up: bool,
 	pub last_seen_secs_ago: Option<u64>,
 	pub status: NodeStatus,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ClusterHealth {
+	/// The current health status of the cluster (see below)
+	pub status: ClusterHealthStatus,
+	/// Number of nodes already seen once in the cluster
+	pub known_nodes: usize,
+	/// Number of nodes currently connected
+	pub connected_nodes: usize,
+	/// Number of storage nodes declared in the current layout
+	pub storage_nodes: usize,
+	/// Number of storage nodes currently connected
+	pub storage_nodes_ok: usize,
+	/// Number of partitions in the layout
+	pub partitions: usize,
+	/// Number of partitions for which we have a quorum of connected nodes
+	pub partitions_quorum: usize,
+	/// Number of partitions for which all storage nodes are connected
+	pub partitions_all_ok: usize,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ClusterHealthStatus {
+	/// All nodes are available
+	Healthy,
+	/// Some storage nodes are unavailable, but quorum is stil
+	/// achieved for all partitions
+	Degraded,
+	/// Quorum is not available for some partitions
+	Unavailable,
 }
 
 pub fn read_node_id(metadata_dir: &Path) -> Result<NodeID, Error> {
@@ -200,9 +233,11 @@ impl System {
 	pub fn new(
 		network_key: NetworkKey,
 		background: Arc<BackgroundRunner>,
-		replication_factor: usize,
+		replication_mode: ReplicationMode,
 		config: &Config,
 	) -> Result<Arc<Self>, Error> {
+		let replication_factor = replication_mode.replication_factor();
+
 		let node_key =
 			gen_node_key(&config.metadata_dir).expect("Unable to read or generate node ID");
 		info!(
@@ -324,6 +359,7 @@ impl System {
 				config.rpc_timeout_msec.map(Duration::from_millis),
 			),
 			system_endpoint,
+			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
 			#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
@@ -426,6 +462,67 @@ impl System {
 			Err(Error::Message(errors[0].1.to_string()))
 		} else {
 			Err(Error::Message(format!("{:?}", errors)))
+		}
+	}
+
+	pub fn health(&self) -> ClusterHealth {
+		let ring: Arc<_> = self.ring.borrow().clone();
+		let quorum = self.replication_mode.write_quorum();
+		let replication_factor = self.replication_factor;
+
+		let nodes = self
+			.get_known_nodes()
+			.into_iter()
+			.map(|n| (n.id, n))
+			.collect::<HashMap<Uuid, _>>();
+		let connected_nodes = nodes.iter().filter(|(_, n)| n.is_up).count();
+
+		let storage_nodes = ring
+			.layout
+			.roles
+			.items()
+			.iter()
+			.filter(|(_, _, v)| matches!(v, NodeRoleV(Some(r)) if r.capacity.is_some()))
+			.collect::<Vec<_>>();
+		let storage_nodes_ok = storage_nodes
+			.iter()
+			.filter(|(x, _, _)| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
+			.count();
+
+		let partitions = ring.partitions();
+		let partitions_n_up = partitions
+			.iter()
+			.map(|(_, h)| {
+				let pn = ring.get_nodes(h, ring.replication_factor);
+				pn.iter()
+					.filter(|x| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
+					.count()
+			})
+			.collect::<Vec<usize>>();
+		let partitions_all_ok = partitions_n_up
+			.iter()
+			.filter(|c| **c == replication_factor)
+			.count();
+		let partitions_quorum = partitions_n_up.iter().filter(|c| **c >= quorum).count();
+
+		let status =
+			if partitions_quorum == partitions.len() && storage_nodes_ok == storage_nodes.len() {
+				ClusterHealthStatus::Healthy
+			} else if partitions_quorum == partitions.len() {
+				ClusterHealthStatus::Degraded
+			} else {
+				ClusterHealthStatus::Unavailable
+			};
+
+		ClusterHealth {
+			status,
+			known_nodes: nodes.len(),
+			connected_nodes,
+			storage_nodes: storage_nodes.len(),
+			storage_nodes_ok,
+			partitions: partitions.len(),
+			partitions_quorum,
+			partitions_all_ok,
 		}
 	}
 
