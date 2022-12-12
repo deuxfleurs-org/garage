@@ -161,6 +161,15 @@ pub async fn handle_create_bucket(
 			return Err(CommonError::BucketAlreadyExists.into());
 		}
 	} else {
+		// Check user is allowed to create bucket
+		if !key_params.allow_create_bucket.get() {
+			return Err(CommonError::Forbidden(format!(
+				"Access key {} is not allowed to create buckets",
+				api_key.key_id
+			))
+			.into());
+		}
+
 		// Create the bucket!
 		if !is_valid_bucket_name(&bucket_name) {
 			return Err(Error::bad_request(format!(

@@ -1,4 +1,5 @@
 use crate::common;
+use crate::common::ext::CommandExt;
 use aws_sdk_s3::model::BucketLocationConstraint;
 use aws_sdk_s3::output::DeleteBucketOutput;
 
@@ -8,6 +9,27 @@ async fn test_bucket_all() {
 	let bucket_name = "hello";
 
 	{
+		// Check bucket cannot be created if not authorized
+		ctx.garage
+			.command()
+			.args(["key", "deny"])
+			.args(["--create-bucket", &ctx.garage.key.id])
+			.quiet()
+			.expect_success_output("Could not deny key to create buckets");
+
+		// Try create bucket, should fail
+		let r = ctx.client.create_bucket().bucket(bucket_name).send().await;
+		assert!(r.is_err());
+	}
+	{
+		// Now allow key to create bucket
+		ctx.garage
+			.command()
+			.args(["key", "allow"])
+			.args(["--create-bucket", &ctx.garage.key.id])
+			.quiet()
+			.expect_success_output("Could not deny key to create buckets");
+
 		// Create bucket
 		//@TODO check with an invalid bucket name + with an already existing bucket
 		let r = ctx
