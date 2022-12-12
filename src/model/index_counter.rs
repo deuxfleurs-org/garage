@@ -404,14 +404,13 @@ impl<T: CountedItem> IndexPropagatorWorker<T> {
 #[async_trait]
 impl<T: CountedItem> Worker for IndexPropagatorWorker<T> {
 	fn name(&self) -> String {
-		format!("{} index counter propagator", T::COUNTER_TABLE_NAME)
+		format!("{} counter", T::COUNTER_TABLE_NAME)
 	}
 
-	fn info(&self) -> Option<String> {
-		if !self.buf.is_empty() {
-			Some(format!("{} items in queue", self.buf.len()))
-		} else {
-			None
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			queue_length: Some(self.buf.len() as u64),
+			..Default::default()
 		}
 	}
 

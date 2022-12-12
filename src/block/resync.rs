@@ -477,27 +477,22 @@ impl Worker for ResyncWorker {
 		format!("Block resync worker #{}", self.index + 1)
 	}
 
-	fn info(&self) -> Option<String> {
+	fn status(&self) -> WorkerStatus {
 		let persisted = self.manager.resync.persisted.load();
 
 		if self.index >= persisted.n_workers {
-			return Some("(unused)".into());
+			return WorkerStatus {
+				freeform: vec!["(unused)".into()],
+				..Default::default()
+			};
 		}
 
-		let mut ret = vec![];
-		ret.push(format!("tranquility = {}", persisted.tranquility));
-
-		let qlen = self.manager.resync.queue_len().unwrap_or(0);
-		if qlen > 0 {
-			ret.push(format!("{} blocks in queue", qlen));
+		WorkerStatus {
+			queue_length: Some(self.manager.resync.queue_len().unwrap_or(0) as u64),
+			tranquility: Some(persisted.tranquility),
+			persistent_errors: Some(self.manager.resync.errors_len().unwrap_or(0) as u64),
+			..Default::default()
 		}
-
-		let elen = self.manager.resync.errors_len().unwrap_or(0);
-		if elen > 0 {
-			ret.push(format!("{} blocks in error state", elen));
-		}
-
-		Some(ret.join(", "))
 	}
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {

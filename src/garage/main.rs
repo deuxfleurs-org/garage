@@ -127,18 +127,22 @@ async fn main() {
 		std::process::abort();
 	}));
 
+	// Parse arguments and dispatch command line
+	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
+
 	// Initialize logging as well as other libraries used in Garage
 	if std::env::var("RUST_LOG").is_err() {
-		std::env::set_var("RUST_LOG", "netapp=info,garage=info")
+		let default_log = match &opt.cmd {
+			Command::Server => "netapp=info,garage=info",
+			_ => "netapp=warn,garage=warn",
+		};
+		std::env::set_var("RUST_LOG", default_log)
 	}
 	tracing_subscriber::fmt()
 		.with_writer(std::io::stderr)
 		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
 		.init();
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
-
-	// Parse arguments and dispatch command line
-	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
 
 	let res = match opt.cmd {
 		Command::Server => server::run_server(opt.config_file).await,
@@ -182,9 +186,9 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk);
 
 	// Find and parse the address of the target host
-	let (id, addr) = if let Some(h) = opt.rpc_host {
+	let (id, addr, is_default_addr) = if let Some(h) = opt.rpc_host {
 		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <pubkey>@<IP or hostname>:<port>.", h))?;
-		(id, addrs[0])
+		(id, addrs[0], false)
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
 			.err_context(READ_KEY_ERROR)?;
@@ -195,24 +199,26 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?
 				.next()
 				.ok_or_message("unable to resolve rpc_public_addr specified in config file")?;
-			(node_id, a)
+			(node_id, a, false)
 		} else {
 			let default_addr = SocketAddr::new(
 				"127.0.0.1".parse().unwrap(),
 				config.as_ref().unwrap().rpc_bind_addr.port(),
 			);
-			warn!(
-				"Trying to contact Garage node at default address {}",
-				default_addr
-			);
-			warn!("If this doesn't work, consider adding rpc_public_addr in your config file or specifying the -h command line parameter.");
-			(node_id, default_addr)
+			(node_id, default_addr, true)
 		}
 	};
 
 	// Connect to target host
-	netapp.clone().try_connect(addr, id).await
-		.err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct public key.")?;
+	if let Err(e) = netapp.clone().try_connect(addr, id).await {
+		if is_default_addr {
+			warn!(
+				"Tried to contact Garage node at default address {}, which didn't work. If that address is wrong, consider setting rpc_public_addr in your config file.",
+				addr
+			);
+		}
+		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct public key.")?;
+	}
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
 	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());

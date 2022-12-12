@@ -254,7 +254,7 @@ pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 		)
 	});
 
-	let mut table = vec![];
+	let mut table = vec!["TID\tState\tName\tTranq\tDone\tQueue\tErrors\tConsec\tLast".to_string()];
 	for (tid, info) in wi.iter() {
 		if wlo.busy && !matches!(info.state, WorkerState::Busy | WorkerState::Throttled(_)) {
 			continue;
@@ -263,33 +263,38 @@ pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 			continue;
 		}
 
-		table.push(format!("{}\t{}\t{}", tid, info.state, info.name));
-		if let Some(i) = &info.info {
-			table.push(format!("\t\t  {}", i));
-		}
 		let tf = timeago::Formatter::new();
-		let (err_ago, err_msg) = info
+		let err_ago = info
 			.last_error
 			.as_ref()
-			.map(|(m, t)| {
-				(
-					tf.convert(Duration::from_millis(now_msec() - t)),
-					m.as_str(),
-				)
-			})
-			.unwrap_or(("(?) ago".into(), "(?)"));
-		if info.consecutive_errors > 0 {
-			table.push(format!(
-				"\t\t  {} consecutive errors ({} total), last {}",
-				info.consecutive_errors, info.errors, err_ago,
-			));
-			table.push(format!("\t\t  {}", err_msg));
-		} else if info.errors > 0 {
-			table.push(format!("\t\t  ({} errors, last {})", info.errors, err_ago,));
-			if wlo.errors {
-				table.push(format!("\t\t  {}", err_msg));
-			}
-		}
+			.map(|(_, t)| tf.convert(Duration::from_millis(now_msec() - t)))
+			.unwrap_or_default();
+		let (total_err, consec_err) = if info.errors > 0 {
+			(info.errors.to_string(), info.consecutive_errors.to_string())
+		} else {
+			("-".into(), "-".into())
+		};
+
+		table.push(format!(
+			"{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+			tid,
+			info.state,
+			info.name,
+			info.status
+				.tranquility
+				.as_ref()
+				.map(ToString::to_string)
+				.unwrap_or("-".into()),
+			info.status.progress.as_deref().unwrap_or("-"),
+			info.status
+				.queue_length
+				.as_ref()
+				.map(ToString::to_string)
+				.unwrap_or("-".into()),
+			total_err,
+			consec_err,
+			err_ago,
+		));
 	}
 	format_table(table);
 }
