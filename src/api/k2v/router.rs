@@ -96,7 +96,7 @@ impl Endpoint {
 	fn from_get(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 				EMPTY if causality_token => PollItem (query::sort_key, query::causality_token, opt_parse::timeout),
 				EMPTY => ReadItem (query::sort_key),
@@ -111,7 +111,7 @@ impl Endpoint {
 	fn from_search(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 			],
 			no_key: [
@@ -125,7 +125,7 @@ impl Endpoint {
 	fn from_head(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 				EMPTY => HeadObject(opt_parse::part_number, query_opt::version_id),
 			],
@@ -140,7 +140,7 @@ impl Endpoint {
 	fn from_post(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 			],
 			no_key: [
@@ -155,7 +155,7 @@ impl Endpoint {
 	fn from_put(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 				EMPTY => InsertItem (query::sort_key),
 
@@ -169,7 +169,7 @@ impl Endpoint {
 	fn from_delete(partition_key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), partition_key, query, None),
+			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
 				EMPTY => DeleteItem (query::sort_key),
 			],
@@ -232,21 +232,18 @@ impl Endpoint {
 
 // parameter name => struct field
 generateQueryParameters! {
-	"prefix" => prefix,
-	"start" => start,
-	"causality_token" => causality_token,
-	"end" => end,
-	"limit" => limit,
-	"reverse" => reverse,
-	"sort_key" => sort_key,
-	"timeout" => timeout
-}
-
-mod keywords {
-	//! This module contain all query parameters with no associated value
-	//! used to differentiate endpoints.
-	pub const EMPTY: &str = "";
-
-	pub const DELETE: &str = "delete";
-	pub const SEARCH: &str = "search";
+	keywords: [
+		"delete" => DELETE,
+		"search" => SEARCH
+	],
+	fields: [
+		"prefix" => prefix,
+		"start" => start,
+		"causality_token" => causality_token,
+		"end" => end,
+		"limit" => limit,
+		"reverse" => reverse,
+		"sort_key" => sort_key,
+		"timeout" => timeout
+	]
 }
