@@ -3,14 +3,17 @@ use std::time::Duration;
 
 use garage_util::background::*;
 use garage_util::crdt::*;
-use garage_util::data::Uuid;
+use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::formater::format_table;
 use garage_util::time::*;
 
+use garage_block::manager::BlockResyncErrorInfo;
+
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
 use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
+use garage_model::s3::version_table::Version;
 
 use crate::cli::structs::WorkerListOpt;
 
@@ -352,4 +355,58 @@ pub fn print_worker_info(tid: usize, info: WorkerInfo) {
 		}
 	}
 	format_table(table);
+}
+
+pub fn print_block_error_list(el: Vec<BlockResyncErrorInfo>) {
+	let now = now_msec();
+	let tf = timeago::Formatter::new();
+	let mut tf2 = timeago::Formatter::new();
+	tf2.ago("");
+
+	let mut table = vec!["Hash\tRC\tErrors\tLast error\tNext try".into()];
+	for e in el {
+		table.push(format!(
+			"{}\t{}\t{}\t{}\tin {}",
+			hex::encode(e.hash.as_slice()),
+			e.refcount,
+			e.error_count,
+			tf.convert(Duration::from_millis(now - e.last_try)),
+			tf2.convert(Duration::from_millis(e.next_try - now))
+		));
+	}
+	format_table(table);
+}
+
+pub fn print_block_info(hash: Hash, refcount: u64, versions: Vec<Result<Version, Uuid>>) {
+	println!("Block hash: {}", hex::encode(hash.as_slice()));
+	println!("Refcount: {}", refcount);
+	println!();
+
+	let mut table = vec!["Version\tBucket\tPath\tDeleted".into()];
+	let mut nondeleted_count = 0;
+	for v in versions.iter() {
+		match v {
+			Ok(ver) => {
+				table.push(format!(
+					"{:?}\t{:?}\t{}\t{:?}",
+					ver.uuid,
+					ver.bucket_id,
+					ver.key,
+					ver.deleted.get()
+				));
+				if !ver.deleted.get() {
+					nondeleted_count += 1;
+				}
+			}
+			Err(vh) => {
+				table.push(format!("{:?}\t\t\tyes", vh));
+			}
+		}
+	}
+	format_table(table);
+
+	if refcount != nondeleted_count {
+		println!();
+		println!("Warning: refcount does not match number of non-deleted versions");
+	}
 }

@@ -49,3 +49,9 @@ impl EnumerationOrder {
 		}
 	}
 }
+
+impl Default for EnumerationOrder {
+	fn default() -> Self {
+		EnumerationOrder::Forward
+	}
+}

@@ -540,9 +540,9 @@ impl Worker for ResyncWorker {
 /// and the time of the last try.
 /// Used to implement exponential backoff.
 #[derive(Clone, Copy, Debug)]
-struct ErrorCounter {
-	errors: u64,
-	last_try: u64,
+pub(crate) struct ErrorCounter {
+	pub(crate) errors: u64,
+	pub(crate) last_try: u64,
 }
 
 impl ErrorCounter {
@@ -553,12 +553,13 @@ impl ErrorCounter {
 		}
 	}
 
-	fn decode(data: &[u8]) -> Self {
+	pub(crate) fn decode(data: &[u8]) -> Self {
 		Self {
 			errors: u64::from_be_bytes(data[0..8].try_into().unwrap()),
 			last_try: u64::from_be_bytes(data[8..16].try_into().unwrap()),
 		}
 	}
+
 	fn encode(&self) -> Vec<u8> {
 		[
 			u64::to_be_bytes(self.errors),
@@ -578,7 +579,8 @@ impl ErrorCounter {
 		(RESYNC_RETRY_DELAY.as_millis() as u64)
 			<< std::cmp::min(self.errors - 1, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
 	}
-	fn next_try(&self) -> u64 {
+
+	pub(crate) fn next_try(&self) -> u64 {
 		self.last_try + self.delay_msec()
 	}
 }
