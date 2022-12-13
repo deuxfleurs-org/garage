@@ -241,7 +241,7 @@ pub fn find_matching_node(
 	}
 }
 
-pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
+pub fn print_worker_list(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 	let mut wi = wi.into_iter().collect::<Vec<_>>();
 	wi.sort_by_key(|(tid, info)| {
 		(
@@ -284,17 +284,72 @@ pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 				.tranquility
 				.as_ref()
 				.map(ToString::to_string)
-				.unwrap_or("-".into()),
+				.unwrap_or_else(|| "-".into()),
 			info.status.progress.as_deref().unwrap_or("-"),
 			info.status
 				.queue_length
 				.as_ref()
 				.map(ToString::to_string)
-				.unwrap_or("-".into()),
+				.unwrap_or_else(|| "-".into()),
 			total_err,
 			consec_err,
 			err_ago,
 		));
+	}
+	format_table(table);
+}
+
+pub fn print_worker_info(tid: usize, info: WorkerInfo) {
+	let mut table = vec![];
+	table.push(format!("Task id:\t{}", tid));
+	table.push(format!("Worker name:\t{}", info.name));
+	match info.state {
+		WorkerState::Throttled(t) => {
+			table.push(format!(
+				"Worker state:\tBusy (throttled, paused for {:.3}s)",
+				t
+			));
+		}
+		s => {
+			table.push(format!("Worker state:\t{}", s));
+		}
+	};
+	if let Some(tql) = info.status.tranquility {
+		table.push(format!("Tranquility:\t{}", tql));
+	}
+
+	table.push("".into());
+	table.push(format!("Total errors:\t{}", info.errors));
+	table.push(format!("Consecutive errs:\t{}", info.consecutive_errors));
+	if let Some((s, t)) = info.last_error {
+		table.push(format!("Last error:\t{}", s));
+		let tf = timeago::Formatter::new();
+		table.push(format!(
+			"Last error time:\t{}",
+			tf.convert(Duration::from_millis(now_msec() - t))
+		));
+	}
+
+	table.push("".into());
+	if let Some(p) = info.status.progress {
+		table.push(format!("Progress:\t{}", p));
+	}
+	if let Some(ql) = info.status.queue_length {
+		table.push(format!("Queue length:\t{}", ql));
+	}
+	if let Some(pe) = info.status.persistent_errors {
+		table.push(format!("Persistent errors:\t{}", pe));
+	}
+
+	for (i, s) in info.status.freeform.iter().enumerate() {
+		if i == 0 {
+			if table.last() != Some(&"".into()) {
+				table.push("".into());
+			}
+			table.push(format!("Message:\t{}", s));
+		} else {
+			table.push(format!("\t{}", s));
+		}
 	}
 	format_table(table);
 }

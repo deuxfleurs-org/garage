@@ -516,6 +516,9 @@ pub enum WorkerCmd {
 		#[structopt(flatten)]
 		opt: WorkerListOpt,
 	},
+	/// Get detailed information about a worker
+	#[structopt(name = "info", version = garage_version())]
+	Info { tid: usize },
 	/// Set worker parameter
 	#[structopt(name = "set", version = garage_version())]
 	Set {

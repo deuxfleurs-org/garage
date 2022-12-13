@@ -54,6 +54,7 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
+	WorkerInfo(usize, garage_util::background::WorkerInfo),
 }
 
 impl Rpc for AdminRpc {
@@ -879,6 +880,16 @@ impl AdminRpcHandler {
 			WorkerCmd::List { opt } => {
 				let workers = self.garage.background.get_worker_info();
 				Ok(AdminRpc::WorkerList(workers, opt))
+			}
+			WorkerCmd::Info { tid } => {
+				let info = self
+					.garage
+					.background
+					.get_worker_info()
+					.get(&tid)
+					.ok_or_bad_request(format!("No worker with TID {}", tid))?
+					.clone();
+				Ok(AdminRpc::WorkerInfo(tid, info))
 			}
 			WorkerCmd::Set { opt } => match opt {
 				WorkerSetCmd::ScrubTranquility { tranquility } => {

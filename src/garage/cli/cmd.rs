@@ -186,7 +186,10 @@ pub async fn cmd_admin(
 			print_key_info(&key, &rb);
 		}
 		AdminRpc::WorkerList(wi, wlo) => {
-			print_worker_info(wi, wlo);
+			print_worker_list(wi, wlo);
+		}
+		AdminRpc::WorkerInfo(tid, wi) => {
+			print_worker_info(tid, wi);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

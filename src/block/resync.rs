@@ -257,7 +257,7 @@ impl BlockResyncManager {
 
 				if let Err(e) = &res {
 					manager.metrics.resync_error_counter.add(1);
-					warn!("Error when resyncing {:?}: {}", hash, e);
+					error!("Error when resyncing {:?}: {}", hash, e);
 
 					let err_counter = match self.errors.get(hash.as_slice())? {
 						Some(ec) => ErrorCounter::decode(&ec).add1(now + 1),
@@ -482,7 +482,7 @@ impl Worker for ResyncWorker {
 
 		if self.index >= persisted.n_workers {
 			return WorkerStatus {
-				freeform: vec!["(unused)".into()],
+				freeform: vec!["This worker is currently disabled".into()],
 				..Default::default()
 			};
 		}

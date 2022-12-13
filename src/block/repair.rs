@@ -67,14 +67,17 @@ impl Worker for RepairWorker {
 					idx_bytes
 				};
 				WorkerStatus {
-					progress: Some("Phase 1".into()),
-					freeform: vec![format!("Now at: {}", hex::encode(idx_bytes))],
+					progress: Some("0.00%".into()),
+					freeform: vec![format!(
+						"Currently in phase 1, iterator position: {}",
+						hex::encode(idx_bytes)
+					)],
 					..Default::default()
 				}
 			}
 			Some(bi) => WorkerStatus {
 				progress: Some(format!("{:.2}%", bi.progress() * 100.)),
-				freeform: vec!["Phase 2".into()],
+				freeform: vec!["Currently in phase 2".into()],
 				..Default::default()
 			},
 		}
@@ -291,11 +294,11 @@ impl Worker for ScrubWorker {
 			}
 			ScrubWorkerState::Paused(bsi, rt) => {
 				s.progress = Some(format!("{:.2}%", bsi.progress() * 100.));
-				s.freeform = vec![format!("Paused, resumes at {}", msec_to_rfc3339(*rt))];
+				s.freeform = vec![format!("Scrub paused, resumes at {}", msec_to_rfc3339(*rt))];
 			}
 			ScrubWorkerState::Finished => {
 				s.freeform = vec![format!(
-					"Completed {}",
+					"Last scrub completed at {}",
 					msec_to_rfc3339(self.persisted.time_last_complete_scrub)
 				)];
 			}
