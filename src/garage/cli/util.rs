@@ -382,7 +382,7 @@ pub fn print_block_info(hash: Hash, refcount: u64, versions: Vec<Result<Version,
 	println!("Refcount: {}", refcount);
 	println!();
 
-	let mut table = vec!["Version\tBucket\tPath\tDeleted".into()];
+	let mut table = vec!["Version\tBucket\tKey\tDeleted".into()];
 	let mut nondeleted_count = 0;
 	for v in versions.iter() {
 		match v {

@@ -575,6 +575,7 @@ pub enum BlockOperation {
 		#[structopt(long = "yes")]
 		yes: bool,
 		/// Hashes of the block to purge
+		#[structopt(required = true)]
 		blocks: Vec<String>,
 	},
 }

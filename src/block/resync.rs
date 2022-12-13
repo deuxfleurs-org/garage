@@ -123,6 +123,24 @@ impl BlockResyncManager {
 		Ok(self.errors.len())
 	}
 
+	/// Clear the error counter for a block and put it in queue immediately
+	pub fn clear_backoff(&self, hash: &Hash) -> Result<(), Error> {
+		let now = now_msec();
+		if let Some(ec) = self.errors.get(hash)? {
+			let mut ec = ErrorCounter::decode(&ec);
+			if ec.errors > 0 {
+				ec.last_try = now - ec.delay_msec();
+				self.errors.insert(hash, ec.encode())?;
+				self.put_to_resync_at(hash, now)?;
+				return Ok(());
+			}
+		}
+		Err(Error::Message(format!(
+			"Block {:?} was not in an errored state",
+			hash
+		)))
+	}
+
 	// ---- Resync loop ----
 
 	// This part manages a queue of blocks that need to be

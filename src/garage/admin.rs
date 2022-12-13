@@ -25,6 +25,7 @@ use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
 use garage_model::permission::*;
+use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::Version;
 
 use crate::cli::*;
@@ -974,11 +975,110 @@ impl AdminRpcHandler {
 					versions,
 				})
 			}
-			BlockOperation::RetryNow { .. } => {
-				Err(GarageError::Message("not implemented".into()).into())
+			BlockOperation::RetryNow { all, blocks } => {
+				if *all {
+					if !blocks.is_empty() {
+						return Err(GarageError::Message(
+							"--all was specified, cannot also specify blocks".into(),
+						)
+						.into());
+					}
+					let blocks = self.garage.block_manager.list_resync_errors()?;
+					for b in blocks.iter() {
+						self.garage.block_manager.resync.clear_backoff(&b.hash)?;
+					}
+					Ok(AdminRpc::Ok(format!(
+						"{} blocks returned in queue for a retry now (check logs to see results)",
+						blocks.len()
+					)))
+				} else {
+					for hash in blocks {
+						let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
+						let hash = Hash::try_from(&hash).ok_or_bad_request("invalid hash")?;
+						self.garage.block_manager.resync.clear_backoff(&hash)?;
+					}
+					Ok(AdminRpc::Ok(format!(
+						"{} blocks returned in queue for a retry now (check logs to see results)",
+						blocks.len()
+					)))
+				}
 			}
-			BlockOperation::Purge { .. } => {
-				Err(GarageError::Message("not implemented".into()).into())
+			BlockOperation::Purge { yes, blocks } => {
+				if !yes {
+					return Err(GarageError::Message(
+						"Pass the --yes flag to confirm block purge operation.".into(),
+					)
+					.into());
+				}
+
+				let mut obj_dels = 0;
+				let mut ver_dels = 0;
+
+				for hash in blocks {
+					let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
+					let hash = Hash::try_from(&hash).ok_or_bad_request("invalid hash")?;
+					let block_refs = self
+						.garage
+						.block_ref_table
+						.get_range(&hash, None, None, 10000, Default::default())
+						.await?;
+
+					for br in block_refs {
+						let version = match self
+							.garage
+							.version_table
+							.get(&br.version, &EmptyKey)
+							.await?
+						{
+							Some(v) => v,
+							None => continue,
+						};
+
+						if let Some(object) = self
+							.garage
+							.object_table
+							.get(&version.bucket_id, &version.key)
+							.await?
+						{
+							let ov = object.versions().iter().rev().find(|v| v.is_complete());
+							if let Some(ov) = ov {
+								if ov.uuid == br.version {
+									let del_uuid = gen_uuid();
+									let deleted_object = Object::new(
+										version.bucket_id,
+										version.key.clone(),
+										vec![ObjectVersion {
+											uuid: del_uuid,
+											timestamp: ov.timestamp + 1,
+											state: ObjectVersionState::Complete(
+												ObjectVersionData::DeleteMarker,
+											),
+										}],
+									);
+									self.garage.object_table.insert(&deleted_object).await?;
+									obj_dels += 1;
+								}
+							}
+						}
+
+						if !version.deleted.get() {
+							let deleted_version = Version::new(
+								version.uuid,
+								version.bucket_id,
+								version.key.clone(),
+								true,
+							);
+							self.garage.version_table.insert(&deleted_version).await?;
+							ver_dels += 1;
+						}
+					}
+				}
+				Ok(AdminRpc::Ok(format!(
+					"{} blocks were purged: {} object deletion markers added, {} versions marked deleted",
+					blocks.len(),
+					obj_dels,
+					ver_dels
+				)))
 			}
 		}
 	}
