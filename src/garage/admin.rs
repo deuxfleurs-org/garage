@@ -1005,10 +1005,9 @@ impl AdminRpcHandler {
 			BlockOperation::RetryNow { all, blocks } => {
 				if *all {
 					if !blocks.is_empty() {
-						return Err(GarageError::Message(
+						return Err(Error::BadRequest(
 							"--all was specified, cannot also specify blocks".into(),
-						)
-						.into());
+						));
 					}
 					let blocks = self.garage.block_manager.list_resync_errors()?;
 					for b in blocks.iter() {
@@ -1032,10 +1031,9 @@ impl AdminRpcHandler {
 			}
 			BlockOperation::Purge { yes, blocks } => {
 				if !yes {
-					return Err(GarageError::Message(
+					return Err(Error::BadRequest(
 						"Pass the --yes flag to confirm block purge operation.".into(),
-					)
-					.into());
+					));
 				}
 
 				let mut obj_dels = 0;
