@@ -785,11 +785,12 @@ impl AdminRpcHandler {
 				match self
 					.endpoint
 					.call(&node_id, AdminRpc::Stats(opt), PRIO_NORMAL)
-					.await?
+					.await
 				{
-					Ok(AdminRpc::Ok(s)) => writeln!(&mut ret, "{}", s).unwrap(),
-					Ok(x) => writeln!(&mut ret, "Bad answer: {:?}", x).unwrap(),
-					Err(e) => writeln!(&mut ret, "Error: {}", e).unwrap(),
+					Ok(Ok(AdminRpc::Ok(s))) => writeln!(&mut ret, "{}", s).unwrap(),
+					Ok(Ok(x)) => writeln!(&mut ret, "Bad answer: {:?}", x).unwrap(),
+					Ok(Err(e)) => writeln!(&mut ret, "Remote error: {}", e).unwrap(),
+					Err(e) => writeln!(&mut ret, "Network error: {}", e).unwrap(),
 				}
 			}
 			Ok(AdminRpc::Ok(ret))
