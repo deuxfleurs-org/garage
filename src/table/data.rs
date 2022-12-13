@@ -58,7 +58,13 @@ where
 			.expect("Unable to open DB tree");
 		let gc_todo = CountedTree::new(gc_todo).expect("Cannot count gc_todo_v2");
 
-		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone(), gc_todo.clone());
+		let metrics = TableMetrics::new(
+			F::TABLE_NAME,
+			store.clone(),
+			merkle_tree.clone(),
+			merkle_todo.clone(),
+			gc_todo.clone(),
+		);
 
 		Arc::new(Self {
 			system,

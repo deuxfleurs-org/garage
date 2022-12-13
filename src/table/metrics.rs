@@ -5,6 +5,8 @@ use garage_db::counted_tree_hack::CountedTree;
 
 /// TableMetrics reference all counter used for metrics
 pub struct TableMetrics {
+	pub(crate) _table_size: ValueObserver<u64>,
+	pub(crate) _merkle_tree_size: ValueObserver<u64>,
 	pub(crate) _merkle_todo_len: ValueObserver<u64>,
 	pub(crate) _gc_todo_len: ValueObserver<u64>,
 
@@ -20,9 +22,43 @@ pub struct TableMetrics {
 	pub(crate) sync_items_received: Counter<u64>,
 }
 impl TableMetrics {
-	pub fn new(table_name: &'static str, merkle_todo: db::Tree, gc_todo: CountedTree) -> Self {
+	pub fn new(
+		table_name: &'static str,
+		store: db::Tree,
+		merkle_tree: db::Tree,
+		merkle_todo: db::Tree,
+		gc_todo: CountedTree,
+	) -> Self {
 		let meter = global::meter(table_name);
 		TableMetrics {
+			_table_size: meter
+				.u64_value_observer(
+					"table.size",
+					move |observer| {
+						if let Ok(Some(v)) = store.fast_len() {
+							observer.observe(
+								v as u64,
+								&[KeyValue::new("table_name", table_name)],
+							);
+						}
+					},
+				)
+				.with_description("Number of items in table")
+				.init(),
+			_merkle_tree_size: meter
+				.u64_value_observer(
+					"table.merkle_tree_size",
+					move |observer| {
+						if let Ok(Some(v)) = merkle_tree.fast_len() {
+							observer.observe(
+								v as u64,
+								&[KeyValue::new("table_name", table_name)],
+							);
+						}
+					},
+				)
+				.with_description("Number of nodes in table's Merkle tree")
+				.init(),
 			_merkle_todo_len: meter
 				.u64_value_observer(
 					"table.merkle_updater_todo_queue_length",
