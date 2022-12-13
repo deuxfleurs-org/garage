@@ -318,6 +318,11 @@ impl BlockManager {
 		Ok(self.rc.rc.len()?)
 	}
 
+	/// Get number of items in the refcount table
+	pub fn rc_fast_len(&self) -> Result<Option<usize>, Error> {
+		Ok(self.rc.rc.fast_len()?)
+	}
+
 	/// Send command to start/stop/manager scrub worker
 	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) {
 		let _ = self.tx_scrub_command.send(cmd).await;

@@ -293,6 +293,10 @@ where
 		Ok(self.data.merkle_tree.len()?)
 	}
 
+	pub fn merkle_tree_fast_len(&self) -> Result<Option<usize>, Error> {
+		Ok(self.data.merkle_tree.fast_len()?)
+	}
+
 	pub fn todo_len(&self) -> Result<usize, Error> {
 		Ok(self.data.merkle_todo.len()?)
 	}

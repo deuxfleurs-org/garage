@@ -181,6 +181,10 @@ impl Tree {
 	pub fn len(&self) -> Result<usize> {
 		self.0.len(self.1)
 	}
+	#[inline]
+	pub fn fast_len(&self) -> Result<Option<usize>> {
+		self.0.fast_len(self.1)
+	}
 
 	#[inline]
 	pub fn first(&self) -> Result<Option<(Value, Value)>> {
@@ -323,6 +327,9 @@ pub(crate) trait IDb: Send + Sync {
 
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
 	fn len(&self, tree: usize) -> Result<usize>;
+	fn fast_len(&self, _tree: usize) -> Result<Option<usize>> {
+		Ok(None)
+	}
 
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>>;
 	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;

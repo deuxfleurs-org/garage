@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
+use garage_util::formater::format_table_to_string;
 use garage_util::time::*;
 
 use garage_table::replication::*;
@@ -808,6 +809,7 @@ impl AdminRpcHandler {
 				.unwrap_or_else(|| "(unknown)".into()),
 		)
 		.unwrap();
+
 		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();
 
 		// Gather ring statistics
@@ -826,21 +828,38 @@ impl AdminRpcHandler {
 			writeln!(&mut ret, "  {:?} {}", n, c).unwrap();
 		}
 
-		self.gather_table_stats(&mut ret, &self.garage.bucket_table, &opt)?;
-		self.gather_table_stats(&mut ret, &self.garage.key_table, &opt)?;
-		self.gather_table_stats(&mut ret, &self.garage.object_table, &opt)?;
-		self.gather_table_stats(&mut ret, &self.garage.version_table, &opt)?;
-		self.gather_table_stats(&mut ret, &self.garage.block_ref_table, &opt)?;
+		// Gather table statistics
+		let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tGcTodo".into()];
+		table.push(self.gather_table_stats(&self.garage.bucket_table, opt.detailed)?);
+		table.push(self.gather_table_stats(&self.garage.key_table, opt.detailed)?);
+		table.push(self.gather_table_stats(&self.garage.object_table, opt.detailed)?);
+		table.push(self.gather_table_stats(&self.garage.version_table, opt.detailed)?);
+		table.push(self.gather_table_stats(&self.garage.block_ref_table, opt.detailed)?);
+		write!(
+			&mut ret,
+			"\nTable stats:\n{}",
+			format_table_to_string(table)
+		)
+		.unwrap();
 
+		// Gather block manager statistics
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
-		if opt.detailed {
-			writeln!(
-				&mut ret,
-				"  number of RC entries (~= number of blocks): {}",
-				self.garage.block_manager.rc_len()?
-			)
-			.unwrap();
-		}
+		let rc_len = if opt.detailed {
+			self.garage.block_manager.rc_len()?.to_string()
+		} else {
+			self.garage
+				.block_manager
+				.rc_fast_len()?
+				.map(|x| x.to_string())
+				.unwrap_or_else(|| "NC".into())
+		};
+
+		writeln!(
+			&mut ret,
+			"  number of RC entries (~= number of blocks): {}",
+			rc_len
+		)
+		.unwrap();
 		writeln!(
 			&mut ret,
 			"  resync queue length: {}",
@@ -854,43 +873,50 @@ impl AdminRpcHandler {
 		)
 		.unwrap();
 
+		if !opt.detailed {
+			writeln!(&mut ret, "\nIf values are missing (marked as NC), consider adding the --detailed flag - this will be slow.").unwrap();
+		}
+
 		Ok(ret)
 	}
 
 	fn gather_table_stats<F, R>(
 		&self,
-		to: &mut String,
 		t: &Arc<Table<F, R>>,
-		opt: &StatsOpt,
-	) -> Result<(), Error>
+		detailed: bool,
+	) -> Result<String, Error>
 	where
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
-		writeln!(to, "\nTable stats for {}", F::TABLE_NAME).unwrap();
-		if opt.detailed {
-			writeln!(
-				to,
-				"  number of items: {}",
-				t.data.store.len().map_err(GarageError::from)?
+		let (data_len, mkl_len) = if detailed {
+			(
+				t.data.store.len().map_err(GarageError::from)?.to_string(),
+				t.merkle_updater.merkle_tree_len()?.to_string(),
 			)
-			.unwrap();
-			writeln!(
-				to,
-				"  Merkle tree size: {}",
-				t.merkle_updater.merkle_tree_len()?
+		} else {
+			(
+				t.data
+					.store
+					.fast_len()
+					.map_err(GarageError::from)?
+					.map(|x| x.to_string())
+					.unwrap_or_else(|| "NC".into()),
+				t.merkle_updater
+					.merkle_tree_fast_len()?
+					.map(|x| x.to_string())
+					.unwrap_or_else(|| "NC".into()),
 			)
-			.unwrap();
-		}
-		writeln!(
-			to,
-			"  Merkle updater todo queue length: {}",
-			t.merkle_updater.todo_len()?
-		)
-		.unwrap();
-		writeln!(to, "  GC todo queue length: {}", t.data.gc_todo_len()?).unwrap();
+		};
 
-		Ok(())
+		Ok(format!(
+			"  {}\t{}\t{}\t{}\t{}",
+			F::TABLE_NAME,
+			data_len,
+			mkl_len,
+			t.merkle_updater.todo_len()?,
+			t.data.gc_todo_len()?
+		))
 	}
 
 	// ================ WORKER COMMANDS ====================

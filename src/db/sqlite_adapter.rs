@@ -144,6 +144,10 @@ impl IDb for SqliteDb {
 		}
 	}
 
+	fn fast_len(&self, tree: usize) -> Result<Option<usize>> {
+		Ok(Some(self.len(tree)?))
+	}
+
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>> {
 		trace!("insert {}: lock db", tree);
 		let this = self.0.lock().unwrap();
