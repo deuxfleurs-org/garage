@@ -251,13 +251,9 @@ impl<T: CountedItem> IndexCounter<T> {
 		TR: TableReplication,
 	{
 		let save_counter_entry = |entry: CounterEntry<T>| -> Result<(), Error> {
-			let entry_k = self
-				.table
-				.data
-				.tree_key(entry.partition_key(), entry.sort_key());
 			self.table
 				.data
-				.update_entry_with(&entry_k, |ent| match ent {
+				.update_entry_with(&entry.partition_key(), &entry.sort_key(), |ent| match ent {
 					Some(mut ent) => {
 						ent.merge(&entry);
 						ent
