@@ -42,6 +42,9 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone(), background)?;
 
+	info!("Spawning Garage workers...");
+	garage.spawn_workers();
+
 	if config.admin.trace_sink.is_some() {
 		info!("Initialize tracing...");
 

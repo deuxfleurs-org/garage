@@ -54,22 +54,25 @@ where
 	F: TableSchema + 'static,
 	R: TableReplication + 'static,
 {
-	pub(crate) fn launch(system: Arc<System>, data: Arc<TableData<F, R>>) -> Arc<Self> {
+	pub(crate) fn new(system: Arc<System>, data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let endpoint = system
 			.netapp
 			.endpoint(format!("garage_table/gc.rs/Rpc:{}", F::TABLE_NAME));
 
 		let gc = Arc::new(Self {
-			system: system.clone(),
+			system,
 			data,
 			endpoint,
 		});
-
 		gc.endpoint.set_handler(gc.clone());
 
-		system.background.spawn_worker(GcWorker::new(gc.clone()));
-
 		gc
+	}
+
+	pub(crate) fn spawn_workers(self: &Arc<Self>) {
+		self.system
+			.background
+			.spawn_worker(GcWorker::new(self.clone()));
 	}
 
 	async fn gc_loop_iter(&self) -> Result<Option<Duration>, Error> {

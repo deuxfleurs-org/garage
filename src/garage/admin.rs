@@ -759,7 +759,7 @@ impl AdminRpcHandler {
 				)))
 			}
 		} else {
-			launch_online_repair(self.garage.clone(), opt).await;
+			launch_online_repair(self.garage.clone(), opt).await?;
 			Ok(AdminRpc::Ok(format!(
 				"Repair launched on {:?}",
 				self.garage.system.id
@@ -944,7 +944,7 @@ impl AdminRpcHandler {
 					self.garage
 						.block_manager
 						.send_scrub_command(scrub_command)
-						.await;
+						.await?;
 					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
 				}
 				WorkerSetCmd::ResyncWorkerCount { worker_count } => {

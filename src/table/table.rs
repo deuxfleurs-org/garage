@@ -36,6 +36,7 @@ pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
 	pub data: Arc<TableData<F, R>>,
 	pub merkle_updater: Arc<MerkleUpdater<F, R>>,
 	pub syncer: Arc<TableSyncer<F, R>>,
+	gc: Arc<TableGc<F, R>>,
 	endpoint: Arc<Endpoint<TableRpc<F>, Self>>,
 }
 
@@ -76,27 +77,32 @@ where
 
 		let data = TableData::new(system.clone(), instance, replication, db);
 
-		let merkle_updater = MerkleUpdater::launch(&system.background, data.clone());
+		let merkle_updater = MerkleUpdater::new(data.clone());
 
-		let syncer = TableSyncer::launch(system.clone(), data.clone(), merkle_updater.clone());
-		TableGc::launch(system.clone(), data.clone());
+		let syncer = TableSyncer::new(system.clone(), data.clone(), merkle_updater.clone());
+		let gc = TableGc::new(system.clone(), data.clone());
 
 		let table = Arc::new(Self {
 			system,
 			data,
 			merkle_updater,
+			gc,
 			syncer,
 			endpoint,
 		});
 
-		table
-			.system
-			.background
-			.spawn_worker(InsertQueueWorker(table.clone()));
-
 		table.endpoint.set_handler(table.clone());
 
 		table
+	}
+
+	pub fn spawn_workers(self: &Arc<Self>) {
+		self.merkle_updater.spawn_workers(&self.system.background);
+		self.syncer.spawn_workers();
+		self.gc.spawn_workers();
+		self.system
+			.background
+			.spawn_worker(InsertQueueWorker(self.clone()));
 	}
 
 	pub async fn insert(&self, e: &F::E) -> Result<(), Error> {

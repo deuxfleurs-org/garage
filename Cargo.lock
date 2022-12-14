@@ -1243,6 +1243,7 @@ dependencies = [
 name = "garage_table"
 version = "0.8.0"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bytes",
  "futures",

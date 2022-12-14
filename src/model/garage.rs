@@ -273,6 +273,22 @@ impl Garage {
 		}))
 	}
 
+	pub fn spawn_workers(&self) {
+		self.block_manager.spawn_workers();
+
+		self.bucket_table.spawn_workers();
+		self.bucket_alias_table.spawn_workers();
+		self.key_table.spawn_workers();
+
+		self.object_table.spawn_workers();
+		self.object_counter_table.spawn_workers();
+		self.version_table.spawn_workers();
+		self.block_ref_table.spawn_workers();
+
+		#[cfg(feature = "k2v")]
+		self.k2v.spawn_workers();
+	}
+
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
 		helper::bucket::BucketHelper(self)
 	}
@@ -306,5 +322,10 @@ impl GarageK2V {
 			counter_table,
 			rpc,
 		}
+	}
+
+	pub fn spawn_workers(&self) {
+		self.item_table.spawn_workers();
+		self.counter_table.spawn_workers();
 	}
 }

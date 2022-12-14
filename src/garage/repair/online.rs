@@ -15,15 +15,15 @@ use garage_util::error::Error;
 
 use crate::*;
 
-pub async fn launch_online_repair(garage: Arc<Garage>, opt: RepairOpt) {
+pub async fn launch_online_repair(garage: Arc<Garage>, opt: RepairOpt) -> Result<(), Error> {
 	match opt.what {
 		RepairWhat::Tables => {
 			info!("Launching a full sync of tables");
-			garage.bucket_table.syncer.add_full_sync();
-			garage.object_table.syncer.add_full_sync();
-			garage.version_table.syncer.add_full_sync();
-			garage.block_ref_table.syncer.add_full_sync();
-			garage.key_table.syncer.add_full_sync();
+			garage.bucket_table.syncer.add_full_sync()?;
+			garage.object_table.syncer.add_full_sync()?;
+			garage.version_table.syncer.add_full_sync()?;
+			garage.block_ref_table.syncer.add_full_sync()?;
+			garage.key_table.syncer.add_full_sync()?;
 		}
 		RepairWhat::Versions => {
 			info!("Repairing the versions table");
@@ -56,9 +56,10 @@ pub async fn launch_online_repair(garage: Arc<Garage>, opt: RepairOpt) {
 				}
 			};
 			info!("Sending command to scrub worker: {:?}", cmd);
-			garage.block_manager.send_scrub_command(cmd).await;
+			garage.block_manager.send_scrub_command(cmd).await?;
 		}
 	}
+	Ok(())
 }
 
 // ----

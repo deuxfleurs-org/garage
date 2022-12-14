@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -87,7 +88,7 @@ pub struct BlockManager {
 
 	pub(crate) metrics: BlockManagerMetrics,
 
-	tx_scrub_command: mpsc::Sender<ScrubWorkerCommand>,
+	tx_scrub_command: ArcSwapOption<mpsc::Sender<ScrubWorkerCommand>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -126,8 +127,6 @@ impl BlockManager {
 		let metrics =
 			BlockManagerMetrics::new(rc.rc.clone(), resync.queue.clone(), resync.errors.clone());
 
-		let (scrub_tx, scrub_rx) = mpsc::channel(1);
-
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
@@ -138,21 +137,26 @@ impl BlockManager {
 			system,
 			endpoint,
 			metrics,
-			tx_scrub_command: scrub_tx,
+			tx_scrub_command: ArcSwapOption::new(None),
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
 
+		block_manager
+	}
+
+	pub fn spawn_workers(self: &Arc<Self>) {
 		// Spawn a bunch of resync workers
 		for index in 0..MAX_RESYNC_WORKERS {
-			let worker = ResyncWorker::new(index, block_manager.clone());
-			block_manager.system.background.spawn_worker(worker);
+			let worker = ResyncWorker::new(index, self.clone());
+			self.system.background.spawn_worker(worker);
 		}
 
 		// Spawn scrub worker
-		let scrub_worker = ScrubWorker::new(block_manager.clone(), scrub_rx);
-		block_manager.system.background.spawn_worker(scrub_worker);
-
-		block_manager
+		let (scrub_tx, scrub_rx) = mpsc::channel(1);
+		self.tx_scrub_command.store(Some(Arc::new(scrub_tx)));
+		self.system
+			.background
+			.spawn_worker(ScrubWorker::new(self.clone(), scrub_rx));
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it
@@ -325,8 +329,11 @@ impl BlockManager {
 	}
 
 	/// Send command to start/stop/manager scrub worker
-	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) {
-		let _ = self.tx_scrub_command.send(cmd).await;
+	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) -> Result<(), Error> {
+		let tx = self.tx_scrub_command.load();
+		let tx = tx.as_ref().ok_or_message("scrub worker is not running")?;
+		tx.send(cmd).await.ok_or_message("send error")?;
+		Ok(())
 	}
 
 	/// Get the reference count of a block

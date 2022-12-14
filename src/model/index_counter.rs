@@ -164,6 +164,10 @@ impl<T: CountedItem> IndexCounter<T> {
 		})
 	}
 
+	pub fn spawn_workers(&self) {
+		self.table.spawn_workers();
+	}
+
 	pub fn count(
 		&self,
 		tx: &mut db::Transaction,

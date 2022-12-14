@@ -70,17 +70,17 @@ where
 	F: TableSchema + 'static,
 	R: TableReplication + 'static,
 {
-	pub(crate) fn launch(background: &BackgroundRunner, data: Arc<TableData<F, R>>) -> Arc<Self> {
+	pub(crate) fn new(data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
 
-		let ret = Arc::new(Self {
+		Arc::new(Self {
 			data,
 			empty_node_hash,
-		});
+		})
+	}
 
-		background.spawn_worker(MerkleWorker(ret.clone()));
-
-		ret
+	pub(crate) fn spawn_workers(self: &Arc<Self>, background: &BackgroundRunner) {
+		background.spawn_worker(MerkleWorker(self.clone()));
 	}
 
 	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
