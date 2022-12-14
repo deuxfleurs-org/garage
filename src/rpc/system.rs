@@ -50,8 +50,6 @@ pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650008; // garage 0x0008
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
 
-pub const CONNECT_ERROR_MESSAGE: &str = "Error establishing RPC connection to remote node. This can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret";
-
 /// RPC messages related to membership
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SystemRpc {
@@ -438,17 +436,17 @@ impl System {
 				))
 			})?;
 		let mut errors = vec![];
-		for ip in addrs.iter() {
+		for addr in addrs.iter() {
 			match self
 				.netapp
 				.clone()
-				.try_connect(*ip, pubkey)
+				.try_connect(*addr, pubkey)
 				.await
-				.err_context(CONNECT_ERROR_MESSAGE)
+				.err_context(connect_error_message(*addr, pubkey))
 			{
 				Ok(()) => return Ok(()),
 				Err(e) => {
-					errors.push((*ip, e));
+					errors.push((*addr, e));
 				}
 			}
 		}
@@ -772,7 +770,7 @@ impl System {
 						self.netapp
 							.clone()
 							.try_connect(node_addr, node_id)
-							.map(|r| r.err_context(CONNECT_ERROR_MESSAGE)),
+							.map(move |r| r.err_context(connect_error_message(node_addr, node_id))),
 					);
 				}
 			}
@@ -874,4 +872,8 @@ async fn resolve_peers(peers: &[String]) -> Vec<(NodeID, SocketAddr)> {
 	}
 
 	ret
+}
+
+fn connect_error_message(addr: SocketAddr, pubkey: ed25519::PublicKey) -> String {
+	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret", hex::encode(pubkey), addr)
 }
