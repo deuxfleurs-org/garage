@@ -14,7 +14,7 @@ use opentelemetry::{
 
 use garage_db as db;
 
-use garage_util::background::{self, BackgroundRunner};
+use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
@@ -275,7 +275,11 @@ where
 			if not_all_same {
 				let self2 = self.clone();
 				let ent2 = ret_entry.clone();
-				background::spawn(async move { self2.repair_on_read(&who[..], ent2).await });
+				tokio::spawn(async move {
+					if let Err(e) = self2.repair_on_read(&who[..], ent2).await {
+						warn!("Error doing repair on read: {}", e);
+					}
+				});
 			}
 		}
 
@@ -372,11 +376,12 @@ where
 				.into_iter()
 				.map(|k| ret.get(&k).unwrap().clone())
 				.collect::<Vec<_>>();
-			background::spawn(async move {
+			tokio::spawn(async move {
 				for v in to_repair {
-					self2.repair_on_read(&who[..], v).await?;
+					if let Err(e) = self2.repair_on_read(&who[..], v).await {
+						warn!("Error doing repair on read: {}", e);
+					}
 				}
-				Ok(())
 			});
 		}
 

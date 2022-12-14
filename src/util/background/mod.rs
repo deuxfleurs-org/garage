@@ -2,19 +2,14 @@
 
 pub mod worker;
 
-use core::future::Future;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch};
 
-use crate::error::Error;
 use worker::WorkerProcessor;
 pub use worker::{Worker, WorkerState};
-
-pub(crate) type JobOutput = Result<(), Error>;
 
 /// Job runner for futures and async functions
 pub struct BackgroundRunner {
@@ -76,15 +71,4 @@ impl BackgroundRunner {
 			.ok()
 			.expect("Could not put worker in queue");
 	}
-}
-
-pub fn spawn<T>(job: T)
-where
-	T: Future<Output = JobOutput> + Send + 'static,
-{
-	tokio::spawn(async move {
-		if let Err(e) = job.await {
-			error!("{}", e);
-		}
-	});
 }

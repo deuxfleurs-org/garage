@@ -21,7 +21,6 @@ use netapp::peering::fullmesh::FullMeshPeeringStrategy;
 use netapp::util::parse_and_resolve_peer_addr_async;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
-use garage_util::background::{self};
 use garage_util::config::Config;
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
@@ -622,11 +621,7 @@ impl System {
 		if info.cluster_layout_version > local_info.cluster_layout_version
 			|| info.cluster_layout_staging_hash != local_info.cluster_layout_staging_hash
 		{
-			let self2 = self.clone();
-			background::spawn(async move {
-				self2.pull_cluster_layout(from).await;
-				Ok(())
-			});
+			tokio::spawn(self.clone().pull_cluster_layout(from));
 		}
 
 		self.node_status
@@ -668,16 +663,18 @@ impl System {
 			drop(update_ring);
 
 			let self2 = self.clone();
-			background::spawn(async move {
-				self2
+			tokio::spawn(async move {
+				if let Err(e) = self2
 					.rpc
 					.broadcast(
 						&self2.system_endpoint,
 						SystemRpc::AdvertiseClusterLayout(layout),
 						RequestStrategy::with_priority(PRIO_HIGH),
 					)
-					.await?;
-				Ok(())
+					.await
+				{
+					warn!("Error while broadcasting new cluster layout: {}", e);
+				}
 			});
 
 			self.save_cluster_layout().await?;
@@ -766,12 +763,12 @@ impl System {
 				}
 
 				for (node_id, node_addr) in ping_list {
-					background::spawn(
-						self.netapp
-							.clone()
-							.try_connect(node_addr, node_id)
-							.map(move |r| r.err_context(connect_error_message(node_addr, node_id))),
-					);
+					let self2 = self.clone();
+					tokio::spawn(async move {
+						if let Err(e) = self2.netapp.clone().try_connect(node_addr, node_id).await {
+							error!("{}\n{}", connect_error_message(node_addr, node_id), e);
+						}
+					});
 				}
 			}
 
