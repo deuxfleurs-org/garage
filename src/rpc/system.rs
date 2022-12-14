@@ -436,16 +436,13 @@ impl System {
 			})?;
 		let mut errors = vec![];
 		for addr in addrs.iter() {
-			match self
-				.netapp
-				.clone()
-				.try_connect(*addr, pubkey)
-				.await
-				.err_context(connect_error_message(*addr, pubkey))
-			{
+			match self.netapp.clone().try_connect(*addr, pubkey).await {
 				Ok(()) => return Ok(()),
 				Err(e) => {
-					errors.push((*addr, e));
+					errors.push((
+						*addr,
+						Error::Message(connect_error_message(*addr, pubkey, e)),
+					));
 				}
 			}
 		}
@@ -766,7 +763,7 @@ impl System {
 					let self2 = self.clone();
 					tokio::spawn(async move {
 						if let Err(e) = self2.netapp.clone().try_connect(node_addr, node_id).await {
-							error!("{}\n{}", connect_error_message(node_addr, node_id), e);
+							error!("{}", connect_error_message(node_addr, node_id, e));
 						}
 					});
 				}
@@ -871,6 +868,10 @@ async fn resolve_peers(peers: &[String]) -> Vec<(NodeID, SocketAddr)> {
 	ret
 }
 
-fn connect_error_message(addr: SocketAddr, pubkey: ed25519::PublicKey) -> String {
-	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret", hex::encode(pubkey), addr)
+fn connect_error_message(
+	addr: SocketAddr,
+	pubkey: ed25519::PublicKey,
+	e: netapp::error::Error,
+) -> String {
+	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}", hex::encode(pubkey), addr, e)
 }
