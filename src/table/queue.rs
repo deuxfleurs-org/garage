@@ -71,10 +71,7 @@ where
 		Ok(WorkerState::Busy)
 	}
 
-	async fn wait_for_work(&mut self, must_exit: &watch::Receiver<bool>) -> WorkerState {
-		if *must_exit.borrow() {
-			return WorkerState::Done;
-		}
+	async fn wait_for_work(&mut self) -> WorkerState {
 		select! {
 			_ = tokio::time::sleep(Duration::from_secs(600)) => (),
 			_ = self.0.data.insert_queue_notify.notified() => (),

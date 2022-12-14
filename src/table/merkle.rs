@@ -340,10 +340,7 @@ where
 		.unwrap()
 	}
 
-	async fn wait_for_work(&mut self, must_exit: &watch::Receiver<bool>) -> WorkerState {
-		if *must_exit.borrow() {
-			return WorkerState::Done;
-		}
+	async fn wait_for_work(&mut self) -> WorkerState {
 		select! {
 			_ = tokio::time::sleep(Duration::from_secs(60)) => (),
 			_ = self.0.data.merkle_todo_notify.notified() => (),

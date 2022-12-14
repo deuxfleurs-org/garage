@@ -136,7 +136,7 @@ impl Worker for RepairVersionsWorker {
 		Ok(WorkerState::Busy)
 	}
 
-	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+	async fn wait_for_work(&mut self) -> WorkerState {
 		unreachable!()
 	}
 }
@@ -214,7 +214,7 @@ impl Worker for RepairBlockrefsWorker {
 		Ok(WorkerState::Busy)
 	}
 
-	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+	async fn wait_for_work(&mut self) -> WorkerState {
 		unreachable!()
 	}
 }

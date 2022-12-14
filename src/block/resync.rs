@@ -540,7 +540,7 @@ impl Worker for ResyncWorker {
 		}
 	}
 
-	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+	async fn wait_for_work(&mut self) -> WorkerState {
 		while self.index >= self.manager.resync.persisted.load().n_workers {
 			self.manager.resync.notify.notified().await
 		}
