@@ -338,6 +338,7 @@ where
 				.map_err(db::TxError::Abort)?,
 		};
 		tx.insert(&self.insert_queue, &tree_key, new_entry)?;
+		self.insert_queue_notify.notify_one();
 
 		Ok(())
 	}
