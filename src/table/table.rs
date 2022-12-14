@@ -25,6 +25,7 @@ use crate::crdt::Crdt;
 use crate::data::*;
 use crate::gc::*;
 use crate::merkle::*;
+use crate::queue::InsertQueueWorker;
 use crate::replication::*;
 use crate::schema::*;
 use crate::sync::*;
@@ -88,6 +89,11 @@ where
 			endpoint,
 		});
 
+		table
+			.system
+			.background
+			.spawn_worker(InsertQueueWorker(table.clone()));
+
 		table.endpoint.set_handler(table.clone());
 
 		table
@@ -126,6 +132,11 @@ where
 			.await?;
 
 		Ok(())
+	}
+
+	/// Insert item locally
+	pub fn queue_insert(&self, tx: &mut db::Transaction, e: &F::E) -> db::TxResult<(), Error> {
+		self.data.queue_insert(tx, e)
 	}
 
 	pub async fn insert_many<I, IE>(&self, entries: I) -> Result<(), Error>

@@ -255,34 +255,34 @@ impl TableSchema for ObjectTable {
 			);
 		}
 
-		// 2. Spawn threads that propagates deletions to version table
-		let version_table = self.version_table.clone();
-		let old = old.cloned();
-		let new = new.cloned();
-
-		self.background.spawn(async move {
-			if let (Some(old_v), Some(new_v)) = (old, new) {
-				// Propagate deletion of old versions
-				for v in old_v.versions.iter() {
-					let newly_deleted = match new_v
-						.versions
-						.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
-					{
-						Err(_) => true,
-						Ok(i) => {
-							new_v.versions[i].state == ObjectVersionState::Aborted
-								&& v.state != ObjectVersionState::Aborted
-						}
-					};
-					if newly_deleted {
-						let deleted_version =
-							Version::new(v.uuid, old_v.bucket_id, old_v.key.clone(), true);
-						version_table.insert(&deleted_version).await?;
+		// 2. Enqueue propagation deletions to version table
+		if let (Some(old_v), Some(new_v)) = (old, new) {
+			// Propagate deletion of old versions
+			for v in old_v.versions.iter() {
+				let newly_deleted = match new_v
+					.versions
+					.binary_search_by(|nv| nv.cmp_key().cmp(&v.cmp_key()))
+				{
+					Err(_) => true,
+					Ok(i) => {
+						new_v.versions[i].state == ObjectVersionState::Aborted
+							&& v.state != ObjectVersionState::Aborted
+					}
+				};
+				if newly_deleted {
+					let deleted_version =
+						Version::new(v.uuid, old_v.bucket_id, old_v.key.clone(), true);
+					let res = self.version_table.queue_insert(tx, &deleted_version);
+					if let Err(e) = db::unabort(res)? {
+						error!(
+							"Unable to enqueue version deletion propagation: {}. A repair will be needed.",
+							e
+						);
 					}
 				}
 			}
-			Ok(())
-		});
+		}
+
 		Ok(())
 	}
 

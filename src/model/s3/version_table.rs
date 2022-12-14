@@ -141,33 +141,26 @@ impl TableSchema for VersionTable {
 
 	fn updated(
 		&self,
-		_tx: &mut db::Transaction,
+		tx: &mut db::Transaction,
 		old: Option<&Self::E>,
 		new: Option<&Self::E>,
 	) -> db::TxOpResult<()> {
-		let block_ref_table = self.block_ref_table.clone();
-		let old = old.cloned();
-		let new = new.cloned();
-
-		self.background.spawn(async move {
-			if let (Some(old_v), Some(new_v)) = (old, new) {
-				// Propagate deletion of version blocks
-				if new_v.deleted.get() && !old_v.deleted.get() {
-					let deleted_block_refs = old_v
-						.blocks
-						.items()
-						.iter()
-						.map(|(_k, vb)| BlockRef {
-							block: vb.hash,
-							version: old_v.uuid,
-							deleted: true.into(),
-						})
-						.collect::<Vec<_>>();
-					block_ref_table.insert_many(&deleted_block_refs[..]).await?;
+		if let (Some(old_v), Some(new_v)) = (old, new) {
+			// Propagate deletion of version blocks
+			if new_v.deleted.get() && !old_v.deleted.get() {
+				let deleted_block_refs = old_v.blocks.items().iter().map(|(_k, vb)| BlockRef {
+					block: vb.hash,
+					version: old_v.uuid,
+					deleted: true.into(),
+				});
+				for block_ref in deleted_block_refs {
+					let res = self.block_ref_table.queue_insert(tx, &block_ref);
+					if let Err(e) = db::unabort(res)? {
+						error!("Unable to enqueue block ref deletion propagation: {}. A repair will be needed.", e);
+					}
 				}
 			}
-			Ok(())
-		});
+		}
 
 		Ok(())
 	}

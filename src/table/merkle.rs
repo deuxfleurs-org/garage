@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tokio::select;
 use tokio::sync::watch;
 
 use garage_db as db;
@@ -343,7 +344,10 @@ where
 		if *must_exit.borrow() {
 			return WorkerState::Done;
 		}
-		tokio::time::sleep(Duration::from_secs(10)).await;
+		select! {
+			_ = tokio::time::sleep(Duration::from_secs(60)) => (),
+			_ = self.0.data.merkle_todo_notify.notified() => (),
+		}
 		WorkerState::Busy
 	}
 }
