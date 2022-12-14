@@ -330,13 +330,12 @@ where
 				let mut entry = self.decode_entry(&old_v).map_err(db::TxError::Abort)?;
 				entry.merge(ins);
 				rmp_to_vec_all_named(&entry)
-					.map_err(Error::RmpEncode)
-					.map_err(db::TxError::Abort)?
 			}
-			None => rmp_to_vec_all_named(ins)
-				.map_err(Error::RmpEncode)
-				.map_err(db::TxError::Abort)?,
+			None => rmp_to_vec_all_named(ins),
 		};
+		let new_entry = new_entry
+			.map_err(Error::RmpEncode)
+			.map_err(db::TxError::Abort)?;
 		tx.insert(&self.insert_queue, &tree_key, new_entry)?;
 		self.insert_queue_notify.notify_one();
 
