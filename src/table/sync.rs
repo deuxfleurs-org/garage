@@ -87,12 +87,12 @@ where
 		syncer
 	}
 
-	pub(crate) fn spawn_workers(self: &Arc<Self>) {
+	pub(crate) fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
 		let (add_full_sync_tx, add_full_sync_rx) = mpsc::unbounded_channel();
 		self.add_full_sync_tx
 			.store(Some(Arc::new(add_full_sync_tx)));
 
-		self.system.background.spawn_worker(SyncWorker {
+		bg.spawn_worker(SyncWorker {
 			syncer: self.clone(),
 			ring_recv: self.system.ring.clone(),
 			ring: self.system.ring.borrow().clone(),

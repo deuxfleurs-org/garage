@@ -14,6 +14,7 @@ use opentelemetry::{
 
 use garage_db as db;
 
+use garage_util::background::{self, BackgroundRunner};
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
@@ -96,13 +97,11 @@ where
 		table
 	}
 
-	pub fn spawn_workers(self: &Arc<Self>) {
-		self.merkle_updater.spawn_workers(&self.system.background);
-		self.syncer.spawn_workers();
-		self.gc.spawn_workers();
-		self.system
-			.background
-			.spawn_worker(InsertQueueWorker(self.clone()));
+	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
+		self.merkle_updater.spawn_workers(bg);
+		self.syncer.spawn_workers(bg);
+		self.gc.spawn_workers(bg);
+		bg.spawn_worker(InsertQueueWorker(self.clone()));
 	}
 
 	pub async fn insert(&self, e: &F::E) -> Result<(), Error> {
@@ -276,9 +275,7 @@ where
 			if not_all_same {
 				let self2 = self.clone();
 				let ent2 = ret_entry.clone();
-				self.system
-					.background
-					.spawn_cancellable(async move { self2.repair_on_read(&who[..], ent2).await });
+				background::spawn(async move { self2.repair_on_read(&who[..], ent2).await });
 			}
 		}
 
@@ -375,7 +372,7 @@ where
 				.into_iter()
 				.map(|k| ret.get(&k).unwrap().clone())
 				.collect::<Vec<_>>();
-			self.system.background.spawn_cancellable(async move {
+			background::spawn(async move {
 				for v in to_repair {
 					self2.repair_on_read(&who[..], v).await?;
 				}

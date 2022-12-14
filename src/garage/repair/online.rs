@@ -15,7 +15,11 @@ use garage_util::error::Error;
 
 use crate::*;
 
-pub async fn launch_online_repair(garage: Arc<Garage>, opt: RepairOpt) -> Result<(), Error> {
+pub async fn launch_online_repair(
+	garage: &Arc<Garage>,
+	bg: &BackgroundRunner,
+	opt: RepairOpt,
+) -> Result<(), Error> {
 	match opt.what {
 		RepairWhat::Tables => {
 			info!("Launching a full sync of tables");
@@ -27,23 +31,17 @@ pub async fn launch_online_repair(garage: Arc<Garage>, opt: RepairOpt) -> Result
 		}
 		RepairWhat::Versions => {
 			info!("Repairing the versions table");
-			garage
-				.background
-				.spawn_worker(RepairVersionsWorker::new(garage.clone()));
+			bg.spawn_worker(RepairVersionsWorker::new(garage.clone()));
 		}
 		RepairWhat::BlockRefs => {
 			info!("Repairing the block refs table");
-			garage
-				.background
-				.spawn_worker(RepairBlockrefsWorker::new(garage.clone()));
+			bg.spawn_worker(RepairBlockrefsWorker::new(garage.clone()));
 		}
 		RepairWhat::Blocks => {
 			info!("Repairing the stored blocks");
-			garage
-				.background
-				.spawn_worker(garage_block::repair::RepairWorker::new(
-					garage.block_manager.clone(),
-				));
+			bg.spawn_worker(garage_block::repair::RepairWorker::new(
+				garage.block_manager.clone(),
+			));
 		}
 		RepairWhat::Scrub { cmd } => {
 			let cmd = match cmd {

@@ -69,10 +69,8 @@ where
 		gc
 	}
 
-	pub(crate) fn spawn_workers(self: &Arc<Self>) {
-		self.system
-			.background
-			.spawn_worker(GcWorker::new(self.clone()));
+	pub(crate) fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
+		bg.spawn_worker(GcWorker::new(self.clone()));
 	}
 
 	async fn gc_loop_iter(&self) -> Result<Option<Duration>, Error> {

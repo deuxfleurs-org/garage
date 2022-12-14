@@ -23,6 +23,7 @@ use garage_rpc::rpc_helper::netapp::stream::{stream_asyncread, ByteStream};
 
 use garage_db as db;
 
+use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::metrics::RecordDuration;
@@ -144,19 +145,17 @@ impl BlockManager {
 		block_manager
 	}
 
-	pub fn spawn_workers(self: &Arc<Self>) {
+	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
 		// Spawn a bunch of resync workers
 		for index in 0..MAX_RESYNC_WORKERS {
 			let worker = ResyncWorker::new(index, self.clone());
-			self.system.background.spawn_worker(worker);
+			bg.spawn_worker(worker);
 		}
 
 		// Spawn scrub worker
 		let (scrub_tx, scrub_rx) = mpsc::channel(1);
 		self.tx_scrub_command.store(Some(Arc::new(scrub_tx)));
-		self.system
-			.background
-			.spawn_worker(ScrubWorker::new(self.clone(), scrub_rx));
+		bg.spawn_worker(ScrubWorker::new(self.clone(), scrub_rx));
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it

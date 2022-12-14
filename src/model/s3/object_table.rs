@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use garage_db as db;
 
-use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
 use garage_table::crdt::*;
@@ -221,7 +220,6 @@ impl Crdt for Object {
 }
 
 pub struct ObjectTable {
-	pub background: Arc<BackgroundRunner>,
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	pub object_counter_table: Arc<IndexCounter<Object>>,
 }

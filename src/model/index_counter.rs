@@ -9,6 +9,7 @@ use garage_db as db;
 
 use garage_rpc::ring::Ring;
 use garage_rpc::system::System;
+use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::time::*;
@@ -164,8 +165,8 @@ impl<T: CountedItem> IndexCounter<T> {
 		})
 	}
 
-	pub fn spawn_workers(&self) {
-		self.table.spawn_workers();
+	pub fn spawn_workers(&self, bg: &BackgroundRunner) {
+		self.table.spawn_workers(bg);
 	}
 
 	pub fn count(

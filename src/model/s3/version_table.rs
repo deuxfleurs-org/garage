@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use garage_db as db;
 
-use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 
 use garage_table::crdt::*;
@@ -127,7 +126,6 @@ impl Crdt for Version {
 }
 
 pub struct VersionTable {
-	pub background: Arc<BackgroundRunner>,
 	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
 }
 
