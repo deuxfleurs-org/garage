@@ -18,12 +18,18 @@ required-features = ["cli"]
 
 [dependencies]
 err-derive = "0.3"
+hex = "0.4"
 hexdump = "0.1"
 tracing = "0.1.30"
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"], optional = true }
 rusqlite = { version = "0.27", optional = true }
 sled = { version = "0.34", optional = true }
+
+rmp-serde = { version = "0.15", optional = true }
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"], optional = true }
+serde-transcode = { version = "1.1", optional = true }
+nettext = { version = "0.3.2", default-features = false, features = ["serde"], optional = true, path = "../../../nettext" }
 
 # cli deps
 clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
@@ -38,3 +44,4 @@ bundled-libs = [ "rusqlite/bundled" ]
 cli = ["clap", "pretty_env_logger"]
 lmdb = [ "heed" ]
 sqlite = [ "rusqlite" ]
+debuglog = [ "serde", "rmp-serde", "nettext", "serde-transcode" ]

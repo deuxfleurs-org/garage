@@ -174,8 +174,21 @@ impl Tree {
 	}
 
 	#[inline]
+	pub fn name(&self) -> Option<String> {
+		self.0.tree_name(self.1)
+	}
+
+	#[inline]
 	pub fn get<T: AsRef<[u8]>>(&self, key: T) -> Result<Option<Value>> {
-		self.0.get(self.1, key.as_ref())
+		let res = self.0.get(self.1, key.as_ref())?;
+		#[cfg(feature = "debuglog")]
+		debuglog(
+			self.name(),
+			"GET",
+			key.as_ref(),
+			res.as_deref().unwrap_or(b"-"),
+		);
+		Ok(res)
 	}
 	#[inline]
 	pub fn len(&self) -> Result<usize> {
@@ -204,7 +217,10 @@ impl Tree {
 		key: T,
 		value: U,
 	) -> Result<Option<Value>> {
-		self.0.insert(self.1, key.as_ref(), value.as_ref())
+		let res = self.0.insert(self.1, key.as_ref(), value.as_ref())?;
+		#[cfg(feature = "debuglog")]
+		debuglog(self.name(), "PUT", key.as_ref(), value.as_ref());
+		Ok(res)
 	}
 	/// Returns the old value if there was one
 	#[inline]
@@ -267,7 +283,10 @@ impl<'a> Transaction<'a> {
 		key: T,
 		value: U,
 	) -> TxOpResult<Option<Value>> {
-		self.0.insert(tree.1, key.as_ref(), value.as_ref())
+		let res = self.0.insert(tree.1, key.as_ref(), value.as_ref())?;
+		#[cfg(feature = "debuglog")]
+		debuglog(tree.name(), "txPUT", key.as_ref(), value.as_ref());
+		Ok(res)
 	}
 	/// Returns the old value if there was one
 	#[inline]
@@ -324,6 +343,7 @@ pub(crate) trait IDb: Send + Sync {
 	fn engine(&self) -> String;
 	fn open_tree(&self, name: &str) -> Result<usize>;
 	fn list_trees(&self) -> Result<Vec<String>>;
+	fn tree_name(&self, tree: usize) -> Option<String>;
 
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
 	fn len(&self, tree: usize) -> Result<usize>;
@@ -419,5 +439,31 @@ fn get_bound<K: AsRef<[u8]>>(b: Bound<&K>) -> Bound<&[u8]> {
 		Bound::Included(v) => Bound::Included(v.as_ref()),
 		Bound::Excluded(v) => Bound::Excluded(v.as_ref()),
 		Bound::Unbounded => Bound::Unbounded,
+	}
+}
+
+#[cfg(feature = "debuglog")]
+fn debuglog(tree: Option<String>, action: &str, k: &[u8], v: &[u8]) {
+	let key = String::from_utf8(nettext::switch64::encode(k, false)).unwrap();
+	let tree = tree.as_deref().unwrap_or("(?)");
+	if let Ok(vstr) = std::str::from_utf8(v) {
+		eprintln!("{} {} {} S:{}", tree, action, key, vstr);
+	} else {
+		let mut vread = &v[..];
+		let mut vder = rmp_serde::decode::Deserializer::new(&mut vread);
+		let mut vser = nettext::serde::Serializer {
+			string_format: nettext::BytesEncoding::Switch64 {
+				allow_whitespace: true,
+			},
+			bytes_format: nettext::BytesEncoding::Hex { split: true },
+		};
+		if let Some(venc) = serde_transcode::transcode(&mut vder, &mut vser)
+			.ok()
+			.and_then(|x| String::from_utf8(x.encode_concise()).ok())
+		{
+			eprintln!("{} {} {} N:{}", tree, action, key, venc);
+		} else {
+			eprintln!("{} {} {} X:{}", tree, action, key, hex::encode(v));
+		}
 	}
 }

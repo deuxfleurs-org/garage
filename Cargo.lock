@@ -1172,10 +1172,15 @@ dependencies = [
  "clap 3.1.18",
  "err-derive",
  "heed",
+ "hex",
  "hexdump",
  "mktemp",
+ "nettext",
  "pretty_env_logger",
+ "rmp-serde",
  "rusqlite",
+ "serde",
+ "serde-transcode",
  "sled",
  "tracing",
 ]
@@ -2139,6 +2144,17 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util 0.7.0",
+]
+
+[[package]]
+name = "nettext"
+version = "0.3.2"
+dependencies = [
+ "base64",
+ "err-derive",
+ "hex",
+ "nom",
+ "serde",
 ]
 
 [[package]]
@@ -3280,6 +3296,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61ea8d54c77f8315140a05f4c7237403bf38b72704d031543aa1d16abbf517d1"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-transcode"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "590c0e25c2a5bb6e85bf5c1bce768ceb86b316e7a01bdf07d2cb4ec2271990e2"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

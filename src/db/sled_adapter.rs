@@ -88,6 +88,15 @@ impl IDb for SledDb {
 		Ok(trees)
 	}
 
+	fn tree_name(&self, tree: usize) -> Option<String> {
+		self.trees
+			.read()
+			.unwrap()
+			.0
+			.get(tree)
+			.and_then(|x| String::from_utf8(x.name().to_vec()).ok())
+	}
+
 	// ----
 
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>> {
