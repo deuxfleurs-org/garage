@@ -355,7 +355,7 @@ impl Endpoint {
 	fn from_get(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
+			(query.keyword.take().unwrap_or_default(), key, query, None),
 			key: [
 				EMPTY if upload_id => ListParts (query::upload_id, opt_parse::max_parts, opt_parse::part_number_marker),
 				EMPTY => GetObject (query_opt::version_id, opt_parse::part_number),
@@ -412,7 +412,7 @@ impl Endpoint {
 	fn from_head(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
+			(query.keyword.take().unwrap_or_default(), key, query, None),
 			key: [
 				EMPTY => HeadObject(opt_parse::part_number, query_opt::version_id),
 			],
@@ -426,7 +426,7 @@ impl Endpoint {
 	fn from_post(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
+			(query.keyword.take().unwrap_or_default(), key, query, None),
 			key: [
 				EMPTY if upload_id  => CompleteMultipartUpload (query::upload_id),
 				RESTORE => RestoreObject (query_opt::version_id),
@@ -448,7 +448,7 @@ impl Endpoint {
 	) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, query, headers),
+			(query.keyword.take().unwrap_or_default(), key, query, headers),
 			key: [
 				EMPTY if part_number header "x-amz-copy-source" => UploadPartCopy (parse::part_number, query::upload_id),
 				EMPTY header "x-amz-copy-source" => CopyObject,
@@ -490,7 +490,7 @@ impl Endpoint {
 	fn from_delete(key: String, query: &mut QueryParameters<'_>) -> Result<Self, Error> {
 		router_match! {
 			@gen_parser
-			(query.keyword.take().unwrap_or_default().as_ref(), key, query, None),
+			(query.keyword.take().unwrap_or_default(), key, query, None),
 			key: [
 				EMPTY if upload_id => AbortMultipartUpload (query::upload_id),
 				EMPTY => DeleteObject (query_opt::version_id),
@@ -624,63 +624,60 @@ impl Endpoint {
 
 // parameter name => struct field
 generateQueryParameters! {
-	"continuation-token" => continuation_token,
-	"delimiter" => delimiter,
-	"encoding-type" => encoding_type,
-	"fetch-owner" => fetch_owner,
-	"id" => id,
-	"key-marker" => key_marker,
-	"list-type" => list_type,
-	"marker" => marker,
-	"max-keys" => max_keys,
-	"max-parts" => max_parts,
-	"max-uploads" => max_uploads,
-	"partNumber" => part_number,
-	"part-number-marker" => part_number_marker,
-	"prefix" => prefix,
-	"select-type" => select_type,
-	"start-after" => start_after,
-	"uploadId" => upload_id,
-	"upload-id-marker" => upload_id_marker,
-	"versionId" => version_id,
-	"version-id-marker" => version_id_marker
-}
-
-mod keywords {
-	//! This module contain all query parameters with no associated value S3 uses to differentiate
-	//! endpoints.
-	pub const EMPTY: &str = "";
-
-	pub const ACCELERATE: &str = "accelerate";
-	pub const ACL: &str = "acl";
-	pub const ANALYTICS: &str = "analytics";
-	pub const CORS: &str = "cors";
-	pub const DELETE: &str = "delete";
-	pub const ENCRYPTION: &str = "encryption";
-	pub const INTELLIGENT_TIERING: &str = "intelligent-tiering";
-	pub const INVENTORY: &str = "inventory";
-	pub const LEGAL_HOLD: &str = "legal-hold";
-	pub const LIFECYCLE: &str = "lifecycle";
-	pub const LOCATION: &str = "location";
-	pub const LOGGING: &str = "logging";
-	pub const METRICS: &str = "metrics";
-	pub const NOTIFICATION: &str = "notification";
-	pub const OBJECT_LOCK: &str = "object-lock";
-	pub const OWNERSHIP_CONTROLS: &str = "ownershipControls";
-	pub const POLICY: &str = "policy";
-	pub const POLICY_STATUS: &str = "policyStatus";
-	pub const PUBLIC_ACCESS_BLOCK: &str = "publicAccessBlock";
-	pub const REPLICATION: &str = "replication";
-	pub const REQUEST_PAYMENT: &str = "requestPayment";
-	pub const RESTORE: &str = "restore";
-	pub const RETENTION: &str = "retention";
-	pub const SELECT: &str = "select";
-	pub const TAGGING: &str = "tagging";
-	pub const TORRENT: &str = "torrent";
-	pub const UPLOADS: &str = "uploads";
-	pub const VERSIONING: &str = "versioning";
-	pub const VERSIONS: &str = "versions";
-	pub const WEBSITE: &str = "website";
+	keywords: [
+		"accelerate" => ACCELERATE,
+		"acl" => ACL,
+		"analytics" => ANALYTICS,
+		"cors" => CORS,
+		"delete" => DELETE,
+		"encryption" => ENCRYPTION,
+		"intelligent-tiering" => INTELLIGENT_TIERING,
+		"inventory" => INVENTORY,
+		"legal-hold" => LEGAL_HOLD,
+		"lifecycle" => LIFECYCLE,
+		"location" => LOCATION,
+		"logging" => LOGGING,
+		"metrics" => METRICS,
+		"notification" => NOTIFICATION,
+		"object-lock" => OBJECT_LOCK,
+		"ownershipControls" => OWNERSHIP_CONTROLS,
+		"policy" => POLICY,
+		"policyStatus" => POLICY_STATUS,
+		"publicAccessBlock" => PUBLIC_ACCESS_BLOCK,
+		"replication" => REPLICATION,
+		"requestPayment" => REQUEST_PAYMENT,
+		"restore" => RESTORE,
+		"retention" => RETENTION,
+		"select" => SELECT,
+		"tagging" => TAGGING,
+		"torrent" => TORRENT,
+		"uploads" => UPLOADS,
+		"versioning" => VERSIONING,
+		"versions" => VERSIONS,
+		"website" => WEBSITE
+	],
+	fields: [
+		"continuation-token" => continuation_token,
+		"delimiter" => delimiter,
+		"encoding-type" => encoding_type,
+		"fetch-owner" => fetch_owner,
+		"id" => id,
+		"key-marker" => key_marker,
+		"list-type" => list_type,
+		"marker" => marker,
+		"max-keys" => max_keys,
+		"max-parts" => max_parts,
+		"max-uploads" => max_uploads,
+		"partNumber" => part_number,
+		"part-number-marker" => part_number_marker,
+		"prefix" => prefix,
+		"select-type" => select_type,
+		"start-after" => start_after,
+		"uploadId" => upload_id,
+		"upload-id-marker" => upload_id_marker,
+		"versionId" => version_id,
+		"version-id-marker" => version_id_marker
+	]
 }
 
 #[cfg(test)]

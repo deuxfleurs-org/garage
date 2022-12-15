@@ -4,10 +4,9 @@ macro_rules! router_match {
     (@match $enum:expr , [ $($endpoint:ident,)* ]) => {{
         // usage: router_match {@match my_enum, [ VariantWithField1, VariantWithField2 ..] }
         // returns true if the variant was one of the listed variants, false otherwise.
-        use Endpoint::*;
         match $enum {
             $(
-            $endpoint { .. } => true,
+            Endpoint::$endpoint { .. } => true,
             )*
             _ => false
         }
@@ -15,37 +14,35 @@ macro_rules! router_match {
     (@extract $enum:expr , $param:ident, [ $($endpoint:ident,)* ]) => {{
         // usage: router_match {@extract my_enum, field_name, [ VariantWithField1, VariantWithField2 ..] }
         // returns Some(field_value), or None if the variant was not one of the listed variants.
-        use Endpoint::*;
         match $enum {
             $(
-            $endpoint {$param, ..} => Some($param),
+            Endpoint::$endpoint {$param, ..} => Some($param),
             )*
             _ => None
         }
     }};
-	(@gen_path_parser ($method:expr, $reqpath:expr, $query:expr)
-	 [
-	 $($meth:ident $path:pat $(if $required:ident)? => $api:ident $(($($conv:ident :: $param:ident),*))?,)*
-	 ]) => {{
-		{
-			use Endpoint::*;
-			match ($method, $reqpath) {
-				$(
-					(&Method::$meth, $path) if true $(&& $query.$required.is_some())? => $api {
-						$($(
-							$param: router_match!(@@parse_param $query, $conv, $param),
-						)*)?
-					},
-				)*
-				(m, p) => {
-					return Err(Error::bad_request(format!(
-						"Unknown API endpoint: {} {}",
-						m, p
-					)))
-				}
-			}
-		}
-	}};
+    (@gen_path_parser ($method:expr, $reqpath:expr, $query:expr)
+     [
+     $($meth:ident $path:pat $(if $required:ident)? => $api:ident $(($($conv:ident :: $param:ident),*))?,)*
+     ]) => {{
+        {
+            match ($method, $reqpath) {
+                $(
+                    (&Method::$meth, $path) if true $(&& $query.$required.is_some())? => Endpoint::$api {
+                        $($(
+                            $param: router_match!(@@parse_param $query, $conv, $param),
+                        )*)?
+                    },
+                )*
+                (m, p) => {
+                    return Err(Error::bad_request(format!(
+                        "Unknown API endpoint: {} {}",
+                        m, p
+                    )))
+                }
+            }
+        }
+    }};
     (@gen_parser ($keyword:expr, $key:ident, $query:expr, $header:expr),
         key: [$($kw_k:ident $(if $required_k:ident)? $(header $header_k:expr)? => $api_k:ident $(($($conv_k:ident :: $param_k:ident),*))?,)*],
         no_key: [$($kw_nk:ident $(if $required_nk:ident)? $(if_header $header_nk:expr)? => $api_nk:ident $(($($conv_nk:ident :: $param_nk:ident),*))?,)*]) => {{
@@ -60,11 +57,9 @@ macro_rules! router_match {
         //   ]
         // }
         // See in from_{method} for more detailed usage.
-        use Endpoint::*;
-        use keywords::*;
         match ($keyword, !$key.is_empty()){
             $(
-            ($kw_k, true) if true $(&& $query.$required_k.is_some())? $(&& $header.contains_key($header_k))? => Ok($api_k {
+            (Keyword::$kw_k, true) if true $(&& $query.$required_k.is_some())? $(&& $header.contains_key($header_k))? => Ok(Endpoint::$api_k {
                 $key,
                 $($(
                     $param_k: router_match!(@@parse_param $query, $conv_k, $param_k),
@@ -72,7 +67,7 @@ macro_rules! router_match {
             }),
             )*
             $(
-            ($kw_nk, false) $(if $query.$required_nk.is_some())? $(if $header.contains($header_nk))? => Ok($api_nk {
+            (Keyword::$kw_nk, false) $(if $query.$required_nk.is_some())? $(if $header.contains($header_nk))? => Ok(Endpoint::$api_nk {
                 $($(
                     $param_nk: router_match!(@@parse_param $query, $conv_nk, $param_nk),
                 )*)?
@@ -84,7 +79,7 @@ macro_rules! router_match {
 
     (@@parse_param $query:expr, query_opt, $param:ident) => {{
         // extract optional query parameter
-		$query.$param.take().map(|param| param.into_owned())
+        $query.$param.take().map(|param| param.into_owned())
     }};
     (@@parse_param $query:expr, query, $param:ident) => {{
         // extract mendatory query parameter
@@ -93,7 +88,7 @@ macro_rules! router_match {
     (@@parse_param $query:expr, opt_parse, $param:ident) => {{
         // extract and parse optional query parameter
         // missing parameter is file, however parse error is reported as an error
-		$query.$param
+        $query.$param
             .take()
             .map(|param| param.parse())
             .transpose()
@@ -144,14 +139,39 @@ macro_rules! router_match {
 /// This macro is used to generate part of the code in this module. It must be called only one, and
 /// is useless outside of this module.
 macro_rules! generateQueryParameters {
-    ( $($rest:expr => $name:ident),* ) => {
+    (
+        keywords: [ $($kw_param:expr => $kw_name: ident),* ],
+        fields: [ $($f_param:expr => $f_name:ident),* ]
+    ) => {
+        #[derive(Debug)]
+        #[allow(non_camel_case_types)]
+        enum Keyword {
+            EMPTY,
+            $( $kw_name, )*
+        }
+
+        impl std::fmt::Display for Keyword {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                match self {
+                    Keyword::EMPTY => write!(f, "``"),
+                    $( Keyword::$kw_name => write!(f, "`{}`", $kw_param), )*
+                }
+            }
+        }
+
+        impl Default for Keyword {
+            fn default() -> Self {
+                Keyword::EMPTY
+            }
+        }
+
         /// Struct containing all query parameters used in endpoints. Think of it as an HashMap,
         /// but with keys statically known.
         #[derive(Debug, Default)]
         struct QueryParameters<'a> {
-            keyword: Option<Cow<'a, str>>,
+            keyword: Option<Keyword>,
             $(
-            $name: Option<Cow<'a, str>>,
+            $f_name: Option<Cow<'a, str>>,
             )*
         }
 
@@ -160,34 +180,29 @@ macro_rules! generateQueryParameters {
             fn from_query(query: &'a str) -> Result<Self, Error> {
                 let mut res: Self = Default::default();
                 for (k, v) in url::form_urlencoded::parse(query.as_bytes()) {
-                    let repeated = match k.as_ref() {
+                    match k.as_ref() {
                         $(
-                            $rest => if !v.is_empty() {
-                                res.$name.replace(v).is_some()
-                            } else {
-                                false
+                            $kw_param => if let Some(prev_kw) = res.keyword.replace(Keyword::$kw_name) {
+                                return Err(Error::bad_request(format!(
+                                    "Multiple keywords: '{}' and '{}'", prev_kw, $kw_param
+                                )));
+                            },
+                        )*
+                        $(
+                            $f_param => if !v.is_empty() {
+                                if res.$f_name.replace(v).is_some() {
+                                    return Err(Error::bad_request(format!(
+                                        "Query parameter repeated: '{}'", k
+                                    )));
+                                }
                             },
                         )*
                         _ => {
-                            if k.starts_with("response-") || k.starts_with("X-Amz-") {
-                                false
-                            } else if v.as_ref().is_empty() {
-                                if res.keyword.replace(k).is_some() {
-                                    return Err(Error::bad_request("Multiple keywords"));
-                                }
-                                continue;
-                            } else {
+                            if !(k.starts_with("response-") || k.starts_with("X-Amz-")) {
                                 debug!("Received an unknown query parameter: '{}'", k);
-                                false
                             }
                         }
                     };
-                    if repeated {
-                        return Err(Error::bad_request(format!(
-                            "Query parameter repeated: '{}'",
-                            k
-                        )));
-                    }
                 }
                 Ok(res)
             }
@@ -198,8 +213,8 @@ macro_rules! generateQueryParameters {
                 if self.keyword.is_some() {
                     Some("Keyword not used")
                 } $(
-                    else if self.$name.is_some() {
-                        Some(concat!("'", $rest, "'"))
+                    else if self.$f_name.is_some() {
+                        Some(concat!("'", $f_param, "'"))
                     }
                 )* else {
                     None
