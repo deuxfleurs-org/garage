@@ -5,16 +5,59 @@ weight = 20
 
 ## S3
 
+### Using Minio SDK
+
+First install the SDK:
+
+```bash
+pip3 install minio
+```
+
+Then instantiate a client object using garage root domain, api key and secret:
+
+```python
+import minio
+
+client = minio.Minio(
+  "your.domain.tld",
+  "GKyourapikey",
+  "abcd[...]1234",
+  # Force the region, this is specific to garage
+  region="region",
+)
+```
+
+Then use all the standard S3 endpoints as implemented by the Minio SDK:
+
+```
+# List buckets
+print(client.list_buckets())
+
+# Put an object containing 'content' to /path in bucket named 'bucket':
+content = b"content"
+client.put_object(
+  "bucket",
+  "path",
+  io.BytesIO(content),
+  len(content),
+)
+
+# Read the object back and check contents
+data = client.get_object("bucket", "path").read()
+assert data == content
+```
+
+For further documentation, see the Minio SDK
+[Reference](https://docs.min.io/docs/python-client-api-reference.html)
+
+### Using Amazon boto3
+
 *Coming soon*
 
-Some refs:
-  - Minio SDK
-    - [Reference](https://docs.min.io/docs/python-client-api-reference.html)
-
-  - Amazon boto3
-    - [Installation](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html)
-    - [Reference](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html)
-    - [Example](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html)
+See the official documentation:
+  - [Installation](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html)
+  - [Reference](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html)
+  - [Example](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html)
 
 ## K2V
 
