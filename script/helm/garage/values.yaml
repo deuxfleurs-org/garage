@@ -85,7 +85,7 @@ image:
 
 initImage:
   repository: busybox
-  tag: 1.28
+  tag: stable
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
