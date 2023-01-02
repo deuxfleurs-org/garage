@@ -53,7 +53,7 @@ impl Worker for RepairWorker {
 		"Block repair worker".into()
 	}
 
-	fn info(&self) -> Option<String> {
+	fn status(&self) -> WorkerStatus {
 		match self.block_iter.as_ref() {
 			None => {
 				let idx_bytes = self
@@ -66,9 +66,20 @@ impl Worker for RepairWorker {
 				} else {
 					idx_bytes
 				};
-				Some(format!("Phase 1: {}", hex::encode(idx_bytes)))
+				WorkerStatus {
+					progress: Some("0.00%".into()),
+					freeform: vec![format!(
+						"Currently in phase 1, iterator position: {}",
+						hex::encode(idx_bytes)
+					)],
+					..Default::default()
+				}
 			}
-			Some(bi) => Some(format!("Phase 2: {:.2}% done", bi.progress() * 100.)),
+			Some(bi) => WorkerStatus {
+				progress: Some(format!("{:.2}%", bi.progress() * 100.)),
+				freeform: vec!["Currently in phase 2".into()],
+				..Default::default()
+			},
 		}
 	}
 
@@ -271,29 +282,28 @@ impl Worker for ScrubWorker {
 		"Block scrub worker".into()
 	}
 
-	fn info(&self) -> Option<String> {
-		let s = match &self.work {
-			ScrubWorkerState::Running(bsi) => format!(
-				"{:.2}% done (tranquility = {})",
-				bsi.progress() * 100.,
-				self.persisted.tranquility
-			),
-			ScrubWorkerState::Paused(bsi, rt) => {
-				format!(
-					"Paused, {:.2}% done, resumes at {}",
-					bsi.progress() * 100.,
-					msec_to_rfc3339(*rt)
-				)
-			}
-			ScrubWorkerState::Finished => format!(
-				"Last completed scrub: {}",
-				msec_to_rfc3339(self.persisted.time_last_complete_scrub)
-			),
+	fn status(&self) -> WorkerStatus {
+		let mut s = WorkerStatus {
+			persistent_errors: Some(self.persisted.corruptions_detected),
+			tranquility: Some(self.persisted.tranquility),
+			..Default::default()
 		};
-		Some(format!(
-			"{} ; corruptions detected: {}",
-			s, self.persisted.corruptions_detected
-		))
+		match &self.work {
+			ScrubWorkerState::Running(bsi) => {
+				s.progress = Some(format!("{:.2}%", bsi.progress() * 100.));
+			}
+			ScrubWorkerState::Paused(bsi, rt) => {
+				s.progress = Some(format!("{:.2}%", bsi.progress() * 100.));
+				s.freeform = vec![format!("Scrub paused, resumes at {}", msec_to_rfc3339(*rt))];
+			}
+			ScrubWorkerState::Finished => {
+				s.freeform = vec![format!(
+					"Last scrub completed at {}",
+					msec_to_rfc3339(self.persisted.time_last_complete_scrub)
+				)];
+			}
+		}
+		s
 	}
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {

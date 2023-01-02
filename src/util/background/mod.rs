@@ -29,11 +29,22 @@ pub struct BackgroundRunner {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct WorkerInfo {
 	pub name: String,
-	pub info: Option<String>,
+	pub status: WorkerStatus,
 	pub state: WorkerState,
 	pub errors: usize,
 	pub consecutive_errors: usize,
 	pub last_error: Option<(String, u64)>,
+}
+
+/// WorkerStatus is a struct returned by the worker with a bunch of canonical
+/// fields to indicate their status to CLI users. All fields are optional.
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub struct WorkerStatus {
+	pub tranquility: Option<u32>,
+	pub progress: Option<String>,
+	pub queue_length: Option<u64>,
+	pub persistent_errors: Option<u64>,
+	pub freeform: Vec<String>,
 }
 
 impl BackgroundRunner {

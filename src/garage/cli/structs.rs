@@ -49,7 +49,11 @@ pub enum Command {
 
 	/// Manage background workers
 	#[structopt(name = "worker", version = garage_version())]
-	Worker(WorkerOpt),
+	Worker(WorkerOperation),
+
+	/// Low-level debug operations on data blocks
+	#[structopt(name = "block", version = garage_version())]
+	Block(BlockOperation),
 }
 
 #[derive(StructOpt, Debug)]
@@ -502,20 +506,17 @@ pub struct StatsOpt {
 	pub detailed: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
-pub struct WorkerOpt {
-	#[structopt(subcommand)]
-	pub cmd: WorkerCmd,
-}
-
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
-pub enum WorkerCmd {
+pub enum WorkerOperation {
 	/// List all workers on Garage node
 	#[structopt(name = "list", version = garage_version())]
 	List {
 		#[structopt(flatten)]
 		opt: WorkerListOpt,
 	},
+	/// Get detailed information about a worker
+	#[structopt(name = "info", version = garage_version())]
+	Info { tid: usize },
 	/// Set worker parameter
 	#[structopt(name = "set", version = garage_version())]
 	Set {
@@ -540,9 +541,41 @@ pub enum WorkerSetCmd {
 	#[structopt(name = "scrub-tranquility", version = garage_version())]
 	ScrubTranquility { tranquility: u32 },
 	/// Set number of concurrent block resync workers
-	#[structopt(name = "resync-n-workers", version = garage_version())]
-	ResyncNWorkers { n_workers: usize },
+	#[structopt(name = "resync-worker-count", version = garage_version())]
+	ResyncWorkerCount { worker_count: usize },
 	/// Set tranquility of block resync operations
 	#[structopt(name = "resync-tranquility", version = garage_version())]
 	ResyncTranquility { tranquility: u32 },
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+pub enum BlockOperation {
+	/// List all blocks that currently have a resync error
+	#[structopt(name = "list-errors", version = garage_version())]
+	ListErrors,
+	/// Get detailed information about a single block
+	#[structopt(name = "info", version = garage_version())]
+	Info {
+		/// Hash of the block for which to retrieve information
+		hash: String,
+	},
+	/// Retry now the resync of one or many blocks
+	#[structopt(name = "retry-now", version = garage_version())]
+	RetryNow {
+		/// Retry all blocks that have a resync error
+		#[structopt(long = "all")]
+		all: bool,
+		/// Hashes of the block to retry to resync now
+		blocks: Vec<String>,
+	},
+	/// Delete all objects referencing a missing block
+	#[structopt(name = "purge", version = garage_version())]
+	Purge {
+		/// Mandatory to confirm this operation
+		#[structopt(long = "yes")]
+		yes: bool,
+		/// Hashes of the block to purge
+		#[structopt(required = true)]
+		blocks: Vec<String>,
+	},
 }

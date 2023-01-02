@@ -123,6 +123,24 @@ impl BlockResyncManager {
 		Ok(self.errors.len())
 	}
 
+	/// Clear the error counter for a block and put it in queue immediately
+	pub fn clear_backoff(&self, hash: &Hash) -> Result<(), Error> {
+		let now = now_msec();
+		if let Some(ec) = self.errors.get(hash)? {
+			let mut ec = ErrorCounter::decode(&ec);
+			if ec.errors > 0 {
+				ec.last_try = now - ec.delay_msec();
+				self.errors.insert(hash, ec.encode())?;
+				self.put_to_resync_at(hash, now)?;
+				return Ok(());
+			}
+		}
+		Err(Error::Message(format!(
+			"Block {:?} was not in an errored state",
+			hash
+		)))
+	}
+
 	// ---- Resync loop ----
 
 	// This part manages a queue of blocks that need to be
@@ -257,7 +275,7 @@ impl BlockResyncManager {
 
 				if let Err(e) = &res {
 					manager.metrics.resync_error_counter.add(1);
-					warn!("Error when resyncing {:?}: {}", hash, e);
+					error!("Error when resyncing {:?}: {}", hash, e);
 
 					let err_counter = match self.errors.get(hash.as_slice())? {
 						Some(ec) => ErrorCounter::decode(&ec).add1(now + 1),
@@ -477,27 +495,22 @@ impl Worker for ResyncWorker {
 		format!("Block resync worker #{}", self.index + 1)
 	}
 
-	fn info(&self) -> Option<String> {
+	fn status(&self) -> WorkerStatus {
 		let persisted = self.manager.resync.persisted.load();
 
 		if self.index >= persisted.n_workers {
-			return Some("(unused)".into());
+			return WorkerStatus {
+				freeform: vec!["This worker is currently disabled".into()],
+				..Default::default()
+			};
 		}
 
-		let mut ret = vec![];
-		ret.push(format!("tranquility = {}", persisted.tranquility));
-
-		let qlen = self.manager.resync.queue_len().unwrap_or(0);
-		if qlen > 0 {
-			ret.push(format!("{} blocks in queue", qlen));
+		WorkerStatus {
+			queue_length: Some(self.manager.resync.queue_len().unwrap_or(0) as u64),
+			tranquility: Some(persisted.tranquility),
+			persistent_errors: Some(self.manager.resync.errors_len().unwrap_or(0) as u64),
+			..Default::default()
 		}
-
-		let elen = self.manager.resync.errors_len().unwrap_or(0);
-		if elen > 0 {
-			ret.push(format!("{} blocks in error state", elen));
-		}
-
-		Some(ret.join(", "))
 	}
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
@@ -545,9 +558,9 @@ impl Worker for ResyncWorker {
 /// and the time of the last try.
 /// Used to implement exponential backoff.
 #[derive(Clone, Copy, Debug)]
-struct ErrorCounter {
-	errors: u64,
-	last_try: u64,
+pub(crate) struct ErrorCounter {
+	pub(crate) errors: u64,
+	pub(crate) last_try: u64,
 }
 
 impl ErrorCounter {
@@ -558,12 +571,13 @@ impl ErrorCounter {
 		}
 	}
 
-	fn decode(data: &[u8]) -> Self {
+	pub(crate) fn decode(data: &[u8]) -> Self {
 		Self {
 			errors: u64::from_be_bytes(data[0..8].try_into().unwrap()),
 			last_try: u64::from_be_bytes(data[8..16].try_into().unwrap()),
 		}
 	}
+
 	fn encode(&self) -> Vec<u8> {
 		[
 			u64::to_be_bytes(self.errors),
@@ -583,7 +597,8 @@ impl ErrorCounter {
 		(RESYNC_RETRY_DELAY.as_millis() as u64)
 			<< std::cmp::min(self.errors - 1, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
 	}
-	fn next_try(&self) -> u64 {
+
+	pub(crate) fn next_try(&self) -> u64 {
 		self.last_try + self.delay_msec()
 	}
 }

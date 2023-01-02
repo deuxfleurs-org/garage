@@ -90,6 +90,15 @@ pub struct BlockManager {
 	tx_scrub_command: mpsc::Sender<ScrubWorkerCommand>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BlockResyncErrorInfo {
+	pub hash: Hash,
+	pub refcount: u64,
+	pub error_count: u64,
+	pub last_try: u64,
+	pub next_try: u64,
+}
+
 // This custom struct contains functions that must only be ran
 // when the lock is held. We ensure that it is the case by storing
 // it INSIDE a Mutex.
@@ -114,7 +123,8 @@ impl BlockManager {
 			.netapp
 			.endpoint("garage_block/manager.rs/Rpc".to_string());
 
-		let metrics = BlockManagerMetrics::new(resync.queue.clone(), resync.errors.clone());
+		let metrics =
+			BlockManagerMetrics::new(rc.rc.clone(), resync.queue.clone(), resync.errors.clone());
 
 		let (scrub_tx, scrub_rx) = mpsc::channel(1);
 
@@ -309,9 +319,39 @@ impl BlockManager {
 		Ok(self.rc.rc.len()?)
 	}
 
+	/// Get number of items in the refcount table
+	pub fn rc_fast_len(&self) -> Result<Option<usize>, Error> {
+		Ok(self.rc.rc.fast_len()?)
+	}
+
 	/// Send command to start/stop/manager scrub worker
 	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) {
 		let _ = self.tx_scrub_command.send(cmd).await;
+	}
+
+	/// Get the reference count of a block
+	pub fn get_block_rc(&self, hash: &Hash) -> Result<u64, Error> {
+		Ok(self.rc.get_block_rc(hash)?.as_u64())
+	}
+
+	/// List all resync errors
+	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
+		let mut blocks = Vec::with_capacity(self.resync.errors.len());
+		for ent in self.resync.errors.iter()? {
+			let (hash, cnt) = ent?;
+			let cnt = ErrorCounter::decode(&cnt);
+			blocks.push(BlockResyncErrorInfo {
+				hash: Hash::try_from(&hash).unwrap(),
+				refcount: 0,
+				error_count: cnt.errors,
+				last_try: cnt.last_try,
+				next_try: cnt.next_try(),
+			});
+		}
+		for block in blocks.iter_mut() {
+			block.refcount = self.get_block_rc(&block.hash)?;
+		}
+		Ok(blocks)
 	}
 
 	//// ----- Managing the reference counter ----

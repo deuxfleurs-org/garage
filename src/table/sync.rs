@@ -570,12 +570,10 @@ impl<F: TableSchema + 'static, R: TableReplication + 'static> Worker for SyncWor
 		format!("{} sync", F::TABLE_NAME)
 	}
 
-	fn info(&self) -> Option<String> {
-		let l = self.todo.len();
-		if l > 0 {
-			Some(format!("{} partitions remaining", l))
-		} else {
-			None
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			queue_length: Some(self.todo.len() as u64),
+			..Default::default()
 		}
 	}
 

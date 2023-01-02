@@ -169,4 +169,11 @@ impl RcEntry {
 	pub(crate) fn is_needed(&self) -> bool {
 		!self.is_deletable()
 	}
+
+	pub(crate) fn as_u64(&self) -> u64 {
+		match self {
+			RcEntry::Present { count } => *count,
+			_ => 0,
+		}
+	}
 }

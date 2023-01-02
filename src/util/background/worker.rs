@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
 
-use crate::background::WorkerInfo;
+use crate::background::{WorkerInfo, WorkerStatus};
 use crate::error::Error;
 use crate::time::now_msec;
 
@@ -26,7 +26,7 @@ impl std::fmt::Display for WorkerState {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
 			WorkerState::Busy => write!(f, "Busy"),
-			WorkerState::Throttled(t) => write!(f, "Thr:{:.3}", t),
+			WorkerState::Throttled(_) => write!(f, "Busy*"),
 			WorkerState::Idle => write!(f, "Idle"),
 			WorkerState::Done => write!(f, "Done"),
 		}
@@ -37,8 +37,8 @@ impl std::fmt::Display for WorkerState {
 pub trait Worker: Send {
 	fn name(&self) -> String;
 
-	fn info(&self) -> Option<String> {
-		None
+	fn status(&self) -> WorkerStatus {
+		Default::default()
 	}
 
 	/// Work: do a basic unit of work, if one is available (otherwise, should return
@@ -119,7 +119,7 @@ impl WorkerProcessor {
 						match wi.get_mut(&worker.task_id) {
 							Some(i) => {
 								i.state = worker.state;
-								i.info = worker.worker.info();
+								i.status = worker.worker.status();
 								i.errors = worker.errors;
 								i.consecutive_errors = worker.consecutive_errors;
 								if worker.last_error.is_some() {
@@ -130,7 +130,7 @@ impl WorkerProcessor {
 								wi.insert(worker.task_id, WorkerInfo {
 									name: worker.worker.name(),
 									state: worker.state,
-									info: worker.worker.info(),
+									status: worker.worker.status(),
 									errors: worker.errors,
 									consecutive_errors: worker.consecutive_errors,
 									last_error: worker.last_error.take(),

@@ -3,14 +3,17 @@ use std::time::Duration;
 
 use garage_util::background::*;
 use garage_util::crdt::*;
-use garage_util::data::Uuid;
+use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::formater::format_table;
 use garage_util::time::*;
 
+use garage_block::manager::BlockResyncErrorInfo;
+
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
 use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
+use garage_model::s3::version_table::Version;
 
 use crate::cli::structs::WorkerListOpt;
 
@@ -241,7 +244,7 @@ pub fn find_matching_node(
 	}
 }
 
-pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
+pub fn print_worker_list(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 	let mut wi = wi.into_iter().collect::<Vec<_>>();
 	wi.sort_by_key(|(tid, info)| {
 		(
@@ -254,7 +257,7 @@ pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 		)
 	});
 
-	let mut table = vec![];
+	let mut table = vec!["TID\tState\tName\tTranq\tDone\tQueue\tErrors\tConsec\tLast".to_string()];
 	for (tid, info) in wi.iter() {
 		if wlo.busy && !matches!(info.state, WorkerState::Busy | WorkerState::Throttled(_)) {
 			continue;
@@ -263,33 +266,147 @@ pub fn print_worker_info(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 			continue;
 		}
 
-		table.push(format!("{}\t{}\t{}", tid, info.state, info.name));
-		if let Some(i) = &info.info {
-			table.push(format!("\t\t  {}", i));
-		}
 		let tf = timeago::Formatter::new();
-		let (err_ago, err_msg) = info
+		let err_ago = info
 			.last_error
 			.as_ref()
-			.map(|(m, t)| {
-				(
-					tf.convert(Duration::from_millis(now_msec() - t)),
-					m.as_str(),
-				)
-			})
-			.unwrap_or(("(?) ago".into(), "(?)"));
-		if info.consecutive_errors > 0 {
+			.map(|(_, t)| tf.convert(Duration::from_millis(now_msec() - t)))
+			.unwrap_or_default();
+		let (total_err, consec_err) = if info.errors > 0 {
+			(info.errors.to_string(), info.consecutive_errors.to_string())
+		} else {
+			("-".into(), "-".into())
+		};
+
+		table.push(format!(
+			"{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+			tid,
+			info.state,
+			info.name,
+			info.status
+				.tranquility
+				.as_ref()
+				.map(ToString::to_string)
+				.unwrap_or_else(|| "-".into()),
+			info.status.progress.as_deref().unwrap_or("-"),
+			info.status
+				.queue_length
+				.as_ref()
+				.map(ToString::to_string)
+				.unwrap_or_else(|| "-".into()),
+			total_err,
+			consec_err,
+			err_ago,
+		));
+	}
+	format_table(table);
+}
+
+pub fn print_worker_info(tid: usize, info: WorkerInfo) {
+	let mut table = vec![];
+	table.push(format!("Task id:\t{}", tid));
+	table.push(format!("Worker name:\t{}", info.name));
+	match info.state {
+		WorkerState::Throttled(t) => {
 			table.push(format!(
-				"\t\t  {} consecutive errors ({} total), last {}",
-				info.consecutive_errors, info.errors, err_ago,
+				"Worker state:\tBusy (throttled, paused for {:.3}s)",
+				t
 			));
-			table.push(format!("\t\t  {}", err_msg));
-		} else if info.errors > 0 {
-			table.push(format!("\t\t  ({} errors, last {})", info.errors, err_ago,));
-			if wlo.errors {
-				table.push(format!("\t\t  {}", err_msg));
+		}
+		s => {
+			table.push(format!("Worker state:\t{}", s));
+		}
+	};
+	if let Some(tql) = info.status.tranquility {
+		table.push(format!("Tranquility:\t{}", tql));
+	}
+
+	table.push("".into());
+	table.push(format!("Total errors:\t{}", info.errors));
+	table.push(format!("Consecutive errs:\t{}", info.consecutive_errors));
+	if let Some((s, t)) = info.last_error {
+		table.push(format!("Last error:\t{}", s));
+		let tf = timeago::Formatter::new();
+		table.push(format!(
+			"Last error time:\t{}",
+			tf.convert(Duration::from_millis(now_msec() - t))
+		));
+	}
+
+	table.push("".into());
+	if let Some(p) = info.status.progress {
+		table.push(format!("Progress:\t{}", p));
+	}
+	if let Some(ql) = info.status.queue_length {
+		table.push(format!("Queue length:\t{}", ql));
+	}
+	if let Some(pe) = info.status.persistent_errors {
+		table.push(format!("Persistent errors:\t{}", pe));
+	}
+
+	for (i, s) in info.status.freeform.iter().enumerate() {
+		if i == 0 {
+			if table.last() != Some(&"".into()) {
+				table.push("".into());
+			}
+			table.push(format!("Message:\t{}", s));
+		} else {
+			table.push(format!("\t{}", s));
+		}
+	}
+	format_table(table);
+}
+
+pub fn print_block_error_list(el: Vec<BlockResyncErrorInfo>) {
+	let now = now_msec();
+	let tf = timeago::Formatter::new();
+	let mut tf2 = timeago::Formatter::new();
+	tf2.ago("");
+
+	let mut table = vec!["Hash\tRC\tErrors\tLast error\tNext try".into()];
+	for e in el {
+		table.push(format!(
+			"{}\t{}\t{}\t{}\tin {}",
+			hex::encode(e.hash.as_slice()),
+			e.refcount,
+			e.error_count,
+			tf.convert(Duration::from_millis(now - e.last_try)),
+			tf2.convert(Duration::from_millis(e.next_try - now))
+		));
+	}
+	format_table(table);
+}
+
+pub fn print_block_info(hash: Hash, refcount: u64, versions: Vec<Result<Version, Uuid>>) {
+	println!("Block hash: {}", hex::encode(hash.as_slice()));
+	println!("Refcount: {}", refcount);
+	println!();
+
+	let mut table = vec!["Version\tBucket\tKey\tDeleted".into()];
+	let mut nondeleted_count = 0;
+	for v in versions.iter() {
+		match v {
+			Ok(ver) => {
+				table.push(format!(
+					"{:?}\t{:?}\t{}\t{:?}",
+					ver.uuid,
+					ver.bucket_id,
+					ver.key,
+					ver.deleted.get()
+				));
+				if !ver.deleted.get() {
+					nondeleted_count += 1;
+				}
+			}
+			Err(vh) => {
+				table.push(format!("{:?}\t\t\tyes", vh));
 			}
 		}
 	}
 	format_table(table);
+
+	if refcount != nondeleted_count {
+		println!();
+		println!("Warning: refcount does not match number of non-deleted versions");
+	}
 }

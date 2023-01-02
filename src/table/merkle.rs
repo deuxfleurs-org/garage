@@ -293,6 +293,10 @@ where
 		Ok(self.data.merkle_tree.len()?)
 	}
 
+	pub fn merkle_tree_fast_len(&self) -> Result<Option<usize>, Error> {
+		Ok(self.data.merkle_tree.fast_len()?)
+	}
+
 	pub fn todo_len(&self) -> Result<usize, Error> {
 		Ok(self.data.merkle_todo.len()?)
 	}
@@ -310,15 +314,13 @@ where
 	R: TableReplication + 'static,
 {
 	fn name(&self) -> String {
-		format!("{} Merkle tree updater", F::TABLE_NAME)
+		format!("{} Merkle", F::TABLE_NAME)
 	}
 
-	fn info(&self) -> Option<String> {
-		let l = self.0.todo_len().unwrap_or(0);
-		if l > 0 {
-			Some(format!("{} items in queue", l))
-		} else {
-			None
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			queue_length: Some(self.0.todo_len().unwrap_or(0) as u64),
+			..Default::default()
 		}
 	}
 

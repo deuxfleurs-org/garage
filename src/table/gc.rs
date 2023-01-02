@@ -330,12 +330,10 @@ where
 		format!("{} GC", F::TABLE_NAME)
 	}
 
-	fn info(&self) -> Option<String> {
-		let l = self.gc.data.gc_todo_len().unwrap_or(0);
-		if l > 0 {
-			Some(format!("{} items in queue", l))
-		} else {
-			None
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			queue_length: Some(self.gc.data.gc_todo_len().unwrap_or(0) as u64),
+			..Default::default()
 		}
 	}
 
