@@ -571,7 +571,7 @@ impl AdminRpcHandler {
 		match cmd {
 			KeyOperation::List => self.handle_list_keys().await,
 			KeyOperation::Info(query) => self.handle_key_info(query).await,
-			KeyOperation::New(query) => self.handle_create_key(query).await,
+			KeyOperation::Create(query) => self.handle_create_key(query).await,
 			KeyOperation::Rename(query) => self.handle_rename_key(query).await,
 			KeyOperation::Delete(query) => self.handle_delete_key(query).await,
 			KeyOperation::Allow(query) => self.handle_allow_key(query).await,

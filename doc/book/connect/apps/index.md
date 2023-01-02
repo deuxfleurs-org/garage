@@ -36,7 +36,7 @@ Second, we suppose you have created a key and a bucket.
 As a reminder, you can create a key for your nextcloud instance as follow:
 
 ```bash
-garage key new --name nextcloud-key
+garage key create nextcloud-key
 ```
 
 Keep the Key ID and the Secret key in a pad, they will be needed later.  
@@ -138,7 +138,7 @@ a reasonable trade-off for some instances.
 Create a key for Peertube:
 
 ```bash
-garage key new --name peertube-key
+garage key create peertube-key
 ```
 
 Keep the Key ID and the Secret key in a pad, they will be needed later.  
@@ -252,7 +252,7 @@ As such, your Garage cluster should be configured appropriately for good perform
 This is the usual Garage setup:
 
 ```bash
-garage key new --name mastodon-key
+garage key create mastodon-key
 garage bucket create mastodon-data
 garage bucket allow mastodon-data --read --write --key mastodon-key
 ```
@@ -378,7 +378,7 @@ Supposing you have a working synapse installation, you can add the module with p
 Now create a bucket and a key for your matrix instance (note your Key ID and Secret Key somewhere, they will be needed later):
 
 ```bash
-garage key new --name matrix-key
+garage key create matrix-key
 garage bucket create matrix
 garage bucket allow matrix --read --write --key matrix-key
 ```
