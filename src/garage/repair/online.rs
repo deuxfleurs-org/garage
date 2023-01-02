@@ -171,13 +171,14 @@ impl Worker for RepairBlockrefsWorker {
 	}
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
-		let (item_bytes, next_pos) = match self.garage.block_ref_table.data.store.get_gt(&self.pos)? {
-			Some((k, v)) => (v, k),
-			None => {
-				info!("repair_block_ref: finished, done {}", self.counter);
-				return Ok(WorkerState::Done);
-			}
-		};
+		let (item_bytes, next_pos) =
+			match self.garage.block_ref_table.data.store.get_gt(&self.pos)? {
+				Some((k, v)) => (v, k),
+				None => {
+					info!("repair_block_ref: finished, done {}", self.counter);
+					return Ok(WorkerState::Done);
+				}
+			};
 
 		let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(&item_bytes)?;
 		if !block_ref.deleted.get() {
