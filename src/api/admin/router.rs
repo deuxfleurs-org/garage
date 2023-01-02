@@ -143,10 +143,13 @@ impl Endpoint {
 }
 
 generateQueryParameters! {
-	"format" => format,
-	"id" => id,
-	"search" => search,
-	"globalAlias" => global_alias,
-	"alias" => alias,
-	"accessKeyId" => access_key_id
+	keywords: [],
+	fields: [
+		"format" => format,
+		"id" => id,
+		"search" => search,
+		"globalAlias" => global_alias,
+		"alias" => alias,
+		"accessKeyId" => access_key_id
+	]
 }
