@@ -58,7 +58,7 @@ impl<T: InitialFormat> Migrate for T {
 
 /// Internal type used by InitialFormat, not meant for general use.
 #[derive(Serialize, Deserialize)]
-pub struct NoPrevious;
+pub enum NoPrevious {}
 
 impl Migrate for NoPrevious {
 	type Previous = NoPrevious;
