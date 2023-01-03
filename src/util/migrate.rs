@@ -1,19 +1,21 @@
 use serde::{Deserialize, Serialize};
 
+/// Indicates that this type has an encoding that can be migrated from
+/// a previous version upon upgrades of Garage.
 pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 	/// A sequence of bytes to add at the beginning of the serialized
 	/// string, to identify that the data is of this version.
 	const VERSION_MARKER: &'static [u8] = b"";
 
 	/// The previous version of this data type, from which items of this version
-	/// can be migrated. Set `type Previous = NoPrevious` to indicate that this datatype
-	/// is the initial schema and cannot be migrated.
+	/// can be migrated.
 	type Previous: Migrate;
 
-	/// This function must be filled in by implementors to migrate from a previons iteration
-	/// of the data format.
+	/// The migration function that transforms a value decoded in the old format
+	/// to an up-to-date value.
 	fn migrate(previous: Self::Previous) -> Self;
 
+	/// Decode an encoded version of this type, going through a migration if necessary.
 	fn decode(bytes: &[u8]) -> Option<Self> {
 		let marker_len = Self::VERSION_MARKER.len();
 		if bytes.len() >= marker_len && &bytes[..marker_len] == Self::VERSION_MARKER {
@@ -25,6 +27,7 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 		Self::Previous::decode(bytes).map(Self::migrate)
 	}
 
+	/// Encode this type with optionnal version marker
 	fn encode(&self) -> Result<Vec<u8>, rmp_serde::encode::Error> {
 		let mut wr = Vec::with_capacity(128);
 		wr.extend_from_slice(Self::VERSION_MARKER);
@@ -36,13 +39,12 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 	}
 }
 
+/// Indicates that this type has no previous encoding version to be migrated from.
 pub trait InitialFormat: Serialize + for<'de> Deserialize<'de> + 'static {
 	/// A sequence of bytes to add at the beginning of the serialized
 	/// string, to identify that the data is of this version.
 	const VERSION_MARKER: &'static [u8] = b"";
 }
-
-// ----
 
 impl<T: InitialFormat> Migrate for T {
 	const VERSION_MARKER: &'static [u8] = <T as InitialFormat>::VERSION_MARKER;
@@ -54,6 +56,7 @@ impl<T: InitialFormat> Migrate for T {
 	}
 }
 
+/// Internal type used by InitialFormat, not meant for general use.
 #[derive(Serialize, Deserialize)]
 pub struct NoPrevious;
 
@@ -70,5 +73,87 @@ impl Migrate for NoPrevious {
 
 	fn encode(&self) -> Result<Vec<u8>, rmp_serde::encode::Error> {
 		unreachable!()
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+	struct V1 {
+		a: usize,
+		b: String,
+	}
+	impl InitialFormat for V1 {}
+
+	#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+	struct V2 {
+		a: usize,
+		b: Vec<String>,
+		c: String,
+	}
+	impl Migrate for V2 {
+		const VERSION_MARKER: &'static [u8] = b"GtestV2";
+		type Previous = V1;
+		fn migrate(prev: V1) -> V2 {
+			V2 {
+				a: prev.a,
+				b: vec![prev.b],
+				c: String::new(),
+			}
+		}
+	}
+
+	#[test]
+	fn test_v1() {
+		let x = V1 {
+			a: 12,
+			b: "hello".into(),
+		};
+		let x_enc = x.encode().unwrap();
+		let y = V1::decode(&x_enc).unwrap();
+		assert_eq!(x, y);
+	}
+
+	#[test]
+	fn test_v2() {
+		let x = V2 {
+			a: 12,
+			b: vec!["hello".into(), "world".into()],
+			c: "plop".into(),
+		};
+		let x_enc = x.encode().unwrap();
+		assert_eq!(&x_enc[..V2::VERSION_MARKER.len()], V2::VERSION_MARKER);
+		let y = V2::decode(&x_enc).unwrap();
+		assert_eq!(x, y);
+	}
+
+	#[test]
+	fn test_migrate() {
+		let x = V1 {
+			a: 12,
+			b: "hello".into(),
+		};
+		let x_enc = x.encode().unwrap();
+
+		let xx = V1::decode(&x_enc).unwrap();
+		assert_eq!(x, xx);
+
+		let y = V2::decode(&x_enc).unwrap();
+		assert_eq!(
+			y,
+			V2 {
+				a: 12,
+				b: vec!["hello".into()],
+				c: "".into(),
+			}
+		);
+
+		let y_enc = y.encode().unwrap();
+		assert_eq!(&y_enc[..V2::VERSION_MARKER.len()], V2::VERSION_MARKER);
+
+		let z = V2::decode(&y_enc).unwrap();
+		assert_eq!(y, z);
 	}
 }
