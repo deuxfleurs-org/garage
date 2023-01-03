@@ -10,6 +10,7 @@ use garage_db as db;
 
 use garage_util::background::*;
 use garage_util::data::*;
+use garage_util::encode::{nonversioned_decode, nonversioned_encode};
 use garage_util::error::Error;
 
 use garage_rpc::ring::*;
@@ -67,7 +68,7 @@ pub enum MerkleNode {
 
 impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	pub(crate) fn new(data: Arc<TableData<F, R>>) -> Arc<Self> {
-		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
+		let empty_node_hash = blake2sum(&nonversioned_encode(&MerkleNode::Empty).unwrap()[..]);
 
 		Arc::new(Self {
 			data,
@@ -273,7 +274,7 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 			tx.remove(&self.data.merkle_tree, k.encode())?;
 			Ok(self.empty_node_hash)
 		} else {
-			let vby = rmp_to_vec_all_named(v).map_err(|e| db::TxError::Abort(e.into()))?;
+			let vby = nonversioned_encode(v).map_err(|e| db::TxError::Abort(e.into()))?;
 			let rethash = blake2sum(&vby[..]);
 			tx.insert(&self.data.merkle_tree, k.encode(), vby)?;
 			Ok(rethash)
@@ -364,7 +365,7 @@ impl MerkleNode {
 	fn decode_opt(ent: &Option<db::Value>) -> Result<Self, Error> {
 		match ent {
 			None => Ok(MerkleNode::Empty),
-			Some(v) => Ok(rmp_serde::decode::from_read_ref::<_, MerkleNode>(&v[..])?),
+			Some(v) => Ok(nonversioned_decode::<MerkleNode>(&v[..])?),
 		}
 	}
 

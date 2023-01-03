@@ -14,6 +14,7 @@ use tokio::sync::{mpsc, watch};
 
 use garage_util::background::*;
 use garage_util::data::*;
+use garage_util::encode::nonversioned_encode;
 use garage_util::error::{Error, OkOrMessage};
 
 use garage_rpc::ring::*;
@@ -615,7 +616,7 @@ impl<F: TableSchema, R: TableReplication> Worker for SyncWorker<F, R> {
 // ---- UTIL ----
 
 fn hash_of_merkle_node(x: &MerkleNode) -> Result<Hash, Error> {
-	Ok(blake2sum(&rmp_to_vec_all_named(x)?[..]))
+	Ok(blake2sum(&nonversioned_encode(x)?[..]))
 }
 
 fn join_ordered<'a, K: Ord + Eq, V1, V2>(

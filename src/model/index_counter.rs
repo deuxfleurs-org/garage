@@ -279,8 +279,8 @@ impl<T: CountedItem> IndexCounter<T> {
 
 			info!("zeroing old counters... ({})", hex::encode(&batch[0].0));
 			for (local_counter_k, local_counter) in batch {
-				let mut local_counter =
-					rmp_serde::decode::from_read_ref::<_, LocalCounterEntry<T>>(&local_counter)?;
+				let mut local_counter = LocalCounterEntry::<T>::decode(&local_counter)
+					.ok_or_message("Cannot decode local counter entry")?;
 
 				for (_, tv) in local_counter.values.iter_mut() {
 					tv.0 = std::cmp::max(tv.0 + 1, now);
@@ -335,9 +335,8 @@ impl<T: CountedItem> IndexCounter<T> {
 				let local_counter_key = self.table.data.tree_key(pk, sk);
 				let mut local_counter = match self.local_counter.get(&local_counter_key)? {
 					Some(old_bytes) => {
-						let ent = rmp_serde::decode::from_read_ref::<_, LocalCounterEntry<T>>(
-							&old_bytes,
-						)?;
+						let ent = LocalCounterEntry::<T>::decode(&old_bytes)
+							.ok_or_message("Cannot decode local counter entry")?;
 						assert!(ent.pk == *pk);
 						assert!(ent.sk == *sk);
 						ent

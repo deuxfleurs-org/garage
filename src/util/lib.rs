@@ -8,6 +8,7 @@ pub mod background;
 pub mod config;
 pub mod crdt;
 pub mod data;
+pub mod encode;
 pub mod error;
 pub mod formater;
 pub mod metrics;

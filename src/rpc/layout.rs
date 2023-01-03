@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::{AutoCrdt, Crdt, LwwMap};
 use garage_util::data::*;
+use garage_util::encode::nonversioned_encode;
 use garage_util::error::*;
 
 use crate::ring::*;
@@ -70,7 +71,7 @@ impl NodeRole {
 impl ClusterLayout {
 	pub fn new(replication_factor: usize) -> Self {
 		let empty_lwwmap = LwwMap::new();
-		let empty_lwwmap_hash = blake2sum(&rmp_to_vec_all_named(&empty_lwwmap).unwrap()[..]);
+		let empty_lwwmap_hash = blake2sum(&nonversioned_encode(&empty_lwwmap).unwrap()[..]);
 
 		ClusterLayout {
 			version: 0,
@@ -92,7 +93,7 @@ impl ClusterLayout {
 			Ordering::Equal => {
 				self.staging.merge(&other.staging);
 
-				let new_staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+				let new_staging_hash = blake2sum(&nonversioned_encode(&self.staging).unwrap()[..]);
 				let changed = new_staging_hash != self.staging_hash;
 
 				self.staging_hash = new_staging_hash;
@@ -127,7 +128,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		self.staging.clear();
-		self.staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+		self.staging_hash = blake2sum(&nonversioned_encode(&self.staging).unwrap()[..]);
 
 		self.version += 1;
 
@@ -151,7 +152,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		self.staging.clear();
-		self.staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+		self.staging_hash = blake2sum(&nonversioned_encode(&self.staging).unwrap()[..]);
 
 		self.version += 1;
 
@@ -180,7 +181,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	/// returns true if consistent, false if error
 	pub fn check(&self) -> bool {
 		// Check that the hash of the staging data is correct
-		let staging_hash = blake2sum(&rmp_to_vec_all_named(&self.staging).unwrap()[..]);
+		let staging_hash = blake2sum(&nonversioned_encode(&self.staging).unwrap()[..]);
 		if staging_hash != self.staging_hash {
 			return false;
 		}
