@@ -35,12 +35,15 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	#[cfg(feature = "metrics")]
 	let metrics_exporter = opentelemetry_prometheus::exporter().init();
 
+	info!("Initializing Garage main data store...");
+	let garage = Garage::new(config.clone())?;
+
 	info!("Initializing background runner...");
 	let watch_cancel = watch_shutdown_signal();
-	let (background, await_background_done) = BackgroundRunner::new(16, watch_cancel.clone());
+	let (background, await_background_done) = BackgroundRunner::new(watch_cancel.clone());
 
-	info!("Initializing Garage main data store...");
-	let garage = Garage::new(config.clone(), background)?;
+	info!("Spawning Garage workers...");
+	garage.spawn_workers(&background);
 
 	if config.admin.trace_sink.is_some() {
 		info!("Initialize tracing...");
@@ -63,7 +66,7 @@ pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
 
 	info!("Create admin RPC handler...");
-	AdminRpcHandler::new(garage.clone());
+	AdminRpcHandler::new(garage.clone(), background.clone());
 
 	// ---- Launch public-facing API servers ----
 

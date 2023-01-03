@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use futures_util::stream::*;
 use opentelemetry::KeyValue;
@@ -13,7 +14,7 @@ use tokio::sync::{mpsc, watch};
 
 use garage_util::background::*;
 use garage_util::data::*;
-use garage_util::error::Error;
+use garage_util::error::{Error, OkOrMessage};
 
 use garage_rpc::ring::*;
 use garage_rpc::system::System;
@@ -32,7 +33,7 @@ pub struct TableSyncer<F: TableSchema + 'static, R: TableReplication + 'static> 
 	data: Arc<TableData<F, R>>,
 	merkle: Arc<MerkleUpdater<F, R>>,
 
-	add_full_sync_tx: mpsc::UnboundedSender<()>,
+	add_full_sync_tx: ArcSwapOption<mpsc::UnboundedSender<()>>,
 	endpoint: Arc<Endpoint<SyncRpc, Self>>,
 }
 
@@ -65,7 +66,7 @@ where
 	F: TableSchema + 'static,
 	R: TableReplication + 'static,
 {
-	pub(crate) fn launch(
+	pub(crate) fn new(
 		system: Arc<System>,
 		data: Arc<TableData<F, R>>,
 		merkle: Arc<MerkleUpdater<F, R>>,
@@ -74,34 +75,40 @@ where
 			.netapp
 			.endpoint(format!("garage_table/sync.rs/Rpc:{}", F::TABLE_NAME));
 
-		let (add_full_sync_tx, add_full_sync_rx) = mpsc::unbounded_channel();
-
 		let syncer = Arc::new(Self {
-			system: system.clone(),
+			system,
 			data,
 			merkle,
-			add_full_sync_tx,
+			add_full_sync_tx: ArcSwapOption::new(None),
 			endpoint,
 		});
-
 		syncer.endpoint.set_handler(syncer.clone());
-
-		system.background.spawn_worker(SyncWorker {
-			syncer: syncer.clone(),
-			ring_recv: system.ring.clone(),
-			ring: system.ring.borrow().clone(),
-			add_full_sync_rx,
-			todo: vec![],
-			next_full_sync: Instant::now() + Duration::from_secs(20),
-		});
 
 		syncer
 	}
 
-	pub fn add_full_sync(&self) {
-		if self.add_full_sync_tx.send(()).is_err() {
-			error!("({}) Could not add full sync", F::TABLE_NAME);
-		}
+	pub(crate) fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
+		let (add_full_sync_tx, add_full_sync_rx) = mpsc::unbounded_channel();
+		self.add_full_sync_tx
+			.store(Some(Arc::new(add_full_sync_tx)));
+
+		bg.spawn_worker(SyncWorker {
+			syncer: self.clone(),
+			ring_recv: self.system.ring.clone(),
+			ring: self.system.ring.borrow().clone(),
+			add_full_sync_rx,
+			todo: vec![],
+			next_full_sync: Instant::now() + Duration::from_secs(20),
+		});
+	}
+
+	pub fn add_full_sync(&self) -> Result<(), Error> {
+		let tx = self.add_full_sync_tx.load();
+		let tx = tx
+			.as_ref()
+			.ok_or_message("table sync worker is not running")?;
+		tx.send(()).ok_or_message("send error")?;
+		Ok(())
 	}
 
 	// ----
@@ -586,10 +593,7 @@ impl<F: TableSchema + 'static, R: TableReplication + 'static> Worker for SyncWor
 		}
 	}
 
-	async fn wait_for_work(&mut self, must_exit: &watch::Receiver<bool>) -> WorkerState {
-		if *must_exit.borrow() {
-			return WorkerState::Done;
-		}
+	async fn wait_for_work(&mut self) -> WorkerState {
 		select! {
 			s = self.add_full_sync_rx.recv() => {
 				if let Some(()) = s {

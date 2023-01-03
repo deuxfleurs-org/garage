@@ -21,6 +21,7 @@ garage_util = { version = "0.8.1", path = "../util" }
 opentelemetry = "0.17"
 
 async-trait = "0.1.7"
+arc-swap = "1.0"
 bytes = "1.0"
 hex = "0.4"
 hexdump = "0.1"

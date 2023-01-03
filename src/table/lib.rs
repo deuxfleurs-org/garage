@@ -4,16 +4,18 @@
 #[macro_use]
 extern crate tracing;
 
-mod metrics;
 pub mod schema;
 pub mod util;
 
 pub mod data;
+pub mod replication;
+pub mod table;
+
 mod gc;
 mod merkle;
-pub mod replication;
+mod metrics;
+mod queue;
 mod sync;
-pub mod table;
 
 pub use schema::*;
 pub use table::*;

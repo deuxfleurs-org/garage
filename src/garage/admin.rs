@@ -5,6 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use garage_util::background::BackgroundRunner;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
@@ -74,13 +75,18 @@ impl Rpc for AdminRpc {
 
 pub struct AdminRpcHandler {
 	garage: Arc<Garage>,
+	background: Arc<BackgroundRunner>,
 	endpoint: Arc<Endpoint<AdminRpc, Self>>,
 }
 
 impl AdminRpcHandler {
-	pub fn new(garage: Arc<Garage>) -> Arc<Self> {
+	pub fn new(garage: Arc<Garage>, background: Arc<BackgroundRunner>) -> Arc<Self> {
 		let endpoint = garage.system.netapp.endpoint(ADMIN_RPC_PATH.into());
-		let admin = Arc::new(Self { garage, endpoint });
+		let admin = Arc::new(Self {
+			garage,
+			background,
+			endpoint,
+		});
 		admin.endpoint.set_handler(admin.clone());
 		admin
 	}
@@ -759,7 +765,7 @@ impl AdminRpcHandler {
 				)))
 			}
 		} else {
-			launch_online_repair(self.garage.clone(), opt).await;
+			launch_online_repair(&self.garage, &self.background, opt).await?;
 			Ok(AdminRpc::Ok(format!(
 				"Repair launched on {:?}",
 				self.garage.system.id
@@ -925,12 +931,11 @@ impl AdminRpcHandler {
 	async fn handle_worker_cmd(&self, cmd: &WorkerOperation) -> Result<AdminRpc, Error> {
 		match cmd {
 			WorkerOperation::List { opt } => {
-				let workers = self.garage.background.get_worker_info();
+				let workers = self.background.get_worker_info();
 				Ok(AdminRpc::WorkerList(workers, *opt))
 			}
 			WorkerOperation::Info { tid } => {
 				let info = self
-					.garage
 					.background
 					.get_worker_info()
 					.get(tid)
@@ -944,7 +949,7 @@ impl AdminRpcHandler {
 					self.garage
 						.block_manager
 						.send_scrub_command(scrub_command)
-						.await;
+						.await?;
 					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
 				}
 				WorkerSetCmd::ResyncWorkerCount { worker_count } => {

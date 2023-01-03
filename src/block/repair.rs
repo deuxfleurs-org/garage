@@ -148,7 +148,7 @@ impl Worker for RepairWorker {
 		}
 	}
 
-	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+	async fn wait_for_work(&mut self) -> WorkerState {
 		unreachable!()
 	}
 }
@@ -341,7 +341,7 @@ impl Worker for ScrubWorker {
 		}
 	}
 
-	async fn wait_for_work(&mut self, _must_exit: &watch::Receiver<bool>) -> WorkerState {
+	async fn wait_for_work(&mut self) -> WorkerState {
 		let (wait_until, command) = match &self.work {
 			ScrubWorkerState::Running(_) => return WorkerState::Busy,
 			ScrubWorkerState::Paused(_, resume_time) => (*resume_time, ScrubWorkerCommand::Resume),
