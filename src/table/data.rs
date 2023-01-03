@@ -10,6 +10,7 @@ use garage_db::counted_tree_hack::CountedTree;
 
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::migrate::Migrate;
 
 use garage_rpc::system::System;
 
@@ -219,7 +220,8 @@ where
 			//   data format, the messagepack encoding changed. In this case,
 			//   we also have to write the migrated value in the table and update
 			//   the associated Merkle tree entry.
-			let new_bytes = rmp_to_vec_all_named(&new_entry)
+			let new_bytes = new_entry
+				.encode()
 				.map_err(Error::RmpEncode)
 				.map_err(db::TxError::Abort)?;
 			let changed = Some(&new_bytes[..]) != old_bytes.as_deref();
@@ -329,9 +331,9 @@ where
 			Some(old_v) => {
 				let mut entry = self.decode_entry(&old_v).map_err(db::TxError::Abort)?;
 				entry.merge(ins);
-				rmp_to_vec_all_named(&entry)
+				entry.encode()
 			}
-			None => rmp_to_vec_all_named(ins),
+			None => ins.encode(),
 		};
 		let new_entry = new_entry
 			.map_err(Error::RmpEncode)
@@ -351,18 +353,18 @@ where
 	}
 
 	pub fn decode_entry(&self, bytes: &[u8]) -> Result<F::E, Error> {
-		match rmp_serde::decode::from_read_ref::<_, F::E>(bytes) {
-			Ok(x) => Ok(x),
-			Err(e) => match F::try_migrate(bytes) {
-				Some(x) => Ok(x),
-				None => {
-					warn!("Unable to decode entry of {}: {}", F::TABLE_NAME, e);
-					for line in hexdump::hexdump_iter(bytes) {
-						debug!("{}", line);
-					}
-					Err(e.into())
+		match F::E::decode(bytes) {
+			Some(x) => Ok(x),
+			None => {
+				error!("Unable to decode entry of {}", F::TABLE_NAME);
+				for line in hexdump::hexdump_iter(bytes) {
+					debug!("{}", line);
 				}
-			},
+				Err(Error::Message(format!(
+					"Unable to decode entry of {}",
+					F::TABLE_NAME
+				)))
+			}
 		}
 	}
 

@@ -63,6 +63,7 @@ struct ResyncPersistedConfig {
 	n_workers: usize,
 	tranquility: u32,
 }
+impl garage_util::migrate::InitialFormat for ResyncPersistedConfig {}
 
 enum ResyncIterResult {
 	BusyDidSomething,

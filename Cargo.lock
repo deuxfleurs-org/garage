@@ -1277,6 +1277,7 @@ dependencies = [
  "garage_db",
  "git-version",
  "hex",
+ "hexdump",
  "http",
  "hyper",
  "lazy_static",

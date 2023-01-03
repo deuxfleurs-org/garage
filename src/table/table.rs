@@ -18,6 +18,7 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
+use garage_util::migrate::Migrate;
 
 use garage_rpc::system::System;
 use garage_rpc::*;
@@ -122,7 +123,7 @@ where
 		let hash = e.partition_key().hash();
 		let who = self.data.replication.write_nodes(&hash);
 
-		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
+		let e_enc = Arc::new(ByteBuf::from(e.encode()?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
 
 		self.system
@@ -173,7 +174,7 @@ where
 			let entry = entry.borrow();
 			let hash = entry.partition_key().hash();
 			let who = self.data.replication.write_nodes(&hash);
-			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
+			let e_enc = Arc::new(ByteBuf::from(entry.encode()?));
 			for node in who {
 				call_list.entry(node).or_default().push(e_enc.clone());
 			}
@@ -412,7 +413,7 @@ where
 	// =============== UTILITY FUNCTION FOR CLIENT OPERATIONS ===============
 
 	async fn repair_on_read(&self, who: &[Uuid], what: F::E) -> Result<(), Error> {
-		let what_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(&what)?));
+		let what_enc = Arc::new(ByteBuf::from(what.encode()?));
 		self.system
 			.rpc
 			.try_call_many(

@@ -302,7 +302,7 @@ where
 			);
 			return Ok(());
 		}
-		let root_ck_hash = hash_of::<MerkleNode>(&root_ck)?;
+		let root_ck_hash = hash_of_merkle_node(&root_ck)?;
 
 		// Check if they have the same root checksum
 		// If so, do nothing.
@@ -468,7 +468,7 @@ where
 		match message {
 			SyncRpc::RootCkHash(range, h) => {
 				let (_root_ck_key, root_ck) = self.get_root_ck(*range)?;
-				let hash = hash_of::<MerkleNode>(&root_ck)?;
+				let hash = hash_of_merkle_node(&root_ck)?;
 				Ok(SyncRpc::RootCkDifferent(hash != *h))
 			}
 			SyncRpc::GetNode(k) => {
@@ -622,7 +622,7 @@ impl<F: TableSchema + 'static, R: TableReplication + 'static> Worker for SyncWor
 
 // ---- UTIL ----
 
-fn hash_of<T: Serialize>(x: &T) -> Result<Hash, Error> {
+fn hash_of_merkle_node(x: &MerkleNode) -> Result<Hash, Error> {
 	Ok(blake2sum(&rmp_to_vec_all_named(x)?[..]))
 }
 

@@ -178,6 +178,7 @@ struct ScrubWorkerPersisted {
 	time_last_complete_scrub: u64,
 	corruptions_detected: u64,
 }
+impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
 
 enum ScrubWorkerState {
 	Running(BlockStoreIterator),

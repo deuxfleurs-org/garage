@@ -35,6 +35,8 @@ pub struct ClusterLayout {
 	pub staging_hash: Hash,
 }
 
+impl garage_util::migrate::InitialFormat for ClusterLayout {}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeRoleV(pub Option<NodeRole>);
 

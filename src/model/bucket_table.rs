@@ -7,71 +7,79 @@ use garage_util::time::*;
 
 use crate::permission::BucketKeyPerm;
 
-/// A bucket is a collection of objects
-///
-/// Its parameters are not directly accessible as:
-///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
-///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct Bucket {
-	/// ID of the bucket
-	pub id: Uuid,
-	/// State, and configuration if not deleted, of the bucket
-	pub state: crdt::Deletable<BucketParams>,
+mod v08 {
+	use super::*;
+
+	/// A bucket is a collection of objects
+	///
+	/// Its parameters are not directly accessible as:
+	///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
+	///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Bucket {
+		/// ID of the bucket
+		pub id: Uuid,
+		/// State, and configuration if not deleted, of the bucket
+		pub state: crdt::Deletable<BucketParams>,
+	}
+
+	/// Configuration for a bucket
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct BucketParams {
+		/// Bucket's creation date
+		pub creation_date: u64,
+		/// Map of key with access to the bucket, and what kind of access they give
+		pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
+
+		/// Map of aliases that are or have been given to this bucket
+		/// in the global namespace
+		/// (not authoritative: this is just used as an indication to
+		/// map back to aliases when doing ListBuckets)
+		pub aliases: crdt::LwwMap<String, bool>,
+		/// Map of aliases that are or have been given to this bucket
+		/// in namespaces local to keys
+		/// key = (access key id, alias name)
+		pub local_aliases: crdt::LwwMap<(String, String), bool>,
+
+		/// Whether this bucket is allowed for website access
+		/// (under all of its global alias names),
+		/// and if so, the website configuration XML document
+		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+		/// CORS rules
+		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+		/// Bucket quotas
+		#[serde(default)]
+		pub quotas: crdt::Lww<BucketQuotas>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct WebsiteConfig {
+		pub index_document: String,
+		pub error_document: Option<String>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct CorsRule {
+		pub id: Option<String>,
+		pub max_age_seconds: Option<u64>,
+		pub allow_origins: Vec<String>,
+		pub allow_methods: Vec<String>,
+		pub allow_headers: Vec<String>,
+		pub expose_headers: Vec<String>,
+	}
+
+	#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	pub struct BucketQuotas {
+		/// Maximum size in bytes (bucket size = sum of sizes of objects in the bucket)
+		pub max_size: Option<u64>,
+		/// Maximum number of non-deleted objects in the bucket
+		pub max_objects: Option<u64>,
+	}
+
+	impl garage_util::migrate::InitialFormat for Bucket {}
 }
 
-/// Configuration for a bucket
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct BucketParams {
-	/// Bucket's creation date
-	pub creation_date: u64,
-	/// Map of key with access to the bucket, and what kind of access they give
-	pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
-
-	/// Map of aliases that are or have been given to this bucket
-	/// in the global namespace
-	/// (not authoritative: this is just used as an indication to
-	/// map back to aliases when doing ListBuckets)
-	pub aliases: crdt::LwwMap<String, bool>,
-	/// Map of aliases that are or have been given to this bucket
-	/// in namespaces local to keys
-	/// key = (access key id, alias name)
-	pub local_aliases: crdt::LwwMap<(String, String), bool>,
-
-	/// Whether this bucket is allowed for website access
-	/// (under all of its global alias names),
-	/// and if so, the website configuration XML document
-	pub website_config: crdt::Lww<Option<WebsiteConfig>>,
-	/// CORS rules
-	pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
-	/// Bucket quotas
-	#[serde(default)]
-	pub quotas: crdt::Lww<BucketQuotas>,
-}
-
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct WebsiteConfig {
-	pub index_document: String,
-	pub error_document: Option<String>,
-}
-
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct CorsRule {
-	pub id: Option<String>,
-	pub max_age_seconds: Option<u64>,
-	pub allow_origins: Vec<String>,
-	pub allow_methods: Vec<String>,
-	pub allow_headers: Vec<String>,
-	pub expose_headers: Vec<String>,
-}
-
-#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
-pub struct BucketQuotas {
-	/// Maximum size in bytes (bucket size = sum of sizes of objects in the bucket)
-	pub max_size: Option<u64>,
-	/// Maximum number of non-deleted objects in the bucket
-	pub max_objects: Option<u64>,
-}
+pub use v08::*;
 
 impl AutoCrdt for BucketQuotas {
 	const WARN_IF_DIFFERENT: bool = true;
