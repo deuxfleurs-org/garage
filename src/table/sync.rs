@@ -14,7 +14,7 @@ use tokio::sync::{mpsc, watch};
 
 use garage_util::background::*;
 use garage_util::data::*;
-use garage_util::encode::nonversioned_encode;
+use garage_util::encode::{nonversioned_encode, debug_serialize};
 use garage_util::error::{Error, OkOrMessage};
 
 use garage_rpc::ring::*;

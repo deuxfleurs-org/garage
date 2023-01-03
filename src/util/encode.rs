@@ -24,3 +24,19 @@ where
 {
 	rmp_serde::decode::from_read_ref::<_, T>(bytes)
 }
+
+/// Serialize to JSON, truncating long result
+pub fn debug_serialize<T: Serialize>(x: T) -> String {
+	match serde_json::to_string(&x) {
+		Ok(ss) => {
+			if ss.len() > 100 {
+				// TODO this can panic if 100 is not a codepoint boundary, but inside a 2 Bytes
+				// (or more) codepoint
+				ss[..100].to_string()
+			} else {
+				ss
+			}
+		}
+		Err(e) => format!("<JSON serialization error: {}>", e),
+	}
+}
