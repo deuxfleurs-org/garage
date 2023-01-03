@@ -65,11 +65,7 @@ pub enum MerkleNode {
 	Leaf(Vec<u8>, Hash),
 }
 
-impl<F, R> MerkleUpdater<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	pub(crate) fn new(data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&rmp_to_vec_all_named(&MerkleNode::Empty).unwrap()[..]);
 
@@ -303,17 +299,10 @@ where
 	}
 }
 
-struct MerkleWorker<F, R>(Arc<MerkleUpdater<F, R>>)
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static;
+struct MerkleWorker<F: TableSchema, R: TableReplication>(Arc<MerkleUpdater<F, R>>);
 
 #[async_trait]
-impl<F, R> Worker for MerkleWorker<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> Worker for MerkleWorker<F, R> {
 	fn name(&self) -> String {
 		format!("{} Merkle", F::TABLE_NAME)
 	}

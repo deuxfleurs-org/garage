@@ -31,7 +31,7 @@ const TABLE_GC_BATCH_SIZE: usize = 1024;
 // and the moment the garbage collection actually happens)
 const TABLE_GC_DELAY: Duration = Duration::from_secs(24 * 3600);
 
-pub(crate) struct TableGc<F: TableSchema + 'static, R: TableReplication + 'static> {
+pub(crate) struct TableGc<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 	data: Arc<TableData<F, R>>,
 
@@ -49,11 +49,7 @@ impl Rpc for GcRpc {
 	type Response = Result<GcRpc, Error>;
 }
 
-impl<F, R> TableGc<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 	pub(crate) fn new(system: Arc<System>, data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let endpoint = system
 			.netapp
@@ -277,11 +273,7 @@ where
 }
 
 #[async_trait]
-impl<F, R> EndpointHandler<GcRpc> for TableGc<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> EndpointHandler<GcRpc> for TableGc<F, R> {
 	async fn handle(self: &Arc<Self>, message: &GcRpc, _from: NodeID) -> Result<GcRpc, Error> {
 		match message {
 			GcRpc::Update(items) => {
@@ -299,20 +291,12 @@ where
 	}
 }
 
-struct GcWorker<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+struct GcWorker<F: TableSchema, R: TableReplication> {
 	gc: Arc<TableGc<F, R>>,
 	wait_delay: Duration,
 }
 
-impl<F, R> GcWorker<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> GcWorker<F, R> {
 	fn new(gc: Arc<TableGc<F, R>>) -> Self {
 		Self {
 			gc,
@@ -322,11 +306,7 @@ where
 }
 
 #[async_trait]
-impl<F, R> Worker for GcWorker<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> Worker for GcWorker<F, R> {
 	fn name(&self) -> String {
 		format!("{} GC", F::TABLE_NAME)
 	}

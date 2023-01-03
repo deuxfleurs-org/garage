@@ -41,11 +41,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) metrics: TableMetrics,
 }
 
-impl<F, R> TableData<F, R>
-where
-	F: TableSchema,
-	R: TableReplication,
-{
+impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	pub fn new(system: Arc<System>, instance: F, replication: R, db: &db::Db) -> Arc<Self> {
 		let store = db
 			.open_tree(&format!("{}:table", F::TABLE_NAME))

@@ -31,7 +31,12 @@ pub trait CountedItem: Clone + PartialEq + Send + Sync + 'static {
 }
 
 mod v08 {
-	use super::*;
+	use super::CountedItem;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+	use std::collections::BTreeMap;
+
+	// ---- Global part (the table everyone queries) ----
 
 	/// A counter entry in the global table
 	#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
@@ -48,6 +53,17 @@ mod v08 {
 	}
 
 	impl<T: CountedItem> garage_util::migrate::InitialFormat for CounterEntry<T> {}
+
+	// ---- Local part (the counter we maintain transactionnaly on each node) ----
+
+	#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+	pub(super) struct LocalCounterEntry<T: CountedItem> {
+		pub(super) pk: T::CP,
+		pub(super) sk: T::CS,
+		pub(super) values: BTreeMap<String, (u64, i64)>,
+	}
+
+	impl<T: CountedItem> garage_util::migrate::InitialFormat for LocalCounterEntry<T> {}
 }
 
 pub use v08::*;
@@ -357,15 +373,6 @@ impl<T: CountedItem> IndexCounter<T> {
 }
 
 // ----
-
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-struct LocalCounterEntry<T: CountedItem> {
-	pk: T::CP,
-	sk: T::CS,
-	values: BTreeMap<String, (u64, i64)>,
-}
-
-impl<T: CountedItem> garage_util::migrate::InitialFormat for LocalCounterEntry<T> {}
 
 impl<T: CountedItem> LocalCounterEntry<T> {
 	fn into_counter_entry(self, this_node: Uuid) -> CounterEntry<T> {

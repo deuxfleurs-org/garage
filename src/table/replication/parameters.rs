@@ -2,7 +2,7 @@ use garage_rpc::ring::*;
 use garage_util::data::*;
 
 /// Trait to describe how a table shall be replicated
-pub trait TableReplication: Send + Sync {
+pub trait TableReplication: Send + Sync + 'static {
 	// See examples in table_sharded.rs and table_fullcopy.rs
 	// To understand various replication methods
 

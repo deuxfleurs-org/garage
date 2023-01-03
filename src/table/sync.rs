@@ -28,7 +28,7 @@ use crate::*;
 // Do anti-entropy every 10 minutes
 const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
-pub struct TableSyncer<F: TableSchema + 'static, R: TableReplication + 'static> {
+pub struct TableSyncer<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 	data: Arc<TableData<F, R>>,
 	merkle: Arc<MerkleUpdater<F, R>>,
@@ -61,11 +61,7 @@ struct TodoPartition {
 	retain: bool,
 }
 
-impl<F, R> TableSyncer<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 	pub(crate) fn new(
 		system: Arc<System>,
 		data: Arc<TableData<F, R>>,
@@ -459,11 +455,7 @@ where
 // ======= SYNCHRONIZATION PROCEDURE -- RECEIVER SIDE ======
 
 #[async_trait]
-impl<F, R> EndpointHandler<SyncRpc> for TableSyncer<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSyncer<F, R> {
 	async fn handle(self: &Arc<Self>, message: &SyncRpc, from: NodeID) -> Result<SyncRpc, Error> {
 		match message {
 			SyncRpc::RootCkHash(range, h) => {
@@ -497,7 +489,7 @@ where
 
 // -------- Sync Worker ---------
 
-struct SyncWorker<F: TableSchema + 'static, R: TableReplication + 'static> {
+struct SyncWorker<F: TableSchema, R: TableReplication> {
 	syncer: Arc<TableSyncer<F, R>>,
 	ring_recv: watch::Receiver<Arc<Ring>>,
 	ring: Arc<Ring>,
@@ -506,7 +498,7 @@ struct SyncWorker<F: TableSchema + 'static, R: TableReplication + 'static> {
 	next_full_sync: Instant,
 }
 
-impl<F: TableSchema + 'static, R: TableReplication + 'static> SyncWorker<F, R> {
+impl<F: TableSchema, R: TableReplication> SyncWorker<F, R> {
 	fn add_full_sync(&mut self) {
 		let system = &self.syncer.system;
 		let data = &self.syncer.data;
@@ -572,7 +564,7 @@ impl<F: TableSchema + 'static, R: TableReplication + 'static> SyncWorker<F, R> {
 }
 
 #[async_trait]
-impl<F: TableSchema + 'static, R: TableReplication + 'static> Worker for SyncWorker<F, R> {
+impl<F: TableSchema, R: TableReplication> Worker for SyncWorker<F, R> {
 	fn name(&self) -> String {
 		format!("{} sync", F::TABLE_NAME)
 	}

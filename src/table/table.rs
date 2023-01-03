@@ -33,7 +33,7 @@ use crate::schema::*;
 use crate::sync::*;
 use crate::util::*;
 
-pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
+pub struct Table<F: TableSchema, R: TableReplication> {
 	pub system: Arc<System>,
 	pub data: Arc<TableData<F, R>>,
 	pub merkle_updater: Arc<MerkleUpdater<F, R>>,
@@ -65,11 +65,7 @@ impl<F: TableSchema> Rpc for TableRpc<F> {
 	type Response = Result<TableRpc<F>, Error>;
 }
 
-impl<F, R> Table<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
 	pub fn new(instance: F, replication: R, system: Arc<System>, db: &db::Db) -> Arc<Self> {
@@ -428,11 +424,7 @@ where
 }
 
 #[async_trait]
-impl<F, R> EndpointHandler<TableRpc<F>> for Table<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table<F, R> {
 	async fn handle(
 		self: &Arc<Self>,
 		msg: &TableRpc<F>,

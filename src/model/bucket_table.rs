@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use garage_table::crdt::*;
 use garage_table::*;
 use garage_util::data::*;
@@ -8,7 +6,10 @@ use garage_util::time::*;
 use crate::permission::BucketKeyPerm;
 
 mod v08 {
-	use super::*;
+	use crate::permission::BucketKeyPerm;
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
 
 	/// A bucket is a collection of objects
 	///

@@ -380,6 +380,3 @@ impl CountedItem for Object {
 		]
 	}
 }
-
-// vvvvvvvv migration code, stupid stuff vvvvvvvvvvvv
-// (we just want to change bucket into bucket_id by hashing it)

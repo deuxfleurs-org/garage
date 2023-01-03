@@ -7,7 +7,9 @@ use garage_util::migrate::Migrate;
 use crate::crdt::Crdt;
 
 /// Trait for field used to partition data
-pub trait PartitionKey {
+pub trait PartitionKey:
+	Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static
+{
 	/// Get the key used to partition
 	fn hash(&self) -> Hash;
 }
@@ -28,7 +30,7 @@ impl PartitionKey for FixedBytes32 {
 }
 
 /// Trait for field used to sort data
-pub trait SortKey {
+pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
 	/// Get the key used to sort
 	fn sort_key(&self) -> &[u8];
 }
@@ -66,16 +68,9 @@ pub trait TableSchema: Send + Sync + 'static {
 	const TABLE_NAME: &'static str;
 
 	/// The partition key used in that table
-	type P: PartitionKey
-		+ Clone
-		+ PartialEq
-		+ Serialize
-		+ for<'de> Deserialize<'de>
-		+ Send
-		+ Sync
-		+ 'static;
+	type P: PartitionKey;
 	/// The sort key used int that table
-	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static;
+	type S: SortKey;
 
 	/// They type for an entry in that table
 	type E: Entry<Self::P, Self::S>;

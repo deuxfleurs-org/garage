@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
-
 use garage_util::data::*;
 
 use garage_table::crdt::*;
 use garage_table::*;
 
 mod v08 {
-	use super::*;
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
 
 	/// The bucket alias table holds the names given to buckets
 	/// in the global namespace.
