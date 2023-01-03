@@ -7,6 +7,7 @@ use err_derive::Error;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::data::*;
+use crate::encode::debug_serialize;
 
 /// Regroup all Garage errors
 #[derive(Debug, Error)]

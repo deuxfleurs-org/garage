@@ -73,13 +73,17 @@ impl Rpc for SystemRpc {
 	type Response = Result<SystemRpc, Error>;
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct PeerList(Vec<(Uuid, SocketAddr)>);
+impl garage_util::migrate::InitialFormat for PeerList {}
+
 /// This node's membership manager
 pub struct System {
 	/// The id of this node
 	pub id: Uuid,
 
 	persist_cluster_layout: Persister<ClusterLayout>,
-	persist_peer_list: Persister<Vec<(Uuid, SocketAddr)>>,
+	persist_peer_list: Persister<PeerList>,
 
 	local_status: ArcSwap<NodeStatus>,
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
@@ -721,7 +725,7 @@ impl System {
 
 				// Add peer list from list stored on disk
 				if let Ok(peers) = self.persist_peer_list.load_async().await {
-					ping_list.extend(peers.iter().map(|(id, addr)| ((*id).into(), *addr)))
+					ping_list.extend(peers.0.iter().map(|(id, addr)| ((*id).into(), *addr)))
 				}
 
 				// Fetch peer list from Consul
@@ -801,12 +805,16 @@ impl System {
 		// and append it to the list we are about to save,
 		// so that no peer ID gets lost in the process.
 		if let Ok(mut prev_peer_list) = self.persist_peer_list.load_async().await {
-			prev_peer_list.retain(|(id, _ip)| peer_list.iter().all(|(id2, _ip2)| id2 != id));
-			peer_list.extend(prev_peer_list);
+			prev_peer_list
+				.0
+				.retain(|(id, _ip)| peer_list.iter().all(|(id2, _ip2)| id2 != id));
+			peer_list.extend(prev_peer_list.0);
 		}
 
 		// Save new peer list to file
-		self.persist_peer_list.save_async(&peer_list).await
+		self.persist_peer_list
+			.save_async(&PeerList(peer_list))
+			.await
 	}
 
 	async fn pull_cluster_layout(self: Arc<Self>, peer: Uuid) {

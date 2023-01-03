@@ -42,7 +42,6 @@ rand = "0.8"
 async-trait = "0.1.7"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 
-rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 structopt = { version = "0.3", default-features = false }
@@ -74,7 +73,7 @@ base64 = "0.13"
 
 
 [features]
-default = [ "bundled-libs", "metrics", "sled" ]
+default = [ "bundled-libs", "metrics", "sled", "k2v" ]
 
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
 

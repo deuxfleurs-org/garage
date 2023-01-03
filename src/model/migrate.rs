@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
+use garage_util::encode::nonversioned_decode;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
@@ -28,8 +29,8 @@ impl Migrate {
 		let mut old_buckets = vec![];
 		for res in tree.iter().map_err(GarageError::from)? {
 			let (_k, v) = res.map_err(GarageError::from)?;
-			let bucket = rmp_serde::decode::from_read_ref::<_, old_bucket::Bucket>(&v[..])
-				.map_err(GarageError::from)?;
+			let bucket =
+				nonversioned_decode::<old_bucket::Bucket>(&v[..]).map_err(GarageError::from)?;
 			old_buckets.push(bucket);
 		}
 

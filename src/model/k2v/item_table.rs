@@ -1,6 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 
 use garage_db as db;
 use garage_util::data::*;
@@ -17,31 +18,42 @@ pub const CONFLICTS: &str = "conflicts";
 pub const VALUES: &str = "values";
 pub const BYTES: &str = "bytes";
 
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct K2VItem {
-	pub partition: K2VItemPartition,
-	pub sort_key: String,
+mod v08 {
+	use crate::k2v::causality::K2VNodeId;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+	use std::collections::BTreeMap;
 
-	items: BTreeMap<K2VNodeId, DvvsEntry>,
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct K2VItem {
+		pub partition: K2VItemPartition,
+		pub sort_key: String,
+
+		pub(super) items: BTreeMap<K2VNodeId, DvvsEntry>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Hash)]
+	pub struct K2VItemPartition {
+		pub bucket_id: Uuid,
+		pub partition_key: String,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct DvvsEntry {
+		pub(super) t_discard: u64,
+		pub(super) values: Vec<(u64, DvvsValue)>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub enum DvvsValue {
+		Value(#[serde(with = "serde_bytes")] Vec<u8>),
+		Deleted,
+	}
+
+	impl garage_util::migrate::InitialFormat for K2VItem {}
 }
 
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Hash)]
-pub struct K2VItemPartition {
-	pub bucket_id: Uuid,
-	pub partition_key: String,
-}
-
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-struct DvvsEntry {
-	t_discard: u64,
-	values: Vec<(u64, DvvsValue)>,
-}
-
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub enum DvvsValue {
-	Value(#[serde(with = "serde_bytes")] Vec<u8>),
-	Deleted,
-}
+pub use v08::*;
 
 impl K2VItem {
 	/// Creates a new K2VItem when no previous entry existed in the db

@@ -16,15 +16,11 @@ const BATCH_SIZE: usize = 100;
 
 pub(crate) struct InsertQueueWorker<F, R>(pub(crate) Arc<Table<F, R>>)
 where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static;
+	F: TableSchema,
+	R: TableReplication;
 
 #[async_trait]
-impl<F, R> Worker for InsertQueueWorker<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> Worker for InsertQueueWorker<F, R> {
 	fn name(&self) -> String {
 		format!("{} queue", F::TABLE_NAME)
 	}

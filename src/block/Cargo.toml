@@ -31,7 +31,6 @@ rand = "0.8"
 async-compression = { version = "0.3", features = ["tokio", "zstd"] }
 zstd = { version = "0.9", default-features = false }
 
-rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 

@@ -12,6 +12,7 @@ use garage_model::s3::version_table::*;
 use garage_table::*;
 use garage_util::background::*;
 use garage_util::error::Error;
+use garage_util::migrate::Migrate;
 
 use crate::*;
 
@@ -100,7 +101,7 @@ impl Worker for RepairVersionsWorker {
 			}
 		};
 
-		let version = rmp_serde::decode::from_read_ref::<_, Version>(&item_bytes)?;
+		let version = Version::decode(&item_bytes).ok_or_message("Cannot decode Version")?;
 		if !version.deleted.get() {
 			let object = self
 				.garage
@@ -180,7 +181,7 @@ impl Worker for RepairBlockrefsWorker {
 				}
 			};
 
-		let block_ref = rmp_serde::decode::from_read_ref::<_, BlockRef>(&item_bytes)?;
+		let block_ref = BlockRef::decode(&item_bytes).ok_or_message("Cannot decode BlockRef")?;
 		if !block_ref.deleted.get() {
 			let version = self
 				.garage

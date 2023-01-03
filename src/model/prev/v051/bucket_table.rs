@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use garage_table::crdt::Crdt;
 use garage_table::*;
 
-use super::key_table::PermissionSet;
+use crate::key_table::v05::PermissionSet;
 
 /// A bucket is a collection of objects
 ///

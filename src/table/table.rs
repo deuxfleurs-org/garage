@@ -18,6 +18,7 @@ use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
+use garage_util::migrate::Migrate;
 
 use garage_rpc::system::System;
 use garage_rpc::*;
@@ -32,7 +33,7 @@ use crate::schema::*;
 use crate::sync::*;
 use crate::util::*;
 
-pub struct Table<F: TableSchema + 'static, R: TableReplication + 'static> {
+pub struct Table<F: TableSchema, R: TableReplication> {
 	pub system: Arc<System>,
 	pub data: Arc<TableData<F, R>>,
 	pub merkle_updater: Arc<MerkleUpdater<F, R>>,
@@ -64,11 +65,7 @@ impl<F: TableSchema> Rpc for TableRpc<F> {
 	type Response = Result<TableRpc<F>, Error>;
 }
 
-impl<F, R> Table<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
 	pub fn new(instance: F, replication: R, system: Arc<System>, db: &db::Db) -> Arc<Self> {
@@ -122,7 +119,7 @@ where
 		let hash = e.partition_key().hash();
 		let who = self.data.replication.write_nodes(&hash);
 
-		let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(e)?));
+		let e_enc = Arc::new(ByteBuf::from(e.encode()?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
 
 		self.system
@@ -173,7 +170,7 @@ where
 			let entry = entry.borrow();
 			let hash = entry.partition_key().hash();
 			let who = self.data.replication.write_nodes(&hash);
-			let e_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(entry)?));
+			let e_enc = Arc::new(ByteBuf::from(entry.encode()?));
 			for node in who {
 				call_list.entry(node).or_default().push(e_enc.clone());
 			}
@@ -412,7 +409,7 @@ where
 	// =============== UTILITY FUNCTION FOR CLIENT OPERATIONS ===============
 
 	async fn repair_on_read(&self, who: &[Uuid], what: F::E) -> Result<(), Error> {
-		let what_enc = Arc::new(ByteBuf::from(rmp_to_vec_all_named(&what)?));
+		let what_enc = Arc::new(ByteBuf::from(what.encode()?));
 		self.system
 			.rpc
 			.try_call_many(
@@ -427,11 +424,7 @@ where
 }
 
 #[async_trait]
-impl<F, R> EndpointHandler<TableRpc<F>> for Table<F, R>
-where
-	F: TableSchema + 'static,
-	R: TableReplication + 'static,
-{
+impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table<F, R> {
 	async fn handle(
 		self: &Arc<Self>,
 		msg: &TableRpc<F>,

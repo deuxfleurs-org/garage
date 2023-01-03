@@ -140,34 +140,3 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 pub fn gen_uuid() -> Uuid {
 	rand::thread_rng().gen::<[u8; 32]>().into()
 }
-
-// RMP serialization with names of fields and variants
-
-/// Serialize to MessagePack
-pub fn rmp_to_vec_all_named<T>(val: &T) -> Result<Vec<u8>, rmp_serde::encode::Error>
-where
-	T: Serialize + ?Sized,
-{
-	let mut wr = Vec::with_capacity(128);
-	let mut se = rmp_serde::Serializer::new(&mut wr)
-		.with_struct_map()
-		.with_string_variants();
-	val.serialize(&mut se)?;
-	Ok(wr)
-}
-
-/// Serialize to JSON, truncating long result
-pub fn debug_serialize<T: Serialize>(x: T) -> String {
-	match serde_json::to_string(&x) {
-		Ok(ss) => {
-			if ss.len() > 100 {
-				// TODO this can panic if 100 is not a codepoint boundary, but inside a 2 Bytes
-				// (or more) codepoint
-				ss[..100].to_string()
-			} else {
-				ss
-			}
-		}
-		Err(e) => format!("<JSON serialization error: {}>", e),
-	}
-}

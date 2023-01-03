@@ -1,17 +1,25 @@
-use serde::{Deserialize, Serialize};
-
 use garage_util::data::*;
 
 use garage_table::crdt::*;
 use garage_table::*;
 
-/// The bucket alias table holds the names given to buckets
-/// in the global namespace.
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct BucketAlias {
-	name: String,
-	pub state: crdt::Lww<Option<Uuid>>,
+mod v08 {
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	/// The bucket alias table holds the names given to buckets
+	/// in the global namespace.
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct BucketAlias {
+		pub(super) name: String,
+		pub state: crdt::Lww<Option<Uuid>>,
+	}
+
+	impl garage_util::migrate::InitialFormat for BucketAlias {}
 }
+
+pub use v08::*;
 
 impl BucketAlias {
 	pub fn new(name: String, ts: u64, bucket_id: Option<Uuid>) -> Option<Self> {
