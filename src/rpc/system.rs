@@ -521,52 +521,57 @@ impl System {
 	// ---- INTERNALS ----
 
 	#[cfg(feature = "consul-discovery")]
-	async fn advertise_to_consul(self: Arc<Self>) -> Result<(), Error> {
+	async fn advertise_to_consul(self: Arc<Self>) {
 		let c = match &self.consul_discovery {
 			Some(c) => c,
-			_ => return Ok(()),
+			_ => return,
 		};
 
 		let rpc_public_addr = match self.rpc_public_addr {
 			Some(addr) => addr,
 			None => {
 				warn!("Not advertising to Consul because rpc_public_addr is not defined in config file and could not be autodetected.");
-				return Ok(());
+				return;
 			}
 		};
 
-		c.publish_consul_service(
-			self.netapp.id,
-			&self.local_status.load_full().hostname,
-			rpc_public_addr,
-		)
-		.await
-		.err_context("Error while publishing Consul service")
+		if let Err(e) = c
+			.publish_consul_service(
+				self.netapp.id,
+				&self.local_status.load_full().hostname,
+				rpc_public_addr,
+			)
+			.await
+		{
+			error!("Error while publishing Consul service: {}", e);
+		}
 	}
 
 	#[cfg(feature = "kubernetes-discovery")]
-	async fn advertise_to_kubernetes(self: Arc<Self>) -> Result<(), Error> {
+	async fn advertise_to_kubernetes(self: Arc<Self>) {
 		let k = match &self.kubernetes_discovery {
 			Some(k) => k,
-			_ => return Ok(()),
+			_ => return,
 		};
 
 		let rpc_public_addr = match self.rpc_public_addr {
 			Some(addr) => addr,
 			None => {
 				warn!("Not advertising to Kubernetes because rpc_public_addr is not defined in config file and could not be autodetected.");
-				return Ok(());
+				return;
 			}
 		};
 
-		publish_kubernetes_node(
+		if let Err(e) = publish_kubernetes_node(
 			k,
 			self.netapp.id,
 			&self.local_status.load_full().hostname,
 			rpc_public_addr,
 		)
 		.await
-		.err_context("Error while publishing node to kubernetes")
+		{
+			error!("Error while publishing node to Kubernetes: {}", e);
+		}
 	}
 
 	/// Save network configuration to disc
@@ -778,10 +783,10 @@ impl System {
 			}
 
 			#[cfg(feature = "consul-discovery")]
-			background::spawn(self.clone().advertise_to_consul());
+			tokio::spawn(self.clone().advertise_to_consul());
 
 			#[cfg(feature = "kubernetes-discovery")]
-			background::spawn(self.clone().advertise_to_kubernetes());
+			tokio::spawn(self.clone().advertise_to_kubernetes());
 
 			let restart_at = tokio::time::sleep(DISCOVERY_INTERVAL);
 			select! {
