@@ -18,7 +18,7 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 	/// Decode an encoded version of this type, going through a migration if necessary.
 	fn decode(bytes: &[u8]) -> Option<Self> {
 		let marker_len = Self::VERSION_MARKER.len();
-		if bytes.len() >= marker_len && &bytes[..marker_len] == Self::VERSION_MARKER {
+		if bytes.get(..marker_len) == Some(Self::VERSION_MARKER) {
 			if let Ok(value) = rmp_serde::decode::from_read_ref::<_, Self>(&bytes[marker_len..]) {
 				return Some(value);
 			}
