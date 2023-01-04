@@ -1048,7 +1048,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1080,7 +1080,6 @@ dependencies = [
  "parse_duration",
  "prometheus",
  "rand 0.8.5",
- "rmp-serde",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -1096,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "async-trait",
  "base64",
@@ -1141,7 +1140,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arc-swap",
  "async-compression",
@@ -1156,7 +1155,6 @@ dependencies = [
  "hex",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1167,7 +1165,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "clap 3.1.18",
  "err-derive",
@@ -1182,7 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1200,7 +1198,6 @@ dependencies = [
  "netapp",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1210,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1231,7 +1228,6 @@ dependencies = [
  "pnet_datalink",
  "rand 0.8.5",
  "reqwest",
- "rmp-serde",
  "schemars",
  "serde",
  "serde_bytes",
@@ -1243,8 +1239,9 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bytes",
  "futures",
@@ -1256,7 +1253,6 @@ dependencies = [
  "hexdump",
  "opentelemetry",
  "rand 0.8.5",
- "rmp-serde",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1265,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1278,6 +1274,7 @@ dependencies = [
  "garage_db",
  "git-version",
  "hex",
+ "hexdump",
  "http",
  "hyper",
  "lazy_static",
@@ -1296,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "err-derive",
  "futures",

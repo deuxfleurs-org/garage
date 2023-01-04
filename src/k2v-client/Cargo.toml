@@ -22,7 +22,7 @@ tokio = "1.17.0"
 
 # cli deps
 clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
-garage_util = { version = "0.8.0", path = "../util", optional = true }
+garage_util = { version = "0.8.1", path = "../util", optional = true }
 
 
 [features]

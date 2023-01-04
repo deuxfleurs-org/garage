@@ -273,14 +273,9 @@ impl K2VRpcHandler {
 	}
 
 	fn local_insert(&self, item: &InsertedItem) -> Result<Option<K2VItem>, Error> {
-		let tree_key = self
-			.item_table
-			.data
-			.tree_key(&item.partition, &item.sort_key);
-
 		self.item_table
 			.data
-			.update_entry_with(&tree_key[..], |ent| {
+			.update_entry_with(&item.partition, &item.sort_key, |ent| {
 				let mut ent = ent.unwrap_or_else(|| {
 					K2VItem::new(
 						item.partition.bucket_id,

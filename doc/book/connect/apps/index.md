@@ -8,7 +8,7 @@ In this section, we cover the following web applications:
 | Name | Status | Note |
 |------|--------|------|
 | [Nextcloud](#nextcloud)     | ✅       |  Both Primary Storage and External Storage are supported    |
-| [Peertube](#peertube)     | ✅       | Must be configured with the website endpoint     |
+| [Peertube](#peertube)     | ✅       | Supported with the website endpoint, proxifying private videos unsupported     |
 | [Mastodon](#mastodon)     | ✅       | Natively supported    |
 | [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
 | [Pixelfed](#pixelfed)     | ❓       |  Not yet tested    |
@@ -128,6 +128,10 @@ In other words, Peertube is only responsible of the "control plane" and offload 
 In return, this system is a bit harder to configure.
 We show how it is still possible to configure Garage with Peertube, allowing you to spread the load and the bandwidth usage on the Garage cluster.
 
+Starting from version 5.0, Peertube also supports improving the security for private videos by not exposing them directly
+but relying on a single control point in the Peertube instance. This is based on S3 per-object and prefix ACL, which are not currently supported
+in Garage, so this feature is unsupported. While this technically impedes security for private videos, it is not a blocking issue and could be
+a reasonable trade-off for some instances.
 
 ### Create resources in Garage
 
@@ -194,6 +198,11 @@ object_storage:
     secret_access_key: 'xxxx'
 
   max_upload_part: 2GB
+
+  proxy:
+    # You may enable this feature, yet it will not provide any security benefit, so
+    # you should rather benefit from Garage public endpoint for all videos
+    proxify_private_files: false
 
   streaming_playlists:
     bucket_name: 'peertube-playlist'

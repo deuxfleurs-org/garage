@@ -1,4 +1,4 @@
-pub fn format_table(data: Vec<String>) {
+pub fn format_table_to_string(data: Vec<String>) -> String {
 	let data = data
 		.iter()
 		.map(|s| s.split('\t').collect::<Vec<_>>())
@@ -24,5 +24,9 @@ pub fn format_table(data: Vec<String>) {
 		out.push('\n');
 	}
 
-	print!("{}", out);
+	out
+}
+
+pub fn format_table(data: Vec<String>) {
+	print!("{}", format_table_to_string(data));
 }

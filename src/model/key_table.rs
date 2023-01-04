@@ -1,44 +1,120 @@
 use serde::{Deserialize, Serialize};
 
-use garage_table::crdt::*;
-use garage_table::*;
+use garage_util::crdt::{self, Crdt};
 use garage_util::data::*;
+
+use garage_table::{DeletedFilter, EmptyKey, Entry, TableSchema};
 
 use crate::permission::BucketKeyPerm;
 
-use crate::prev::v051::key_table as old;
+pub(crate) mod v05 {
+	use garage_util::crdt;
+	use serde::{Deserialize, Serialize};
 
-/// An api key
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct Key {
-	/// The id of the key (immutable), used as partition key
-	pub key_id: String,
+	/// An api key
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Key {
+		/// The id of the key (immutable), used as partition key
+		pub key_id: String,
 
-	/// Internal state of the key
-	pub state: crdt::Deletable<KeyParams>,
+		/// The secret_key associated
+		pub secret_key: String,
+
+		/// Name for the key
+		pub name: crdt::Lww<String>,
+
+		/// Is the key deleted
+		pub deleted: crdt::Bool,
+
+		/// Buckets in which the key is authorized. Empty if `Key` is deleted
+		// CRDT interaction: deleted implies authorized_buckets is empty
+		pub authorized_buckets: crdt::LwwMap<String, PermissionSet>,
+	}
+
+	/// Permission given to a key in a bucket
+	#[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct PermissionSet {
+		/// The key can be used to read the bucket
+		pub allow_read: bool,
+		/// The key can be used to write in the bucket
+		pub allow_write: bool,
+	}
+
+	impl crdt::AutoCrdt for PermissionSet {
+		const WARN_IF_DIFFERENT: bool = true;
+	}
+
+	impl garage_util::migrate::InitialFormat for Key {}
 }
 
-/// Configuration for a key
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct KeyParams {
-	/// The secret_key associated (immutable)
-	pub secret_key: String,
+mod v08 {
+	use super::v05;
+	use crate::permission::BucketKeyPerm;
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
 
-	/// Name for the key
-	pub name: crdt::Lww<String>,
+	/// An api key
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Key {
+		/// The id of the key (immutable), used as partition key
+		pub key_id: String,
 
-	/// Flag to allow users having this key to create buckets
-	pub allow_create_bucket: crdt::Lww<bool>,
+		/// Internal state of the key
+		pub state: crdt::Deletable<KeyParams>,
+	}
 
-	/// If the key is present: it gives some permissions,
-	/// a map of bucket IDs (uuids) to permissions.
-	/// Otherwise no permissions are granted to key
-	pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
+	/// Configuration for a key
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct KeyParams {
+		/// The secret_key associated (immutable)
+		pub secret_key: String,
 
-	/// A key can have a local view of buckets names it is
-	/// the only one to see, this is the namespace for these aliases
-	pub local_aliases: crdt::LwwMap<String, Option<Uuid>>,
+		/// Name for the key
+		pub name: crdt::Lww<String>,
+
+		/// Flag to allow users having this key to create buckets
+		pub allow_create_bucket: crdt::Lww<bool>,
+
+		/// If the key is present: it gives some permissions,
+		/// a map of bucket IDs (uuids) to permissions.
+		/// Otherwise no permissions are granted to key
+		pub authorized_buckets: crdt::Map<Uuid, BucketKeyPerm>,
+
+		/// A key can have a local view of buckets names it is
+		/// the only one to see, this is the namespace for these aliases
+		pub local_aliases: crdt::LwwMap<String, Option<Uuid>>,
+	}
+
+	impl garage_util::migrate::Migrate for Key {
+		type Previous = v05::Key;
+
+		fn migrate(old_k: v05::Key) -> Key {
+			let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
+
+			let state = if old_k.deleted.get() {
+				crdt::Deletable::Deleted
+			} else {
+				// Authorized buckets is ignored here,
+				// migration is performed in specific migration code in
+				// garage/migrate.rs
+				crdt::Deletable::Present(KeyParams {
+					secret_key: old_k.secret_key,
+					name,
+					allow_create_bucket: crdt::Lww::new(false),
+					authorized_buckets: crdt::Map::new(),
+					local_aliases: crdt::LwwMap::new(),
+				})
+			};
+			Key {
+				key_id: old_k.key_id,
+				state,
+			}
+		}
+	}
 }
+
+pub use v08::*;
 
 impl KeyParams {
 	fn new(secret_key: &str, name: &str) -> Self {
@@ -172,29 +248,5 @@ impl TableSchema for KeyTable {
 					.unwrap_or(false)
 			}
 		}
-	}
-
-	fn try_migrate(bytes: &[u8]) -> Option<Self::E> {
-		let old_k = rmp_serde::decode::from_read_ref::<_, old::Key>(bytes).ok()?;
-		let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
-
-		let state = if old_k.deleted.get() {
-			crdt::Deletable::Deleted
-		} else {
-			// Authorized buckets is ignored here,
-			// migration is performed in specific migration code in
-			// garage/migrate.rs
-			crdt::Deletable::Present(KeyParams {
-				secret_key: old_k.secret_key,
-				name,
-				allow_create_bucket: crdt::Lww::new(false),
-				authorized_buckets: crdt::Map::new(),
-				local_aliases: crdt::LwwMap::new(),
-			})
-		};
-		Some(Key {
-			key_id: old_k.key_id,
-			state,
-		})
 	}
 }

@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,7 @@ use garage_rpc::rpc_helper::netapp::stream::{stream_asyncread, ByteStream};
 
 use garage_db as db;
 
+use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::metrics::RecordDuration;
@@ -87,7 +89,16 @@ pub struct BlockManager {
 
 	pub(crate) metrics: BlockManagerMetrics,
 
-	tx_scrub_command: mpsc::Sender<ScrubWorkerCommand>,
+	tx_scrub_command: ArcSwapOption<mpsc::Sender<ScrubWorkerCommand>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BlockResyncErrorInfo {
+	pub hash: Hash,
+	pub refcount: u64,
+	pub error_count: u64,
+	pub last_try: u64,
+	pub next_try: u64,
 }
 
 // This custom struct contains functions that must only be ran
@@ -114,9 +125,8 @@ impl BlockManager {
 			.netapp
 			.endpoint("garage_block/manager.rs/Rpc".to_string());
 
-		let metrics = BlockManagerMetrics::new(resync.queue.clone(), resync.errors.clone());
-
-		let (scrub_tx, scrub_rx) = mpsc::channel(1);
+		let metrics =
+			BlockManagerMetrics::new(rc.rc.clone(), resync.queue.clone(), resync.errors.clone());
 
 		let block_manager = Arc::new(Self {
 			replication,
@@ -128,21 +138,24 @@ impl BlockManager {
 			system,
 			endpoint,
 			metrics,
-			tx_scrub_command: scrub_tx,
+			tx_scrub_command: ArcSwapOption::new(None),
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
 
+		block_manager
+	}
+
+	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
 		// Spawn a bunch of resync workers
 		for index in 0..MAX_RESYNC_WORKERS {
-			let worker = ResyncWorker::new(index, block_manager.clone());
-			block_manager.system.background.spawn_worker(worker);
+			let worker = ResyncWorker::new(index, self.clone());
+			bg.spawn_worker(worker);
 		}
 
 		// Spawn scrub worker
-		let scrub_worker = ScrubWorker::new(block_manager.clone(), scrub_rx);
-		block_manager.system.background.spawn_worker(scrub_worker);
-
-		block_manager
+		let (scrub_tx, scrub_rx) = mpsc::channel(1);
+		self.tx_scrub_command.store(Some(Arc::new(scrub_tx)));
+		bg.spawn_worker(ScrubWorker::new(self.clone(), scrub_rx));
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it
@@ -309,9 +322,42 @@ impl BlockManager {
 		Ok(self.rc.rc.len()?)
 	}
 
+	/// Get number of items in the refcount table
+	pub fn rc_fast_len(&self) -> Result<Option<usize>, Error> {
+		Ok(self.rc.rc.fast_len()?)
+	}
+
 	/// Send command to start/stop/manager scrub worker
-	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) {
-		let _ = self.tx_scrub_command.send(cmd).await;
+	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) -> Result<(), Error> {
+		let tx = self.tx_scrub_command.load();
+		let tx = tx.as_ref().ok_or_message("scrub worker is not running")?;
+		tx.send(cmd).await.ok_or_message("send error")?;
+		Ok(())
+	}
+
+	/// Get the reference count of a block
+	pub fn get_block_rc(&self, hash: &Hash) -> Result<u64, Error> {
+		Ok(self.rc.get_block_rc(hash)?.as_u64())
+	}
+
+	/// List all resync errors
+	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
+		let mut blocks = Vec::with_capacity(self.resync.errors.len());
+		for ent in self.resync.errors.iter()? {
+			let (hash, cnt) = ent?;
+			let cnt = ErrorCounter::decode(&cnt);
+			blocks.push(BlockResyncErrorInfo {
+				hash: Hash::try_from(&hash).unwrap(),
+				refcount: 0,
+				error_count: cnt.errors,
+				last_try: cnt.last_try,
+				next_try: cnt.next_try(),
+			});
+		}
+		for block in blocks.iter_mut() {
+			block.refcount = self.get_block_rc(&block.hash)?;
+		}
+		Ok(blocks)
 	}
 
 	//// ----- Managing the reference counter ----

@@ -39,8 +39,6 @@ pub struct Garage {
 
 	/// The local database
 	pub db: db::Db,
-	/// A background job runner
-	pub background: Arc<BackgroundRunner>,
 	/// The membership manager
 	pub system: Arc<System>,
 	/// The block manager
@@ -78,7 +76,7 @@ pub struct GarageK2V {
 
 impl Garage {
 	/// Create and run garage
-	pub fn new(config: Config, background: Arc<BackgroundRunner>) -> Result<Arc<Self>, Error> {
+	pub fn new(config: Config) -> Result<Arc<Self>, Error> {
 		// Create meta dir and data dir if they don't exist already
 		std::fs::create_dir_all(&config.metadata_dir)
 			.ok_or_message("Unable to create Garage metadata directory")?;
@@ -167,7 +165,7 @@ impl Garage {
 			.expect("Invalid replication_mode in config file.");
 
 		info!("Initialize membership management system...");
-		let system = System::new(network_key, background.clone(), replication_mode, &config)?;
+		let system = System::new(network_key, replication_mode, &config)?;
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),
@@ -225,7 +223,6 @@ impl Garage {
 		info!("Initialize version_table...");
 		let version_table = Table::new(
 			VersionTable {
-				background: background.clone(),
 				block_ref_table: block_ref_table.clone(),
 			},
 			meta_rep_param.clone(),
@@ -240,7 +237,6 @@ impl Garage {
 		#[allow(clippy::redundant_clone)]
 		let object_table = Table::new(
 			ObjectTable {
-				background: background.clone(),
 				version_table: version_table.clone(),
 				object_counter_table: object_counter_table.clone(),
 			},
@@ -258,7 +254,6 @@ impl Garage {
 			config,
 			replication_mode,
 			db,
-			background,
 			system,
 			block_manager,
 			bucket_table,
@@ -271,6 +266,22 @@ impl Garage {
 			#[cfg(feature = "k2v")]
 			k2v,
 		}))
+	}
+
+	pub fn spawn_workers(&self, bg: &BackgroundRunner) {
+		self.block_manager.spawn_workers(bg);
+
+		self.bucket_table.spawn_workers(bg);
+		self.bucket_alias_table.spawn_workers(bg);
+		self.key_table.spawn_workers(bg);
+
+		self.object_table.spawn_workers(bg);
+		self.object_counter_table.spawn_workers(bg);
+		self.version_table.spawn_workers(bg);
+		self.block_ref_table.spawn_workers(bg);
+
+		#[cfg(feature = "k2v")]
+		self.k2v.spawn_workers(bg);
 	}
 
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
@@ -306,5 +317,10 @@ impl GarageK2V {
 			counter_table,
 			rpc,
 		}
+	}
+
+	pub fn spawn_workers(&self, bg: &BackgroundRunner) {
+		self.item_table.spawn_workers(bg);
+		self.counter_table.spawn_workers(bg);
 	}
 }

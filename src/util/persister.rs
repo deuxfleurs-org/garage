@@ -3,21 +3,16 @@ use std::path::{Path, PathBuf};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use serde::{Deserialize, Serialize};
-
-use crate::data::*;
 use crate::error::Error;
+use crate::migrate::Migrate;
 
-pub struct Persister<T: Serialize + for<'de> Deserialize<'de>> {
+pub struct Persister<T: Migrate> {
 	path: PathBuf,
 
 	_marker: std::marker::PhantomData<T>,
 }
 
-impl<T> Persister<T>
-where
-	T: Serialize + for<'de> Deserialize<'de>,
-{
+impl<T: Migrate> Persister<T> {
 	pub fn new(base_dir: &Path, file_name: &str) -> Self {
 		let mut path = base_dir.to_path_buf();
 		path.push(file_name);
@@ -27,18 +22,37 @@ where
 		}
 	}
 
+	fn decode(&self, bytes: &[u8]) -> Result<T, Error> {
+		match T::decode(bytes) {
+			Some(v) => Ok(v),
+			None => {
+				error!(
+					"Unable to decode persisted data file {}",
+					self.path.display()
+				);
+				for line in hexdump::hexdump_iter(bytes) {
+					debug!("{}", line);
+				}
+				Err(Error::Message(format!(
+					"Unable to decode persisted data file {}",
+					self.path.display()
+				)))
+			}
+		}
+	}
+
 	pub fn load(&self) -> Result<T, Error> {
 		let mut file = std::fs::OpenOptions::new().read(true).open(&self.path)?;
 
 		let mut bytes = vec![];
 		file.read_to_end(&mut bytes)?;
 
-		let value = rmp_serde::decode::from_read_ref(&bytes[..])?;
+		let value = self.decode(&bytes[..])?;
 		Ok(value)
 	}
 
 	pub fn save(&self, t: &T) -> Result<(), Error> {
-		let bytes = rmp_to_vec_all_named(t)?;
+		let bytes = t.encode()?;
 
 		let mut file = std::fs::OpenOptions::new()
 			.write(true)
@@ -57,12 +71,12 @@ where
 		let mut bytes = vec![];
 		file.read_to_end(&mut bytes).await?;
 
-		let value = rmp_serde::decode::from_read_ref(&bytes[..])?;
+		let value = self.decode(&bytes[..])?;
 		Ok(value)
 	}
 
 	pub async fn save_async(&self, t: &T) -> Result<(), Error> {
-		let bytes = rmp_to_vec_all_named(t)?;
+		let bytes = t.encode()?;
 
 		let mut file = tokio::fs::File::create(&self.path).await?;
 		file.write_all(&bytes[..]).await?;

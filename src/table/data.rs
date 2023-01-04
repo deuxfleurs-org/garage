@@ -10,6 +10,7 @@ use garage_db::counted_tree_hack::CountedTree;
 
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::migrate::Migrate;
 
 use garage_rpc::system::System;
 
@@ -31,16 +32,16 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: db::Tree,
 	pub(crate) merkle_todo: db::Tree,
 	pub(crate) merkle_todo_notify: Notify,
+
+	pub(crate) insert_queue: db::Tree,
+	pub(crate) insert_queue_notify: Notify,
+
 	pub(crate) gc_todo: CountedTree,
 
 	pub(crate) metrics: TableMetrics,
 }
 
-impl<F, R> TableData<F, R>
-where
-	F: TableSchema,
-	R: TableReplication,
-{
+impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	pub fn new(system: Arc<System>, instance: F, replication: R, db: &db::Db) -> Arc<Self> {
 		let store = db
 			.open_tree(&format!("{}:table", F::TABLE_NAME))
@@ -53,12 +54,22 @@ where
 			.open_tree(&format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
 
+		let insert_queue = db
+			.open_tree(&format!("{}:insert_queue", F::TABLE_NAME))
+			.expect("Unable to open insert queue DB tree");
+
 		let gc_todo = db
 			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
-			.expect("Unable to open DB tree");
+			.expect("Unable to open GC DB tree");
 		let gc_todo = CountedTree::new(gc_todo).expect("Cannot count gc_todo_v2");
 
-		let metrics = TableMetrics::new(F::TABLE_NAME, merkle_todo.clone(), gc_todo.clone());
+		let metrics = TableMetrics::new(
+			F::TABLE_NAME,
+			store.clone(),
+			merkle_tree.clone(),
+			merkle_todo.clone(),
+			gc_todo.clone(),
+		);
 
 		Arc::new(Self {
 			system,
@@ -68,6 +79,8 @@ where
 			merkle_tree,
 			merkle_todo,
 			merkle_todo_notify: Notify::new(),
+			insert_queue,
+			insert_queue_notify: Notify::new(),
 			gc_todo,
 			metrics,
 		})
@@ -167,9 +180,8 @@ where
 
 	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<(), Error> {
 		let update = self.decode_entry(update_bytes)?;
-		let tree_key = self.tree_key(update.partition_key(), update.sort_key());
 
-		self.update_entry_with(&tree_key[..], |ent| match ent {
+		self.update_entry_with(update.partition_key(), update.sort_key(), |ent| match ent {
 			Some(mut ent) => {
 				ent.merge(&update);
 				ent
@@ -181,11 +193,14 @@ where
 
 	pub fn update_entry_with(
 		&self,
-		tree_key: &[u8],
+		partition_key: &F::P,
+		sort_key: &F::S,
 		f: impl Fn(Option<F::E>) -> F::E,
 	) -> Result<Option<F::E>, Error> {
+		let tree_key = self.tree_key(partition_key, sort_key);
+
 		let changed = self.store.db().transaction(|mut tx| {
-			let (old_entry, old_bytes, new_entry) = match tx.get(&self.store, tree_key)? {
+			let (old_entry, old_bytes, new_entry) = match tx.get(&self.store, &tree_key)? {
 				Some(old_bytes) => {
 					let old_entry = self.decode_entry(&old_bytes).map_err(db::TxError::Abort)?;
 					let new_entry = f(Some(old_entry.clone()));
@@ -194,23 +209,24 @@ where
 				None => (None, None, f(None)),
 			};
 
-			// Scenario 1: the value changed, so of course there is a change
-			let value_changed = Some(&new_entry) != old_entry.as_ref();
-
+			// Changed can be true in two scenarios
+			// Scenario 1: the actual represented value changed,
+			//   so of course the messagepack encoding changed as well
 			// Scenario 2: the value didn't change but due to a migration in the
-			// data format, the messagepack encoding changed. In this case
-			// we have to write the migrated value in the table and update
-			// the associated Merkle tree entry.
-			let new_bytes = rmp_to_vec_all_named(&new_entry)
+			//   data format, the messagepack encoding changed. In this case,
+			//   we also have to write the migrated value in the table and update
+			//   the associated Merkle tree entry.
+			let new_bytes = new_entry
+				.encode()
 				.map_err(Error::RmpEncode)
 				.map_err(db::TxError::Abort)?;
-			let encoding_changed = Some(&new_bytes[..]) != old_bytes.as_ref().map(|x| &x[..]);
+			let changed = Some(&new_bytes[..]) != old_bytes.as_deref();
 			drop(old_bytes);
 
-			if value_changed || encoding_changed {
-				let new_bytes_hash = blake2sum(&new_bytes[..]);
-				tx.insert(&self.merkle_todo, tree_key, new_bytes_hash.as_slice())?;
-				tx.insert(&self.store, tree_key, new_bytes)?;
+			if changed {
+				let new_bytes_hash = blake2sum(&new_bytes);
+				tx.insert(&self.merkle_todo, &tree_key, new_bytes_hash.as_slice())?;
+				tx.insert(&self.store, &tree_key, new_bytes)?;
 
 				self.instance
 					.updated(&mut tx, old_entry.as_ref(), Some(&new_entry))?;
@@ -236,7 +252,7 @@ where
 				let pk_hash = Hash::try_from(&tree_key[..32]).unwrap();
 				let nodes = self.replication.write_nodes(&pk_hash);
 				if nodes.first() == Some(&self.system.id) {
-					GcTodoEntry::new(tree_key.to_vec(), new_bytes_hash).save(&self.gc_todo)?;
+					GcTodoEntry::new(tree_key, new_bytes_hash).save(&self.gc_todo)?;
 				}
 			}
 
@@ -252,10 +268,11 @@ where
 			.db()
 			.transaction(|mut tx| match tx.get(&self.store, k)? {
 				Some(cur_v) if cur_v == v => {
+					let old_entry = self.decode_entry(v).map_err(db::TxError::Abort)?;
+
 					tx.remove(&self.store, k)?;
 					tx.insert(&self.merkle_todo, k, vec![])?;
 
-					let old_entry = self.decode_entry(v).map_err(db::TxError::Abort)?;
 					self.instance.updated(&mut tx, Some(&old_entry), None)?;
 					Ok(true)
 				}
@@ -279,10 +296,11 @@ where
 			.db()
 			.transaction(|mut tx| match tx.get(&self.store, k)? {
 				Some(cur_v) if blake2sum(&cur_v[..]) == vhash => {
+					let old_entry = self.decode_entry(&cur_v[..]).map_err(db::TxError::Abort)?;
+
 					tx.remove(&self.store, k)?;
 					tx.insert(&self.merkle_todo, k, vec![])?;
 
-					let old_entry = self.decode_entry(&cur_v[..]).map_err(db::TxError::Abort)?;
 					self.instance.updated(&mut tx, Some(&old_entry), None)?;
 					Ok(true)
 				}
@@ -296,6 +314,32 @@ where
 		Ok(removed)
 	}
 
+	// ---- Insert queue functions ----
+
+	pub(crate) fn queue_insert(
+		&self,
+		tx: &mut db::Transaction,
+		ins: &F::E,
+	) -> db::TxResult<(), Error> {
+		let tree_key = self.tree_key(ins.partition_key(), ins.sort_key());
+
+		let new_entry = match tx.get(&self.insert_queue, &tree_key)? {
+			Some(old_v) => {
+				let mut entry = self.decode_entry(&old_v).map_err(db::TxError::Abort)?;
+				entry.merge(ins);
+				entry.encode()
+			}
+			None => ins.encode(),
+		};
+		let new_entry = new_entry
+			.map_err(Error::RmpEncode)
+			.map_err(db::TxError::Abort)?;
+		tx.insert(&self.insert_queue, &tree_key, new_entry)?;
+		self.insert_queue_notify.notify_one();
+
+		Ok(())
+	}
+
 	// ---- Utility functions ----
 
 	pub fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
@@ -305,18 +349,18 @@ where
 	}
 
 	pub fn decode_entry(&self, bytes: &[u8]) -> Result<F::E, Error> {
-		match rmp_serde::decode::from_read_ref::<_, F::E>(bytes) {
-			Ok(x) => Ok(x),
-			Err(e) => match F::try_migrate(bytes) {
-				Some(x) => Ok(x),
-				None => {
-					warn!("Unable to decode entry of {}: {}", F::TABLE_NAME, e);
-					for line in hexdump::hexdump_iter(bytes) {
-						debug!("{}", line);
-					}
-					Err(e.into())
+		match F::E::decode(bytes) {
+			Some(x) => Ok(x),
+			None => {
+				error!("Unable to decode entry of {}", F::TABLE_NAME);
+				for line in hexdump::hexdump_iter(bytes) {
+					debug!("{}", line);
 				}
-			},
+				Err(Error::Message(format!(
+					"Unable to decode entry of {}",
+					F::TABLE_NAME
+				)))
+			}
 		}
 	}
 

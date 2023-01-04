@@ -1,8 +1,5 @@
 use std::path::PathBuf;
 
-use tokio::sync::watch;
-
-use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::*;
 
@@ -20,12 +17,8 @@ pub async fn offline_repair(config_file: PathBuf, opt: OfflineRepairOpt) -> Resu
 	info!("Loading configuration...");
 	let config = read_config(config_file)?;
 
-	info!("Initializing background runner...");
-	let (done_tx, done_rx) = watch::channel(false);
-	let (background, await_background_done) = BackgroundRunner::new(16, done_rx);
-
 	info!("Initializing Garage main data store...");
-	let garage = Garage::new(config.clone(), background)?;
+	let garage = Garage::new(config)?;
 
 	info!("Launching repair operation...");
 	match opt.what {
@@ -43,13 +36,7 @@ pub async fn offline_repair(config_file: PathBuf, opt: OfflineRepairOpt) -> Resu
 		}
 	}
 
-	info!("Repair operation finished, shutting down Garage internals...");
-	done_tx.send(true).unwrap();
-	drop(garage);
-
-	await_background_done.await?;
-
-	info!("Cleaning up...");
+	info!("Repair operation finished, shutting down...");
 
 	Ok(())
 }

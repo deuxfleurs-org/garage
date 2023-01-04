@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::common;
+use crate::common::ext::CommandExt;
 use common::custom_requester::BodySignature;
 use hyper::Method;
 
@@ -104,6 +105,13 @@ async fn test_putobject_streaming() {
 async fn test_create_bucket_streaming() {
 	let ctx = common::context();
 	let bucket = "createbucket-streaming";
+
+	ctx.garage
+		.command()
+		.args(["key", "allow"])
+		.args(["--create-bucket", &ctx.garage.key.id])
+		.quiet()
+		.expect_success_output("Could not allow key to create buckets");
 
 	{
 		// create bucket

@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use garage_db as db;
@@ -10,18 +9,28 @@ use garage_table::*;
 
 use garage_block::manager::*;
 
-#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct BlockRef {
-	/// Hash (blake2 sum) of the block, used as partition key
-	pub block: Hash,
+mod v08 {
+	use garage_util::crdt;
+	use garage_util::data::{Hash, Uuid};
+	use serde::{Deserialize, Serialize};
 
-	/// Id of the Version for the object containing this block, used as sorting key
-	pub version: Uuid,
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct BlockRef {
+		/// Hash (blake2 sum) of the block, used as partition key
+		pub block: Hash,
 
-	// Keep track of deleted status
-	/// Is the Version that contains this block deleted
-	pub deleted: crdt::Bool,
+		/// Id of the Version for the object containing this block, used as sorting key
+		pub version: Uuid,
+
+		// Keep track of deleted status
+		/// Is the Version that contains this block deleted
+		pub deleted: crdt::Bool,
+	}
+
+	impl garage_util::migrate::InitialFormat for BlockRef {}
 }
+
+pub use v08::*;
 
 impl Entry<Hash, Uuid> for BlockRef {
 	fn partition_key(&self) -> &Hash {

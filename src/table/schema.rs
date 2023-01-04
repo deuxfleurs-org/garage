@@ -2,11 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use garage_db as db;
 use garage_util::data::*;
+use garage_util::migrate::Migrate;
 
 use crate::crdt::Crdt;
 
 /// Trait for field used to partition data
-pub trait PartitionKey {
+pub trait PartitionKey:
+	Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static
+{
 	/// Get the key used to partition
 	fn hash(&self) -> Hash;
 }
@@ -27,7 +30,7 @@ impl PartitionKey for FixedBytes32 {
 }
 
 /// Trait for field used to sort data
-pub trait SortKey {
+pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
 	/// Get the key used to sort
 	fn sort_key(&self) -> &[u8];
 }
@@ -46,7 +49,7 @@ impl SortKey for FixedBytes32 {
 
 /// Trait for an entry in a table. It must be sortable and partitionnable.
 pub trait Entry<P: PartitionKey, S: SortKey>:
-	Crdt + PartialEq + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
+	Crdt + PartialEq + Clone + Migrate + Send + Sync + 'static
 {
 	/// Get the key used to partition
 	fn partition_key(&self) -> &P;
@@ -65,23 +68,16 @@ pub trait TableSchema: Send + Sync + 'static {
 	const TABLE_NAME: &'static str;
 
 	/// The partition key used in that table
-	type P: PartitionKey + Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync;
+	type P: PartitionKey;
 	/// The sort key used int that table
-	type S: SortKey + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
+	type S: SortKey;
 
 	/// They type for an entry in that table
 	type E: Entry<Self::P, Self::S>;
 
 	/// The type for a filter that can be applied to select entries
 	/// (e.g. filter out deleted entries)
-	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync;
-
-	// Action to take if not able to decode current version:
-	// try loading from an older version
-	/// Try migrating an entry from an older version
-	fn try_migrate(_bytes: &[u8]) -> Option<Self::E> {
-		None
-	}
+	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static;
 
 	/// Actions triggered by data changing in a table. If such actions
 	/// include updates to the local database that should be applied

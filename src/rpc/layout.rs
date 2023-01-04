@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::{AutoCrdt, Crdt, Lww, LwwMap};
 use garage_util::data::*;
+use garage_util::encode::nonversioned_encode;
 use garage_util::error::*;
 
 use crate::graph_algo::*;
@@ -58,6 +59,7 @@ pub struct ClusterLayout {
 	pub staging_roles: LwwMap<Uuid, NodeRoleV>,
 	pub staging_hash: Hash,
 }
+impl garage_util::migrate::InitialFormat for ClusterLayout {}
 
 /// This struct is used to set the parameters to be used in the assignation computation
 /// algorithm. It is stored as a Crdt.
@@ -134,7 +136,7 @@ impl ClusterLayout {
 
 	fn calculate_staging_hash(&self) -> Hash {
 		let hashed_tuple = (&self.staging_roles, &self.staging_parameters);
-		blake2sum(&rmp_to_vec_all_named(&hashed_tuple).unwrap()[..])
+		blake2sum(&nonversioned_encode(&hashed_tuple).unwrap()[..])
 	}
 
 	pub fn merge(&mut self, other: &ClusterLayout) -> bool {
