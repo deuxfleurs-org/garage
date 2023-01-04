@@ -295,7 +295,7 @@ s3.garage.tld, *.s3.garage.tld {
 }
 
 *.web.garage.tld {
-	reverse_proxy localhost:3902 192.168.1.2:3900 example.tld:3900
+	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
 }
 
 admin.garage.tld {
