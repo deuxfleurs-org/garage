@@ -18,7 +18,6 @@ use garage_table::*;
 use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
-use garage_block::repair::ScrubWorkerCommand;
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
@@ -60,6 +59,7 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
+	WorkerVars(Vec<(String, String)>),
 	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
@@ -943,32 +943,27 @@ impl AdminRpcHandler {
 					.clone();
 				Ok(AdminRpc::WorkerInfo(*tid, info))
 			}
-			WorkerOperation::Set { opt } => match opt {
-				WorkerSetCmd::ScrubTranquility { tranquility } => {
-					let scrub_command = ScrubWorkerCommand::SetTranquility(*tranquility);
-					self.garage
-						.block_manager
-						.send_scrub_command(scrub_command)
-						.await?;
-					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
+			WorkerOperation::Get { variable } => {
+				if let Some(v) = variable {
+					Ok(AdminRpc::WorkerVars(vec![(
+						v.clone(),
+						self.garage.bg_vars.get(&v)?,
+					)]))
+				} else {
+					Ok(AdminRpc::WorkerVars(
+						self.garage
+							.bg_vars
+							.get_all()
+							.into_iter()
+							.map(|(k, v)| (k.to_string(), v))
+							.collect(),
+					))
 				}
-				WorkerSetCmd::ResyncWorkerCount { worker_count } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_n_workers(*worker_count)
-						.await?;
-					Ok(AdminRpc::Ok("Number of resync workers updated".into()))
-				}
-				WorkerSetCmd::ResyncTranquility { tranquility } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_tranquility(*tranquility)
-						.await?;
-					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
-				}
-			},
+			}
+			WorkerOperation::Set { variable, value } => {
+				self.garage.bg_vars.set(&variable, &value)?;
+				Ok(AdminRpc::Ok(format!("{} was set to {}", variable, value)))
+			}
 		}
 	}
 

@@ -13,7 +13,7 @@ use tokio::sync::watch;
 use garage_util::background::*;
 use garage_util::data::*;
 use garage_util::error::*;
-use garage_util::persister::Persister;
+use garage_util::persister::PersisterShared;
 use garage_util::time::*;
 use garage_util::tranquilizer::Tranquilizer;
 
@@ -168,17 +168,25 @@ pub struct ScrubWorker {
 	work: ScrubWorkerState,
 	tranquilizer: Tranquilizer,
 
-	persister: Persister<ScrubWorkerPersisted>,
-	persisted: ScrubWorkerPersisted,
+	persister: PersisterShared<ScrubWorkerPersisted>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct ScrubWorkerPersisted {
-	tranquility: u32,
-	time_last_complete_scrub: u64,
-	corruptions_detected: u64,
+pub struct ScrubWorkerPersisted {
+	pub tranquility: u32,
+	pub(crate) time_last_complete_scrub: u64,
+	pub(crate) corruptions_detected: u64,
 }
 impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
+impl Default for ScrubWorkerPersisted {
+	fn default() -> Self {
+		ScrubWorkerPersisted {
+			time_last_complete_scrub: 0,
+			tranquility: INITIAL_SCRUB_TRANQUILITY,
+			corruptions_detected: 0,
+		}
+	}
+}
 
 enum ScrubWorkerState {
 	Running(BlockStoreIterator),
@@ -198,27 +206,20 @@ pub enum ScrubWorkerCommand {
 	Pause(Duration),
 	Resume,
 	Cancel,
-	SetTranquility(u32),
 }
 
 impl ScrubWorker {
-	pub fn new(manager: Arc<BlockManager>, rx_cmd: mpsc::Receiver<ScrubWorkerCommand>) -> Self {
-		let persister = Persister::new(&manager.system.metadata_dir, "scrub_info");
-		let persisted = match persister.load() {
-			Ok(v) => v,
-			Err(_) => ScrubWorkerPersisted {
-				time_last_complete_scrub: 0,
-				tranquility: INITIAL_SCRUB_TRANQUILITY,
-				corruptions_detected: 0,
-			},
-		};
+	pub(crate) fn new(
+		manager: Arc<BlockManager>,
+		rx_cmd: mpsc::Receiver<ScrubWorkerCommand>,
+		persister: PersisterShared<ScrubWorkerPersisted>,
+	) -> Self {
 		Self {
 			manager,
 			rx_cmd,
 			work: ScrubWorkerState::Finished,
 			tranquilizer: Tranquilizer::new(30),
 			persister,
-			persisted,
 		}
 	}
 
@@ -267,12 +268,6 @@ impl ScrubWorker {
 					}
 				}
 			}
-			ScrubWorkerCommand::SetTranquility(t) => {
-				self.persisted.tranquility = t;
-				if let Err(e) = self.persister.save_async(&self.persisted).await {
-					error!("Could not save new tranquilitiy value: {}", e);
-				}
-			}
 		}
 	}
 }
@@ -284,9 +279,18 @@ impl Worker for ScrubWorker {
 	}
 
 	fn status(&self) -> WorkerStatus {
+		let (corruptions_detected, tranquility, time_last_complete_scrub) =
+			self.persister.get_with(|p| {
+				(
+					p.corruptions_detected,
+					p.tranquility,
+					p.time_last_complete_scrub,
+				)
+			});
+
 		let mut s = WorkerStatus {
-			persistent_errors: Some(self.persisted.corruptions_detected),
-			tranquility: Some(self.persisted.tranquility),
+			persistent_errors: Some(corruptions_detected),
+			tranquility: Some(tranquility),
 			..Default::default()
 		};
 		match &self.work {
@@ -300,7 +304,7 @@ impl Worker for ScrubWorker {
 			ScrubWorkerState::Finished => {
 				s.freeform = vec![format!(
 					"Last scrub completed at {}",
-					msec_to_rfc3339(self.persisted.time_last_complete_scrub)
+					msec_to_rfc3339(time_last_complete_scrub)
 				)];
 			}
 		}
@@ -321,18 +325,17 @@ impl Worker for ScrubWorker {
 					match self.manager.read_block(&hash).await {
 						Err(Error::CorruptData(_)) => {
 							error!("Found corrupt data block during scrub: {:?}", hash);
-							self.persisted.corruptions_detected += 1;
-							self.persister.save_async(&self.persisted).await?;
+							self.persister.set_with(|p| p.corruptions_detected += 1)?;
 						}
 						Err(e) => return Err(e),
 						_ => (),
 					};
 					Ok(self
 						.tranquilizer
-						.tranquilize_worker(self.persisted.tranquility))
+						.tranquilize_worker(self.persister.get_with(|p| p.tranquility)))
 				} else {
-					self.persisted.time_last_complete_scrub = now_msec();
-					self.persister.save_async(&self.persisted).await?;
+					self.persister
+						.set_with(|p| p.time_last_complete_scrub = now_msec())?;
 					self.work = ScrubWorkerState::Finished;
 					self.tranquilizer.clear();
 					Ok(WorkerState::Idle)
@@ -347,7 +350,8 @@ impl Worker for ScrubWorker {
 			ScrubWorkerState::Running(_) => return WorkerState::Busy,
 			ScrubWorkerState::Paused(_, resume_time) => (*resume_time, ScrubWorkerCommand::Resume),
 			ScrubWorkerState::Finished => (
-				self.persisted.time_last_complete_scrub + SCRUB_INTERVAL.as_millis() as u64,
+				self.persister.get_with(|p| p.time_last_complete_scrub)
+					+ SCRUB_INTERVAL.as_millis() as u64,
 				ScrubWorkerCommand::Start,
 			),
 		};

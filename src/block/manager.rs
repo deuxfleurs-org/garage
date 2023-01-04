@@ -23,10 +23,12 @@ use garage_rpc::rpc_helper::netapp::stream::{stream_asyncread, ByteStream};
 
 use garage_db as db;
 
-use garage_util::background::BackgroundRunner;
+use garage_util::background::{vars, BackgroundRunner};
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::metrics::RecordDuration;
+use garage_util::persister::PersisterShared;
+use garage_util::time::msec_to_rfc3339;
 
 use garage_rpc::rpc_helper::OrderTag;
 use garage_rpc::system::System;
@@ -89,6 +91,7 @@ pub struct BlockManager {
 
 	pub(crate) metrics: BlockManagerMetrics,
 
+	pub scrub_persister: PersisterShared<ScrubWorkerPersisted>,
 	tx_scrub_command: ArcSwapOption<mpsc::Sender<ScrubWorkerCommand>>,
 }
 
@@ -128,6 +131,8 @@ impl BlockManager {
 		let metrics =
 			BlockManagerMetrics::new(rc.rc.clone(), resync.queue.clone(), resync.errors.clone());
 
+		let scrub_persister = PersisterShared::new(&system.metadata_dir, "scrub_info");
+
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
@@ -138,6 +143,7 @@ impl BlockManager {
 			system,
 			endpoint,
 			metrics,
+			scrub_persister,
 			tx_scrub_command: ArcSwapOption::new(None),
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
@@ -155,7 +161,28 @@ impl BlockManager {
 		// Spawn scrub worker
 		let (scrub_tx, scrub_rx) = mpsc::channel(1);
 		self.tx_scrub_command.store(Some(Arc::new(scrub_tx)));
-		bg.spawn_worker(ScrubWorker::new(self.clone(), scrub_rx));
+		bg.spawn_worker(ScrubWorker::new(
+			self.clone(),
+			scrub_rx,
+			self.scrub_persister.clone(),
+		));
+	}
+
+	pub fn register_bg_vars(&self, vars: &mut vars::BgVars) {
+		self.resync.register_bg_vars(vars);
+
+		vars.register_rw(
+			&self.scrub_persister,
+			"scrub-tranquility",
+			|p| p.get_with(|x| x.tranquility),
+			|p, tranquility| p.set_with(|x| x.tranquility = tranquility),
+		);
+		vars.register_ro(&self.scrub_persister, "scrub-last-completed", |p| {
+			p.get_with(|x| msec_to_rfc3339(x.time_last_complete_scrub))
+		});
+		vars.register_ro(&self.scrub_persister, "scrub-corruptions_detected", |p| {
+			p.get_with(|x| x.corruptions_detected)
+		});
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it

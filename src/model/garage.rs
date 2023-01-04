@@ -33,6 +33,8 @@ use crate::k2v::{item_table::*, poll::*, rpc::*};
 pub struct Garage {
 	/// The parsed configuration Garage is running
 	pub config: Config,
+	/// The set of background variables that can be viewed/modified at runtime
+	pub bg_vars: vars::BgVars,
 
 	/// The replication mode of this cluster
 	pub replication_mode: ReplicationMode,
@@ -249,9 +251,14 @@ impl Garage {
 		#[cfg(feature = "k2v")]
 		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
 
+		// Initialize bg vars
+		let mut bg_vars = vars::BgVars::new();
+		block_manager.register_bg_vars(&mut bg_vars);
+
 		// -- done --
 		Ok(Arc::new(Self {
 			config,
+			bg_vars,
 			replication_mode,
 			db,
 			system,
