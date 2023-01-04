@@ -6,6 +6,7 @@ use std::time::Duration;
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use bytes::Bytes;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use futures::Stream;
@@ -676,14 +677,21 @@ impl BlockManagerLocked {
 			}
 		};
 
-		let mut path2 = path.clone();
-		path2.set_extension("tmp");
-		let mut f = fs::File::create(&path2).await?;
+		let mut path_tmp = path.clone();
+		let tmp_extension = format!("tmp{}", hex::encode(thread_rng().gen::<[u8; 4]>()));
+		path_tmp.set_extension(tmp_extension);
+
+		let mut delete_on_drop = DeleteOnDrop(Some(path_tmp.clone()));
+
+		let mut f = fs::File::create(&path_tmp).await?;
 		f.write_all(data).await?;
 		f.sync_all().await?;
 		drop(f);
 
-		fs::rename(path2, path).await?;
+		fs::rename(path_tmp, path).await?;
+
+		delete_on_drop.cancel();
+
 		if let Some(to_delete) = to_delete {
 			fs::remove_file(to_delete).await?;
 		}
@@ -748,4 +756,24 @@ async fn read_stream_to_end(mut stream: ByteStream) -> Result<Bytes, Error> {
 		.collect::<Vec<_>>()
 		.concat()
 		.into())
+}
+
+struct DeleteOnDrop(Option<PathBuf>);
+
+impl DeleteOnDrop {
+	fn cancel(&mut self) {
+		drop(self.0.take());
+	}
+}
+
+impl Drop for DeleteOnDrop {
+	fn drop(&mut self) {
+		if let Some(path) = self.0.take() {
+			tokio::spawn(async move {
+				if let Err(e) = fs::remove_file(&path).await {
+					debug!("DeleteOnDrop failed for {}: {}", path.display(), e);
+				}
+			});
+		}
+	}
 }
