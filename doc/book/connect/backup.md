@@ -20,7 +20,7 @@ If you still want to use Borg, you can use it with `rclone mount`.
 Create your key and bucket:
 
 ```bash
-garage key new my-key
+garage key create my-key
 garage bucket create backup
 garage bucket allow backup --read --write --key my-key
 ```

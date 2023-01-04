@@ -172,8 +172,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 
 		let output = self
 			.command()
-			.args(["key", "new"])
-			.args(["--name", name])
+			.args(["key", "create", name])
 			.expect_success_output("Could not create key");
 		let stdout = String::from_utf8(output.stdout).unwrap();
 

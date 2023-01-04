@@ -331,8 +331,8 @@ pub enum KeyOperation {
 	Info(KeyOpt),
 
 	/// Create new key
-	#[structopt(name = "new", version = garage_version())]
-	New(KeyNewOpt),
+	#[structopt(name = "create", version = garage_version())]
+	Create(KeyNewOpt),
 
 	/// Rename key
 	#[structopt(name = "rename", version = garage_version())]
@@ -364,7 +364,7 @@ pub struct KeyOpt {
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
 pub struct KeyNewOpt {
 	/// Name of the key
-	#[structopt(long = "name", default_value = "Unnamed key")]
+	#[structopt(default_value = "Unnamed key")]
 	pub name: String,
 }
 
