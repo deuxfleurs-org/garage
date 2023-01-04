@@ -357,10 +357,10 @@ pub fn print_worker_info(tid: usize, info: WorkerInfo) {
 	format_table(table);
 }
 
-pub fn print_worker_vars(wv: Vec<(String, String)>) {
+pub fn print_worker_vars(wv: Vec<(Uuid, String, String)>) {
 	let table = wv
 		.into_iter()
-		.map(|(k, v)| format!("{}\t{}", k, v))
+		.map(|(n, k, v)| format!("{:?}\t{}\t{}", n, k, v))
 		.collect::<Vec<_>>();
 	format_table(table);
 }

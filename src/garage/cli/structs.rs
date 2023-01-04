@@ -519,10 +519,24 @@ pub enum WorkerOperation {
 	Info { tid: usize },
 	/// Get worker parameter
 	#[structopt(name = "get", version = garage_version())]
-	Get { variable: Option<String> },
+	Get {
+		/// Gather variable values from all nodes
+		#[structopt(short = "a", long = "all-nodes")]
+		all_nodes: bool,
+		/// Variable name to get, or none to get all variables
+		variable: Option<String>,
+	},
 	/// Set worker parameter
 	#[structopt(name = "set", version = garage_version())]
-	Set { variable: String, value: String },
+	Set {
+		/// Set variable values on all nodes
+		#[structopt(short = "a", long = "all-nodes")]
+		all_nodes: bool,
+		/// Variable node to set
+		variable: String,
+		/// Value to set the variable to
+		value: String,
+	},
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone, Copy)]

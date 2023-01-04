@@ -71,6 +71,12 @@ impl BgVars {
 	}
 }
 
+impl Default for BgVars {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 // ----
 
 trait BgVarTrait: Send + Sync + 'static {

@@ -59,7 +59,7 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
-	WorkerVars(Vec<(String, String)>),
+	WorkerVars(Vec<(Uuid, String, String)>),
 	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
@@ -943,27 +943,101 @@ impl AdminRpcHandler {
 					.clone();
 				Ok(AdminRpc::WorkerInfo(*tid, info))
 			}
-			WorkerOperation::Get { variable } => {
-				if let Some(v) = variable {
-					Ok(AdminRpc::WorkerVars(vec![(
-						v.clone(),
-						self.garage.bg_vars.get(&v)?,
-					)]))
-				} else {
-					Ok(AdminRpc::WorkerVars(
-						self.garage
-							.bg_vars
-							.get_all()
-							.into_iter()
-							.map(|(k, v)| (k.to_string(), v))
-							.collect(),
-					))
+			WorkerOperation::Get {
+				all_nodes,
+				variable,
+			} => self.handle_get_var(*all_nodes, variable).await,
+			WorkerOperation::Set {
+				all_nodes,
+				variable,
+				value,
+			} => self.handle_set_var(*all_nodes, variable, value).await,
+		}
+	}
+
+	async fn handle_get_var(
+		&self,
+		all_nodes: bool,
+		variable: &Option<String>,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Get {
+							all_nodes: false,
+							variable: variable.clone(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
 				}
 			}
-			WorkerOperation::Set { variable, value } => {
-				self.garage.bg_vars.set(&variable, &value)?;
-				Ok(AdminRpc::Ok(format!("{} was set to {}", variable, value)))
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			#[allow(clippy::collapsible_else_if)]
+			if let Some(v) = variable {
+				Ok(AdminRpc::WorkerVars(vec![(
+					self.garage.system.id,
+					v.clone(),
+					self.garage.bg_vars.get(v)?,
+				)]))
+			} else {
+				let mut vars = self.garage.bg_vars.get_all();
+				vars.sort();
+				Ok(AdminRpc::WorkerVars(
+					vars.into_iter()
+						.map(|(k, v)| (self.garage.system.id, k.to_string(), v))
+						.collect(),
+				))
 			}
+		}
+	}
+
+	async fn handle_set_var(
+		&self,
+		all_nodes: bool,
+		variable: &str,
+		value: &str,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Set {
+							all_nodes: false,
+							variable: variable.to_string(),
+							value: value.to_string(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
+				}
+			}
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			self.garage.bg_vars.set(variable, value)?;
+			Ok(AdminRpc::WorkerVars(vec![(
+				self.garage.system.id,
+				variable.to_string(),
+				value.to_string(),
+			)]))
 		}
 	}
 
