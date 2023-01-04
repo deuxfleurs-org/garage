@@ -1,5 +1,6 @@
 //! Job runner for futures and async functions
 
+pub mod vars;
 pub mod worker;
 
 use std::collections::HashMap;

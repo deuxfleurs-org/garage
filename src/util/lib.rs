@@ -15,6 +15,5 @@ pub mod metrics;
 pub mod migrate;
 pub mod persister;
 pub mod time;
-pub mod token_bucket;
 pub mod tranquilizer;
 pub mod version;

@@ -357,6 +357,14 @@ pub fn print_worker_info(tid: usize, info: WorkerInfo) {
 	format_table(table);
 }
 
+pub fn print_worker_vars(wv: Vec<(Uuid, String, String)>) {
+	let table = wv
+		.into_iter()
+		.map(|(n, k, v)| format!("{:?}\t{}\t{}", n, k, v))
+		.collect::<Vec<_>>();
+	format_table(table);
+}
+
 pub fn print_block_error_list(el: Vec<BlockResyncErrorInfo>) {
 	let now = now_msec();
 	let tf = timeago::Formatter::new();

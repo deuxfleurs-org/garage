@@ -18,7 +18,6 @@ use garage_table::*;
 use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
-use garage_block::repair::ScrubWorkerCommand;
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
@@ -60,6 +59,7 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
+	WorkerVars(Vec<(Uuid, String, String)>),
 	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
@@ -943,32 +943,101 @@ impl AdminRpcHandler {
 					.clone();
 				Ok(AdminRpc::WorkerInfo(*tid, info))
 			}
-			WorkerOperation::Set { opt } => match opt {
-				WorkerSetCmd::ScrubTranquility { tranquility } => {
-					let scrub_command = ScrubWorkerCommand::SetTranquility(*tranquility);
-					self.garage
-						.block_manager
-						.send_scrub_command(scrub_command)
-						.await?;
-					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
+			WorkerOperation::Get {
+				all_nodes,
+				variable,
+			} => self.handle_get_var(*all_nodes, variable).await,
+			WorkerOperation::Set {
+				all_nodes,
+				variable,
+				value,
+			} => self.handle_set_var(*all_nodes, variable, value).await,
+		}
+	}
+
+	async fn handle_get_var(
+		&self,
+		all_nodes: bool,
+		variable: &Option<String>,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Get {
+							all_nodes: false,
+							variable: variable.clone(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
 				}
-				WorkerSetCmd::ResyncWorkerCount { worker_count } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_n_workers(*worker_count)
-						.await?;
-					Ok(AdminRpc::Ok("Number of resync workers updated".into()))
+			}
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			#[allow(clippy::collapsible_else_if)]
+			if let Some(v) = variable {
+				Ok(AdminRpc::WorkerVars(vec![(
+					self.garage.system.id,
+					v.clone(),
+					self.garage.bg_vars.get(v)?,
+				)]))
+			} else {
+				let mut vars = self.garage.bg_vars.get_all();
+				vars.sort();
+				Ok(AdminRpc::WorkerVars(
+					vars.into_iter()
+						.map(|(k, v)| (self.garage.system.id, k.to_string(), v))
+						.collect(),
+				))
+			}
+		}
+	}
+
+	async fn handle_set_var(
+		&self,
+		all_nodes: bool,
+		variable: &str,
+		value: &str,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Set {
+							all_nodes: false,
+							variable: variable.to_string(),
+							value: value.to_string(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
 				}
-				WorkerSetCmd::ResyncTranquility { tranquility } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_tranquility(*tranquility)
-						.await?;
-					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
-				}
-			},
+			}
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			self.garage.bg_vars.set(variable, value)?;
+			Ok(AdminRpc::WorkerVars(vec![(
+				self.garage.system.id,
+				variable.to_string(),
+				value.to_string(),
+			)]))
 		}
 	}
 

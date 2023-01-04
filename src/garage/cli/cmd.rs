@@ -191,6 +191,9 @@ pub async fn cmd_admin(
 		AdminRpc::WorkerList(wi, wlo) => {
 			print_worker_list(wi, wlo);
 		}
+		AdminRpc::WorkerVars(wv) => {
+			print_worker_vars(wv);
+		}
 		AdminRpc::WorkerInfo(tid, wi) => {
 			print_worker_info(tid, wi);
 		}

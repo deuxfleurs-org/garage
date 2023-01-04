@@ -51,7 +51,11 @@ pub async fn launch_online_repair(
 				ScrubCmd::Resume => ScrubWorkerCommand::Resume,
 				ScrubCmd::Cancel => ScrubWorkerCommand::Cancel,
 				ScrubCmd::SetTranquility { tranquility } => {
-					ScrubWorkerCommand::SetTranquility(tranquility)
+					garage
+						.block_manager
+						.scrub_persister
+						.set_with(|x| x.tranquility = tranquility)?;
+					return Ok(());
 				}
 			};
 			info!("Sending command to scrub worker: {:?}", cmd);
