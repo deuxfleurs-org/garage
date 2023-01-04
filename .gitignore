@@ -3,3 +3,4 @@
 /pki
 **/*.rs.bk
 *.swp
+/.direnv

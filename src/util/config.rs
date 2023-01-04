@@ -34,7 +34,10 @@ pub struct Config {
 	pub compression_level: Option<i32>,
 
 	/// RPC secret key: 32 bytes hex encoded
-	pub rpc_secret: String,
+	pub rpc_secret: Option<String>,
+
+	/// Optional file where RPC secret key is read from
+	pub rpc_secret_file: Option<String>,
 
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
@@ -177,7 +180,26 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	let mut config = String::new();
 	file.read_to_string(&mut config)?;
 
-	Ok(toml::from_str(&config)?)
+	let mut parsed_config: Config = toml::from_str(&config)?;
+
+	match (&parsed_config.rpc_secret, &parsed_config.rpc_secret_file) {
+		(Some(_), _) => {}
+		(None, Some(rpc_secret_file_path_string)) => {
+			let mut rpc_secret_file = std::fs::OpenOptions::new()
+				.read(true)
+				.open(rpc_secret_file_path_string)?;
+			let mut rpc_secret_from_file = String::new();
+			rpc_secret_file.read_to_string(&mut rpc_secret_from_file)?;
+			// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
+			//           also editors sometimes add a trailing newline
+			parsed_config.rpc_secret = Some(String::from(rpc_secret_from_file.trim_end()));
+		}
+		(None, None) => {
+			return Err("either `rpc_secret` or `rpc_secret_file` needs to be set".into())
+		}
+	};
+
+	Ok(parsed_config)
 }
 
 fn default_compression() -> Option<i32> {

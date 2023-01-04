@@ -39,7 +39,7 @@ Now you can enter our nix-shell, all the required packages will be downloaded bu
 nix-shell
 ```
 
-You can use the traditionnal Rust development workflow:
+You can use the traditional Rust development workflow:
 
 ```bash
 cargo build  # compile the project
