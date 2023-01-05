@@ -18,7 +18,7 @@ pub const CONFLICTS: &str = "conflicts";
 pub const VALUES: &str = "values";
 pub const BYTES: &str = "bytes";
 
-mod v08 {
+pub(super) mod v08 {
 	use crate::k2v::causality::K2VNodeId;
 	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
@@ -73,7 +73,8 @@ impl K2VItem {
 		this_node: Uuid,
 		context: &Option<CausalContext>,
 		new_value: DvvsValue,
-	) {
+		node_counter: u64,
+	) -> u64 {
 		if let Some(context) = context {
 			for (node, t_discard) in context.vector_clock.iter() {
 				if let Some(e) = self.items.get_mut(node) {
@@ -98,7 +99,9 @@ impl K2VItem {
 			values: vec![],
 		});
 		let t_prev = e.max_time();
-		e.values.push((t_prev + 1, new_value));
+		let t_new = std::cmp::max(node_counter + 1, t_prev + 1);
+		e.values.push((t_new, new_value));
+		t_new
 	}
 
 	/// Extract the causality context of a K2V Item
@@ -237,7 +240,7 @@ impl TableSchema for K2VItemTable {
 
 		// 2. Notify
 		if let Some(new_ent) = new {
-			self.subscriptions.notify(new_ent);
+			self.subscriptions.notify_item(new_ent);
 		}
 
 		Ok(())

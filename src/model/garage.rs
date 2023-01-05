@@ -27,7 +27,7 @@ use crate::index_counter::*;
 use crate::key_table::*;
 
 #[cfg(feature = "k2v")]
-use crate::k2v::{item_table::*, poll::*, rpc::*};
+use crate::k2v::{history_table::*, item_table::*, poll::*, rpc::*};
 
 /// An entire Garage full of data
 pub struct Garage {
@@ -70,6 +70,8 @@ pub struct Garage {
 pub struct GarageK2V {
 	/// Table containing K2V items
 	pub item_table: Arc<Table<K2VItemTable, TableShardedReplication>>,
+	/// Table containing K2V modification history
+	pub history_table: Arc<Table<K2VHistoryTable, TableShardedReplication>>,
 	/// Indexing table containing K2V item counters
 	pub counter_table: Arc<IndexCounter<K2VItem>>,
 	/// K2V RPC handler
@@ -305,22 +307,42 @@ impl GarageK2V {
 	fn new(system: Arc<System>, db: &db::Db, meta_rep_param: TableShardedReplication) -> Self {
 		info!("Initialize K2V counter table...");
 		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db);
+
 		info!("Initialize K2V subscription manager...");
 		let subscriptions = Arc::new(SubscriptionManager::new());
+
 		info!("Initialize K2V item table...");
 		let item_table = Table::new(
 			K2VItemTable {
 				counter_table: counter_table.clone(),
 				subscriptions: subscriptions.clone(),
 			},
+			meta_rep_param.clone(),
+			system.clone(),
+			db,
+		);
+		info!("Initialize K2V history table...");
+		let history_table = Table::new(
+			K2VHistoryTable {
+				subscriptions: subscriptions.clone(),
+			},
 			meta_rep_param,
 			system.clone(),
 			db,
 		);
-		let rpc = K2VRpcHandler::new(system, item_table.clone(), subscriptions);
+
+		info!("Initialize K2V RPC handler...");
+		let rpc = K2VRpcHandler::new(
+			system,
+			db,
+			item_table.clone(),
+			history_table.clone(),
+			subscriptions,
+		);
 
 		Self {
 			item_table,
+			history_table,
 			counter_table,
 			rpc,
 		}

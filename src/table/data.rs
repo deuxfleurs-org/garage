@@ -181,13 +181,17 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<(), Error> {
 		let update = self.decode_entry(update_bytes)?;
 
-		self.update_entry_with(update.partition_key(), update.sort_key(), |ent| match ent {
-			Some(mut ent) => {
-				ent.merge(&update);
-				ent
-			}
-			None => update.clone(),
-		})?;
+		self.update_entry_with(
+			update.partition_key(),
+			update.sort_key(),
+			|_tx, ent| match ent {
+				Some(mut ent) => {
+					ent.merge(&update);
+					Ok(ent)
+				}
+				None => Ok(update.clone()),
+			},
+		)?;
 		Ok(())
 	}
 
@@ -195,7 +199,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		&self,
 		partition_key: &F::P,
 		sort_key: &F::S,
-		f: impl Fn(Option<F::E>) -> F::E,
+		update_fn: impl Fn(&mut db::Transaction, Option<F::E>) -> db::TxResult<F::E, Error>,
 	) -> Result<Option<F::E>, Error> {
 		let tree_key = self.tree_key(partition_key, sort_key);
 
@@ -203,10 +207,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			let (old_entry, old_bytes, new_entry) = match tx.get(&self.store, &tree_key)? {
 				Some(old_bytes) => {
 					let old_entry = self.decode_entry(&old_bytes).map_err(db::TxError::Abort)?;
-					let new_entry = f(Some(old_entry.clone()));
+					let new_entry = update_fn(&mut tx, Some(old_entry.clone()))?;
 					(Some(old_entry), Some(old_bytes), new_entry)
 				}
-				None => (None, None, f(None)),
+				None => (None, None, update_fn(&mut tx, None)?),
 			};
 
 			// Changed can be true in two scenarios
@@ -335,6 +339,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			.map_err(Error::RmpEncode)
 			.map_err(db::TxError::Abort)?;
 		tx.insert(&self.insert_queue, &tree_key, new_entry)?;
+
 		self.insert_queue_notify.notify_one();
 
 		Ok(())
@@ -344,7 +349,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 
 	pub fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
 		let mut ret = p.hash().to_vec();
-		ret.extend(s.sort_key());
+		ret.extend(s.sort_key().borrow());
 		ret
 	}
 

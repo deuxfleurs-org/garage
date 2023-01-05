@@ -7,6 +7,8 @@ use crate::schema::*;
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EmptyKey;
 impl SortKey for EmptyKey {
+	type B<'a> = &'a [u8];
+
 	fn sort_key(&self) -> &[u8] {
 		&[]
 	}

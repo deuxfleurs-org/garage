@@ -31,17 +31,23 @@ impl PartitionKey for FixedBytes32 {
 
 /// Trait for field used to sort data
 pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
+	type B<'a>: std::borrow::Borrow<[u8]>;
+
 	/// Get the key used to sort
-	fn sort_key(&self) -> &[u8];
+	fn sort_key(&self) -> Self::B<'_>;
 }
 
 impl SortKey for String {
+	type B<'a> = &'a [u8];
+
 	fn sort_key(&self) -> &[u8] {
 		self.as_bytes()
 	}
 }
 
 impl SortKey for FixedBytes32 {
+	type B<'a> = &'a [u8];
+
 	fn sort_key(&self) -> &[u8] {
 		self.as_slice()
 	}
