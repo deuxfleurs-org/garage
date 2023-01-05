@@ -210,7 +210,7 @@ pub async fn cmd_show_layout(
                     v + 1)
 			}
 			Err(e) => {
-				println!("Error while trying to compute the assignation: {}", e);
+				println!("Error while trying to compute the assignment: {}", e);
 				println!("This new layout cannot yet be applied.");
 				println!(
                     "You can also revert all proposed changes with: garage layout revert --version {}",
@@ -236,7 +236,7 @@ pub async fn cmd_apply_layout(
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
-	println!("New cluster layout with updated role assignation has been applied in cluster.");
+	println!("New cluster layout with updated role assignment has been applied in cluster.");
 	println!("Data will now be moved around between nodes accordingly.");
 
 	Ok(())

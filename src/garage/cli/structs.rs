@@ -17,7 +17,7 @@ pub enum Command {
 	#[structopt(name = "node", version = garage_version())]
 	Node(NodeOperation),
 
-	/// Operations on the assignation of node roles in the cluster layout
+	/// Operations on the assignment of node roles in the cluster layout
 	#[structopt(name = "layout", version = garage_version())]
 	Layout(LayoutOperation),
 
