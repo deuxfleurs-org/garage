@@ -30,7 +30,7 @@
           cargo2nixOverlay = cargo2nix.overlays.default;
           release = false;
         }).workspaceShell {
-          packages = [ pkgs.rustfmt ];
+          packages = [ pkgs.rustfmt cargo2nix.packages.${system}.default ];
         });
       });
 }
