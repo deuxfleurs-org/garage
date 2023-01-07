@@ -34,6 +34,7 @@ pub struct Config {
 	pub compression_level: Option<i32>,
 
 	/// RPC secret key: 32 bytes hex encoded
+	/// Note: When using `read_config` this should never be `None`
 	pub rpc_secret: Option<String>,
 
 	/// Optional file where RPC secret key is read from
@@ -183,7 +184,12 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	let mut parsed_config: Config = toml::from_str(&config)?;
 
 	match (&parsed_config.rpc_secret, &parsed_config.rpc_secret_file) {
-		(Some(_), _) => {}
+		(Some(_), None) => {
+			// no-op
+		}
+		(Some(_), Some(_)) => {
+			return Err("only one of `rpc_secret` and `rpc_secret_file` can be set".into())
+		}
 		(None, Some(rpc_secret_file_path_string)) => {
 			let mut rpc_secret_file = std::fs::OpenOptions::new()
 				.read(true)
