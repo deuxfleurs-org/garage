@@ -3,15 +3,15 @@ rec {
    * Fixed dependencies
    */
   pkgsSrc = fetchTarball {
-    # As of 2022-10-13
-    url = "https://github.com/NixOS/nixpkgs/archive/a3073c49bc0163fea6a121c276f526837672b555.zip";
-    sha256 = "1bz632psfbpmicyzjb8b4265y50shylccvfm6ry6mgnv5hvz324s";
+    # As of 2023-01-09
+    url = "https://github.com/NixOS/nixpkgs/archive/baed728abe983508cabc99d05cccc164fe748744.zip";
+    sha256 = "1m7kmcjhnj3lx7xqs0nh262c4nxs5n8p7k9g6kc4gv1k5nrcrnpf";
   };
   cargo2nixSrc = fetchGit {
     # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
     url = "https://github.com/Alexis211/cargo2nix";
     ref = "custom_unstable";
-    rev = "a7a61179b66054904ef6a195d8da736eaaa06c36";
+    rev = "505caa32110d42ee03bd68b47031142eff9c827b";
   };
 
   /*

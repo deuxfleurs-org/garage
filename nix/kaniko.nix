@@ -7,7 +7,7 @@ pkgs.buildGoModule rec {
     owner = "GoogleContainerTools";
     repo = "kaniko";
     rev = "v${version}";
-    sha256 = "1fnclr556avxay6pvgw5ya3xbxfnf2gv4njq2hr4fd6fcjyslq5h";
+    sha256 = "TXgzO/NfLXVo5a7yyO3XYSk+9H1CwMF+vwbRx3kchQ8=";
   };
 
   vendorSha256 = null;
