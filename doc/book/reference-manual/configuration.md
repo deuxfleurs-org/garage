@@ -429,6 +429,6 @@ You can use any random string for this value. We recommend generating a random t
 
 ### `trace_sink`
 
-Optionnally, the address of an Opentelemetry collector.  If specified,
-Garage will send traces in the Opentelemetry format to this endpoint. These
+Optionally, the address of an OpenTelemetry collector.  If specified,
+Garage will send traces in the OpenTelemetry format to this endpoint. These
 trace allow to inspect Garage's operation when it handles S3 API requests.
