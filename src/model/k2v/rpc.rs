@@ -32,7 +32,7 @@ use garage_table::{PartitionKey, Table};
 use crate::k2v::causality::*;
 use crate::k2v::history_table::*;
 use crate::k2v::item_table::*;
-use crate::k2v::poll::*;
+use crate::k2v::sub::*;
 
 /// RPC messages for K2V
 #[derive(Debug, Serialize, Deserialize)]
@@ -292,8 +292,9 @@ impl K2VRpcHandler {
 		self.item_table
 			.data
 			.update_entry_with(&item.partition, &item.sort_key, |tx, ent| {
+				let local_counter_key = item.partition.hash();
 				let old_local_counter = tx
-					.get(&self.local_counter_tree, b"counter")?
+					.get(&self.local_counter_tree, &local_counter_key)?
 					.and_then(|x| x.try_into().ok())
 					.map(u64::from_be_bytes)
 					.unwrap_or_default();
@@ -314,20 +315,18 @@ impl K2VRpcHandler {
 
 				tx.insert(
 					&self.local_counter_tree,
-					b"counter",
+					&local_counter_key,
 					u64::to_be_bytes(new_local_counter),
 				)?;
 
 				let hist_entry = K2VHistoryEntry {
-					partition: ent.partition.clone(),
+					ins_item: ent.clone(),
 					node_counter: K2VHistorySortKey {
 						node: make_node_id(self.system.id),
 						counter: new_local_counter,
 					},
 					prev_counter: old_local_counter,
 					timestamp: now,
-					ins_sort_key: item.sort_key.clone(),
-					ins_value: item.value.clone(),
 					deleted: false.into(),
 				};
 				self.history_table.queue_insert(tx, &hist_entry)?;

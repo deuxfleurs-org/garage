@@ -5,18 +5,21 @@ use garage_db as db;
 use garage_table::crdt::*;
 use garage_table::*;
 
-use crate::k2v::poll::*;
+use crate::k2v::sub::*;
 
 mod v08 {
 	use crate::k2v::causality::K2VNodeId;
-	pub use crate::k2v::item_table::v08::{DvvsValue, K2VItemPartition};
+	pub use crate::k2v::item_table::v08::{DvvsValue, K2VItem, K2VItemPartition};
 	use garage_util::crdt;
 	use serde::{Deserialize, Serialize};
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct K2VHistoryEntry {
-		/// Partition key: a K2V partition
-		pub partition: K2VItemPartition,
+		// Partition key: the partition key of ins_item
+
+		/// The inserted item
+		pub ins_item: K2VItem,
+
 		/// Sort key: the node ID and its local counter
 		pub node_counter: K2VHistorySortKey,
 
@@ -25,12 +28,8 @@ mod v08 {
 		/// The timesamp of the update (!= counter, counters are incremented
 		/// by one, timestamps are real clock timestamps)
 		pub timestamp: u64,
-		/// The sort key of the item that was inserted
-		pub ins_sort_key: String,
-		/// The inserted value
-		pub ins_value: DvvsValue,
 
-		/// Whether this history entry is too old and should be deleted
+		/// Mark this history entry for deletion
 		pub deleted: crdt::Bool,
 	}
 
@@ -49,6 +48,7 @@ pub use v08::*;
 
 impl Crdt for K2VHistoryEntry {
 	fn merge(&mut self, other: &Self) {
+		self.ins_item.merge(&other.ins_item);
 		self.deleted.merge(&other.deleted);
 	}
 }
@@ -66,7 +66,7 @@ impl SortKey for K2VHistorySortKey {
 
 impl Entry<K2VItemPartition, K2VHistorySortKey> for K2VHistoryEntry {
 	fn partition_key(&self) -> &K2VItemPartition {
-		&self.partition
+		&self.ins_item.partition
 	}
 	fn sort_key(&self) -> &K2VHistorySortKey {
 		&self.node_counter

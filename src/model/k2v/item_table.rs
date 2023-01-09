@@ -11,7 +11,7 @@ use garage_table::*;
 
 use crate::index_counter::*;
 use crate::k2v::causality::*;
-use crate::k2v::poll::*;
+use crate::k2v::sub::*;
 
 pub const ENTRIES: &str = "entries";
 pub const CONFLICTS: &str = "conflicts";

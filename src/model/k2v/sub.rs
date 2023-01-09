@@ -95,21 +95,21 @@ impl SubscriptionManager {
 
 impl PollRange {
 	fn matches(&self, entry: &K2VHistoryEntry) -> bool {
-		entry.partition == self.partition
+		entry.ins_item.partition == self.partition
 			&& self
 				.prefix
 				.as_ref()
-				.map(|x| entry.ins_sort_key.starts_with(x))
+				.map(|x| entry.ins_item.sort_key.starts_with(x))
 				.unwrap_or(true)
 			&& self
 				.start
 				.as_ref()
-				.map(|x| entry.ins_sort_key >= *x)
+				.map(|x| entry.ins_item.sort_key >= *x)
 				.unwrap_or(true)
 			&& self
 				.end
 				.as_ref()
-				.map(|x| entry.ins_sort_key < *x)
+				.map(|x| entry.ins_item.sort_key < *x)
 				.unwrap_or(true)
 	}
 }
