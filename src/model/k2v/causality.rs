@@ -1,3 +1,13 @@
+//! Implements a CausalContext, which is a set of timestamps for each
+//! node -- a vector clock --, indicating that the versions with
+//! timestamps <= these numbers have been seen and can be
+//! overwritten by a subsequent write.
+//!
+//! The textual representation of a CausalContext, which we call a
+//! "causality token", is used in the API and must be sent along with
+//! each write or delete operation to indicate the previously seen
+//! versions that we want to overwrite or delete.
+
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
@@ -9,23 +19,36 @@ use garage_util::data::*;
 /// of full Garage node IDs which are 256-bit UUIDs.
 pub type K2VNodeId = u64;
 
+pub type VectorClock = BTreeMap<K2VNodeId, u64>;
+
 pub fn make_node_id(node_id: Uuid) -> K2VNodeId {
 	let mut tmp = [0u8; 8];
 	tmp.copy_from_slice(&node_id.as_slice()[..8]);
 	u64::from_be_bytes(tmp)
 }
 
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub fn vclock_gt(a: &VectorClock, b: &VectorClock) -> bool {
+	a.iter().any(|(n, ts)| ts > b.get(n).unwrap_or(&0))
+}
+
+pub fn vclock_max(a: &VectorClock, b: &VectorClock) -> VectorClock {
+	let mut ret = a.clone();
+	for (n, ts) in b.iter() {
+		let ent = ret.entry(*n).or_insert(0);
+		*ent = std::cmp::max(*ts, *ent);
+	}
+	ret
+}
+
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct CausalContext {
-	pub vector_clock: BTreeMap<K2VNodeId, u64>,
+	pub vector_clock: VectorClock,
 }
 
 impl CausalContext {
 	/// Empty causality context
-	pub fn new_empty() -> Self {
-		Self {
-			vector_clock: BTreeMap::new(),
-		}
+	pub fn new() -> Self {
+		Self::default()
 	}
 	/// Make binary representation and encode in base64
 	pub fn serialize(&self) -> String {
@@ -72,9 +95,7 @@ impl CausalContext {
 	}
 	/// Check if this causal context contains newer items than another one
 	pub fn is_newer_than(&self, other: &Self) -> bool {
-		self.vector_clock
-			.iter()
-			.any(|(k, v)| v > other.vector_clock.get(k).unwrap_or(&0))
+		vclock_gt(&self.vector_clock, &other.vector_clock)
 	}
 }
 

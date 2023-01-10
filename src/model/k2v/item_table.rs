@@ -106,7 +106,7 @@ impl K2VItem {
 
 	/// Extract the causality context of a K2V Item
 	pub fn causal_context(&self) -> CausalContext {
-		let mut cc = CausalContext::new_empty();
+		let mut cc = CausalContext::new();
 		for (node, ent) in self.items.iter() {
 			cc.vector_clock.insert(*node, ent.max_time());
 		}
