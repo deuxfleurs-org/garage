@@ -5,7 +5,7 @@
 //! node does not process the entry directly, as this would
 //! mean the vector clock gets much larger than needed).
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -31,6 +31,7 @@ use garage_table::{PartitionKey, Table};
 
 use crate::k2v::causality::*;
 use crate::k2v::item_table::*;
+use crate::k2v::seen::*;
 use crate::k2v::sub::*;
 
 const TIMESTAMP_KEY: &'static [u8] = b"timestamp";
@@ -46,7 +47,13 @@ enum K2VRpc {
 		causal_context: CausalContext,
 		timeout_msec: u64,
 	},
+	PollRange {
+		range: PollRange,
+		seen_str: Option<String>,
+		timeout_msec: u64,
+	},
 	PollItemResponse(Option<K2VItem>),
+	PollRangeResponse(Uuid, Vec<K2VItem>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -242,14 +249,75 @@ impl K2VRpcHandler {
 						resp = Some(x);
 					}
 				}
-				K2VRpc::PollItemResponse(None) => {
-					return Ok(None);
-				}
+				K2VRpc::PollItemResponse(None) => (),
 				v => return Err(Error::unexpected_rpc_message(v)),
 			}
 		}
 
 		Ok(resp)
+	}
+
+	pub async fn poll_range(
+		&self,
+		range: PollRange,
+		seen_str: Option<String>,
+		timeout_msec: u64,
+	) -> Result<Option<(BTreeMap<String, K2VItem>, String)>, Error> {
+		let mut seen = seen_str
+			.as_deref()
+			.map(RangeSeenMarker::decode)
+			.transpose()?
+			.unwrap_or_default();
+		seen.restrict(&range);
+
+		let nodes = self
+			.item_table
+			.data
+			.replication
+			.write_nodes(&range.partition.hash());
+
+		let rpc = self.system.rpc.try_call_many(
+			&self.endpoint,
+			&nodes[..],
+			K2VRpc::PollRange {
+				range,
+				seen_str,
+				timeout_msec,
+			},
+			RequestStrategy::with_priority(PRIO_NORMAL)
+				.with_quorum(self.item_table.data.replication.read_quorum())
+				.without_timeout(),
+		);
+		let timeout_duration = Duration::from_millis(timeout_msec) + self.system.rpc.rpc_timeout();
+		let resps = select! {
+			r = rpc => r?,
+			_ = tokio::time::sleep(timeout_duration) => return Ok(None),
+		};
+
+		let mut new_items = BTreeMap::<String, K2VItem>::new();
+		for v in resps {
+			if let K2VRpc::PollRangeResponse(node, items) = v {
+				seen.mark_seen_node_items(node, items.iter());
+				for item in items.into_iter() {
+					match new_items.get_mut(&item.sort_key) {
+						Some(ent) => {
+							ent.merge(&item);
+						}
+						None => {
+							new_items.insert(item.sort_key.clone(), item);
+						}
+					}
+				}
+			} else {
+				return Err(Error::unexpected_rpc_message(v));
+			}
+		}
+
+		if new_items.is_empty() {
+			Ok(None)
+		} else {
+			Ok(Some((new_items, seen.encode()?)))
+		}
 	}
 
 	// ---- internal handlers ----
@@ -348,6 +416,52 @@ impl K2VRpcHandler {
 
 		Ok(value)
 	}
+
+	async fn handle_poll_range(
+		&self,
+		range: &PollRange,
+		seen_str: &Option<String>,
+	) -> Result<Vec<K2VItem>, Error> {
+		let seen = seen_str
+			.as_deref()
+			.map(RangeSeenMarker::decode)
+			.transpose()?
+			.unwrap_or_default();
+		let mut new_items = vec![];
+
+		let mut chan = self.subscriptions.subscribe_partition(&range.partition);
+
+		// Read current state of the specified range to check new items
+		let partition_hash = range.partition.hash();
+		let first_key = match &range.start {
+			None => partition_hash.to_vec(),
+			Some(sk) => self.item_table.data.tree_key(&range.partition, sk),
+		};
+		for item in self.item_table.data.store.range(first_key..)? {
+			let (key, value) = item?;
+			if &key[..32] != partition_hash.as_slice() {
+				break;
+			}
+			let item = self.item_table.data.decode_entry(&value)?;
+			if !range.matches(&item) {
+				break;
+			}
+			if seen.is_new_item(&item) {
+				new_items.push(item);
+			}
+		}
+
+		// If we found no new items, wait for a matching item to arrive
+		// on the channel
+		while new_items.is_empty() {
+			let item = chan.recv().await?;
+			if range.matches(&item) && seen.is_new_item(&item) {
+				new_items.push(item);
+			}
+		}
+
+		Ok(new_items)
+	}
 }
 
 #[async_trait]
@@ -365,6 +479,17 @@ impl EndpointHandler<K2VRpc> for K2VRpcHandler {
 				select! {
 					ret = self.handle_poll_item(key, causal_context) => ret.map(Some).map(K2VRpc::PollItemResponse),
 					_ = delay => Ok(K2VRpc::PollItemResponse(None)),
+				}
+			}
+			K2VRpc::PollRange {
+				range,
+				seen_str,
+				timeout_msec,
+			} => {
+				let delay = tokio::time::sleep(Duration::from_millis(*timeout_msec));
+				select! {
+					ret = self.handle_poll_range(range, seen_str) => ret.map(|items| K2VRpc::PollRangeResponse(self.system.id, items)),
+					_ = delay => Ok(K2VRpc::PollRangeResponse(self.system.id, vec![])),
 				}
 			}
 			m => Err(Error::unexpected_rpc_message(m)),

@@ -17,6 +17,7 @@ use garage_util::error::{Error, OkOrMessage};
 
 use crate::k2v::causality::*;
 use crate::k2v::item_table::*;
+use crate::k2v::sub::*;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct RangeSeenMarker {
@@ -27,6 +28,18 @@ pub struct RangeSeenMarker {
 impl RangeSeenMarker {
 	pub fn new() -> Self {
 		Self::default()
+	}
+
+	pub fn restrict(&mut self, range: &PollRange) {
+		if let Some(start) = &range.start {
+			self.items = self.items.split_off(start);
+		}
+		if let Some(end) = &range.end {
+			self.items.split_off(end);
+		}
+		if let Some(pfx) = &range.prefix {
+			self.items.retain(|k, _v| k.starts_with(pfx));
+		}
 	}
 
 	pub fn mark_seen_node_items<'a, I: IntoIterator<Item = &'a K2VItem>>(
