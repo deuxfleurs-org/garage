@@ -4,7 +4,6 @@ use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
-use garage_util::error::Error as GarageError;
 
 use garage_table::{EnumerationOrder, TableSchema};
 
@@ -65,10 +64,7 @@ pub async fn handle_read_batch(
 		resps.push(resp?);
 	}
 
-	let resp_json = serde_json::to_string_pretty(&resps).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&resps)?)
 }
 
 async fn handle_read_batch_query(
@@ -160,10 +156,7 @@ pub async fn handle_delete_batch(
 		resps.push(resp?);
 	}
 
-	let resp_json = serde_json::to_string_pretty(&resps).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&resps)?)
 }
 
 async fn handle_delete_batch_query(
@@ -255,6 +248,53 @@ async fn handle_delete_batch_query(
 		single_item: query.single_item,
 		deleted_items,
 	})
+}
+
+pub(crate) async fn handle_poll_range(
+	garage: Arc<Garage>,
+	bucket_id: Uuid,
+	partition_key: &str,
+	req: Request<Body>,
+) -> Result<Response<Body>, Error> {
+	use garage_model::k2v::sub::PollRange;
+
+	let query = parse_json_body::<PollRangeQuery>(req).await?;
+
+	let timeout_msec = query.timeout.unwrap_or(300).clamp(10, 600) * 1000;
+
+	let resp = garage
+		.k2v
+		.rpc
+		.poll_range(
+			PollRange {
+				partition: K2VItemPartition {
+					bucket_id,
+					partition_key: partition_key.to_string(),
+				},
+				start: query.start,
+				end: query.end,
+				prefix: query.prefix,
+			},
+			query.seen_marker,
+			timeout_msec,
+		)
+		.await?;
+
+	if let Some((items, seen_marker)) = resp {
+		let resp = PollRangeResponse {
+			items: items
+				.into_iter()
+				.map(|(_k, i)| ReadBatchResponseItem::from(i))
+				.collect::<Vec<_>>(),
+			seen_marker,
+		};
+
+		Ok(json_ok_response(&resp)?)
+	} else {
+		Ok(Response::builder()
+			.status(StatusCode::NOT_MODIFIED)
+			.body(Body::empty())?)
+	}
 }
 
 #[derive(Deserialize)]
@@ -360,4 +400,25 @@ struct DeleteBatchResponse {
 
 	#[serde(rename = "deletedItems")]
 	deleted_items: usize,
+}
+
+#[derive(Deserialize)]
+struct PollRangeQuery {
+	#[serde(default)]
+	prefix: Option<String>,
+	#[serde(default)]
+	start: Option<String>,
+	#[serde(default)]
+	end: Option<String>,
+	#[serde(default)]
+	timeout: Option<u64>,
+	#[serde(default, rename = "seenMarker")]
+	seen_marker: Option<String>,
+}
+
+#[derive(Serialize)]
+struct PollRangeResponse {
+	items: Vec<ReadBatchResponseItem>,
+	#[serde(rename = "seenMarker")]
+	seen_marker: String,
 }
