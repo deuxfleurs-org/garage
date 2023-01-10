@@ -73,7 +73,8 @@ impl K2VItem {
 		this_node: Uuid,
 		context: &Option<CausalContext>,
 		new_value: DvvsValue,
-	) {
+		node_ts: u64,
+	) -> u64 {
 		if let Some(context) = context {
 			for (node, t_discard) in context.vector_clock.iter() {
 				if let Some(e) = self.items.get_mut(node) {
@@ -98,7 +99,9 @@ impl K2VItem {
 			values: vec![],
 		});
 		let t_prev = e.max_time();
-		e.values.push((t_prev + 1, new_value));
+		let t_new = std::cmp::max(t_prev + 1, node_ts + 1);
+		e.values.push((t_new, new_value));
+		t_new
 	}
 
 	/// Extract the causality context of a K2V Item

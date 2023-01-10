@@ -305,8 +305,10 @@ impl GarageK2V {
 	fn new(system: Arc<System>, db: &db::Db, meta_rep_param: TableShardedReplication) -> Self {
 		info!("Initialize K2V counter table...");
 		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db);
+
 		info!("Initialize K2V subscription manager...");
 		let subscriptions = Arc::new(SubscriptionManager::new());
+
 		info!("Initialize K2V item table...");
 		let item_table = Table::new(
 			K2VItemTable {
@@ -317,7 +319,9 @@ impl GarageK2V {
 			system.clone(),
 			db,
 		);
-		let rpc = K2VRpcHandler::new(system, item_table.clone(), subscriptions);
+
+		info!("Initialize K2V RPC handler...");
+		let rpc = K2VRpcHandler::new(system, db, item_table.clone(), subscriptions);
 
 		Self {
 			item_table,
