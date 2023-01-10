@@ -27,7 +27,7 @@ use crate::index_counter::*;
 use crate::key_table::*;
 
 #[cfg(feature = "k2v")]
-use crate::k2v::{item_table::*, poll::*, rpc::*};
+use crate::k2v::{item_table::*, rpc::*, sub::*};
 
 /// An entire Garage full of data
 pub struct Garage {

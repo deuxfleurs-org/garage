@@ -27,7 +27,7 @@ use garage_table::{PartitionKey, Table};
 
 use crate::k2v::causality::*;
 use crate::k2v::item_table::*;
-use crate::k2v::poll::*;
+use crate::k2v::sub::*;
 
 /// RPC messages for K2V
 #[derive(Debug, Serialize, Deserialize)]
@@ -181,7 +181,7 @@ impl K2VRpcHandler {
 		Ok(())
 	}
 
-	pub async fn poll(
+	pub async fn poll_item(
 		&self,
 		bucket_id: Uuid,
 		partition_key: String,
@@ -288,8 +288,8 @@ impl K2VRpcHandler {
 			})
 	}
 
-	async fn handle_poll(&self, key: &PollKey, ct: &CausalContext) -> Result<K2VItem, Error> {
-		let mut chan = self.subscriptions.subscribe(key);
+	async fn handle_poll_item(&self, key: &PollKey, ct: &CausalContext) -> Result<K2VItem, Error> {
+		let mut chan = self.subscriptions.subscribe_item(key);
 
 		let mut value = self
 			.item_table
@@ -326,7 +326,7 @@ impl EndpointHandler<K2VRpc> for K2VRpcHandler {
 			} => {
 				let delay = tokio::time::sleep(Duration::from_millis(*timeout_msec));
 				select! {
-					ret = self.handle_poll(key, causal_context) => ret.map(Some).map(K2VRpc::PollItemResponse),
+					ret = self.handle_poll_item(key, causal_context) => ret.map(Some).map(K2VRpc::PollItemResponse),
 					_ = delay => Ok(K2VRpc::PollItemResponse(None)),
 				}
 			}

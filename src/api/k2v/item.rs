@@ -211,7 +211,7 @@ pub async fn handle_poll_item(
 	let item = garage
 		.k2v
 		.rpc
-		.poll(
+		.poll_item(
 			bucket_id,
 			partition_key,
 			sort_key,
