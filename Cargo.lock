@@ -1752,12 +1752,13 @@ dependencies = [
 
 [[package]]
 name = "k2v-client"
-version = "0.0.1"
+version = "0.1.1"
 dependencies = [
  "base64",
  "clap 3.1.18",
  "garage_util",
  "http",
+ "hyper-rustls 0.23.0",
  "log",
  "rusoto_core",
  "rusoto_credential",

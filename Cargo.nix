@@ -32,7 +32,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "b6aeefc112eb232904b24398f4e5da776c8ee2c13d427a26dbdf1732205d4fc9";
+  nixifiedLockHash = "8f036894ab81a528f76e97e904ff3e496a9b1500569312489d444f615fb781bf";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -65,7 +65,7 @@ in
     garage_api = rustPackages.unknown.garage_api."0.8.1";
     garage_web = rustPackages.unknown.garage_web."0.8.1";
     garage = rustPackages.unknown.garage."0.8.1";
-    k2v-client = rustPackages.unknown.k2v-client."0.0.1";
+    k2v-client = rustPackages.unknown.k2v-client."0.1.1";
   };
   "registry+https://github.com/rust-lang/crates.io-index".addr2line."0.17.0" = overridableMkRustCrate (profileName: rec {
     name = "addr2line";
@@ -2434,9 +2434,9 @@ in
     };
   });
   
-  "unknown".k2v-client."0.0.1" = overridableMkRustCrate (profileName: rec {
+  "unknown".k2v-client."0.1.1" = overridableMkRustCrate (profileName: rec {
     name = "k2v-client";
-    version = "0.0.1";
+    version = "0.1.1";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/k2v-client");
     features = builtins.concatLists [
@@ -2449,6 +2449,7 @@ in
       ${ if rootFeatures' ? "k2v-client/clap" || rootFeatures' ? "k2v-client/cli" then "clap" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".clap."3.1.18" { inherit profileName; }).out;
       ${ if rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/garage_util" then "garage_util" else null } = (rustPackages."unknown".garage_util."0.8.1" { inherit profileName; }).out;
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.8" { inherit profileName; }).out;
+      hyper_rustls = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper-rustls."0.23.0" { inherit profileName; }).out;
       log = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".log."0.4.16" { inherit profileName; }).out;
       rusoto_core = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rusoto_core."0.48.0" { inherit profileName; }).out;
       rusoto_credential = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rusoto_credential."0.48.0" { inherit profileName; }).out;
