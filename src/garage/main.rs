@@ -173,7 +173,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let net_key_hex_str = opt
 		.rpc_secret
 		.as_ref()
-		.or_else(|| config.as_ref().map(|c| &c.rpc_secret))
+		.or_else(|| config.as_ref().and_then(|c| c.rpc_secret.as_ref()))
 		.ok_or("No RPC secret provided")?;
 	let network_key = NetworkKey::from_slice(
 		&hex::decode(net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],

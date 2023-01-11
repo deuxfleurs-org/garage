@@ -34,7 +34,11 @@ pub struct Config {
 	pub compression_level: Option<i32>,
 
 	/// RPC secret key: 32 bytes hex encoded
-	pub rpc_secret: String,
+	/// Note: When using `read_config` this should never be `None`
+	pub rpc_secret: Option<String>,
+
+	/// Optional file where RPC secret key is read from
+	pub rpc_secret_file: Option<String>,
 
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
@@ -177,7 +181,31 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	let mut config = String::new();
 	file.read_to_string(&mut config)?;
 
-	Ok(toml::from_str(&config)?)
+	let mut parsed_config: Config = toml::from_str(&config)?;
+
+	match (&parsed_config.rpc_secret, &parsed_config.rpc_secret_file) {
+		(Some(_), None) => {
+			// no-op
+		}
+		(Some(_), Some(_)) => {
+			return Err("only one of `rpc_secret` and `rpc_secret_file` can be set".into())
+		}
+		(None, Some(rpc_secret_file_path_string)) => {
+			let mut rpc_secret_file = std::fs::OpenOptions::new()
+				.read(true)
+				.open(rpc_secret_file_path_string)?;
+			let mut rpc_secret_from_file = String::new();
+			rpc_secret_file.read_to_string(&mut rpc_secret_from_file)?;
+			// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
+			//           also editors sometimes add a trailing newline
+			parsed_config.rpc_secret = Some(String::from(rpc_secret_from_file.trim_end()));
+		}
+		(None, None) => {
+			return Err("either `rpc_secret` or `rpc_secret_file` needs to be set".into())
+		}
+	};
+
+	Ok(parsed_config)
 }
 
 fn default_compression() -> Option<i32> {
@@ -232,4 +260,124 @@ where
 	}
 
 	deserializer.deserialize_any(OptionVisitor)
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::error::Error;
+	use std::fs::File;
+	use std::io::Write;
+
+	#[test]
+	fn test_rpc_secret_is_required() -> Result<(), Error> {
+		let path1 = mktemp::Temp::new_file()?;
+		let mut file1 = File::create(path1.as_path())?;
+		writeln!(
+			file1,
+			r#"
+			metadata_dir = "/tmp/garage/meta"
+			data_dir = "/tmp/garage/data"
+			replication_mode = "3"
+			rpc_bind_addr = "[::]:3901"
+		
+			[s3_api]
+			s3_region = "garage"
+			api_bind_addr = "[::]:3900"
+			"#
+		)?;
+		assert_eq!(
+			"either `rpc_secret` or `rpc_secret_file` needs to be set",
+			super::read_config(path1.to_path_buf())
+				.unwrap_err()
+				.to_string()
+		);
+		drop(path1);
+		drop(file1);
+
+		let path2 = mktemp::Temp::new_file()?;
+		let mut file2 = File::create(path2.as_path())?;
+		writeln!(
+			file2,
+			r#"
+			metadata_dir = "/tmp/garage/meta"
+			data_dir = "/tmp/garage/data"
+			replication_mode = "3"
+			rpc_bind_addr = "[::]:3901"
+			rpc_secret = "foo"
+
+			[s3_api]
+			s3_region = "garage"
+			api_bind_addr = "[::]:3900"
+			"#
+		)?;
+
+		let config = super::read_config(path2.to_path_buf())?;
+		assert_eq!("foo", config.rpc_secret.unwrap());
+		drop(path2);
+		drop(file2);
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_rpc_secret_file_works() -> Result<(), Error> {
+		let path_secret = mktemp::Temp::new_file()?;
+		let mut file_secret = File::create(path_secret.as_path())?;
+		writeln!(file_secret, "foo")?;
+		drop(file_secret);
+
+		let path_config = mktemp::Temp::new_file()?;
+		let mut file_config = File::create(path_config.as_path())?;
+		let path_secret_path = path_secret.as_path().display();
+		writeln!(
+			file_config,
+			r#"
+			metadata_dir = "/tmp/garage/meta"
+			data_dir = "/tmp/garage/data"
+			replication_mode = "3"
+			rpc_bind_addr = "[::]:3901"
+			rpc_secret_file = "{path_secret_path}"
+		
+			[s3_api]
+			s3_region = "garage"
+			api_bind_addr = "[::]:3900"
+			"#
+		)?;
+		let config = super::read_config(path_config.to_path_buf())?;
+		assert_eq!("foo", config.rpc_secret.unwrap());
+		drop(path_config);
+		drop(path_secret);
+		drop(file_config);
+		Ok(())
+	}
+
+	#[test]
+	fn test_rcp_secret_and_rpc_secret_file_cannot_be_set_both() -> Result<(), Error> {
+		let path_config = mktemp::Temp::new_file()?;
+		let mut file_config = File::create(path_config.as_path())?;
+		writeln!(
+			file_config,
+			r#"
+			metadata_dir = "/tmp/garage/meta"
+			data_dir = "/tmp/garage/data"
+			replication_mode = "3"
+			rpc_bind_addr = "[::]:3901"
+			rpc_secret= "dummy"
+			rpc_secret_file = "dummy"
+		
+			[s3_api]
+			s3_region = "garage"
+			api_bind_addr = "[::]:3900"
+			"#
+		)?;
+		assert_eq!(
+			"only one of `rpc_secret` and `rpc_secret_file` can be set",
+			super::read_config(path_config.to_path_buf())
+				.unwrap_err()
+				.to_string()
+		);
+		drop(path_config);
+		drop(file_config);
+		Ok(())
+	}
 }
