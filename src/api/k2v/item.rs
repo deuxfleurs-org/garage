@@ -206,7 +206,7 @@ pub async fn handle_poll_item(
 	let causal_context =
 		CausalContext::parse(&causality_token).ok_or_bad_request("Invalid causality token")?;
 
-	let timeout_msec = timeout_secs.unwrap_or(300).clamp(10, 600) * 1000;
+	let timeout_msec = timeout_secs.unwrap_or(300).clamp(1, 600) * 1000;
 
 	let item = garage
 		.k2v

@@ -256,7 +256,7 @@ pub(crate) async fn handle_poll_range(
 
 	let query = parse_json_body::<PollRangeQuery>(req).await?;
 
-	let timeout_msec = query.timeout.unwrap_or(300).clamp(10, 600) * 1000;
+	let timeout_msec = query.timeout.unwrap_or(300).clamp(1, 600) * 1000;
 
 	let resp = garage
 		.k2v
