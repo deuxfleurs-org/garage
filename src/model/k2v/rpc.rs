@@ -213,7 +213,7 @@ impl K2VRpcHandler {
 		sort_key: String,
 		causal_context: CausalContext,
 		timeout_msec: u64,
-	) -> Result<Option<K2VItem>, HelperError> {
+	) -> Result<Option<K2VItem>, Error> {
 		let poll_key = PollKey {
 			partition: K2VItemPartition {
 				bucket_id,
@@ -256,7 +256,7 @@ impl K2VRpcHandler {
 					}
 				}
 				K2VRpc::PollItemResponse(None) => (),
-				v => return Err(Error::unexpected_rpc_message(v).into()),
+				v => return Err(Error::unexpected_rpc_message(v)),
 			}
 		}
 

@@ -15,7 +15,7 @@ log = "0.4"
 rusoto_core = { version = "0.48.0", default-features = false, features = ["rustls"] }
 rusoto_credential = "0.48.0"
 rusoto_signature = "0.48.0"
-hyper-rustls = { version = "0.23", default-features = false, features = [ "http1", "http2", "tls12", "logging" ] }
+hyper-rustls = { version = "0.23", default-features = false, features = [ "http1", "http2", "tls12" ] }
 serde = "1.0.137"
 serde_json = "1.0.81"
 thiserror = "1.0.31"
