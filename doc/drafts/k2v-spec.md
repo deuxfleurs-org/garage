@@ -723,13 +723,6 @@ The query body is a JSON object consisting of the following fields:
 
 The timeout can be set to any number of seconds, with a maximum of 600 seconds (10 minutes).
 
-If no seen marker is known by the caller, it can do a PollRange call
-without specifying `seenMarker`. In this case, the PollRange call will
-complete immediately, and return the current content of the range (which
-can be empty) and a seen marker to be used in further PollRange calls. This
-is the only case in which PollRange might return an HTTP 200 with an empty
-set of items.
-
 The response is either:
 
 - A HTTP 304 NOT MODIFIED response with an empty body, if the timeout expired and no changes occurred
@@ -741,6 +734,16 @@ The response is either:
 | `seenMarker`    | An opaque string that represents items already seen for future PollRange calls         |
 | `items`         | The list of items that have changed since last PollRange call, in the same format as ReadBatch |
 
+If no seen marker is known by the caller, it can do a PollRange call
+without specifying `seenMarker`. In this case, the PollRange call will
+complete immediately, and return the current content of the range (which
+can be empty) and a seen marker to be used in further PollRange calls. This
+is the only case in which PollRange might return an HTTP 200 with an empty
+set of items.
+
+A seen marker returned as a response to a PollRange query can be used for further PollRange
+queries on the same range, or for PollRange queries in a subrange of the initial range.
+It may not be used for PollRange queries on ranges larger or outside of the initial range.
 
 Example query:
 
