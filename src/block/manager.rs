@@ -129,8 +129,12 @@ impl BlockManager {
 			.netapp
 			.endpoint("garage_block/manager.rs/Rpc".to_string());
 
-		let metrics =
-			BlockManagerMetrics::new(rc.rc.clone(), resync.queue.clone(), resync.errors.clone());
+		let metrics = BlockManagerMetrics::new(
+			compression_level,
+			rc.rc.clone(),
+			resync.queue.clone(),
+			resync.errors.clone(),
+		);
 
 		let scrub_persister = PersisterShared::new(&system.metadata_dir, "scrub_info");
 
