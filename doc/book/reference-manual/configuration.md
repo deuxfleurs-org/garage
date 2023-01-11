@@ -96,7 +96,7 @@ Performance characteristics of the different DB engines are as follows:
 
 - Sled: the default database engine, which tends to produce
   large data files and also has performance issues, especially when the metadata folder
-  is on a traditionnal HDD and not on SSD.
+  is on a traditional HDD and not on SSD.
 - LMDB: the recommended alternative on 64-bit systems,
   much more space-efficiant and slightly faster. Note that the data format of LMDB is not portable
   between architectures, so for instance the Garage database of an x86-64
@@ -266,6 +266,10 @@ in order to identify these nodes and allow them to communicate together.
 This key should be specified here in the form of a 32-byte hex-encoded
 random string. Such a string can be generated with a command
 such as `openssl rand -hex 32`.
+
+### `rpc_secret_file`
+
+Like `rpc_secret` above, just that this is the path to a file that Garage will try to read the secret from.
 
 ### `rpc_bind_addr`
 

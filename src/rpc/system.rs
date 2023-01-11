@@ -38,6 +38,9 @@ use crate::replication_mode::*;
 use crate::ring::*;
 use crate::rpc_helper::*;
 
+#[cfg(feature = "metrics")]
+use crate::system_metrics::*;
+
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
 
@@ -103,6 +106,8 @@ pub struct System {
 	consul_discovery: Option<ConsulDiscovery>,
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
+	#[cfg(feature = "metrics")]
+	metrics: SystemMetrics,
 
 	replication_mode: ReplicationMode,
 	replication_factor: usize,
@@ -275,6 +280,9 @@ impl System {
 			cluster_layout_staging_hash: cluster_layout.staging_hash,
 		};
 
+		#[cfg(feature = "metrics")]
+		let metrics = SystemMetrics::new(replication_factor);
+
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
 
@@ -365,6 +373,8 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
+			#[cfg(feature = "metrics")]
+			metrics,
 
 			ring,
 			update_ring: Mutex::new(update_ring),
