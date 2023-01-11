@@ -13,8 +13,9 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::Uuid;
 use garage_util::encode::{nonversioned_decode, nonversioned_encode};
-use garage_util::error::{Error, OkOrMessage};
+use garage_util::error::Error;
 
+use crate::helper::error::{Error as HelperError, OkOrBadRequest};
 use crate::k2v::causality::*;
 use crate::k2v::item_table::*;
 use crate::k2v::sub::*;
@@ -80,10 +81,15 @@ impl RangeSeenMarker {
 		Ok(base64::encode(&bytes))
 	}
 
-	pub fn decode(s: &str) -> Result<Self, Error> {
-		let bytes = base64::decode(&s).ok_or_message("invalid base64")?;
-		let bytes = zstd::stream::decode_all(&mut &bytes[..])?;
-		Ok(nonversioned_decode(&bytes)?)
+	/// Decode from msgpack+zstd+b64 representation, returns None on error.
+	pub fn decode(s: &str) -> Option<Self> {
+		let bytes = base64::decode(&s).ok()?;
+		let bytes = zstd::stream::decode_all(&mut &bytes[..]).ok()?;
+		nonversioned_decode(&bytes).ok()
+	}
+
+	pub fn decode_helper(s: &str) -> Result<Self, HelperError> {
+		Self::decode(s).ok_or_bad_request("Invalid causality token")
 	}
 
 	pub fn is_new_item(&self, item: &K2VItem) -> bool {

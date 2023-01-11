@@ -133,9 +133,8 @@ pub async fn handle_insert_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse)
-		.transpose()
-		.ok_or_bad_request("Invalid causality token")?;
+		.map(CausalContext::parse_helper)
+		.transpose()?;
 
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let value = DvvsValue::Value(body.to_vec());
@@ -169,9 +168,8 @@ pub async fn handle_delete_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse)
-		.transpose()
-		.ok_or_bad_request("Invalid causality token")?;
+		.map(CausalContext::parse_helper)
+		.transpose()?;
 
 	let value = DvvsValue::Deleted;
 

@@ -24,11 +24,7 @@ pub async fn handle_insert_batch(
 
 	let mut items2 = vec![];
 	for it in items {
-		let ct = it
-			.ct
-			.map(|s| CausalContext::parse(&s))
-			.transpose()
-			.ok_or_bad_request("Invalid causality token")?;
+		let ct = it.ct.map(|s| CausalContext::parse_helper(&s)).transpose()?;
 		let v = match it.v {
 			Some(vs) => {
 				DvvsValue::Value(base64::decode(vs).ok_or_bad_request("Invalid base64 value")?)

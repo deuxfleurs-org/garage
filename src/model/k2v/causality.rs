@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
+use crate::helper::error::{Error as HelperError, OkOrBadRequest};
+
 /// Node IDs used in K2V are u64 integers that are the abbreviation
 /// of full Garage node IDs which are 256-bit UUIDs.
 pub type K2VNodeId = u64;
@@ -50,6 +52,7 @@ impl CausalContext {
 	pub fn new() -> Self {
 		Self::default()
 	}
+
 	/// Make binary representation and encode in base64
 	pub fn serialize(&self) -> String {
 		let mut ints = Vec::with_capacity(2 * self.vector_clock.len());
@@ -66,12 +69,13 @@ impl CausalContext {
 
 		base64::encode_config(bytes, base64::URL_SAFE_NO_PAD)
 	}
-	/// Parse from base64-encoded binary representation
-	pub fn parse(s: &str) -> Result<Self, String> {
-		let bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD)
-			.map_err(|e| format!("bad causality token base64: {}", e))?;
+
+	/// Parse from base64-encoded binary representation.
+	/// Returns None on error.
+	pub fn parse(s: &str) -> Option<Self> {
+		let bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD).ok()?;
 		if bytes.len() % 16 != 8 || bytes.len() < 8 {
-			return Err("bad causality token length".into());
+			return None;
 		}
 
 		let checksum = u64::from_be_bytes(bytes[..8].try_into().unwrap());
@@ -88,11 +92,16 @@ impl CausalContext {
 		let check = ret.vector_clock.iter().fold(0, |acc, (n, t)| acc ^ *n ^ *t);
 
 		if check != checksum {
-			return Err("bad causality token checksum".into());
+			return None;
 		}
 
-		Ok(ret)
+		Some(ret)
 	}
+
+	pub fn parse_helper(s: &str) -> Result<Self, HelperError> {
+		Self::parse(s).ok_or_bad_request("Invalid causality token")
+	}
+
 	/// Check if this causal context contains newer items than another one
 	pub fn is_newer_than(&self, other: &Self) -> bool {
 		vclock_gt(&self.vector_clock, &other.vector_clock)
