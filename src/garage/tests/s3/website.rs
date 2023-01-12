@@ -1,5 +1,8 @@
 use crate::common;
 use crate::common::ext::*;
+use crate::k2v::json_body;
+
+use assert_json_diff::assert_json_eq;
 use aws_sdk_s3::{
 	model::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
 	types::ByteStream,
@@ -9,6 +12,7 @@ use hyper::{
 	body::{to_bytes, Body},
 	Client,
 };
+use serde_json::json;
 
 const BODY: &[u8; 16] = b"<h1>bonjour</h1>";
 const BODY_ERR: &[u8; 6] = b"erreur";
@@ -49,6 +53,28 @@ async fn test_website() {
 		BODY.as_ref()
 	); /* check that we do not leak body */
 
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.header("domain", format!("{}", BCKT_NAME))
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "InvalidRequest",
+			"message": "Bad request: Bucket is not authorized for website hosting",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
+
 	ctx.garage
 		.command()
 		.args(["bucket", "website", "--allow", BCKT_NAME])
@@ -60,6 +86,22 @@ async fn test_website() {
 	assert_eq!(
 		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 		BODY.as_ref()
+	);
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.header("domain", format!("{}", BCKT_NAME))
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let mut admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::OK);
+	assert_eq!(
+		to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
+		b"Bucket authorized for website hosting"
 	);
 
 	ctx.garage
@@ -74,6 +116,28 @@ async fn test_website() {
 		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
 		BODY.as_ref()
 	); /* check that we do not leak body */
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.header("domain", format!("{}", BCKT_NAME))
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "InvalidRequest",
+			"message": "Bad request: Bucket is not authorized for website hosting",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
 }
 
 #[tokio::test]
@@ -321,4 +385,76 @@ async fn test_website_s3_api() {
 			BODY.as_ref()
 		);
 	}
+}
+
+#[tokio::test]
+async fn test_website_check_website_enabled() {
+	let ctx = common::context();
+
+	let client = Client::new();
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "InvalidRequest",
+			"message": "Bad request: No domain header found",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.header("domain", "foobar")
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "NoSuchBucket",
+			"message": "Bucket not found: foobar",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
+			.header("domain", "☹")
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "InvalidRequest",
+			"message": "Bad request: Invalid characters found in domain header: failed to convert header to a str",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
 }
