@@ -3,6 +3,7 @@ ASSETS=assets/consistent_hashing_1.pdf \
 	   assets/consistent_hashing_3.pdf \
 	   assets/consistent_hashing_4.pdf \
 	   assets/garage_tables.pdf \
+	   assets/consensus.pdf_tex \
 	   assets/deuxfleurs.pdf
 
 talk.pdf: talk.tex $(ASSETS)
@@ -10,3 +11,6 @@ talk.pdf: talk.tex $(ASSETS)
 
 assets/%.pdf: assets/%.svg
 	inkscape -D -z --file=$^ --export-pdf=$@
+
+assets/%.pdf_tex: assets/%.svg
+	inkscape -D -z --file=$^ --export-pdf=$@ --export-latex

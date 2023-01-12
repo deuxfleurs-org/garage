@@ -8,6 +8,7 @@
 \usepackage{multirow}
 \usetheme{boxes}
 \usepackage{graphicx}
+\usepackage{import}
 \usepackage{adjustbox}
 %\useoutertheme[footline=authortitle,subsection=false]{miniframes}
 %\useoutertheme[footline=authorinstitute,subsection=false]{miniframes}
@@ -479,33 +480,185 @@
 
 \section{Problem 2: ensuring consistency}
 
-%\begin{frame}
-%	\frametitle{Garage's architecture}
-%	\begin{center}
-%		\includegraphics[width=.35\linewidth]{assets/garage.drawio.pdf}
-%	\end{center}
-%\end{frame}
-
 \begin{frame}
-	\frametitle{Garage is \emph{coordination-free}:}
-	\begin{itemize}
-		\item No Raft or Paxos
-			\vspace{1em}
-		\item Internal data types are CRDTs
-			\vspace{1em}
-		\item All nodes are equivalent (no master/leader/index node)
-	\end{itemize}
-			\vspace{2em}
-	$\to$ less sensitive to higher latencies between nodes
+	\frametitle{Consensus vs weak consistency}
+
+	\hspace{1em}
+	\begin{minipage}{7cm}
+		\textbf{Consensus-based systems:}
+		\vspace{1em}
+		\begin{itemize}
+			\item \textbf{Leader-based:} a leader is elected to coordinate
+				all reads and writes
+				\vspace{1em}
+			\item \textbf{Linearizability} of all operations\\
+				(strongest consistency guarantee)
+				\vspace{1em}
+			\item \textbf{Replicated state machines} that can implement
+				any sequential specification
+				\vspace{1em}
+			\item \textbf{Costly}, the leader is a bottleneck;
+				leader elections on failure take time
+		\end{itemize}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{7cm} \visible<2->{
+		\textbf{Weakly consistent systems:}
+		\vspace{1em}
+		\begin{itemize}
+			\item \textbf{Nodes are equivalent}, any node
+				can originate a read or write operation
+				\vspace{1em}
+			\item \textbf{Read-after-write consistency} with quorums,
+				eventual consistency without
+				\vspace{1em}
+			\item \textbf{Operations have to commute}, i.e.~we
+				can only implement CRDTs
+				\vspace{1em}
+			\item \textbf{Fast}, no node is a bottleneck;\\
+				works the same with offline nodes
+		\end{itemize}
+	} \end{minipage}
+	\hspace{1em}
 \end{frame}
 
 \begin{frame}
-	\frametitle{Consistency model}
+	\frametitle{Consensus vs weak consistency}
+	\begin{center}
+		\textbf{The same objects cannot be implemented in both models.}
+	\end{center}
+	\vspace{2em}
+
+	\hspace{1em}
+	\begin{minipage}{7cm}
+		\underline{Consensus-based systems:}
+
+		\vspace{1em}
+
+		\textbf{Any sequential specification}\\~
+	\end{minipage}
+	\hfill
+	\begin{minipage}{7cm}
+		\underline{Weakly consistent systems:}
+
+		\vspace{1em}
+		
+		\textbf{CRDTs only}\\(conflict-free replicated data types)
+	\end{minipage}
+	\hspace{1em}
+
+	\vspace{3em}
+	\begin{center}
+		Part of the complexity is \textbf{reported to the consumer of the API}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Consensus vs weak consistency}
+	\begin{center}
+		\textbf{From a theoretical point of view:}\\
+
+	\end{center}
+	\vspace{2em}
+
+	\hspace{1em}
+	\begin{minipage}{6.5cm}
+		\underline{Consensus-based systems:}
+
+		\vspace{1em}
+
+		Require \textbf{additionnal assumptions} such as a fault detector or a strong RNG\\~
+	\end{minipage}
+	\hfill
+	\begin{minipage}{6.5cm}
+		\underline{Weakly consistent systems:}
+
+		\vspace{1em}
+		
+		Can be implemented in \textbf{any asynchronous message passing distributed system}
+	\end{minipage}
+	\hspace{1em}
+
+	\vspace{3em}
+	\begin{center}
+		They represent \textbf{different classes of computational capability}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Understanding the power of consensus}
+	\textbf{Consensus:} an API with a single operation, $propose(x)$
+	\begin{enumerate}
+		\item nodes all call $propose(x)$ with their proposed value;
+		\item nodes all receive the same value as a return value, which is one of the proposed values
+	\end{enumerate}
+	\vspace{1em}
+	
+	\visible<2->{
+		\textbf{Equivalent to} a distributed algorithm that gives a total order on all requests
+	}
+	\vspace{1em}
+
+	\visible<3->{
+		\textbf{Implemented by} this simple replicated state machine:
+		\vspace{.5em}
+		\begin{figure}
+			\centering
+			\def\svgwidth{.5\textwidth}
+			\large
+			\import{assets/}{consensus.pdf_tex}
+		\end{figure}
+		\vspace{1em}
+	}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Can my object be implemented without consensus?}
+	\underline{Given the specification of an API:}
+	\vspace{2em}
 	\begin{itemize}
-		\item Not ACID (not required by S3 spec) / not linearizable
+		\item \textbf{Using this API, we can implement the consensus object} (the $propose$ function)\\
+			$\to$ the API is equivalent to consensus/total ordering of messages\\
+			$\to$ the API cannot be implemented in a weakly consistent system
+			\vspace{2em}
+		\item \textbf{This API can be implemented using only weak primitives}\\
+			(e.g. a bunch of atomic registers)\\
+			$\to$ the API is strictly weaker than consensus\\
+			$\to$ we can implement it in Garage!
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Why avoid consensus?}
+	Consensus can be implemented reasonably well in practice, so why avoid it?
+	\vspace{2em}
+	\begin{itemize}
+		\item \textbf{Software complexity:} RAFT and PAXOS are complex beasts;\\
+			harder to prove, harder to reason about
+			\vspace{1.5em}
+		\item \textbf{Performance issues:}
 			\vspace{1em}
-		\item \textbf{Read-after-write consistency}\\
-			{\footnotesize (stronger than eventual consistency)}
+			\begin{itemize}
+				\item The leader is a \textbf{bottleneck} for all requests
+					\vspace{1em}
+				\item Particularly \textbf{sensitive to higher latency} between nodes
+			\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{What can we implement without consensus?}
+	\begin{itemize}
+		\item Any \textbf{conflict-free replicated data type} (CRDT)
+			\vspace{1em}
+		\item Non-transactional key-value stores such as S3 are equivalent to a simple CRDT:\\
+			a \textbf{last-writer-wins registry}
+			\vspace{1em}
+		\item \textbf{Read-after-write consistency} can be implemented
+			using quorums on read and write operations
+			\vspace{1em}
+		\item \textbf{Monotonicity of reads} can be implemented with repair-on-read\\
+			(makes reads more costly, not implemented in Garage)
 	\end{itemize}
 \end{frame}
 
