@@ -684,19 +684,76 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Performance gains in practice}
-		\begin{center}
-			\includegraphics[width=.8\linewidth]{assets/endpoint-latency-dc.png}
-		\end{center}
-\end{frame}
+	\frametitle{Read-after-write consistency:}
+	\textbf{Property:} If node $A$ did an operation $write(x)$ and received an OK response,\\
+		\hspace{2cm} and node $B$ starts an operation $read()$ after $A$ received OK,\\
+		\hspace{2cm} then $B$ will read a value $x' \sqsupseteq x$.
 
+	\vspace{1em}
+
+	\hspace{1em}
+	\begin{minipage}{6.8cm}
+		\textbf{Algorithm $write(x)$:}
+		\begin{enumerate}
+			\item Broadcast $write(x)$ to all nodes
+			\item Wait for $k > n/2$ nodes to reply OK
+			\item Return OK
+		\end{enumerate}
+	\end{minipage}
+	\hfill
+	\begin{minipage}{6.8cm}
+		\vspace{1em}
+		\textbf{Algorithm $read()$:}
+		\begin{enumerate}
+			\item Broadcast $read()$ to all nodes
+			\item Wait for $k > n/2$ nodes to reply\\
+				with values $x_1, \dots, x_k$
+			\item Return $x_1 \sqcup \dots \sqcup x_k$
+		\end{enumerate}
+	\end{minipage}
+	\hspace{1em}
+
+	\vspace{2em}
+	\textbf{Why does it work?} There is at least one node at the intersection between the two sets of nodes that replied to each request, that ``saw'' $x$ before the $read()$ started ($x_i \sqsupseteq x$).
+\end{frame}
 
 \begin{frame}
-	\frametitle{An ever-increasing compatibility list}
-		\begin{center}
-			\includegraphics[width=.7\linewidth]{assets/compatibility.png}
-		\end{center}
+	\frametitle{Monotonical read consistency:}
+	\textbf{Property:} If node $A$ did an operation $read()$ and received $x$ as a response,\\
+		\hspace{2cm} and node $B$ starts an operation $read()$ after $A$ received $x$,\\
+		\hspace{2cm} then $B$ will read a value $x' \sqsupseteq x$.
+
+	\vspace{1em}
+
+	\textbf{Algorithm $read()$:}
+	\begin{enumerate}
+		\item Broadcast $read()$ to all nodes
+		\item Wait for $k > n/2$ nodes to reply with values $x_1, \dots, x_k$
+		\item If $x_i \ne x_j$ for some nodes $i$ and $j$,\\
+			\hspace{1cm}then call $write(x_1 \sqcup \dots \sqcup x_k)$ and wait for OK from $k' > n/2$ nodes
+		\item Return $x_1 \sqcup \dots \sqcup x_k$
+	\end{enumerate}
+
+	\vspace{1em}
+	This makes reads slower in some cases, and is \textbf{not implemented in Garage}.
 \end{frame}
+
+\begin{frame}
+	\frametitle{Performance gains in practice}
+	\begin{center}
+		\includegraphics[width=.8\linewidth]{assets/endpoint-latency-dc.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{The hard parts we don't address (yet!)}
+	\begin{itemize}
+		\item Maintain consistency changes when nodes assigned to a partition change:\\
+		\item TODO
+	\end{itemize}
+\end{frame}
+
+\section{Going further than the S3 API}
 
 \begin{frame}
 	\frametitle{Further plans for Garage}
@@ -725,24 +782,6 @@
 	\frametitle{Application: an e-mail storage server}
 	\begin{center}
 		\only<1>{\includegraphics[width=.9\linewidth]{assets/aerogramme.png}}%
-	\end{center}
-\end{frame}
-
-\begin{frame}
-	\frametitle{Aerogramme data model}
-	\begin{center}
-		\only<1>{\includegraphics[width=.4\linewidth]{assets/aerogramme_datatype.drawio.pdf}}%
-		\only<2->{\includegraphics[width=.9\linewidth]{assets/aerogramme_keys.drawio.pdf}\vspace{1em}}%
-	\end{center}
-	\visible<3->{Aerogramme encrypts all stored values for privacy\\
-	(Garage server administrators can't read your mail)}
-\end{frame}
-
-\begin{frame}
-	\frametitle{Different deployment scenarios}
-	\begin{center}
-		\only<1>{\includegraphics[width=.9\linewidth]{assets/aerogramme_components1.drawio.pdf}}%
-		\only<2>{\includegraphics[width=.9\linewidth]{assets/aerogramme_components2.drawio.pdf}}%
 	\end{center}
 \end{frame}
 
