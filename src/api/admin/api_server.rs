@@ -77,6 +77,53 @@ impl AdminApiServer {
 			.body(Body::empty())?)
 	}
 
+	async fn handle_check_website_enabled(
+		&self,
+		req: Request<Body>,
+	) -> Result<Response<Body>, Error> {
+		let has_domain_header = req.headers().contains_key("domain");
+
+		if !has_domain_header {
+			return Err(Error::bad_request("No domain header found"));
+		}
+
+		let domain = &req
+			.headers()
+			.get("domain")
+			.ok_or_internal_error("Could not parse domain header")?;
+
+		let domain_string = String::from(
+			domain
+				.to_str()
+				.ok_or_bad_request("Invalid characters found in domain header")?,
+		);
+
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&domain_string)
+			.await?
+			.ok_or_else(|| HelperError::NoSuchBucket(domain_string))?;
+
+		let bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+
+		let bucket_state = bucket.state.as_option().unwrap();
+		let bucket_website_config = bucket_state.website_config.get();
+
+		match bucket_website_config {
+			Some(_v) => Ok(Response::builder()
+				.status(StatusCode::OK)
+				.body(Body::from("Bucket authorized for website hosting"))?),
+			None => Err(Error::bad_request(
+				"Bucket is not authorized for website hosting",
+			)),
+		}
+	}
+
 	fn handle_health(&self) -> Result<Response<Body>, Error> {
 		let health = self.garage.system.health();
 
@@ -174,6 +221,7 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
+			Endpoint::CheckWebsiteEnabled => self.handle_check_website_enabled(req).await,
 			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
