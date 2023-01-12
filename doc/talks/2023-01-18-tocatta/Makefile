@@ -4,6 +4,18 @@ ASSETS=assets/consistent_hashing_1.pdf \
 	   assets/consistent_hashing_4.pdf \
 	   assets/garage_tables.pdf \
 	   assets/consensus.pdf_tex \
+	   assets/lattice1.pdf_tex \
+	   assets/lattice2.pdf_tex \
+	   assets/lattice3.pdf_tex \
+	   assets/lattice4.pdf_tex \
+	   assets/lattice5.pdf_tex \
+	   assets/lattice6.pdf_tex \
+	   assets/lattice7.pdf_tex \
+	   assets/lattice8.pdf_tex \
+	   assets/lattice9.pdf_tex \
+	   assets/latticeA.pdf_tex \
+	   assets/latticeB.pdf_tex \
+	   assets/latticeC.pdf_tex \
 	   assets/deuxfleurs.pdf
 
 talk.pdf: talk.tex $(ASSETS)

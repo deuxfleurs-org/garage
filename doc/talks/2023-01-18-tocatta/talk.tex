@@ -494,8 +494,7 @@
 			\item \textbf{Linearizability} of all operations\\
 				(strongest consistency guarantee)
 				\vspace{1em}
-			\item \textbf{Replicated state machines} that can implement
-				any sequential specification
+			\item Any sequential specification can be implemented as a \textbf{replicated state machine}
 				\vspace{1em}
 			\item \textbf{Costly}, the leader is a bottleneck;
 				leader elections on failure take time
@@ -515,7 +514,7 @@
 			\item \textbf{Operations have to commute}, i.e.~we
 				can only implement CRDTs
 				\vspace{1em}
-			\item \textbf{Fast}, no node is a bottleneck;\\
+			\item \textbf{Fast}, no single bottleneck;\\
 				works the same with offline nodes
 		\end{itemize}
 	} \end{minipage}
@@ -530,27 +529,29 @@
 	\vspace{2em}
 
 	\hspace{1em}
-	\begin{minipage}{7cm}
+	\begin{minipage}{6.5cm}
 		\underline{Consensus-based systems:}
 
 		\vspace{1em}
 
 		\textbf{Any sequential specification}\\~
+
+		\vspace{1em}
+		\textbf{Easier to program for}: just write your program as if it were sequential on a single machine
+
 	\end{minipage}
 	\hfill
-	\begin{minipage}{7cm}
+	\begin{minipage}{6.5cm}
 		\underline{Weakly consistent systems:}
 
 		\vspace{1em}
 		
 		\textbf{CRDTs only}\\(conflict-free replicated data types)
+
+		\vspace{1em}
+		Part of the complexity is \textbf{reported to the consumer of the API}\\~
 	\end{minipage}
 	\hspace{1em}
-
-	\vspace{3em}
-	\begin{center}
-		Part of the complexity is \textbf{reported to the consumer of the API}
-	\end{center}
 \end{frame}
 
 \begin{frame}
@@ -663,7 +664,27 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Impact on performances}
+	\frametitle{Understanding CRDTs and quorums}
+	\begin{figure}
+		\centering
+		\def\svgwidth{.8\textwidth}
+		\only<1>{\import{assets/}{lattice1.pdf_tex}}%
+		\only<2>{\import{assets/}{lattice2.pdf_tex}}%
+		\only<3>{\import{assets/}{lattice3.pdf_tex}}%
+		\only<4>{\import{assets/}{lattice4.pdf_tex}}%
+		\only<5>{\import{assets/}{lattice5.pdf_tex}}%
+		\only<6>{\import{assets/}{lattice6.pdf_tex}}%
+		\only<7>{\import{assets/}{lattice7.pdf_tex}}%
+		\only<8>{\import{assets/}{lattice8.pdf_tex}}%
+		\only<9>{\import{assets/}{lattice9.pdf_tex}}%
+		\only<10>{\import{assets/}{latticeA.pdf_tex}}%
+		\only<11>{\import{assets/}{latticeB.pdf_tex}}%
+		\only<12>{\import{assets/}{latticeC.pdf_tex}}%
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Performance gains in practice}
 		\begin{center}
 			\includegraphics[width=.8\linewidth]{assets/endpoint-latency-dc.png}
 		\end{center}
