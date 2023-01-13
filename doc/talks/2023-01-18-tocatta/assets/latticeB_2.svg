@@ -3,12 +3,12 @@
 
 <svg
    width="1000"
-   height="400"
-   viewBox="0 0 264.58333 105.83333"
+   height="600"
+   viewBox="0 0 264.58333 158.75"
    version="1.1"
    id="svg5"
    inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
-   sodipodi:docname="lattice8.svg"
+   sodipodi:docname="latticeB_2.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -25,8 +25,8 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="1.4734708"
-     inkscape:cx="399.39712"
-     inkscape:cy="248.39311"
+     inkscape:cx="586.70996"
+     inkscape:cy="321.01077"
      inkscape:window-width="1920"
      inkscape:window-height="999"
      inkscape:window-x="0"
@@ -270,10 +270,10 @@
      id="layer1"
      sodipodi:insensitive="true">
     <rect
-       style="fill:#ffffff;stroke:none;stroke-width:1;stop-color:#000000"
+       style="fill:#ffffff;stroke:none;stroke-width:0.999998;stop-color:#000000"
        id="rect288"
-       width="209.84705"
-       height="104.42732"
+       width="262.58151"
+       height="156.82782"
        x="0.77790999"
        y="0.93738818" />
   </g>
@@ -283,24 +283,24 @@
      inkscape:label="Layer 2">
     <text
        xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
        x="164.56372"
        y="99.307442"
        id="text951"><tspan
          sodipodi:role="line"
          id="tspan949"
-         style="stroke-width:0.264583;fill:#000000"
+         style="fill:#000000;stroke-width:0.264583"
          x="164.56372"
          y="99.307442">$\{\}$</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
        x="164.56372"
        y="13.151893"
        id="text1005"><tspan
          sodipodi:role="line"
          id="tspan1003"
-         style="stroke-width:0.264583;fill:#000000"
+         style="fill:#000000;stroke-width:0.264583"
          x="164.56372"
          y="13.151893">$\{a,b,c\}$</tspan></text>
     <g
@@ -308,35 +308,35 @@
        transform="translate(51.996784,3.5774043)">
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="49.27084"
          y="67.008698"
          id="text1009"><tspan
            sodipodi:role="line"
            id="tspan1007"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="49.27084"
            y="67.008698">$\{a\}$</tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="112.90984"
          y="67.017166"
          id="text1009-3"><tspan
            sodipodi:role="line"
            id="tspan1007-6"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="112.90984"
            y="67.017166">$\{b\}$</tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="176.20593"
          y="67.008698"
          id="text1009-7"><tspan
            sodipodi:role="line"
            id="tspan1007-5"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="176.20593"
            y="67.008698">$\{c\}$</tspan></text>
     </g>
@@ -346,35 +346,35 @@
        style="fill:#000000">
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="112.90984"
          y="40.841526"
          id="text1117"><tspan
            sodipodi:role="line"
            id="tspan1115"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="112.90984"
            y="40.841526">$\{a,c\}$</tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="49.27084"
          y="40.841526"
          id="text1117-3"><tspan
            sodipodi:role="line"
            id="tspan1115-5"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="49.27084"
            y="40.841526">$\{a,b\}$</tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;stroke-width:0.264583;fill:#000000"
+         style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;text-align:center;text-anchor:middle;fill:#000000;stroke-width:0.264583"
          x="176.20593"
          y="40.841526"
          id="text1117-6"><tspan
            sodipodi:role="line"
            id="tspan1115-2"
-           style="stroke-width:0.264583;fill:#000000"
+           style="fill:#000000;stroke-width:0.264583"
            x="176.20593"
            y="40.841526">$\{b,c\}$</tspan></text>
     </g>
@@ -433,20 +433,20 @@
     <circle
        style="fill:#ff0000;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
        id="path3663"
-       cx="132.33408"
-       cy="68.007973"
+       cx="147.35568"
+       cy="95.24971"
        r="2.7302806" />
     <circle
        style="fill:#008000;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
        id="path3663-3"
-       cx="126.08154"
-       cy="67.968384"
+       cx="141.05479"
+       cy="95.316383"
        r="2.7302806" />
     <circle
        style="fill:#800080;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
        id="path3663-6"
-       cx="119.58919"
-       cy="67.645035"
+       cx="118.63729"
+       cy="67.630196"
        r="2.7302806" />
     <circle
        style="fill:#ff0000;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
@@ -468,26 +468,15 @@
        r="2.7302806" />
     <text
        xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;stroke-width:0.264583;fill:#000000"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
        x="6.9525447"
        y="13.702217"
        id="text3707"><tspan
          sodipodi:role="line"
          id="tspan3705"
-         style="stroke-width:0.264583;fill:#000000"
-         x="6.9525447"
-         y="13.702217">$write(\{a\})$:</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
-       x="6.9525447"
-       y="65.261436"
-       id="text3707-1"><tspan
-         sodipodi:role="line"
-         id="tspan3705-5"
          style="fill:#000000;stroke-width:0.264583"
          x="6.9525447"
-         y="65.261436">$read()$:</tspan></text>
+         y="13.702217">$write(\{a\})$:</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
@@ -501,81 +490,87 @@
          y="24.042637">$\sqsupseteq \{a\} \to$ OK</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#999999;stroke-width:0.264583"
        x="23.457415"
        y="33.02087"
        id="text3750-3"><tspan
          sodipodi:role="line"
          id="tspan3748-2"
-         style="fill:#000000;stroke-width:0.264583"
+         style="fill:#999999;stroke-width:0.264583"
          x="23.457415"
-         y="33.02087">$\sqsupseteq \{a\} \to$ OK</tspan></text>
+         y="33.02087">$\not\sqsupseteq \{a\}$</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#999999;stroke-width:0.264583"
        x="23.457415"
        y="41.972523"
        id="text3750-0"><tspan
          sodipodi:role="line"
          id="tspan3748-6"
-         style="fill:#000000;stroke-width:0.264583"
+         style="fill:#999999;stroke-width:0.264583"
          x="23.457415"
-         y="41.972523">$\sqsupseteq \{a\}$</tspan></text>
+         y="41.972523">$\not\sqsupseteq \{a\}$</tspan></text>
     <circle
        style="fill:#ff0000;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
-       id="path3663-6-6-4"
+       id="path3663-1-4"
        cx="18.004833"
-       cy="70.942116"
+       cy="90.979645"
        r="2.7302806" />
-    <text
-       xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
-       x="23.457415"
-       y="73.643356"
-       id="text3750-7"><tspan
-         sodipodi:role="line"
-         id="tspan3748-65"
-         style="fill:#000000;stroke-width:0.264583"
-         x="23.457415"
-         y="73.643356">$\to \{\}$</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
-       x="14.395845"
-       y="52.022549"
-       id="text4280"><tspan
-         sodipodi:role="line"
-         id="tspan4278"
-         style="fill:#000000;stroke-width:0.264583"
-         x="14.395845"
-         y="52.022549">return OK</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
-       x="14.395845"
-       y="92.005798"
-       id="text4280-3"><tspan
-         sodipodi:role="line"
-         id="tspan4278-7"
-         style="fill:#000000;stroke-width:0.264583"
-         x="14.395845"
-         y="92.005798">return $\{\}\sqcup\{a\}=\{a\}$</tspan></text>
+    <circle
+       style="fill:#008000;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
+       id="path3663-3-0-5"
+       cx="18.004833"
+       cy="81.949104"
+       r="2.7302806" />
     <circle
        style="fill:#800080;stroke:none;stroke-width:0.499999;stroke-dasharray:none;stop-color:#000000"
-       id="path3663-1-5"
+       id="path3663-6-6-2"
        cx="18.004833"
-       cy="81.007744"
+       cy="72.918564"
        r="2.7302806" />
     <text
        xml:space="preserve"
        style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke-width:0.264583"
-       x="23.457415"
-       y="83.577797"
-       id="text3750-0-6"><tspan
+       x="6.9525447"
+       y="65.279381"
+       id="text3707-5"><tspan
          sodipodi:role="line"
-         id="tspan3748-6-9"
+         id="tspan3705-4"
          style="fill:#000000;stroke-width:0.264583"
+         x="6.9525447"
+         y="65.279381">$write(\{b\})$:</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#999999;stroke-width:0.264583"
+       x="23.457415"
+       y="75.619804"
+       id="text3750-7"><tspan
+         sodipodi:role="line"
+         id="tspan3748-4"
+         style="fill:#999999;stroke-width:0.264583"
          x="23.457415"
-         y="83.577797">$\to \{a\}$</tspan></text>
+         y="75.619804">$\not\sqsupseteq \{b\}$</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#999999;stroke-width:0.264583"
+       x="23.457415"
+       y="84.598038"
+       id="text3750-3-4"><tspan
+         sodipodi:role="line"
+         id="tspan3748-2-3"
+         style="fill:#999999;stroke-width:0.264583"
+         x="23.457415"
+         y="84.598038">$\not\sqsupseteq \{b\}$</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8.46667px;line-height:1.25;font-family:sans-serif;fill:#999999;stroke-width:0.264583"
+       x="23.457415"
+       y="93.54969"
+       id="text3750-0-0"><tspan
+         sodipodi:role="line"
+         id="tspan3748-6-7"
+         style="fill:#999999;stroke-width:0.264583"
+         x="23.457415"
+         y="93.54969">$\not\sqsupseteq \{b\}$</tspan></text>
   </g>
 </svg>

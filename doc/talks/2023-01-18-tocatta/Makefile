@@ -12,10 +12,16 @@ ASSETS=assets/consistent_hashing_1.pdf \
 	   assets/lattice6.pdf_tex \
 	   assets/lattice7.pdf_tex \
 	   assets/lattice8.pdf_tex \
-	   assets/lattice9.pdf_tex \
-	   assets/latticeA.pdf_tex \
-	   assets/latticeB.pdf_tex \
-	   assets/latticeC.pdf_tex \
+	   assets/latticeB_1.pdf_tex \
+	   assets/latticeB_2.pdf_tex \
+	   assets/latticeB_3.pdf_tex \
+	   assets/latticeB_4.pdf_tex \
+	   assets/latticeB_5.pdf_tex \
+	   assets/latticeB_6.pdf_tex \
+	   assets/latticeB_7.pdf_tex \
+	   assets/latticeB_8.pdf_tex \
+	   assets/latticeB_9.pdf_tex \
+	   assets/latticeB_10.pdf_tex \
 	   assets/deuxfleurs.pdf
 
 talk.pdf: talk.tex $(ASSETS)

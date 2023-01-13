@@ -49,7 +49,7 @@
 
 \title{Garage}
 \subtitle{a lightweight and robust geo-distributed data storage system}
-\author{Deuxfleurs Association}
+\author{Alex Auvolat, Deuxfleurs Association}
 \date{Inria, 2023-01-18}
 
 \begin{document}
@@ -59,7 +59,7 @@
 	\includegraphics[width=.3\linewidth]{../../sticker/Garage.pdf}
 	\vspace{1em}
 
-	{\large\bf Deuxfleurs Association}
+	{\large\bf Alex Auvolat, Deuxfleurs Association}
 	\vspace{1em}
 
 	\url{https://garagehq.deuxfleurs.fr/}
@@ -68,7 +68,7 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Who we are}
+	\frametitle{Who I am}
 	\begin{columns}[t]
 		\begin{column}{.2\textwidth}
 			\centering
@@ -80,21 +80,6 @@
 		\end{column}
 		\begin{column}{.2\textwidth}
 			~
-		\end{column}
-	\end{columns}
-	\vspace{1em}
-
-	\begin{columns}[t]
-		\begin{column}{.2\textwidth}
-			~
-		\end{column}
-		\begin{column}{.6\textwidth}
-			\textbf{Quentin Dufour}\\
-			PhD; co-founder of Deuxfleurs
-		\end{column}
-		\begin{column}{.2\textwidth}
-			\centering
-			\adjincludegraphics[width=.5\linewidth, valign=t]{assets/quentin.jpg}
 		\end{column}
 	\end{columns}
 	\vspace{2em}
@@ -546,7 +531,7 @@
 
 		\vspace{1em}
 		
-		\textbf{CRDTs only}\\(conflict-free replicated data types)
+		\textbf{Limited objects such as CRDTs}\\(conflict-free replicated data types)
 
 		\vspace{1em}
 		Part of the complexity is \textbf{reported to the consumer of the API}\\~
@@ -648,6 +633,13 @@
 \end{frame}
 
 \begin{frame}
+	\frametitle{Performance gains in practice}
+	\begin{center}
+		\includegraphics[width=.8\linewidth]{assets/endpoint-latency-dc.png}
+	\end{center}
+\end{frame}
+
+\begin{frame}
 	\frametitle{What can we implement without consensus?}
 	\begin{itemize}
 		\item Any \textbf{conflict-free replicated data type} (CRDT)
@@ -664,7 +656,7 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Understanding CRDTs and quorums}
+	\frametitle{CRDTs and quorums: read-after-write consistency}
 	\begin{figure}
 		\centering
 		\def\svgwidth{.8\textwidth}
@@ -676,15 +668,11 @@
 		\only<6>{\import{assets/}{lattice6.pdf_tex}}%
 		\only<7>{\import{assets/}{lattice7.pdf_tex}}%
 		\only<8>{\import{assets/}{lattice8.pdf_tex}}%
-		\only<9>{\import{assets/}{lattice9.pdf_tex}}%
-		\only<10>{\import{assets/}{latticeA.pdf_tex}}%
-		\only<11>{\import{assets/}{latticeB.pdf_tex}}%
-		\only<12>{\import{assets/}{latticeC.pdf_tex}}%
 	\end{figure}
 \end{frame}
 
 \begin{frame}
-	\frametitle{Read-after-write consistency:}
+	\frametitle{CRDTs and quorums: read-after-write consistency}
 	\textbf{Property:} If node $A$ did an operation $write(x)$ and received an OK response,\\
 		\hspace{2cm} and node $B$ starts an operation $read()$ after $A$ received OK,\\
 		\hspace{2cm} then $B$ will read a value $x' \sqsupseteq x$.
@@ -718,7 +706,25 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Monotonical read consistency:}
+	\frametitle{CRDTs and quorums: monotonic-reads consistency}
+	\begin{figure}
+		\centering
+		\def\svgwidth{.8\textwidth}
+		\only<1>{\import{assets/}{latticeB_1.pdf_tex}}%
+		\only<2>{\import{assets/}{latticeB_2.pdf_tex}}%
+		\only<3>{\import{assets/}{latticeB_3.pdf_tex}}%
+		\only<4>{\import{assets/}{latticeB_4.pdf_tex}}%
+		\only<5>{\import{assets/}{latticeB_5.pdf_tex}}%
+		\only<6>{\import{assets/}{latticeB_6.pdf_tex}}%
+		\only<7>{\import{assets/}{latticeB_7.pdf_tex}}%
+		\only<8>{\import{assets/}{latticeB_8.pdf_tex}}%
+		\only<9>{\import{assets/}{latticeB_9.pdf_tex}}%
+		\only<10>{\import{assets/}{latticeB_10.pdf_tex}}%
+	\end{figure}
+\end{frame}
+
+\begin{frame}
+	\frametitle{CRDTs and quorums: monotonic-reads consistency}
 	\textbf{Property:} If node $A$ did an operation $read()$ and received $x$ as a response,\\
 		\hspace{2cm} and node $B$ starts an operation $read()$ after $A$ received $x$,\\
 		\hspace{2cm} then $B$ will read a value $x' \sqsupseteq x$.
@@ -735,14 +741,8 @@
 	\end{enumerate}
 
 	\vspace{1em}
-	This makes reads slower in some cases, and is \textbf{not implemented in Garage}.
-\end{frame}
 
-\begin{frame}
-	\frametitle{Performance gains in practice}
-	\begin{center}
-		\includegraphics[width=.8\linewidth]{assets/endpoint-latency-dc.png}
-	\end{center}
+	This makes reads slower in some cases, and is \textbf{not implemented in Garage}.
 \end{frame}
 
 \begin{frame}
