@@ -509,6 +509,39 @@
 \begin{frame}
 	\frametitle{Consensus vs weak consistency}
 	\begin{center}
+		\textbf{From a theoretical point of view:}\\
+
+	\end{center}
+	\vspace{2em}
+
+	\hspace{1em}
+	\begin{minipage}{6.5cm}
+		\underline{Consensus-based systems:}
+
+		\vspace{1em}
+
+		Require \textbf{additionnal assumptions} such as a fault detector or a strong RNG\\
+		(FLP impossibility theorem)
+	\end{minipage}
+	\hfill
+	\begin{minipage}{6.5cm}
+		\underline{Weakly consistent systems:}
+
+		\vspace{1em}
+		
+		Can be implemented in \textbf{any\\asynchronous message passing\\distributed system} with node crashes
+	\end{minipage}
+	\hspace{1em}
+
+	\vspace{3em}
+	\begin{center}
+		They represent \textbf{different classes of computational capability}\\
+	\end{center}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Consensus vs weak consistency}
+	\begin{center}
 		\textbf{The same objects cannot be implemented in both models.}
 	\end{center}
 	\vspace{2em}
@@ -531,44 +564,12 @@
 
 		\vspace{1em}
 		
-		\textbf{Limited objects such as CRDTs}\\(conflict-free replicated data types)
+		\textbf{Only CRDTs}\\(conflict-free replicated data types)
 
 		\vspace{1em}
 		Part of the complexity is \textbf{reported to the consumer of the API}\\~
 	\end{minipage}
 	\hspace{1em}
-\end{frame}
-
-\begin{frame}
-	\frametitle{Consensus vs weak consistency}
-	\begin{center}
-		\textbf{From a theoretical point of view:}\\
-
-	\end{center}
-	\vspace{2em}
-
-	\hspace{1em}
-	\begin{minipage}{6.5cm}
-		\underline{Consensus-based systems:}
-
-		\vspace{1em}
-
-		Require \textbf{additionnal assumptions} such as a fault detector or a strong RNG\\~
-	\end{minipage}
-	\hfill
-	\begin{minipage}{6.5cm}
-		\underline{Weakly consistent systems:}
-
-		\vspace{1em}
-		
-		Can be implemented in \textbf{any asynchronous message passing distributed system}
-	\end{minipage}
-	\hspace{1em}
-
-	\vspace{3em}
-	\begin{center}
-		They represent \textbf{different classes of computational capability}
-	\end{center}
 \end{frame}
 
 \begin{frame}
@@ -608,7 +609,7 @@
 			$\to$ the API cannot be implemented in a weakly consistent system
 			\vspace{2em}
 		\item \textbf{This API can be implemented using only weak primitives}\\
-			(e.g. a bunch of atomic registers)\\
+			(e.g. in the asynchronous message passing model with no further assumption)\\
 			$\to$ the API is strictly weaker than consensus\\
 			$\to$ we can implement it in Garage!
 	\end{itemize}
@@ -625,7 +626,10 @@
 		\item \textbf{Performance issues:}
 			\vspace{1em}
 			\begin{itemize}
-				\item The leader is a \textbf{bottleneck} for all requests
+				\item Theoretical requirements (RNG, failure detector) translate into \textbf{practical costs}
+					\vspace{1em}
+				\item The leader is a \textbf{bottleneck} for all requests;\\
+					even in leaderless approaches, \textbf{all nodes must process all operations in order}
 					\vspace{1em}
 				\item Particularly \textbf{sensitive to higher latency} between nodes
 			\end{itemize}
@@ -746,10 +750,19 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{The hard parts we don't address (yet!)}
+	\frametitle{A hard problem: layout changes}
 	\begin{itemize}
-		\item Maintain consistency changes when nodes assigned to a partition change:\\
-		\item TODO
+		\item We rely on quorums $k > n/2$ within each partition:\\
+			$$n=3,~~~~~~~k\ge 2$$
+		\item When rebalancing, the set of nodes responsible for a partition can change:\\
+			$$\{n_A, n_B, n_C\} \to \{n_A, n_D, n_E\}$$
+			\vspace{.01em}
+		\item During the rebalancing, $D$ and $E$ don't yet have the data,\\
+			~~~~~~~~~~~~~~~~~~~and $B$ and $C$ want to get rid of the data to free up space\\
+			\vspace{.2em}
+			$\to$ quorums only within the new set of nodes don't work\\
+			$\to$ how to coordinate? \textbf{currently, we don't...}
+
 	\end{itemize}
 \end{frame}
 
