@@ -187,7 +187,7 @@
 			\vspace{1em}
 		\item Folder hierarchies
 			\vspace{1em}
-		\item Other requirements of the POSIX spec
+		\item Other requirements of the POSIX spec (e.g.~locks)
 	\end{itemize}
 	\vspace{1em}
 	Coordination in a distributed system is costly
@@ -291,7 +291,7 @@
 	\frametitle{Key-value stores, upgraded: the Dynamo model}
 	\textbf{Two keys:}
 	\begin{itemize}
-		\item Partition key: used to divide data into partitions (shards)
+		\item Partition key: used to divide data into partitions {\small (a.k.a.~shards)}
 		\item Sort key: used to identify items inside a partition
 	\end{itemize}
 
@@ -326,7 +326,7 @@
 \begin{frame}
 	\frametitle{Key-value stores, upgraded: the Dynamo model}
 	\begin{itemize}
-		\item Data with different partition keys is stored independantly,\\
+		\item Data with different partition keys is stored independently,\\
 			on a different set of nodes\\
 			\vspace{.5em}
 			$\to$ no easy way to list all partition keys\\
@@ -520,7 +520,7 @@
 
 		\vspace{1em}
 
-		Require \textbf{additionnal assumptions} such as a fault detector or a strong RNG\\
+		Require \textbf{additional assumptions} such as a fault detector or a strong RNG\\
 		(FLP impossibility theorem)
 	\end{minipage}
 	\hfill
@@ -608,7 +608,7 @@
 			$\to$ the API is equivalent to consensus/total ordering of messages\\
 			$\to$ the API cannot be implemented in a weakly consistent system
 			\vspace{2em}
-		\item \textbf{This API can be implemented using only weak primitives}\\
+		\item<2-> \textbf{This API can be implemented using only weak primitives}\\
 			(e.g. in the asynchronous message passing model with no further assumption)\\
 			$\to$ the API is strictly weaker than consensus\\
 			$\to$ we can implement it in Garage!
@@ -648,13 +648,13 @@
 	\begin{itemize}
 		\item Any \textbf{conflict-free replicated data type} (CRDT)
 			\vspace{1em}
-		\item Non-transactional key-value stores such as S3 are equivalent to a simple CRDT:\\
-			a \textbf{last-writer-wins registry}
+		\item<2-> Non-transactional key-value stores such as S3 are equivalent to a simple CRDT:\\
+			a map of \textbf{last-writer-wins registers} (each key is its own CRDT)
 			\vspace{1em}
-		\item \textbf{Read-after-write consistency} can be implemented
+		\item<3-> \textbf{Read-after-write consistency} can be implemented
 			using quorums on read and write operations
 			\vspace{1em}
-		\item \textbf{Monotonicity of reads} can be implemented with repair-on-read\\
+		\item<4-> \textbf{Monotonicity of reads} can be implemented with repair-on-read\\
 			(makes reads more costly, not implemented in Garage)
 	\end{itemize}
 \end{frame}
@@ -735,7 +735,7 @@
 
 	\vspace{1em}
 
-	\textbf{Algorithm $read()$:}
+	\textbf{Algorithm $monotonic\_read()$:} {\small (a.k.a. repair-on-read)}
 	\begin{enumerate}
 		\item Broadcast $read()$ to all nodes
 		\item Wait for $k > n/2$ nodes to reply with values $x_1, \dots, x_k$
@@ -754,10 +754,10 @@
 	\begin{itemize}
 		\item We rely on quorums $k > n/2$ within each partition:\\
 			$$n=3,~~~~~~~k\ge 2$$
-		\item When rebalancing, the set of nodes responsible for a partition can change:\\
+		\item<2-> When rebalancing, the set of nodes responsible for a partition can change:\\
 			$$\{n_A, n_B, n_C\} \to \{n_A, n_D, n_E\}$$
 			\vspace{.01em}
-		\item During the rebalancing, $D$ and $E$ don't yet have the data,\\
+		\item<3-> During the rebalancing, $D$ and $E$ don't yet have the data,\\
 			~~~~~~~~~~~~~~~~~~~and $B$ and $C$ want to get rid of the data to free up space\\
 			\vspace{.2em}
 			$\to$ quorums only within the new set of nodes don't work\\
@@ -769,7 +769,7 @@
 \section{Going further than the S3 API}
 
 \begin{frame}
-	\frametitle{Further plans for Garage}
+	\frametitle{Using Garage for everything}
 	\begin{center}
 		\only<1>{\includegraphics[width=.8\linewidth]{assets/slideB1.png}}%
 		\only<2>{\includegraphics[width=.8\linewidth]{assets/slideB2.png}}%
@@ -821,10 +821,10 @@
 	\begin{itemize}
 		\item If we keep only $x_1$ or $x'_1$, we risk \textbf{loosing application data}
 			\vspace{1.5em}
-		\item Values are opaque binary blobs, \textbf{K2V cannot resolve conflicts} by itself\\
+		\item<2-> Values are opaque binary blobs, \textbf{K2V cannot resolve conflicts} by itself\\
 			(e.g. by implementing a CRDT)
 			\vspace{1.5em}
-		\item Solution: \textbf{we keep both!}\\
+		\item<3-> Solution: \textbf{we keep both!}\\
 			$\to$ the value of the key is now $\{x_1, x'_1\}$\\
 			$\to$ the client application can decide how to resolve conflicts on the next read
 	\end{itemize}
@@ -837,13 +837,13 @@
 	\begin{itemize}
 		\item $read()$ returns \textbf{a set of values} and an associated \textbf{causality token}\\
 			\vspace{1.5em}
-		\item When calling $write()$, the client sends \textbf{the causality token from its last read}
+		\item<2-> When calling $write()$, the client sends \textbf{the causality token from its last read}
 			\vspace{1.5em}
-		\item The causality token represents the set of values \textbf{already seen by the client}\\
+		\item<3-> The causality token represents the set of values \textbf{already seen by the client}\\
 			$\to$ those values are the \textbf{causal past} of the write operation\\
 			$\to$ K2V can keep concurrent values and overwrite all ones in the causal past
 			\vspace{1.5em}
-		\item Internally, the causality token is \textbf{a vector clock}
+		\item<4-> Internally, the causality token is \textbf{a vector clock}
 	\end{itemize}
 \end{frame}
 
@@ -855,7 +855,27 @@
 \end{frame}
 
 \begin{frame}
+	\frametitle{Aerogramme data model}
+	\begin{center}
+		\only<1>{\includegraphics[width=.4\linewidth]{assets/aerogramme_datatype.drawio.pdf}}%
+		\only<2->{\includegraphics[width=.9\linewidth]{assets/aerogramme_keys.drawio.pdf}\vspace{1em}}%
+	\end{center}
+	\visible<3->{Aerogramme encrypts all stored values for privacy\\
+	(Garage server administrators can't read your mail)}
+\end{frame}
+
+\begin{frame}
+	\frametitle{Different deployment scenarios}
+	\begin{center}
+		\only<1>{\includegraphics[width=.9\linewidth]{assets/aerogramme_components1.drawio.pdf}}%
+		\only<2>{\includegraphics[width=.9\linewidth]{assets/aerogramme_components2.drawio.pdf}}%
+	\end{center}
+\end{frame}
+
+\begin{frame}
 	\frametitle{A new model for building resilient software}
+	How to build an application using only Garage as a data store:
+	\vspace{1em}
 	\begin{enumerate}
 		\item Design a data model suited to K2V\\
 			{\footnotesize (see Cassandra docs on porting SQL data models to Cassandra)}
@@ -866,16 +886,25 @@
 				\item Store opaque binary blobs to provide End-to-End Encryption\\
 			\end{itemize}
 			\vspace{1em}
-		\item Store big blobs (files) using the S3 API
+		\item<2-> Store big blobs (files) using the S3 API
 			\vspace{1em}
-		\item Let Garage manage sharding, replication, failover, etc.
+		\item<3-> Let Garage manage sharding, replication, failover, etc.
 	\end{enumerate}
 \end{frame}
 
+\section{Conclusion}
+
 \begin{frame}
-	\frametitle{Research perspectives}
+	\frametitle{Perspectives}
 	\begin{itemize}
-		\item TODO
+		\item Fix the consistency issue when rebalancing
+			\vspace{1em}
+		\item Write about Garage's architecture and properties,\\
+			and about our proposed architecture for (E2EE) apps over K2V+S3
+			\vspace{1em}
+		\item Continue developing Garage; finish Aerogramme; build new applications...
+			\vspace{1em}
+		\item Anything else?
 	\end{itemize}
 \end{frame}
 
