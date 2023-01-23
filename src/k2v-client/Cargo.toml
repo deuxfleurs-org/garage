@@ -9,7 +9,7 @@ repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 readme = "../../README.md"
 
 [dependencies]
-base64 = "0.13.0"
+base64 = "0.21"
 http = "0.2.6"
 log = "0.4"
 rusoto_core = { version = "0.48.0", default-features = false, features = ["rustls"] }

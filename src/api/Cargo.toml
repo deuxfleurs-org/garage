@@ -21,7 +21,7 @@ garage_util = { version = "0.8.1", path = "../util" }
 garage_rpc = { version = "0.8.1", path = "../rpc" }
 
 async-trait = "0.1.7"
-base64 = "0.13"
+base64 = "0.21"
 bytes = "1.0"
 chrono = "0.4"
 crypto-common = "0.1"

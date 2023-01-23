@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::common;
 
 use assert_json_diff::assert_json_eq;
+use base64::prelude::*;
 use serde_json::json;
 
 use super::json_body;
@@ -222,7 +223,10 @@ async fn test_items_and_indices() {
 		let res_json = json_body(res).await;
 		assert_json_eq!(
 			res_json,
-			[base64::encode(&content2), base64::encode(&content3)]
+			[
+				BASE64_STANDARD.encode(&content2),
+				BASE64_STANDARD.encode(&content3)
+			]
 		);
 
 		// ReadIndex -- now there should be some stuff
@@ -411,7 +415,7 @@ async fn test_item_return_format() {
 		"application/json"
 	);
 	let res_body = json_body(res).await;
-	assert_json_eq!(res_body, json!([base64::encode(&single_value)]));
+	assert_json_eq!(res_body, json!([BASE64_STANDARD.encode(&single_value)]));
 
 	// f2: binary
 	let res = ctx
@@ -452,7 +456,7 @@ async fn test_item_return_format() {
 		"application/json"
 	);
 	let res_body = json_body(res).await;
-	assert_json_eq!(res_body, json!([base64::encode(&single_value)]));
+	assert_json_eq!(res_body, json!([BASE64_STANDARD.encode(&single_value)]));
 
 	// -- Test with a second, concurrent value --
 	let res = ctx
@@ -488,8 +492,8 @@ async fn test_item_return_format() {
 	assert_json_eq!(
 		res_body,
 		json!([
-			base64::encode(&single_value),
-			base64::encode(&concurrent_value)
+			BASE64_STANDARD.encode(&single_value),
+			BASE64_STANDARD.encode(&concurrent_value)
 		])
 	);
 
@@ -512,8 +516,8 @@ async fn test_item_return_format() {
 	assert_json_eq!(
 		res_body,
 		json!([
-			base64::encode(&single_value),
-			base64::encode(&concurrent_value)
+			BASE64_STANDARD.encode(&single_value),
+			BASE64_STANDARD.encode(&concurrent_value)
 		])
 	);
 
@@ -550,8 +554,8 @@ async fn test_item_return_format() {
 	assert_json_eq!(
 		res_body,
 		json!([
-			base64::encode(&single_value),
-			base64::encode(&concurrent_value)
+			BASE64_STANDARD.encode(&single_value),
+			BASE64_STANDARD.encode(&concurrent_value)
 		])
 	);
 
@@ -587,7 +591,10 @@ async fn test_item_return_format() {
 		"application/json"
 	);
 	let res_body = json_body(res).await;
-	assert_json_eq!(res_body, json!([base64::encode(&concurrent_value), null]));
+	assert_json_eq!(
+		res_body,
+		json!([BASE64_STANDARD.encode(&concurrent_value), null])
+	);
 
 	// f1: not specified
 	let res = ctx
@@ -612,7 +619,10 @@ async fn test_item_return_format() {
 		.unwrap()
 		.to_string();
 	let res_body = json_body(res).await;
-	assert_json_eq!(res_body, json!([base64::encode(&concurrent_value), null]));
+	assert_json_eq!(
+		res_body,
+		json!([BASE64_STANDARD.encode(&concurrent_value), null])
+	);
 
 	// f2: binary
 	let res = ctx
@@ -644,7 +654,10 @@ async fn test_item_return_format() {
 		"application/json"
 	);
 	let res_body = json_body(res).await;
-	assert_json_eq!(res_body, json!([base64::encode(&concurrent_value), null]));
+	assert_json_eq!(
+		res_body,
+		json!([BASE64_STANDARD.encode(&concurrent_value), null])
+	);
 
 	// -- Delete everything --
 	let res = ctx
