@@ -28,7 +28,7 @@ hex = "0.4"
 base64 = "0.13"
 tracing = "0.1.30"
 rand = "0.8"
-zstd = { version = "0.9", default-features = false }
+zstd = { version = "0.12", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
