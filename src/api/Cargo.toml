@@ -36,7 +36,7 @@ sha2 = "0.10"
 
 futures = "0.3"
 futures-util = "0.3"
-pin-project = "1.0.11"
+pin-project = "1.0.12"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
 tokio-stream = "0.1"
 
