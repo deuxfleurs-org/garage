@@ -42,7 +42,7 @@ tokio-stream = "0.1"
 
 form_urlencoded = "1.0.0"
 http = "0.2"
-httpdate = "0.3"
+httpdate = "1.0"
 http-range = "0.1"
 hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
 multer = "2.0"

@@ -1115,7 +1115,7 @@ dependencies = [
  "hmac 0.12.1",
  "http",
  "http-range",
- "httpdate 0.3.2",
+ "httpdate",
  "hyper",
  "idna",
  "md-5 0.10.1",
@@ -1542,12 +1542,6 @@ checksum = "9100414882e15fb7feccb4897e5f0ff0ff1ca7d1a86a23208ada4d7a18e6c6c4"
 
 [[package]]
 name = "httpdate"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "494b4d60369511e7dea41cf646832512a94e542f68bb9c49e54518e0f468eb47"
-
-[[package]]
-name = "httpdate"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
@@ -1575,7 +1569,7 @@ dependencies = [
  "http",
  "http-body",
  "httparse",
- "httpdate 1.0.2",
+ "httpdate",
  "itoa",
  "pin-project-lite",
  "socket2",
