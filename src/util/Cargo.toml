@@ -32,7 +32,7 @@ rand = "0.8"
 sha2 = "0.10"
 
 chrono = "0.4"
-rmp-serde = "0.15"
+rmp-serde = "1.1"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_json = "1.0"
 toml = "0.5"

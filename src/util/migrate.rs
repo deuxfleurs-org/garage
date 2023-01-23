@@ -19,7 +19,7 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 	fn decode(bytes: &[u8]) -> Option<Self> {
 		let marker_len = Self::VERSION_MARKER.len();
 		if bytes.get(..marker_len) == Some(Self::VERSION_MARKER) {
-			if let Ok(value) = rmp_serde::decode::from_read_ref::<_, Self>(&bytes[marker_len..]) {
+			if let Ok(value) = rmp_serde::decode::from_slice::<_>(&bytes[marker_len..]) {
 				return Some(value);
 			}
 		}
@@ -31,9 +31,7 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 	fn encode(&self) -> Result<Vec<u8>, rmp_serde::encode::Error> {
 		let mut wr = Vec::with_capacity(128);
 		wr.extend_from_slice(Self::VERSION_MARKER);
-		let mut se = rmp_serde::Serializer::new(&mut wr)
-			.with_struct_map()
-			.with_string_variants();
+		let mut se = rmp_serde::Serializer::new(&mut wr).with_struct_map();
 		self.serialize(&mut se)?;
 		Ok(wr)
 	}
