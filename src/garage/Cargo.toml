@@ -45,7 +45,7 @@ sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 structopt = { version = "0.3", default-features = false }
-toml = "0.5"
+toml = "0.6"
 
 futures = "0.3"
 futures-util = "0.3"
