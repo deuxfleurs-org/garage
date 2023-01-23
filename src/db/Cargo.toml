@@ -22,7 +22,7 @@ hexdump = "0.1"
 tracing = "0.1"
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"], optional = true }
-rusqlite = { version = "0.27", optional = true }
+rusqlite = { version = "0.28", optional = true }
 sled = { version = "0.34", optional = true }
 
 # cli deps
