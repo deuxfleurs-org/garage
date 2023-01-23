@@ -25,7 +25,7 @@ arc-swap = "1.5"
 async-trait = "0.1.7"
 bytes = "1.0"
 hex = "0.4"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 
 async-compression = { version = "0.3", features = ["tokio", "zstd"] }

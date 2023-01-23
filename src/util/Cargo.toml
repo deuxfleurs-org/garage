@@ -27,7 +27,7 @@ hexdump = "0.1"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 hex = "0.4"
 lazy_static = "1.4"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 sha2 = "0.10"
 

@@ -26,7 +26,7 @@ blake2 = "0.10"
 err-derive = "0.3"
 hex = "0.4"
 base64 = "0.21"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 zstd = { version = "0.12", default-features = false }
 
