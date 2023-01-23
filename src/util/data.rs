@@ -115,9 +115,9 @@ pub fn sha256sum(data: &[u8]) -> Hash {
 
 /// Compute the blake2 of a slice
 pub fn blake2sum(data: &[u8]) -> Hash {
-	use blake2::{Blake2b, Digest};
+	use blake2::{Blake2b512, Digest};
 
-	let mut hasher = Blake2b::new();
+	let mut hasher = Blake2b512::new();
 	hasher.update(data);
 	let mut hash = [0u8; 32];
 	hash.copy_from_slice(&hasher.finalize()[..32]);
