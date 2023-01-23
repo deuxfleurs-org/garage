@@ -30,7 +30,7 @@ clap = { version = "4.1", optional = true, features = ["derive", "env"] }
 pretty_env_logger = { version = "0.4", optional = true }
 
 [dev-dependencies]
-mktemp = "0.4"
+mktemp = "0.5"
 
 [features]
 default = [ "sled" ]

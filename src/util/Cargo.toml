@@ -48,7 +48,7 @@ hyper = "0.14"
 opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
 
 [dev-dependencies]
-mktemp = "0.4"
+mktemp = "0.5"
 
 [features]
 k2v = []
