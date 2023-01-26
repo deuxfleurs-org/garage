@@ -103,7 +103,7 @@ impl AdminApiServer {
 			.bucket_helper()
 			.resolve_global_bucket_name(&domain_string)
 			.await?
-			.ok_or_else(|| HelperError::NoSuchBucket(domain_string))?;
+			.ok_or(HelperError::NoSuchBucket(domain_string))?;
 
 		let bucket = self
 			.garage

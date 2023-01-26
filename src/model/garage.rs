@@ -159,7 +159,7 @@ impl Garage {
 		};
 
 		let network_key = NetworkKey::from_slice(
-			&hex::decode(&config.rpc_secret.as_ref().unwrap()).expect("Invalid RPC secret key")[..],
+			&hex::decode(config.rpc_secret.as_ref().unwrap()).expect("Invalid RPC secret key")[..],
 		)
 		.expect("Invalid RPC secret key");
 

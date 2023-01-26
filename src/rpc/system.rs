@@ -215,7 +215,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 	} else {
 		if !metadata_dir.exists() {
 			info!("Metadata directory does not exist, creating it.");
-			std::fs::create_dir(&metadata_dir)?;
+			std::fs::create_dir(metadata_dir)?;
 		}
 
 		info!("Generating new node key pair.");
@@ -419,7 +419,7 @@ impl System {
 					.get(&n.id.into())
 					.cloned()
 					.map(|(_, st)| st)
-					.unwrap_or(NodeStatus::unknown()),
+					.unwrap_or_else(NodeStatus::unknown),
 			})
 			.collect::<Vec<_>>();
 		known_nodes

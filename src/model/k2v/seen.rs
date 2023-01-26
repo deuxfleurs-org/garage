@@ -63,7 +63,7 @@ impl RangeSeenMarker {
 					None => {
 						self.items.insert(item.sort_key.clone(), cc.vector_clock);
 					}
-					Some(ent) => *ent = vclock_max(&ent, &cc.vector_clock),
+					Some(ent) => *ent = vclock_max(ent, &cc.vector_clock),
 				}
 			}
 		}
@@ -71,7 +71,7 @@ impl RangeSeenMarker {
 
 	pub fn canonicalize(&mut self) {
 		let self_vc = &self.vector_clock;
-		self.items.retain(|_sk, vc| vclock_gt(&vc, self_vc))
+		self.items.retain(|_sk, vc| vclock_gt(vc, self_vc))
 	}
 
 	pub fn encode(&mut self) -> Result<String, Error> {
@@ -84,7 +84,7 @@ impl RangeSeenMarker {
 
 	/// Decode from msgpack+zstd+b64 representation, returns None on error.
 	pub fn decode(s: &str) -> Option<Self> {
-		let bytes = BASE64_STANDARD.decode(&s).ok()?;
+		let bytes = BASE64_STANDARD.decode(s).ok()?;
 		let bytes = zstd::stream::decode_all(&mut &bytes[..]).ok()?;
 		nonversioned_decode(&bytes).ok()
 	}
@@ -99,7 +99,7 @@ impl RangeSeenMarker {
 			&& self
 				.items
 				.get(&item.sort_key)
-				.map(|vc| vclock_gt(&cc.vector_clock, &vc))
+				.map(|vc| vclock_gt(&cc.vector_clock, vc))
 				.unwrap_or(true)
 	}
 }

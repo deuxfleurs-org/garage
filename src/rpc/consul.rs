@@ -113,7 +113,7 @@ impl ConsulDiscovery {
 			let pubkey = ent
 				.node_meta
 				.get("pubkey")
-				.and_then(|k| hex::decode(&k).ok())
+				.and_then(|k| hex::decode(k).ok())
 				.and_then(|k| NodeID::from_slice(&k[..]));
 			if let (Some(ip), Some(pubkey)) = (ip, pubkey) {
 				ret.push((pubkey, SocketAddr::new(ip, ent.service_port)));

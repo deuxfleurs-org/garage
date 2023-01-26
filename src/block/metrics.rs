@@ -38,7 +38,7 @@ impl BlockManagerMetrics {
 				.u64_value_observer("block.compression_level", move |observer| {
 					match compression_level {
 						Some(v) => observer.observe(v as u64, &[]),
-						None => observer.observe(0 as u64, &[]),
+						None => observer.observe(0_u64, &[]),
 					}
 				})
 				.with_description("Garage compression level for node")

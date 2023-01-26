@@ -37,7 +37,7 @@ use crate::k2v::sub::*;
 
 const POLL_RANGE_EXTRA_DELAY: Duration = Duration::from_millis(200);
 
-const TIMESTAMP_KEY: &'static [u8] = b"timestamp";
+const TIMESTAMP_KEY: &[u8] = b"timestamp";
 
 /// RPC messages for K2V
 #[derive(Debug, Serialize, Deserialize)]
@@ -418,7 +418,7 @@ impl K2VRpcHandler {
 			.data
 			.update_entry_with(&item.partition, &item.sort_key, |tx, ent| {
 				let old_local_timestamp = tx
-					.get(&local_timestamp_tree, TIMESTAMP_KEY)?
+					.get(local_timestamp_tree, TIMESTAMP_KEY)?
 					.and_then(|x| x.try_into().ok())
 					.map(u64::from_be_bytes)
 					.unwrap_or_default();
@@ -438,7 +438,7 @@ impl K2VRpcHandler {
 				);
 
 				tx.insert(
-					&local_timestamp_tree,
+					local_timestamp_tree,
 					TIMESTAMP_KEY,
 					u64::to_be_bytes(new_local_timestamp),
 				)?;

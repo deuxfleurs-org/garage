@@ -355,6 +355,7 @@ impl CountedItem for Object {
 
 	fn counts(&self) -> Vec<(&'static str, i64)> {
 		let versions = self.versions();
+        #[allow(clippy::bool_to_int_with_if)]
 		let n_objects = if versions.iter().any(|v| v.is_data()) {
 			1
 		} else {
