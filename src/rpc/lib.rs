@@ -3,6 +3,9 @@
 #[macro_use]
 extern crate tracing;
 
+mod metrics;
+mod system_metrics;
+
 #[cfg(feature = "consul-discovery")]
 mod consul;
 #[cfg(feature = "kubernetes-discovery")]
@@ -13,9 +16,6 @@ pub mod replication_mode;
 pub mod ring;
 pub mod system;
 
-mod metrics;
 pub mod rpc_helper;
 
 pub use rpc_helper::*;
-
-pub mod system_metrics;
