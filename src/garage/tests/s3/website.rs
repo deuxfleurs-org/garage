@@ -57,7 +57,7 @@ async fn test_website() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", format!("{}", BCKT_NAME))
+			.header("domain", BCKT_NAME.to_string())
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -92,7 +92,7 @@ async fn test_website() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", format!("{}", BCKT_NAME))
+			.header("domain", BCKT_NAME.to_string())
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -121,7 +121,7 @@ async fn test_website() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", format!("{}", BCKT_NAME))
+			.header("domain", BCKT_NAME.to_string())
 			.body(Body::empty())
 			.unwrap()
 	};
