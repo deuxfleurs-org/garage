@@ -59,18 +59,29 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	println!("==== HEALTHY NODES ====");
-	let mut healthy_nodes = vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity".to_string()];
+	let mut healthy_nodes =
+		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail\tMetaAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
 		match layout.roles.get(&adv.id) {
 			Some(NodeRoleV(Some(cfg))) => {
+				let data_avail = match &adv.status.data_disk_avail {
+					_ if cfg.capacity.is_none() => "N/A".into(),
+					Some((avail, total)) => {
+						let pct = (*avail as f64) / (*total as f64) * 100.;
+						let avail = bytesize::ByteSize::b(*avail);
+						format!("{} ({:.1}%)", avail, pct)
+					}
+					None => "?".into(),
+				};
 				healthy_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}",
+					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
 					id = adv.id,
 					host = adv.status.hostname,
 					addr = adv.addr,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
 					capacity = cfg.capacity_string(),
+					data_avail = data_avail,
 				));
 			}
 			_ => {

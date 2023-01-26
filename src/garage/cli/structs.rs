@@ -504,6 +504,11 @@ pub struct StatsOpt {
 	/// Gather detailed statistics (this can be long)
 	#[structopt(short = "d", long = "detailed")]
 	pub detailed: bool,
+
+	/// Don't show global cluster stats (internal use in RPC)
+	#[structopt(skip)]
+	#[serde(default)]
+	pub skip_global: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
