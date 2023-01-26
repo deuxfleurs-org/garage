@@ -176,9 +176,9 @@ impl Crdt for DvvsEntry {
 
 impl PartitionKey for K2VItemPartition {
 	fn hash(&self) -> Hash {
-		use blake2::{Blake2b, Digest};
+		use blake2::{Blake2b512, Digest};
 
-		let mut hasher = Blake2b::new();
+		let mut hasher = Blake2b512::new();
 		hasher.update(self.bucket_id.as_slice());
 		hasher.update(self.partition_key.as_bytes());
 		let mut hash = [0u8; 32];

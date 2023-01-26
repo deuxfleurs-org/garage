@@ -1,7 +1,4 @@
-{
-  system ? builtins.currentSystem,
-  git_version ? null,
-}:
+{ system ? builtins.currentSystem, git_version ? null, }:
 
 with import ./nix/common.nix;
 
@@ -13,22 +10,21 @@ let
     debug = (compile {
       inherit system target git_version pkgsSrc cargo2nixOverlay;
       release = false;
-    }).workspace.garage {
-      compileMode = "build";
-    };
+    }).workspace.garage { compileMode = "build"; };
 
     release = (compile {
       inherit system target git_version pkgsSrc cargo2nixOverlay;
       release = true;
-    }).workspace.garage {
-      compileMode = "build";
-    };
+    }).workspace.garage { compileMode = "build"; };
   });
 
-  test = (rustPkgs: pkgs.symlinkJoin {
-    name ="garage-tests";
-    paths = builtins.map (key: rustPkgs.workspace.${key} { compileMode = "test"; }) (builtins.attrNames rustPkgs.workspace);
-  });
+  test = (rustPkgs:
+    pkgs.symlinkJoin {
+      name = "garage-tests";
+      paths =
+        builtins.map (key: rustPkgs.workspace.${key} { compileMode = "test"; })
+        (builtins.attrNames rustPkgs.workspace);
+    });
 
 in {
   pkgs = {
@@ -55,8 +51,6 @@ in {
       inherit system git_version pkgsSrc cargo2nixOverlay;
       target = "x86_64-unknown-linux-musl";
       compiler = "clippy";
-    }).workspace.garage {
-      compileMode = "build";
-    };
+    }).workspace.garage { compileMode = "build"; };
   };
 }

@@ -20,7 +20,7 @@ garage_util = { version = "0.8.1", path = "../util" }
 garage_table = { version = "0.8.1", path = "../table" }
 
 err-derive = "0.3"
-tracing = "0.1.30"
+tracing = "0.1"
 percent-encoding = "2.1.0"
 
 futures = "0.3"

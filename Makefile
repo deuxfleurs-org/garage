@@ -4,7 +4,7 @@ all:
 	clear; cargo build
 
 release:
-	nix-build --arg release true
+	nix-build --attr pkgs.amd64.release --no-build-output
 
 shell:
 	nix-shell

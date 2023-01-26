@@ -9,6 +9,7 @@
 
 use std::collections::BTreeMap;
 
+use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::Uuid;
@@ -78,12 +79,12 @@ impl RangeSeenMarker {
 
 		let bytes = nonversioned_encode(&self)?;
 		let bytes = zstd::stream::encode_all(&mut &bytes[..], zstd::DEFAULT_COMPRESSION_LEVEL)?;
-		Ok(base64::encode(&bytes))
+		Ok(BASE64_STANDARD.encode(&bytes))
 	}
 
 	/// Decode from msgpack+zstd+b64 representation, returns None on error.
 	pub fn decode(s: &str) -> Option<Self> {
-		let bytes = base64::decode(&s).ok()?;
+		let bytes = BASE64_STANDARD.decode(&s).ok()?;
 		let bytes = zstd::stream::decode_all(&mut &bytes[..]).ok()?;
 		nonversioned_decode(&bytes).ok()
 	}

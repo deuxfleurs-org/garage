@@ -25,6 +25,7 @@ pub struct Instance {
 	pub s3_port: u16,
 	pub k2v_port: u16,
 	pub web_port: u16,
+	pub admin_port: u16,
 }
 
 impl Instance {
@@ -105,6 +106,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			s3_port: port,
 			k2v_port: port + 1,
 			web_port: port + 3,
+			admin_port: port + 4,
 		}
 	}
 

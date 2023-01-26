@@ -13,7 +13,7 @@ In this section, we cover the following web applications:
 | [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
 | [Pixelfed](#pixelfed)     | ❓       |  Not yet tested    |
 | [Pleroma](#pleroma)     | ❓       |  Not yet tested    |
-| [Lemmy](#lemmy)     | ❓       |  Not yet tested    |
+| [Lemmy](#lemmy)     | ✅        |  Supported with pict-rs    |
 | [Funkwhale](#funkwhale)     | ❓       | Not yet tested     |
 | [Misskey](#misskey)     | ❓       | Not yet tested     |
 | [Prismo](#prismo)     | ❓       | Not yet tested     |
@@ -484,7 +484,68 @@ And add a new line. For example, to run it every 10 minutes:
 
 ## Lemmy
 
-Lemmy uses pict-rs that [supports S3 backends](https://git.asonix.dog/asonix/pict-rs/commit/f9f4fc63d670f357c93f24147c2ee3e1278e2d97)
+Lemmy uses pict-rs that [supports S3 backends](https://git.asonix.dog/asonix/pict-rs/commit/f9f4fc63d670f357c93f24147c2ee3e1278e2d97).
+This feature requires `pict-rs >= 4.0.0`.
+
+### Creating your bucket
+
+This is the usual Garage setup:
+
+```bash
+garage key new --name pictrs-key
+garage bucket create pictrs-data
+garage bucket allow pictrs-data --read --write --key pictrs-key
+```
+
+Note the Key ID and Secret Key.
+
+### Migrating your data
+
+If your pict-rs instance holds existing data, you first need to migrate to the S3 bucket.
+
+Stop pict-rs, then run the migration utility from local filesystem to the bucket:
+
+```
+pict-rs \
+  filesystem -p /path/to/existing/files \
+  object-store \
+   -e my-garage-instance.mydomain.tld:3900 \
+   -b pictrs-data \
+   -r garage \
+   -a GK... \
+   -s abcdef0123456789...
+```
+
+This is pretty slow, so hold on while migrating.
+
+### Running pict-rs with an S3 backend
+
+Pict-rs supports both a configuration file and environment variables.
+
+Either set the following section in your `pict-rs.toml`:
+
+```
+[store]
+type = 'object_storage'
+endpoint = 'http://my-garage-instance.mydomain.tld:3900'
+bucket_name = 'pictrs-data'
+region = 'garage'
+access_key = 'GK...'
+secret_key = 'abcdef0123456789...'
+```
+
+... or set these environment variables:
+
+
+```
+PICTRS__STORE__TYPE=object_storage
+PICTRS__STORE__ENDPOINT=http:/my-garage-instance.mydomain.tld:3900
+PICTRS__STORE__BUCKET_NAME=pictrs-data
+PICTRS__STORE__REGION=garage
+PICTRS__STORE__ACCESS_KEY=GK...
+PICTRS__STORE__SECRET_KEY=abcdef0123456789...
+```
+
 
 ## Funkwhale
 

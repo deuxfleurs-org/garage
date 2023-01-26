@@ -10,11 +10,12 @@ Garage implements the Amazon S3 protocol, which makes it compatible with many ex
 
 In particular, you will find here instructions to connect it with:
 
-  - [Browsing tools](@/documentation/connect/cli.md)
   - [Applications](@/documentation/connect/apps/index.md)
-  - [Website hosting](@/documentation/connect/websites.md)
-  - [Software repositories](@/documentation/connect/repositories.md)
+  - [Browsing tools](@/documentation/connect/cli.md)
   - [FUSE](@/documentation/connect/fs.md)
+  - [Observability](@/documentation/connect/observability.md)
+  - [Software repositories](@/documentation/connect/repositories.md)
+  - [Website hosting](@/documentation/connect/websites.md)
 
 ### Generic instructions
 

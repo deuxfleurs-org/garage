@@ -15,7 +15,8 @@ pkgs.buildGoModule rec {
   checkPhase = "true";
 
   meta = with pkgs.lib; {
-    description = "Command line tool to create and query container image manifest list/indexes";
+    description =
+      "Command line tool to create and query container image manifest list/indexes";
     homepage = "https://github.com/estesp/manifest-tool";
     license = licenses.asl20;
     platforms = platforms.linux;

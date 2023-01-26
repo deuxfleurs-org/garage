@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base64::prelude::*;
 use http::header;
 
 use hyper::{Body, Request, Response, StatusCode};
@@ -81,7 +82,7 @@ impl ReturnFormat {
 			.iter()
 			.map(|v| match v {
 				DvvsValue::Deleted => serde_json::Value::Null,
-				DvvsValue::Value(v) => serde_json::Value::String(base64::encode(v)),
+				DvvsValue::Value(v) => serde_json::Value::String(BASE64_STANDARD.encode(v)),
 			})
 			.collect::<Vec<_>>();
 		let json_body =

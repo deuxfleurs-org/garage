@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base64::prelude::*;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
@@ -26,9 +27,11 @@ pub async fn handle_insert_batch(
 	for it in items {
 		let ct = it.ct.map(|s| CausalContext::parse_helper(&s)).transpose()?;
 		let v = match it.v {
-			Some(vs) => {
-				DvvsValue::Value(base64::decode(vs).ok_or_bad_request("Invalid base64 value")?)
-			}
+			Some(vs) => DvvsValue::Value(
+				BASE64_STANDARD
+					.decode(vs)
+					.ok_or_bad_request("Invalid base64 value")?,
+			),
 			None => DvvsValue::Deleted,
 		};
 		items2.push((it.pk, it.sk, ct, v));
@@ -358,7 +361,7 @@ impl ReadBatchResponseItem {
 			.values()
 			.iter()
 			.map(|v| match v {
-				DvvsValue::Value(x) => Some(base64::encode(x)),
+				DvvsValue::Value(x) => Some(BASE64_STANDARD.encode(x)),
 				DvvsValue::Deleted => None,
 			})
 			.collect::<Vec<_>>();
