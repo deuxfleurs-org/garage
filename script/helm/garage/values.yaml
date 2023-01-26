@@ -29,12 +29,20 @@ persistence:
   meta:
     # storageClass: "fast-storage-class"
     size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/meta
   data:
     # storageClass: "slow-storage-class"
     size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/data
 
-# Number of StatefulSet replicas/garage nodes to start
-replicaCount: 3
+# Deployment configuration
+deployment:
+  # Switchable to DaemonSet
+  kind: StatefulSet
+  # Number of StatefulSet replicas/garage nodes to start
+  replicaCount: 3
 
 image:
   repository: dxflrs/amd64_garage

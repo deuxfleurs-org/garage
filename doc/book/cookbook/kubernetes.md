@@ -48,7 +48,8 @@ garage:
   replicationMode: "2"
 
 # Start 4 instances (StatefulSets) of garage
-replicaCount: 4
+deployment:
+  replicaCount: 4
 
 # Override default storage class and size
 persistence:
