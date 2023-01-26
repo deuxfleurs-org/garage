@@ -25,6 +25,6 @@ pub fn increment_logical_clock_2(prev: u64, prev2: u64) -> u64 {
 pub fn msec_to_rfc3339(msecs: u64) -> String {
 	let secs = msecs as i64 / 1000;
 	let nanos = (msecs as i64 % 1000) as u32 * 1_000_000;
-	let timestamp = Utc.timestamp(secs, nanos);
+	let timestamp = Utc.timestamp_opt(secs, nanos).unwrap();
 	timestamp.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
