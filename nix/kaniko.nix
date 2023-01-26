@@ -15,7 +15,8 @@ pkgs.buildGoModule rec {
   checkPhase = "true";
 
   meta = with pkgs.lib; {
-    description = "kaniko is a tool to build container images from a Dockerfile, inside a container or Kubernetes cluster.";
+    description =
+      "kaniko is a tool to build container images from a Dockerfile, inside a container or Kubernetes cluster.";
     homepage = "https://github.com/GoogleContainerTools/kaniko";
     license = licenses.asl20;
     platforms = platforms.linux;
