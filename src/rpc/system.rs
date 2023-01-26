@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -38,7 +39,6 @@ use crate::replication_mode::*;
 use crate::ring::*;
 use crate::rpc_helper::*;
 
-#[cfg(feature = "metrics")]
 use crate::system_metrics::*;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
@@ -106,7 +106,7 @@ pub struct System {
 	consul_discovery: Option<ConsulDiscovery>,
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
-	#[cfg(feature = "metrics")]
+
 	metrics: SystemMetrics,
 
 	replication_mode: ReplicationMode,
@@ -281,11 +281,10 @@ impl System {
 			}
 		};
 
-		let mut local_status = NodeStatus::initial(replication_factor, &cluster_layout);
-		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir);
-
-		#[cfg(feature = "metrics")]
 		let metrics = SystemMetrics::new(replication_factor);
+
+		let mut local_status = NodeStatus::initial(replication_factor, &cluster_layout);
+		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir, &metrics);
 
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
@@ -377,7 +376,6 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
-			#[cfg(feature = "metrics")]
 			metrics,
 
 			ring,
@@ -601,7 +599,7 @@ impl System {
 		new_si.cluster_layout_version = ring.layout.version;
 		new_si.cluster_layout_staging_hash = ring.layout.staging_hash;
 
-		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir);
+		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
 
 		self.local_status.swap(Arc::new(new_si));
 	}
@@ -892,7 +890,7 @@ impl NodeStatus {
 		}
 	}
 
-	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path) {
+	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path, metrics: &SystemMetrics) {
 		use systemstat::{Platform, System};
 		let mounts = System::new().mounts().unwrap_or_default();
 
@@ -906,6 +904,27 @@ impl NodeStatus {
 
 		self.meta_disk_avail = mount_avail(meta_dir);
 		self.data_disk_avail = mount_avail(data_dir);
+
+		if let Some((avail, total)) = self.meta_disk_avail {
+			metrics
+				.values
+				.meta_disk_avail
+				.store(avail, Ordering::Relaxed);
+			metrics
+				.values
+				.meta_disk_total
+				.store(total, Ordering::Relaxed);
+		}
+		if let Some((avail, total)) = self.data_disk_avail {
+			metrics
+				.values
+				.data_disk_avail
+				.store(avail, Ordering::Relaxed);
+			metrics
+				.values
+				.data_disk_total
+				.store(total, Ordering::Relaxed);
+		}
 	}
 }
 
