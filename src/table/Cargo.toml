@@ -25,7 +25,7 @@ arc-swap = "1.0"
 bytes = "1.0"
 hex = "0.4"
 hexdump = "0.1"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }

@@ -1,3 +1,5 @@
+use base64::prelude::*;
+
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 
@@ -41,11 +43,12 @@ impl CausalContext {
 			bytes.extend(u64::to_be_bytes(i));
 		}
 
-		base64::encode_config(bytes, base64::URL_SAFE_NO_PAD)
+		BASE64_URL_SAFE_NO_PAD.encode(bytes)
 	}
 	/// Parse from base64-encoded binary representation
 	pub fn parse(s: &str) -> Result<Self, String> {
-		let bytes = base64::decode_config(s, base64::URL_SAFE_NO_PAD)
+		let bytes = BASE64_URL_SAFE_NO_PAD
+			.decode(s)
 			.map_err(|e| format!("bad causality token base64: {}", e))?;
 		if bytes.len() % 16 != 8 || bytes.len() < 8 {
 			return Err("bad causality token length".into());

@@ -4,6 +4,7 @@ use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
 use futures::{Stream, StreamExt};
@@ -138,7 +139,9 @@ pub async fn handle_post_object(
 		.get_existing_bucket(bucket_id)
 		.await?;
 
-	let decoded_policy = base64::decode(&policy).ok_or_bad_request("Invalid policy")?;
+	let decoded_policy = BASE64_STANDARD
+		.decode(&policy)
+		.ok_or_bad_request("Invalid policy")?;
 	let decoded_policy: Policy =
 		serde_json::from_slice(&decoded_policy).ok_or_bad_request("Invalid policy")?;
 

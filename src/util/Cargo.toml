@@ -18,7 +18,7 @@ garage_db = { version = "0.8.1", path = "../db" }
 
 arc-swap = "1.0"
 async-trait = "0.1"
-blake2 = "0.9"
+blake2 = "0.10"
 bytes = "1.0"
 digest = "0.10"
 err-derive = "0.3"
@@ -27,7 +27,7 @@ hexdump = "0.1"
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 hex = "0.4"
 lazy_static = "1.4"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 sha2 = "0.10"
 
@@ -35,7 +35,7 @@ chrono = "0.4"
 rmp-serde = "0.15"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_json = "1.0"
-toml = "0.5"
+toml = "0.6"
 
 futures = "0.3"
 tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
@@ -48,7 +48,7 @@ hyper = "0.14"
 opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
 
 [dev-dependencies]
-mktemp = "0.4"
+mktemp = "0.5"
 
 [features]
 k2v = []

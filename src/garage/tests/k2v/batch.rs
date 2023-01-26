@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::common;
 
 use assert_json_diff::assert_json_eq;
+use base64::prelude::*;
 use serde_json::json;
 
 use super::json_body;
@@ -36,12 +37,12 @@ async fn test_batch() {
 	{{"pk": "root", "sk": "d.2", "ct": null, "v": "{}"}},
 	{{"pk": "root", "sk": "e", "ct": null, "v": "{}"}}
 		]"#,
-				base64::encode(values.get(&"a").unwrap()),
-				base64::encode(values.get(&"b").unwrap()),
-				base64::encode(values.get(&"c").unwrap()),
-				base64::encode(values.get(&"d.1").unwrap()),
-				base64::encode(values.get(&"d.2").unwrap()),
-				base64::encode(values.get(&"e").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"a").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"b").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"c").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"d.1").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"d.2").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"e").unwrap()),
 			)
 			.into_bytes(),
 		)
@@ -120,12 +121,12 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [base64::encode(values.get("a").unwrap())]},
-				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [base64::encode(values.get("b").unwrap())]},
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap())]},
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]}
+				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [BASE64_STANDARD.encode(values.get("a").unwrap())]},
+				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [BASE64_STANDARD.encode(values.get("b").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]}
 				],
 				"more": false,
 				"nextStart": null,
@@ -141,10 +142,10 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap())]},
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]}
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]}
 				],
 				"more": false,
 				"nextStart": null,
@@ -160,9 +161,9 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -178,8 +179,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
-				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [base64::encode(values.get("b").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap())]},
+				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [BASE64_STANDARD.encode(values.get("b").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -195,8 +196,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap())]},
-				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [base64::encode(values.get("b").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap())]},
+				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [BASE64_STANDARD.encode(values.get("b").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -212,7 +213,7 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [base64::encode(values.get("a").unwrap())]}
+				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [BASE64_STANDARD.encode(values.get("a").unwrap())]}
 				],
 				"more": true,
 				"nextStart": "b",
@@ -228,8 +229,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap())]}
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap())]}
 				],
 				"more": false,
 				"nextStart": null,
@@ -255,10 +256,10 @@ async fn test_batch() {
 	{{"pk": "root", "sk": "d.2", "ct": null, "v": "{}"}}
 		]"#,
 				ct.get(&"b").unwrap(),
-				base64::encode(values.get(&"c'").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"c'").unwrap()),
 				ct.get(&"d.1").unwrap(),
-				base64::encode(values.get(&"d.1'").unwrap()),
-				base64::encode(values.get(&"d.2'").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"d.1'").unwrap()),
+				BASE64_STANDARD.encode(values.get(&"d.2'").unwrap()),
 			)
 			.into_bytes(),
 		)
@@ -333,11 +334,11 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [base64::encode(values.get("a").unwrap())]},
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]}
+				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [BASE64_STANDARD.encode(values.get("a").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap()), BASE64_STANDARD.encode(values.get("c'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]}
 				],
 				"more": false,
 				"nextStart": null,
@@ -353,8 +354,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -370,7 +371,7 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -386,7 +387,7 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
 				],
 				"more": true,
 				"nextStart": "d.2",
@@ -402,7 +403,7 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -418,8 +419,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -435,8 +436,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -452,8 +453,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [base64::encode(values.get("d.1'").unwrap())]},
-				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [base64::encode(values.get("d.2").unwrap()), base64::encode(values.get("d.2'").unwrap())]},
+				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.1'").unwrap())]},
+				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [BASE64_STANDARD.encode(values.get("d.2").unwrap()), BASE64_STANDARD.encode(values.get("d.2'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -563,8 +564,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]}
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap()), BASE64_STANDARD.encode(values.get("c'").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]}
 				],
 				"more": false,
 				"nextStart": null,
@@ -580,8 +581,8 @@ async fn test_batch() {
 				"tombstones": false,
 				"singleItem": false,
 				"items": [
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]},
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap()), BASE64_STANDARD.encode(values.get("c'").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,
@@ -599,10 +600,10 @@ async fn test_batch() {
 				"items": [
 				  {"sk": "a", "ct": ct.get("a").unwrap(), "v": [null]},
 				  {"sk": "b", "ct": ct.get("b").unwrap(), "v": [null]},
-				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [base64::encode(values.get("c").unwrap()), base64::encode(values.get("c'").unwrap())]},
+				  {"sk": "c", "ct": ct.get("c").unwrap(), "v": [BASE64_STANDARD.encode(values.get("c").unwrap()), BASE64_STANDARD.encode(values.get("c'").unwrap())]},
 				  {"sk": "d.1", "ct": ct.get("d.1").unwrap(), "v": [null]},
 				  {"sk": "d.2", "ct": ct.get("d.2").unwrap(), "v": [null]},
-				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [base64::encode(values.get("e").unwrap())]},
+				  {"sk": "e", "ct": ct.get("e").unwrap(), "v": [BASE64_STANDARD.encode(values.get("e").unwrap())]},
 				],
 				"more": false,
 				"nextStart": null,

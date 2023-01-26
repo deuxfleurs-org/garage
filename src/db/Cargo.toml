@@ -19,18 +19,18 @@ required-features = ["cli"]
 [dependencies]
 err-derive = "0.3"
 hexdump = "0.1"
-tracing = "0.1.30"
+tracing = "0.1"
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"], optional = true }
-rusqlite = { version = "0.27", optional = true }
+rusqlite = { version = "0.28", optional = true }
 sled = { version = "0.34", optional = true }
 
 # cli deps
-clap = { version = "3.1.18", optional = true, features = ["derive", "env"] }
+clap = { version = "4.1", optional = true, features = ["derive", "env"] }
 pretty_env_logger = { version = "0.4", optional = true }
 
 [dev-dependencies]
-mktemp = "0.4"
+mktemp = "0.5"
 
 [features]
 default = [ "sled" ]

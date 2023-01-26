@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
+use base64::prelude::*;
 use futures::prelude::*;
 use hyper::body::{Body, Bytes};
 use hyper::header::{HeaderMap, HeaderValue};
@@ -207,7 +208,7 @@ fn ensure_checksum_matches(
 		}
 	}
 	if let Some(expected_md5) = content_md5 {
-		if expected_md5.trim_matches('"') != base64::encode(data_md5sum) {
+		if expected_md5.trim_matches('"') != BASE64_STANDARD.encode(data_md5sum) {
 			return Err(Error::bad_request("Unable to validate content-md5"));
 		} else {
 			trace!("Successfully validated content-md5");
