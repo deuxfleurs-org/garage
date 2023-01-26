@@ -14,11 +14,11 @@ pub fn node_id_command(config_file: PathBuf, quiet: bool) -> Result<(), Error> {
 		garage_rpc::system::read_node_id(&config.metadata_dir).err_context(READ_KEY_ERROR)?;
 
 	let idstr = if let Some(addr) = config.rpc_public_addr {
-		let idstr = format!("{}@{}", hex::encode(&node_id), addr);
+		let idstr = format!("{}@{}", hex::encode(node_id), addr);
 		println!("{}", idstr);
 		idstr
 	} else {
-		let idstr = hex::encode(&node_id);
+		let idstr = hex::encode(node_id);
 		println!("{}", idstr);
 
 		if !quiet {

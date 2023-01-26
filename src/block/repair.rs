@@ -466,11 +466,11 @@ impl BlockStoreIterator {
 			let ent_type = data_dir_ent.file_type().await?;
 
 			let name = name.strip_suffix(".zst").unwrap_or(&name);
-			if name.len() == 2 && hex::decode(&name).is_ok() && ent_type.is_dir() {
+			if name.len() == 2 && hex::decode(name).is_ok() && ent_type.is_dir() {
 				let path = data_dir_ent.path();
 				self.path.push(ReadingDir::Pending(path));
 			} else if name.len() == 64 {
-				if let Ok(h) = hex::decode(&name) {
+				if let Ok(h) = hex::decode(name) {
 					let mut hash = [0u8; 32];
 					hash.copy_from_slice(&h);
 					return Ok(Some(hash.into()));

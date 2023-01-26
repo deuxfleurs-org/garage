@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use hyper::{Method, StatusCode};
 use std::time::Duration;
 
@@ -160,7 +161,7 @@ async fn test_poll_range() {
 		json!(
 			{
 				"items": [
-				  {"sk": "test1", "ct": ct, "v": [base64::encode(b"Initial value")]},
+				  {"sk": "test1", "ct": ct, "v": [BASE64_STANDARD.encode(b"Initial value")]},
 				],
 				"seenMarker": seen_marker,
 			}
@@ -212,7 +213,7 @@ async fn test_poll_range() {
 	assert_json_eq!(&json_res["items"][0]["sk"], json!("test1"));
 	assert_json_eq!(
 		&json_res["items"][0]["v"],
-		json!([base64::encode(b"New value")])
+		json!([BASE64_STANDARD.encode(b"New value")])
 	);
 
 	// Now we will add a value on a different key
@@ -259,6 +260,6 @@ async fn test_poll_range() {
 	assert_json_eq!(&json_res["items"][0]["sk"], json!("test2"));
 	assert_json_eq!(
 		&json_res["items"][0]["v"],
-		json!([base64::encode(b"Other value")])
+		json!([BASE64_STANDARD.encode(b"Other value")])
 	);
 }

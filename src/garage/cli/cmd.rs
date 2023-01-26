@@ -60,7 +60,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 
 	println!("==== HEALTHY NODES ====");
 	let mut healthy_nodes =
-		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail\tMetaAvail".to_string()];
+		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
 		match layout.roles.get(&adv.id) {
 			Some(NodeRoleV(Some(cfg))) => {

@@ -229,7 +229,7 @@ pub fn find_matching_node(
 ) -> Result<Uuid, Error> {
 	let mut candidates = vec![];
 	for c in cand {
-		if hex::encode(&c).starts_with(&pattern) && !candidates.contains(&c) {
+		if hex::encode(c).starts_with(pattern) && !candidates.contains(&c) {
 			candidates.push(c);
 		}
 	}

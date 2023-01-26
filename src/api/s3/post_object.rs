@@ -140,7 +140,7 @@ pub async fn handle_post_object(
 		.await?;
 
 	let decoded_policy = BASE64_STANDARD
-		.decode(&policy)
+		.decode(policy)
 		.ok_or_bad_request("Invalid policy")?;
 	let decoded_policy: Policy =
 		serde_json::from_slice(&decoded_policy).ok_or_bad_request("Invalid policy")?;

@@ -167,7 +167,7 @@ async fn bucket_info_results(
 	let quotas = state.quotas.get();
 	let res =
 		GetBucketInfoResult {
-			id: hex::encode(&bucket.id),
+			id: hex::encode(bucket.id),
 			global_aliases: state
 				.aliases
 				.items()
@@ -575,6 +575,6 @@ pub async fn handle_local_unalias_bucket(
 // ---- HELPER ----
 
 fn parse_bucket_id(id: &str) -> Result<Uuid, Error> {
-	let id_hex = hex::decode(&id).ok_or_bad_request("Invalid bucket id")?;
+	let id_hex = hex::decode(id).ok_or_bad_request("Invalid bucket id")?;
 	Ok(Uuid::try_from(&id_hex).ok_or_bad_request("Invalid bucket id")?)
 }

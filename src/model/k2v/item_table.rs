@@ -269,6 +269,7 @@ impl CountedItem for K2VItem {
 		&self.partition.partition_key
 	}
 
+	#[allow(clippy::bool_to_int_with_if)]
 	fn counts(&self) -> Vec<(&'static str, i64)> {
 		let values = self.values();
 
@@ -313,7 +314,7 @@ mod tests {
 			values: vec![(6, DvvsValue::Value(vec![16])), (7, DvvsValue::Deleted)],
 		};
 
-		let mut e3 = e1.clone();
+		let mut e3 = e1;
 		e3.merge(&e2);
 		assert_eq!(e2, e3);
 	}
