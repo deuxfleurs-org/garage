@@ -32,6 +32,9 @@ pub enum Endpoint {
 		causality_token: String,
 		timeout: Option<u64>,
 	},
+	PollRange {
+		partition_key: String,
+	},
 	ReadBatch {
 	},
 	ReadIndex {
@@ -113,6 +116,7 @@ impl Endpoint {
 			@gen_parser
 			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
+				POLL_RANGE => PollRange,
 			],
 			no_key: [
 				EMPTY => ReadBatch,
@@ -142,6 +146,7 @@ impl Endpoint {
 			@gen_parser
 			(query.keyword.take().unwrap_or_default(), partition_key, query, None),
 			key: [
+				POLL_RANGE => PollRange,
 			],
 			no_key: [
 				EMPTY => InsertBatch,
@@ -234,7 +239,8 @@ impl Endpoint {
 generateQueryParameters! {
 	keywords: [
 		"delete" => DELETE,
-		"search" => SEARCH
+		"search" => SEARCH,
+		"poll_range" => POLL_RANGE
 	],
 	fields: [
 		"prefix" => prefix,

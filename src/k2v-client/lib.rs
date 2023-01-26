@@ -40,7 +40,13 @@ impl K2vClient {
 		creds: AwsCredentials,
 		user_agent: Option<String>,
 	) -> Result<Self, Error> {
-		let mut client = HttpClient::new()?;
+		let connector = hyper_rustls::HttpsConnectorBuilder::new()
+			.with_native_roots()
+			.https_or_http()
+			.enable_http1()
+			.enable_http2()
+			.build();
+		let mut client = HttpClient::from_connector(connector);
 		if let Some(ua) = user_agent {
 			client.local_agent_prepend(ua);
 		} else {
@@ -151,6 +157,58 @@ impl K2vClient {
 			)),
 			None => Err(Error::InvalidResponse("missing content type".into())),
 		}
+	}
+
+	/// Perform a PollRange request, waiting for any change in a given range of keys
+	/// to occur
+	pub async fn poll_range(
+		&self,
+		partition_key: &str,
+		filter: Option<PollRangeFilter<'_>>,
+		seen_marker: Option<&str>,
+		timeout: Option<Duration>,
+	) -> Result<Option<(BTreeMap<String, CausalValue>, String)>, Error> {
+		let timeout = timeout.unwrap_or(DEFAULT_POLL_TIMEOUT);
+
+		let request = PollRangeRequest {
+			filter: filter.unwrap_or_default(),
+			seen_marker,
+			timeout: timeout.as_secs(),
+		};
+
+		let mut req = SignedRequest::new(
+			"POST",
+			SERVICE,
+			&self.region,
+			&format!("/{}/{}", self.bucket, partition_key),
+		);
+		req.add_param("poll_range", "");
+
+		let payload = serde_json::to_vec(&request)?;
+		req.set_payload(Some(payload));
+		let res = self.dispatch(req, Some(timeout + DEFAULT_TIMEOUT)).await?;
+
+		if res.status == StatusCode::NOT_MODIFIED {
+			return Ok(None);
+		}
+
+		let resp: PollRangeResponse = serde_json::from_slice(&res.body)?;
+
+		let items = resp
+			.items
+			.into_iter()
+			.map(|BatchReadItem { sk, ct, v }| {
+				(
+					sk,
+					CausalValue {
+						causality: ct,
+						value: v,
+					},
+				)
+			})
+			.collect::<BTreeMap<_, _>>();
+
+		Ok(Some((items, resp.seen_marker)))
 	}
 
 	/// Perform an InsertItem request, inserting a value for a single pk+sk.
@@ -389,6 +447,12 @@ impl From<CausalityToken> for String {
 	}
 }
 
+impl AsRef<str> for CausalityToken {
+	fn as_ref(&self) -> &str {
+		&self.0
+	}
+}
+
 /// A value in K2V. can be either a binary value, or a tombstone.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum K2vValue {
@@ -464,6 +528,29 @@ pub struct Filter<'a> {
 	pub limit: Option<u64>,
 	#[serde(default)]
 	pub reverse: bool,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PollRangeFilter<'a> {
+	pub start: Option<&'a str>,
+	pub end: Option<&'a str>,
+	pub prefix: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PollRangeRequest<'a> {
+	#[serde(flatten)]
+	filter: PollRangeFilter<'a>,
+	seen_marker: Option<&'a str>,
+	timeout: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PollRangeResponse {
+	items: Vec<BatchReadItem>,
+	seen_marker: String,
 }
 
 impl<'a> Filter<'a> {

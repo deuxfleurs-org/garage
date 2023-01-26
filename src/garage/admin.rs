@@ -911,7 +911,9 @@ impl AdminRpcHandler {
 			let role = layout.roles.get(id).and_then(|x| x.0.as_ref());
 			let hostname = status.map(|x| x.hostname.as_str()).unwrap_or("?");
 			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
-			let capacity = role.map(|x| x.capacity_string()).unwrap_or("?".into());
+			let capacity = role
+				.map(|x| x.capacity_string())
+				.unwrap_or_else(|| "?".into());
 			let avail_str = |x| match x {
 				Some((avail, total)) => {
 					let pct = (avail as f64) / (total as f64) * 100.;

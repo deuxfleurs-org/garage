@@ -1,3 +1,12 @@
+//! Implements a CausalContext, which is a set of timestamps for each
+//! node -- a vector clock --, indicating that the versions with
+//! timestamps <= these numbers have been seen and can be
+//! overwritten by a subsequent write.
+//!
+//! The textual representation of a CausalContext, which we call a
+//! "causality token", is used in the API and must be sent along with
+//! each write or delete operation to indicate the previously seen
+//! versions that we want to overwrite or delete.
 use base64::prelude::*;
 
 use std::collections::BTreeMap;
@@ -7,9 +16,13 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
+use crate::helper::error::{Error as HelperError, OkOrBadRequest};
+
 /// Node IDs used in K2V are u64 integers that are the abbreviation
 /// of full Garage node IDs which are 256-bit UUIDs.
 pub type K2VNodeId = u64;
+
+pub type VectorClock = BTreeMap<K2VNodeId, u64>;
 
 pub fn make_node_id(node_id: Uuid) -> K2VNodeId {
 	let mut tmp = [0u8; 8];
@@ -17,18 +30,30 @@ pub fn make_node_id(node_id: Uuid) -> K2VNodeId {
 	u64::from_be_bytes(tmp)
 }
 
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub fn vclock_gt(a: &VectorClock, b: &VectorClock) -> bool {
+	a.iter().any(|(n, ts)| ts > b.get(n).unwrap_or(&0))
+}
+
+pub fn vclock_max(a: &VectorClock, b: &VectorClock) -> VectorClock {
+	let mut ret = a.clone();
+	for (n, ts) in b.iter() {
+		let ent = ret.entry(*n).or_insert(0);
+		*ent = std::cmp::max(*ts, *ent);
+	}
+	ret
+}
+
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct CausalContext {
-	pub vector_clock: BTreeMap<K2VNodeId, u64>,
+	pub vector_clock: VectorClock,
 }
 
 impl CausalContext {
 	/// Empty causality context
-	pub fn new_empty() -> Self {
-		Self {
-			vector_clock: BTreeMap::new(),
-		}
+	pub fn new() -> Self {
+		Self::default()
 	}
+
 	/// Make binary representation and encode in base64
 	pub fn serialize(&self) -> String {
 		let mut ints = Vec::with_capacity(2 * self.vector_clock.len());
@@ -45,13 +70,13 @@ impl CausalContext {
 
 		BASE64_URL_SAFE_NO_PAD.encode(bytes)
 	}
-	/// Parse from base64-encoded binary representation
-	pub fn parse(s: &str) -> Result<Self, String> {
-		let bytes = BASE64_URL_SAFE_NO_PAD
-			.decode(s)
-			.map_err(|e| format!("bad causality token base64: {}", e))?;
+
+	/// Parse from base64-encoded binary representation.
+	/// Returns None on error.
+	pub fn parse(s: &str) -> Option<Self> {
+		let bytes = BASE64_URL_SAFE_NO_PAD.decode(s).ok()?;
 		if bytes.len() % 16 != 8 || bytes.len() < 8 {
-			return Err("bad causality token length".into());
+			return None;
 		}
 
 		let checksum = u64::from_be_bytes(bytes[..8].try_into().unwrap());
@@ -68,16 +93,19 @@ impl CausalContext {
 		let check = ret.vector_clock.iter().fold(0, |acc, (n, t)| acc ^ *n ^ *t);
 
 		if check != checksum {
-			return Err("bad causality token checksum".into());
+			return None;
 		}
 
-		Ok(ret)
+		Some(ret)
 	}
+
+	pub fn parse_helper(s: &str) -> Result<Self, HelperError> {
+		Self::parse(s).ok_or_bad_request("Invalid causality token")
+	}
+
 	/// Check if this causal context contains newer items than another one
 	pub fn is_newer_than(&self, other: &Self) -> bool {
-		self.vector_clock
-			.iter()
-			.any(|(k, v)| v > other.vector_clock.get(k).unwrap_or(&0))
+		vclock_gt(&self.vector_clock, &other.vector_clock)
 	}
 }
 

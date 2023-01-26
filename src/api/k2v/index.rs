@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use hyper::{Body, Response, StatusCode};
+use hyper::{Body, Response};
 use serde::Serialize;
 
 use garage_util::data::*;
-use garage_util::error::Error as GarageError;
 
 use garage_rpc::ring::Ring;
 use garage_table::util::*;
@@ -12,6 +11,7 @@ use garage_table::util::*;
 use garage_model::garage::Garage;
 use garage_model::k2v::item_table::{BYTES, CONFLICTS, ENTRIES, VALUES};
 
+use crate::helpers::*;
 use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
@@ -68,10 +68,7 @@ pub async fn handle_read_index(
 		next_start,
 	};
 
-	let resp_json = serde_json::to_string_pretty(&resp).map_err(GarageError::from)?;
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.body(Body::from(resp_json))?)
+	Ok(json_ok_response(&resp)?)
 }
 
 #[derive(Serialize)]
