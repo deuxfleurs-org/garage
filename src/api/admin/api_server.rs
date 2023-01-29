@@ -119,12 +119,16 @@ impl AdminApiServer {
 		let bucket_website_config = bucket_state.website_config.get();
 
 		match bucket_website_config {
-			Some(_v) => Ok(Response::builder()
-				.status(StatusCode::OK)
-				.body(Body::from("Bucket authorized for website hosting"))?),
-			None => Err(Error::bad_request(
-				"Bucket is not authorized for website hosting",
-			)),
+			Some(_v) => {
+				Ok(Response::builder()
+					.status(StatusCode::OK)
+					.body(Body::from(format!(
+						"Bucket '{domain}' is authorized for website hosting"
+					)))?)
+			}
+			None => Err(Error::bad_request(format!(
+				"Bucket '{domain}' is not authorized for website hosting"
+			))),
 		}
 	}
 

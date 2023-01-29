@@ -72,7 +72,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket is not authorized for website hosting",
+			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -107,7 +107,7 @@ async fn test_website() {
 	assert_eq!(admin_resp.status(), StatusCode::OK);
 	assert_eq!(
 		to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
-		b"Bucket authorized for website hosting"
+		format!("Bucket '{BCKT_NAME}' is authorized for website hosting").as_bytes()
 	);
 
 	ctx.garage
@@ -142,7 +142,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket is not authorized for website hosting",
+			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
