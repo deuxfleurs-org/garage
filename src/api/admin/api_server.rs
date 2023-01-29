@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -81,29 +82,32 @@ impl AdminApiServer {
 		&self,
 		req: Request<Body>,
 	) -> Result<Response<Body>, Error> {
-		let has_domain_header = req.headers().contains_key("domain");
+		let query_params: HashMap<String, String> = req
+			.uri()
+			.query()
+			.map(|v| {
+				url::form_urlencoded::parse(v.as_bytes())
+					.into_owned()
+					.collect()
+			})
+			.unwrap_or_else(HashMap::new);
 
-		if !has_domain_header {
-			return Err(Error::bad_request("No domain header found"));
+		let has_domain_key = query_params.contains_key("domain");
+
+		if !has_domain_key {
+			return Err(Error::bad_request("No domain query string found"));
 		}
 
-		let domain = &req
-			.headers()
+		let domain = query_params
 			.get("domain")
-			.ok_or_internal_error("Could not parse domain header")?;
-
-		let domain_string = String::from(
-			domain
-				.to_str()
-				.ok_or_bad_request("Invalid characters found in domain header")?,
-		);
+			.ok_or_internal_error("Could not parse domain query string")?;
 
 		let bucket_id = self
 			.garage
 			.bucket_helper()
-			.resolve_global_bucket_name(&domain_string)
+			.resolve_global_bucket_name(&domain)
 			.await?
-			.ok_or(HelperError::NoSuchBucket(domain_string))?;
+			.ok_or(HelperError::NoSuchBucket(domain.to_string()))?;
 
 		let bucket = self
 			.garage
