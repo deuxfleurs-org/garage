@@ -1,6 +1,6 @@
 +++
 title = "K2V"
-weight = 70
+weight = 100
 +++
 
 Starting with version 0.7.2, Garage introduces an optionnal feature, K2V,

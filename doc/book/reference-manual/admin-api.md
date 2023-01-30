@@ -1,6 +1,6 @@
 +++
 title = "Administration API"
-weight = 60
+weight = 40
 +++
 
 The Garage administration API is accessible through a dedicated server whose
