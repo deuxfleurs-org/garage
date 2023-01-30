@@ -11,7 +11,7 @@ We define them as our release process.
 While we run some tests on every commits, we do not make a release for all of them.
 
 A release can be triggered manually by "promoting" a successful build.
-Otherwise, every weeks, a release build is triggered on the `main` branch.
+Otherwise, every night, a release build is triggered on the `main` branch.
 
 If the build is from a tag following the regex: `v[0-9]+\.[0-9]+\.[0-9]+`, it will be listed as stable.
 If it is a tag but with a different format, it will be listed as Extra.
