@@ -20,9 +20,9 @@ and could not do, etc.
 
 We love to talk and hear about Garage, that's why we keep a log here:
 
-  - [(en, 2023-01-18) Presentation of Garage at Inria](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/commit/4cff37397f626ef063dad29e5b5e97ab1206015d/doc/talks/2023-01-18-tocatta/talk.pdf)
+  - [(en, 2023-01-18) Presentation of Garage at Inria](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/4cff37397f626ef063dad29e5b5e97ab1206015d/doc/talks/2023-01-18-tocatta/talk.pdf)
 
-  - [(fr, 2022-11-19) De l'auto-hébergement à l'entre-hébergement : Garage, pour conserver ses données ensemble](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/commit/4cff37397f626ef063dad29e5b5e97ab1206015d/doc/talks/2022-11-19-Capitole-du-Libre/pr%C3%A9sentation.pdf)
+  - [(fr, 2022-11-19) De l'auto-hébergement à l'entre-hébergement : Garage, pour conserver ses données ensemble](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/commit/4cff37397f626ef063dad29e5b5e97ab1206015d/doc/talks/2022-11-19-Capitole-du-Libre/pr%C3%A9sentation.pdf)
 
   - [(fr, 2021-11-13, video) Garage : Mille et une façons de stocker vos données](https://video.tedomum.net/w/moYKcv198dyMrT8hCS5jz9) and [slides (html)](https://rfid.deuxfleurs.fr/presentations/2021-11-13/garage/) - during [RFID#1](https://rfid.deuxfleurs.fr/programme/2021-11-13/) event
 
