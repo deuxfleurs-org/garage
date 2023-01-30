@@ -295,7 +295,7 @@ s3.garage.tld, *.s3.garage.tld {
 }
 
 *.web.garage.tld {
-	reverse_proxy localhost:3902 192.168.1.2:3900 example.tld:3900
+	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
 }
 
 admin.garage.tld {
@@ -306,3 +306,53 @@ admin.garage.tld {
 But at the same time, the `reverse_proxy` is very flexible.
 For a production deployment, you should [read its documentation](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) as it supports features like DNS discovery of upstreams, load balancing with checks, streaming parameters, etc.
 
+### On-demand TLS
+
+Caddy supports a technique called
+[on-demand TLS](https://caddyserver.com/docs/automatic-https#on-demand-tls), by
+which one can configure the webserver to provision TLS certificates when a
+client first connects to it.
+
+In order to prevent an attack vector whereby domains are simply pointed at your
+webserver and certificates are requested for them - Caddy can be configured to
+ask Garage if a domain is authorized for web hosting, before it then requests
+a TLS certificate.
+
+This 'check' endpoint, which is on the admin port (3903 by default), can be
+configured in Caddy's global section as follows:
+
+```caddy
+{
+	...
+	on_demand_tls {
+		ask http://localhost:3903/check
+		interval 2m
+		burst 5
+	}
+	...
+}
+```
+
+The host section can then be configured with (note that this uses the web
+endpoint instead):
+
+```caddy
+# For a specific set of subdomains
+*.web.garage.tld {
+	tls {
+		on_demand
+	}
+
+	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
+}
+
+# Accept all domains on HTTPS
+# Never configure this without global section above
+https:// {
+	tls {
+		on_demand
+	}
+
+	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
+}
+```

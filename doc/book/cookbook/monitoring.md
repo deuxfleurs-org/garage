@@ -55,6 +55,23 @@ We detail below the list of exposed metrics and their meaning.
 
 ## List of exported metrics
 
+### Garage system metrics
+
+#### `garage_build_info` (counter)
+
+Exposes the Garage version number running on a node.
+
+```
+garage_build_info{version="1.0"} 1
+```
+
+#### `garage_replication_factor` (counter)
+
+Exposes the Garage replication factor configured on the node
+
+```
+garage_replication_factor 3
+```
 
 ### Metrics of the API endpoints
 
@@ -146,6 +163,14 @@ Number of bytes read/written to/from disk in the data storage directory.
 ```
 block_bytes_read 120586322022
 block_bytes_written 3386618077
+```
+
+#### `block_compression_level` (counter)
+
+Exposes the block compression level configured for the Garage node.
+
+```
+block_compression_level 3
 ```
 
 #### `block_read_duration`, `block_write_duration` (histograms)

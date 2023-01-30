@@ -21,7 +21,7 @@ You can configure Garage as a gateway on all nodes that will consume your S3 API
 The instructions are similar to a regular node, the only option that is different is while configuring the node, you must set the `--gateway` parameter:
 
 ```bash
-garage layout assign --gateway --tag gw1 <node_id>
+garage layout assign --gateway --tag gw1 -z dc1 <node_id>
 garage layout show    # review the changes you are making
 garage layout apply   # once satisfied, apply the changes
 ```
