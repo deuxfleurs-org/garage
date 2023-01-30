@@ -72,8 +72,7 @@ We considered there v2's design but concluded that it does not fit both our *Sel
 **[Riak CS](https://docs.riak.com/riak/cs/2.1.1/index.html):**
 *Not written yet*
 
-**[IPFS](https://ipfs.io/):**
-*Not written yet*
+**[IPFS](https://ipfs.io/):** IPFS has design goals radically different from Garage, we have [a blog post](@/blog/2022-ipfs/index.md) talking about it.
 
 ## Specific research papers
 
