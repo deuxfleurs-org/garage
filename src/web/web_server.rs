@@ -249,7 +249,6 @@ impl WebServer {
 						);
 
 						*error_doc.status_mut() = error.http_status_code();
-						error.add_headers(error_doc.headers_mut());
 
 						// Preserve error message in a special header
 						for error_line in error.to_string().split('\n') {
