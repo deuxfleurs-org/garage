@@ -56,8 +56,11 @@ async fn test_website() {
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
-			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", BCKT_NAME.to_string())
+			.uri(format!(
+				"http://127.0.0.1:{0}/check?domain={1}",
+				ctx.garage.admin_port,
+				BCKT_NAME.to_string()
+			))
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -69,7 +72,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket is not authorized for website hosting",
+			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -91,8 +94,11 @@ async fn test_website() {
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
-			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", BCKT_NAME.to_string())
+			.uri(format!(
+				"http://127.0.0.1:{0}/check?domain={1}",
+				ctx.garage.admin_port,
+				BCKT_NAME.to_string()
+			))
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -101,7 +107,7 @@ async fn test_website() {
 	assert_eq!(admin_resp.status(), StatusCode::OK);
 	assert_eq!(
 		to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
-		b"Bucket authorized for website hosting"
+		format!("Bucket '{BCKT_NAME}' is authorized for website hosting").as_bytes()
 	);
 
 	ctx.garage
@@ -120,8 +126,11 @@ async fn test_website() {
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
-			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", BCKT_NAME.to_string())
+			.uri(format!(
+				"http://127.0.0.1:{0}/check?domain={1}",
+				ctx.garage.admin_port,
+				BCKT_NAME.to_string()
+			))
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -133,7 +142,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket is not authorized for website hosting",
+			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -408,7 +417,7 @@ async fn test_website_check_website_enabled() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: No domain header found",
+			"message": "Bad request: No domain query string found",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -417,8 +426,34 @@ async fn test_website_check_website_enabled() {
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
-			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", "foobar")
+			.uri(format!(
+				"http://127.0.0.1:{}/check?domain=",
+				ctx.garage.admin_port
+			))
+			.body(Body::empty())
+			.unwrap()
+	};
+
+	let admin_resp = client.request(admin_req()).await.unwrap();
+	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
+	let res_body = json_body(admin_resp).await;
+	assert_json_eq!(
+		res_body,
+		json!({
+			"code": "NoSuchBucket",
+			"message": "Bucket not found: ",
+			"region": "garage-integ-test",
+			"path": "/check",
+		})
+	);
+
+	let admin_req = || {
+		Request::builder()
+			.method("GET")
+			.uri(format!(
+				"http://127.0.0.1:{}/check?domain=foobar",
+				ctx.garage.admin_port
+			))
 			.body(Body::empty())
 			.unwrap()
 	};
@@ -439,20 +474,22 @@ async fn test_website_check_website_enabled() {
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
-			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.header("domain", "☹")
+			.uri(format!(
+				"http://127.0.0.1:{}/check?domain=%E2%98%B9",
+				ctx.garage.admin_port
+			))
 			.body(Body::empty())
 			.unwrap()
 	};
 
 	let admin_resp = client.request(admin_req()).await.unwrap();
-	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
+	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
 	let res_body = json_body(admin_resp).await;
 	assert_json_eq!(
 		res_body,
 		json!({
-			"code": "InvalidRequest",
-			"message": "Bad request: Invalid characters found in domain header: failed to convert header to a str",
+			"code": "NoSuchBucket",
+			"message": "Bucket not found: ☹",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
