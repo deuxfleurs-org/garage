@@ -19,7 +19,7 @@ pub enum Error {
 
 	// Category: cannot process
 	/// Authorization Header Malformed
-	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
+	#[error(display = "Authorization header malformed, unexpected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
 
 	/// The object requested don't exists

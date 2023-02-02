@@ -11,7 +11,7 @@ pub enum Error {
 	Common(CommonError),
 
 	/// Authorization Header Malformed
-	#[error(display = "Authorization header malformed, expected scope: {}", _0)]
+	#[error(display = "Authorization header malformed, unexpected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
 
 	// Category: bad request
