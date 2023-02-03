@@ -25,6 +25,7 @@ use structopt::StructOpt;
 use netapp::util::parse_and_resolve_peer_addr;
 use netapp::NetworkKey;
 
+use garage_util::config::Config;
 use garage_util::error::*;
 
 use garage_rpc::system::*;
@@ -46,11 +47,10 @@ struct Opt {
 	#[structopt(short = "h", long = "rpc-host", env = "GARAGE_RPC_HOST")]
 	pub rpc_host: Option<String>,
 
-	/// RPC secret network key for admin operations
-	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
-	pub rpc_secret: Option<String>,
+	#[structopt(flatten)]
+	pub secrets: Secrets,
 
-	/// Configuration file (garage.toml)
+	/// Path to configuration file
 	#[structopt(
 		short = "c",
 		long = "config",
@@ -61,6 +61,23 @@ struct Opt {
 
 	#[structopt(subcommand)]
 	cmd: Command,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct Secrets {
+	/// RPC secret network key, used to replace rpc_secret in config.toml when running the daemon or doing admin operations
+	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
+	pub rpc_secret: Option<String>,
+
+	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
+	/// running the Garage daemon
+	#[structopt(long = "admin-token", env = "GARAGE_ADMIN_TOKEN")]
+	pub admin_token: Option<String>,
+
+	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
+	/// running the Garage daemon
+	#[structopt(long = "metrics-token", env = "GARAGE_METRICS_TOKEN")]
+	pub metrics_token: Option<String>,
 }
 
 #[tokio::main]
@@ -145,9 +162,9 @@ async fn main() {
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
 	let res = match opt.cmd {
-		Command::Server => server::run_server(opt.config_file).await,
+		Command::Server => server::run_server(opt.config_file, opt.secrets).await,
 		Command::OfflineRepair(repair_opt) => {
-			repair::offline::offline_repair(opt.config_file, repair_opt).await
+			repair::offline::offline_repair(opt.config_file, opt.secrets, repair_opt).await
 		}
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
 			node_id_command(opt.config_file, node_id_opt.quiet)
@@ -162,7 +179,7 @@ async fn main() {
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
-	let config = if opt.rpc_secret.is_none() || opt.rpc_host.is_none() {
+	let config = if opt.secrets.rpc_secret.is_none() || opt.rpc_host.is_none() {
 		Some(garage_util::config::read_config(opt.config_file.clone())
 			.err_context(format!("Unable to read configuration file {}. Configuration file is needed because -h or -s is not provided on the command line.", opt.config_file.to_string_lossy()))?)
 	} else {
@@ -171,6 +188,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 
 	// Find and parse network RPC secret
 	let net_key_hex_str = opt
+		.secrets
 		.rpc_secret
 		.as_ref()
 		.or_else(|| config.as_ref().and_then(|c| c.rpc_secret.as_ref()))
@@ -229,4 +247,17 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 		Err(e) => Err(Error::Message(format!("{}", e))),
 		Ok(x) => Ok(x),
 	}
+}
+
+fn fill_secrets(mut config: Config, secrets: Secrets) -> Config {
+	if secrets.rpc_secret.is_some() {
+		config.rpc_secret = secrets.rpc_secret;
+	}
+	if secrets.admin_token.is_some() {
+		config.admin.admin_token = secrets.admin_token;
+	}
+	if secrets.metrics_token.is_some() {
+		config.admin.metrics_token = secrets.metrics_token;
+	}
+	config
 }

@@ -98,7 +98,7 @@ impl Garage {
 					.cache_capacity(config.sled_cache_capacity)
 					.flush_every_ms(Some(config.sled_flush_every_ms))
 					.open()
-					.expect("Unable to open sled DB");
+					.ok_or_message("Unable to open sled DB")?;
 				db::sled_adapter::SledDb::init(db)
 			}
 			#[cfg(not(feature = "sled"))]
@@ -109,7 +109,7 @@ impl Garage {
 				db_path.push("db.sqlite");
 				info!("Opening Sqlite database at: {}", db_path.display());
 				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
-					.expect("Unable to open sqlite DB");
+					.ok_or_message("Unable to open sqlite DB")?;
 				db::sqlite_adapter::SqliteDb::init(db)
 			}
 			#[cfg(not(feature = "sqlite"))]
@@ -123,7 +123,8 @@ impl Garage {
 			"lmdb" | "heed" => {
 				db_path.push("db.lmdb");
 				info!("Opening LMDB database at: {}", db_path.display());
-				std::fs::create_dir_all(&db_path).expect("Unable to create LMDB data directory");
+				std::fs::create_dir_all(&db_path)
+					.ok_or_message("Unable to create LMDB data directory")?;
 				let map_size = garage_db::lmdb_adapter::recommended_map_size();
 
 				use db::lmdb_adapter::heed;
@@ -135,7 +136,9 @@ impl Garage {
 					env_builder.flag(heed::flags::Flags::MdbNoSync);
 					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
 				}
-				let db = env_builder.open(&db_path).expect("Unable to open LMDB DB");
+				let db = env_builder
+					.open(&db_path)
+					.ok_or_message("Unable to open LMDB DB")?;
 				db::lmdb_adapter::LmdbDb::init(db)
 			}
 			#[cfg(not(feature = "lmdb"))]
@@ -158,13 +161,15 @@ impl Garage {
 			}
 		};
 
-		let network_key = NetworkKey::from_slice(
-			&hex::decode(config.rpc_secret.as_ref().unwrap()).expect("Invalid RPC secret key")[..],
-		)
-		.expect("Invalid RPC secret key");
+		let network_key = hex::decode(config.rpc_secret.as_ref().ok_or_message(
+			"rpc_secret value is missing, not present in config file or in environment",
+		)?)
+		.ok()
+		.and_then(|x| NetworkKey::from_slice(&x))
+		.ok_or_message("Invalid RPC secret key")?;
 
 		let replication_mode = ReplicationMode::parse(&config.replication_mode)
-			.expect("Invalid replication_mode in config file.");
+			.ok_or_message("Invalid replication_mode in config file.")?;
 
 		info!("Initialize membership management system...");
 		let system = System::new(network_key, replication_mode, &config)?;

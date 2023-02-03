@@ -34,9 +34,7 @@ pub struct Config {
 	pub compression_level: Option<i32>,
 
 	/// RPC secret key: 32 bytes hex encoded
-	/// Note: When using `read_config` this should never be `None`
 	pub rpc_secret: Option<String>,
-
 	/// Optional file where RPC secret key is read from
 	pub rpc_secret_file: Option<String>,
 
@@ -122,10 +120,17 @@ pub struct WebConfig {
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
 	pub api_bind_addr: Option<SocketAddr>,
+
 	/// Bearer token to use to scrape metrics
 	pub metrics_token: Option<String>,
+	/// File to read metrics token from
+	pub metrics_token_file: Option<String>,
+
 	/// Bearer token to use to access Admin API endpoints
 	pub admin_token: Option<String>,
+	/// File to read admin token from
+	pub admin_token_file: Option<String>,
+
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
 }
@@ -183,29 +188,55 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 
 	let mut parsed_config: Config = toml::from_str(&config)?;
 
-	match (&parsed_config.rpc_secret, &parsed_config.rpc_secret_file) {
-		(Some(_), None) => {
+	secret_from_file(
+		&mut parsed_config.rpc_secret,
+		&mut parsed_config.rpc_secret_file,
+		"rpc_secret",
+	)?;
+	secret_from_file(
+		&mut parsed_config.admin.metrics_token,
+		&mut parsed_config.admin.metrics_token_file,
+		"admin.metrics_token",
+	)?;
+	secret_from_file(
+		&mut parsed_config.admin.admin_token,
+		&mut parsed_config.admin.admin_token_file,
+		"admin.admin_token",
+	)?;
+
+	Ok(parsed_config)
+}
+
+fn secret_from_file(
+	secret: &mut Option<String>,
+	secret_file: &mut Option<String>,
+	name: &'static str,
+) -> Result<(), Error> {
+	match (&secret, &secret_file) {
+		(_, None) => {
 			// no-op
 		}
 		(Some(_), Some(_)) => {
-			return Err("only one of `rpc_secret` and `rpc_secret_file` can be set".into())
+			return Err(format!("only one of `{}` and `{}_file` can be set", name, name).into());
 		}
-		(None, Some(rpc_secret_file_path_string)) => {
-			let mut rpc_secret_file = std::fs::OpenOptions::new()
-				.read(true)
-				.open(rpc_secret_file_path_string)?;
-			let mut rpc_secret_from_file = String::new();
-			rpc_secret_file.read_to_string(&mut rpc_secret_from_file)?;
+		(None, Some(file_path)) => {
+			#[cfg(unix)]
+			if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
+				use std::os::unix::fs::MetadataExt;
+				let metadata = std::fs::metadata(&file_path)?;
+				if metadata.mode() & 0o077 != 0 {
+					return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
+				}
+			}
+			let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
+			let mut secret_buf = String::new();
+			file.read_to_string(&mut secret_buf)?;
 			// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
 			//           also editors sometimes add a trailing newline
-			parsed_config.rpc_secret = Some(String::from(rpc_secret_from_file.trim_end()));
+			*secret = Some(String::from(secret_buf.trim_end()));
 		}
-		(None, None) => {
-			return Err("either `rpc_secret` or `rpc_secret_file` needs to be set".into())
-		}
-	};
-
-	Ok(parsed_config)
+	}
+	Ok(())
 }
 
 fn default_compression() -> Option<i32> {
@@ -269,31 +300,7 @@ mod tests {
 	use std::io::Write;
 
 	#[test]
-	fn test_rpc_secret_is_required() -> Result<(), Error> {
-		let path1 = mktemp::Temp::new_file()?;
-		let mut file1 = File::create(path1.as_path())?;
-		writeln!(
-			file1,
-			r#"
-			metadata_dir = "/tmp/garage/meta"
-			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
-			rpc_bind_addr = "[::]:3901"
-		
-			[s3_api]
-			s3_region = "garage"
-			api_bind_addr = "[::]:3900"
-			"#
-		)?;
-		assert_eq!(
-			"either `rpc_secret` or `rpc_secret_file` needs to be set",
-			super::read_config(path1.to_path_buf())
-				.unwrap_err()
-				.to_string()
-		);
-		drop(path1);
-		drop(file1);
-
+	fn test_rpc_secret() -> Result<(), Error> {
 		let path2 = mktemp::Temp::new_file()?;
 		let mut file2 = File::create(path2.as_path())?;
 		writeln!(
@@ -328,7 +335,7 @@ mod tests {
 
 		let path_config = mktemp::Temp::new_file()?;
 		let mut file_config = File::create(path_config.as_path())?;
-		let path_secret_path = path_secret.as_path().display();
+		let path_secret_path = path_secret.as_path();
 		writeln!(
 			file_config,
 			r#"
@@ -336,15 +343,32 @@ mod tests {
 			data_dir = "/tmp/garage/data"
 			replication_mode = "3"
 			rpc_bind_addr = "[::]:3901"
-			rpc_secret_file = "{path_secret_path}"
+			rpc_secret_file = "{}"
 		
 			[s3_api]
 			s3_region = "garage"
 			api_bind_addr = "[::]:3900"
-			"#
+			"#,
+			path_secret_path.display()
 		)?;
 		let config = super::read_config(path_config.to_path_buf())?;
 		assert_eq!("foo", config.rpc_secret.unwrap());
+
+		#[cfg(unix)]
+		{
+			use std::os::unix::fs::PermissionsExt;
+			let metadata = std::fs::metadata(&path_secret_path)?;
+			let mut perm = metadata.permissions();
+			perm.set_mode(0o660);
+			std::fs::set_permissions(&path_secret_path, perm)?;
+
+			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "false");
+			assert!(super::read_config(path_config.to_path_buf()).is_err());
+
+			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "true");
+			assert!(super::read_config(path_config.to_path_buf()).is_ok());
+		}
+
 		drop(path_config);
 		drop(path_secret);
 		drop(file_config);
