@@ -125,7 +125,26 @@ impl<A: ApiHandler> ApiServer<A> {
 		addr: SocketAddr,
 	) -> Result<Response<Body>, GarageError> {
 		let uri = req.uri().clone();
-		info!("{} {} {}", addr, req.method(), uri);
+
+		let has_forwarded_for_header = req.headers().contains_key("x-forwarded-for");
+		if has_forwarded_for_header {
+			let forwarded_for_ip_addr = &req
+				.headers()
+				.get("x-forwarded-for")
+				.expect("Could not parse X-Forwarded-For header")
+				.to_str()
+				.unwrap_or_default();
+
+			info!(
+				"{} (via {}) {} {}",
+				forwarded_for_ip_addr,
+				addr,
+				req.method(),
+				uri
+			);
+		} else {
+			info!("{} {} {}", addr, req.method(), uri);
+		}
 		debug!("{:?}", req);
 
 		let tracer = opentelemetry::global::tracer("garage");
