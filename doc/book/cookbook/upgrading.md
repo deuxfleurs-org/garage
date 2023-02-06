@@ -17,6 +17,10 @@ Conversely, for versions that only require a minor upgrade, the first nonzero co
 Major upgrades are designed to be run only between contiguous versions.
 Example: migrations from v0.7.1 to v0.8.0 and from v0.7.0 to v0.8.2 are supported but migrations from v0.6.0 to v0.8.0 are not supported.
 
+The `garage_build_info`
+[Prometheus metric](@/documentation/reference-manual/monitoring.md) provides
+an overview for which Garage versions are currently in use within a cluster.
+
 ## Minor upgrades
 
 Minor upgrades do not imply cluster downtime.
