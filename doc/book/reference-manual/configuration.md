@@ -269,7 +269,7 @@ communicate together. The RPC secret is a 32-byte hex-encoded random string,
 which can be generated with a command such as `openssl rand -hex 32`.
 
 The RPC secret should be specified in the `rpc_secret` configuration variable.
-Since Garage v0.8.2, the RPC secret can also be stored in a file whose path is
+Since Garage `v0.8.2`, the RPC secret can also be stored in a file whose path is
 given in the configuration variable `rpc_secret_file`, or specified as an
 environment variable `GARAGE_RPC_SECRET`.
 
@@ -420,8 +420,8 @@ Metrics endpoint can be accessed without access control.
 
 You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
 
-`metrics_token` was introduced in Garage version 0.7.2.
-`metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage version 0.8.2.
+`metrics_token` was introduced in Garage `v0.7.2`.
+`metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
 
 ### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN` (env)
@@ -431,8 +431,8 @@ token is not set, access to these endpoints is disabled entirely.
 
 You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
 
-`admin_token` was introduced in Garage version 0.7.2.
-`admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage version 0.8.2.
+`admin_token` was introduced in Garage `v0.7.2`.
+`admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
 
 ### `trace_sink`

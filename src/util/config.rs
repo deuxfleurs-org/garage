@@ -190,17 +190,17 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 
 	secret_from_file(
 		&mut parsed_config.rpc_secret,
-		&mut parsed_config.rpc_secret_file,
+		&parsed_config.rpc_secret_file,
 		"rpc_secret",
 	)?;
 	secret_from_file(
 		&mut parsed_config.admin.metrics_token,
-		&mut parsed_config.admin.metrics_token_file,
+		&parsed_config.admin.metrics_token_file,
 		"admin.metrics_token",
 	)?;
 	secret_from_file(
 		&mut parsed_config.admin.admin_token,
-		&mut parsed_config.admin.admin_token_file,
+		&parsed_config.admin.admin_token_file,
 		"admin.admin_token",
 	)?;
 
@@ -209,7 +209,7 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 
 fn secret_from_file(
 	secret: &mut Option<String>,
-	secret_file: &mut Option<String>,
+	secret_file: &Option<String>,
 	name: &'static str,
 ) -> Result<(), Error> {
 	match (&secret, &secret_file) {

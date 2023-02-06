@@ -65,7 +65,8 @@ struct Opt {
 
 #[derive(StructOpt, Debug)]
 pub struct Secrets {
-	/// RPC secret network key, used to replace rpc_secret in config.toml when running the daemon or doing admin operations
+	/// RPC secret network key, used to replace rpc_secret in config.toml when running the
+	/// daemon or doing admin operations
 	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
 	pub rpc_secret: Option<String>,
 
