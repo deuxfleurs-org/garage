@@ -168,40 +168,65 @@ Here is [a basic configuration file](https://doc.traefik.io/traefik/https/acme/#
 
 ### Add Garage service
 
-To add Garage on Traefik you should declare a new service using its IP address (or hostname) and port:
+To add Garage on Traefik you should declare two new services using its IP
+address (or hostname) and port, these are used for the S3, and web components
+of Garage:
 
 ```toml
 [http.services]
-  [http.services.my_garage_service.loadBalancer]
-    [[http.services.my_garage_service.loadBalancer.servers]]
+  [http.services.garage-s3-service.loadBalancer]
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://xxx.xxx.xxx.xxx"
       port = 3900
+
+  [http.services.garage-web-service.loadBalancer]
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+      port = 3902
 ```
 
 It's possible to declare multiple Garage servers as back-ends:
 
 ```toml
 [http.services]
-    [[http.services.my_garage_service.loadBalancer.servers]]
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://xxx.xxx.xxx.xxx"
       port = 3900
-    [[http.services.my_garage_service.loadBalancer.servers]]
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://yyy.yyy.yyy.yyy"
       port = 3900
-    [[http.services.my_garage_service.loadBalancer.servers]]
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://zzz.zzz.zzz.zzz"
       port = 3900
+
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+      port = 3902
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://yyy.yyy.yyy.yyy"
+      port = 3902
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://zzz.zzz.zzz.zzz"
+      port = 3902
 ```
 
 Traefik can remove unhealthy servers automatically with [a health check configuration](https://doc.traefik.io/traefik/routing/services/#health-check):
 
 ```
 [http.services]
-  [http.services.my_garage_service.loadBalancer]
-    [http.services.my_garage_service.loadBalancer.healthCheck]
-      path = "/"
-      interval = "60s"
-      timeout = "5s"
+  [http.services.garage-s3-service.loadBalancer]
+    [http.services.garage-s3-service.loadBalancer.healthCheck]
+      path = "/health"
+      port = "3903"
+      #interval = "15s"
+      #timeout = "2s"
+
+  [http.services.garage-web-service.loadBalancer]
+    [http.services.garage-web-service.loadBalancer.healthCheck]
+      path = "/health"
+      port = "3903"
+      #interval = "15s"
+      #timeout = "2s"
 ```
 
 ### Adding a website
@@ -210,10 +235,15 @@ To add a new website, add the following declaration to your Traefik configuratio
 
 ```toml
 [http.routers]
+  [http.routers.garage-s3]
+    rule = "Host(`s3.example.org`)"
+    service = "garage-s3-service"
+    entryPoints = ["websecure"]
+
   [http.routers.my_website]
     rule = "Host(`yoururl.example.org`)"
-    service = "my_garage_service"
-    entryPoints = ["web"]
+    service = "garage-web-service"
+    entryPoints = ["websecure"]
 ```
 
 Enable HTTPS access to your website with the following configuration section ([documentation](https://doc.traefik.io/traefik/https/overview/)):
@@ -226,7 +256,7 @@ Enable HTTPS access to your website with the following configuration section ([d
 ...
 ```
 
-### Adding gzip compression
+### Adding compression
 
 Add the following configuration section [to compress response](https://doc.traefik.io/traefik/middlewares/http/compress/) using [gzip](https://developer.mozilla.org/en-US/docs/Glossary/GZip_compression) before sending them to the client:
 
@@ -234,10 +264,10 @@ Add the following configuration section [to compress response](https://doc.traef
 [http.routers]
   [http.routers.my_website]
     ...
-    middlewares = ["gzip_compress"]
+    middlewares = ["compression"]
     ...
 [http.middlewares]
-  [http.middlewares.gzip_compress.compress]
+  [http.middlewares.compression.compress]
 ```
 
 ### Add caching response
@@ -262,27 +292,54 @@ Traefik's caching middleware is only available on [entreprise version](https://d
     entryPoint = "web"
 
 [http.routers]
+  [http.routers.garage-s3]
+    rule = "Host(`s3.example.org`)"
+    service = "garage-s3-service"
+    entryPoints = ["websecure"]
+
   [http.routers.my_website]
     rule = "Host(`yoururl.example.org`)"
-    service = "my_garage_service"
-    middlewares = ["gzip_compress"]
+    service = "garage-web-service"
+    middlewares = ["compression"]
     entryPoints = ["websecure"]
 
 [http.services]
-  [http.services.my_garage_service.loadBalancer]
-    [http.services.my_garage_service.loadBalancer.healthCheck]
-      path = "/"
-      interval = "60s"
-      timeout = "5s"
-    [[http.services.my_garage_service.loadBalancer.servers]]
+  [http.services.garage-s3-service.loadBalancer]
+    [http.services.garage-s3-service.loadBalancer.healthCheck]
+      path = "/health"
+      port = "3903"
+      #interval = "15s"
+      #timeout = "2s"
+
+  [http.services.garage-web-service.loadBalancer]
+    [http.services.garage-web-service.loadBalancer.healthCheck]
+      path = "/health"
+      port = "3903"
+      #interval = "15s"
+      #timeout = "2s"
+
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://xxx.xxx.xxx.xxx"
-    [[http.services.my_garage_service.loadBalancer.servers]]
+      port = 3900
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://yyy.yyy.yyy.yyy"
-    [[http.services.my_garage_service.loadBalancer.servers]]
+      port = 3900
+    [[http.services.garage-s3-service.loadBalancer.servers]]
       url = "http://zzz.zzz.zzz.zzz"
+      port = 3900
+
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://xxx.xxx.xxx.xxx"
+      port = 3902
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://yyy.yyy.yyy.yyy"
+      port = 3902
+    [[http.services.garage-web-service.loadBalancer.servers]]
+      url = "http://zzz.zzz.zzz.zzz"
+      port = 3902
 
 [http.middlewares]
-  [http.middlewares.gzip_compress.compress]
+  [http.middlewares.compression.compress]
 ```
 
 ## Caddy
