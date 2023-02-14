@@ -291,15 +291,30 @@ Your Caddy configuration can be as simple as:
 
 ```caddy
 s3.garage.tld, *.s3.garage.tld {
-	reverse_proxy localhost:3900 192.168.1.2:3900 example.tld:3900
+	reverse_proxy localhost:3900 192.168.1.2:3900 example.tld:3900 {
+        health_uri       /health
+        health_port      3903
+        #health_interval 15s
+        #health_timeout  5s
+    }
 }
 
 *.web.garage.tld {
-	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
+	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902 {
+        health_uri       /health
+        health_port      3903
+        #health_interval 15s
+        #health_timeout  5s
+    }
 }
 
 admin.garage.tld {
-	reverse_proxy localhost:3903
+	reverse_proxy localhost:3903 {
+        health_uri       /health
+        health_port      3903
+        #health_interval 15s
+        #health_timeout  5s
+    }
 }
 ```
 
