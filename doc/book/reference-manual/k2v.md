@@ -16,7 +16,7 @@ the `k2v` feature flag enabled can be obtained from our download page under
 with `-k2v` (example: `v0.7.2-k2v`).
 
 The specification of the K2V API can be found
-[here](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/k2v/doc/drafts/k2v-spec.md).
+[here](https://git.deuxfleurs.fr/Deuxfleurs/garage/src/branch/main/doc/drafts/k2v-spec.md).
 This document also includes a high-level overview of K2V's design.
 
 The K2V API uses AWSv4 signatures for authentification, same as the S3 API.
