@@ -37,8 +37,7 @@ k8s-openapi = { version = "0.16", features = ["v1_22"], optional = true }
 schemars = { version = "0.8", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false, features = ["rustls-tls-manual-roots", "json"] }
 
-# newer version requires rust edition 2021
-pnet_datalink = "0.28"
+pnet_datalink = "0.33"
 
 futures = "0.3"
 futures-util = "0.3"
