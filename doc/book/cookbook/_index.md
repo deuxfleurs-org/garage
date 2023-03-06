@@ -16,6 +16,10 @@ This chapter could also be referred as "Tutorials" or "Best practices".
   source in case a binary is not provided for your architecture, or if you want to
   hack with us!
 
+- **[Binary packages](@/documentation/cookbook/binary-packages.md):** This page
+  lists the different platforms that provide ready-built software packages for
+  Garage.
+
 - **[Integration with Systemd](@/documentation/cookbook/systemd.md):** This page explains how to run Garage
   as a Systemd service (instead of as a Docker container).
 
