@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::select;
 use tokio::sync::mpsc;
@@ -162,6 +161,50 @@ impl Worker for RepairWorker {
 // and whose parameter (esp. speed) can be controlled at runtime.
 // ---- ---- ----
 
+mod v081 {
+	use serde::{Deserialize, Serialize};
+
+	#[derive(Serialize, Deserialize)]
+	pub struct ScrubWorkerPersisted {
+		pub tranquility: u32,
+		pub(crate) time_last_complete_scrub: u64,
+		pub(crate) corruptions_detected: u64,
+	}
+
+	impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
+}
+
+mod v082 {
+	use serde::{Deserialize, Serialize};
+
+	use super::v081;
+
+	#[derive(Serialize, Deserialize)]
+	pub struct ScrubWorkerPersisted {
+		pub tranquility: u32,
+		pub(crate) time_last_complete_scrub: u64,
+		pub(crate) time_next_run_scrub: u64,
+		pub(crate) corruptions_detected: u64,
+	}
+
+	impl garage_util::migrate::Migrate for ScrubWorkerPersisted {
+		type Previous = v081::ScrubWorkerPersisted;
+
+		fn migrate(old: v081::ScrubWorkerPersisted) -> ScrubWorkerPersisted {
+			use crate::repair::randomize_next_scrub_run_time;
+
+			ScrubWorkerPersisted {
+				tranquility: old.tranquility,
+				time_last_complete_scrub: old.time_last_complete_scrub,
+				time_next_run_scrub: randomize_next_scrub_run_time(),
+				corruptions_detected: old.corruptions_detected,
+			}
+		}
+	}
+}
+
+pub use v082::*;
+
 pub struct ScrubWorker {
 	manager: Arc<BlockManager>,
 	rx_cmd: mpsc::Receiver<ScrubWorkerCommand>,
@@ -170,14 +213,6 @@ pub struct ScrubWorker {
 	tranquilizer: Tranquilizer,
 
 	persister: PersisterShared<ScrubWorkerPersisted>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ScrubWorkerPersisted {
-	pub tranquility: u32,
-	pub(crate) time_last_complete_scrub: u64,
-	pub(crate) time_next_run_scrub: u64,
-	pub(crate) corruptions_detected: u64,
 }
 
 fn randomize_next_scrub_run_time() -> u64 {
@@ -194,7 +229,6 @@ fn randomize_next_scrub_run_time() -> u64 {
 	next_run_timestamp
 }
 
-impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
 impl Default for ScrubWorkerPersisted {
 	fn default() -> Self {
 		ScrubWorkerPersisted {
