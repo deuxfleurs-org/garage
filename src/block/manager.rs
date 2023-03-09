@@ -152,6 +152,7 @@ impl BlockManager {
 			tx_scrub_command: ArcSwapOption::new(None),
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
+		block_manager.scrub_persister.set_with(|_| ()).unwrap();
 
 		block_manager
 	}
