@@ -196,7 +196,7 @@ mod v082 {
 			ScrubWorkerPersisted {
 				tranquility: old.tranquility,
 				time_last_complete_scrub: old.time_last_complete_scrub,
-				time_next_run_scrub: randomize_next_scrub_run_time(),
+				time_next_run_scrub: randomize_next_scrub_run_time(old.time_last_complete_scrub),
 				corruptions_detected: old.corruptions_detected,
 			}
 		}
@@ -215,11 +215,11 @@ pub struct ScrubWorker {
 	persister: PersisterShared<ScrubWorkerPersisted>,
 }
 
-fn randomize_next_scrub_run_time() -> u64 {
+fn randomize_next_scrub_run_time(timestamp: u64) -> u64 {
 	// Take SCRUB_INTERVAL and mix in a random interval of 10 days to attempt to
 	// balance scrub load across different cluster nodes.
 
-	let next_run_timestamp = now_msec()
+	let next_run_timestamp = timestamp
 		+ SCRUB_INTERVAL
 			.saturating_add(Duration::from_secs(
 				rand::thread_rng().gen_range(0..3600 * 24 * 10),
@@ -233,7 +233,7 @@ impl Default for ScrubWorkerPersisted {
 	fn default() -> Self {
 		ScrubWorkerPersisted {
 			time_last_complete_scrub: 0,
-			time_next_run_scrub: randomize_next_scrub_run_time(),
+			time_next_run_scrub: randomize_next_scrub_run_time(now_msec()),
 			tranquility: INITIAL_SCRUB_TRANQUILITY,
 			corruptions_detected: 0,
 		}
@@ -395,7 +395,7 @@ impl Worker for ScrubWorker {
 				} else {
 					self.persister.set_with(|p| {
 						p.time_last_complete_scrub = now_msec();
-						p.time_next_run_scrub = randomize_next_scrub_run_time();
+						p.time_next_run_scrub = randomize_next_scrub_run_time(now_msec());
 					})?;
 					self.work = ScrubWorkerState::Finished;
 					self.tranquilizer.clear();
