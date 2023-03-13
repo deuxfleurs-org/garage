@@ -13,7 +13,7 @@ async fn test_bucket_all() {
 		ctx.garage
 			.command()
 			.args(["key", "deny"])
-			.args(["--create-bucket", &ctx.garage.key.id])
+			.args(["--create-bucket", &ctx.key.id])
 			.quiet()
 			.expect_success_output("Could not deny key to create buckets");
 
@@ -26,7 +26,7 @@ async fn test_bucket_all() {
 		ctx.garage
 			.command()
 			.args(["key", "allow"])
-			.args(["--create-bucket", &ctx.garage.key.id])
+			.args(["--create-bucket", &ctx.key.id])
 			.quiet()
 			.expect_success_output("Could not deny key to create buckets");
 

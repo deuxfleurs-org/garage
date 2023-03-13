@@ -14,6 +14,7 @@ use garage_api::signature;
 /// You should ever only use this to send requests AWS sdk won't send,
 /// like to reproduce behavior of unusual implementations found to be
 /// problematic.
+#[derive(Clone)]
 pub struct CustomRequester {
 	key: Key,
 	uri: Uri,
@@ -22,18 +23,18 @@ pub struct CustomRequester {
 }
 
 impl CustomRequester {
-	pub fn new_s3(instance: &Instance) -> Self {
+	pub fn new_s3(instance: &Instance, key: &Key) -> Self {
 		CustomRequester {
-			key: instance.key.clone(),
+			key: key.clone(),
 			uri: instance.s3_uri(),
 			service: "s3",
 			client: Client::new(),
 		}
 	}
 
-	pub fn new_k2v(instance: &Instance) -> Self {
+	pub fn new_k2v(instance: &Instance, key: &Key) -> Self {
 		CustomRequester {
-			key: instance.key.clone(),
+			key: key.clone(),
 			uri: instance.k2v_uri(),
 			service: "k2v",
 			client: Client::new(),

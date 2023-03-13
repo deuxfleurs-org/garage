@@ -13,13 +13,16 @@ use custom_requester::CustomRequester;
 
 const REGION: Region = Region::from_static("garage-integ-test");
 
+#[derive(Clone)]
 pub struct Context {
 	pub garage: &'static garage::Instance,
+	pub key: garage::Key,
 	pub client: Client,
 	pub custom_request: CustomRequester,
 	pub k2v: K2VContext,
 }
 
+#[derive(Clone)]
 pub struct K2VContext {
 	pub request: CustomRequester,
 }
@@ -27,13 +30,15 @@ pub struct K2VContext {
 impl Context {
 	fn new() -> Self {
 		let garage = garage::instance();
-		let client = client::build_client(garage);
-		let custom_request = CustomRequester::new_s3(garage);
-		let k2v_request = CustomRequester::new_k2v(garage);
+		let key = garage.key(None);
+		let client = client::build_client(garage, &key);
+		let custom_request = CustomRequester::new_s3(garage, &key);
+		let k2v_request = CustomRequester::new_k2v(garage, &key);
 
 		Context {
 			garage,
 			client,
+			key,
 			custom_request,
 			k2v: K2VContext {
 				request: k2v_request,
@@ -57,7 +62,7 @@ impl Context {
 			.args(["bucket", "allow"])
 			.args(["--owner", "--read", "--write"])
 			.arg(&bucket_name)
-			.args(["--key", &self.garage.key.name])
+			.args(["--key", &self.key.id])
 			.quiet()
 			.expect_success_status("Could not allow key for bucket");
 

@@ -13,7 +13,7 @@ static GARAGE_TEST_SECRET: &str =
 
 #[derive(Debug, Default, Clone)]
 pub struct Key {
-	pub name: String,
+	pub name: Option<String>,
 	pub id: String,
 	pub secret: String,
 }
@@ -21,7 +21,7 @@ pub struct Key {
 pub struct Instance {
 	process: process::Child,
 	pub path: PathBuf,
-	pub key: Key,
+	pub default_key: Key,
 	pub s3_port: u16,
 	pub k2v_port: u16,
 	pub web_port: u16,
@@ -102,7 +102,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		Instance {
 			process: child,
 			path,
-			key: Key::default(),
+			default_key: Key::default(),
 			s3_port: port,
 			k2v_port: port + 1,
 			web_port: port + 3,
@@ -111,14 +111,27 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 	}
 
 	fn setup(&mut self) {
+		self.wait_for_boot();
+		self.setup_layout();
+		self.default_key = self.key(Some("garage_test"));
+	}
+
+	fn wait_for_boot(&mut self) {
 		use std::{thread, time::Duration};
 
-		// Wait for node to be ready
-		thread::sleep(Duration::from_secs(2));
-
-		self.setup_layout();
-
-		self.key = self.new_key("garage_test");
+		// 60 * 2 seconds = 120 seconds = 2min
+		for _ in 0..60 {
+			let termination = self
+				.command()
+				.args(["status"])
+				.quiet()
+				.status()
+				.expect("Unable to run command");
+			if termination.success() {
+				break;
+			}
+			thread::sleep(Duration::from_secs(2));
+		}
 	}
 
 	fn setup_layout(&self) {
@@ -169,14 +182,17 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			.expect("Could not build garage endpoint URI")
 	}
 
-	pub fn new_key(&self, name: &str) -> Key {
+	pub fn key(&self, maybe_name: Option<&str>) -> Key {
 		let mut key = Key::default();
 
-		let output = self
-			.command()
-			.args(["key", "new"])
-			.args(["--name", name])
-			.expect_success_output("Could not create key");
+		let mut cmd = self.command();
+		let base = cmd.args(["key", "new"]);
+		let with_name = match maybe_name {
+			Some(name) => base.args(["--name", name]),
+			None => base,
+		};
+
+		let output = with_name.expect_success_output("Could not create key");
 		let stdout = String::from_utf8(output.stdout).unwrap();
 
 		for line in stdout.lines() {
@@ -193,7 +209,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		assert!(!key.secret.is_empty(), "Invalid key: Key secret is empty");
 
 		Key {
-			name: name.to_owned(),
+			name: maybe_name.map(String::from),
 			..key
 		}
 	}
