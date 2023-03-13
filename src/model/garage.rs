@@ -136,9 +136,16 @@ impl Garage {
 					env_builder.flag(heed::flags::Flags::MdbNoSync);
 					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
 				}
-				let db = env_builder
-					.open(&db_path)
-					.ok_or_message("Unable to open LMDB DB")?;
+				let db = match env_builder.open(&db_path) {
+					Err(heed::Error::Io(e)) if e.kind() == std::io::ErrorKind::OutOfMemory => {
+						return Err(Error::Message(
+							"OutOfMemory error while trying to open LMDB database. This can happen \
+							if your operating system is not allowing you to use sufficient virtual \
+							memory address space. Please check that no limit is set (ulimit -v). \
+							On 32-bit machines, you should probably switch to another database engine.".into()))
+					}
+					x => x.ok_or_message("Unable to open LMDB DB")?,
+				};
 				db::lmdb_adapter::LmdbDb::init(db)
 			}
 			#[cfg(not(feature = "lmdb"))]

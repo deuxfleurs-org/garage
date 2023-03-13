@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use rand::Rng;
 use tokio::fs;
 use tokio::select;
 use tokio::sync::mpsc;
@@ -19,8 +19,8 @@ use garage_util::tranquilizer::Tranquilizer;
 
 use crate::manager::*;
 
-// Full scrub every 30 days
-const SCRUB_INTERVAL: Duration = Duration::from_secs(3600 * 24 * 30);
+// Full scrub every 25 days with a random element of 10 days mixed in below
+const SCRUB_INTERVAL: Duration = Duration::from_secs(3600 * 24 * 25);
 // Scrub tranquility is initially set to 4, but can be changed in the CLI
 // and the updated version is persisted over Garage restarts
 const INITIAL_SCRUB_TRANQUILITY: u32 = 4;
@@ -161,6 +161,50 @@ impl Worker for RepairWorker {
 // and whose parameter (esp. speed) can be controlled at runtime.
 // ---- ---- ----
 
+mod v081 {
+	use serde::{Deserialize, Serialize};
+
+	#[derive(Serialize, Deserialize)]
+	pub struct ScrubWorkerPersisted {
+		pub tranquility: u32,
+		pub(crate) time_last_complete_scrub: u64,
+		pub(crate) corruptions_detected: u64,
+	}
+
+	impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
+}
+
+mod v082 {
+	use serde::{Deserialize, Serialize};
+
+	use super::v081;
+
+	#[derive(Serialize, Deserialize)]
+	pub struct ScrubWorkerPersisted {
+		pub tranquility: u32,
+		pub(crate) time_last_complete_scrub: u64,
+		pub(crate) time_next_run_scrub: u64,
+		pub(crate) corruptions_detected: u64,
+	}
+
+	impl garage_util::migrate::Migrate for ScrubWorkerPersisted {
+		type Previous = v081::ScrubWorkerPersisted;
+
+		fn migrate(old: v081::ScrubWorkerPersisted) -> ScrubWorkerPersisted {
+			use crate::repair::randomize_next_scrub_run_time;
+
+			ScrubWorkerPersisted {
+				tranquility: old.tranquility,
+				time_last_complete_scrub: old.time_last_complete_scrub,
+				time_next_run_scrub: randomize_next_scrub_run_time(old.time_last_complete_scrub),
+				corruptions_detected: old.corruptions_detected,
+			}
+		}
+	}
+}
+
+pub use v082::*;
+
 pub struct ScrubWorker {
 	manager: Arc<BlockManager>,
 	rx_cmd: mpsc::Receiver<ScrubWorkerCommand>,
@@ -171,17 +215,25 @@ pub struct ScrubWorker {
 	persister: PersisterShared<ScrubWorkerPersisted>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ScrubWorkerPersisted {
-	pub tranquility: u32,
-	pub(crate) time_last_complete_scrub: u64,
-	pub(crate) corruptions_detected: u64,
+fn randomize_next_scrub_run_time(timestamp: u64) -> u64 {
+	// Take SCRUB_INTERVAL and mix in a random interval of 10 days to attempt to
+	// balance scrub load across different cluster nodes.
+
+	let next_run_timestamp = timestamp
+		+ SCRUB_INTERVAL
+			.saturating_add(Duration::from_secs(
+				rand::thread_rng().gen_range(0..3600 * 24 * 10),
+			))
+			.as_millis() as u64;
+
+	next_run_timestamp
 }
-impl garage_util::migrate::InitialFormat for ScrubWorkerPersisted {}
+
 impl Default for ScrubWorkerPersisted {
 	fn default() -> Self {
 		ScrubWorkerPersisted {
 			time_last_complete_scrub: 0,
+			time_next_run_scrub: randomize_next_scrub_run_time(now_msec()),
 			tranquility: INITIAL_SCRUB_TRANQUILITY,
 			corruptions_detected: 0,
 		}
@@ -279,12 +331,13 @@ impl Worker for ScrubWorker {
 	}
 
 	fn status(&self) -> WorkerStatus {
-		let (corruptions_detected, tranquility, time_last_complete_scrub) =
+		let (corruptions_detected, tranquility, time_last_complete_scrub, time_next_run_scrub) =
 			self.persister.get_with(|p| {
 				(
 					p.corruptions_detected,
 					p.tranquility,
 					p.time_last_complete_scrub,
+					p.time_next_run_scrub,
 				)
 			});
 
@@ -302,10 +355,16 @@ impl Worker for ScrubWorker {
 				s.freeform = vec![format!("Scrub paused, resumes at {}", msec_to_rfc3339(*rt))];
 			}
 			ScrubWorkerState::Finished => {
-				s.freeform = vec![format!(
-					"Last scrub completed at {}",
-					msec_to_rfc3339(time_last_complete_scrub)
-				)];
+				s.freeform = vec![
+					format!(
+						"Last scrub completed at {}",
+						msec_to_rfc3339(time_last_complete_scrub),
+					),
+					format!(
+						"Next scrub scheduled for {}",
+						msec_to_rfc3339(time_next_run_scrub)
+					),
+				];
 			}
 		}
 		s
@@ -334,8 +393,10 @@ impl Worker for ScrubWorker {
 						.tranquilizer
 						.tranquilize_worker(self.persister.get_with(|p| p.tranquility)))
 				} else {
-					self.persister
-						.set_with(|p| p.time_last_complete_scrub = now_msec())?;
+					self.persister.set_with(|p| {
+						p.time_last_complete_scrub = now_msec();
+						p.time_next_run_scrub = randomize_next_scrub_run_time(now_msec());
+					})?;
 					self.work = ScrubWorkerState::Finished;
 					self.tranquilizer.clear();
 					Ok(WorkerState::Idle)
@@ -350,8 +411,7 @@ impl Worker for ScrubWorker {
 			ScrubWorkerState::Running(_) => return WorkerState::Busy,
 			ScrubWorkerState::Paused(_, resume_time) => (*resume_time, ScrubWorkerCommand::Resume),
 			ScrubWorkerState::Finished => (
-				self.persister.get_with(|p| p.time_last_complete_scrub)
-					+ SCRUB_INTERVAL.as_millis() as u64,
+				self.persister.get_with(|p| p.time_next_run_scrub),
 				ScrubWorkerCommand::Start,
 			),
 		};

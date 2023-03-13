@@ -152,6 +152,7 @@ impl BlockManager {
 			tx_scrub_command: ArcSwapOption::new(None),
 		});
 		block_manager.endpoint.set_handler(block_manager.clone());
+		block_manager.scrub_persister.set_with(|_| ()).unwrap();
 
 		block_manager
 	}
@@ -184,6 +185,9 @@ impl BlockManager {
 		);
 		vars.register_ro(&self.scrub_persister, "scrub-last-completed", |p| {
 			p.get_with(|x| msec_to_rfc3339(x.time_last_complete_scrub))
+		});
+		vars.register_ro(&self.scrub_persister, "scrub-next-run", |p| {
+			p.get_with(|x| msec_to_rfc3339(x.time_next_run_scrub))
 		});
 		vars.register_ro(&self.scrub_persister, "scrub-corruptions_detected", |p| {
 			p.get_with(|x| x.corruptions_detected)

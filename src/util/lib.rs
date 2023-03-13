@@ -11,6 +11,7 @@ pub mod data;
 pub mod encode;
 pub mod error;
 pub mod formater;
+pub mod forwarded_headers;
 pub mod metrics;
 pub mod migrate;
 pub mod persister;
