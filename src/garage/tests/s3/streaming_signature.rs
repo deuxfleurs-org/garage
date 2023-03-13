@@ -109,7 +109,7 @@ async fn test_create_bucket_streaming() {
 	ctx.garage
 		.command()
 		.args(["key", "allow"])
-		.args(["--create-bucket", &ctx.garage.key.id])
+		.args(["--create-bucket", &ctx.key.id])
 		.quiet()
 		.expect_success_output("Could not allow key to create buckets");
 

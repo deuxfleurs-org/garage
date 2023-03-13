@@ -57,8 +57,8 @@ async fn test_poll_item() {
 	let poll = {
 		let bucket = bucket.clone();
 		let ct = ct.clone();
+		let ctx = ctx.clone();
 		tokio::spawn(async move {
-			let ctx = common::context();
 			ctx.k2v
 				.request
 				.builder(bucket.clone())
@@ -171,8 +171,8 @@ async fn test_poll_range() {
 	// Second poll range, which will complete later
 	let poll = {
 		let bucket = bucket.clone();
+		let ctx = ctx.clone();
 		tokio::spawn(async move {
-			let ctx = common::context();
 			ctx.k2v
 				.request
 				.builder(bucket.clone())
@@ -220,8 +220,8 @@ async fn test_poll_range() {
 	// Start a new poll operation
 	let poll = {
 		let bucket = bucket.clone();
+		let ctx = ctx.clone();
 		tokio::spawn(async move {
-			let ctx = common::context();
 			ctx.k2v
 				.request
 				.builder(bucket.clone())
