@@ -12,6 +12,7 @@ These tools are particularly suitable for debug, backups, website deployments or
 | [AWS CLI](#aws-cli)     | ✅       | Recommended   |
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
+| [s5cmd](#s5cmd)     | ✅       |    |
 | [(Cyber)duck](#cyberduck)     | ✅       |    |
 | [WinSCP (libs3)](#winscp)     | ✅       | CLI instructions only   |
 | [sftpgo](#sftpgo)     | ✅       |    |
@@ -177,6 +178,26 @@ s3cmd put /tmp/hello.txt s3://my-bucket/
 # copy from garage to your filesystem
 s3cmd get s3://my-bucket/hello.txt hello.txt
 ```
+
+## `s5cmd`
+
+Configure a credentials file as follows:
+
+```bash
+export AWS_ACCESS_KEY_ID=GK...
+export AWS_SECRET_ACCESS_KEY=
+export AWS_DEFAULT_REGION='garage'
+export AWS_ENDPOINT='http://localhost:3900'
+```
+
+After adding these environment variables in your shell, `s5cmd` can be used
+with:
+
+```bash
+s5cmd --endpoint-url=$AWS_ENDPOINT ls
+```
+
+See its usage output for other commands available.
 
 ## Cyberduck & duck {#cyberduck}
 
