@@ -31,10 +31,10 @@ impl SystemMetrics {
 				.u64_value_observer("garage_build_info", move |observer| {
 					observer.observe(
 						1,
-						&[KeyValue::new(
-							"version",
-							garage_util::version::garage_version(),
-						)],
+						&[
+							KeyValue::new("rustversion", garage_util::version::rust_version()),
+							KeyValue::new("version", garage_util::version::garage_version()),
+						],
 					)
 				})
 				.with_description("Garage build info")

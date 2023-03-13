@@ -26,3 +26,7 @@ pub fn init_version(version: &'static str) {
 pub fn init_features(features: &'static [&'static str]) {
 	FEATURES.store(Some(Arc::new(features)));
 }
+
+pub fn rust_version() -> &'static str {
+	env!("RUSTC_VERSION")
+}

@@ -1309,6 +1309,7 @@ dependencies = [
  "opentelemetry",
  "rand",
  "rmp-serde",
+ "rustc_version",
  "serde",
  "serde_json",
  "sha2 0.10.6",

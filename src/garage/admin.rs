@@ -820,11 +820,12 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 		writeln!(
 			&mut ret,
-			"\nGarage version: {} [features: {}]",
+			"\nGarage version: {} [features: {}]\nRust compiler version: {}",
 			garage_util::version::garage_version(),
 			garage_util::version::garage_features()
 				.map(|list| list.join(", "))
 				.unwrap_or_else(|| "(unknown)".into()),
+			garage_util::version::rust_version(),
 		)
 		.unwrap();
 
