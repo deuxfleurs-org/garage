@@ -111,14 +111,27 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 	}
 
 	fn setup(&mut self) {
+		self.wait_for_boot();
+		self.setup_layout();
+		self.key = self.new_key("garage_test");
+	}
+
+	fn wait_for_boot(&mut self) {
 		use std::{thread, time::Duration};
 
-		// Wait for node to be ready
-		thread::sleep(Duration::from_secs(2));
-
-		self.setup_layout();
-
-		self.key = self.new_key("garage_test");
+		// 60 * 2 seconds = 120 seconds = 2min
+		for _ in 0..60 {
+			let termination = self
+				.command()
+				.args(["status"])
+				.quiet()
+				.status()
+				.expect("Unable to run command");
+			if termination.success() {
+				break;
+			}
+			thread::sleep(Duration::from_secs(2));
+		}
 	}
 
 	fn setup_layout(&self) {
