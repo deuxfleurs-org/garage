@@ -269,7 +269,6 @@ impl CountedItem for K2VItem {
 		&self.partition.partition_key
 	}
 
-	#[allow(clippy::bool_to_int_with_if)]
 	fn counts(&self) -> Vec<(&'static str, i64)> {
 		let values = self.values();
 

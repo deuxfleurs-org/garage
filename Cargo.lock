@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "async-trait",
  "base64 0.21.0",
@@ -1167,7 +1167,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "arc-swap",
  "async-compression",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "clap 4.1.4",
  "err-derive",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1234,7 +1234,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1265,7 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1321,7 +1321,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.8.1"
+version = "0.8.2"
 dependencies = [
  "err-derive",
  "futures",

@@ -189,6 +189,7 @@ mod v082 {
 
 	impl garage_util::migrate::Migrate for ScrubWorkerPersisted {
 		type Previous = v081::ScrubWorkerPersisted;
+		const VERSION_MARKER: &'static [u8] = b"G082bswp";
 
 		fn migrate(old: v081::ScrubWorkerPersisted) -> ScrubWorkerPersisted {
 			use crate::repair::randomize_next_scrub_run_time;
