@@ -8,6 +8,7 @@ echo "-- build --"
 nix-build --no-build-output --attr clippy.amd64 --argstr git_version $COMMIT
 
 echo "-- unit tests --"
+export GARAGE_TEST_INTEGRATION_EXE=result-bin/bin/garage
 nix-build --no-build-output --attr test.amd64
 ./result/bin/garage_db-*
 ./result/bin/garage_api-*
