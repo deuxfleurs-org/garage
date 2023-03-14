@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euxo pipefail
+
 echo "-- check --"
 nix-shell --attr rust --run "cargo fmt -- --check"
 
