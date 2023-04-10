@@ -1,0 +1,8 @@
+{
+    "version": "1.0",
+    "plugins": {
+        "openapi": {
+            "service": "org.deuxfleurs.garage.k2v#K2V"
+        }
+    }
+}
