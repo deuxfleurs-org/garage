@@ -32,6 +32,13 @@ in {
     i386 = build_debug_and_release "i686-unknown-linux-musl";
     arm64 = build_debug_and_release "aarch64-unknown-linux-musl";
     arm = build_debug_and_release "armv6l-unknown-linux-musleabihf";
+    win = {
+      amd64 = build_debug_and_release "x86_64-w64-mingw32";
+    };
+    apple = {
+      arm64 = build_debug_and_release "aarch64-apple-darwin";
+      amd64 = build_debug_and_release "x86_64-apple-darwin";
+    };
   };
   test = {
     amd64 = test (compile {
