@@ -27,7 +27,7 @@
 (def grg-bucket "jepsen")
 (def grg-object "1")
 
-(defn db
+(defn garage
   "Garage DB for a particular version"
   [version]
   (reify db/DB
@@ -141,7 +141,8 @@
          {:pure-generators  true
           :name             "garage"
           :os               debian/os
-          :db               (db "v0.8.2")
+          :db               (garage "v0.8.2")
+          ; :db               (garage "d39c5c6984c581e16932aaa07e3687e7b5ce266d")     ; fixed for increasing timestamps
           :client           (Client. nil)
           :nemesis          (nemesis/partition-random-halves)
           :checker          (checker/compose
