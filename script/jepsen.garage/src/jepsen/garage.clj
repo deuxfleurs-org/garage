@@ -9,6 +9,7 @@
                     [tests :as tests]]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [slingshot.slingshot :refer [try+]]
             [amazonica.aws.s3 :as s3]
             [amazonica.aws.s3transfer :as s3transfer]))
 
@@ -101,13 +102,14 @@
   (setup! [this test])
   (invoke! [this test op]
     (case (:f op)
-      :get-object
-        (let [value-bytes (try
-                      (-> (s3/get-object (:creds this) grg-bucket grg-object)
-                          :input-stream
-                          slurp)
-                      (catch Exception e nil))]
-          (assoc op :type :ok, :value value-bytes))
+      :get-object (try+
+                    (let [value
+                          (-> (s3/get-object (:creds this) grg-bucket grg-object)
+                              :input-stream
+                              slurp)]
+                      (assoc op :type :ok, :value value))
+                    (catch (re-find #"Key not found" (.getMessage %))  ex
+                      (assoc op :type :ok, :value nil)))
       :put-object
         (let [some-bytes (.getBytes (:value op) "UTF-8")
               bytes-stream (java.io.ByteArrayInputStream. some-bytes)]
@@ -137,10 +139,10 @@
           :os               debian/os
           :db               (db "v0.8.2")
           :client           (Client. nil)
-          :generator        (->> (gen/mix [op-get op-put])
+          :generator        (->> (gen/mix [op-get op-put op-del])
                                  (gen/stagger 1)
                                  (gen/nemesis nil)
-                                 (gen/time-limit 15))}))
+                                 (gen/time-limit 20))}))
 
 (defn -main
   "Handles command line arguments. Can either run a test, or a web server for
