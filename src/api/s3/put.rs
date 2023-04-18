@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use base64::prelude::*;
 use futures::prelude::*;
+use futures::try_join;
 use hyper::body::{Body, Bytes};
 use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Request, Response};
@@ -35,7 +36,7 @@ pub async fn handle_put(
 	garage: Arc<Garage>,
 	req: Request<Body>,
 	bucket: &Bucket,
-	key: &str,
+	key: &String,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
 	// Retrieve interesting headers from request
@@ -68,16 +69,27 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	headers: ObjectVersionHeaders,
 	body: S,
 	bucket: &Bucket,
-	key: &str,
+	key: &String,
 	content_md5: Option<String>,
 	content_sha256: Option<FixedBytes32>,
 ) -> Result<(Uuid, String), Error> {
+	let mut chunker = StreamChunker::new(body, garage.config.block_size);
+	let (first_block_opt, existing_object) = try_join!(
+		chunker.next(),
+		garage
+			.object_table
+			.get(&bucket.id, key)
+			.map_err(Error::from),
+	)?;
+
+	let first_block = first_block_opt.unwrap_or_default();
+
 	// Generate identity of new version
 	let version_uuid = gen_uuid();
-	let version_timestamp = now_msec();
-
-	let mut chunker = StreamChunker::new(body, garage.config.block_size);
-	let first_block = chunker.next().await?.unwrap_or_default();
+	let version_timestamp = existing_object
+		.and_then(|obj| obj.versions().iter().map(|v| v.timestamp).max())
+		.map(|t| std::cmp::max(t + 1, now_msec()))
+		.unwrap_or_else(now_msec);
 
 	// If body is small enough, store it directly in the object table
 	// as "inline data". We can then return immediately.
