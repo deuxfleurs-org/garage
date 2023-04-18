@@ -29,30 +29,36 @@ let
         services.openssh = {
           enable = true;
           permitRootLogin = "yes";
+          kexAlgorithms = [ "curve25519-sha256@libssh.org" "ecdh-sha2-nistp256" "ecdh-sha2-nistp384" "ecdh-sha2-nistp521" "diffie-hellman-group-exchange-sha256" "diffie-hellman-group14-sha1" "diffie-hellman-group-exchange-sha1" "diffie-hellman-group1-sha1" ];
         };
         users.users.root.initialPassword = "root";
+        users.users.root.openssh.authorizedKeys.keys = [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJpaBZdYxHqMxhv2RExAOa7nkKhPBOHupMP3mYaZ73w9"
+        ];
 
         system.stateVersion = "22.11";
 
         services.garage = {
           enable = true;
           logLevel = "debug";
-          settings.replication_mode = "3";
+          settings = {
+            replication_mode = "3";
+            db_engine = "lmdb";
+            rpc_secret = "b597bb28ebdc90cdc4f15712733ca678cfb9a7e0311e0b9e93db9610fc3685e6";
+            rpc_bind_addr = "0.0.0.0:3901";
+            s3_api = {
+              region = "garage";
+              api_bind_addr = "0.0.0.0:3900";
+            };
+            k2v_api.api_bind_addr = "0.0.0.0:3902";
+            admin = {
+              api_bind_addr = "0.0.0.0:3903";
+              admin_token = "icanhazadmin";
+            };
+          };
         };
 
-        # Workaround for nixos-container issue
-        # (see https://github.com/NixOS/nixpkgs/issues/67265 and
-        # https://github.com/NixOS/nixpkgs/pull/81371#issuecomment-605526099).
-        # The etcd service is of type "notify", which means that
-        # etcd would not be considered started until etcd is fully online;
-        # however, since NixOS container networking only works sometime *after*
-        # multi-user.target, we forgo etcd's notification entirely.
-        systemd.services.etcd.serviceConfig.Type = lib.mkForce "exec";
-
-        systemd.services.etcd.serviceConfig.StandardOutput = "file:/var/log/etcd.log";
-        systemd.services.etcd.serviceConfig.StandardError = "file:/var/log/etcd.log";
-
-        networking.firewall.allowedTCPPorts = [ 2379 2380 ];
+        networking.firewall.allowedTCPPorts = [ 3901 3900 3902 3903 ];
       };
   };
 in
