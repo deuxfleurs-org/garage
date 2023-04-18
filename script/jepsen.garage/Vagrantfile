@@ -1,0 +1,29 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+
+def vm(config, hostname, ip)
+  config.vm.hostname = hostname
+  config.vm.network "private_network", ip: ip
+end
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/alpine38"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = false
+    vb.memory = "512"
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "root:root" | chpasswd
+    apk update
+    apk add wget
+  SHELL
+
+  config.vm.define "n1" do |config| vm(config, "n1", "192.168.56.21") end
+  config.vm.define "n2" do |config| vm(config, "n2", "192.168.56.22") end
+  config.vm.define "n3" do |config| vm(config, "n3", "192.168.56.23") end
+  config.vm.define "n4" do |config| vm(config, "n4", "192.168.56.24") end
+  config.vm.define "n5" do |config| vm(config, "n5", "192.168.56.25") end
+end

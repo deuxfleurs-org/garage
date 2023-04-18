@@ -2,5 +2,6 @@
   pkgs.mkShell {
     nativeBuildInputs = [ 
       pkgs.leiningen
+      pkgs.vagrant
      ];
 }
