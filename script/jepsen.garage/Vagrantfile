@@ -8,7 +8,7 @@ def vm(config, hostname, ip)
 end
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/alpine38"
+  config.vm.box = "generic/debian10"
 
   config.vm.provider "virtualbox" do |vb|
     vb.gui = false
@@ -17,8 +17,8 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell", inline: <<-SHELL
     echo "root:root" | chpasswd
-    apk update
-    apk add wget
+    mkdir -p /root/.ssh
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJpaBZdYxHqMxhv2RExAOa7nkKhPBOHupMP3mYaZ73w9 lx@lindy" >> /root/.ssh/authorized_keys
   SHELL
 
   config.vm.define "n1" do |config| vm(config, "n1", "192.168.56.21") end
