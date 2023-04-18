@@ -1,22 +1,32 @@
 # jepsen.garage
 
-A Clojure library designed to ... well, that part is up to you.
+Jepsen checking of Garage consistency properties.
 
 ## Usage
 
-FIXME
+Requirements:
+
+- vagrant
+- VirtualBox, configured so that nodes can take an IP in a private network `192.168.56.0/24`
+- a user that can create VirtualBox VMs
+- leiningen
+- gnuplot
+
+Set up VMs:
+
+```
+vagrant up
+```
+
+Run tests:
+
+```
+lein run test --nodes-file nodes.vagrant
+```
 
 ## License
 
-Copyright © 2023 FIXME
+Copyright © 2023 Alex Auvolat
 
 This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
-
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+terms of the GNU General Public License v3.0.

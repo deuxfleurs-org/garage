@@ -1,14 +1,18 @@
 (ns jepsen.garage
   (:require [clojure.tools.logging :refer :all]
             [clojure.string :as str]
-            [jepsen [cli :as cli]
+            [jepsen [checker :as checker]
+                    [cli :as cli]
                     [client :as client]
                     [control :as c]
                     [db :as db]
                     [generator :as gen]
+                    [nemesis :as nemesis]
                     [tests :as tests]]
+            [jepsen.checker.timeline :as timeline]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
+            [knossos.model :as model]
             [slingshot.slingshot :refer [try+]]
             [amazonica.aws.s3 :as s3]
             [amazonica.aws.s3transfer :as s3transfer]))
@@ -82,9 +86,9 @@
     (log-files [_ test node]
       [logfile])))
 
-(defn op-get [_ _] {:type :invoke, :f :get-object, :value nil})
-(defn op-put [_ _] {:type :invoke, :f :put-object, :value (str (rand-int 50))})
-(defn op-del [_ _] {:type :invoke, :f :del-object, :value nil})
+(defn op-get [_ _] {:type :invoke, :f :read, :value nil})
+(defn op-put [_ _] {:type :invoke, :f :write, :value (str (rand-int 9))})
+(defn op-del [_ _] {:type :invoke, :f :write, :value nil})
 
 (defrecord Client [creds]
   client/Client
@@ -102,7 +106,7 @@
   (setup! [this test])
   (invoke! [this test op]
     (case (:f op)
-      :get-object (try+
+      :read (try+
                     (let [value
                           (-> (s3/get-object (:creds this) grg-bucket grg-object)
                               :input-stream
@@ -110,21 +114,21 @@
                       (assoc op :type :ok, :value value))
                     (catch (re-find #"Key not found" (.getMessage %))  ex
                       (assoc op :type :ok, :value nil)))
-      :put-object
-        (let [some-bytes (.getBytes (:value op) "UTF-8")
-              bytes-stream (java.io.ByteArrayInputStream. some-bytes)]
-          (s3/put-object (:creds this)
-                         :bucket-name grg-bucket
-                         :key grg-object
-                         :input-stream bytes-stream
-                         :metadata {:content-length (count some-bytes)})
-          (assoc op :type :ok))
-      :del-object
-      (do
-        (s3/delete-object (:creds this)
-                          :bucket-name grg-bucket
-                          :key grg-object)
-        (assoc op :type :ok, :value nil))))
+      :write
+        (if (= (:value op) nil)
+          (do
+            (s3/delete-object (:creds this)
+                              :bucket-name grg-bucket
+                              :key grg-object)
+            (assoc op :type :ok, :value nil))
+          (let [some-bytes (.getBytes (:value op) "UTF-8")
+                bytes-stream (java.io.ByteArrayInputStream. some-bytes)]
+            (s3/put-object (:creds this)
+                           :bucket-name grg-bucket
+                           :key grg-object
+                           :input-stream bytes-stream
+                           :metadata {:content-length (count some-bytes)})
+            (assoc op :type :ok)))))
   (teardown! [this test])
   (close! [this test]))
 
@@ -139,10 +143,22 @@
           :os               debian/os
           :db               (db "v0.8.2")
           :client           (Client. nil)
+          :nemesis          (nemesis/partition-random-halves)
+          :checker          (checker/compose
+                              {:perf (checker/perf)
+                               :timeline (timeline/html)
+                               :linear (checker/linearizable
+                                         {:model     (model/register)
+                                          :algorithm :linear})})
           :generator        (->> (gen/mix [op-get op-put op-del])
-                                 (gen/stagger 1)
+                                 (gen/stagger 0.02)
                                  (gen/nemesis nil)
-                                 (gen/time-limit 20))}))
+                                 ; (gen/nemesis
+                                 ;   (cycle [(gen/sleep 5)
+                                 ;           {:type :info, :f :start}
+                                 ;           (gen/sleep 5)
+                                 ;           {:type :info, :f :stop}]))
+                                 (gen/time-limit (+ (:time-limit opts) 5)))}))
 
 (defn -main
   "Handles command line arguments. Can either run a test, or a web server for
