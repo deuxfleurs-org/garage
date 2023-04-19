@@ -51,19 +51,12 @@
                                     {:model     (model/register)
                                      :algorithm :linear})
                           :timeline (timeline/html)}))
-   :generator        (->> (independent/concurrent-generator
-                            10
-                            (range)
-                            (fn [k]
-                              (->>
-                                (gen/mix [op-get op-put op-del])
-                                (gen/stagger (/ (:rate opts)))
-                                (gen/limit (:ops-per-key opts)))))
-                          (gen/nemesis
-                            (cycle [(gen/sleep 5)
-                                    {:type :info, :f :start}
-                                    (gen/sleep 5)
-                                    {:type :info, :f :stop}]))
-                          (gen/time-limit (:time-limit opts)))})
+   :generator        (independent/concurrent-generator
+                       10
+                       (range)
+                       (fn [k]
+                         (->>
+                           (gen/mix [op-get op-put op-del])
+                           (gen/limit (:ops-per-key opts)))))})
 
 

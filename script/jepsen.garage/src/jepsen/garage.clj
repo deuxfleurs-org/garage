@@ -10,11 +10,13 @@
     [jepsen.os.debian :as debian]
     [jepsen.garage
      [grg :as grg]
-     [reg :as reg]]))
+     [reg :as reg]
+     [set :as set]]))
 
 (def workloads
   "A map of workload names to functions that construct workloads, given opts."
-  {"reg"  reg/workload})
+  {"reg"  reg/workload
+   "set"  set/workload})
 
 (def cli-opts
   "Additional command line options."
@@ -47,7 +49,21 @@
             :os               debian/os
             :db               (grg/db garage-version)
             :client           (:client workload)
-            :generator        (:generator workload)
+            :generator        (gen/phases
+                                (->>
+                                  (:generator workload)
+                                  (gen/stagger (/ (:rate opts)))
+                                  (gen/nemesis
+                                    (cycle [(gen/sleep 5)
+                                            {:type :info, :f :start}
+                                            (gen/sleep 5)
+                                            {:type :info, :f :stop}]))
+                                  (gen/time-limit (:time-limit opts)))
+                                (gen/log "Healing cluster")
+                                (gen/nemesis (gen/once {:type :info, :f :stop}))
+                                (gen/log "Waiting for recovery")
+                                (gen/sleep 10)
+                                (gen/clients (:final-generator workload)))
             :nemesis          (nemesis/partition-random-halves)
             :checker          (checker/compose
                                 {:perf (checker/perf)

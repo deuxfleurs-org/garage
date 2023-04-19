@@ -121,5 +121,14 @@
 (defn s3-list
   "Helper for ListObjects -- just lists everything in the bucket"
   [creds]
-  (s3/list-objects-v2 creds
-                      {:bucket-name (:bucket creds)}))
+  (defn list-inner [ct accum]
+    (let [list-result (s3/list-objects-v2 creds
+                                          {:bucket-name (:bucket creds)
+                                           :continuation-token ct})
+          new-object-summaries (:object-summaries list-result)
+          new-objects (map (fn [d] (:key d)) new-object-summaries)
+          objects (concat new-objects accum)]
+      (if (:truncated? list-result)
+        (list-inner (:next-continuation-token list-result) objects)
+        objects)))
+  (list-inner nil []))

@@ -18,10 +18,10 @@ Set up VMs:
 vagrant up
 ```
 
-Run tests:
+Run tests (this one should fail):
 
 ```
-lein run test --nodes-file nodes.vagrant
+lein run test --nodes-file nodes.vagrant --time-limit 64 --concurrency 50 --rate 50 --workload reg
 ```
 
 ## License
