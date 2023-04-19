@@ -24,6 +24,13 @@ Run tests (this one should fail):
 lein run test --nodes-file nodes.vagrant --time-limit 64 --concurrency 50 --rate 50 --workload reg
 ```
 
+These ones are working:
+
+```
+lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrency 50 --workload set1
+lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrency 50 --workload set2
+```
+
 ## License
 
 Copyright © 2023 Alex Auvolat

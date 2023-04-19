@@ -28,14 +28,18 @@
       (assoc this :creds creds)))
   (setup! [this test])
   (invoke! [this test op]
-    (case (:f op)
-      :add
-        (do
-          (grg/s3-put (:creds this) (str (:value op)) "present")
-          (assoc op :type :ok))
-      :read
-        (let [items (grg/s3-list (:creds this) "")]
-          (assoc op :type :ok, :value (set (map read-string items))))))
+    (let [[k v] (:value op)
+          prefix (str "set" k "/")]
+      (case (:f op)
+        :add
+          (do
+            (grg/s3-put (:creds this) (str prefix v) "present")
+            (assoc op :type :ok))
+        :read
+          (let [items (grg/s3-list (:creds this) prefix)
+                items-stripped (map (fn [o] (str/replace-first o prefix "")) items)
+                items-set (set (map read-string items-stripped))]
+            (assoc op :type :ok, :value (independent/tuple k items-set))))))
   (teardown! [this test])
   (close! [this test]))
 
@@ -43,22 +47,33 @@
   "Tests insertions and deletions"
   [opts]
   {:client            (SetClient. nil)
-   :checker           (checker/compose
-                        {:set (checker/set)
-                         :timeline (timeline/html)})
-   ; :generator         (gen/mix [op-add op-read])
-   :generator         (->> (range)
-                           (map (fn [x] {:type :invoke, :f :add, :value x})))
-   :final-generator   (gen/once op-read)})
+   :checker           (independent/checker
+                        (checker/compose
+                          {:set (checker/set)
+                           :timeline (timeline/html)}))
+   :generator         (independent/concurrent-generator
+                        10
+                        (range 100)
+                        (fn [k]
+                          (->>
+                           (gen/mix [op-add])
+                           (gen/limit (:ops-per-key opts)))))
+   :final-generator   (independent/sequential-generator
+                        (range 100)
+                        (fn [k] (gen/once op-read)))})
 
 (defn workload2
   "Tests insertions and deletions"
   [opts]
   {:client            (SetClient. nil)
-   :checker           (checker/compose
-                        {:set (checker/set-full {:linearizable? false})
-                         :timeline (timeline/html)})
-   :generator         (gen/mix [op-read
-                        (->> (range) (map (fn [x] {:type :invoke, :f :add, :value x})))])})
+   :checker           (independent/checker
+                        (checker/compose
+                          {:set (checker/set-full {:linearizable? false})
+                           :timeline (timeline/html)}))
+   :generator         (independent/concurrent-generator
+                        10
+                        (range 100)
+                        (fn [k]
+                          (gen/mix [op-add op-read])))})
 
 
