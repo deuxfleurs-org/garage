@@ -16,7 +16,8 @@
 (def workloads
   "A map of workload names to functions that construct workloads, given opts."
   {"reg"  reg/workload
-   "set"  set/workload})
+   "set1" set/workload1
+   "set2" set/workload2})
 
 (def cli-opts
   "Additional command line options."

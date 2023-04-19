@@ -120,10 +120,11 @@
 
 (defn s3-list
   "Helper for ListObjects -- just lists everything in the bucket"
-  [creds]
+  [creds prefix]
   (defn list-inner [ct accum]
     (let [list-result (s3/list-objects-v2 creds
                                           {:bucket-name (:bucket creds)
+                                           :prefix prefix
                                            :continuation-token ct})
           new-object-summaries (:object-summaries list-result)
           new-objects (map (fn [d] (:key d)) new-object-summaries)

@@ -34,12 +34,12 @@
           (grg/s3-put (:creds this) (str (:value op)) "present")
           (assoc op :type :ok))
       :read
-        (let [items (grg/s3-list (:creds this))]
+        (let [items (grg/s3-list (:creds this) "")]
           (assoc op :type :ok, :value (set (map read-string items))))))
   (teardown! [this test])
   (close! [this test]))
 
-(defn workload
+(defn workload1
   "Tests insertions and deletions"
   [opts]
   {:client            (SetClient. nil)
@@ -47,10 +47,18 @@
                         {:set (checker/set)
                          :timeline (timeline/html)})
    ; :generator         (gen/mix [op-add op-read])
-   ; :generator         (->> (range)
-   ;                         (map (fn [x] {:type :invoke, :f :add, :value x})))
-   :generator         (gen/mix [op-read
-                        (->> (range) (map (fn [x] {:type :invoke, :f :add, :value x})))])
+   :generator         (->> (range)
+                           (map (fn [x] {:type :invoke, :f :add, :value x})))
    :final-generator   (gen/once op-read)})
+
+(defn workload2
+  "Tests insertions and deletions"
+  [opts]
+  {:client            (SetClient. nil)
+   :checker           (checker/compose
+                        {:set (checker/set-full {:linearizable? false})
+                         :timeline (timeline/html)})
+   :generator         (gen/mix [op-read
+                        (->> (range) (map (fn [x] {:type :invoke, :f :add, :value x})))])})
 
 
