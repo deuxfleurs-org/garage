@@ -57,8 +57,6 @@
                   :unexpected #{}}
             final (reduce
                     (fn [state op]
-                      (info "state:" state)
-                      (info "operation:" op)
                       (case [(:type op) (:f op)]
                         ([:invoke :add])
                           (assoc state :add-started (conj (:add-started state) (:value op)))
@@ -77,7 +75,6 @@
                          state))
                     init history)
             valid? (and (empty? (:missed final)) (empty? (:unexpected final)))]
-        (info "final state:" final)
         (assoc final :valid? valid?)))))
 
 (defn workload1
@@ -110,7 +107,7 @@
                            :timeline (timeline/html)}))
    :generator         (independent/concurrent-generator
                         10
-                        (range 100)
+                        (range)
                         (fn [k]
                           (gen/mix [op-add-rand100 op-read])))})
 
