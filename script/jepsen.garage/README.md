@@ -29,4 +29,4 @@ lein run test --nodes-file nodes.vagrant
 Copyright © 2023 Alex Auvolat
 
 This program and the accompanying materials are made available under the
-terms of the GNU General Public License v3.0.
+terms of the GNU Affero General Public License v3.0.
