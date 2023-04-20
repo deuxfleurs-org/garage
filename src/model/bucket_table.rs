@@ -57,7 +57,55 @@ mod v08 {
 	pub struct WebsiteConfig {
 		pub index_document: String,
 		pub error_document: Option<String>,
+        pub redirect_all_requests_to: Option<RedirectTarget>,
+        pub routing_rules: Vec<RoutingRule>,
 	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+    pub struct RedirectTarget {
+        /// Name of the host where requests are redirected.
+        pub hostname: String,
+        /// Protocol to use when redirecting requests. The default is the protocol that is used in the original request.
+        /// Valid Values: http | https 
+        pub protocol: Option<String>,
+    }
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+    pub struct RoutingRule {
+        /// A container for describing a condition that must be met for the specified redirect to apply. For example, 1. If request is for pages in the /docs folder, redirect to the /documents folder. 2. If request results in HTTP error 4xx, redirect request to another host where you might process the error.
+        pub condition: Option<RoutingCondition>,
+        /// Container for redirect information. You can redirect requests to another host, to another page, or with another protocol. In the event of an error, you can specify a different error code to return.
+        pub redirect: RedirectRule,
+    }
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+    pub struct RoutingCondition {
+        /// The HTTP error code when the redirect is applied. In the event of an error, if the error code equals this value, then the specified redirect is applied. Required when parent element Condition is specified and sibling KeyPrefixEquals is not specified. If both are specified, then both must be true for the redirect to be applied.
+        pub http_error_code_returned_equals: Option<u16>,
+        /// The object key name prefix when the redirect is applied. For example, to redirect requests for ExamplePage.html, the key prefix will be ExamplePage.html. To redirect request for all pages with the prefix docs/, the key prefix will be /docs, which identifies all objects in the docs/ folder. Required when the parent element Condition is specified and sibling HttpErrorCodeReturnedEquals is not specified. If both conditions are specified, both must be true for the redirect to be applied.
+        pub key_prefix_equals: Option<String>,
+    }
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+    pub struct RedirectRule {
+        /// The hostname to use in the redirect request.
+        pub hostname: Option<String>,
+
+        /// The HTTP redirect code to use on the response. Not required if one of the siblings is present.
+        pub http_redirect_code: Option<u16>,
+
+        /// Protocol to use when redirecting requests. The default is the protocol that is used in the original request.
+        /// Valid Values: http | https 
+        pub protocol: Option<String>,
+ 
+        /// The object key prefix to use in the redirect request. For example, to redirect requests for all pages with prefix docs/ (objects in the docs/ folder) to documents/, you can set a condition block with KeyPrefixEquals set to docs/ and in the Redirect set ReplaceKeyPrefixWith to /documents. Not required if one of the siblings is present. Can be present only if ReplaceKeyWith is not provided.
+        pub replace_key_prefix_with: Option<String>,
+
+        /// The specific object key to use in the redirect request. For example, redirect request to error.html. Not required if one of the siblings is present. Can be present only if ReplaceKeyPrefixWith is not provided.
+        pub replace_key_with: Option<String>,
+
+
+    }
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct CorsRule {
