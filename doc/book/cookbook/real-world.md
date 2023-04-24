@@ -349,5 +349,5 @@ and is covered in the [quick start guide](@/documentation/quick-start/_index.md)
 Remember also that the CLI is self-documented thanks to the `--help` flag and
 the `help` subcommand (e.g. `garage help`, `garage key --help`).
 
-Configuring S3-compatible applicatiosn to interact with Garage
+Configuring S3-compatible applications to interact with Garage
 is covered in the [Integrations](@/documentation/connect/_index.md) section.
