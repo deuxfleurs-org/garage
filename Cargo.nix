@@ -32,7 +32,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "af19dd561f2ce73d1f609040c1ebdf74420974d96959016da98d44b0e347f013";
+  nixifiedLockHash = "e7f8df7901f8d217b438e374398eb3d4532e901770070ac5c8343624c0f45ca5";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1640,7 +1640,7 @@ in
       percent_encoding = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".percent-encoding."2.2.0" { inherit profileName; }).out;
       pin_project = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.12" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/default" || rootFeatures' ? "garage/metrics" || rootFeatures' ? "garage_api/metrics" || rootFeatures' ? "garage_api/prometheus" then "prometheus" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".prometheus."0.13.3" { inherit profileName; }).out;
-      quick_xml = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".quick-xml."0.21.0" { inherit profileName; }).out;
+      quick_xml = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".quick-xml."0.26.0" { inherit profileName; }).out;
       roxmltree = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".roxmltree."0.14.1" { inherit profileName; }).out;
       serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.152" { inherit profileName; }).out;
       serde_bytes = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_bytes."0.11.8" { inherit profileName; }).out;
@@ -3868,11 +3868,11 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"; };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".quick-xml."0.21.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".quick-xml."0.26.0" = overridableMkRustCrate (profileName: rec {
     name = "quick-xml";
-    version = "0.21.0";
+    version = "0.26.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "0452695941410a58c8ce4391707ba9bad26a247173bd9886a05a5e8a8babec75"; };
+    src = fetchCratesIo { inherit name version; sha256 = "7f50b1c63b38611e7d4d7f68b82d3ad0cc71a2ad2e7f61fc10f1328d917c93cd"; };
     features = builtins.concatLists [
       [ "default" ]
       [ "serde" ]
