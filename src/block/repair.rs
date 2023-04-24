@@ -281,6 +281,7 @@ impl ScrubWorker {
 			ScrubWorkerCommand::Start => {
 				self.work = match std::mem::take(&mut self.work) {
 					ScrubWorkerState::Finished => {
+						info!("Scrub worker initializing, now performing datastore scrub");
 						let iterator = BlockStoreIterator::new(&self.manager);
 						ScrubWorkerState::Running(iterator)
 					}
@@ -394,12 +395,21 @@ impl Worker for ScrubWorker {
 						.tranquilizer
 						.tranquilize_worker(self.persister.get_with(|p| p.tranquility)))
 				} else {
+					let now = now_msec();
+					let next_scrub_timestamp = randomize_next_scrub_run_time(now);
+
 					self.persister.set_with(|p| {
-						p.time_last_complete_scrub = now_msec();
-						p.time_next_run_scrub = randomize_next_scrub_run_time(now_msec());
+						p.time_last_complete_scrub = now;
+						p.time_next_run_scrub = next_scrub_timestamp;
 					})?;
 					self.work = ScrubWorkerState::Finished;
 					self.tranquilizer.clear();
+
+					info!(
+						"Datastore scrub completed, next scrub scheduled for {}",
+						msec_to_rfc3339(next_scrub_timestamp)
+					);
+
 					Ok(WorkerState::Idle)
 				}
 			}
