@@ -1,19 +1,14 @@
-rec {
-  # * Fixed dependencies
-  pkgsSrc = fetchTarball {
-    # As of 2022-10-13
+let
+  lock = builtins.fromJSON (builtins.readFile ../flake.lock);
+  flakeCompatRev = lock.nodes.flake-compat.locked.rev;
+  flakeCompat = fetchTarball {
     url =
-      "https://github.com/NixOS/nixpkgs/archive/a3073c49bc0163fea6a121c276f526837672b555.zip";
-    sha256 = "1bz632psfbpmicyzjb8b4265y50shylccvfm6ry6mgnv5hvz324s";
+      "https://github.com/edolstra/flake-compat/archive/${flakeCompatRev}.tar.gz";
+    sha256 = lock.nodes.flake-compat.locked.narHash;
   };
-  cargo2nixSrc = fetchGit {
-    # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
-    url = "https://github.com/Alexis211/cargo2nix";
-    ref = "custom_unstable";
-    rev = "a7a61179b66054904ef6a195d8da736eaaa06c36";
-  };
-
-  # * Shared objects
-  cargo2nix = import cargo2nixSrc;
+  flake = ((import flakeCompat) { src = ../.; }).defaultNix;
+in rec {
+  pkgsSrc = flake.inputs.nixpkgs;
+  cargo2nix = flake.inputs.cargo2nix;
   cargo2nixOverlay = cargo2nix.overlays.default;
 }

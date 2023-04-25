@@ -1,13 +1,13 @@
 pkgs:
 pkgs.buildGoModule rec {
   pname = "kaniko";
-  version = "1.6.0";
+  version = "1.9.2";
 
   src = pkgs.fetchFromGitHub {
     owner = "GoogleContainerTools";
     repo = "kaniko";
     rev = "v${version}";
-    sha256 = "1fnclr556avxay6pvgw5ya3xbxfnf2gv4njq2hr4fd6fcjyslq5h";
+    sha256 = "dXQ0/o1qISv+sjNVIpfF85bkbM9sGOGwqVbWZpMWfMY=";
   };
 
   vendorSha256 = null;
