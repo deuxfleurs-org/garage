@@ -21,14 +21,7 @@ async fn test_admin_bucket_perms() {
 
 	ctx.garage
 		.command()
-		.args([
-			"bucket",
-			"allow",
-			"--read",
-			"--key",
-			&ctx.garage.key.id,
-			BCKT_NAME,
-		])
+		.args(["bucket", "allow", "--read", "--key", &ctx.key.id, BCKT_NAME])
 		.quiet()
 		.expect_success_status("Could not create bucket");
 
@@ -36,14 +29,7 @@ async fn test_admin_bucket_perms() {
 
 	ctx.garage
 		.command()
-		.args([
-			"bucket",
-			"deny",
-			"--read",
-			"--key",
-			&ctx.garage.key.name,
-			BCKT_NAME,
-		])
+		.args(["bucket", "deny", "--read", "--key", &ctx.key.id, BCKT_NAME])
 		.quiet()
 		.expect_success_status("Could not create bucket");
 
@@ -51,14 +37,7 @@ async fn test_admin_bucket_perms() {
 
 	ctx.garage
 		.command()
-		.args([
-			"bucket",
-			"allow",
-			"--read",
-			"--key",
-			&ctx.garage.key.name,
-			BCKT_NAME,
-		])
+		.args(["bucket", "allow", "--read", "--key", &ctx.key.id, BCKT_NAME])
 		.quiet()
 		.expect_success_status("Could not create bucket");
 

@@ -1,6 +1,6 @@
 [package]
 name = "garage_rpc"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,17 +14,18 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_util = { version = "0.8.1", path = "../util" }
+garage_util = { version = "0.8.2", path = "../util" }
 
 arc-swap = "1.0"
 bytes = "1.0"
 bytesize = "1.1"
 gethostname = "0.2"
 hex = "0.4"
-tracing = "0.1.30"
+tracing = "0.1"
 rand = "0.8"
 itertools="0.10"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
+systemstat = "0.2.3"
 
 async-trait = "0.1.7"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
@@ -38,8 +39,7 @@ k8s-openapi = { version = "0.16", features = ["v1_22"], optional = true }
 schemars = { version = "0.8", optional = true }
 reqwest = { version = "0.11", optional = true, default-features = false, features = ["rustls-tls-manual-roots", "json"] }
 
-# newer version requires rust edition 2021
-pnet_datalink = "0.28"
+pnet_datalink = "0.33"
 
 futures = "0.3"
 futures-util = "0.3"

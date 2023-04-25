@@ -5,6 +5,7 @@ use garage_db::counted_tree_hack::CountedTree;
 
 /// TableMetrics reference all counter used for metrics
 pub struct BlockManagerMetrics {
+	pub(crate) _compression_level: ValueObserver<u64>,
 	pub(crate) _rc_size: ValueObserver<u64>,
 	pub(crate) _resync_queue_len: ValueObserver<u64>,
 	pub(crate) _resync_errored_blocks: ValueObserver<u64>,
@@ -25,9 +26,23 @@ pub struct BlockManagerMetrics {
 }
 
 impl BlockManagerMetrics {
-	pub fn new(rc_tree: db::Tree, resync_queue: CountedTree, resync_errors: CountedTree) -> Self {
+	pub fn new(
+		compression_level: Option<i32>,
+		rc_tree: db::Tree,
+		resync_queue: CountedTree,
+		resync_errors: CountedTree,
+	) -> Self {
 		let meter = global::meter("garage_model/block");
 		Self {
+			_compression_level: meter
+				.u64_value_observer("block.compression_level", move |observer| {
+					match compression_level {
+						Some(v) => observer.observe(v as u64, &[]),
+						None => observer.observe(0_u64, &[]),
+					}
+				})
+				.with_description("Garage compression level for node")
+				.init(),
 			_rc_size: meter
 				.u64_value_observer("block.rc_size", move |observer| {
 					if let Ok(Some(v)) = rc_tree.fast_len() {

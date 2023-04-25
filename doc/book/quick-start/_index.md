@@ -290,13 +290,13 @@ sourcing the right file.*
 aws s3 ls
 
 # list objects of a bucket
-aws s3 ls s3://my_files
+aws s3 ls s3://nextcloud-bucket
 
 # copy from your filesystem to garage
-aws s3 cp /proc/cpuinfo s3://my_files/cpuinfo.txt
+aws s3 cp /proc/cpuinfo s3://nextcloud-bucket/cpuinfo.txt
 
 # copy from garage to your filesystem
-aws s3 cp s3/my_files/cpuinfo.txt /tmp/cpuinfo.txt
+aws s3 cp s3://nextcloud-bucket/cpuinfo.txt /tmp/cpuinfo.txt
 ```
 
 Note that you can use `awscli` for more advanced operations like

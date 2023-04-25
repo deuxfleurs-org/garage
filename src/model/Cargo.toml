@@ -1,6 +1,6 @@
 [package]
 name = "garage_model"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,21 +14,21 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_db = { version = "0.8.1", default-features = false, path = "../db" }
-garage_rpc = { version = "0.8.1", path = "../rpc" }
-garage_table = { version = "0.8.1", path = "../table" }
-garage_block = { version = "0.8.1", path = "../block" }
-garage_util = { version = "0.8.1", path = "../util" }
+garage_db = { version = "0.8.2", default-features = false, path = "../db" }
+garage_rpc = { version = "0.8.2", path = "../rpc" }
+garage_table = { version = "0.8.2", path = "../table" }
+garage_block = { version = "0.8.2", path = "../block" }
+garage_util = { version = "0.8.2", path = "../util" }
 
 async-trait = "0.1.7"
 arc-swap = "1.0"
-blake2 = "0.9"
+blake2 = "0.10"
 err-derive = "0.3"
 hex = "0.4"
-base64 = "0.13"
-tracing = "0.1.30"
+base64 = "0.21"
+tracing = "0.1"
 rand = "0.8"
-zstd = { version = "0.9", default-features = false }
+zstd = { version = "0.12", default-features = false }
 
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"

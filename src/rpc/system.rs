@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -37,6 +38,8 @@ use crate::layout::*;
 use crate::replication_mode::*;
 use crate::ring::*;
 use crate::rpc_helper::*;
+
+use crate::system_metrics::*;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(60);
 const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
@@ -104,6 +107,8 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
+	metrics: SystemMetrics,
+
 	replication_mode: ReplicationMode,
 	replication_factor: usize,
 
@@ -113,18 +118,28 @@ pub struct System {
 
 	/// Path to metadata directory
 	pub metadata_dir: PathBuf,
+	/// Path to data directory
+	pub data_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeStatus {
 	/// Hostname of the node
 	pub hostname: String,
+
 	/// Replication factor configured on the node
 	pub replication_factor: usize,
 	/// Cluster layout version
 	pub cluster_layout_version: u64,
 	/// Hash of cluster layout staging data
 	pub cluster_layout_staging_hash: Hash,
+
+	/// Disk usage on partition containing metadata directory (tuple: `(avail, total)`)
+	#[serde(default)]
+	pub meta_disk_avail: Option<(u64, u64)>,
+	/// Disk usage on partition containing data directory (tuple: `(avail, total)`)
+	#[serde(default)]
+	pub data_disk_avail: Option<(u64, u64)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,7 +215,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 	} else {
 		if !metadata_dir.exists() {
 			info!("Metadata directory does not exist, creating it.");
-			std::fs::create_dir(&metadata_dir)?;
+			std::fs::create_dir(metadata_dir)?;
 		}
 
 		info!("Generating new node key pair.");
@@ -266,14 +281,10 @@ impl System {
 			}
 		};
 
-		let local_status = NodeStatus {
-			hostname: gethostname::gethostname()
-				.into_string()
-				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
-			replication_factor,
-			cluster_layout_version: cluster_layout.version,
-			cluster_layout_staging_hash: cluster_layout.staging_hash,
-		};
+		let metrics = SystemMetrics::new(replication_factor);
+
+		let mut local_status = NodeStatus::initial(replication_factor, &cluster_layout);
+		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir, &metrics);
 
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
@@ -365,10 +376,12 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
+			metrics,
 
 			ring,
 			update_ring: Mutex::new(update_ring),
 			metadata_dir: config.metadata_dir.clone(),
+			data_dir: config.data_dir.clone(),
 		});
 		sys.system_endpoint.set_handler(sys.clone());
 		Ok(sys)
@@ -406,12 +419,7 @@ impl System {
 					.get(&n.id.into())
 					.cloned()
 					.map(|(_, st)| st)
-					.unwrap_or(NodeStatus {
-						hostname: "?".to_string(),
-						replication_factor: 0,
-						cluster_layout_version: 0,
-						cluster_layout_staging_hash: Hash::from([0u8; 32]),
-					}),
+					.unwrap_or_else(NodeStatus::unknown),
 			})
 			.collect::<Vec<_>>();
 		known_nodes
@@ -590,6 +598,9 @@ impl System {
 		let ring = self.ring.borrow();
 		new_si.cluster_layout_version = ring.layout.version;
 		new_si.cluster_layout_staging_hash = ring.layout.staging_hash;
+
+		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
+
 		self.local_status.swap(Arc::new(new_si));
 	}
 
@@ -850,6 +861,69 @@ impl EndpointHandler<SystemRpc> for System {
 			}
 			SystemRpc::GetKnownNodes => Ok(self.handle_get_known_nodes()),
 			m => Err(Error::unexpected_rpc_message(m)),
+		}
+	}
+}
+
+impl NodeStatus {
+	fn initial(replication_factor: usize, layout: &ClusterLayout) -> Self {
+		NodeStatus {
+			hostname: gethostname::gethostname()
+				.into_string()
+				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
+			replication_factor,
+			cluster_layout_version: layout.version,
+			cluster_layout_staging_hash: layout.staging_hash,
+			meta_disk_avail: None,
+			data_disk_avail: None,
+		}
+	}
+
+	fn unknown() -> Self {
+		NodeStatus {
+			hostname: "?".to_string(),
+			replication_factor: 0,
+			cluster_layout_version: 0,
+			cluster_layout_staging_hash: Hash::from([0u8; 32]),
+			meta_disk_avail: None,
+			data_disk_avail: None,
+		}
+	}
+
+	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path, metrics: &SystemMetrics) {
+		use systemstat::{Platform, System};
+		let mounts = System::new().mounts().unwrap_or_default();
+
+		let mount_avail = |path: &Path| {
+			mounts
+				.iter()
+				.filter(|x| path.starts_with(&x.fs_mounted_on))
+				.max_by_key(|x| x.fs_mounted_on.len())
+				.map(|x| (x.avail.as_u64(), x.total.as_u64()))
+		};
+
+		self.meta_disk_avail = mount_avail(meta_dir);
+		self.data_disk_avail = mount_avail(data_dir);
+
+		if let Some((avail, total)) = self.meta_disk_avail {
+			metrics
+				.values
+				.meta_disk_avail
+				.store(avail, Ordering::Relaxed);
+			metrics
+				.values
+				.meta_disk_total
+				.store(total, Ordering::Relaxed);
+		}
+		if let Some((avail, total)) = self.data_disk_avail {
+			metrics
+				.values
+				.data_disk_avail
+				.store(avail, Ordering::Relaxed);
+			metrics
+				.values
+				.data_disk_total
+				.store(total, Ordering::Relaxed);
 		}
 	}
 }

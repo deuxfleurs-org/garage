@@ -4,8 +4,6 @@
 
 # Garage configuration. These values go to garage.toml
 garage:
-  metadataDir: "/mnt/meta"
-  dataDir: "/mnt/data"
   # Default to 3 replicas, see the replication_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
   replicationMode: "3"
@@ -22,6 +20,41 @@ garage:
     web:
       rootDomain: ".web.garage.tld"
       index: "index.html"
+  # Template for the garage configuration
+  # Values can be templated
+  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  garage.toml: |-
+    metadata_dir = "/mnt/meta"
+    data_dir = "/mnt/data"
+
+    replication_mode = "{{ .Values.garage.replicationMode }}"
+
+    rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
+    # rpc_secret will be populated by the init container from a k8s secret object
+    rpc_secret = "__RPC_SECRET_REPLACE__"
+
+    bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
+
+    [kubernetes_discovery]
+    namespace = "{{ .Release.Namespace }}"
+    service_name = "{{ include "garage.fullname" . }}"
+    skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
+
+    [s3_api]
+    s3_region = "{{ .Values.garage.s3.api.region }}"
+    api_bind_addr = "[::]:3900"
+    root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
+
+    [s3_web]
+    bind_addr = "[::]:3902"
+    root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
+    index = "{{ .Values.garage.s3.web.index }}"
+    
+    [admin]
+    api_bind_addr = "[::]:3903"
+    {{- if .Values.monitoring.tracing.sink }}
+    trace_sink = "{{ .Values.monitoring.tracing.sink }}"
+    {{- end }}
 
 # Data persistence
 persistence:
@@ -29,17 +62,30 @@ persistence:
   meta:
     # storageClass: "fast-storage-class"
     size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/meta
   data:
     # storageClass: "slow-storage-class"
     size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/data
 
-# Number of StatefulSet replicas/garage nodes to start
-replicaCount: 3
+# Deployment configuration
+deployment:
+  # Switchable to DaemonSet
+  kind: StatefulSet
+  # Number of StatefulSet replicas/garage nodes to start
+  replicaCount: 3
 
 image:
   repository: dxflrs/amd64_garage
   # please prefer using the chart version and not this tag
   tag: ""
+  pullPolicy: IfNotPresent
+
+initImage:
+  repository: busybox
+  tag: stable
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -57,18 +103,19 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
 
 securityContext:
   # The default security context is heavily restricted
   # feel free to tune it to your requirements
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
 
 service:
   # You can rely on any service to expose your cluster
@@ -82,6 +129,7 @@ service:
     web:
       port: 3902
     # NOTE: the admin API is excluded for now as it is not consistent across nodes
+
 ingress:
   s3:
     api:
@@ -145,3 +193,22 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+monitoring:
+  metrics:
+    # If true, a service for monitoring is created with a prometheus.io/scrape annotation
+    enabled: false
+    serviceMonitor:
+      # If true, a ServiceMonitor CRD is created for a prometheus operator
+      # https://github.com/coreos/prometheus-operator
+      enabled: false
+      path: /metrics
+      #  namespace: monitoring  (defaults to use the namespace this chart is deployed to)
+      labels: {}
+      interval: 15s
+      scheme: http
+      tlsConfig: {}
+      scrapeTimeout: 10s
+      relabelings: []
+  tracing:
+    sink: ""

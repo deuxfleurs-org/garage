@@ -13,7 +13,41 @@ Borg Backup is very popular among the backup tools but it is not yet compatible 
 We recommend using any other tool listed in this guide because they are all compatible with the S3 API.
 If you still want to use Borg, you can use it with `rclone mount`.
 
+## git-annex
 
+[git-annex](https://git-annex.branchable.com/) supports synchronizing files
+with its [S3 special remote](https://git-annex.branchable.com/special_remotes/S3/).
+
+Note that `git-annex` requires to be compiled with Haskell package version
+`aws-0.24` to work with Garage.
+
+```bash
+garage key new --name my-key
+garage bucket create my-git-annex
+garage bucket allow my-git-annex --read --write --key my-key
+```
+
+Register your Key ID and Secret key in your environment:
+
+```bash
+export AWS_ACCESS_KEY_ID=GKxxx
+export AWS_SECRET_ACCESS_KEY=xxxx
+```
+
+Within a git-annex enabled repository, configure your Garage S3 endpoint with
+the following command:
+
+```bash
+git annex initremote garage type=S3 encryption=none host=my-garage-instance.mydomain.tld protocol=https bucket=my-git-annex requeststyle=path region=garage signature=v4
+```
+
+Files can now be synchronized using the usual `git-annex` `copy` or `get`
+commands.
+
+Note that for simplicity - this example does not enable encryption for the files
+sent to Garage - please refer to the
+[git-annex encryption page](https://git-annex.branchable.com/encryption/) for
+how to configure this.
 
 ## Restic
 

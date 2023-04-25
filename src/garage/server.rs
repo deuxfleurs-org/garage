@@ -17,6 +17,7 @@ use garage_api::k2v::api_server::K2VApiServer;
 use crate::admin::*;
 #[cfg(feature = "telemetry-otlp")]
 use crate::tracing_setup::*;
+use crate::{fill_secrets, Secrets};
 
 async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {
@@ -26,9 +27,9 @@ async fn wait_from(mut chan: watch::Receiver<bool>) {
 	}
 }
 
-pub async fn run_server(config_file: PathBuf) -> Result<(), Error> {
+pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Error> {
 	info!("Loading configuration...");
-	let config = read_config(config_file)?;
+	let config = fill_secrets(read_config(config_file)?, secrets);
 
 	// ---- Initialize Garage internals ----
 

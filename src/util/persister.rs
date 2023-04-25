@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -82,5 +83,38 @@ impl<T: Migrate> Persister<T> {
 		file.write_all(&bytes[..]).await?;
 
 		Ok(())
+	}
+}
+
+pub struct PersisterShared<V: Migrate + Default>(Arc<(Persister<V>, RwLock<V>)>);
+
+impl<V: Migrate + Default> Clone for PersisterShared<V> {
+	fn clone(&self) -> PersisterShared<V> {
+		PersisterShared(self.0.clone())
+	}
+}
+
+impl<V: Migrate + Default> PersisterShared<V> {
+	pub fn new(base_dir: &Path, file_name: &str) -> Self {
+		let persister = Persister::new(base_dir, file_name);
+		let value = persister.load().unwrap_or_default();
+		Self(Arc::new((persister, RwLock::new(value))))
+	}
+
+	pub fn get_with<F, R>(&self, f: F) -> R
+	where
+		F: FnOnce(&V) -> R,
+	{
+		let value = self.0 .1.read().unwrap();
+		f(&value)
+	}
+
+	pub fn set_with<F>(&self, f: F) -> Result<(), Error>
+	where
+		F: FnOnce(&mut V),
+	{
+		let mut value = self.0 .1.write().unwrap();
+		f(&mut value);
+		self.0 .0.save(&value)
 	}
 }

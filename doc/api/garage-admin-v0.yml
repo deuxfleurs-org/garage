@@ -678,10 +678,12 @@ paths:
                   properties:
                     maxSize: 
                       type: integer
+                      format: int64
                       nullable: true
                       example: 19029801
                     maxObjects:
                       type: integer
+                      format: int64
                       nullable: true
                       example: null
 
@@ -1158,9 +1160,11 @@ components:
             $ref: '#/components/schemas/BucketKeyInfo'
         objects:
           type: integer
+          format: int64
           example: 14827
         bytes:
           type: integer
+          format: int64
           example: 13189855625
         unfinishedUploads:
           type: integer
@@ -1171,10 +1175,12 @@ components:
             maxSize:
               nullable: true
               type: integer
+              format: int64
               example: null
             maxObjects:
               nullable: true
               type: integer
+              format: int64
               example: null
 
 

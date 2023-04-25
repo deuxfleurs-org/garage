@@ -515,6 +515,11 @@ pub struct StatsOpt {
 	/// Gather detailed statistics (this can be long)
 	#[structopt(short = "d", long = "detailed")]
 	pub detailed: bool,
+
+	/// Don't show global cluster stats (internal use in RPC)
+	#[structopt(skip)]
+	#[serde(default)]
+	pub skip_global: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
@@ -528,11 +533,25 @@ pub enum WorkerOperation {
 	/// Get detailed information about a worker
 	#[structopt(name = "info", version = garage_version())]
 	Info { tid: usize },
+	/// Get worker parameter
+	#[structopt(name = "get", version = garage_version())]
+	Get {
+		/// Gather variable values from all nodes
+		#[structopt(short = "a", long = "all-nodes")]
+		all_nodes: bool,
+		/// Variable name to get, or none to get all variables
+		variable: Option<String>,
+	},
 	/// Set worker parameter
 	#[structopt(name = "set", version = garage_version())]
 	Set {
-		#[structopt(subcommand)]
-		opt: WorkerSetCmd,
+		/// Set variable values on all nodes
+		#[structopt(short = "a", long = "all-nodes")]
+		all_nodes: bool,
+		/// Variable node to set
+		variable: String,
+		/// Value to set the variable to
+		value: String,
 	},
 }
 
@@ -544,19 +563,6 @@ pub struct WorkerListOpt {
 	/// Show only workers with errors
 	#[structopt(short = "e", long = "errors")]
 	pub errors: bool,
-}
-
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
-pub enum WorkerSetCmd {
-	/// Set tranquility of scrub operations
-	#[structopt(name = "scrub-tranquility", version = garage_version())]
-	ScrubTranquility { tranquility: u32 },
-	/// Set number of concurrent block resync workers
-	#[structopt(name = "resync-worker-count", version = garage_version())]
-	ResyncWorkerCount { worker_count: usize },
-	/// Set tranquility of block resync operations
-	#[structopt(name = "resync-tranquility", version = garage_version())]
-	ResyncTranquility { tranquility: u32 },
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]

@@ -11,12 +11,12 @@ pkgs.stdenv.mkDerivation rec {
   };
 
   buildPhase = ''
-    cat > winscp <<EOF
-#!${pkgs.bash}/bin/bash
+        cat > winscp <<EOF
+    #!${pkgs.bash}/bin/bash
 
-WINEDEBUG=-all
-${pkgs.winePackages.minimal}/bin/wine $out/opt/WinSCP.com
-EOF
+    WINEDEBUG=-all
+    ${pkgs.winePackages.minimal}/bin/wine $out/opt/WinSCP.com
+    EOF
   '';
 
   installPhase = ''

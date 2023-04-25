@@ -305,7 +305,7 @@ fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {
 	let mut ret = None;
 	for item in cbc.children() {
 		if item.has_tag_name("LocationConstraint") {
-			if ret != None {
+			if ret.is_some() {
 				return None;
 			}
 			ret = Some(item.text()?.to_string());

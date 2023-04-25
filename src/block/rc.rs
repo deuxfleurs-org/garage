@@ -24,9 +24,9 @@ impl BlockRc {
 		tx: &mut db::Transaction,
 		hash: &Hash,
 	) -> db::TxOpResult<bool> {
-		let old_rc = RcEntry::parse_opt(tx.get(&self.rc, &hash)?);
+		let old_rc = RcEntry::parse_opt(tx.get(&self.rc, hash)?);
 		match old_rc.increment().serialize() {
-			Some(x) => tx.insert(&self.rc, &hash, x)?,
+			Some(x) => tx.insert(&self.rc, hash, x)?,
 			None => unreachable!(),
 		};
 		Ok(old_rc.is_zero())
@@ -39,10 +39,10 @@ impl BlockRc {
 		tx: &mut db::Transaction,
 		hash: &Hash,
 	) -> db::TxOpResult<bool> {
-		let new_rc = RcEntry::parse_opt(tx.get(&self.rc, &hash)?).decrement();
+		let new_rc = RcEntry::parse_opt(tx.get(&self.rc, hash)?).decrement();
 		match new_rc.serialize() {
-			Some(x) => tx.insert(&self.rc, &hash, x)?,
-			None => tx.remove(&self.rc, &hash)?,
+			Some(x) => tx.insert(&self.rc, hash, x)?,
+			None => tx.remove(&self.rc, hash)?,
 		};
 		Ok(matches!(new_rc, RcEntry::Deletable { .. }))
 	}
@@ -57,10 +57,10 @@ impl BlockRc {
 	pub(crate) fn clear_deleted_block_rc(&self, hash: &Hash) -> Result<(), Error> {
 		let now = now_msec();
 		self.rc.db().transaction(|mut tx| {
-			let rcval = RcEntry::parse_opt(tx.get(&self.rc, &hash)?);
+			let rcval = RcEntry::parse_opt(tx.get(&self.rc, hash)?);
 			match rcval {
 				RcEntry::Deletable { at_time } if now > at_time => {
-					tx.remove(&self.rc, &hash)?;
+					tx.remove(&self.rc, hash)?;
 				}
 				_ => (),
 			};

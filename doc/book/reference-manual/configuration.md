@@ -3,6 +3,8 @@ title = "Configuration file format"
 weight = 20
 +++
 
+## Full example
+
 Here is an example `garage.toml` configuration file that illustrates all of the possible options:
 
 ```toml
@@ -96,7 +98,7 @@ Performance characteristics of the different DB engines are as follows:
 
 - Sled: the default database engine, which tends to produce
   large data files and also has performance issues, especially when the metadata folder
-  is on a traditionnal HDD and not on SSD.
+  is on a traditional HDD and not on SSD.
 - LMDB: the recommended alternative on 64-bit systems,
   much more space-efficiant and slightly faster. Note that the data format of LMDB is not portable
   between architectures, so for instance the Garage database of an x86-64
@@ -259,13 +261,17 @@ Compression is done synchronously, setting a value too high will add latency to 
 This value can be different between nodes, compression is done by the node which receive the
 API call.
 
-### `rpc_secret`
+### `rpc_secret`, `rpc_secret_file` or `GARAGE_RPC_SECRET` (env)
 
-Garage uses a secret key that is shared between all nodes of the cluster
-in order to identify these nodes and allow them to communicate together.
-This key should be specified here in the form of a 32-byte hex-encoded
-random string. Such a string can be generated with a command
-such as `openssl rand -hex 32`.
+Garage uses a secret key, called an RPC secret, that is shared between all
+nodes of the cluster in order to identify these nodes and allow them to
+communicate together. The RPC secret is a 32-byte hex-encoded random string,
+which can be generated with a command such as `openssl rand -hex 32`.
+
+The RPC secret should be specified in the `rpc_secret` configuration variable.
+Since Garage `v0.8.2`, the RPC secret can also be stored in a file whose path is
+given in the configuration variable `rpc_secret_file`, or specified as an
+environment variable `GARAGE_RPC_SECRET`.
 
 ### `rpc_bind_addr`
 
@@ -407,24 +413,30 @@ If specified, Garage will bind an HTTP server to this port and address, on
 which it will listen to requests for administration features.
 See [administration API reference](@/documentation/reference-manual/admin-api.md) to learn more about these features.
 
-### `metrics_token` (since version 0.7.2)
+### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN` (env)
 
-The token for accessing the Metrics endpoint. If this token is not set in
-the config file, the Metrics endpoint can be accessed without access
-control.
+The token for accessing the Metrics endpoint. If this token is not set, the
+Metrics endpoint can be accessed without access control.
 
 You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
 
-### `admin_token` (since version 0.7.2)
+`metrics_token` was introduced in Garage `v0.7.2`.
+`metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage `v0.8.2`.
+
+
+### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN` (env)
 
 The token for accessing all of the other administration endpoints.  If this
-token is not set in the config file, access to these endpoints is disabled
-entirely.
+token is not set, access to these endpoints is disabled entirely.
 
 You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
+
+`admin_token` was introduced in Garage `v0.7.2`.
+`admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
+
 
 ### `trace_sink`
 
-Optionnally, the address of an Opentelemetry collector.  If specified,
-Garage will send traces in the Opentelemetry format to this endpoint. These
+Optionally, the address of an OpenTelemetry collector.  If specified,
+Garage will send traces in the OpenTelemetry format to this endpoint. These
 trace allow to inspect Garage's operation when it handles S3 API requests.

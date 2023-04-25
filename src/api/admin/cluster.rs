@@ -20,6 +20,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 		node: hex::encode(garage.system.id),
 		garage_version: garage_util::version::garage_version(),
 		garage_features: garage_util::version::garage_features(),
+		rust_version: garage_util::version::rust_version(),
 		db_engine: garage.db.engine(),
 		known_nodes: garage
 			.system
@@ -106,6 +107,7 @@ struct GetClusterStatusResponse {
 	node: String,
 	garage_version: &'static str,
 	garage_features: Option<&'static [&'static str]>,
+	rust_version: &'static str,
 	db_engine: String,
 	known_nodes: HashMap<String, KnownNodeResp>,
 	layout: GetClusterLayoutResponse,

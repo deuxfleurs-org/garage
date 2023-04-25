@@ -27,12 +27,14 @@ use crate::index_counter::*;
 use crate::key_table::*;
 
 #[cfg(feature = "k2v")]
-use crate::k2v::{item_table::*, poll::*, rpc::*};
+use crate::k2v::{item_table::*, rpc::*, sub::*};
 
 /// An entire Garage full of data
 pub struct Garage {
 	/// The parsed configuration Garage is running
 	pub config: Config,
+	/// The set of background variables that can be viewed/modified at runtime
+	pub bg_vars: vars::BgVars,
 
 	/// The replication mode of this cluster
 	pub replication_mode: ReplicationMode,
@@ -96,7 +98,7 @@ impl Garage {
 					.cache_capacity(config.sled_cache_capacity)
 					.flush_every_ms(Some(config.sled_flush_every_ms))
 					.open()
-					.expect("Unable to open sled DB");
+					.ok_or_message("Unable to open sled DB")?;
 				db::sled_adapter::SledDb::init(db)
 			}
 			#[cfg(not(feature = "sled"))]
@@ -107,7 +109,7 @@ impl Garage {
 				db_path.push("db.sqlite");
 				info!("Opening Sqlite database at: {}", db_path.display());
 				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
-					.expect("Unable to open sqlite DB");
+					.ok_or_message("Unable to open sqlite DB")?;
 				db::sqlite_adapter::SqliteDb::init(db)
 			}
 			#[cfg(not(feature = "sqlite"))]
@@ -121,7 +123,8 @@ impl Garage {
 			"lmdb" | "heed" => {
 				db_path.push("db.lmdb");
 				info!("Opening LMDB database at: {}", db_path.display());
-				std::fs::create_dir_all(&db_path).expect("Unable to create LMDB data directory");
+				std::fs::create_dir_all(&db_path)
+					.ok_or_message("Unable to create LMDB data directory")?;
 				let map_size = garage_db::lmdb_adapter::recommended_map_size();
 
 				use db::lmdb_adapter::heed;
@@ -133,7 +136,16 @@ impl Garage {
 					env_builder.flag(heed::flags::Flags::MdbNoSync);
 					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
 				}
-				let db = env_builder.open(&db_path).expect("Unable to open LMDB DB");
+				let db = match env_builder.open(&db_path) {
+					Err(heed::Error::Io(e)) if e.kind() == std::io::ErrorKind::OutOfMemory => {
+						return Err(Error::Message(
+							"OutOfMemory error while trying to open LMDB database. This can happen \
+							if your operating system is not allowing you to use sufficient virtual \
+							memory address space. Please check that no limit is set (ulimit -v). \
+							On 32-bit machines, you should probably switch to another database engine.".into()))
+					}
+					x => x.ok_or_message("Unable to open LMDB DB")?,
+				};
 				db::lmdb_adapter::LmdbDb::init(db)
 			}
 			#[cfg(not(feature = "lmdb"))]
@@ -156,13 +168,15 @@ impl Garage {
 			}
 		};
 
-		let network_key = NetworkKey::from_slice(
-			&hex::decode(&config.rpc_secret).expect("Invalid RPC secret key")[..],
-		)
-		.expect("Invalid RPC secret key");
+		let network_key = hex::decode(config.rpc_secret.as_ref().ok_or_message(
+			"rpc_secret value is missing, not present in config file or in environment",
+		)?)
+		.ok()
+		.and_then(|x| NetworkKey::from_slice(&x))
+		.ok_or_message("Invalid RPC secret key")?;
 
 		let replication_mode = ReplicationMode::parse(&config.replication_mode)
-			.expect("Invalid replication_mode in config file.");
+			.ok_or_message("Invalid replication_mode in config file.")?;
 
 		info!("Initialize membership management system...");
 		let system = System::new(network_key, replication_mode, &config)?;
@@ -249,9 +263,14 @@ impl Garage {
 		#[cfg(feature = "k2v")]
 		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
 
+		// Initialize bg vars
+		let mut bg_vars = vars::BgVars::new();
+		block_manager.register_bg_vars(&mut bg_vars);
+
 		// -- done --
 		Ok(Arc::new(Self {
 			config,
+			bg_vars,
 			replication_mode,
 			db,
 			system,
@@ -298,8 +317,10 @@ impl GarageK2V {
 	fn new(system: Arc<System>, db: &db::Db, meta_rep_param: TableShardedReplication) -> Self {
 		info!("Initialize K2V counter table...");
 		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db);
+
 		info!("Initialize K2V subscription manager...");
 		let subscriptions = Arc::new(SubscriptionManager::new());
+
 		info!("Initialize K2V item table...");
 		let item_table = Table::new(
 			K2VItemTable {
@@ -310,7 +331,9 @@ impl GarageK2V {
 			system.clone(),
 			db,
 		);
-		let rpc = K2VRpcHandler::new(system, item_table.clone(), subscriptions);
+
+		info!("Initialize K2V RPC handler...");
+		let rpc = K2VRpcHandler::new(system, db, item_table.clone(), subscriptions);
 
 		Self {
 			item_table,

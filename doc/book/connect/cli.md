@@ -12,6 +12,7 @@ These tools are particularly suitable for debug, backups, website deployments or
 | [AWS CLI](#aws-cli)     | ✅       | Recommended   |
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
+| [s5cmd](#s5cmd)     | ✅       |    |
 | [(Cyber)duck](#cyberduck)     | ✅       |    |
 | [WinSCP (libs3)](#winscp)     | ✅       | CLI instructions only   |
 | [sftpgo](#sftpgo)     | ✅       |    |
@@ -178,59 +179,34 @@ s3cmd put /tmp/hello.txt s3://my-bucket/
 s3cmd get s3://my-bucket/hello.txt hello.txt
 ```
 
+## `s5cmd`
+
+Configure a credentials file as follows:
+
+```bash
+export AWS_ACCESS_KEY_ID=GK...
+export AWS_SECRET_ACCESS_KEY=
+export AWS_DEFAULT_REGION='garage'
+export AWS_ENDPOINT='http://localhost:3900'
+```
+
+After adding these environment variables in your shell, `s5cmd` can be used
+with:
+
+```bash
+s5cmd --endpoint-url=$AWS_ENDPOINT ls
+```
+
+See its usage output for other commands available.
+
 ## Cyberduck & duck {#cyberduck}
 
 Both Cyberduck (the GUI) and duck (the CLI) have a concept of "Connection Profiles" that contain some presets for a specific provider.
-We wrote the following connection profile for Garage:
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-    <dict>
-        <key>Protocol</key>
-        <string>s3</string>
-        <key>Vendor</key>
-        <string>garage</string>
-        <key>Scheme</key>
-        <string>https</string>
-        <key>Description</key>
-        <string>GarageS3</string>
-        <key>Default Hostname</key>
-        <string>127.0.0.1</string>
-        <key>Default Port</key>
-        <string>4443</string>
-        <key>Hostname Configurable</key>
-        <false/>
-        <key>Port Configurable</key>
-        <false/>
-        <key>Username Configurable</key>
-        <true/>
-        <key>Username Placeholder</key>
-        <string>Access Key ID (GK...)</string>
-        <key>Password Placeholder</key>
-        <string>Secret Key</string>
-        <key>Properties</key>
-        <array>
-            <string>s3service.disable-dns-buckets=true</string>
-        </array>
-        <key>Region</key>
-        <string>garage</string>
-        <key>Regions</key>
-        <array>
-            <string>garage</string>
-        </array>
-    </dict>
-</plist>
-```
-
-*Note: If your garage instance is configured with vhost access style, you can remove `s3service.disable-dns-buckets=true`.*
-
-### Instructions for the GUI
-
-Copy the connection profile, and save it anywhere as `garage.cyberduckprofile`.
-Then find this file with your file explorer and double click on it: Cyberduck will open a connection wizard for this profile.
-Simply follow the wizard and you should be done!
+Within Cyberduck, a
+[Garage connection profile](https://docs.cyberduck.io/protocols/s3/garage/) is
+available within the `Preferences -> Profiles` section. This can enabled and
+then connections to Garage may be configured.
 
 ### Instuctions for the CLI
 

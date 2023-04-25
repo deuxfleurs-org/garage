@@ -1,19 +1,23 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: {{ .Values.deployment.kind }}
 metadata:
   name: {{ include "garage.fullname" . }}
   labels:
     {{- include "garage.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "garage.selectorLabels" . | nindent 6 }}
+  {{- if eq .Values.deployment.kind "StatefulSet" }}
+  replicas: {{ .Values.deployment.replicaCount }}
   serviceName: {{ include "garage.fullname" . }}
+  {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
@@ -29,7 +33,8 @@ spec:
       initContainers:
         # Copies garage.toml from configmap to temporary etc volume and replaces RPC secret placeholder
         - name: {{ .Chart.Name }}-init
-          image: busybox:1.28
+          image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag }}"
+          imagePullPolicy: {{ .Values.initImage.pullPolicy }}
           command: ["sh", "-c", "sed \"s/__RPC_SECRET_REPLACE__/$RPC_SECRET/\" /mnt/garage.toml > /mnt/etc/garage.toml"]
           env:
             - name: RPC_SECRET
@@ -37,6 +42,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "garage.rpcSecretName" . }}
                   key: rpcSecret
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:
             - name: configmap
               mountPath: /mnt/garage.toml
@@ -54,6 +61,8 @@ spec:
               name: s3-api
             - containerPort: 3902
               name: web-api
+            - containerPort: 3903
+              name: admin
           volumeMounts:
             - name: meta
               mountPath: /mnt/meta
@@ -79,6 +88,23 @@ spec:
             name: {{ include "garage.fullname" . }}-config
         - name: etc
           emptyDir: {}
+        {{- if .Values.persistence.enabled }}
+        {{- if eq .Values.deployment.kind "DaemonSet" }}
+        - name: meta
+          hostPath:
+            path: {{ .Values.persistence.meta.hostPath }}
+            type: DirectoryOrCreate
+        - name: data
+          hostPath:
+            path: {{ .Values.persistence.data.hostPath }}
+            type: DirectoryOrCreate
+        {{- end }}
+        {{- else }}
+        - name: meta
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -91,7 +117,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-  {{- if .Values.persistence.enabled }}
+  {{- if and .Values.persistence.enabled (eq .Values.deployment.kind "StatefulSet") }}
   volumeClaimTemplates:
   - metadata:
       name: meta

@@ -229,7 +229,7 @@ pub fn find_matching_node(
 ) -> Result<Uuid, Error> {
 	let mut candidates = vec![];
 	for c in cand {
-		if hex::encode(&c).starts_with(&pattern) && !candidates.contains(&c) {
+		if hex::encode(c).starts_with(pattern) && !candidates.contains(&c) {
 			candidates.push(c);
 		}
 	}
@@ -354,6 +354,14 @@ pub fn print_worker_info(tid: usize, info: WorkerInfo) {
 			table.push(format!("\t{}", s));
 		}
 	}
+	format_table(table);
+}
+
+pub fn print_worker_vars(wv: Vec<(Uuid, String, String)>) {
+	let table = wv
+		.into_iter()
+		.map(|(n, k, v)| format!("{:?}\t{}\t{}", n, k, v))
+		.collect::<Vec<_>>();
 	format_table(table);
 }
 

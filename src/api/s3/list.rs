@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::{Iterator, Peekable};
 use std::sync::Arc;
 
+use base64::prelude::*;
 use hyper::{Body, Response};
 
 use garage_util::data::*;
@@ -129,11 +130,11 @@ pub async fn handle_list(
 		next_continuation_token: match (query.is_v2, &pagination) {
 			(true, Some(RangeBegin::AfterKey { key })) => Some(s3_xml::Value(format!(
 				"]{}",
-				base64::encode(key.as_bytes())
+				BASE64_STANDARD.encode(key.as_bytes())
 			))),
 			(true, Some(RangeBegin::IncludingKey { key, .. })) => Some(s3_xml::Value(format!(
 				"[{}",
-				base64::encode(key.as_bytes())
+				BASE64_STANDARD.encode(key.as_bytes())
 			))),
 			_ => None,
 		},
@@ -583,14 +584,16 @@ impl ListObjectsQuery {
 				(Some(token), _) => match &token[..1] {
 					"[" => Ok(RangeBegin::IncludingKey {
 						key: String::from_utf8(
-							base64::decode(token[1..].as_bytes())
+							BASE64_STANDARD
+								.decode(token[1..].as_bytes())
 								.ok_or_bad_request("Invalid continuation token")?,
 						)?,
 						fallback_key: None,
 					}),
 					"]" => Ok(RangeBegin::AfterKey {
 						key: String::from_utf8(
-							base64::decode(token[1..].as_bytes())
+							BASE64_STANDARD
+								.decode(token[1..].as_bytes())
 								.ok_or_bad_request("Invalid continuation token")?,
 						)?,
 					}),

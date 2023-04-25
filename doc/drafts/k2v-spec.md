@@ -706,6 +706,73 @@ HTTP/1.1 200 OK
 ]
 ```
 
+**PollRange: `POST /<bucket>/<partition key>?poll_range`**, or alternatively<br/>
+**PollRange: `SEARCH /<bucket>/<partition key>?poll_range`**
+
+Polls a range of items for changes.
+
+The query body is a JSON object consisting of the following fields:
+
+| name            | default value | meaning                                                                                |
+|-----------------|---------------|----------------------------------------------------------------------------------------|
+| `prefix`        | `null`        | Restrict items to poll to those whose sort keys start with this prefix                 |
+| `start`         | `null`        | The sort key of the first item to poll                                                 |
+| `end`           | `null`        | The sort key of the last item to poll (excluded)                                       |
+| `timeout`       | 300           | The timeout before 304 NOT MODIFIED is returned if no value in the range is updated    |
+| `seenMarker`    | `null`        | An opaque string returned by a previous PollRange call, that represents items already seen |
+
+The timeout can be set to any number of seconds, with a maximum of 600 seconds (10 minutes).
+
+The response is either:
+
+- A HTTP 304 NOT MODIFIED response with an empty body, if the timeout expired and no changes occurred
+
+- A HTTP 200 response, indicating that some changes have occurred since the last PollRange call, in which case a JSON object is returned in the body with the following fields:
+
+| name            | meaning                                                                                |
+|-----------------|----------------------------------------------------------------------------------------|
+| `seenMarker`    | An opaque string that represents items already seen for future PollRange calls         |
+| `items`         | The list of items that have changed since last PollRange call, in the same format as ReadBatch |
+
+If no seen marker is known by the caller, it can do a PollRange call
+without specifying `seenMarker`. In this case, the PollRange call will
+complete immediately, and return the current content of the range (which
+can be empty) and a seen marker to be used in further PollRange calls. This
+is the only case in which PollRange might return an HTTP 200 with an empty
+set of items.
+
+A seen marker returned as a response to a PollRange query can be used for further PollRange
+queries on the same range, or for PollRange queries in a subrange of the initial range.
+It may not be used for PollRange queries on ranges larger or outside of the initial range.
+
+Example query:
+
+```json
+SEARCH /my_bucket?poll_range HTTP/1.1
+
+{
+  "prefix": "0391.",
+  "start": "0391.000001973107",
+  "seenMarker": "opaquestring123",
+}
+```
+
+
+Example response:
+
+```json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "seenMarker": "opaquestring456",
+  "items": [
+    { sk: "0391.000001973221", ct: "opaquetoken123", v: ["b64cryptoblob123", "b64cryptoblob'123"] },
+    { sk: "0391.000001974191", ct: "opaquetoken456", v: ["b64cryptoblob456", "b64cryptoblob'456"] },
+  ]
+}
+```
+
 
 ## Internals: causality tokens
 

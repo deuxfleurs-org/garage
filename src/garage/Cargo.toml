@@ -1,6 +1,6 @@
 [package]
 name = "garage"
-version = "0.8.1"
+version = "0.8.2"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -21,22 +21,22 @@ path = "tests/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_db = { version = "0.8.1", path = "../db" }
-garage_api = { version = "0.8.1", path = "../api" }
-garage_block = { version = "0.8.1", path = "../block" }
-garage_model = { version = "0.8.1", path = "../model" }
-garage_rpc = { version = "0.8.1", path = "../rpc" }
-garage_table = { version = "0.8.1", path = "../table" }
-garage_util = { version = "0.8.1", path = "../util" }
-garage_web = { version = "0.8.1", path = "../web" }
+garage_db = { version = "0.8.2", path = "../db" }
+garage_api = { version = "0.8.2", path = "../api" }
+garage_block = { version = "0.8.2", path = "../block" }
+garage_model = { version = "0.8.2", path = "../model" }
+garage_rpc = { version = "0.8.2", path = "../rpc" }
+garage_table = { version = "0.8.2", path = "../table" }
+garage_util = { version = "0.8.2", path = "../util" }
+garage_web = { version = "0.8.2", path = "../web" }
 
 backtrace = "0.3"
 bytes = "1.0"
 bytesize = "1.1"
-timeago = "0.3"
+timeago = "0.4"
 parse_duration = "2.1"
 hex = "0.4"
-tracing = { version = "0.1.30" }
+tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 async-trait = "0.1.7"
@@ -45,7 +45,7 @@ sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 structopt = { version = "0.3", default-features = false }
-toml = "0.5"
+toml = "0.6"
 
 futures = "0.3"
 futures-util = "0.3"
@@ -69,7 +69,7 @@ sha2 = "0.10"
 static_init = "1.0"
 assert-json-diff = "2.0"
 serde_json = "1.0"
-base64 = "0.13"
+base64 = "0.21"
 
 
 [features]

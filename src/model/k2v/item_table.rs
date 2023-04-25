@@ -11,7 +11,7 @@ use garage_table::*;
 
 use crate::index_counter::*;
 use crate::k2v::causality::*;
-use crate::k2v::poll::*;
+use crate::k2v::sub::*;
 
 pub const ENTRIES: &str = "entries";
 pub const CONFLICTS: &str = "conflicts";
@@ -73,7 +73,8 @@ impl K2VItem {
 		this_node: Uuid,
 		context: &Option<CausalContext>,
 		new_value: DvvsValue,
-	) {
+		node_ts: u64,
+	) -> u64 {
 		if let Some(context) = context {
 			for (node, t_discard) in context.vector_clock.iter() {
 				if let Some(e) = self.items.get_mut(node) {
@@ -98,12 +99,14 @@ impl K2VItem {
 			values: vec![],
 		});
 		let t_prev = e.max_time();
-		e.values.push((t_prev + 1, new_value));
+		let t_new = std::cmp::max(t_prev + 1, node_ts + 1);
+		e.values.push((t_new, new_value));
+		t_new
 	}
 
 	/// Extract the causality context of a K2V Item
 	pub fn causal_context(&self) -> CausalContext {
-		let mut cc = CausalContext::new_empty();
+		let mut cc = CausalContext::new();
 		for (node, ent) in self.items.iter() {
 			cc.vector_clock.insert(*node, ent.max_time());
 		}
@@ -173,9 +176,9 @@ impl Crdt for DvvsEntry {
 
 impl PartitionKey for K2VItemPartition {
 	fn hash(&self) -> Hash {
-		use blake2::{Blake2b, Digest};
+		use blake2::{Blake2b512, Digest};
 
-		let mut hasher = Blake2b::new();
+		let mut hasher = Blake2b512::new();
 		hasher.update(self.bucket_id.as_slice());
 		hasher.update(self.partition_key.as_bytes());
 		let mut hash = [0u8; 32];
@@ -310,7 +313,7 @@ mod tests {
 			values: vec![(6, DvvsValue::Value(vec![16])), (7, DvvsValue::Deleted)],
 		};
 
-		let mut e3 = e1.clone();
+		let mut e3 = e1;
 		e3.merge(&e2);
 		assert_eq!(e2, e3);
 	}

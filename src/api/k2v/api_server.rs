@@ -164,6 +164,9 @@ impl ApiHandler for K2VApiServer {
 			Endpoint::InsertBatch {} => handle_insert_batch(garage, bucket_id, req).await,
 			Endpoint::ReadBatch {} => handle_read_batch(garage, bucket_id, req).await,
 			Endpoint::DeleteBatch {} => handle_delete_batch(garage, bucket_id, req).await,
+			Endpoint::PollRange { partition_key } => {
+				handle_poll_range(garage, bucket_id, &partition_key, req).await
+			}
 			Endpoint::Options => unreachable!(),
 		};
 

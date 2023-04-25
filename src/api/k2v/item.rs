@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base64::prelude::*;
 use http::header;
 
 use hyper::{Body, Request, Response, StatusCode};
@@ -81,7 +82,7 @@ impl ReturnFormat {
 			.iter()
 			.map(|v| match v {
 				DvvsValue::Deleted => serde_json::Value::Null,
-				DvvsValue::Value(v) => serde_json::Value::String(base64::encode(v)),
+				DvvsValue::Value(v) => serde_json::Value::String(BASE64_STANDARD.encode(v)),
 			})
 			.collect::<Vec<_>>();
 		let json_body =
@@ -133,9 +134,8 @@ pub async fn handle_insert_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse)
-		.transpose()
-		.ok_or_bad_request("Invalid causality token")?;
+		.map(CausalContext::parse_helper)
+		.transpose()?;
 
 	let body = hyper::body::to_bytes(req.into_body()).await?;
 	let value = DvvsValue::Value(body.to_vec());
@@ -169,9 +169,8 @@ pub async fn handle_delete_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse)
-		.transpose()
-		.ok_or_bad_request("Invalid causality token")?;
+		.map(CausalContext::parse_helper)
+		.transpose()?;
 
 	let value = DvvsValue::Deleted;
 
@@ -208,15 +207,17 @@ pub async fn handle_poll_item(
 	let causal_context =
 		CausalContext::parse(&causality_token).ok_or_bad_request("Invalid causality token")?;
 
+	let timeout_msec = timeout_secs.unwrap_or(300).clamp(1, 600) * 1000;
+
 	let item = garage
 		.k2v
 		.rpc
-		.poll(
+		.poll_item(
 			bucket_id,
 			partition_key,
 			sort_key,
 			causal_context,
-			timeout_secs.unwrap_or(300) * 1000,
+			timeout_msec,
 		)
 		.await?;
 

@@ -19,6 +19,7 @@ use opentelemetry::{
 };
 
 use garage_util::error::Error as GarageError;
+use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
 
 pub(crate) trait ApiEndpoint: Send + Sync + 'static {
@@ -125,7 +126,20 @@ impl<A: ApiHandler> ApiServer<A> {
 		addr: SocketAddr,
 	) -> Result<Response<Body>, GarageError> {
 		let uri = req.uri().clone();
-		info!("{} {} {}", addr, req.method(), uri);
+
+		if let Ok(forwarded_for_ip_addr) =
+			forwarded_headers::handle_forwarded_for_headers(&req.headers())
+		{
+			info!(
+				"{} (via {}) {} {}",
+				forwarded_for_ip_addr,
+				addr,
+				req.method(),
+				uri
+			);
+		} else {
+			info!("{} {} {}", addr, req.method(), uri);
+		}
 		debug!("{:?}", req);
 
 		let tracer = opentelemetry::global::tracer("garage");

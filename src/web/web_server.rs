@@ -29,6 +29,7 @@ use garage_model::garage::Garage;
 
 use garage_table::*;
 use garage_util::error::Error as GarageError;
+use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
 
 struct WebMetrics {
@@ -104,7 +105,19 @@ impl WebServer {
 		req: Request<Body>,
 		addr: SocketAddr,
 	) -> Result<Response<Body>, Infallible> {
-		info!("{} {} {}", addr, req.method(), req.uri());
+		if let Ok(forwarded_for_ip_addr) =
+			forwarded_headers::handle_forwarded_for_headers(&req.headers())
+		{
+			info!(
+				"{} (via {}) {} {}",
+				forwarded_for_ip_addr,
+				addr,
+				req.method(),
+				req.uri()
+			);
+		} else {
+			info!("{} {} {}", addr, req.method(), req.uri());
+		}
 
 		// Lots of instrumentation
 		let tracer = opentelemetry::global::tracer("garage");
@@ -249,7 +262,6 @@ impl WebServer {
 						);
 
 						*error_doc.status_mut() = error.http_status_code();
-						error.add_headers(error_doc.headers_mut());
 
 						// Preserve error message in a special header
 						for error_line in error.to_string().split('\n') {

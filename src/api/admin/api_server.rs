@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -75,6 +76,60 @@ impl AdminApiServer {
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, GET, POST")
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 			.body(Body::empty())?)
+	}
+
+	async fn handle_check_website_enabled(
+		&self,
+		req: Request<Body>,
+	) -> Result<Response<Body>, Error> {
+		let query_params: HashMap<String, String> = req
+			.uri()
+			.query()
+			.map(|v| {
+				url::form_urlencoded::parse(v.as_bytes())
+					.into_owned()
+					.collect()
+			})
+			.unwrap_or_else(HashMap::new);
+
+		let has_domain_key = query_params.contains_key("domain");
+
+		if !has_domain_key {
+			return Err(Error::bad_request("No domain query string found"));
+		}
+
+		let domain = query_params
+			.get("domain")
+			.ok_or_internal_error("Could not parse domain query string")?;
+
+		let bucket_id = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket_name(&domain)
+			.await?
+			.ok_or(HelperError::NoSuchBucket(domain.to_string()))?;
+
+		let bucket = self
+			.garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+
+		let bucket_state = bucket.state.as_option().unwrap();
+		let bucket_website_config = bucket_state.website_config.get();
+
+		match bucket_website_config {
+			Some(_v) => {
+				Ok(Response::builder()
+					.status(StatusCode::OK)
+					.body(Body::from(format!(
+						"Bucket '{domain}' is authorized for website hosting"
+					)))?)
+			}
+			None => Err(Error::bad_request(format!(
+				"Bucket '{domain}' is not authorized for website hosting"
+			))),
+		}
 	}
 
 	fn handle_health(&self) -> Result<Response<Body>, Error> {
@@ -174,6 +229,7 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
+			Endpoint::CheckWebsiteEnabled => self.handle_check_website_enabled(req).await,
 			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,

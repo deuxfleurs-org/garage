@@ -19,8 +19,12 @@ To run a real-world deployment, make sure the following conditions are met:
 
 - You have at least three machines with sufficient storage space available.
 
-- Each machine has a public IP address which is reachable by other machines.
-  Running behind a NAT is likely to be possible but hasn't been tested for the latest version (TODO).
+- Each machine has a public IP address which is reachable by other machines. It
+  is highly recommended that you use IPv6 for this end-to-end connectivity. If
+  IPv6 is not available, then using a mesh VPN such as
+  [Nebula](https://github.com/slackhq/nebula) or
+  [Yggdrasil](https://yggdrasil-network.github.io/) are approaches to consider
+  in addition to building out your own VPN tunneling.
 
 - This guide will assume you are using Docker containers to deploy Garage on each node. 
   Garage can also be run independently, for instance as a [Systemd service](@/documentation/cookbook/systemd.md).
@@ -345,5 +349,5 @@ and is covered in the [quick start guide](@/documentation/quick-start/_index.md)
 Remember also that the CLI is self-documented thanks to the `--help` flag and
 the `help` subcommand (e.g. `garage help`, `garage key --help`).
 
-Configuring S3-compatible applicatiosn to interact with Garage
+Configuring S3-compatible applications to interact with Garage
 is covered in the [Integrations](@/documentation/connect/_index.md) section.

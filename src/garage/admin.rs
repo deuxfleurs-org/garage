@@ -15,10 +15,10 @@ use garage_util::time::*;
 use garage_table::replication::*;
 use garage_table::*;
 
+use garage_rpc::ring::PARTITION_BITS;
 use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
-use garage_block::repair::ScrubWorkerCommand;
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
@@ -60,6 +60,7 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
+	WorkerVars(Vec<(Uuid, String, String)>),
 	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
@@ -783,6 +784,7 @@ impl AdminRpcHandler {
 			for node in ring.layout.node_ids().iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
+				opt.skip_global = true;
 
 				writeln!(&mut ret, "\n======================").unwrap();
 				writeln!(&mut ret, "Stats for node {:?}:", node).unwrap();
@@ -799,6 +801,15 @@ impl AdminRpcHandler {
 					Err(e) => writeln!(&mut ret, "Network error: {}", e).unwrap(),
 				}
 			}
+
+			writeln!(&mut ret, "\n======================").unwrap();
+			write!(
+				&mut ret,
+				"Cluster statistics:\n\n{}",
+				self.gather_cluster_stats()
+			)
+			.unwrap();
+
 			Ok(AdminRpc::Ok(ret))
 		} else {
 			Ok(AdminRpc::Ok(self.gather_stats_local(opt)?))
@@ -809,31 +820,16 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 		writeln!(
 			&mut ret,
-			"\nGarage version: {} [features: {}]",
+			"\nGarage version: {} [features: {}]\nRust compiler version: {}",
 			garage_util::version::garage_version(),
 			garage_util::version::garage_features()
 				.map(|list| list.join(", "))
 				.unwrap_or_else(|| "(unknown)".into()),
+			garage_util::version::rust_version(),
 		)
 		.unwrap();
 
 		writeln!(&mut ret, "\nDatabase engine: {}", self.garage.db.engine()).unwrap();
-
-		// Gather ring statistics
-		let ring = self.garage.system.ring.borrow().clone();
-		let mut ring_nodes = HashMap::new();
-		for (_i, loc) in ring.partitions().iter() {
-			for n in ring.get_nodes(loc, ring.replication_factor).iter() {
-				if !ring_nodes.contains_key(n) {
-					ring_nodes.insert(*n, 0usize);
-				}
-				*ring_nodes.get_mut(n).unwrap() += 1;
-			}
-		}
-		writeln!(&mut ret, "\nRing nodes & partition count:").unwrap();
-		for (n, c) in ring_nodes.iter() {
-			writeln!(&mut ret, "  {:?} {}", n, c).unwrap();
-		}
 
 		// Gather table statistics
 		let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tGcTodo".into()];
@@ -881,10 +877,108 @@ impl AdminRpcHandler {
 		.unwrap();
 
 		if !opt.detailed {
-			writeln!(&mut ret, "\nIf values are missing (marked as NC), consider adding the --detailed flag - this will be slow.").unwrap();
+			writeln!(&mut ret, "\nIf values are missing above (marked as NC), consider adding the --detailed flag (this will be slow).").unwrap();
+		}
+
+		if !opt.skip_global {
+			write!(&mut ret, "\n{}", self.gather_cluster_stats()).unwrap();
 		}
 
 		Ok(ret)
+	}
+
+	fn gather_cluster_stats(&self) -> String {
+		let mut ret = String::new();
+
+		// Gather storage node and free space statistics
+		let layout = &self.garage.system.ring.borrow().layout;
+		let mut node_partition_count = HashMap::<Uuid, u64>::new();
+		for short_id in layout.ring_assignment_data.iter() {
+			let id = layout.node_id_vec[*short_id as usize];
+			*node_partition_count.entry(id).or_default() += 1;
+		}
+		let node_info = self
+			.garage
+			.system
+			.get_known_nodes()
+			.into_iter()
+			.map(|n| (n.id, n))
+			.collect::<HashMap<_, _>>();
+
+		let mut table = vec!["  ID\tHostname\tZone\tCapacity\tPart.\tDataAvail\tMetaAvail".into()];
+		for (id, parts) in node_partition_count.iter() {
+			let info = node_info.get(id);
+			let status = info.map(|x| &x.status);
+			let role = layout.roles.get(id).and_then(|x| x.0.as_ref());
+			let hostname = status.map(|x| x.hostname.as_str()).unwrap_or("?");
+			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
+			let capacity = role
+				.map(|x| x.capacity_string())
+				.unwrap_or_else(|| "?".into());
+			let avail_str = |x| match x {
+				Some((avail, total)) => {
+					let pct = (avail as f64) / (total as f64) * 100.;
+					let avail = bytesize::ByteSize::b(avail);
+					let total = bytesize::ByteSize::b(total);
+					format!("{}/{} ({:.1}%)", avail, total, pct)
+				}
+				None => "?".into(),
+			};
+			let data_avail = avail_str(status.and_then(|x| x.data_disk_avail));
+			let meta_avail = avail_str(status.and_then(|x| x.meta_disk_avail));
+			table.push(format!(
+				"  {:?}\t{}\t{}\t{}\t{}\t{}\t{}",
+				id, hostname, zone, capacity, parts, data_avail, meta_avail
+			));
+		}
+		write!(
+			&mut ret,
+			"Storage nodes:\n{}",
+			format_table_to_string(table)
+		)
+		.unwrap();
+
+		let meta_part_avail = node_partition_count
+			.iter()
+			.filter_map(|(id, parts)| {
+				node_info
+					.get(id)
+					.and_then(|x| x.status.meta_disk_avail)
+					.map(|c| c.0 / *parts)
+			})
+			.collect::<Vec<_>>();
+		let data_part_avail = node_partition_count
+			.iter()
+			.filter_map(|(id, parts)| {
+				node_info
+					.get(id)
+					.and_then(|x| x.status.data_disk_avail)
+					.map(|c| c.0 / *parts)
+			})
+			.collect::<Vec<_>>();
+		if !meta_part_avail.is_empty() && !data_part_avail.is_empty() {
+			let meta_avail =
+				bytesize::ByteSize(meta_part_avail.iter().min().unwrap() * (1 << PARTITION_BITS));
+			let data_avail =
+				bytesize::ByteSize(data_part_avail.iter().min().unwrap() * (1 << PARTITION_BITS));
+			writeln!(
+				&mut ret,
+				"\nEstimated available storage space cluster-wide (might be lower in practice):"
+			)
+			.unwrap();
+			if meta_part_avail.len() < node_partition_count.len()
+				|| data_part_avail.len() < node_partition_count.len()
+			{
+				writeln!(&mut ret, "  data: < {}", data_avail).unwrap();
+				writeln!(&mut ret, "  metadata: < {}", meta_avail).unwrap();
+				writeln!(&mut ret, "A precise estimate could not be given as information is missing for some storage nodes.").unwrap();
+			} else {
+				writeln!(&mut ret, "  data: {}", data_avail).unwrap();
+				writeln!(&mut ret, "  metadata: {}", meta_avail).unwrap();
+			}
+		}
+
+		ret
 	}
 
 	fn gather_table_stats<F, R>(
@@ -943,32 +1037,101 @@ impl AdminRpcHandler {
 					.clone();
 				Ok(AdminRpc::WorkerInfo(*tid, info))
 			}
-			WorkerOperation::Set { opt } => match opt {
-				WorkerSetCmd::ScrubTranquility { tranquility } => {
-					let scrub_command = ScrubWorkerCommand::SetTranquility(*tranquility);
-					self.garage
-						.block_manager
-						.send_scrub_command(scrub_command)
-						.await?;
-					Ok(AdminRpc::Ok("Scrub tranquility updated".into()))
+			WorkerOperation::Get {
+				all_nodes,
+				variable,
+			} => self.handle_get_var(*all_nodes, variable).await,
+			WorkerOperation::Set {
+				all_nodes,
+				variable,
+				value,
+			} => self.handle_set_var(*all_nodes, variable, value).await,
+		}
+	}
+
+	async fn handle_get_var(
+		&self,
+		all_nodes: bool,
+		variable: &Option<String>,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Get {
+							all_nodes: false,
+							variable: variable.clone(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
 				}
-				WorkerSetCmd::ResyncWorkerCount { worker_count } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_n_workers(*worker_count)
-						.await?;
-					Ok(AdminRpc::Ok("Number of resync workers updated".into()))
+			}
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			#[allow(clippy::collapsible_else_if)]
+			if let Some(v) = variable {
+				Ok(AdminRpc::WorkerVars(vec![(
+					self.garage.system.id,
+					v.clone(),
+					self.garage.bg_vars.get(v)?,
+				)]))
+			} else {
+				let mut vars = self.garage.bg_vars.get_all();
+				vars.sort();
+				Ok(AdminRpc::WorkerVars(
+					vars.into_iter()
+						.map(|(k, v)| (self.garage.system.id, k.to_string(), v))
+						.collect(),
+				))
+			}
+		}
+	}
+
+	async fn handle_set_var(
+		&self,
+		all_nodes: bool,
+		variable: &str,
+		value: &str,
+	) -> Result<AdminRpc, Error> {
+		if all_nodes {
+			let mut ret = vec![];
+			let ring = self.garage.system.ring.borrow().clone();
+			for node in ring.layout.node_ids().iter() {
+				let node = (*node).into();
+				match self
+					.endpoint
+					.call(
+						&node,
+						AdminRpc::Worker(WorkerOperation::Set {
+							all_nodes: false,
+							variable: variable.to_string(),
+							value: value.to_string(),
+						}),
+						PRIO_NORMAL,
+					)
+					.await??
+				{
+					AdminRpc::WorkerVars(v) => ret.extend(v),
+					m => return Err(GarageError::unexpected_rpc_message(m).into()),
 				}
-				WorkerSetCmd::ResyncTranquility { tranquility } => {
-					self.garage
-						.block_manager
-						.resync
-						.set_tranquility(*tranquility)
-						.await?;
-					Ok(AdminRpc::Ok("Resync tranquility updated".into()))
-				}
-			},
+			}
+			Ok(AdminRpc::WorkerVars(ret))
+		} else {
+			self.garage.bg_vars.set(variable, value)?;
+			Ok(AdminRpc::WorkerVars(vec![(
+				self.garage.system.id,
+				variable.to_string(),
+				value.to_string(),
+			)]))
 		}
 	}
 
