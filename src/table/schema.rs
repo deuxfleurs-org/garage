@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 use garage_db as db;
@@ -32,18 +34,18 @@ impl PartitionKey for FixedBytes32 {
 /// Trait for field used to sort data
 pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
 	/// Get the key used to sort
-	fn sort_key(&self) -> &[u8];
+	fn sort_key(&self) -> Cow<'_, [u8]>;
 }
 
 impl SortKey for String {
-	fn sort_key(&self) -> &[u8] {
-		self.as_bytes()
+	fn sort_key(&self) -> Cow<'_, [u8]> {
+		Cow::from(self.as_bytes())
 	}
 }
 
 impl SortKey for FixedBytes32 {
-	fn sort_key(&self) -> &[u8] {
-		self.as_slice()
+	fn sort_key(&self) -> Cow<'_, [u8]> {
+		Cow::from(self.as_slice())
 	}
 }
 
