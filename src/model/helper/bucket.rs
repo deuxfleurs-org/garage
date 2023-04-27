@@ -496,7 +496,9 @@ impl<'a> BucketHelper<'a> {
 				.get_range(
 					bucket_id,
 					start,
-					Some(ObjectFilter::IsUploading),
+					Some(ObjectFilter::IsUploading {
+						check_multipart: None,
+					}),
 					1000,
 					EnumerationOrder::Forward,
 				)
@@ -508,7 +510,7 @@ impl<'a> BucketHelper<'a> {
 					let aborted_versions = object
 						.versions()
 						.iter()
-						.filter(|v| v.is_uploading() && v.timestamp < older_than)
+						.filter(|v| v.is_uploading(None) && v.timestamp < older_than)
 						.map(|v| ObjectVersion {
 							state: ObjectVersionState::Aborted,
 							uuid: v.uuid,

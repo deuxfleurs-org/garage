@@ -119,7 +119,7 @@ mod v09 {
 	}
 
 	impl garage_util::migrate::Migrate for ClusterLayout {
-		const VERSION_MARKER: &'static [u8] = b"Glayout09";
+		const VERSION_MARKER: &'static [u8] = b"G09layout";
 
 		type Previous = v08::ClusterLayout;
 

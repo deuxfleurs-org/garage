@@ -66,6 +66,8 @@ mod v08 {
 
 	use super::v05;
 
+	pub use v05::{VersionBlock, VersionBlockKey};
+
 	/// A version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Version {
@@ -90,8 +92,6 @@ mod v08 {
 		pub key: String,
 	}
 
-	pub use v05::{VersionBlock, VersionBlockKey};
-
 	impl garage_util::migrate::Migrate for Version {
 		type Previous = v05::Version;
 
@@ -110,32 +110,83 @@ mod v08 {
 	}
 }
 
-pub use v08::*;
+pub(crate) mod v09 {
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	use super::v08;
+
+	pub use v08::{VersionBlock, VersionBlockKey};
+
+	/// A version of an object
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Version {
+		/// UUID of the version, used as partition key
+		pub uuid: Uuid,
+
+		// Actual data: the blocks for this version
+		// In the case of a multipart upload, also store the etags
+		// of individual parts and check them when doing CompleteMultipartUpload
+		/// Is this version deleted
+		pub deleted: crdt::Bool,
+		/// list of blocks of data composing the version
+		pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
+
+		// Back link to bucket+key so that we can figure if
+		// this was deleted later on
+		pub backlink: VersionBacklink,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub enum VersionBacklink {
+		Object {
+			/// Bucket in which the related object is stored
+			bucket_id: Uuid,
+			/// Key in which the related object is stored
+			key: String,
+		},
+		MultipartUpload {
+			upload_id: Uuid,
+		},
+	}
+
+	impl garage_util::migrate::Migrate for Version {
+		const VERSION_MARKER: &'static [u8] = b"G09s3v";
+
+		type Previous = v08::Version;
+
+		fn migrate(old: v08::Version) -> Version {
+			Version {
+				uuid: old.uuid,
+				deleted: old.deleted,
+				blocks: old.blocks,
+				backlink: VersionBacklink::Object {
+					bucket_id: old.bucket_id,
+					key: old.key,
+				},
+			}
+		}
+	}
+}
+
+pub use v09::*;
 
 impl Version {
-	pub fn new(uuid: Uuid, bucket_id: Uuid, key: String, deleted: bool) -> Self {
+	pub fn new(uuid: Uuid, backlink: VersionBacklink, deleted: bool) -> Self {
 		Self {
 			uuid,
 			deleted: deleted.into(),
 			blocks: crdt::Map::new(),
-			parts_etags: crdt::Map::new(),
-			bucket_id,
-			key,
+			backlink,
 		}
 	}
 
 	pub fn has_part_number(&self, part_number: u64) -> bool {
-		let case1 = self
-			.parts_etags
-			.items()
-			.binary_search_by(|(k, _)| k.cmp(&part_number))
-			.is_ok();
-		let case2 = self
-			.blocks
+		self.blocks
 			.items()
 			.binary_search_by(|(k, _)| k.part_number.cmp(&part_number))
-			.is_ok();
-		case1 || case2
+			.is_ok()
 	}
 }
 
@@ -175,10 +226,8 @@ impl Crdt for Version {
 
 		if self.deleted.get() {
 			self.blocks.clear();
-			self.parts_etags.clear();
 		} else {
 			self.blocks.merge(&other.blocks);
-			self.parts_etags.merge(&other.parts_etags);
 		}
 	}
 }
