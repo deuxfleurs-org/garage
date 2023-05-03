@@ -7,6 +7,7 @@ pub mod cors;
 mod delete;
 pub mod get;
 mod list;
+mod multipart;
 mod post_object;
 mod put;
 mod website;

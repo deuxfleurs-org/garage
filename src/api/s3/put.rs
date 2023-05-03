@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use base64::prelude::*;
@@ -30,8 +30,6 @@ use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
 use crate::s3::error::*;
-use crate::s3::xml as s3_xml;
-use crate::signature::verify_signed_content;
 
 pub async fn handle_put(
 	garage: Arc<Garage>,
@@ -136,7 +134,10 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	let mut object_version = ObjectVersion {
 		uuid: version_uuid,
 		timestamp: version_timestamp,
-		state: ObjectVersionState::Uploading(headers.clone()),
+		state: ObjectVersionState::Uploading {
+			headers: headers.clone(),
+			multipart: false,
+		},
 	};
 	let object = Object::new(bucket.id, key.into(), vec![object_version.clone()]);
 	garage.object_table.insert(&object).await?;
@@ -145,7 +146,14 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	// Write this entry now, even with empty block list,
 	// to prevent block_ref entries from being deleted (they can be deleted
 	// if the reference a version that isn't found in the version table)
-	let version = Version::new(version_uuid, bucket.id, key.into(), false);
+	let version = Version::new(
+		version_uuid,
+		VersionBacklink::Object {
+			bucket_id: bucket.id,
+			key: key.into(),
+		},
+		false,
+	);
 	garage.version_table.insert(&version).await?;
 
 	// Transfer data and verify checksum
@@ -192,7 +200,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 
 /// Validate MD5 sum against content-md5 header
 /// and sha256sum against signed content-sha256
-fn ensure_checksum_matches(
+pub(crate) fn ensure_checksum_matches(
 	data_md5sum: &[u8],
 	data_sha256sum: garage_util::data::FixedBytes32,
 	content_md5: Option<&str>,
@@ -218,7 +226,7 @@ fn ensure_checksum_matches(
 }
 
 /// Check that inserting this object with this size doesn't exceed bucket quotas
-async fn check_quotas(
+pub(crate) async fn check_quotas(
 	garage: &Arc<Garage>,
 	bucket: &Bucket,
 	key: &str,
@@ -275,7 +283,7 @@ async fn check_quotas(
 	Ok(())
 }
 
-async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
+pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	garage: &Garage,
 	version: &Version,
 	part_number: u64,
@@ -381,7 +389,7 @@ async fn put_block_meta(
 	Ok(())
 }
 
-struct StreamChunker<S: Stream<Item = Result<Bytes, Error>>> {
+pub(crate) struct StreamChunker<S: Stream<Item = Result<Bytes, Error>>> {
 	stream: S,
 	read_all: bool,
 	block_size: usize,
@@ -389,7 +397,7 @@ struct StreamChunker<S: Stream<Item = Result<Bytes, Error>>> {
 }
 
 impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
-	fn new(stream: S, block_size: usize) -> Self {
+	pub(crate) fn new(stream: S, block_size: usize) -> Self {
 		Self {
 			stream,
 			read_all: false,
@@ -398,7 +406,7 @@ impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
 		}
 	}
 
-	async fn next(&mut self) -> Result<Option<Bytes>, Error> {
+	pub(crate) async fn next(&mut self) -> Result<Option<Bytes>, Error> {
 		while !self.read_all && self.buf.len() < self.block_size {
 			if let Some(block) = self.stream.next().await {
 				let bytes = block?;
@@ -450,326 +458,9 @@ impl Drop for InterruptedCleanup {
 	}
 }
 
-// ----
+// ============ helpers ============
 
-pub async fn handle_create_multipart_upload(
-	garage: Arc<Garage>,
-	req: &Request<Body>,
-	bucket_name: &str,
-	bucket_id: Uuid,
-	key: &str,
-) -> Result<Response<Body>, Error> {
-	let version_uuid = gen_uuid();
-	let headers = get_headers(req.headers())?;
-
-	// Create object in object table
-	let object_version = ObjectVersion {
-		uuid: version_uuid,
-		timestamp: now_msec(),
-		state: ObjectVersionState::Uploading(headers),
-	};
-	let object = Object::new(bucket_id, key.to_string(), vec![object_version]);
-	garage.object_table.insert(&object).await?;
-
-	// Insert empty version so that block_ref entries refer to something
-	// (they are inserted concurrently with blocks in the version table, so
-	// there is the possibility that they are inserted before the version table
-	// is created, in which case it is allowed to delete them, e.g. in repair_*)
-	let version = Version::new(version_uuid, bucket_id, key.into(), false);
-	garage.version_table.insert(&version).await?;
-
-	// Send success response
-	let result = s3_xml::InitiateMultipartUploadResult {
-		xmlns: (),
-		bucket: s3_xml::Value(bucket_name.to_string()),
-		key: s3_xml::Value(key.to_string()),
-		upload_id: s3_xml::Value(hex::encode(version_uuid)),
-	};
-	let xml = s3_xml::to_xml_with_header(&result)?;
-
-	Ok(Response::new(Body::from(xml.into_bytes())))
-}
-
-pub async fn handle_put_part(
-	garage: Arc<Garage>,
-	req: Request<Body>,
-	bucket_id: Uuid,
-	key: &str,
-	part_number: u64,
-	upload_id: &str,
-	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
-	let version_uuid = decode_upload_id(upload_id)?;
-
-	let content_md5 = match req.headers().get("content-md5") {
-		Some(x) => Some(x.to_str()?.to_string()),
-		None => None,
-	};
-
-	// Read first chuck, and at the same time try to get object to see if it exists
-	let key = key.to_string();
-
-	let body = req.into_body().map_err(Error::from);
-	let mut chunker = StreamChunker::new(body, garage.config.block_size);
-
-	let (object, version, first_block) = futures::try_join!(
-		garage
-			.object_table
-			.get(&bucket_id, &key)
-			.map_err(Error::from),
-		garage
-			.version_table
-			.get(&version_uuid, &EmptyKey)
-			.map_err(Error::from),
-		chunker.next(),
-	)?;
-
-	// Check object is valid and multipart block can be accepted
-	let first_block = first_block.ok_or_bad_request("Empty body")?;
-	let object = object.ok_or_bad_request("Object not found")?;
-
-	if !object
-		.versions()
-		.iter()
-		.any(|v| v.uuid == version_uuid && v.is_uploading())
-	{
-		return Err(Error::NoSuchUpload);
-	}
-
-	// Check part hasn't already been uploaded
-	if let Some(v) = version {
-		if v.has_part_number(part_number) {
-			return Err(Error::bad_request(format!(
-				"Part number {} has already been uploaded",
-				part_number
-			)));
-		}
-	}
-
-	// Copy block to store
-	let version = Version::new(version_uuid, bucket_id, key, false);
-
-	let first_block_hash = async_blake2sum(first_block.clone()).await;
-
-	let (_, data_md5sum, data_sha256sum) = read_and_put_blocks(
-		&garage,
-		&version,
-		part_number,
-		first_block,
-		first_block_hash,
-		&mut chunker,
-	)
-	.await?;
-
-	// Verify that checksums map
-	ensure_checksum_matches(
-		data_md5sum.as_slice(),
-		data_sha256sum,
-		content_md5.as_deref(),
-		content_sha256,
-	)?;
-
-	// Store part etag in version
-	let data_md5sum_hex = hex::encode(data_md5sum);
-	let mut version = version;
-	version
-		.parts_etags
-		.put(part_number, data_md5sum_hex.clone());
-	garage.version_table.insert(&version).await?;
-
-	let response = Response::builder()
-		.header("ETag", format!("\"{}\"", data_md5sum_hex))
-		.body(Body::empty())
-		.unwrap();
-	Ok(response)
-}
-
-pub async fn handle_complete_multipart_upload(
-	garage: Arc<Garage>,
-	req: Request<Body>,
-	bucket_name: &str,
-	bucket: &Bucket,
-	key: &str,
-	upload_id: &str,
-	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
-
-	let body_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
-	let body_list_of_parts = parse_complete_multipart_upload_body(&body_xml)
-		.ok_or_bad_request("Invalid CompleteMultipartUpload XML")?;
-	debug!(
-		"CompleteMultipartUpload list of parts: {:?}",
-		body_list_of_parts
-	);
-
-	let version_uuid = decode_upload_id(upload_id)?;
-
-	// Get object and version
-	let key = key.to_string();
-	let (object, version) = futures::try_join!(
-		garage.object_table.get(&bucket.id, &key),
-		garage.version_table.get(&version_uuid, &EmptyKey),
-	)?;
-
-	let object = object.ok_or(Error::NoSuchKey)?;
-	let mut object_version = object
-		.versions()
-		.iter()
-		.find(|v| v.uuid == version_uuid && v.is_uploading())
-		.cloned()
-		.ok_or(Error::NoSuchUpload)?;
-
-	let version = version.ok_or(Error::NoSuchKey)?;
-	if version.blocks.is_empty() {
-		return Err(Error::bad_request("No data was uploaded"));
-	}
-
-	let headers = match object_version.state {
-		ObjectVersionState::Uploading(headers) => headers,
-		_ => unreachable!(),
-	};
-
-	// Check that part numbers are an increasing sequence.
-	// (it doesn't need to start at 1 nor to be a continuous sequence,
-	// see discussion in #192)
-	if body_list_of_parts.is_empty() {
-		return Err(Error::EntityTooSmall);
-	}
-	if !body_list_of_parts
-		.iter()
-		.zip(body_list_of_parts.iter().skip(1))
-		.all(|(p1, p2)| p1.part_number < p2.part_number)
-	{
-		return Err(Error::InvalidPartOrder);
-	}
-
-	// Garage-specific restriction, see #204: part numbers must be
-	// consecutive starting at 1
-	if body_list_of_parts[0].part_number != 1
-		|| !body_list_of_parts
-			.iter()
-			.zip(body_list_of_parts.iter().skip(1))
-			.all(|(p1, p2)| p1.part_number + 1 == p2.part_number)
-	{
-		return Err(Error::NotImplemented("Garage does not support completing a Multipart upload with non-consecutive part numbers. This is a restriction of Garage's data model, which might be fixed in a future release. See issue #204 for more information on this topic.".into()));
-	}
-
-	// Check that the list of parts they gave us corresponds to the parts we have here
-	debug!("Expected parts from request: {:?}", body_list_of_parts);
-	debug!("Parts stored in version: {:?}", version.parts_etags.items());
-	let parts = version
-		.parts_etags
-		.items()
-		.iter()
-		.map(|pair| (&pair.0, &pair.1));
-	let same_parts = body_list_of_parts
-		.iter()
-		.map(|x| (&x.part_number, &x.etag))
-		.eq(parts);
-	if !same_parts {
-		return Err(Error::InvalidPart);
-	}
-
-	// Check that all blocks belong to one of the parts
-	let block_parts = version
-		.blocks
-		.items()
-		.iter()
-		.map(|(bk, _)| bk.part_number)
-		.collect::<BTreeSet<_>>();
-	let same_parts = body_list_of_parts
-		.iter()
-		.map(|x| x.part_number)
-		.eq(block_parts.into_iter());
-	if !same_parts {
-		return Err(Error::bad_request(
-			"Part numbers in block list and part list do not match. This can happen if a part was partially uploaded. Please abort the multipart upload and try again."
-		));
-	}
-
-	// Calculate etag of final object
-	// To understand how etags are calculated, read more here:
-	// https://teppen.io/2018/06/23/aws_s3_etags/
-	let num_parts = body_list_of_parts.len();
-	let mut etag_md5_hasher = Md5::new();
-	for (_, etag) in version.parts_etags.items().iter() {
-		etag_md5_hasher.update(etag.as_bytes());
-	}
-	let etag = format!("{}-{}", hex::encode(etag_md5_hasher.finalize()), num_parts);
-
-	// Calculate total size of final object
-	let total_size = version.blocks.items().iter().map(|x| x.1.size).sum();
-
-	if let Err(e) = check_quotas(&garage, bucket, &key, total_size).await {
-		object_version.state = ObjectVersionState::Aborted;
-		let final_object = Object::new(bucket.id, key.clone(), vec![object_version]);
-		garage.object_table.insert(&final_object).await?;
-
-		return Err(e);
-	}
-
-	// Write final object version
-	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-		ObjectVersionMeta {
-			headers,
-			size: total_size,
-			etag: etag.clone(),
-		},
-		version.blocks.items()[0].1.hash,
-	));
-
-	let final_object = Object::new(bucket.id, key.clone(), vec![object_version]);
-	garage.object_table.insert(&final_object).await?;
-
-	// Send response saying ok we're done
-	let result = s3_xml::CompleteMultipartUploadResult {
-		xmlns: (),
-		location: None,
-		bucket: s3_xml::Value(bucket_name.to_string()),
-		key: s3_xml::Value(key),
-		etag: s3_xml::Value(format!("\"{}\"", etag)),
-	};
-	let xml = s3_xml::to_xml_with_header(&result)?;
-
-	Ok(Response::new(Body::from(xml.into_bytes())))
-}
-
-pub async fn handle_abort_multipart_upload(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
-	key: &str,
-	upload_id: &str,
-) -> Result<Response<Body>, Error> {
-	let version_uuid = decode_upload_id(upload_id)?;
-
-	let object = garage
-		.object_table
-		.get(&bucket_id, &key.to_string())
-		.await?;
-	let object = object.ok_or(Error::NoSuchKey)?;
-
-	let object_version = object
-		.versions()
-		.iter()
-		.find(|v| v.uuid == version_uuid && v.is_uploading());
-	let mut object_version = match object_version {
-		None => return Err(Error::NoSuchUpload),
-		Some(x) => x.clone(),
-	};
-
-	object_version.state = ObjectVersionState::Aborted;
-	let final_object = Object::new(bucket_id, key.to_string(), vec![object_version]);
-	garage.object_table.insert(&final_object).await?;
-
-	Ok(Response::new(Body::from(vec![])))
-}
-
-fn get_mime_type(headers: &HeaderMap<HeaderValue>) -> Result<String, Error> {
+pub(crate) fn get_mime_type(headers: &HeaderMap<HeaderValue>) -> Result<String, Error> {
 	Ok(headers
 		.get(hyper::header::CONTENT_TYPE)
 		.map(|x| x.to_str())
@@ -820,55 +511,4 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVers
 		content_type,
 		other,
 	})
-}
-
-pub fn decode_upload_id(id: &str) -> Result<Uuid, Error> {
-	let id_bin = hex::decode(id).map_err(|_| Error::NoSuchUpload)?;
-	if id_bin.len() != 32 {
-		return Err(Error::NoSuchUpload);
-	}
-	let mut uuid = [0u8; 32];
-	uuid.copy_from_slice(&id_bin[..]);
-	Ok(Uuid::from(uuid))
-}
-
-#[derive(Debug)]
-struct CompleteMultipartUploadPart {
-	etag: String,
-	part_number: u64,
-}
-
-fn parse_complete_multipart_upload_body(
-	xml: &roxmltree::Document,
-) -> Option<Vec<CompleteMultipartUploadPart>> {
-	let mut parts = vec![];
-
-	let root = xml.root();
-	let cmu = root.first_child()?;
-	if !cmu.has_tag_name("CompleteMultipartUpload") {
-		return None;
-	}
-
-	for item in cmu.children() {
-		// Only parse <Part> nodes
-		if !item.is_element() {
-			continue;
-		}
-
-		if item.has_tag_name("Part") {
-			let etag = item.children().find(|e| e.has_tag_name("ETag"))?.text()?;
-			let part_number = item
-				.children()
-				.find(|e| e.has_tag_name("PartNumber"))?
-				.text()?;
-			parts.push(CompleteMultipartUploadPart {
-				etag: etag.trim_matches('"').to_string(),
-				part_number: part_number.parse().ok()?,
-			});
-		} else {
-			return None;
-		}
-	}
-
-	Some(parts)
 }

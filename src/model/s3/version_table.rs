@@ -3,6 +3,7 @@ use std::sync::Arc;
 use garage_db as db;
 
 use garage_util::data::*;
+use garage_util::error::*;
 
 use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
@@ -187,6 +188,16 @@ impl Version {
 			.items()
 			.binary_search_by(|(k, _)| k.part_number.cmp(&part_number))
 			.is_ok()
+	}
+
+	pub fn n_parts(&self) -> Result<u64, Error> {
+		Ok(self
+			.blocks
+			.items()
+			.last()
+			.ok_or_message("version has no parts")?
+			.0
+			.part_number)
 	}
 }
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use garage_db as db;
 
 use garage_util::data::*;
+use garage_util::time::*;
 
 use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
@@ -93,6 +94,20 @@ impl MultipartUpload {
 			bucket_id,
 			key,
 		}
+	}
+
+	pub fn next_timestamp(&self, part_number: u64) -> u64 {
+		std::cmp::max(
+			now_msec(),
+			1 + self
+				.parts
+				.items()
+				.iter()
+				.filter(|(x, _)| x.part_number == part_number)
+				.map(|(x, _)| x.timestamp)
+				.max()
+				.unwrap_or(0),
+		)
 	}
 }
 
