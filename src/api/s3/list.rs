@@ -484,27 +484,25 @@ fn fetch_part_info<'a>(
 		}
 	}
 
-	// Cut the beginning and end
-	match &query.part_number_marker {
-		Some(marker) => {
-			let next = marker + 1;
-			let part_idx =
-				into_ok_or_err(parts.binary_search_by(|part| part.part_number.cmp(&next)));
-			parts.truncate(part_idx + query.max_parts as usize);
-			parts = parts.split_off(part_idx);
-		}
-		None => {
-			parts.truncate(query.max_parts as usize);
-		}
-	};
-
-	match parts.last() {
-		Some(part_info) => {
-			let pagination = Some(part_info.part_number);
-			Ok((parts, pagination))
-		}
-		None => Ok((parts, None)),
+	// Cut the beginning if we have a marker
+	if let Some(marker) = &query.part_number_marker {
+		let next = marker + 1;
+		let part_idx = parts
+			.binary_search_by(|part| part.part_number.cmp(&next))
+			.unwrap_or_else(|x| x);
+		parts = parts.split_off(part_idx);
 	}
+
+	// Cut the end if we have too many parts
+	if parts.len() > query.max_parts as usize {
+		parts.truncate(query.max_parts as usize);
+		if let Some(part_info) = parts.last() {
+			let pagination = Some(part_info.part_number);
+			return Ok((parts, pagination));
+		}
+	}
+
+	Ok((parts, None))
 }
 
 /*
@@ -866,14 +864,6 @@ impl ExtractAccumulator for UploadAccumulator {
  * Utility functions
  */
 
-/// This is a stub for Result::into_ok_or_err that is not yet in Rust stable
-fn into_ok_or_err<T>(r: Result<T, T>) -> T {
-	match r {
-		Ok(r) => r,
-		Err(r) => r,
-	}
-}
-
 /// Returns the common prefix of the object given the query prefix and delimiter
 fn common_prefix<'a>(object: &'a Object, query: &ListQueryCommon) -> Option<&'a str> {
 	match &query.delimiter {
@@ -899,7 +889,6 @@ fn uriencode_maybe(s: &str, yes: bool) -> s3_xml::Value {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use garage_model::s3::version_table::*;
 	use garage_util::*;
 	use std::iter::FromIterator;
 
@@ -1120,83 +1109,74 @@ mod tests {
 		Ok(())
 	}
 
-	fn version() -> Version {
+	fn mpu() -> MultipartUpload {
 		let uuid = Uuid::from([0x08; 32]);
 
-		let blocks = vec![
+		let parts = vec![
 			(
-				VersionBlockKey {
+				MpuPartKey {
 					part_number: 1,
-					offset: 1,
+					timestamp: TS,
 				},
-				VersionBlock {
-					hash: uuid,
-					size: 3,
+				MpuPart {
+					version: uuid,
+					size: Some(3),
+					etag: Some("etag1".into()),
 				},
 			),
 			(
-				VersionBlockKey {
-					part_number: 1,
-					offset: 2,
-				},
-				VersionBlock {
-					hash: uuid,
-					size: 2,
-				},
-			),
-			(
-				VersionBlockKey {
+				MpuPartKey {
 					part_number: 2,
-					offset: 1,
+					timestamp: TS,
 				},
-				VersionBlock {
-					hash: uuid,
-					size: 8,
+				MpuPart {
+					version: uuid,
+					size: None,
+					etag: None,
 				},
 			),
 			(
-				VersionBlockKey {
+				MpuPartKey {
+					part_number: 3,
+					timestamp: TS,
+				},
+				MpuPart {
+					version: uuid,
+					size: Some(10),
+					etag: Some("etag2".into()),
+				},
+			),
+			(
+				MpuPartKey {
 					part_number: 5,
-					offset: 1,
+					timestamp: TS,
 				},
-				VersionBlock {
-					hash: uuid,
-					size: 7,
+				MpuPart {
+					version: uuid,
+					size: Some(7),
+					etag: Some("etag3".into()),
 				},
 			),
 			(
-				VersionBlockKey {
+				MpuPartKey {
 					part_number: 8,
-					offset: 1,
+					timestamp: TS,
 				},
-				VersionBlock {
-					hash: uuid,
-					size: 5,
+				MpuPart {
+					version: uuid,
+					size: Some(5),
+					etag: Some("etag4".into()),
 				},
 			),
 		];
-		let etags = vec![
-			(1, "etag1".to_string()),
-			(3, "etag2".to_string()),
-			(5, "etag3".to_string()),
-			(8, "etag4".to_string()),
-			(9, "etag5".to_string()),
-		];
 
-		Version {
-			uuid,
+		MultipartUpload {
+			upload_id: uuid,
 			deleted: false.into(),
-			blocks: crdt::Map::<VersionBlockKey, VersionBlock>::from_iter(blocks),
-			backlink: VersionBacklink::Object {
-				bucket_id: uuid,
-				key: "a".to_string(),
-			},
-			parts_etags: crdt::Map::<u64, String>::from_iter(etags),
+			parts: crdt::Map::<MpuPartKey, MpuPart>::from_iter(parts),
+			bucket_id: uuid,
+			key: "a".into(),
 		}
-	}
-
-	fn obj() -> Object {
-		Object::new(bucket(), "d".to_string(), vec![objup_version([0x08; 32])])
 	}
 
 	#[test]
@@ -1211,82 +1191,85 @@ mod tests {
 			max_parts: 2,
 		};
 
-		assert!(
-			fetch_part_info(&query, None, None, uuid).is_err(),
-			"No object and version should fail"
-		);
-		assert!(
-			fetch_part_info(&query, Some(obj()), None, uuid).is_err(),
-			"No version should faild"
-		);
-		assert!(
-			fetch_part_info(&query, None, Some(version()), uuid).is_err(),
-			"No object should fail"
-		);
+		let mpu = mpu();
 
 		// Start from the beginning but with limited size to trigger pagination
-		let (info, pagination) = fetch_part_info(&query, Some(obj()), Some(version()), uuid)?;
-		assert_eq!(pagination.unwrap(), 5);
+		let (info, pagination) = fetch_part_info(&query, &mpu)?;
+		assert_eq!(pagination.unwrap(), 3);
 		assert_eq!(
 			info,
 			vec![
 				PartInfo {
-					etag: "etag1".to_string(),
+					etag: "etag1",
 					timestamp: TS,
 					part_number: 1,
-					size: 5
+					size: 3
 				},
 				PartInfo {
-					etag: "etag3".to_string(),
+					etag: "etag2",
 					timestamp: TS,
-					part_number: 5,
-					size: 7
+					part_number: 3,
+					size: 10
 				},
 			]
 		);
 
 		// Use previous pagination to make a new request
 		query.part_number_marker = Some(pagination.unwrap());
-		let (info, pagination) = fetch_part_info(&query, Some(obj()), Some(version()), uuid)?;
+		let (info, pagination) = fetch_part_info(&query, &mpu)?;
 		assert!(pagination.is_none());
 		assert_eq!(
 			info,
-			vec![PartInfo {
-				etag: "etag4".to_string(),
-				timestamp: TS,
-				part_number: 8,
-				size: 5
-			},]
+			vec![
+				PartInfo {
+					etag: "etag3",
+					timestamp: TS,
+					part_number: 5,
+					size: 7
+				},
+				PartInfo {
+					etag: "etag4",
+					timestamp: TS,
+					part_number: 8,
+					size: 5
+				},
+			]
 		);
 
 		// Trying to access a part that is way larger than registered ones
 		query.part_number_marker = Some(9999);
-		let (info, pagination) = fetch_part_info(&query, Some(obj()), Some(version()), uuid)?;
+		let (info, pagination) = fetch_part_info(&query, &mpu)?;
 		assert!(pagination.is_none());
 		assert_eq!(info, vec![]);
 
 		// Try without any limitation
 		query.max_parts = 1000;
 		query.part_number_marker = None;
-		let (info, pagination) = fetch_part_info(&query, Some(obj()), Some(version()), uuid)?;
+		let (info, pagination) = fetch_part_info(&query, &mpu)?;
 		assert!(pagination.is_none());
 		assert_eq!(
 			info,
 			vec![
 				PartInfo {
-					etag: "etag1".to_string(),
+					etag: "etag1",
 					timestamp: TS,
 					part_number: 1,
-					size: 5
+					size: 3
 				},
 				PartInfo {
-					etag: "etag3".to_string(),
+					etag: "etag2",
+					timestamp: TS,
+					part_number: 3,
+					size: 10
+				},
+				PartInfo {
+					etag: "etag3",
 					timestamp: TS,
 					part_number: 5,
 					size: 7
 				},
 				PartInfo {
-					etag: "etag4".to_string(),
+					etag: "etag4",
 					timestamp: TS,
 					part_number: 8,
 					size: 5
