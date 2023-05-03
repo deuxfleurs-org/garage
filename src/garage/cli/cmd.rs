@@ -215,8 +215,9 @@ pub async fn cmd_admin(
 			hash,
 			refcount,
 			versions,
+			uploads,
 		} => {
-			print_block_info(hash, refcount, versions);
+			print_block_info(hash, refcount, versions, uploads);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);
