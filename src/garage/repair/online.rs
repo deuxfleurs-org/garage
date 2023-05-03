@@ -107,28 +107,29 @@ impl Worker for RepairVersionsWorker {
 
 		let version = Version::decode(&item_bytes).ok_or_message("Cannot decode Version")?;
 		if !version.deleted.get() {
-			let object = self
-				.garage
-				.object_table
-				.get(&version.bucket_id, &version.key)
-				.await?;
-			let version_exists = match object {
-				Some(o) => o
-					.versions()
-					.iter()
-					.any(|x| x.uuid == version.uuid && x.state != ObjectVersionState::Aborted),
-				None => false,
+			let version_exists = match &version.backlink {
+				VersionBacklink::Object { bucket_id, key } => {
+					let object = self.garage.object_table.get(&bucket_id, &key).await?;
+					match object {
+						Some(o) => o.versions().iter().any(|x| {
+							x.uuid == version.uuid && x.state != ObjectVersionState::Aborted
+						}),
+						None => false,
+					}
+				}
+				VersionBacklink::MultipartUpload { upload_id } => {
+					let mpu = self.garage.mpu_table.get(&upload_id, &EmptyKey).await?;
+					match mpu {
+						Some(u) => !u.deleted.get(),
+						None => false,
+					}
+				}
 			};
 			if !version_exists {
 				info!("Repair versions: marking version as deleted: {:?}", version);
 				self.garage
 					.version_table
-					.insert(&Version::new(
-						version.uuid,
-						version.bucket_id,
-						version.key,
-						true,
-					))
+					.insert(&Version::new(version.uuid, version.backlink, true))
 					.await?;
 			}
 		}
