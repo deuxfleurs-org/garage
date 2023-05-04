@@ -452,6 +452,9 @@ pub enum RepairWhat {
 	/// Only redo the propagation of object deletions to the version table (slow)
 	#[structopt(name = "versions", version = garage_version())]
 	Versions,
+	/// Only redo the propagation of object deletions to the multipart upload table (slow)
+	#[structopt(name = "mpu", version = garage_version())]
+	MultipartUploads,
 	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
 	#[structopt(name = "block_refs", version = garage_version())]
 	BlockRefs,
