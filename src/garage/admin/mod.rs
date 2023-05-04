@@ -53,6 +53,7 @@ pub enum AdminRpc {
 		bucket: Bucket,
 		relevant_keys: HashMap<String, Key>,
 		counters: HashMap<String, i64>,
+		mpu_counters: HashMap<String, i64>,
 	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),

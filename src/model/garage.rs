@@ -335,6 +335,8 @@ impl Garage {
 
 		self.object_table.spawn_workers(bg);
 		self.object_counter_table.spawn_workers(bg);
+		self.mpu_table.spawn_workers(bg);
+		self.mpu_counter_table.spawn_workers(bg);
 		self.version_table.spawn_workers(bg);
 		self.block_ref_table.spawn_workers(bg);
 

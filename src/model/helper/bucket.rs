@@ -478,7 +478,9 @@ impl<'a> BucketHelper<'a> {
 	// ----
 
 	/// Deletes all incomplete multipart uploads that are older than a certain time.
-	/// Returns the number of uploads aborted
+	/// Returns the number of uploads aborted.
+	/// This will also include non-multipart uploads, which may be lingering
+	/// after a node crash
 	pub async fn cleanup_incomplete_uploads(
 		&self,
 		bucket_id: &Uuid,

@@ -190,8 +190,9 @@ pub async fn cmd_admin(
 			bucket,
 			relevant_keys,
 			counters,
+			mpu_counters,
 		} => {
-			print_bucket_info(&bucket, &relevant_keys, &counters);
+			print_bucket_info(&bucket, &relevant_keys, &counters, &mpu_counters);
 		}
 		AdminRpc::KeyList(kl) => {
 			print_key_list(kl);

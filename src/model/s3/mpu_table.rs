@@ -208,7 +208,7 @@ impl TableSchema for MultipartUploadTable {
 }
 
 impl CountedItem for MultipartUpload {
-	const COUNTER_TABLE_NAME: &'static str = "bucket_mpu_part_counter";
+	const COUNTER_TABLE_NAME: &'static str = "bucket_mpu_counter";
 
 	// Partition key = bucket id
 	type CP = Uuid;
