@@ -282,15 +282,17 @@ pub async fn handle_list_parts(
 
 	let result = s3_xml::ListPartsResult {
 		xmlns: (),
+
 		// Query parameters
 		bucket: s3_xml::Value(query.bucket_name.to_string()),
 		key: s3_xml::Value(query.key.to_string()),
 		upload_id: s3_xml::Value(query.upload_id.to_string()),
 		part_number_marker: query.part_number_marker.map(|e| s3_xml::IntValue(e as i64)),
 		max_parts: s3_xml::IntValue(query.max_parts as i64),
+
 		// Result values
 		next_part_number_marker: next.map(|e| s3_xml::IntValue(e as i64)),
-		is_truncated: s3_xml::Value(next.map(|_| "true").unwrap_or("false").to_string()),
+		is_truncated: s3_xml::Value(format!("{}", next.is_some())),
 		parts: info
 			.iter()
 			.map(|part| s3_xml::PartItem {
@@ -300,6 +302,7 @@ pub async fn handle_list_parts(
 				size: s3_xml::IntValue(part.size as i64),
 			})
 			.collect(),
+
 		// Dummy result values (unsupported features)
 		initiator: s3_xml::Initiator {
 			display_name: s3_xml::Value(DUMMY_NAME.to_string()),
@@ -462,6 +465,8 @@ fn fetch_part_info<'a>(
 	query: &ListPartsQuery,
 	mpu: &'a MultipartUpload,
 ) -> Result<(Vec<PartInfo<'a>>, Option<u64>), Error> {
+	assert!((1..=1000).contains(&query.max_parts)); // see s3/api_server.rs
+
 	// Parse multipart upload part list, removing parts not yet finished
 	// and failed part uploads that were overwritten
 	let mut parts: Vec<PartInfo<'a>> = Vec::with_capacity(mpu.parts.items().len());
@@ -496,10 +501,8 @@ fn fetch_part_info<'a>(
 	// Cut the end if we have too many parts
 	if parts.len() > query.max_parts as usize {
 		parts.truncate(query.max_parts as usize);
-		if let Some(part_info) = parts.last() {
-			let pagination = Some(part_info.part_number);
-			return Ok((parts, pagination));
-		}
+		let pagination = Some(parts.last().unwrap().part_number);
+		return Ok((parts, pagination));
 	}
 
 	Ok((parts, None))
