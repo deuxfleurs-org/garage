@@ -340,6 +340,7 @@ pub async fn handle_abort_multipart_upload(
 
 // ======== helpers ============
 
+#[allow(clippy::ptr_arg)]
 pub(crate) async fn get_upload(
 	garage: &Garage,
 	bucket_id: &Uuid,
@@ -347,13 +348,10 @@ pub(crate) async fn get_upload(
 	upload_id: &Uuid,
 ) -> Result<(Object, ObjectVersion, MultipartUpload), Error> {
 	let (object, mpu) = futures::try_join!(
-		garage
-			.object_table
-			.get(&bucket_id, &key)
-			.map_err(Error::from),
+		garage.object_table.get(bucket_id, key).map_err(Error::from),
 		garage
 			.mpu_table
-			.get(&upload_id, &EmptyKey)
+			.get(upload_id, &EmptyKey)
 			.map_err(Error::from),
 	)?;
 

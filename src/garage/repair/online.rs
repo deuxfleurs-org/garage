@@ -170,7 +170,7 @@ impl TableRepair for RepairVersions {
 			let ref_exists = match &version.backlink {
 				VersionBacklink::Object { bucket_id, key } => garage
 					.object_table
-					.get(&bucket_id, &key)
+					.get(bucket_id, key)
 					.await?
 					.map(|o| {
 						o.versions().iter().any(|x| {
@@ -180,7 +180,7 @@ impl TableRepair for RepairVersions {
 					.unwrap_or(false),
 				VersionBacklink::MultipartUpload { upload_id } => garage
 					.mpu_table
-					.get(&upload_id, &EmptyKey)
+					.get(upload_id, &EmptyKey)
 					.await?
 					.map(|u| !u.deleted.get())
 					.unwrap_or(false),

@@ -153,7 +153,7 @@ impl AdminRpcHandler {
 		let (bucket_id, key, ov_id) = match &version.backlink {
 			VersionBacklink::Object { bucket_id, key } => (*bucket_id, key.clone(), version.uuid),
 			VersionBacklink::MultipartUpload { upload_id } => {
-				if let Some(mut mpu) = self.garage.mpu_table.get(&upload_id, &EmptyKey).await? {
+				if let Some(mut mpu) = self.garage.mpu_table.get(upload_id, &EmptyKey).await? {
 					if !mpu.deleted.get() {
 						mpu.parts.clear();
 						mpu.deleted.set();

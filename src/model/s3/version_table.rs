@@ -134,8 +134,9 @@ pub(crate) mod v09 {
 		/// list of blocks of data composing the version
 		pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
 
-		// Back link to bucket+key so that we can figure if
-		// this was deleted later on
+		// Back link to owner of this version (either an object or a multipart
+		// upload), used to find whether it has been deleted and this version
+		// should in turn be deleted (see versions repair procedure)
 		pub backlink: VersionBacklink,
 	}
 

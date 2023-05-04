@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use garage_db as db;
 
+use garage_util::crdt::Crdt;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
@@ -21,8 +21,6 @@ mod v09 {
 	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
 
-	pub use crate::s3::version_table::v09::VersionBlock;
-
 	/// A part of a multipart upload
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct MultipartUpload {
@@ -30,15 +28,16 @@ mod v09 {
 		pub upload_id: Uuid,
 
 		/// Is this multipart upload deleted
+		/// The MultipartUpload is marked as deleted as soon as the
+		/// multipart upload is either completed or aborted
 		pub deleted: crdt::Bool,
 		/// List of uploaded parts, key = (part number, timestamp)
 		/// In case of retries, all versions for each part are kept
-		/// Everything is cleaned up only once the multipart upload is completed or
-		/// aborted
+		/// Everything is cleaned up only once the MultipartUpload is marked deleted
 		pub parts: crdt::Map<MpuPartKey, MpuPart>,
 
-		// Back link to bucket+key so that we can figure if
-		// this was deleted later on
+		// Back link to bucket+key so that we can find the object this mpu
+		// belongs to and check whether it is still valid
 		/// Bucket in which the related object is stored
 		pub bucket_id: Uuid,
 		/// Key in which the related object is stored
