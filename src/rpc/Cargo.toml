@@ -50,4 +50,5 @@ netapp = { version = "0.5.2", features = ["telemetry"] }
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "schemars" ]
 consul-discovery = [ "reqwest", "err-derive" ]
+consul-service-discovery = [ "reqwest", "err-derive" ]
 system-libs = [ "sodiumoxide/use-pkg-config" ]

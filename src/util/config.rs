@@ -56,6 +56,9 @@ pub struct Config {
 	/// Configuration for automatic node discovery through Consul
 	#[serde(default)]
 	pub consul_discovery: Option<ConsulDiscoveryConfig>,
+	/// Configuration for automatic node discovery through Consul
+	#[serde(default)]
+	pub consul_service_discovery: Option<ConsulServiceConfig>,
 	/// Configuration for automatic node discovery through Kubernetes
 	#[serde(default)]
 	pub kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
@@ -147,6 +150,24 @@ pub struct ConsulDiscoveryConfig {
 	pub client_cert: Option<String>,
 	/// Client TLS key to use when connecting to Consul
 	pub client_key: Option<String>,
+	/// Skip TLS hostname verification
+	#[serde(default)]
+	pub tls_skip_verify: bool,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ConsulServiceConfig {
+	/// Consul http or https address to connect to to discover more peers
+	pub consul_http_addr: String,
+	/// Token to use for connecting to consul
+	pub consul_http_token: Option<String>,
+	/// Consul service name to use
+	pub service_name: String,
+	/// CA TLS certificate to use when connecting to Consul
+	pub ca_cert: Option<String>,
+	// Additional tags to add to the service
+	#[serde(default)]
+	pub tags: Vec<String>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,
@@ -344,7 +365,7 @@ mod tests {
 			replication_mode = "3"
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret_file = "{}"
-		
+
 			[s3_api]
 			s3_region = "garage"
 			api_bind_addr = "[::]:3900"
@@ -388,7 +409,7 @@ mod tests {
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret= "dummy"
 			rpc_secret_file = "dummy"
-		
+
 			[s3_api]
 			s3_region = "garage"
 			api_bind_addr = "[::]:3900"
