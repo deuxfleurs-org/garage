@@ -4,8 +4,8 @@ use crate::k2v::json_body;
 
 use assert_json_diff::assert_json_eq;
 use aws_sdk_s3::{
-	model::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
-	types::ByteStream,
+	primitives::ByteStream,
+	types::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
 };
 use http::{Request, StatusCode};
 use hyper::{

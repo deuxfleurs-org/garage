@@ -1,7 +1,7 @@
 use crate::common;
 use crate::common::ext::CommandExt;
-use aws_sdk_s3::model::BucketLocationConstraint;
-use aws_sdk_s3::output::DeleteBucketOutput;
+use aws_sdk_s3::operation::delete_bucket::DeleteBucketOutput;
+use aws_sdk_s3::types::BucketLocationConstraint;
 
 #[tokio::test]
 async fn test_bucket_all() {
