@@ -33,7 +33,7 @@ garage_web = { version = "0.8.2", path = "../web" }
 backtrace = "0.3"
 bytes = "1.0"
 bytesize = "1.1"
-timeago = "0.4"
+timeago = { version = "0.4", default-features = false }
 parse_duration = "2.1"
 hex = "0.4"
 tracing = { version = "0.1" }

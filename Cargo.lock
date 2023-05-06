@@ -1758,15 +1758,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "isolang"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b64fd6448ee8a45ce6e4365c58e4fa7d8740cba2ed70db3e9ab4879ebd93eaaa"
-dependencies = [
- "phf",
-]
-
-[[package]]
 name = "itertools"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2544,24 +2535,6 @@ checksum = "e6d5014253a1331579ce62aa67443b4a658c5e7dd03d4bc6d302b94474888143"
 dependencies = [
  "fixedbitset",
  "indexmap",
-]
-
-[[package]]
-name = "phf"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fabbf1ead8a5bcbc20f5f8b939ee3f5b0f6f281b6ad3468b84656b658b455259"
-dependencies = [
- "phf_shared",
-]
-
-[[package]]
-name = "phf_shared"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6796ad771acdc0123d2a88dc428b5e38ef24456743ddb1744ed628f9815c096"
-dependencies = [
- "siphasher",
 ]
 
 [[package]]
@@ -3407,12 +3380,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "siphasher"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bd3e3206899af3f8b12af284fafc038cc1dc2b41d1b89dd17297221c5d225de"
-
-[[package]]
 name = "slab"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3678,10 +3645,6 @@ name = "timeago"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5082dc942361cdfb74eab98bf995762d6015e5bb3a20bf7c5c71213778b4fcb4"
-dependencies = [
- "chrono",
- "isolang",
-]
 
 [[package]]
 name = "tinyvec"
