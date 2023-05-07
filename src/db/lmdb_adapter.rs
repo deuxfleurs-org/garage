@@ -349,6 +349,6 @@ pub fn recommended_map_size() -> usize {
 
 #[cfg(target_pointer_width = "32")]
 pub fn recommended_map_size() -> usize {
-	warn!("LMDB is not recommended on 32-bit systems, database size will be limited");
+	tracing::warn!("LMDB is not recommended on 32-bit systems, database size will be limited");
 	1usize << 30
 }
