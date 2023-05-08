@@ -67,7 +67,10 @@ impl ConsulServiceDiscovery {
 
 		if let Some(token) = &config.consul_http_token {
 			let mut headers = reqwest::header::HeaderMap::new();
-			headers.insert("x-consul-token", reqwest::header::HeaderValue::from_str(&token)?);
+			headers.insert(
+				"x-consul-token",
+				reqwest::header::HeaderValue::from_str(&token)?,
+			);
 			builder = builder.default_headers(headers);
 		}
 

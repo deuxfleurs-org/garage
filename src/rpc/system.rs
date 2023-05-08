@@ -100,7 +100,11 @@ pub struct System {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
-	#[cfg(any(feature = "consul-discovery", feature = "consul-service-discovery", feature = "kubernetes-discovery"))]
+	#[cfg(any(
+		feature = "consul-discovery",
+		feature = "consul-service-discovery",
+		feature = "kubernetes-discovery"
+	))]
 	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<String>,
 
@@ -386,7 +390,11 @@ impl System {
 			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
-			#[cfg(any(feature = "consul-discovery", feature = "consul-service-discovery", feature = "kubernetes-discovery"))]
+			#[cfg(any(
+				feature = "consul-discovery",
+				feature = "consul-service-discovery",
+				feature = "kubernetes-discovery"
+			))]
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
@@ -600,7 +608,6 @@ impl System {
 			error!("Error while publishing Consul service: {}", e);
 		}
 	}
-
 
 	#[cfg(feature = "kubernetes-discovery")]
 	async fn advertise_to_kubernetes(self: Arc<Self>) {
