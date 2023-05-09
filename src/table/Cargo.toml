@@ -14,9 +14,9 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_db = { version = "0.8.2", path = "../db" }
-garage_rpc = { version = "0.8.2", path = "../rpc" }
-garage_util = { version = "0.8.2", path = "../util" }
+garage_db.workspace = true
+garage_rpc.workspace = true
+garage_util.workspace = true
 
 opentelemetry = "0.17"
 
