@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
@@ -9,8 +7,8 @@ use crate::schema::*;
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EmptyKey;
 impl SortKey for EmptyKey {
-	fn sort_key(&self) -> Cow<'_, [u8]> {
-		Cow::from(&[][..])
+	fn sort_key(&self) -> &[u8] {
+		&[]
 	}
 }
 impl PartitionKey for EmptyKey {

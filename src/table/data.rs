@@ -347,7 +347,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	// ---- Utility functions ----
 
 	pub fn tree_key(&self, p: &F::P, s: &F::S) -> Vec<u8> {
-		[p.hash().as_slice(), s.sort_key().as_ref()].concat()
+		[p.hash().as_slice(), s.sort_key()].concat()
 	}
 
 	pub fn decode_entry(&self, bytes: &[u8]) -> Result<F::E, Error> {
