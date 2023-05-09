@@ -254,7 +254,7 @@ pub async fn handle_complete_multipart_upload(
 		for (vbk, vb) in part_version.blocks.items().iter() {
 			final_version.blocks.put(
 				VersionBlockKey {
-					part_number: part_number as u64,
+					part_number: (part_number + 1) as u64,
 					offset: vbk.offset,
 				},
 				*vb,

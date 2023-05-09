@@ -6,6 +6,190 @@ const SZ_5MB: usize = 5 * 1024 * 1024;
 const SZ_10MB: usize = 10 * 1024 * 1024;
 
 #[tokio::test]
+async fn test_multipart_upload() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("testmpu");
+
+	let u1 = vec![0x11; SZ_5MB];
+	let u2 = vec![0x22; SZ_5MB];
+	let u3 = vec![0x33; SZ_5MB];
+	let u4 = vec![0x44; SZ_5MB];
+	let u5 = vec![0x55; SZ_5MB];
+
+	let up = ctx
+		.client
+		.create_multipart_upload()
+		.bucket(&bucket)
+		.key("a")
+		.send()
+		.await
+		.unwrap();
+	assert!(up.upload_id.is_some());
+
+	let uid = up.upload_id.as_ref().unwrap();
+
+	let p3 = ctx
+		.client
+		.upload_part()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.part_number(3)
+		.body(ByteStream::from(u3.clone()))
+		.send()
+		.await
+		.unwrap();
+
+	let _p1 = ctx
+		.client
+		.upload_part()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.part_number(1)
+		.body(ByteStream::from(u1))
+		.send()
+		.await
+		.unwrap();
+
+	let _p4 = ctx
+		.client
+		.upload_part()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.part_number(4)
+		.body(ByteStream::from(u4))
+		.send()
+		.await
+		.unwrap();
+
+	let p1bis = ctx
+		.client
+		.upload_part()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.part_number(1)
+		.body(ByteStream::from(u2.clone()))
+		.send()
+		.await
+		.unwrap();
+
+	let p6 = ctx
+		.client
+		.upload_part()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.part_number(6)
+		.body(ByteStream::from(u5.clone()))
+		.send()
+		.await
+		.unwrap();
+
+	{
+		let r = ctx
+			.client
+			.list_parts()
+			.bucket(&bucket)
+			.key("a")
+			.upload_id(uid)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(r.parts.unwrap().len(), 4);
+	}
+
+	let cmp = CompletedMultipartUpload::builder()
+		.parts(
+			CompletedPart::builder()
+				.part_number(1)
+				.e_tag(p1bis.e_tag.unwrap())
+				.build(),
+		)
+		.parts(
+			CompletedPart::builder()
+				.part_number(3)
+				.e_tag(p3.e_tag.unwrap())
+				.build(),
+		)
+		.parts(
+			CompletedPart::builder()
+				.part_number(6)
+				.e_tag(p6.e_tag.unwrap())
+				.build(),
+		)
+		.build();
+
+	ctx.client
+		.complete_multipart_upload()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.multipart_upload(cmp)
+		.send()
+		.await
+		.unwrap();
+
+	// The multipart upload must not appear anymore
+	assert!(ctx
+		.client
+		.list_parts()
+		.bucket(&bucket)
+		.key("a")
+		.upload_id(uid)
+		.send()
+		.await
+		.is_err());
+
+	{
+		// The object must appear as a regular object
+		let r = ctx
+			.client
+			.head_object()
+			.bucket(&bucket)
+			.key("a")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.content_length, (SZ_5MB * 3) as i64);
+	}
+
+	{
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key("a")
+			.send()
+			.await
+			.unwrap();
+
+		assert_bytes_eq!(o.body, &[&u2[..], &u3[..], &u5[..]].concat());
+	}
+
+	{
+		for (part_number, data) in [(1, &u2), (2, &u3), (3, &u5)] {
+			let o = ctx
+				.client
+				.get_object()
+				.bucket(&bucket)
+				.key("a")
+				.part_number(part_number)
+				.send()
+				.await
+				.unwrap();
+
+			eprintln!("get_object with part_number = {}", part_number);
+			assert_eq!(o.content_length, SZ_5MB as i64);
+			assert_bytes_eq!(o.body, data);
+		}
+	}
+}
+
+#[tokio::test]
 async fn test_uploadlistpart() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("uploadpart");
@@ -112,13 +296,13 @@ async fn test_uploadlistpart() {
 		assert_eq!(fp.size, SZ_5MB as i64);
 
 		assert_eq!(ps[1].part_number, 2);
-		let fp = &ps[1];
-		assert!(fp.last_modified.is_some());
+		let sp = &ps[1];
+		assert!(sp.last_modified.is_some());
 		assert_eq!(
-			fp.e_tag.as_ref().unwrap(),
+			sp.e_tag.as_ref().unwrap(),
 			"\"3366bb9dcf710d6801b5926467d02e19\""
 		);
-		assert_eq!(fp.size, SZ_5MB as i64);
+		assert_eq!(sp.size, SZ_5MB as i64);
 	}
 
 	{
