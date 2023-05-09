@@ -168,6 +168,9 @@ pub struct ConsulServiceConfig {
 	// Additional tags to add to the service
 	#[serde(default)]
 	pub tags: Vec<String>,
+	// Additional service metadata to add
+	#[serde(default)]
+	pub meta: Option<std::collections::HashMap<String, String>>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,

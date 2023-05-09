@@ -129,17 +129,22 @@ impl ConsulServiceDiscovery {
 		]
 		.concat();
 
+		let mut meta = HashMap::from([
+			(format!("{}-pubkey", META_PREFIX), hex::encode(node_id)),
+			(format!("{}-hostname", META_PREFIX), hostname.to_string()),
+		]);
+
+		if let Some(global_meta) = &self.config.meta {
+			for (key, value) in global_meta.into_iter() {
+				meta.insert(key.clone(), value.clone());
+			}
+		}
+
 		let advertisement: ConsulPublishService = ConsulPublishService {
 			service_id: node.clone(),
 			service_name: self.config.service_name.clone(),
 			tags,
-			meta: [
-				(format!("{}-pubkey", META_PREFIX), hex::encode(node_id)),
-				(format!("{}-hostname", META_PREFIX), hostname.to_string()),
-			]
-			.iter()
-			.cloned()
-			.collect(),
+			meta,
 			address: rpc_public_addr.ip(),
 			port: rpc_public_addr.port(),
 		};

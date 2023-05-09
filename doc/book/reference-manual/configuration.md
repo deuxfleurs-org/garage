@@ -42,6 +42,17 @@ client_cert = "/etc/consul/consul-client.crt"
 client_key = "/etc/consul/consul-key.crt"
 tls_skip_verify = false
 
+[consul_service_discovery]
+consul_http_addr = "https://127.0.0.1:8501"
+consul_http_token = "abcdef-01234-56789"
+service_name = "garage"
+ca_cert = "/etc/consul/consul-ca.crt"
+tls_skip_verify = false
+# tags to add to the published service
+tags = [ "dns-enabled" ]
+# additional service meta to send along registration
+meta = { dns-acl = "allow trusted" }
+
 [kubernetes_discovery]
 namespace = "garage"
 service_name = "garage-daemon"
@@ -201,7 +212,7 @@ Garage supports the following replication modes:
     that should probably never be used.
 
 Note that in modes `2` and `3`,
-if at least the same number of zones are available, an arbitrary number of failures in 
+if at least the same number of zones are available, an arbitrary number of failures in
 any given zone is tolerated as copies of data will be spread over several zones.
 
 **Make sure `replication_mode` is the same in the configuration files of all nodes.
@@ -245,7 +256,7 @@ Values between `1` (faster compression) and `19` (smaller file) are standard com
 levels for zstd. From `20` to `22`, compression levels are referred as "ultra" and must be
 used with extra care as it will use lot of memory. A value of `0` will let zstd choose a
 default value (currently `3`). Finally, zstd has also compression designed to be faster
-than default compression levels, they range from `-1` (smaller file) to `-99` (faster 
+than default compression levels, they range from `-1` (smaller file) to `-99` (faster
 compression).
 
 If you do not specify a `compression_level` entry, Garage will set it to `1` for you. With
