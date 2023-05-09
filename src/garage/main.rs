@@ -108,6 +108,12 @@ async fn main() {
 	][..];
 	if let Some(git_version) = option_env!("GIT_VERSION") {
 		garage_util::version::init_version(git_version);
+	} else {
+		garage_util::version::init_version(git_version::git_version!(
+			prefix = "git:",
+			cargo_prefix = "cargo:",
+			fallback = "unknown"
+		));
 	}
 	garage_util::version::init_features(features);
 
