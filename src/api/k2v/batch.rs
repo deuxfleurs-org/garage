@@ -282,8 +282,8 @@ pub(crate) async fn handle_poll_range(
 	if let Some((items, seen_marker)) = resp {
 		let resp = PollRangeResponse {
 			items: items
-				.into_iter()
-				.map(|(_k, i)| ReadBatchResponseItem::from(i))
+				.into_values()
+				.map(ReadBatchResponseItem::from)
 				.collect::<Vec<_>>(),
 			seen_marker,
 		};
