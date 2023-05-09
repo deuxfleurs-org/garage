@@ -600,12 +600,32 @@ impl BlockManager {
 	/// Utility: check if block is stored compressed. Error if block is not stored
 	async fn is_block_compressed(&self, hash: &Hash) -> Result<bool, Error> {
 		let mut path = self.block_path(hash);
-		path.set_extension("zst");
-		if fs::metadata(&path).await.is_ok() {
-			return Ok(true);
+
+		// If compression is disabled on node - check for the raw block
+		// first and then a compressed one (as compression may have been
+		// previously enabled).
+		match self.compression_level {
+			None => {
+				if fs::metadata(&path).await.is_ok() {
+					return Ok(false);
+				}
+
+				path.set_extension("zst");
+
+				fs::metadata(&path).await.map(|_| true).map_err(Into::into)
+			}
+			_ => {
+				path.set_extension("zst");
+
+				if fs::metadata(&path).await.is_ok() {
+					return Ok(true);
+				}
+
+				path.set_extension("");
+
+				fs::metadata(&path).await.map(|_| false).map_err(Into::into)
+			}
 		}
-		path.set_extension("");
-		fs::metadata(&path).await.map(|_| false).map_err(Into::into)
 	}
 
 	async fn lock_mutate(&self, hash: &Hash) -> MutexGuard<'_, BlockManagerLocked> {
