@@ -4,9 +4,28 @@
 
 # Garage configuration. These values go to garage.toml
 garage:
+  # Can be changed for better performance on certain systems
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db-engine-since-v0-8-0
+  dbEngine: "sled"
+
+  # Defaults is 1MB
+  # An increase can result in better performance in certain scenarios
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block-size
+  blockSize: "1048576"
+
+  # Tuning parameters for the sled DB engine
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#sled-cache-capacity
+  sledCacheCapacity: "134217728"
+  sledFlushEveryMs: "2000"
+
   # Default to 3 replicas, see the replication_mode section at
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication-mode
   replicationMode: "3"
+
+  # zstd compression level of stored blocks
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression-level
+  compressionLevel: "1"
+
   rpcBindAddr: "[::]:3901"
   # If not given, a random secret will be generated and stored in a Secret object
   rpcSecret: ""
@@ -27,7 +46,18 @@ garage:
     metadata_dir = "/mnt/meta"
     data_dir = "/mnt/data"
 
+    db_engine = "{{ .Values.garage.dbEngine }}"
+
+    block_size = {{ .Values.garage.blockSize }}
+
+    {{- if eq .Values.garage.dbEngine "sled"}}
+    sled_cache_capacity = {{ .Values.garage.sledCacheCapacity }}
+    sled_flush_every_ms = {{ .Values.garage.sledFlushEveryMs }}
+    {{- end }}
+
     replication_mode = "{{ .Values.garage.replicationMode }}"
+
+    compression_level = {{ .Values.garage.compressionLevel }}
 
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
     # rpc_secret will be populated by the init container from a k8s secret object
@@ -49,7 +79,7 @@ garage:
     bind_addr = "[::]:3902"
     root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
     index = "{{ .Values.garage.s3.web.index }}"
-    
+
     [admin]
     api_bind_addr = "[::]:3903"
     {{- if .Values.monitoring.tracing.sink }}
