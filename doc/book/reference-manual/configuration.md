@@ -35,23 +35,18 @@ bootstrap_peers = [
 
 
 [consul_discovery]
+mode = "node"
 consul_http_addr = "http://127.0.0.1:8500"
 service_name = "garage-daemon"
 ca_cert = "/etc/consul/consul-ca.crt"
 client_cert = "/etc/consul/consul-client.crt"
 client_key = "/etc/consul/consul-key.crt"
+# for `service` mode, unset client_cert and client_key, and optionally enable `consul_http_token`
+# consul_http_token = "abcdef-01234-56789"
 tls_skip_verify = false
-
-[consul_service_discovery]
-consul_http_addr = "https://127.0.0.1:8501"
-consul_http_token = "abcdef-01234-56789"
-service_name = "garage"
-ca_cert = "/etc/consul/consul-ca.crt"
-tls_skip_verify = false
-# tags to add to the published service
 tags = [ "dns-enabled" ]
-# additional service meta to send along registration
 meta = { dns-acl = "allow trusted" }
+
 
 [kubernetes_discovery]
 namespace = "garage"
@@ -323,6 +318,12 @@ Garage supports discovering other nodes of the cluster using Consul.  For this
 to work correctly, nodes need to know their IP address by which they can be
 reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
+### `mode`
+
+Two modes of service discovery are supported: `node`  and `service`. `node`, the default will register a service using
+the `/v1/catalog` endpoints and mTLS (if `client_cert` and `client_key` are provided). `service` mode uses the
+`v1/agent` endpoints instead, where an optional `consul_http_token` may be provided.
+
 ### `consul_http_addr` and `service_name`
 
 The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
@@ -334,7 +335,8 @@ RPC ports are announced.
 
 ### `client_cert`, `client_key`
 
-TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
+`node` mode only. TLS client certificate and client key to use when communicating with Consul over TLS.
+Both are mandatory when doing so.
 
 ### `ca_cert`
 
@@ -345,6 +347,29 @@ TLS CA certificate to use when communicating with Consul over TLS.
 Skip server hostname verification in TLS handshake.
 `ca_cert` is ignored when this is set.
 
+### `consul_http_token`
+
+`service` mode only. Uses the provided token for communication with Consul. The policy assigned to this token
+should at least have these rules:
+
+```hcl
+// the `service_name` specified above
+service "garage" {
+  policy = "write"
+}
+
+service_prefix "" {
+  policy = "read"
+}
+
+node_prefix "" {
+  policy = "read"
+}
+```
+
+### `tags` and `meta`
+
+Additional list of tags and map of service meta to add during service registration.
 
 ## The `[kubernetes_discovery]` section
 

@@ -32,8 +32,6 @@ use garage_util::time::*;
 
 #[cfg(feature = "consul-discovery")]
 use crate::consul::ConsulDiscovery;
-#[cfg(feature = "consul-service-discovery")]
-use crate::consul_services::ConsulServiceDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::*;
@@ -100,18 +98,12 @@ pub struct System {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
-	#[cfg(any(
-		feature = "consul-discovery",
-		feature = "consul-service-discovery",
-		feature = "kubernetes-discovery"
-	))]
+	#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<String>,
 
 	#[cfg(feature = "consul-discovery")]
 	consul_discovery: Option<ConsulDiscovery>,
-	#[cfg(feature = "consul-service-discovery")]
-	consul_service_discovery: Option<ConsulServiceDiscovery>,
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
@@ -354,19 +346,6 @@ impl System {
 			warn!("Consul discovery is not enabled in this build.");
 		}
 
-		#[cfg(feature = "consul-service-discovery")]
-		let consul_service_discovery = match &config.consul_service_discovery {
-			Some(cfg) => Some(
-				ConsulServiceDiscovery::new(cfg.clone())
-					.ok_or_message("Invalid Consul service discovery configuration")?,
-			),
-			None => None,
-		};
-		#[cfg(not(feature = "consul-service-discovery"))]
-		if config.consul_service_discovery.is_some() {
-			warn!("Consul service discovery is not enabled in this build.");
-		}
-
 		#[cfg(not(feature = "kubernetes-discovery"))]
 		if config.kubernetes_discovery.is_some() {
 			warn!("Kubernetes discovery is not enabled in this build.");
@@ -390,17 +369,11 @@ impl System {
 			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
-			#[cfg(any(
-				feature = "consul-discovery",
-				feature = "consul-service-discovery",
-				feature = "kubernetes-discovery"
-			))]
+			#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
 			consul_discovery,
-			#[cfg(feature = "consul-service-discovery")]
-			consul_service_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
 			metrics,
@@ -558,33 +531,6 @@ impl System {
 	#[cfg(feature = "consul-discovery")]
 	async fn advertise_to_consul(self: Arc<Self>) {
 		let c = match &self.consul_discovery {
-			Some(c) => c,
-			_ => return,
-		};
-
-		let rpc_public_addr = match self.rpc_public_addr {
-			Some(addr) => addr,
-			None => {
-				warn!("Not advertising to Consul because rpc_public_addr is not defined in config file and could not be autodetected.");
-				return;
-			}
-		};
-
-		if let Err(e) = c
-			.publish_consul_service(
-				self.netapp.id,
-				&self.local_status.load_full().hostname,
-				rpc_public_addr,
-			)
-			.await
-		{
-			error!("Error while publishing Consul service: {}", e);
-		}
-	}
-
-	#[cfg(feature = "consul-service-discovery")]
-	async fn advertise_to_consul(self: Arc<Self>) {
-		let c = match &self.consul_service_discovery {
 			Some(c) => c,
 			_ => return,
 		};
@@ -798,7 +744,7 @@ impl System {
 					ping_list.extend(peers.0.iter().map(|(id, addr)| ((*id).into(), *addr)))
 				}
 
-				// Fetch peer list from Consul Nodes
+				// Fetch peer list from Consul
 				#[cfg(feature = "consul-discovery")]
 				if let Some(c) = &self.consul_discovery {
 					match c.get_consul_nodes().await {
@@ -807,19 +753,6 @@ impl System {
 						}
 						Err(e) => {
 							warn!("Could not retrieve node list from Consul: {}", e);
-						}
-					}
-				}
-
-				// Fetch peer list from Consul Services
-				#[cfg(feature = "consul-service-discovery")]
-				if let Some(c) = &self.consul_service_discovery {
-					match c.get_consul_services().await {
-						Ok(node_list) => {
-							ping_list.extend(node_list);
-						}
-						Err(e) => {
-							warn!("Could not retrieve service list from Consul: {}", e);
 						}
 					}
 				}
@@ -861,9 +794,6 @@ impl System {
 			}
 
 			#[cfg(feature = "consul-discovery")]
-			tokio::spawn(self.clone().advertise_to_consul());
-
-			#[cfg(feature = "consul-service-discovery")]
 			tokio::spawn(self.clone().advertise_to_consul());
 
 			#[cfg(feature = "kubernetes-discovery")]

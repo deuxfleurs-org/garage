@@ -95,8 +95,6 @@ async fn main() {
 		"sqlite",
 		#[cfg(feature = "consul-discovery")]
 		"consul-discovery",
-		#[cfg(feature = "consul-service-discovery")]
-		"consul-service-discovery",
 		#[cfg(feature = "kubernetes-discovery")]
 		"kubernetes-discovery",
 		#[cfg(feature = "metrics")]

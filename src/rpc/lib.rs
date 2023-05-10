@@ -8,8 +8,6 @@ mod system_metrics;
 
 #[cfg(feature = "consul-discovery")]
 mod consul;
-#[cfg(feature = "consul-service-discovery")]
-mod consul_services;
 #[cfg(feature = "kubernetes-discovery")]
 mod kubernetes;
 

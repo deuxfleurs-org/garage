@@ -88,7 +88,6 @@ sqlite = [ "garage_model/sqlite" ]
 
 # Automatic registration and discovery via Consul API
 consul-discovery = [ "garage_rpc/consul-discovery" ]
-consul-service-discovery = [ "garage_rpc/consul-service-discovery" ]
 # Automatic registration and discovery via Kubernetes API
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).

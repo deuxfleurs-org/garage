@@ -56,9 +56,6 @@ pub struct Config {
 	/// Configuration for automatic node discovery through Consul
 	#[serde(default)]
 	pub consul_discovery: Option<ConsulDiscoveryConfig>,
-	/// Configuration for automatic node discovery through Consul
-	#[serde(default)]
-	pub consul_service_discovery: Option<ConsulServiceConfig>,
 	/// Configuration for automatic node discovery through Kubernetes
 	#[serde(default)]
 	pub kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
@@ -139,7 +136,22 @@ pub struct AdminConfig {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub enum ConsulDiscoveryMode {
+	#[serde(rename_all = "lowercase")]
+	Node,
+	Service,
+}
+impl ConsulDiscoveryMode {
+	fn default() -> Self {
+		ConsulDiscoveryMode::Node
+	}
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
+	/// Mode of consul operation: either `node` (the default) or `service`
+	#[serde(default = "ConsulDiscoveryMode::default")]
+	pub mode: ConsulDiscoveryMode,
 	/// Consul http or https address to connect to to discover more peers
 	pub consul_http_addr: String,
 	/// Consul service name to use
@@ -150,30 +162,17 @@ pub struct ConsulDiscoveryConfig {
 	pub client_cert: Option<String>,
 	/// Client TLS key to use when connecting to Consul
 	pub client_key: Option<String>,
+	/// /// Token to use for connecting to consul
+	pub consul_http_token: Option<String>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct ConsulServiceConfig {
-	/// Consul http or https address to connect to to discover more peers
-	pub consul_http_addr: String,
-	/// Token to use for connecting to consul
-	pub consul_http_token: Option<String>,
-	/// Consul service name to use
-	pub service_name: String,
-	/// CA TLS certificate to use when connecting to Consul
-	pub ca_cert: Option<String>,
-	// Additional tags to add to the service
+	/// Additional tags to add to the service
 	#[serde(default)]
 	pub tags: Vec<String>,
-	// Additional service metadata to add
+	/// Additional service metadata to add
 	#[serde(default)]
 	pub meta: Option<std::collections::HashMap<String, String>>,
-	/// Skip TLS hostname verification
-	#[serde(default)]
-	pub tls_skip_verify: bool,
 }
 
 #[derive(Deserialize, Debug, Clone)]
