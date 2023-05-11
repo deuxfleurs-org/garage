@@ -183,8 +183,8 @@ async fn bucket_info_results(
 				}
 			}),
 			keys: relevant_keys
-				.into_iter()
-				.map(|(_, key)| {
+				.into_values()
+				.map(|key| {
 					let p = key.state.as_option().unwrap();
 					GetBucketInfoKey {
 						access_key_id: key.key_id,

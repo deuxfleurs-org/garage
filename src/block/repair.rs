@@ -220,14 +220,12 @@ fn randomize_next_scrub_run_time(timestamp: u64) -> u64 {
 	// Take SCRUB_INTERVAL and mix in a random interval of 10 days to attempt to
 	// balance scrub load across different cluster nodes.
 
-	let next_run_timestamp = timestamp
+	timestamp
 		+ SCRUB_INTERVAL
 			.saturating_add(Duration::from_secs(
 				rand::thread_rng().gen_range(0..3600 * 24 * 10),
 			))
-			.as_millis() as u64;
-
-	next_run_timestamp
+			.as_millis() as u64
 }
 
 impl Default for ScrubWorkerPersisted {
@@ -241,16 +239,12 @@ impl Default for ScrubWorkerPersisted {
 	}
 }
 
+#[derive(Default)]
 enum ScrubWorkerState {
 	Running(BlockStoreIterator),
 	Paused(BlockStoreIterator, u64), // u64 = time when to resume scrub
+	#[default]
 	Finished,
-}
-
-impl Default for ScrubWorkerState {
-	fn default() -> Self {
-		ScrubWorkerState::Finished
-	}
 }
 
 #[derive(Debug)]

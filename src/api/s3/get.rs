@@ -443,7 +443,7 @@ fn body_from_blocks_range(
 	// block.part_number, which is not the same in the case of a multipart upload)
 	let mut blocks: Vec<(VersionBlock, u64)> = Vec::with_capacity(std::cmp::min(
 		all_blocks.len(),
-		4 + ((end - begin) / std::cmp::max(all_blocks[0].1.size as u64, 1024)) as usize,
+		4 + ((end - begin) / std::cmp::max(all_blocks[0].1.size, 1024)) as usize,
 	));
 	let mut block_offset: u64 = 0;
 	for (_, b) in all_blocks.iter() {
@@ -454,7 +454,7 @@ fn body_from_blocks_range(
 		if block_offset < end && block_offset + b.size > begin {
 			blocks.push((*b, block_offset));
 		}
-		block_offset += b.size as u64;
+		block_offset += b.size;
 	}
 
 	let order_stream = OrderTag::stream();

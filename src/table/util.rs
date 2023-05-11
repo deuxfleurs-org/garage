@@ -34,8 +34,9 @@ impl DeletedFilter {
 	}
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EnumerationOrder {
+	#[default]
 	Forward,
 	Reverse,
 }
@@ -47,11 +48,5 @@ impl EnumerationOrder {
 		} else {
 			Self::Forward
 		}
-	}
-}
-
-impl Default for EnumerationOrder {
-	fn default() -> Self {
-		EnumerationOrder::Forward
 	}
 }

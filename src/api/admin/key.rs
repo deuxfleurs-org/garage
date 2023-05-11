@@ -183,8 +183,8 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 			create_bucket: *key_state.allow_create_bucket.get(),
 		},
 		buckets: relevant_buckets
-			.into_iter()
-			.map(|(_, bucket)| {
+			.into_values()
+			.map(|bucket| {
 				let state = bucket.state.as_option().unwrap();
 				KeyInfoBucketResult {
 					id: hex::encode(bucket.id),

@@ -13,7 +13,7 @@ pub fn handle_forwarded_for_headers(headers: &HeaderMap<HeaderValue>) -> Result<
 		.to_str()
 		.ok_or_message("Error parsing X-Forwarded-For header")?;
 
-	let client_ip = IpAddr::from_str(&forwarded_for_ip_str)
+	let client_ip = IpAddr::from_str(forwarded_for_ip_str)
 		.ok_or_message("Valid IP address not found in X-Forwarded-For header")?;
 
 	Ok(client_ip.to_string())

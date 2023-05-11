@@ -223,7 +223,7 @@ fn secret_from_file(
 			#[cfg(unix)]
 			if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
 				use std::os::unix::fs::MetadataExt;
-				let metadata = std::fs::metadata(&file_path)?;
+				let metadata = std::fs::metadata(file_path)?;
 				if metadata.mode() & 0o077 != 0 {
 					return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
 				}

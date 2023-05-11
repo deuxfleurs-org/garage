@@ -44,22 +44,22 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	pub fn new(system: Arc<System>, instance: F, replication: R, db: &db::Db) -> Arc<Self> {
 		let store = db
-			.open_tree(&format!("{}:table", F::TABLE_NAME))
+			.open_tree(format!("{}:table", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
 
 		let merkle_tree = db
-			.open_tree(&format!("{}:merkle_tree", F::TABLE_NAME))
+			.open_tree(format!("{}:merkle_tree", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle tree tree");
 		let merkle_todo = db
-			.open_tree(&format!("{}:merkle_todo", F::TABLE_NAME))
+			.open_tree(format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
 
 		let insert_queue = db
-			.open_tree(&format!("{}:insert_queue", F::TABLE_NAME))
+			.open_tree(format!("{}:insert_queue", F::TABLE_NAME))
 			.expect("Unable to open insert queue DB tree");
 
 		let gc_todo = db
-			.open_tree(&format!("{}:gc_todo_v2", F::TABLE_NAME))
+			.open_tree(format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open GC DB tree");
 		let gc_todo = CountedTree::new(gc_todo).expect("Cannot count gc_todo_v2");
 
@@ -90,7 +90,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 
 	pub fn read_entry(&self, p: &F::P, s: &F::S) -> Result<Option<ByteBuf>, Error> {
 		let tree_key = self.tree_key(p, s);
-		if let Some(bytes) = self.store.get(&tree_key)? {
+		if let Some(bytes) = self.store.get(tree_key)? {
 			Ok(Some(ByteBuf::from(bytes.to_vec())))
 		} else {
 			Ok(None)
@@ -132,10 +132,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		}
 	}
 
-	fn read_range_aux<'a>(
+	fn read_range_aux(
 		&self,
 		partition_hash: Hash,
-		range: db::ValueIter<'a>,
+		range: db::ValueIter,
 		filter: &Option<F::Filter>,
 		limit: usize,
 	) -> Result<Vec<Arc<ByteBuf>>, Error> {
