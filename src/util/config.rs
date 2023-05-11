@@ -136,22 +136,22 @@ pub struct AdminConfig {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub enum ConsulDiscoveryMode {
+pub enum ConsulDiscoveryAPI {
 	#[serde(rename_all = "lowercase")]
-	Node,
-	Service,
+	Catalog,
+	Agent,
 }
-impl ConsulDiscoveryMode {
+impl ConsulDiscoveryAPI {
 	fn default() -> Self {
-		ConsulDiscoveryMode::Node
+		ConsulDiscoveryAPI::Catalog
 	}
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
-	/// Mode of consul operation: either `node` (the default) or `service`
-	#[serde(default = "ConsulDiscoveryMode::default")]
-	pub mode: ConsulDiscoveryMode,
+	/// The consul api to use when registering: either `catalog` (the default) or `agent`
+	#[serde(default = "ConsulDiscoveryAPI::default")]
+	pub consul_http_api: ConsulDiscoveryAPI,
 	/// Consul http or https address to connect to to discover more peers
 	pub consul_http_addr: String,
 	/// Consul service name to use

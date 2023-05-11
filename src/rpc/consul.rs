@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use netapp::NodeID;
 
+use garage_util::config::ConsulDiscoveryAPI;
 use garage_util::config::ConsulDiscoveryConfig;
-use garage_util::config::ConsulDiscoveryMode;
 
 const META_PREFIX: &str = "fr-deuxfleurs-garagehq";
 
@@ -78,18 +78,18 @@ pub struct ConsulDiscovery {
 impl ConsulDiscovery {
 	pub fn new(config: ConsulDiscoveryConfig) -> Result<Self, ConsulError> {
 		let mut builder: reqwest::ClientBuilder = reqwest::Client::builder();
-		builder = builder.danger_accept_invalid_certs(config.tls_skip_verify);
+		if config.tls_skip_verify {
+			builder = builder.danger_accept_invalid_certs(true);
+		} else if let Some(ca_cert) = &config.ca_cert {
+			let mut ca_cert_buf = vec![];
+			File::open(ca_cert)?.read_to_end(&mut ca_cert_buf)?;
+			builder = builder.use_rustls_tls();
+			builder =
+				builder.add_root_certificate(reqwest::Certificate::from_pem(&ca_cert_buf[..])?);
+		}
 
-		let client: reqwest::Client = match &config.mode {
-			ConsulDiscoveryMode::Node => {
-				if let Some(ca_cert) = &config.ca_cert {
-					let mut ca_cert_buf = vec![];
-					File::open(ca_cert)?.read_to_end(&mut ca_cert_buf)?;
-					builder = builder.use_rustls_tls();
-					builder = builder
-						.add_root_certificate(reqwest::Certificate::from_pem(&ca_cert_buf[..])?);
-				}
-
+		let client: reqwest::Client = match &config.consul_http_api {
+			ConsulDiscoveryAPI::Catalog => {
 				match (&config.client_cert, &config.client_key) {
 					(Some(client_cert), Some(client_key)) => {
 						let mut client_cert_buf = vec![];
@@ -111,15 +111,7 @@ impl ConsulDiscovery {
 
 				builder.build()?
 			}
-			ConsulDiscoveryMode::Service => {
-				if let Some(ca_cert) = &config.ca_cert {
-					let mut ca_cert_buf = vec![];
-					File::open(ca_cert)?.read_to_end(&mut ca_cert_buf)?;
-					builder = builder
-						.add_root_certificate(reqwest::Certificate::from_pem(&ca_cert_buf[..])?);
-					builder = builder.use_rustls_tls();
-				}
-
+			ConsulDiscoveryAPI::Agent => {
 				if let Some(token) = &config.consul_http_token {
 					let mut headers = reqwest::header::HeaderMap::new();
 					headers.insert(
@@ -150,9 +142,9 @@ impl ConsulDiscovery {
 		let mut ret = vec![];
 		for ent in entries {
 			let ip = ent.address.parse::<IpAddr>().ok();
-			let pubkey = match &self.config.mode {
-				ConsulDiscoveryMode::Node => ent.node_meta.get("pubkey"),
-				ConsulDiscoveryMode::Service => {
+			let pubkey = match &self.config.consul_http_api {
+				ConsulDiscoveryAPI::Catalog => ent.node_meta.get("pubkey"),
+				ConsulDiscoveryAPI::Agent => {
 					ent.service_meta.get(&format!("{}-pubkey", META_PREFIX))
 				}
 			}
@@ -187,9 +179,9 @@ impl ConsulDiscovery {
 		]
 		.concat();
 
-		let meta_prefix: String = match &self.config.mode {
-			ConsulDiscoveryMode::Node => "".to_string(),
-			ConsulDiscoveryMode::Service => format!("{}-", META_PREFIX),
+		let meta_prefix: String = match &self.config.consul_http_api {
+			ConsulDiscoveryAPI::Catalog => "".to_string(),
+			ConsulDiscoveryAPI::Agent => format!("{}-", META_PREFIX),
 		};
 
 		let mut meta = HashMap::from([
@@ -206,15 +198,15 @@ impl ConsulDiscovery {
 		let url = format!(
 			"{}/v1/{}",
 			self.config.consul_http_addr,
-			(match &self.config.mode {
-				ConsulDiscoveryMode::Node => "catalog/register",
-				ConsulDiscoveryMode::Service => "agent/service/register?replace-existing-checks",
+			(match &self.config.consul_http_api {
+				ConsulDiscoveryAPI::Catalog => "catalog/register",
+				ConsulDiscoveryAPI::Agent => "agent/service/register?replace-existing-checks",
 			})
 		);
 
 		let req = self.client.put(&url);
-		let http = (match &self.config.mode {
-			ConsulDiscoveryMode::Node => req.json(&ConsulPublishEntry {
+		let http = (match &self.config.consul_http_api {
+			ConsulDiscoveryAPI::Catalog => req.json(&ConsulPublishEntry {
 				node: node.clone(),
 				address: rpc_public_addr.ip(),
 				node_meta: meta.clone(),
@@ -227,7 +219,7 @@ impl ConsulDiscovery {
 					port: rpc_public_addr.port(),
 				},
 			}),
-			ConsulDiscoveryMode::Service => req.json(&ConsulPublishService {
+			ConsulDiscoveryAPI::Agent => req.json(&ConsulPublishService {
 				service_id: node.clone(),
 				service_name: self.config.service_name.clone(),
 				tags,

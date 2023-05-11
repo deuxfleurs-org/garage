@@ -318,15 +318,15 @@ Garage supports discovering other nodes of the cluster using Consul.  For this
 to work correctly, nodes need to know their IP address by which they can be
 reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
-### `mode`
-
-Two modes of service discovery are supported: `node`  and `service`. `node`, the default will register a service using
-the `/v1/catalog` endpoints and mTLS (if `client_cert` and `client_key` are provided). `service` mode uses the
-`v1/agent` endpoints instead, where an optional `consul_http_token` may be provided.
-
 ### `consul_http_addr` and `service_name`
 
 The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
+
+### `consul_http_api`
+
+Two APIs for service registration are supported: `catalog`  and `agent`. `catalog`, the default, will register a service using
+the `/v1/catalog` endpoints and mTLS (if `client_cert` and `client_key` are provided). The `agent` API uses the
+`v1/agent` endpoints instead, where an optional `consul_http_token` may be provided.
 
 ### `service_name`
 
@@ -335,8 +335,8 @@ RPC ports are announced.
 
 ### `client_cert`, `client_key`
 
-`node` mode only. TLS client certificate and client key to use when communicating with Consul over TLS.
-Both are mandatory when doing so.
+TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
+Only available when `consul_http_api = "catalog"`.
 
 ### `ca_cert`
 
@@ -349,8 +349,8 @@ Skip server hostname verification in TLS handshake.
 
 ### `consul_http_token`
 
-`service` mode only. Uses the provided token for communication with Consul. The policy assigned to this token
-should at least have these rules:
+Uses the provided token for communication with Consul. Only available when `consul_http_api = "agent"`.
+The policy assigned to this token should at least have these rules:
 
 ```hcl
 // the `service_name` specified above
