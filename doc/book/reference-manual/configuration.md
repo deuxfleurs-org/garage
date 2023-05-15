@@ -35,14 +35,14 @@ bootstrap_peers = [
 
 
 [consul_discovery]
-mode = "node"
+api = "catalog"
 consul_http_addr = "http://127.0.0.1:8500"
 service_name = "garage-daemon"
 ca_cert = "/etc/consul/consul-ca.crt"
 client_cert = "/etc/consul/consul-client.crt"
 client_key = "/etc/consul/consul-key.crt"
-# for `service` mode, unset client_cert and client_key, and optionally enable `consul_http_token`
-# consul_http_token = "abcdef-01234-56789"
+# for `catalog` API mode, unset client_cert and client_key, and optionally enable `token`
+# token = "abcdef-01234-56789"
 tls_skip_verify = false
 tags = [ "dns-enabled" ]
 meta = { dns-acl = "allow trusted" }

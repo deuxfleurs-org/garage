@@ -135,23 +135,18 @@ pub struct AdminConfig {
 	pub trace_sink: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum ConsulDiscoveryAPI {
-	#[serde(rename_all = "lowercase")]
+	#[default]
 	Catalog,
 	Agent,
-}
-impl ConsulDiscoveryAPI {
-	fn default() -> Self {
-		ConsulDiscoveryAPI::Catalog
-	}
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
 	/// The consul api to use when registering: either `catalog` (the default) or `agent`
-	#[serde(default = "ConsulDiscoveryAPI::default")]
-	pub consul_http_api: ConsulDiscoveryAPI,
+	pub api: ConsulDiscoveryAPI,
 	/// Consul http or https address to connect to to discover more peers
 	pub consul_http_addr: String,
 	/// Consul service name to use
@@ -163,7 +158,7 @@ pub struct ConsulDiscoveryConfig {
 	/// Client TLS key to use when connecting to Consul
 	pub client_key: Option<String>,
 	/// /// Token to use for connecting to consul
-	pub consul_http_token: Option<String>,
+	pub token: Option<String>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,
