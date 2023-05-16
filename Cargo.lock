@@ -1890,6 +1890,7 @@ version = "0.1.1"
 dependencies = [
  "base64 0.21.0",
  "clap 4.2.7",
+ "garage_db",
  "garage_util",
  "http",
  "hyper-rustls 0.23.2",

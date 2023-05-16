@@ -1,6 +1,6 @@
 [package]
 name = "k2v-client"
-version = "0.1.1"
+version = "0.0.2"
 authors = ["Trinity Pointard <trinity.pointard@gmail.com>", "Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -24,10 +24,11 @@ tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi
 # cli deps
 clap = { version = "4.1", optional = true, features = ["derive", "env"] }
 garage_util = { workspace = true, optional = true }
+garage_db = { workspace = true, optional = true }
 
 
 [features]
-cli = ["clap", "tokio/fs", "tokio/io-std", "garage_util"]
+cli = ["clap", "tokio/fs", "tokio/io-std", "garage_util", "garage_db/sled"]
 
 [lib]
 path = "lib.rs"

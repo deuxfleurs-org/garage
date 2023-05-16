@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::process::exit;
 use std::time::Duration;
 
+use base64::prelude::*;
+
 use k2v_client::*;
 
 use garage_util::formater::format_table;
@@ -155,7 +157,9 @@ impl Value {
 		if let Some(ref text) = self.text {
 			Ok(text.as_bytes().to_vec())
 		} else if let Some(ref b64) = self.b64 {
-			base64::decode(b64).map_err(|_| Error::Message("invalid base64 input".into()))
+			BASE64_STANDARD
+				.decode(b64)
+				.map_err(|_| Error::Message("invalid base64 input".into()))
 		} else if let Some(ref path) = self.file {
 			use tokio::io::AsyncReadExt;
 			if path == "-" {
@@ -230,7 +234,7 @@ impl ReadOutputKind {
 			for val in val.value {
 				match val {
 					K2vValue::Value(v) => {
-						println!("{}", base64::encode(&v))
+						println!("{}", BASE64_STANDARD.encode(&v))
 					}
 					K2vValue::Tombstone => {
 						println!();
@@ -249,7 +253,7 @@ impl ReadOutputKind {
 					if let Ok(string) = std::str::from_utf8(&v) {
 						println!("  utf-8: {}", string);
 					} else {
-						println!("  base64: {}", base64::encode(&v));
+						println!("  base64: {}", BASE64_STANDARD.encode(&v));
 					}
 				}
 				K2vValue::Tombstone => {
@@ -275,7 +279,7 @@ struct BatchOutputKind {
 impl BatchOutputKind {
 	fn display_human_output(&self, values: BTreeMap<String, CausalValue>) -> ! {
 		for (key, values) in values {
-			println!("key: {}", key);
+			println!("sort_key: {}", key);
 			let causality: String = values.causality.into();
 			println!("causality: {}", causality);
 			for value in values.value {
@@ -284,7 +288,7 @@ impl BatchOutputKind {
 						if let Ok(string) = std::str::from_utf8(&v) {
 							println!("  value(utf-8): {}", string);
 						} else {
-							println!("  value(base64): {}", base64::encode(&v));
+							println!("  value(base64): {}", BASE64_STANDARD.encode(&v));
 						}
 					}
 					K2vValue::Tombstone => {
@@ -520,7 +524,7 @@ async fn main() -> Result<(), Error> {
 						value
 							.as_object_mut()
 							.unwrap()
-							.insert("sort_key".to_owned(), k.into());
+							.insert("partition_key".to_owned(), k.into());
 						value
 					})
 					.collect::<Vec<_>>();
@@ -537,7 +541,7 @@ async fn main() -> Result<(), Error> {
 				}
 
 				let mut to_print = Vec::new();
-				to_print.push(format!("key:\tentries\tconflicts\tvalues\tbytes"));
+				to_print.push(format!("partition_key\tentries\tconflicts\tvalues\tbytes"));
 				for (k, v) in res.items {
 					to_print.push(format!(
 						"{}\t{}\t{}\t{}\t{}",
