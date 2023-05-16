@@ -483,9 +483,11 @@ impl<'de> Deserialize<'de> for K2vValue {
 	{
 		let val: Option<&str> = Option::deserialize(d)?;
 		Ok(match val {
-			Some(s) => {
-				K2vValue::Value(BASE64_STANDARD.decode(s).map_err(|_| DeError::custom("invalid base64"))?)
-			}
+			Some(s) => K2vValue::Value(
+				BASE64_STANDARD
+					.decode(s)
+					.map_err(|_| DeError::custom("invalid base64"))?,
+			),
 			None => K2vValue::Tombstone,
 		})
 	}

@@ -157,7 +157,9 @@ impl Value {
 		if let Some(ref text) = self.text {
 			Ok(text.as_bytes().to_vec())
 		} else if let Some(ref b64) = self.b64 {
-			BASE64_STANDARD.decode(b64).map_err(|_| Error::Message("invalid base64 input".into()))
+			BASE64_STANDARD
+				.decode(b64)
+				.map_err(|_| Error::Message("invalid base64 input".into()))
 		} else if let Some(ref path) = self.file {
 			use tokio::io::AsyncReadExt;
 			if path == "-" {
