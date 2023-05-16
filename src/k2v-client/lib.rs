@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use base64::prelude::*;
 use http::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
 use http::status::StatusCode;
 use http::HeaderMap;
@@ -375,7 +376,7 @@ impl K2vClient {
 					.unwrap_or_default();
 				let err_body_str = std::str::from_utf8(&err_body)
 					.map(String::from)
-					.unwrap_or_else(|_| base64::encode(&err_body));
+					.unwrap_or_else(|_| BASE64_STANDARD.encode(&err_body));
 
 				if s.is_client_error() || s.is_server_error() {
 					error!("Error response {}: {}", res.status, err_body_str);
@@ -408,7 +409,7 @@ impl K2vClient {
 			"Response body: {}",
 			std::str::from_utf8(&body)
 				.map(String::from)
-				.unwrap_or_else(|_| base64::encode(&body))
+				.unwrap_or_else(|_| BASE64_STANDARD.encode(&body))
 		);
 
 		Ok(Response {
@@ -483,7 +484,7 @@ impl<'de> Deserialize<'de> for K2vValue {
 		let val: Option<&str> = Option::deserialize(d)?;
 		Ok(match val {
 			Some(s) => {
-				K2vValue::Value(base64::decode(s).map_err(|_| DeError::custom("invalid base64"))?)
+				K2vValue::Value(BASE64_STANDARD.decode(s).map_err(|_| DeError::custom("invalid base64"))?)
 			}
 			None => K2vValue::Tombstone,
 		})
@@ -498,7 +499,7 @@ impl Serialize for K2vValue {
 		match self {
 			K2vValue::Tombstone => serializer.serialize_none(),
 			K2vValue::Value(v) => {
-				let b64 = base64::encode(v);
+				let b64 = BASE64_STANDARD.encode(v);
 				serializer.serialize_str(&b64)
 			}
 		}
