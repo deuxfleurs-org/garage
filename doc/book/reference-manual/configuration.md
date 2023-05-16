@@ -322,10 +322,10 @@ reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
 The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
 
-### `consul_http_api`
+### `api`
 
 Two APIs for service registration are supported: `catalog`  and `agent`. `catalog`, the default, will register a service using
-the `/v1/catalog` endpoints and mTLS (if `client_cert` and `client_key` are provided). The `agent` API uses the
+the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are provided. The `agent` API uses the
 `v1/agent` endpoints instead, where an optional `consul_http_token` may be provided.
 
 ### `service_name`
@@ -336,7 +336,7 @@ RPC ports are announced.
 ### `client_cert`, `client_key`
 
 TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
-Only available when `consul_http_api = "catalog"`.
+Only available when `api = "catalog"`.
 
 ### `ca_cert`
 
@@ -347,9 +347,9 @@ TLS CA certificate to use when communicating with Consul over TLS.
 Skip server hostname verification in TLS handshake.
 `ca_cert` is ignored when this is set.
 
-### `consul_http_token`
+### `token`
 
-Uses the provided token for communication with Consul. Only available when `consul_http_api = "agent"`.
+Uses the provided token for communication with Consul. Only available when `api = "agent"`.
 The policy assigned to this token should at least have these rules:
 
 ```hcl
