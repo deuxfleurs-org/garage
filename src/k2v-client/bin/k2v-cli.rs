@@ -277,7 +277,7 @@ struct BatchOutputKind {
 impl BatchOutputKind {
 	fn display_human_output(&self, values: BTreeMap<String, CausalValue>) -> ! {
 		for (key, values) in values {
-			println!("key: {}", key);
+			println!("sort_key: {}", key);
 			let causality: String = values.causality.into();
 			println!("causality: {}", causality);
 			for value in values.value {
@@ -522,7 +522,7 @@ async fn main() -> Result<(), Error> {
 						value
 							.as_object_mut()
 							.unwrap()
-							.insert("sort_key".to_owned(), k.into());
+							.insert("partition_key".to_owned(), k.into());
 						value
 					})
 					.collect::<Vec<_>>();
@@ -539,7 +539,7 @@ async fn main() -> Result<(), Error> {
 				}
 
 				let mut to_print = Vec::new();
-				to_print.push(format!("key:\tentries\tconflicts\tvalues\tbytes"));
+				to_print.push(format!("partition_key\tentries\tconflicts\tvalues\tbytes"));
 				for (k, v) in res.items {
 					to_print.push(format!(
 						"{}\t{}\t{}\t{}\t{}",
