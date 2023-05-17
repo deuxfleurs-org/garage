@@ -33,7 +33,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "b57cac5992bf6a665ce564a43f629f165268920af9035aa11fda2a8dfe9738f6";
+  nixifiedLockHash = "73f681ad7edf7fe539579e25d09d2ad962b9b7d64b018d421951d3cde43f5f77";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -67,7 +67,7 @@ in
     garage_web = rustPackages.unknown.garage_web."0.8.2";
     garage = rustPackages.unknown.garage."0.8.2";
     format_table = rustPackages.unknown.format_table."0.1.1";
-    k2v-client = rustPackages.unknown.k2v-client."0.0.2";
+    k2v-client = rustPackages.unknown.k2v-client."0.0.3";
   };
   "registry+https://github.com/rust-lang/crates.io-index".addr2line."0.19.0" = overridableMkRustCrate (profileName: rec {
     name = "addr2line";
@@ -2637,15 +2637,17 @@ in
     };
   });
   
-  "unknown".k2v-client."0.0.2" = overridableMkRustCrate (profileName: rec {
+  "unknown".k2v-client."0.0.3" = overridableMkRustCrate (profileName: rec {
     name = "k2v-client";
-    version = "0.0.2";
+    version = "0.0.3";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/k2v-client");
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "k2v-client/clap" || rootFeatures' ? "k2v-client/cli") "clap")
       (lib.optional (rootFeatures' ? "k2v-client/cli") "cli")
       (lib.optional (rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/format_table") "format_table")
+      (lib.optional (rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/tracing") "tracing")
+      (lib.optional (rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/tracing-subscriber") "tracing-subscriber")
     ];
     dependencies = {
       base64 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".base64."0.21.0" { inherit profileName; }).out;
@@ -2661,6 +2663,8 @@ in
       serde_json = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.91" { inherit profileName; }).out;
       thiserror = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" { inherit profileName; }).out;
       tokio = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.28.0" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/tracing" then "tracing" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing."0.1.37" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "k2v-client/cli" || rootFeatures' ? "k2v-client/tracing-subscriber" then "tracing_subscriber" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-subscriber."0.3.16" { inherit profileName; }).out;
     };
   });
   
