@@ -38,7 +38,15 @@ pub struct SledDb {
 }
 
 impl SledDb {
+	#[deprecated(
+		since = "0.9.0",
+		note = "The Sled database is now deprecated and will be removed in Garage v1.0. Please migrate to LMDB or Sqlite as soon as possible."
+	)]
 	pub fn init(db: sled::Db) -> Db {
+		tracing::warn!("--------------------    IMPORTANT WARNING !!!    ----------------------");
+		tracing::warn!("The Sled database is now deprecated and will be removed in Garage v1.0.");
+		tracing::warn!("Please migrate to LMDB or Sqlite as soon as possible.");
+		tracing::warn!("-----------------------------------------------------------------------");
 		let s = Self {
 			db,
 			trees: RwLock::new((Vec::new(), HashMap::new())),

@@ -33,7 +33,7 @@ pretty_env_logger = { version = "0.4", optional = true }
 mktemp = "0.5"
 
 [features]
-default = [ "sled" ]
+default = [ "sled", "lmdb", "sqlite" ]
 bundled-libs = [ "rusqlite/bundled" ]
 cli = ["clap", "pretty_env_logger"]
 lmdb = [ "heed" ]

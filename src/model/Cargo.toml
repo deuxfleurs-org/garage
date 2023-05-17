@@ -41,7 +41,7 @@ opentelemetry = "0.17"
 netapp = "0.5"
 
 [features]
-default = [ "sled" ]
+default = [ "sled", "lmdb", "sqlite" ]
 k2v = [ "garage_util/k2v" ]
 lmdb = [ "garage_db/lmdb" ]
 sled = [ "garage_db/sled" ]

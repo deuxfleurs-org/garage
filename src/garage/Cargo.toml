@@ -74,7 +74,7 @@ base64 = "0.21"
 
 
 [features]
-default = [ "bundled-libs", "metrics", "sled", "k2v" ]
+default = [ "bundled-libs", "metrics", "sled", "lmdb", "sqlite", "k2v" ]
 
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
 

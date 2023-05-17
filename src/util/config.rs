@@ -164,7 +164,7 @@ pub struct KubernetesDiscoveryConfig {
 }
 
 fn default_db_engine() -> String {
-	"sled".into()
+	"lmdb".into()
 }
 
 fn default_sled_cache_capacity() -> u64 {

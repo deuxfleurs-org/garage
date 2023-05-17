@@ -109,6 +109,11 @@ impl Garage {
 				db_path.push("db.sqlite");
 				info!("Opening Sqlite database at: {}", db_path.display());
 				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
+					.and_then(|db| {
+						db.pragma_update(None, "journal_mode", &"WAL")?;
+						db.pragma_update(None, "synchronous", &"NORMAL")?;
+						Ok(db)
+					})
 					.ok_or_message("Unable to open sqlite DB")?;
 				db::sqlite_adapter::SqliteDb::init(db)
 			}
@@ -133,7 +138,6 @@ impl Garage {
 				env_builder.max_readers(500);
 				env_builder.map_size(map_size);
 				unsafe {
-					env_builder.flag(heed::flags::Flags::MdbNoSync);
 					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
 				}
 				let db = match env_builder.open(&db_path) {
