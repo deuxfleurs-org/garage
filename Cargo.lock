@@ -1026,6 +1026,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "format_table"
+version = "0.1.0"
+
+[[package]]
 name = "fs2"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1145,6 +1149,7 @@ dependencies = [
  "bytes",
  "bytesize",
  "chrono",
+ "format_table",
  "futures",
  "futures-util",
  "garage_api",
@@ -1886,12 +1891,11 @@ dependencies = [
 
 [[package]]
 name = "k2v-client"
-version = "0.1.1"
+version = "0.0.2"
 dependencies = [
  "base64 0.21.0",
  "clap 4.2.7",
- "garage_db",
- "garage_util",
+ "format_table",
  "http",
  "hyper-rustls 0.23.2",
  "log",

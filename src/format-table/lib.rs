@@ -1,3 +1,19 @@
+//! Format tables with a stupid API.
+//!
+//! Example:
+//!
+//! ```rust
+//! let mut table = vec!["product\tquantity\tprice".to_string()];
+//! for (p, q, r) in [("tomato", 12, 15), ("potato", 10, 20), ("rice", 5, 12)] {
+//! 	table.push(format!("{}\t{}\t{}", p, q, r));
+//! }
+//! format_table::format_table(table);
+//! ```
+//!
+//! A table to be formatted is a `Vec<String>`, containing one string per line.
+//! Table columns in each line are separated by a `\t` character.
+
+/// Format a table and return the result as a string.
 pub fn format_table_to_string(data: Vec<String>) -> String {
 	let data = data
 		.iter()
@@ -27,6 +43,7 @@ pub fn format_table_to_string(data: Vec<String>) -> String {
 	out
 }
 
+/// Format a table and print the result to stdout.
 pub fn format_table(data: Vec<String>) {
 	print!("{}", format_table_to_string(data));
 }
