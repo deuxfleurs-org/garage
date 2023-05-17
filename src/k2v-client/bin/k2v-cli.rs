@@ -6,7 +6,7 @@ use base64::prelude::*;
 
 use k2v_client::*;
 
-use garage_util::formater::format_table;
+use format_table::format_table;
 
 use rusoto_core::credential::AwsCredentials;
 use rusoto_core::Region;

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use format_table::format_table;
 use garage_util::background::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::*;
-use garage_util::formater::format_table;
 use garage_util::time::*;
 
 use garage_block::manager::BlockResyncErrorInfo;

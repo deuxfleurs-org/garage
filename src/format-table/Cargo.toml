@@ -1,0 +1,12 @@
+[package]
+name = "format_table"
+version = "0.1.1"
+authors = ["Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+license = "AGPL-3.0"
+description = "Format tables with a stupid API"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+readme = "README.md"
+
+[lib]
+path = "lib.rs"
