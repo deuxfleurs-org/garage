@@ -17,7 +17,7 @@ members = [
 default-members = ["src/garage"]
 
 [workspace.dependencies]
-format_table = { version = "0.1.0", path = "src/format-table" }
+format_table = { version = "0.1.1", path = "src/format-table" }
 garage_api = { version = "0.8.2", path = "src/api" }
 garage_block = { version = "0.8.2", path = "src/block" }
 garage_db = { version = "0.8.2", path = "src/db", default-features = false }
