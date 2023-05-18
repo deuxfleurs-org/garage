@@ -8,9 +8,6 @@ use k2v_client::*;
 
 use format_table::format_table;
 
-use rusoto_core::credential::AwsCredentials;
-use rusoto_core::Region;
-
 use clap::{Parser, Subcommand};
 
 /// K2V command line interface
@@ -408,14 +405,16 @@ async fn main() -> Result<(), Error> {
 
 	let args = Args::parse();
 
-	let region = Region::Custom {
-		name: args.region,
+	let config = K2vClientConfig {
 		endpoint: args.endpoint,
+		region: args.region,
+		aws_access_key_id: args.key_id,
+		aws_secret_access_key: args.secret,
+		bucket: args.bucket,
+		user_agent: None,
 	};
 
-	let creds = AwsCredentials::new(args.key_id, args.secret, None, None);
-
-	let client = K2vClient::new(region, args.bucket, creds, None)?;
+	let client = K2vClient::new(config)?;
 
 	match args.command {
 		Command::Insert {
