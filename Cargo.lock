@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "k2v-client"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "base64 0.21.0",
  "clap 4.2.7",
@@ -1906,6 +1906,8 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

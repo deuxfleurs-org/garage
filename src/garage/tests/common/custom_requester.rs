@@ -209,6 +209,7 @@ impl<'a> RequestBuilder<'a> {
 		all_headers.extend(self.unsigned_headers.clone());
 
 		let canonical_request = signature::payload::canonical_request(
+			self.service,
 			&self.method,
 			&Uri::try_from(&uri).unwrap(),
 			&all_headers,
