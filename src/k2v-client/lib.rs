@@ -33,6 +33,12 @@ const STRICT_ENCODE_SET: AsciiSet = NON_ALPHANUMERIC
 	.remove(b'-')
 	.remove(b'.')
 	.remove(b'~');
+const PATH_ENCODE_SET: AsciiSet = NON_ALPHANUMERIC
+	.remove(b'/')
+	.remove(b'_')
+	.remove(b'-')
+	.remove(b'.')
+	.remove(b'~');
 
 pub struct K2vClientConfig {
 	pub endpoint: String,
@@ -445,7 +451,7 @@ impl K2vClient {
 		let mut url = format!("{}/{}", self.config.endpoint, self.config.bucket);
 		if let Some(pk) = partition_key {
 			url.push('/');
-			url += pk;
+			url.extend(utf8_percent_encode(pk, &PATH_ENCODE_SET));
 		}
 		if !query.is_empty() {
 			url.push('?');
