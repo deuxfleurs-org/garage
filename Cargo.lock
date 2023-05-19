@@ -1199,6 +1199,7 @@ dependencies = [
  "hmac",
  "http",
  "hyper",
+ "k2v-client",
  "kuska-sodiumoxide",
  "netapp",
  "opentelemetry",

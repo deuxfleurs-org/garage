@@ -1,5 +1,6 @@
 use aws_sdk_s3::{Client, Region};
 use ext::*;
+use k2v_client::K2vClient;
 
 #[macro_use]
 pub mod macros;
@@ -67,6 +68,19 @@ impl Context {
 			.expect_success_status("Could not allow key for bucket");
 
 		bucket_name
+	}
+
+	/// Build a K2vClient for a given bucket
+	pub fn k2v_client(&self, bucket: &str) -> K2vClient {
+		let config = k2v_client::K2vClientConfig {
+			region: REGION.to_string(),
+			endpoint: self.garage.k2v_uri().to_string(),
+			aws_access_key_id: self.key.id.clone(),
+			aws_secret_access_key: self.key.secret.clone(),
+			bucket: bucket.to_string(),
+			user_agent: None,
+		};
+		K2vClient::new(config).expect("Could not create K2V client")
 	}
 }
 
