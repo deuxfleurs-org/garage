@@ -146,6 +146,7 @@ pub enum ConsulDiscoveryAPI {
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
 	/// The consul api to use when registering: either `catalog` (the default) or `agent`
+	#[serde(default)]
 	pub api: ConsulDiscoveryAPI,
 	/// Consul http or https address to connect to to discover more peers
 	pub consul_http_addr: String,
