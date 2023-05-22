@@ -41,7 +41,7 @@ service_name = "garage-daemon"
 ca_cert = "/etc/consul/consul-ca.crt"
 client_cert = "/etc/consul/consul-client.crt"
 client_key = "/etc/consul/consul-key.crt"
-# for `catalog` API mode, unset client_cert and client_key, and optionally enable `token`
+# for `agent` API mode, unset client_cert and client_key, and optionally enable `token`
 # token = "abcdef-01234-56789"
 tls_skip_verify = false
 tags = [ "dns-enabled" ]
@@ -326,7 +326,7 @@ The `consul_http_addr` parameter should be set to the full HTTP(S) address of th
 
 Two APIs for service registration are supported: `catalog`  and `agent`. `catalog`, the default, will register a service using
 the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are provided. The `agent` API uses the
-`v1/agent` endpoints instead, where an optional `consul_http_token` may be provided.
+`v1/agent` endpoints instead, where an optional `token` may be provided.
 
 ### `service_name`
 
