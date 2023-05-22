@@ -26,6 +26,7 @@ garage_rpc = { version = "0.8.2", path = "src/rpc" }
 garage_table = { version = "0.8.2", path = "src/table" }
 garage_util = { version = "0.8.2", path = "src/util" }
 garage_web = { version = "0.8.2", path = "src/web" }
+k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
 [profile.dev]
 lto = "off"
