@@ -1931,7 +1931,7 @@ dependencies = [
 
 [[package]]
 name = "k2v-client"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "aws-sigv4 0.55.2",
  "base64 0.21.0",
