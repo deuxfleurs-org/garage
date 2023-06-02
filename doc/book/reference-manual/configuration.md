@@ -35,12 +35,18 @@ bootstrap_peers = [
 
 
 [consul_discovery]
+api = "catalog"
 consul_http_addr = "http://127.0.0.1:8500"
 service_name = "garage-daemon"
 ca_cert = "/etc/consul/consul-ca.crt"
 client_cert = "/etc/consul/consul-client.crt"
 client_key = "/etc/consul/consul-key.crt"
+# for `agent` API mode, unset client_cert and client_key, and optionally enable `token`
+# token = "abcdef-01234-56789"
 tls_skip_verify = false
+tags = [ "dns-enabled" ]
+meta = { dns-acl = "allow trusted" }
+
 
 [kubernetes_discovery]
 namespace = "garage"
@@ -201,7 +207,7 @@ Garage supports the following replication modes:
     that should probably never be used.
 
 Note that in modes `2` and `3`,
-if at least the same number of zones are available, an arbitrary number of failures in 
+if at least the same number of zones are available, an arbitrary number of failures in
 any given zone is tolerated as copies of data will be spread over several zones.
 
 **Make sure `replication_mode` is the same in the configuration files of all nodes.
@@ -245,7 +251,7 @@ Values between `1` (faster compression) and `19` (smaller file) are standard com
 levels for zstd. From `20` to `22`, compression levels are referred as "ultra" and must be
 used with extra care as it will use lot of memory. A value of `0` will let zstd choose a
 default value (currently `3`). Finally, zstd has also compression designed to be faster
-than default compression levels, they range from `-1` (smaller file) to `-99` (faster 
+than default compression levels, they range from `-1` (smaller file) to `-99` (faster
 compression).
 
 If you do not specify a `compression_level` entry, Garage will set it to `1` for you. With
@@ -316,6 +322,12 @@ reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
 The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
 
+### `api`
+
+Two APIs for service registration are supported: `catalog`  and `agent`. `catalog`, the default, will register a service using
+the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are provided. The `agent` API uses the
+`v1/agent` endpoints instead, where an optional `token` may be provided.
+
 ### `service_name`
 
 `service_name` should be set to the service name under which Garage's
@@ -324,6 +336,7 @@ RPC ports are announced.
 ### `client_cert`, `client_key`
 
 TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
+Only available when `api = "catalog"`.
 
 ### `ca_cert`
 
@@ -334,6 +347,29 @@ TLS CA certificate to use when communicating with Consul over TLS.
 Skip server hostname verification in TLS handshake.
 `ca_cert` is ignored when this is set.
 
+### `token`
+
+Uses the provided token for communication with Consul. Only available when `api = "agent"`.
+The policy assigned to this token should at least have these rules:
+
+```hcl
+// the `service_name` specified above
+service "garage" {
+  policy = "write"
+}
+
+service_prefix "" {
+  policy = "read"
+}
+
+node_prefix "" {
+  policy = "read"
+}
+```
+
+### `tags` and `meta`
+
+Additional list of tags and map of service meta to add during service registration.
 
 ## The `[kubernetes_discovery]` section
 
