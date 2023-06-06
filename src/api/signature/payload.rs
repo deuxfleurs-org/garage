@@ -185,7 +185,7 @@ fn parse_query_authorization(
 
 	if duration > 7 * 24 * 3600 {
 		return Err(Error::bad_request(
-			"X-Amz-Exprires may not exceed a week".to_string(),
+			"X-Amz-Expires may not exceed a week".to_string(),
 		));
 	}
 
