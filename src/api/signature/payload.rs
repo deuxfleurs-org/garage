@@ -211,7 +211,7 @@ fn parse_query_authorization(
 fn parse_credential(cred: &str) -> Result<(String, String), Error> {
 	let first_slash = cred
 		.find('/')
-		.ok_or_bad_request("Credentials does not contain / in authorization field")?;
+		.ok_or_bad_request("Credentials does not contain '/' in authorization field")?;
 	let (key_id, scope) = cred.split_at(first_slash);
 	Ok((
 		key_id.to_string(),
