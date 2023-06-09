@@ -10,6 +10,8 @@ Here is an example `garage.toml` configuration file that illustrates all of the 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
+metadata_fsync = true
+data_fsync = false
 
 db_engine = "lmdb"
 
@@ -123,6 +125,49 @@ convert-db -a <input db engine> -i <input db path> \
 
 Make sure to specify the full database path as presented in the table above,
 and not just the path to the metadata directory.
+
+### `metadata_fsync`
+
+Whether to enable synchronous mode for the database engine or not.
+This is disabled (`false`) by default.
+
+This reduces the risk of metadata corruption in case of power failures,
+at the cost of a significant drop in write performance,
+as Garage will have to pause to sync data to disk much more often
+(several times for API calls such as PutObject).
+
+Using this option reduces the risk of simultaneous metadata corruption on several
+cluster nodes, which could lead to data loss.
+
+If multi-site replication is used, this option is most likely not necessary, as
+it is extremely unlikely that two nodes in different locations will have a 
+power failure at the exact same time.
+
+(Metadata corruption on a single node is not an issue, the corrupted data file
+can always be deleted and reconstructed from the other nodes in the cluster.)
+
+Here is how this option impacts the different database engines:
+
+| Database | `metadata_fsync = false` (default) | `metadata_fsync = true`       |
+|----------|------------------------------------|-------------------------------|
+| Sled     | default options                    | *unsupported*                 |
+| Sqlite   | `PRAGMA synchronous = OFF`         | `PRAGMA synchronous = NORMAL` |
+| LMDB     | `MDB_NOMETASYNC` + `MDB_NOSYNC`    | `MDB_NOMETASYNC`              |
+
+Note that the Sqlite database is always ran in `WAL` mode (`PRAGMA journal_mode = WAL`).
+
+### `data_fsync`
+
+Whether to `fsync` data blocks and their containing directory after they are
+saved to disk.
+This is disabled (`false`) by default.
+
+This might reduce the risk that a data block is lost in rare
+situations such as simultaneous node losing power,
+at the cost of a moderate drop in write performance.
+
+Similarly to `metatada_fsync`, this is likely not necessary
+if geographical replication is used.
 
 ### `block_size`
 

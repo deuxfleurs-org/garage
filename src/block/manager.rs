@@ -80,6 +80,7 @@ pub struct BlockManager {
 	/// Directory in which block are stored
 	pub data_dir: PathBuf,
 
+	data_fsync: bool,
 	compression_level: Option<i32>,
 
 	mutation_lock: [Mutex<BlockManagerLocked>; 256],
@@ -114,6 +115,7 @@ impl BlockManager {
 	pub fn new(
 		db: &db::Db,
 		data_dir: PathBuf,
+		data_fsync: bool,
 		compression_level: Option<i32>,
 		replication: TableShardedReplication,
 		system: Arc<System>,
@@ -141,6 +143,7 @@ impl BlockManager {
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
+			data_fsync,
 			compression_level,
 			mutation_lock: [(); 256].map(|_| Mutex::new(BlockManagerLocked())),
 			rc,
@@ -713,7 +716,11 @@ impl BlockManagerLocked {
 
 		let mut f = fs::File::create(&path_tmp).await?;
 		f.write_all(data).await?;
-		f.sync_all().await?;
+
+		if mgr.data_fsync {
+			f.sync_all().await?;
+		}
+
 		drop(f);
 
 		fs::rename(path_tmp, path).await?;
@@ -724,18 +731,20 @@ impl BlockManagerLocked {
 			fs::remove_file(to_delete).await?;
 		}
 
-		// We want to ensure that when this function returns, data is properly persisted
-		// to disk. The first step is the sync_all above that does an fsync on the data file.
-		// Now, we do an fsync on the containing directory, to ensure that the rename
-		// is persisted properly. See:
-		// http://thedjbway.b0llix.net/qmail/syncdir.html
-		let dir = fs::OpenOptions::new()
-			.read(true)
-			.mode(0)
-			.open(directory)
-			.await?;
-		dir.sync_all().await?;
-		drop(dir);
+		if mgr.data_fsync {
+			// We want to ensure that when this function returns, data is properly persisted
+			// to disk. The first step is the sync_all above that does an fsync on the data file.
+			// Now, we do an fsync on the containing directory, to ensure that the rename
+			// is persisted properly. See:
+			// http://thedjbway.b0llix.net/qmail/syncdir.html
+			let dir = fs::OpenOptions::new()
+				.read(true)
+				.mode(0)
+				.open(directory)
+				.await?;
+			dir.sync_all().await?;
+			drop(dir);
+		}
 
 		Ok(())
 	}

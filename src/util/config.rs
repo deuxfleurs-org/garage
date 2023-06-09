@@ -15,6 +15,13 @@ pub struct Config {
 	/// Path where to store data. Can be slower, but need higher volume
 	pub data_dir: PathBuf,
 
+	/// Whether to fsync after all metadata transactions (disabled by default)
+	#[serde(default)]
+	pub metadata_fsync: bool,
+	/// Whether to fsync after all data block writes (disabled by default)
+	#[serde(default)]
+	pub data_fsync: bool,
+
 	/// Size of data blocks to save to disk
 	#[serde(default = "default_block_size")]
 	pub block_size: usize,

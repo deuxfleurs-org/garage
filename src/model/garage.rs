@@ -91,6 +91,11 @@ impl Garage {
 			// ---- Sled DB ----
 			#[cfg(feature = "sled")]
 			"sled" => {
+				if config.metadata_fsync {
+					return Err(Error::Message(format!(
+						"`metadata_fsync = true` is not supported with the Sled database engine"
+					)));
+				}
 				db_path.push("db");
 				info!("Opening Sled database at: {}", db_path.display());
 				let db = db::sled_adapter::sled::Config::default()
@@ -111,7 +116,11 @@ impl Garage {
 				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
 					.and_then(|db| {
 						db.pragma_update(None, "journal_mode", &"WAL")?;
-						db.pragma_update(None, "synchronous", &"NORMAL")?;
+						if config.metadata_fsync {
+							db.pragma_update(None, "synchronous", &"NORMAL")?;
+						} else {
+							db.pragma_update(None, "synchronous", &"OFF")?;
+						}
 						Ok(db)
 					})
 					.ok_or_message("Unable to open sqlite DB")?;
@@ -139,6 +148,9 @@ impl Garage {
 				env_builder.map_size(map_size);
 				unsafe {
 					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
+					if !config.metadata_fsync {
+						env_builder.flag(heed::flags::Flags::MdbNoSync);
+					}
 				}
 				let db = match env_builder.open(&db_path) {
 					Err(heed::Error::Io(e)) if e.kind() == std::io::ErrorKind::OutOfMemory => {
@@ -208,6 +220,7 @@ impl Garage {
 		let block_manager = BlockManager::new(
 			&db,
 			config.data_dir.clone(),
+			config.data_fsync,
 			config.compression_level,
 			data_rep_param,
 			system.clone(),
