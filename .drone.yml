@@ -20,6 +20,7 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     environment:
       GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
+      GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-build --no-build-output --attr test.amd64
@@ -31,8 +32,9 @@ steps:
       - ./result/bin/garage_util-*
       - ./result/bin/garage_web-*
       - ./result/bin/garage-*
-      - ./result/bin/integration-*
+      - ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
       - rm result
+      - rm -rv tmp-garage-integration
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
@@ -283,6 +285,6 @@ trigger:
 
 ---
 kind: signature
-hmac: ac09a5a8c82502f67271f93afa1e1e21ce66383b8e24a6deb26b285cc1c378ba
+hmac: 24aebbcdba84fd0cdf963061d7bb72ae5b915bfdd0f50c7b019001126fb7fa56
 
 ...
