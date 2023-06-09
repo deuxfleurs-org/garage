@@ -52,6 +52,7 @@ impl Instance {
 			r#"
 metadata_dir = "{path}/meta"
 data_dir = "{path}/data"
+db_engine = "sled"
 
 replication_mode = "1"
 
