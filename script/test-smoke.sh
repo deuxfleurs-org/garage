@@ -60,18 +60,18 @@ if [ -z "$SKIP_AWS" ]; then
   echo "🛠️ Testing multipart uploads with awscli (aws s3api)"
   UPLOAD=$(aws s3api create-multipart-upload --bucket eprouvette --key 'upload' | jq -r ".UploadId")
   echo "Upload ID: $UPLOAD"
-	ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
-          --part-number 3 --body "/tmp/garage.part1.rnd" --upload-id "$UPLOAD" \
-          | jq -r ".ETag")
-	ETAG2=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
-          --part-number 2 --body "/tmp/garage.part2.rnd" --upload-id "$UPLOAD" \
-          | jq -r ".ETag")
-	ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
-          --part-number 3 --body "/tmp/garage.part3.rnd" --upload-id "$UPLOAD" \
-          | jq -r ".ETag")
-	ETAG6=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
-          --part-number 6 --body "/tmp/garage.part4.rnd" --upload-id "$UPLOAD" \
-          | jq -r ".ETag")
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 3 --body "/tmp/garage.part1.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG2=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 2 --body "/tmp/garage.part2.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 3 --body "/tmp/garage.part3.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG6=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 6 --body "/tmp/garage.part4.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
   MPU="{\"Parts\":[{\"PartNumber\":2,\"ETag\":$ETAG2}, {\"PartNumber\":3,\"ETag\":$ETAG3}, {\"PartNumber\":6,\"ETag\":$ETAG6}]}"
   echo $MPU > /tmp/garage.mpu.json
   aws s3api complete-multipart-upload --multipart-upload file:///tmp/garage.mpu.json \
