@@ -6,6 +6,8 @@ use garage_util::migrate::Migrate;
 
 use crate::crdt::Crdt;
 
+// =================================== PARTITION KEYS
+
 /// Trait for field used to partition data
 pub trait PartitionKey:
 	Clone + PartialEq + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static
@@ -29,6 +31,8 @@ impl PartitionKey for FixedBytes32 {
 	}
 }
 
+// =================================== SORT KEYS
+
 /// Trait for field used to sort data
 pub trait SortKey: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static {
 	/// Get the key used to sort
@@ -46,6 +50,8 @@ impl SortKey for FixedBytes32 {
 		self.as_slice()
 	}
 }
+
+// =================================== SCHEMA
 
 /// Trait for an entry in a table. It must be sortable and partitionnable.
 pub trait Entry<P: PartitionKey, S: SortKey>:

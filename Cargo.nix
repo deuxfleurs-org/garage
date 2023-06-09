@@ -32,7 +32,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "30497a698042332c229ed062aa3c4bc7d17c3e927deb3cf9d4dc12d8a0492515";
+  nixifiedLockHash = "5214dc0a8455fa16df874d9a8efdaa0b99cb3b6ae4cf2ea973137c1b8a1d39d6";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1985,7 +1985,7 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "f6b0decc02f4636b9ccad390dcbe77b722a77efedfa393caf8379a51d5c61899"; };
     dependencies = {
       git_version_macro = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".git-version-macro."0.3.5" { profileName = "__noProfile"; }).out;
-      proc_macro_hack = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.19" { profileName = "__noProfile"; }).out;
+      proc_macro_hack = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.20+deprecated" { profileName = "__noProfile"; }).out;
     };
   });
   
@@ -1995,7 +1995,7 @@ in
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo { inherit name version; sha256 = "fe69f1cbdb6e28af2bac214e943b99ce8a0a06b447d15d3e61161b0423139f3f"; };
     dependencies = {
-      proc_macro_hack = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.19" { profileName = "__noProfile"; }).out;
+      proc_macro_hack = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.20+deprecated" { profileName = "__noProfile"; }).out;
       proc_macro2 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro2."1.0.56" { inherit profileName; }).out;
       quote = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".quote."1.0.26" { inherit profileName; }).out;
       syn = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".syn."1.0.94" { inherit profileName; }).out;
@@ -3695,11 +3695,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.19" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".proc-macro-hack."0.5.20+deprecated" = overridableMkRustCrate (profileName: rec {
     name = "proc-macro-hack";
-    version = "0.5.19";
+    version = "0.5.20+deprecated";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"; };
+    src = fetchCratesIo { inherit name version; sha256 = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"; };
   });
   
   "registry+https://github.com/rust-lang/crates.io-index".proc-macro2."1.0.56" = overridableMkRustCrate (profileName: rec {

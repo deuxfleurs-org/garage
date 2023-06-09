@@ -27,6 +27,7 @@ use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
+use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
 use crate::cli::*;
@@ -52,6 +53,7 @@ pub enum AdminRpc {
 		bucket: Bucket,
 		relevant_keys: HashMap<String, Key>,
 		counters: HashMap<String, i64>,
+		mpu_counters: HashMap<String, i64>,
 	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
@@ -66,6 +68,7 @@ pub enum AdminRpc {
 		hash: Hash,
 		refcount: u64,
 		versions: Vec<Result<Version, Uuid>>,
+		uploads: Vec<MultipartUpload>,
 	},
 }
 

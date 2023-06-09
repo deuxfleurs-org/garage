@@ -443,19 +443,22 @@ pub struct RepairOpt {
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum RepairWhat {
-	/// Only do a full sync of metadata tables
+	/// Do a full sync of metadata tables
 	#[structopt(name = "tables", version = garage_version())]
 	Tables,
-	/// Only repair (resync/rebalance) the set of stored blocks
+	/// Repair (resync/rebalance) the set of stored blocks
 	#[structopt(name = "blocks", version = garage_version())]
 	Blocks,
-	/// Only redo the propagation of object deletions to the version table (slow)
+	/// Repropagate object deletions to the version table
 	#[structopt(name = "versions", version = garage_version())]
 	Versions,
-	/// Only redo the propagation of version deletions to the block ref table (extremely slow)
+	/// Repropagate object deletions to the multipart upload table
+	#[structopt(name = "mpu", version = garage_version())]
+	MultipartUploads,
+	/// Repropagate version deletions to the block ref table
 	#[structopt(name = "block_refs", version = garage_version())]
 	BlockRefs,
-	/// Verify integrity of all blocks on disc (extremely slow, i/o intensive)
+	/// Verify integrity of all blocks on disc
 	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {
 		#[structopt(subcommand)]

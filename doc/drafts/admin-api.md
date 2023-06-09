@@ -535,7 +535,10 @@ Example response:
         ],
         "objects": 14827,
         "bytes": 13189855625,
-        "unfinshedUploads": 0,
+        "unfinishedUploads": 1,
+        "unfinishedMultipartUploads": 1,
+        "unfinishedMultipartUploadParts": 11,
+        "unfinishedMultipartUploadBytes": 41943040,
         "quotas": {
             "maxSize": null,
             "maxObjects": null

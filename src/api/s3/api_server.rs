@@ -27,6 +27,7 @@ use crate::s3::cors::*;
 use crate::s3::delete::*;
 use crate::s3::get::*;
 use crate::s3::list::*;
+use crate::s3::multipart::*;
 use crate::s3::post_object::handle_post_object;
 use crate::s3::put::*;
 use crate::s3::router::Endpoint;
@@ -256,7 +257,7 @@ impl ApiHandler for S3ApiServer {
 							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
-							page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 						},
@@ -286,7 +287,7 @@ impl ApiHandler for S3ApiServer {
 								bucket_name,
 								bucket_id,
 								delimiter: delimiter.map(|d| d.to_string()),
-								page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 								prefix: prefix.unwrap_or_default(),
 							},
@@ -319,7 +320,7 @@ impl ApiHandler for S3ApiServer {
 							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
-							page_size: max_uploads.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+							page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 						},
@@ -343,7 +344,7 @@ impl ApiHandler for S3ApiServer {
 						key,
 						upload_id,
 						part_number_marker: part_number_marker.map(|p| p.clamp(1, 10000)),
-						max_parts: max_parts.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+						max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
 					},
 				)
 				.await

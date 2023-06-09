@@ -149,7 +149,6 @@ pub async fn handle_head(
 
 				let (part_offset, part_end) =
 					calculate_part_bounds(&version, pn).ok_or(Error::InvalidPart)?;
-				let n_parts = version.parts_etags.items().len();
 
 				Ok(object_headers(object_version, version_meta)
 					.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
@@ -162,7 +161,7 @@ pub async fn handle_head(
 							version_meta.size
 						),
 					)
-					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", n_parts))
+					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
 					.status(StatusCode::PARTIAL_CONTENT)
 					.body(Body::empty())?)
 			}
@@ -376,7 +375,6 @@ async fn handle_get_part(
 
 			let (begin, end) =
 				calculate_part_bounds(&version, part_number).ok_or(Error::InvalidPart)?;
-			let n_parts = version.parts_etags.items().len();
 
 			let body = body_from_blocks_range(garage, version.blocks.items(), begin, end);
 
@@ -386,7 +384,7 @@ async fn handle_get_part(
 					CONTENT_RANGE,
 					format!("bytes {}-{}/{}", begin, end - 1, version_meta.size),
 				)
-				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", n_parts))
+				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
 				.body(body)?)
 		}
 		_ => unreachable!(),
@@ -443,7 +441,7 @@ fn body_from_blocks_range(
 	// block.part_number, which is not the same in the case of a multipart upload)
 	let mut blocks: Vec<(VersionBlock, u64)> = Vec::with_capacity(std::cmp::min(
 		all_blocks.len(),
-		4 + ((end - begin) / std::cmp::max(all_blocks[0].1.size as u64, 1024)) as usize,
+		4 + ((end - begin) / std::cmp::max(all_blocks[0].1.size, 1024)) as usize,
 	));
 	let mut block_offset: u64 = 0;
 	for (_, b) in all_blocks.iter() {
@@ -454,7 +452,7 @@ fn body_from_blocks_range(
 		if block_offset < end && block_offset + b.size > begin {
 			blocks.push((*b, block_offset));
 		}
-		block_offset += b.size as u64;
+		block_offset += b.size;
 	}
 
 	let order_stream = OrderTag::stream();

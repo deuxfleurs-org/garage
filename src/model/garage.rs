@@ -17,6 +17,7 @@ use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::s3::block_ref_table::*;
+use crate::s3::mpu_table::*;
 use crate::s3::object_table::*;
 use crate::s3::version_table::*;
 
@@ -57,6 +58,10 @@ pub struct Garage {
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
 	/// Counting table containing object counters
 	pub object_counter_table: Arc<IndexCounter<Object>>,
+	/// Table containing S3 multipart uploads
+	pub mpu_table: Arc<Table<MultipartUploadTable, TableShardedReplication>>,
+	/// Counting table containing multipart object counters
+	pub mpu_counter_table: Arc<IndexCounter<MultipartUpload>>,
 	/// Table containing S3 object versions
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	/// Table containing S3 block references (not blocks themselves)
@@ -261,6 +266,20 @@ impl Garage {
 			&db,
 		);
 
+		info!("Initialize multipart upload counter table...");
+		let mpu_counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), &db);
+
+		info!("Initialize multipart upload table...");
+		let mpu_table = Table::new(
+			MultipartUploadTable {
+				version_table: version_table.clone(),
+				mpu_counter_table: mpu_counter_table.clone(),
+			},
+			meta_rep_param.clone(),
+			system.clone(),
+			&db,
+		);
+
 		info!("Initialize object counter table...");
 		let object_counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), &db);
 
@@ -269,6 +288,7 @@ impl Garage {
 		let object_table = Table::new(
 			ObjectTable {
 				version_table: version_table.clone(),
+				mpu_table: mpu_table.clone(),
 				object_counter_table: object_counter_table.clone(),
 			},
 			meta_rep_param.clone(),
@@ -297,6 +317,8 @@ impl Garage {
 			key_table,
 			object_table,
 			object_counter_table,
+			mpu_table,
+			mpu_counter_table,
 			version_table,
 			block_ref_table,
 			#[cfg(feature = "k2v")]
@@ -313,6 +335,8 @@ impl Garage {
 
 		self.object_table.spawn_workers(bg);
 		self.object_counter_table.spawn_workers(bg);
+		self.mpu_table.spawn_workers(bg);
+		self.mpu_counter_table.spawn_workers(bg);
 		self.version_table.spawn_workers(bg);
 		self.block_ref_table.spawn_workers(bg);
 

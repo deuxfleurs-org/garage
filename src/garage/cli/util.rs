@@ -12,8 +12,9 @@ use garage_block::manager::BlockResyncErrorInfo;
 
 use garage_model::bucket_table::*;
 use garage_model::key_table::*;
-use garage_model::s3::object_table::{BYTES, OBJECTS, UNFINISHED_UPLOADS};
-use garage_model::s3::version_table::Version;
+use garage_model::s3::mpu_table::{self, MultipartUpload};
+use garage_model::s3::object_table;
+use garage_model::s3::version_table::*;
 
 use crate::cli::structs::WorkerListOpt;
 
@@ -135,6 +136,7 @@ pub fn print_bucket_info(
 	bucket: &Bucket,
 	relevant_keys: &HashMap<String, Key>,
 	counters: &HashMap<String, i64>,
+	mpu_counters: &HashMap<String, i64>,
 ) {
 	let key_name = |k| {
 		relevant_keys
@@ -148,7 +150,7 @@ pub fn print_bucket_info(
 		Deletable::Deleted => println!("Bucket is deleted."),
 		Deletable::Present(p) => {
 			let size =
-				bytesize::ByteSize::b(counters.get(BYTES).cloned().unwrap_or_default() as u64);
+				bytesize::ByteSize::b(*counters.get(object_table::BYTES).unwrap_or(&0) as u64);
 			println!(
 				"\nSize: {} ({})",
 				size.to_string_as(true),
@@ -156,14 +158,22 @@ pub fn print_bucket_info(
 			);
 			println!(
 				"Objects: {}",
-				counters.get(OBJECTS).cloned().unwrap_or_default()
+				*counters.get(object_table::OBJECTS).unwrap_or(&0)
+			);
+			println!(
+				"Unfinished uploads (multipart and non-multipart): {}",
+				*counters.get(object_table::UNFINISHED_UPLOADS).unwrap_or(&0)
 			);
 			println!(
 				"Unfinished multipart uploads: {}",
-				counters
-					.get(UNFINISHED_UPLOADS)
-					.cloned()
-					.unwrap_or_default()
+				*mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0)
+			);
+			let mpu_size =
+				bytesize::ByteSize::b(*mpu_counters.get(mpu_table::BYTES).unwrap_or(&0) as u64);
+			println!(
+				"Size of unfinished multipart uploads: {} ({})",
+				mpu_size.to_string_as(true),
+				mpu_size.to_string_as(false),
 			);
 
 			println!("\nWebsite access: {}", p.website_config.get().is_some());
@@ -385,29 +395,49 @@ pub fn print_block_error_list(el: Vec<BlockResyncErrorInfo>) {
 	format_table(table);
 }
 
-pub fn print_block_info(hash: Hash, refcount: u64, versions: Vec<Result<Version, Uuid>>) {
+pub fn print_block_info(
+	hash: Hash,
+	refcount: u64,
+	versions: Vec<Result<Version, Uuid>>,
+	uploads: Vec<MultipartUpload>,
+) {
 	println!("Block hash: {}", hex::encode(hash.as_slice()));
 	println!("Refcount: {}", refcount);
 	println!();
 
-	let mut table = vec!["Version\tBucket\tKey\tDeleted".into()];
+	let mut table = vec!["Version\tBucket\tKey\tMPU\tDeleted".into()];
 	let mut nondeleted_count = 0;
 	for v in versions.iter() {
 		match v {
 			Ok(ver) => {
-				table.push(format!(
-					"{:?}\t{:?}\t{}\t{:?}",
-					ver.uuid,
-					ver.bucket_id,
-					ver.key,
-					ver.deleted.get()
-				));
+				match &ver.backlink {
+					VersionBacklink::Object { bucket_id, key } => {
+						table.push(format!(
+							"{:?}\t{:?}\t{}\t\t{:?}",
+							ver.uuid,
+							bucket_id,
+							key,
+							ver.deleted.get()
+						));
+					}
+					VersionBacklink::MultipartUpload { upload_id } => {
+						let upload = uploads.iter().find(|x| x.upload_id == *upload_id);
+						table.push(format!(
+							"{:?}\t{:?}\t{}\t{:?}\t{:?}",
+							ver.uuid,
+							upload.map(|u| u.bucket_id).unwrap_or_default(),
+							upload.map(|u| u.key.as_str()).unwrap_or_default(),
+							upload_id,
+							ver.deleted.get()
+						));
+					}
+				}
 				if !ver.deleted.get() {
 					nondeleted_count += 1;
 				}
 			}
 			Err(vh) => {
-				table.push(format!("{:?}\t\t\tyes", vh));
+				table.push(format!("{:?}\t\t\t\tyes", vh));
 			}
 		}
 	}
