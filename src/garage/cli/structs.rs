@@ -408,6 +408,10 @@ pub struct KeyImportOpt {
 	/// Key name
 	#[structopt(short = "n", default_value = "Imported key")]
 	pub name: String,
+
+	/// Confirm key import
+	#[structopt(long = "yes")]
+	pub yes: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
