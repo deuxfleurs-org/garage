@@ -114,6 +114,7 @@ struct GetClusterStatusResponse {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ConnectClusterNodesResponse {
 	success: bool,
 	error: Option<String>,
@@ -128,6 +129,7 @@ struct GetClusterLayoutResponse {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct KnownNodeResp {
 	addr: SocketAddr,
 	is_up: bool,
@@ -197,6 +199,7 @@ pub async fn handle_revert_cluster_layout(
 type UpdateClusterLayoutRequest = HashMap<String, Option<NodeRole>>;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ApplyRevertLayoutRequest {
 	version: u64,
 }

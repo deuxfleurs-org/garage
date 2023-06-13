@@ -34,6 +34,7 @@ pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Er
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ListKeyResultItem {
 	id: String,
 	name: String,
@@ -71,6 +72,7 @@ pub async fn handle_create_key(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateKeyRequest {
 	name: String,
 }
@@ -131,6 +133,7 @@ pub async fn handle_update_key(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct UpdateKeyRequest {
 	name: Option<String>,
 	allow: Option<KeyPerm>,
@@ -246,6 +249,7 @@ struct KeyInfoBucketResult {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ApiBucketKeyPerm {
 	#[serde(default)]
 	pub(crate) read: bool,
