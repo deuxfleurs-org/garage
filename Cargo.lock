@@ -1410,7 +1410,7 @@ dependencies = [
  "netapp",
  "opentelemetry",
  "rand",
- "rmp-serde 1.1.1",
+ "rmp-serde",
  "rustc_version",
  "serde",
  "serde_json",
@@ -2286,9 +2286,9 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "netapp"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ffe47ac46d3b2ce2f736a70865492df082e042eb2bfdddfca3b8dd66bd9469d"
+checksum = "0eb28e89e7b21d3fdf2b46e2a580ccaab68f469f2e5c27db74f61994be90b558"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -2304,7 +2304,7 @@ dependencies = [
  "opentelemetry-contrib",
  "pin-project",
  "rand",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "tokio",
  "tokio-stream",
@@ -3008,17 +3008,6 @@ dependencies = [
  "byteorder",
  "num-traits",
  "paste",
-]
-
-[[package]]
-name = "rmp-serde"
-version = "0.15.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "723ecff9ad04f4ad92fe1c8ca6c20d2196d9286e9c60727c4cb5511629260e9d"
-dependencies = [
- "byteorder",
- "rmp",
- "serde",
 ]
 
 [[package]]
