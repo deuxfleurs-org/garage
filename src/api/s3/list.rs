@@ -1175,6 +1175,7 @@ mod tests {
 
 		MultipartUpload {
 			upload_id: uuid,
+			timestamp: TS,
 			deleted: false.into(),
 			parts: crdt::Map::<MpuPartKey, MpuPart>::from_iter(parts),
 			bucket_id: uuid,
