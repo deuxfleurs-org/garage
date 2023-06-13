@@ -11,11 +11,13 @@ members = [
 	"src/web",
 	"src/garage",
 	"src/k2v-client",
+	"src/format-table",
 ]
 
 default-members = ["src/garage"]
 
 [workspace.dependencies]
+format_table = { version = "0.1.1", path = "src/format-table" }
 garage_api = { version = "0.8.2", path = "src/api" }
 garage_block = { version = "0.8.2", path = "src/block" }
 garage_db = { version = "0.8.2", path = "src/db", default-features = false }
@@ -24,6 +26,7 @@ garage_rpc = { version = "0.8.2", path = "src/rpc" }
 garage_table = { version = "0.8.2", path = "src/table" }
 garage_util = { version = "0.8.2", path = "src/util" }
 garage_web = { version = "0.8.2", path = "src/web" }
+k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
 [profile.dev]
 lto = "off"

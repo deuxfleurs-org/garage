@@ -9,10 +9,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use format_table::format_table_to_string;
+
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
-use garage_util::formater::format_table_to_string;
 
 use garage_table::replication::*;
 use garage_table::*;

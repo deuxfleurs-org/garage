@@ -128,7 +128,7 @@ impl<A: ApiHandler> ApiServer<A> {
 		let uri = req.uri().clone();
 
 		if let Ok(forwarded_for_ip_addr) =
-			forwarded_headers::handle_forwarded_for_headers(&req.headers())
+			forwarded_headers::handle_forwarded_for_headers(req.headers())
 		{
 			info!(
 				"{} (via {}) {} {}",

@@ -19,7 +19,7 @@ use crate::signature::error::*;
 
 pub async fn check_payload_signature(
 	garage: &Garage,
-	service: &str,
+	service: &'static str,
 	request: &Request<Body>,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
@@ -51,6 +51,7 @@ pub async fn check_payload_signature(
 	};
 
 	let canonical_request = canonical_request(
+		service,
 		request.method(),
 		request.uri(),
 		&headers,
@@ -184,7 +185,7 @@ fn parse_query_authorization(
 
 	if duration > 7 * 24 * 3600 {
 		return Err(Error::bad_request(
-			"X-Amz-Exprires may not exceed a week".to_string(),
+			"X-Amz-Expires may not exceed a week".to_string(),
 		));
 	}
 
@@ -210,7 +211,7 @@ fn parse_query_authorization(
 fn parse_credential(cred: &str) -> Result<(String, String), Error> {
 	let first_slash = cred
 		.find('/')
-		.ok_or_bad_request("Credentials does not contain / in authorization field")?;
+		.ok_or_bad_request("Credentials does not contain '/' in authorization field")?;
 	let (key_id, scope) = cred.split_at(first_slash);
 	Ok((
 		key_id.to_string(),
@@ -231,15 +232,50 @@ pub fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_re
 }
 
 pub fn canonical_request(
+	service: &'static str,
 	method: &Method,
 	uri: &hyper::Uri,
 	headers: &HashMap<String, String>,
 	signed_headers: &str,
 	content_sha256: &str,
 ) -> String {
+	// There seems to be evidence that in AWSv4 signatures, the path component is url-encoded
+	// a second time when building the canonical request, as specified in this documentation page:
+	// -> https://docs.aws.amazon.com/rolesanywhere/latest/userguide/authentication-sign-process.html
+	// However this documentation page is for a specific service ("roles anywhere"), and
+	// in the S3 service we know for a fact that there is no double-urlencoding, because all of
+	// the tests we made with external software work without it.
+	//
+	// The theory is that double-urlencoding occurs for all services except S3,
+	// which is what is implemented in rusoto_signature:
+	// -> https://docs.rs/rusoto_signature/latest/src/rusoto_signature/signature.rs.html#464
+	//
+	// Digging into the code of the official AWS Rust SDK, we learn that double-URI-encoding can
+	// be set or unset on a per-request basis (the signature crates, aws-sigv4 and aws-sig-auth,
+	// are agnostic to this). Grepping the codebase confirms that S3 is the only API for which
+	// double_uri_encode is set to false, meaning it is true (its default value) for all other
+	// AWS services. We will therefore implement this behavior in Garage as well.
+	//
+	// Note that this documentation page, which is touted as the "authoritative reference" on
+	// AWSv4 signatures, makes no mention of either single- or double-urlencoding:
+	// -> https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html
+	// This page of the S3 documentation does also not mention anything specific:
+	// -> https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
+	//
+	// Note that there is also the issue of path normalization, which I hope is unrelated to the
+	// one of URI-encoding. At least in aws-sigv4 both parameters can be set independently,
+	// and rusoto_signature does not seem to do any effective path normalization, even though
+	// it mentions it in the comments (same link to the souce code as above).
+	// We make the explicit choice of NOT normalizing paths in the K2V API because doing so
+	// would make non-normalized paths invalid K2V partition keys, and we don't want that.
+	let path: std::borrow::Cow<str> = if service != "s3" {
+		uri_encode(uri.path(), false).into()
+	} else {
+		uri.path().into()
+	};
 	[
 		method.as_str(),
-		uri.path(),
+		&path,
 		&canonical_query_string(uri),
 		&canonical_header_string(headers, signed_headers),
 		"",

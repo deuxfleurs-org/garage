@@ -79,7 +79,7 @@ impl RangeSeenMarker {
 
 		let bytes = nonversioned_encode(&self)?;
 		let bytes = zstd::stream::encode_all(&mut &bytes[..], zstd::DEFAULT_COMPRESSION_LEVEL)?;
-		Ok(BASE64_STANDARD.encode(&bytes))
+		Ok(BASE64_STANDARD.encode(bytes))
 	}
 
 	/// Decode from msgpack+zstd+b64 representation, returns None on error.

@@ -142,8 +142,19 @@ pub struct AdminConfig {
 	pub trace_sink: Option<String>,
 }
 
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ConsulDiscoveryAPI {
+	#[default]
+	Catalog,
+	Agent,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct ConsulDiscoveryConfig {
+	/// The consul api to use when registering: either `catalog` (the default) or `agent`
+	#[serde(default)]
+	pub api: ConsulDiscoveryAPI,
 	/// Consul http or https address to connect to to discover more peers
 	pub consul_http_addr: String,
 	/// Consul service name to use
@@ -154,9 +165,17 @@ pub struct ConsulDiscoveryConfig {
 	pub client_cert: Option<String>,
 	/// Client TLS key to use when connecting to Consul
 	pub client_key: Option<String>,
+	/// /// Token to use for connecting to consul
+	pub token: Option<String>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,
+	/// Additional tags to add to the service
+	#[serde(default)]
+	pub tags: Vec<String>,
+	/// Additional service metadata to add
+	#[serde(default)]
+	pub meta: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -230,7 +249,7 @@ fn secret_from_file(
 			#[cfg(unix)]
 			if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
 				use std::os::unix::fs::MetadataExt;
-				let metadata = std::fs::metadata(&file_path)?;
+				let metadata = std::fs::metadata(file_path)?;
 				if metadata.mode() & 0o077 != 0 {
 					return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
 				}
@@ -351,7 +370,7 @@ mod tests {
 			replication_mode = "3"
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret_file = "{}"
-		
+
 			[s3_api]
 			s3_region = "garage"
 			api_bind_addr = "[::]:3900"
@@ -395,7 +414,7 @@ mod tests {
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret= "dummy"
 			rpc_secret_file = "dummy"
-		
+
 			[s3_api]
 			s3_region = "garage"
 			api_bind_addr = "[::]:3900"

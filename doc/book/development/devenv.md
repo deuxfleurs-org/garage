@@ -25,7 +25,7 @@ git clone https://git.deuxfleurs.fr/Deuxfleurs/garage
 cd garage
 ```
 
-*Optionnaly, you can use our nix.conf file to speed up compilations:*
+*Optionally, you can use our nix.conf file to speed up compilations:*
 
 ```bash
 sudo mkdir -p /etc/nix

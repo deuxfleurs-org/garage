@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use format_table::format_table;
 use garage_util::background::*;
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::error::*;
-use garage_util::formater::format_table;
 use garage_util::time::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
@@ -383,13 +383,18 @@ pub fn print_block_error_list(el: Vec<BlockResyncErrorInfo>) {
 
 	let mut table = vec!["Hash\tRC\tErrors\tLast error\tNext try".into()];
 	for e in el {
+		let next_try = if e.next_try > now {
+			tf2.convert(Duration::from_millis(e.next_try - now))
+		} else {
+			"asap".to_string()
+		};
 		table.push(format!(
 			"{}\t{}\t{}\t{}\tin {}",
 			hex::encode(e.hash.as_slice()),
 			e.refcount,
 			e.error_count,
 			tf.convert(Duration::from_millis(now - e.last_try)),
-			tf2.convert(Duration::from_millis(e.next_try - now))
+			next_try
 		));
 	}
 	format_table(table);

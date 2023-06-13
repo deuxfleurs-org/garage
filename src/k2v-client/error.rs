@@ -18,12 +18,20 @@ pub enum Error {
 	NotFound,
 	#[error("io error: {0}")]
 	IoError(#[from] std::io::Error),
-	#[error("rusoto tls error: {0}")]
-	RusotoTls(#[from] rusoto_core::request::TlsError),
-	#[error("rusoto http error: {0}")]
-	RusotoHttp(#[from] rusoto_core::HttpDispatchError),
+	#[error("http error: {0}")]
+	Http(#[from] http::Error),
+	#[error("hyper error: {0}")]
+	Hyper(#[from] hyper::Error),
+	#[error("invalid header: {0}")]
+	Header(#[from] hyper::header::ToStrError),
 	#[error("deserialization error: {0}")]
 	Deserialization(#[from] serde_json::Error),
+	#[error("invalid signature parameters: {0}")]
+	SignParameters(#[from] aws_sigv4::signing_params::BuildError),
+	#[error("could not sign request: {0}")]
+	SignRequest(#[from] aws_sigv4::http_request::SigningError),
+	#[error("request timed out")]
+	Timeout,
 	#[error("{0}")]
 	Message(Cow<'static, str>),
 }
