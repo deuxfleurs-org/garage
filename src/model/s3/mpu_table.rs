@@ -27,6 +27,8 @@ mod v09 {
 		/// Partition key = Upload id = UUID of the object version
 		pub upload_id: Uuid,
 
+		/// The timestamp at which the multipart upload was created
+		pub timestamp: u64,
 		/// Is this multipart upload deleted
 		/// The MultipartUpload is marked as deleted as soon as the
 		/// multipart upload is either completed or aborted
@@ -85,9 +87,16 @@ impl PartialOrd for MpuPartKey {
 }
 
 impl MultipartUpload {
-	pub fn new(upload_id: Uuid, bucket_id: Uuid, key: String, deleted: bool) -> Self {
+	pub fn new(
+		upload_id: Uuid,
+		timestamp: u64,
+		bucket_id: Uuid,
+		key: String,
+		deleted: bool,
+	) -> Self {
 		Self {
 			upload_id,
+			timestamp,
 			deleted: crdt::Bool::new(deleted),
 			parts: crdt::Map::new(),
 			bucket_id,

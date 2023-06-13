@@ -33,12 +33,13 @@ pub async fn handle_create_multipart_upload(
 	key: &str,
 ) -> Result<Response<Body>, Error> {
 	let upload_id = gen_uuid();
+	let timestamp = now_msec();
 	let headers = get_headers(req.headers())?;
 
 	// Create object in object table
 	let object_version = ObjectVersion {
 		uuid: upload_id,
-		timestamp: now_msec(),
+		timestamp,
 		state: ObjectVersionState::Uploading {
 			multipart: true,
 			headers,
@@ -50,7 +51,7 @@ pub async fn handle_create_multipart_upload(
 	// Create multipart upload in mpu table
 	// This multipart upload will hold references to uploaded parts
 	// (which are entries in the Version table)
-	let mpu = MultipartUpload::new(upload_id, bucket_id, key.into(), false);
+	let mpu = MultipartUpload::new(upload_id, timestamp, bucket_id, key.into(), false);
 	garage.mpu_table.insert(&mpu).await?;
 
 	// Send success response

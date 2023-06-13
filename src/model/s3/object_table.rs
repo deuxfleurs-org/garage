@@ -444,8 +444,13 @@ impl TableSchema for ObjectTable {
 						),
 					};
 					if delete_mpu {
-						let deleted_mpu =
-							MultipartUpload::new(v.uuid, old_v.bucket_id, old_v.key.clone(), true);
+						let deleted_mpu = MultipartUpload::new(
+							v.uuid,
+							v.timestamp,
+							old_v.bucket_id,
+							old_v.key.clone(),
+							true,
+						);
 						let res = self.mpu_table.queue_insert(tx, &deleted_mpu);
 						if let Err(e) = db::unabort(res)? {
 							error!(
