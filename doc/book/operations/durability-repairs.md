@@ -1,6 +1,6 @@
 +++
 title = "Durability & Repairs"
-weight = 50
+weight = 30
 +++
 
 To ensure the best durability of your data and to fix any inconsistencies that may

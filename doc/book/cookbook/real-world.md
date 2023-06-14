@@ -345,7 +345,7 @@ garage layout apply
 ```
 
 **WARNING:** if you want to use the layout modification commands in a script,
-make sure to read [this page](@/documentation/reference-manual/layout.md) first.
+make sure to read [this page](@/documentation/operations/layout.md) first.
 
 
 ## Using your Garage cluster

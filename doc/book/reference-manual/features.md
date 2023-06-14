@@ -35,7 +35,7 @@ This makes setting up and administering storage clusters, we hope, as easy as it
 
 A Garage cluster can very easily evolve over time, as storage nodes are added or removed.
 Garage will automatically rebalance data between nodes as needed to ensure the desired number of copies.
-Read about cluster layout management [here](@/documentation/reference-manual/layout.md).
+Read about cluster layout management [here](@/documentation/operations/layout.md).
 
 ### No RAFT slowing you down
 
