@@ -85,29 +85,29 @@ Example response body:
     {
       "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
       "addr": "10.0.0.11:3901",
-      "is_up": true,
-      "last_seen_secs_ago": 9,
+      "isUp": true,
+      "lastSeenSecsAgo": 9,
       "hostname": "node1"
     },
     {
       "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
       "addr": "10.0.0.12:3901",
-      "is_up": true,
-      "last_seen_secs_ago": 1,
+      "isUp": true,
+      "lastSeenSecsAgo": 1,
       "hostname": "node2"
     },
     {
       "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
       "addr": "10.0.0.21:3901",
-      "is_up": true,
-      "last_seen_secs_ago": 7,
+      "isUp": true,
+      "lastSeenSecsAgo": 7,
       "hostname": "node3"
     },
     {
       "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
       "addr": "10.0.0.22:3901",
-      "is_up": true,
-      "last_seen_secs_ago": 1,
+      "isUp": true,
+      "lastSeenSecsAgo": 1,
       "hostname": "node4"
     }
   ],
