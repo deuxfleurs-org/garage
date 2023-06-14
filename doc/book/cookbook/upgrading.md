@@ -1,6 +1,6 @@
 +++
 title = "Upgrading Garage"
-weight = 60
+weight = 70
 +++
 
 Garage is a stateful clustered application, where all nodes are communicating together and share data structures.
