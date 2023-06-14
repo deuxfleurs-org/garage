@@ -197,6 +197,12 @@ The `garage` binary has two purposes:
 Ensure an appropriate `garage` binary (the same version as your Docker image) is available in your path.
 If your configuration file is at `/etc/garage.toml`, the `garage` binary should work with no further change.
 
+You can also use an alias as follows to use the Garage binary inside your docker container:
+
+```bash
+alias garage="docker exec -ti <container name> /garage"
+```
+
 You can test your `garage` CLI utility by running a simple command such as:
 
 ```bash
