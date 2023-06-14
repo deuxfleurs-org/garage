@@ -95,12 +95,12 @@ impl Endpoint {
 			GET "/check" => CheckWebsiteEnabled,
 			GET "/health" => Health,
 			GET "/metrics" => Metrics,
-			GET "/v0/status" => GetClusterStatus,
+			GET "/v1/status" => GetClusterStatus,
 			GET "/v0/health" => GetClusterHealth,
 			POST "/v0/connect" => ConnectClusterNodes,
 			// Layout endpoints
-			GET "/v0/layout" => GetClusterLayout,
-			POST "/v0/layout" => UpdateClusterLayout,
+			GET "/v1/layout" => GetClusterLayout,
+			POST "/v1/layout" => UpdateClusterLayout,
 			POST "/v0/layout/apply" => ApplyClusterLayout,
 			POST "/v0/layout/revert" => RevertClusterLayout,
 			// API key endpoints

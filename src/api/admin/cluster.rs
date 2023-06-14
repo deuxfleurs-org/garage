@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -8,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use garage_util::crdt::*;
 use garage_util::data::*;
 
-use garage_rpc::layout::*;
+use garage_rpc::layout;
 
 use garage_model::garage::Garage;
 
@@ -26,16 +25,12 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 			.system
 			.get_known_nodes()
 			.into_iter()
-			.map(|i| {
-				(
-					hex::encode(i.id),
-					KnownNodeResp {
-						addr: i.addr,
-						is_up: i.is_up,
-						last_seen_secs_ago: i.last_seen_secs_ago,
-						hostname: i.status.hostname,
-					},
-				)
+			.map(|i| KnownNodeResp {
+				id: hex::encode(i.id),
+				addr: i.addr,
+				is_up: i.is_up,
+				last_seen_secs_ago: i.last_seen_secs_ago,
+				hostname: i.status.hostname,
 			})
 			.collect(),
 		layout: get_cluster_layout(garage),
@@ -82,24 +77,48 @@ pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<
 fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 	let layout = garage.system.get_cluster_layout();
 
+	let roles = layout
+		.roles
+		.items()
+		.iter()
+		.filter_map(|(k, _, v)| v.0.clone().map(|x| (k, x)))
+		.map(|(k, v)| NodeRoleResp {
+			id: hex::encode(k),
+			zone: v.zone.clone(),
+			capacity: v.capacity,
+			tags: v.tags.clone(),
+		})
+		.collect::<Vec<_>>();
+
+	let staged_role_changes = layout
+		.staging_roles
+		.items()
+		.iter()
+		.filter(|(k, _, v)| layout.roles.get(k) != Some(v))
+		.map(|(k, _, v)| match &v.0 {
+			None => NodeRoleChange {
+				id: hex::encode(k),
+				remove: true,
+				..Default::default()
+			},
+			Some(r) => NodeRoleChange {
+				id: hex::encode(k),
+				remove: false,
+				zone: Some(r.zone.clone()),
+				capacity: r.capacity,
+				tags: Some(r.tags.clone()),
+			},
+		})
+		.collect::<Vec<_>>();
+
 	GetClusterLayoutResponse {
 		version: layout.version,
-		roles: layout
-			.roles
-			.items()
-			.iter()
-			.filter(|(_, _, v)| v.0.is_some())
-			.map(|(k, _, v)| (hex::encode(k), v.0.clone()))
-			.collect(),
-		staged_role_changes: layout
-			.staging_roles
-			.items()
-			.iter()
-			.filter(|(k, _, v)| layout.roles.get(k) != Some(v))
-			.map(|(k, _, v)| (hex::encode(k), v.0.clone()))
-			.collect(),
+		roles,
+		staged_role_changes,
 	}
 }
+
+// ----
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,7 +128,7 @@ struct GetClusterStatusResponse {
 	garage_features: Option<&'static [&'static str]>,
 	rust_version: &'static str,
 	db_engine: String,
-	known_nodes: HashMap<String, KnownNodeResp>,
+	known_nodes: Vec<KnownNodeResp>,
 	layout: GetClusterLayoutResponse,
 }
 
@@ -124,18 +143,30 @@ struct ConnectClusterNodesResponse {
 #[serde(rename_all = "camelCase")]
 struct GetClusterLayoutResponse {
 	version: u64,
-	roles: HashMap<String, Option<NodeRole>>,
-	staged_role_changes: HashMap<String, Option<NodeRole>>,
+	roles: Vec<NodeRoleResp>,
+	staged_role_changes: Vec<NodeRoleChange>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NodeRoleResp {
+	id: String,
+	zone: String,
+	capacity: Option<u64>,
+	tags: Vec<String>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct KnownNodeResp {
+	id: String,
 	addr: SocketAddr,
 	is_up: bool,
 	last_seen_secs_ago: Option<u64>,
 	hostname: String,
 }
+
+// ---- update functions ----
 
 pub async fn handle_update_cluster_layout(
 	garage: &Arc<Garage>,
@@ -148,13 +179,23 @@ pub async fn handle_update_cluster_layout(
 	let mut roles = layout.roles.clone();
 	roles.merge(&layout.staging_roles);
 
-	for (node, role) in updates {
-		let node = hex::decode(node).ok_or_bad_request("Invalid node identifier")?;
+	for change in updates {
+		let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
 		let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
+
+		let new_role = match (change.remove, change.zone, change.capacity, change.tags) {
+			(true, None, None, None) => None,
+			(false, Some(zone), capacity, Some(tags)) => Some(layout::NodeRole {
+				zone,
+				capacity,
+				tags,
+			}),
+			_ => return Err(Error::bad_request("Invalid layout change")),
+		};
 
 		layout
 			.staging_roles
-			.merge(&roles.update_mutator(node, NodeRoleV(role)));
+			.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
 	}
 
 	garage.system.update_cluster_layout(&layout).await?;
@@ -196,10 +237,28 @@ pub async fn handle_revert_cluster_layout(
 		.body(Body::empty())?)
 }
 
-type UpdateClusterLayoutRequest = HashMap<String, Option<NodeRole>>;
+// ----
+
+type UpdateClusterLayoutRequest = Vec<NodeRoleChange>;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ApplyRevertLayoutRequest {
 	version: u64,
+}
+
+// ----
+
+#[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct NodeRoleChange {
+	id: String,
+	#[serde(default)]
+	remove: bool,
+	#[serde(default)]
+	zone: Option<String>,
+	#[serde(default)]
+	capacity: Option<u64>,
+	#[serde(default)]
+	tags: Option<Vec<String>>,
 }

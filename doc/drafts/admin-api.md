@@ -56,7 +56,7 @@ See `/v0/health` for an API that also returns JSON output.
 
 ### Cluster operations
 
-#### GetClusterStatus `GET /v0/status`
+#### GetClusterStatus `GET /v1/status`
 
 Returns the cluster's current status in JSON, including:
 
@@ -70,67 +70,93 @@ Example response body:
 ```json
 {
   "node": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
-  "garage_version": "git:v0.8.0",
-  "knownNodes": {
-    "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
+  "garageVersion": "git:v0.9.0-dev",
+  "garageFeatures": [
+    "k2v",
+    "sled",
+    "lmdb",
+    "sqlite",
+    "metrics",
+    "bundled-libs"
+  ],
+  "rustVersion": "1.68.0",
+  "dbEngine": "LMDB (using Heed crate)",
+  "knownNodes": [
+    {
+      "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
       "addr": "10.0.0.11:3901",
       "is_up": true,
       "last_seen_secs_ago": 9,
       "hostname": "node1"
     },
-    "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff": {
+    {
+      "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
       "addr": "10.0.0.12:3901",
       "is_up": true,
       "last_seen_secs_ago": 1,
       "hostname": "node2"
     },
-    "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27": {
+    {
+      "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
       "addr": "10.0.0.21:3901",
       "is_up": true,
       "last_seen_secs_ago": 7,
       "hostname": "node3"
     },
-    "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b": {
+    {
+      "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
       "addr": "10.0.0.22:3901",
       "is_up": true,
       "last_seen_secs_ago": 1,
       "hostname": "node4"
     }
-  },
+  ],
   "layout": {
     "version": 12,
-    "roles": {
-      "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
+    "roles": [
+      {
+        "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
         "zone": "dc1",
-        "capacity": 4,
+        "capacity": 10737418240,
         "tags": [
           "node1"
         ]
       },
-      "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff": {
+      {
+        "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
         "zone": "dc1",
-        "capacity": 6,
+        "capacity": 10737418240,
         "tags": [
           "node2"
         ]
       },
-      "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27": {
+      {
+        "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
         "zone": "dc2",
-        "capacity": 10,
+        "capacity": 10737418240,
         "tags": [
           "node3"
         ]
       }
-    },
-    "stagedRoleChanges": {
-      "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b": {
+    ],
+    "stagedRoleChanges": [
+      {
+        "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
+        "remove": false,
         "zone": "dc2",
-        "capacity": 5,
+        "capacity": 10737418240,
         "tags": [
           "node4"
         ]
       }
-    }
+      {
+        "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
+        "remove": true,
+        "zone": null,
+        "capacity": null,
+        "tags": null,
+      }
+    ]
   }
 }
 ```
@@ -198,7 +224,7 @@ Example response:
 ]
 ```
 
-#### GetClusterLayout `GET /v0/layout`
+#### GetClusterLayout `GET /v1/layout`
 
 Returns the cluster's current layout in JSON, including:
 
@@ -212,42 +238,54 @@ Example response body:
 ```json
 {
   "version": 12,
-  "roles": {
-    "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f": {
+  "roles": [
+    {
+      "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
       "zone": "dc1",
-      "capacity": 4,
+      "capacity": 10737418240,
       "tags": [
         "node1"
       ]
     },
-    "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff": {
+    {
+      "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
       "zone": "dc1",
-      "capacity": 6,
+      "capacity": 10737418240,
       "tags": [
         "node2"
       ]
     },
-    "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27": {
+    {
+      "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
       "zone": "dc2",
-      "capacity": 10,
+      "capacity": 10737418240,
       "tags": [
         "node3"
       ]
     }
-  },
-  "stagedRoleChanges": {
-    "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b": {
+  ],
+  "stagedRoleChanges": [
+    {
+      "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
+      "remove": false,
       "zone": "dc2",
-      "capacity": 5,
+      "capacity": 10737418240,
       "tags": [
         "node4"
       ]
     }
-  }
+    {
+      "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
+      "remove": true,
+      "zone": null,
+      "capacity": null,
+      "tags": null,
+    }
+  ]
 }
 ```
 
-#### UpdateClusterLayout `POST /v0/layout`
+#### UpdateClusterLayout `POST /v1/layout`
 
 Send modifications to the cluster layout. These modifications will
 be included in the staged role changes, visible in subsequent calls
@@ -259,8 +297,9 @@ the layout.
 Request body format:
 
 ```json
-{
-  <node_id>: {
+[
+  {
+    "id": <node_id>,
     "capacity": <new_capacity>,
     "zone": <new_zone>,
     "tags": [
@@ -268,9 +307,11 @@ Request body format:
       ...
     ]
   },
-  <node_id_to_remove>: null,
-  ...
-}
+  {
+    "id": <node_id_to_remove>,
+    "remove": true
+  }
+]
 ```
 
 Contrary to the CLI that may update only a subset of the fields
