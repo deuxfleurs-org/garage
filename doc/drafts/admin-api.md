@@ -194,7 +194,7 @@ Example response body:
 }
 ```
 
-#### ConnectClusterNodes `POST /v0/connect`
+#### ConnectClusterNodes `POST /v1/connect`
 
 Instructs this Garage node to connect to other Garage nodes at specified addresses.
 
@@ -319,7 +319,7 @@ Contrary to the CLI that may update only a subset of the fields
 values must be specified.
 
 
-#### ApplyClusterLayout `POST /v0/layout/apply`
+#### ApplyClusterLayout `POST /v1/layout/apply`
 
 Applies to the cluster the layout changes currently registered as
 staged layout changes.
@@ -336,7 +336,7 @@ Similarly to the CLI, the body must include the version of the new layout
 that will be created, which MUST be 1 + the value of the currently
 existing layout in the cluster.
 
-#### RevertClusterLayout `POST /v0/layout/revert`
+#### RevertClusterLayout `POST /v1/layout/revert`
 
 Clears all of the staged layout changes.
 
@@ -357,7 +357,7 @@ existing layout in the cluster.
 
 ### Access key operations
 
-#### ListKeys `GET /v0/key`
+#### ListKeys `GET /v1/key`
 
 Returns all API access keys in the cluster.
 
@@ -376,7 +376,7 @@ Example response:
 ]
 ```
 
-#### CreateKey `POST /v0/key`
+#### CreateKey `POST /v1/key`
 
 Creates a new API access key.
 
@@ -388,7 +388,7 @@ Request body format:
 }
 ```
 
-#### ImportKey `POST /v0/key/import`
+#### ImportKey `POST /v1/key/import`
 
 Imports an existing API key.
 
@@ -402,8 +402,8 @@ Request body format:
 }
 ```
 
-#### GetKeyInfo `GET /v0/key?id=<acces key id>`
-#### GetKeyInfo `GET /v0/key?search=<pattern>`
+#### GetKeyInfo `GET /v1/key?id=<acces key id>`
+#### GetKeyInfo `GET /v1/key?search=<pattern>`
 
 Returns information about the requested API access key.
 
@@ -474,11 +474,11 @@ Example response:
 }
 ```
 
-#### DeleteKey `DELETE /v0/key?id=<acces key id>`
+#### DeleteKey `DELETE /v1/key?id=<acces key id>`
 
 Deletes an API access key.
 
-#### UpdateKey `POST /v0/key?id=<acces key id>`
+#### UpdateKey `POST /v1/key?id=<acces key id>`
 
 Updates information about the specified API access key.
 
@@ -501,7 +501,7 @@ The possible flags in `allow` and `deny` are: `createBucket`.
 
 ### Bucket operations
 
-#### ListBuckets `GET /v0/bucket`
+#### ListBuckets `GET /v1/bucket`
 
 Returns all storage buckets in the cluster.
 
@@ -543,8 +543,8 @@ Example response:
 ]
 ```
 
-#### GetBucketInfo `GET /v0/bucket?id=<bucket id>`
-#### GetBucketInfo `GET /v0/bucket?globalAlias=<alias>`
+#### GetBucketInfo `GET /v1/bucket?id=<bucket id>`
+#### GetBucketInfo `GET /v1/bucket?globalAlias=<alias>`
 
 Returns information about the requested storage bucket.
 
@@ -587,7 +587,7 @@ Example response:
 }
 ```
 
-#### CreateBucket `POST /v0/bucket`
+#### CreateBucket `POST /v1/bucket`
 
 Creates a new storage bucket.
 
@@ -627,13 +627,13 @@ or no alias at all.
 Technically, you can also specify both `globalAlias` and `localAlias` and that would create
 two aliases, but I don't see why you would want to do that.
 
-#### DeleteBucket `DELETE /v0/bucket?id=<bucket id>`
+#### DeleteBucket `DELETE /v1/bucket?id=<bucket id>`
 
 Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
 
-#### UpdateBucket `PUT /v0/bucket?id=<bucket id>`
+#### UpdateBucket `PUT /v1/bucket?id=<bucket id>`
 
 Updates configuration of the given bucket.
 
@@ -667,7 +667,7 @@ to change only one of the two quotas.
 
 ### Operations on permissions for keys on buckets
 
-#### BucketAllowKey `POST /v0/bucket/allow`
+#### BucketAllowKey `POST /v1/bucket/allow`
 
 Allows a key to do read/write/owner operations on a bucket.
 
@@ -688,7 +688,7 @@ Request body format:
 Flags in `permissions` which have the value `true` will be activated.
 Other flags will remain unchanged.
 
-#### BucketDenyKey `POST /v0/bucket/deny`
+#### BucketDenyKey `POST /v1/bucket/deny`
 
 Denies a key from doing read/write/owner operations on a bucket.
 
@@ -712,19 +712,19 @@ Other flags will remain unchanged.
 
 ### Operations on bucket aliases
 
-#### GlobalAliasBucket `PUT /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+#### GlobalAliasBucket `PUT /v1/bucket/alias/global?id=<bucket id>&alias=<global alias>`
 
 Empty body. Creates a global alias for a bucket.
 
-#### GlobalUnaliasBucket `DELETE /v0/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+#### GlobalUnaliasBucket `DELETE /v1/bucket/alias/global?id=<bucket id>&alias=<global alias>`
 
 Removes a global alias for a bucket.
 
-#### LocalAliasBucket `PUT /v0/bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
+#### LocalAliasBucket `PUT /v1/bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
 
 Empty body. Creates a local alias for a bucket in the namespace of a specific access key.
 
-#### LocalUnaliasBucket `DELETE /v0/bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
+#### LocalUnaliasBucket `DELETE /v1/bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
 
 Removes a local alias for a bucket in the namespace of a specific access key.
 
