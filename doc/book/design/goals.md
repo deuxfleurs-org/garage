@@ -42,15 +42,13 @@ locations. They use Garage themselves for the following tasks:
 
 - As a [Matrix media backend](https://github.com/matrix-org/synapse-s3-storage-provider)
 
-- To store personal data and shared documents through [Bagage](https://git.deuxfleurs.fr/Deuxfleurs/bagage), a homegrown WebDav-to-S3 proxy
+- As a Nix binary cache
+
+- To store personal data and shared documents through [Bagage](https://git.deuxfleurs.fr/Deuxfleurs/bagage), a homegrown WebDav-to-S3 and SFTP-to-S3 proxy
+
+- As a backup target using `rclone` and `restic`
 
 - In the Drone continuous integration platform to store task logs
 
-- As a Nix binary cache
-
-- As a backup target using `rclone`
-
 The Deuxfleurs Garage cluster is a multi-site cluster currently composed of
-4 nodes in 2 physical locations. In the future it will be expanded to at
-least 3 physical locations to fully exploit Garage's potential for high
-availability.
+9 nodes in 3 physical locations.

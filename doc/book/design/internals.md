@@ -61,7 +61,7 @@ Garage prioritizes which nodes to query according to a few criteria:
 
 
 For further reading on the cluster structure look at the [gateway](@/documentation/cookbook/gateways.md) 
-and [cluster layout management](@/documentation/reference-manual/layout.md) pages.
+and [cluster layout management](@/documentation/operations/layout.md) pages.
 
 ## Garbage collection
 

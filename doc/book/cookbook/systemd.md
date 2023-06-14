@@ -33,7 +33,20 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 ```
 
-*A note on hardening: garage will be run as a non privileged user, its user id is dynamically allocated by systemd. It cannot access (read or write) home folders (/home, /root and /run/user), the rest of the filesystem can only be read but not written, only the path seen as /var/lib/garage is writable as seen by the service (mapped to /var/lib/private/garage on your host). Additionnaly, the process can not gain new privileges over time.*
+**A note on hardening:** Garage will be run as a non privileged user, its user
+id is dynamically allocated by systemd (set with `DynamicUser=true`). It cannot
+access (read or write) home folders (`/home`, `/root` and `/run/user`), the
+rest of the filesystem can only be read but not written, only the path seen as
+`/var/lib/garage` is writable as seen by the service. Additionnaly, the process
+can not gain new privileges over time.
+
+For this to work correctly, your `garage.toml` must be set with
+`metadata_dir=/var/lib/garage/meta` and `data_dir=/var/lib/garage/data`. This
+is mandatory to use the DynamicUser hardening feature of systemd, which
+autocreates these directories as virtual mapping. If the directory
+`/var/lib/garage` already exists before starting the server for the first time,
+the systemd service might not start correctly.  Note that in your host
+filesystem, Garage data will be held in `/var/lib/private/garage`.
 
 To start the service then automatically enable it at boot:
 

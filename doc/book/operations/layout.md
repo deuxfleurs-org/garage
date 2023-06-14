@@ -1,6 +1,6 @@
 +++
 title = "Cluster layout management"
-weight = 50
+weight = 20
 +++
 
 The cluster layout in Garage is a table that assigns to each node a role in

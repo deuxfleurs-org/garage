@@ -1,6 +1,6 @@
 +++
 title = "Recovering from failures"
-weight = 50
+weight = 40
 +++
 
 Garage is meant to work on old, second-hand hardware.
