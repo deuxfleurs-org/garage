@@ -65,7 +65,7 @@ pub async fn handle_create_key(
 ) -> Result<Response<Body>, Error> {
 	let req = parse_json_body::<CreateKeyRequest>(req).await?;
 
-	let key = Key::new(&req.name);
+	let key = Key::new(req.name.as_deref().unwrap_or("Unnamed key"));
 	garage.key_table.insert(&key).await?;
 
 	key_info_results(garage, key).await
@@ -74,7 +74,7 @@ pub async fn handle_create_key(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateKeyRequest {
-	name: String,
+	name: Option<String>,
 }
 
 pub async fn handle_import_key(
