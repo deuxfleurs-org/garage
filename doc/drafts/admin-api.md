@@ -318,6 +318,9 @@ Contrary to the CLI that may update only a subset of the fields
 `capacity`, `zone` and `tags`, when calling this API all of these
 values must be specified.
 
+This returns the new cluster layout with the proposed staged changes,
+as returned by GetClusterLayout.
+
 
 #### ApplyClusterLayout `POST /v1/layout/apply`
 
@@ -335,6 +338,9 @@ Request body format:
 Similarly to the CLI, the body must include the version of the new layout
 that will be created, which MUST be 1 + the value of the currently
 existing layout in the cluster.
+
+This returns the message describing all the calculations done to compute the new
+layout, as well as the description of the layout as returned by GetClusterLayout.
 
 #### RevertClusterLayout `POST /v1/layout/revert`
 
@@ -354,6 +360,8 @@ Similarly to the CLI, the body must include the incremented
 version number, which MUST be 1 + the value of the currently
 existing layout in the cluster.
 
+This returns the new cluster layout with all changes reverted,
+as returned by GetClusterLayout.
 
 ### Access key operations
 
@@ -388,6 +396,9 @@ Request body format:
 }
 ```
 
+This returns the key info, including the created secret key,
+in the same format as the result of GetKeyInfo.
+
 #### ImportKey `POST /v1/key/import`
 
 Imports an existing API key.
@@ -401,6 +412,8 @@ Request body format:
     "name": "NameOfMyKey"
 }
 ```
+
+This returns the key info in the same format as the result of GetKeyInfo.
 
 #### GetKeyInfo `GET /v1/key?id=<acces key id>`
 #### GetKeyInfo `GET /v1/key?search=<pattern>`
@@ -501,6 +514,7 @@ All fields (`name`, `allow` and `deny`) are optionnal.
 If they are present, the corresponding modifications are applied to the key, otherwise nothing is changed.
 The possible flags in `allow` and `deny` are: `createBucket`.
 
+This returns the key info in the same format as the result of GetKeyInfo.
 
 ### Bucket operations
 

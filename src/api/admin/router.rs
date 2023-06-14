@@ -102,7 +102,7 @@ impl Endpoint {
 			// Layout endpoints
 			GET "/v1/layout" => GetClusterLayout,
 			POST "/v1/layout" => UpdateClusterLayout,
-			POST ("/v0/layout/apply" | "/v1/layout/apply") => ApplyClusterLayout,
+			POST "/v1/layout/apply" => ApplyClusterLayout,
 			POST ("/v0/layout/revert" | "/v1/layout/revert") => RevertClusterLayout,
 			// API key endpoints
 			GET "/v1/key" if id => GetKeyInfo (query_opt::id, query_opt::search, query_opt::show_secret_key),

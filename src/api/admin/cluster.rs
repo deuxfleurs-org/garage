@@ -33,7 +33,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 				hostname: i.status.hostname,
 			})
 			.collect(),
-		layout: get_cluster_layout(garage),
+		layout: format_cluster_layout(&garage.system.get_cluster_layout()),
 	};
 
 	Ok(json_ok_response(&res)?)
@@ -84,14 +84,12 @@ pub async fn handle_connect_cluster_nodes(
 }
 
 pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
-	let res = get_cluster_layout(garage);
+	let res = format_cluster_layout(&garage.system.get_cluster_layout());
 
 	Ok(json_ok_response(&res)?)
 }
 
-fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
-	let layout = garage.system.get_cluster_layout();
-
+fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResponse {
 	let roles = layout
 		.roles
 		.items()
@@ -113,15 +111,15 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 		.map(|(k, _, v)| match &v.0 {
 			None => NodeRoleChange {
 				id: hex::encode(k),
-				remove: true,
-				..Default::default()
+				action: NodeRoleChangeEnum::Remove { remove: true },
 			},
 			Some(r) => NodeRoleChange {
 				id: hex::encode(k),
-				remove: false,
-				zone: Some(r.zone.clone()),
-				capacity: r.capacity,
-				tags: Some(r.tags.clone()),
+				action: NodeRoleChangeEnum::Update {
+					zone: r.zone.clone(),
+					capacity: r.capacity,
+					tags: r.tags.clone(),
+				},
 			},
 		})
 		.collect::<Vec<_>>();
@@ -138,14 +136,14 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClusterHealth {
-	pub status: &'static str,
-	pub known_nodes: usize,
-	pub connected_nodes: usize,
-	pub storage_nodes: usize,
-	pub storage_nodes_ok: usize,
-	pub partitions: usize,
-	pub partitions_quorum: usize,
-	pub partitions_all_ok: usize,
+	status: &'static str,
+	known_nodes: usize,
+	connected_nodes: usize,
+	storage_nodes: usize,
+	storage_nodes_ok: usize,
+	partitions: usize,
+	partitions_quorum: usize,
+	partitions_all_ok: usize,
 }
 
 #[derive(Serialize)]
@@ -158,6 +156,13 @@ struct GetClusterStatusResponse {
 	db_engine: String,
 	known_nodes: Vec<KnownNodeResp>,
 	layout: GetClusterLayoutResponse,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ApplyClusterLayoutResponse {
+    message: Vec<String>,
+    layout: GetClusterLayoutResponse,
 }
 
 #[derive(Serialize)]
@@ -211,9 +216,13 @@ pub async fn handle_update_cluster_layout(
 		let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
 		let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
 
-		let new_role = match (change.remove, change.zone, change.capacity, change.tags) {
-			(true, None, None, None) => None,
-			(false, Some(zone), capacity, Some(tags)) => Some(layout::NodeRole {
+		let new_role = match change.action {
+			NodeRoleChangeEnum::Remove { remove: true } => None,
+			NodeRoleChangeEnum::Update {
+				zone,
+				capacity,
+				tags,
+			} => Some(layout::NodeRole {
 				zone,
 				capacity,
 				tags,
@@ -228,9 +237,8 @@ pub async fn handle_update_cluster_layout(
 
 	garage.system.update_cluster_layout(&layout).await?;
 
-	Ok(Response::builder()
-		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+	let res = format_cluster_layout(&layout);
+    Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_apply_cluster_layout(
@@ -244,10 +252,11 @@ pub async fn handle_apply_cluster_layout(
 
 	garage.system.update_cluster_layout(&layout).await?;
 
-	Ok(Response::builder()
-		.status(StatusCode::OK)
-		.header(http::header::CONTENT_TYPE, "text/plain")
-		.body(Body::from(msg.join("\n")))?)
+	let res = ApplyClusterLayoutResponse {
+        message: msg,
+        layout: format_cluster_layout(&layout),
+    };
+    Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_revert_cluster_layout(
@@ -260,9 +269,8 @@ pub async fn handle_revert_cluster_layout(
 	let layout = layout.revert_staged_changes(Some(param.version))?;
 	garage.system.update_cluster_layout(&layout).await?;
 
-	Ok(Response::builder()
-		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+	let res = format_cluster_layout(&layout);
+    Ok(json_ok_response(&res)?)
 }
 
 // ----
@@ -277,16 +285,23 @@ struct ApplyRevertLayoutRequest {
 
 // ----
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct NodeRoleChange {
 	id: String,
-	#[serde(default)]
-	remove: bool,
-	#[serde(default)]
-	zone: Option<String>,
-	#[serde(default)]
-	capacity: Option<u64>,
-	#[serde(default)]
-	tags: Option<Vec<String>>,
+	#[serde(flatten)]
+	action: NodeRoleChangeEnum,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum NodeRoleChangeEnum {
+	#[serde(rename_all = "camelCase")]
+	Remove { remove: bool },
+	#[serde(rename_all = "camelCase")]
+	Update {
+		zone: String,
+		capacity: Option<u64>,
+		tags: Vec<String>,
+	},
 }
