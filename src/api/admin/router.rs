@@ -96,7 +96,7 @@ impl Endpoint {
 			GET "/health" => Health,
 			GET "/metrics" => Metrics,
 			GET "/v1/status" => GetClusterStatus,
-			GET "/v0/health" => GetClusterHealth,
+			GET "/v1/health" => GetClusterHealth,
 			POST "/v0/connect" => ConnectClusterNodes,
 			// Layout endpoints
 			GET "/v1/layout" => GetClusterLayout,

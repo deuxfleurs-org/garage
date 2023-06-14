@@ -151,7 +151,7 @@ pub struct KnownNodeInfo {
 	pub status: NodeStatus,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct ClusterHealth {
 	/// The current health status of the cluster (see below)
 	pub status: ClusterHealthStatus,
@@ -171,7 +171,7 @@ pub struct ClusterHealth {
 	pub partitions_all_ok: usize,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub enum ClusterHealthStatus {
 	/// All nodes are available
 	Healthy,

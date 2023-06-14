@@ -52,7 +52,7 @@ Returns an HTTP status 200 if the node is ready to answer user's requests,
 and an HTTP status 503 (Service Unavailable) if there are some partitions
 for which a quorum of nodes is not available.
 A simple textual message is also returned in a body with content-type `text/plain`.
-See `/v0/health` for an API that also returns JSON output.
+See `/v1/health` for an API that also returns JSON output.
 
 ### Cluster operations
 
@@ -161,21 +161,21 @@ Example response body:
 }
 ```
 
-#### GetClusterHealth `GET /v0/health`
+#### GetClusterHealth `GET /v1/health`
 
 Returns the cluster's current health in JSON format, with the following variables:
 
-- `status`: one of `Healthy`, `Degraded` or `Unavailable`:
-  - Healthy: Garage node is connected to all storage nodes
-  - Degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
-  - Unavailable: a quorum of write nodes is not available for some partitions
-- `known_nodes`: the number of nodes this Garage node has had a TCP connection to since the daemon started
-- `connected_nodes`: the nubmer of nodes this Garage node currently has an open connection to
-- `storage_nodes`: the number of storage nodes currently registered in the cluster layout
-- `storage_nodes_ok`: the number of storage nodes to which a connection is currently open
+- `status`: one of `healthy`, `degraded` or `unavailable`:
+  - healthy: Garage node is connected to all storage nodes
+  - degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
+  - unavailable: a quorum of write nodes is not available for some partitions
+- `knownNodes`: the number of nodes this Garage node has had a TCP connection to since the daemon started
+- `connectedNodes`: the nubmer of nodes this Garage node currently has an open connection to
+- `storageNodes`: the number of storage nodes currently registered in the cluster layout
+- `storageNodesOk`: the number of storage nodes to which a connection is currently open
 - `partitions`: the total number of partitions of the data (currently always 256)
-- `partitions_quorum`: the number of partitions for which a quorum of write nodes is available
-- `partitions_all_ok`: the number of partitions for which we are connected to all storage nodes responsible of storing it
+- `partitionsQuorum`: the number of partitions for which a quorum of write nodes is available
+- `partitionsAllOk`: the number of partitions for which we are connected to all storage nodes responsible of storing it
 
 Contrarily to `GET /health`, this endpoint always returns a 200 OK HTTP response code.
 
@@ -183,14 +183,14 @@ Example response body:
 
 ```json
 {
-    "status": "Degraded",
-    "known_nodes": 3,
-    "connected_nodes": 2,
-    "storage_nodes": 3,
-    "storage_nodes_ok": 2,
-    "partitions": 256,
-    "partitions_quorum": 256,
-    "partitions_all_ok": 0
+  "status": "degraded",
+  "knownNodes": 3,
+  "connectedNodes": 3,
+  "storageNodes": 4,
+  "storageNodesOk": 3,
+  "partitions": 256,
+  "partitionsQuorum": 256,
+  "partitionsAllOk": 64
 }
 ```
 

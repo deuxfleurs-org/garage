@@ -40,7 +40,22 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 }
 
 pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	use garage_rpc::system::ClusterHealthStatus;
 	let health = garage.system.health();
+	let health = ClusterHealth {
+		status: match health.status {
+			ClusterHealthStatus::Healthy => "healthy",
+			ClusterHealthStatus::Degraded => "degraded",
+			ClusterHealthStatus::Unavailable => "unavailable",
+		},
+		known_nodes: health.known_nodes,
+		connected_nodes: health.connected_nodes,
+		storage_nodes: health.storage_nodes,
+		storage_nodes_ok: health.storage_nodes_ok,
+		partitions: health.partitions,
+		partitions_quorum: health.partitions_quorum,
+		partitions_all_ok: health.partitions_all_ok,
+	};
 	Ok(json_ok_response(&health)?)
 }
 
@@ -119,6 +134,19 @@ fn get_cluster_layout(garage: &Arc<Garage>) -> GetClusterLayoutResponse {
 }
 
 // ----
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterHealth {
+	pub status: &'static str,
+	pub known_nodes: usize,
+	pub connected_nodes: usize,
+	pub storage_nodes: usize,
+	pub storage_nodes_ok: usize,
+	pub partitions: usize,
+	pub partitions_quorum: usize,
+	pub partitions_all_ok: usize,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
