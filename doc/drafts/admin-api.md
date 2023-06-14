@@ -411,6 +411,9 @@ If `id` is set, the key is looked up using its exact identifier (faster).
 If `search` is set, the key is looked up using its name or prefix
 of identifier (slower, all keys are enumerated to do this).
 
+Optionnally, the query parameter `showSecretKey=true` can be set to reveal the
+associated secret access key.
+
 Example response:
 
 ```json

@@ -152,6 +152,10 @@ pub fn json_ok_response<T: Serialize>(res: &T) -> Result<Response<Body>, Error> 
 		.body(Body::from(resp_json))?)
 }
 
+pub fn is_default<T: Default + PartialEq>(v: &T) -> bool {
+	*v == T::default()
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

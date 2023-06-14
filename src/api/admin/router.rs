@@ -35,6 +35,7 @@ pub enum Endpoint {
 	GetKeyInfo {
 		id: Option<String>,
 		search: Option<String>,
+		show_secret_key: Option<String>,
 	},
 	DeleteKey {
 		id: String,
@@ -104,11 +105,11 @@ impl Endpoint {
 			POST ("/v0/layout/apply" | "/v1/layout/apply") => ApplyClusterLayout,
 			POST ("/v0/layout/revert" | "/v1/layout/revert") => RevertClusterLayout,
 			// API key endpoints
-			GET ("/v0/key" | "/v1/key") if id => GetKeyInfo (query_opt::id, query_opt::search),
-			GET ("/v0/key" | "/v1/key") if search => GetKeyInfo (query_opt::id, query_opt::search),
-			POST ("/v0/key" | "/v1/key") if id => UpdateKey (query::id),
-			POST ("/v0/key" | "/v1/key") => CreateKey,
-			POST ("/v0/key/import" | "/v1/key/import") => ImportKey,
+			GET "/v1/key" if id => GetKeyInfo (query_opt::id, query_opt::search, query_opt::show_secret_key),
+			GET "/v1/key" if search => GetKeyInfo (query_opt::id, query_opt::search, query_opt::show_secret_key),
+			POST "/v1/key" if id => UpdateKey (query::id),
+			POST "/v1/key" => CreateKey,
+			POST "/v1/key/import" => ImportKey,
 			DELETE ("/v0/key" | "/v1/key") if id => DeleteKey (query::id),
 			GET ("/v0/key" | "/v1/key") => ListKeys,
 			// Bucket endpoints
@@ -153,6 +154,7 @@ generateQueryParameters! {
 		"search" => search,
 		"globalAlias" => global_alias,
 		"alias" => alias,
-		"accessKeyId" => access_key_id
+		"accessKeyId" => access_key_id,
+		"showSecretKey" => show_secret_key
 	]
 }

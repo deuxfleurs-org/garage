@@ -41,12 +41,17 @@ impl AdminRpcHandler {
 		Ok(AdminRpc::KeyList(key_ids))
 	}
 
-	async fn handle_key_info(&self, query: &KeyOpt) -> Result<AdminRpc, Error> {
-		let key = self
+	async fn handle_key_info(&self, query: &KeyInfoOpt) -> Result<AdminRpc, Error> {
+		let mut key = self
 			.garage
 			.key_helper()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
+
+		if !query.show_secret {
+			key.state.as_option_mut().unwrap().secret_key = "(redacted)".into();
+		}
+
 		self.key_info_result(key).await
 	}
 

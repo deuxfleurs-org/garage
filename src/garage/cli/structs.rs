@@ -328,7 +328,7 @@ pub enum KeyOperation {
 
 	/// Get key info
 	#[structopt(name = "info", version = garage_version())]
-	Info(KeyOpt),
+	Info(KeyInfoOpt),
 
 	/// Create new key
 	#[structopt(name = "create", version = garage_version())]
@@ -356,9 +356,12 @@ pub enum KeyOperation {
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
-pub struct KeyOpt {
+pub struct KeyInfoOpt {
 	/// ID or name of the key
 	pub key_pattern: String,
+	/// Whether to display the secret key
+	#[structopt(long = "show-secret")]
+	pub show_secret: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
