@@ -93,7 +93,8 @@ pub async fn handle_import_key(
 		&req.access_key_id,
 		&req.secret_access_key,
 		req.name.as_deref().unwrap_or("Imported key"),
-	);
+	)
+	.ok_or_bad_request("Invalid key format")?;
 	garage.key_table.insert(&imported_key).await?;
 
 	key_info_results(garage, imported_key, false).await

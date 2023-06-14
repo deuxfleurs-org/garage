@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Body, Request, Response};
 use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
@@ -161,8 +161,8 @@ struct GetClusterStatusResponse {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ApplyClusterLayoutResponse {
-    message: Vec<String>,
-    layout: GetClusterLayoutResponse,
+	message: Vec<String>,
+	layout: GetClusterLayoutResponse,
 }
 
 #[derive(Serialize)]
@@ -238,7 +238,7 @@ pub async fn handle_update_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	let res = format_cluster_layout(&layout);
-    Ok(json_ok_response(&res)?)
+	Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_apply_cluster_layout(
@@ -253,10 +253,10 @@ pub async fn handle_apply_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	let res = ApplyClusterLayoutResponse {
-        message: msg,
-        layout: format_cluster_layout(&layout),
-    };
-    Ok(json_ok_response(&res)?)
+		message: msg,
+		layout: format_cluster_layout(&layout),
+	};
+	Ok(json_ok_response(&res)?)
 }
 
 pub async fn handle_revert_cluster_layout(
@@ -270,7 +270,7 @@ pub async fn handle_revert_cluster_layout(
 	garage.system.update_cluster_layout(&layout).await?;
 
 	let res = format_cluster_layout(&layout);
-    Ok(json_ok_response(&res)?)
+	Ok(json_ok_response(&res)?)
 }
 
 // ----

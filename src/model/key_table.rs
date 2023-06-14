@@ -149,11 +149,19 @@ impl Key {
 	}
 
 	/// Import a key from it's parts
-	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Self {
-		Self {
+	pub fn import(key_id: &str, secret_key: &str, name: &str) -> Result<Self, &'static str> {
+		if key_id.len() != 26 || &key_id[..2] != "GK" || hex::decode(&key_id[2..]).is_err() {
+			return Err("The specified key ID is not a valid Garage key ID (starts with `GK`, followed by 12 hex-encoded bytes)");
+		}
+
+		if secret_key.len() != 64 || hex::decode(&secret_key).is_err() {
+			return Err("The specified secret key is not a valid Garage secret key (composed of 32 hex-encoded bytes)");
+		}
+
+		Ok(Self {
 			key_id: key_id.to_string(),
 			state: crdt::Deletable::present(KeyParams::new(secret_key, name)),
-		}
+		})
 	}
 
 	/// Create a new Key which can me merged to mark an existing key deleted
