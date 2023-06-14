@@ -1,6 +1,6 @@
 +++
 title = "Quick Start"
-weight = 0
+weight = 10
 sort_by = "weight"
 template = "documentation.html"
 +++

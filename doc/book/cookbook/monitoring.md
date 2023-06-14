@@ -49,9 +49,5 @@ add the following lines in your Prometheus scrape config:
 To visualize the scraped data in Grafana,
 you can either import our [Grafana dashboard for Garage](https://git.deuxfleurs.fr/Deuxfleurs/garage/raw/branch/main/script/telemetry/grafana-garage-dashboard-prometheus.json)
 or make your own.
-We detail below the list of exposed metrics and their meaning.
 
-
-## List of exported metrics
-
-See our [dedicated page](@/documentation/reference-manual/monitoring.md) in the Reference manual section.
+The list of exported metrics is available on our [dedicated page](@/documentation/reference-manual/monitoring.md) in the Reference manual section.

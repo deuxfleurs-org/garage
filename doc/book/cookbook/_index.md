@@ -1,7 +1,7 @@
 +++
 title="Cookbook"
 template = "documentation.html"
-weight = 2
+weight = 20
 sort_by = "weight"
 +++
 
@@ -37,7 +37,3 @@ This chapter could also be referred as "Tutorials" or "Best practices".
 - **[Monitoring Garage](@/documentation/cookbook/monitoring.md)** This page
   explains the Prometheus metrics available for monitoring the Garage
   cluster/nodes.
-
-- **[Recovering from failures](@/documentation/cookbook/recovering.md):** Garage's first selling point is resilience
-  to hardware failures. This section explains how to recover from such a failure in the
-  best possible way.

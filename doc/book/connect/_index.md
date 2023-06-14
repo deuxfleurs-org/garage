@@ -1,6 +1,6 @@
 +++
 title = "Existing integrations"
-weight = 3
+weight = 30
 sort_by = "weight"
 template = "documentation.html"
 +++

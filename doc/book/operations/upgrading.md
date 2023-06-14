@@ -1,6 +1,6 @@
 +++
 title = "Upgrading Garage"
-weight = 60
+weight = 10
 +++
 
 Garage is a stateful clustered application, where all nodes are communicating together and share data structures.
@@ -58,7 +58,7 @@ From a high level perspective, a major upgrade looks like this:
 
 ### Major upgarades with minimal downtime
 
-There is only one operation that has to be coordinated cluster-wide: the passage of one version of the internal RPC protocol to the next.
+There is only one operation that has to be coordinated cluster-wide: the switch of one version of the internal RPC protocol to the next.
 This means that an upgrade with very limited downtime can simply be performed from one major version to the next by restarting all nodes
 simultaneously in the new version.
 The downtime will simply be the time required for all nodes to stop and start again, which should be less than a minute.
