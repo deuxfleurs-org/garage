@@ -49,14 +49,9 @@ implements a protocol that has been clearly reviewed, Secure ScuttleButt's
 Secret Handshake protocol.  This is why setting a `rpc_secret` is mandatory,
 and that's also why your nodes have super long identifiers.
 
-## Encrypting traffic between a Garage node and your client
+## HTTP API endpoints provided by Garage are in clear text
 
-HTTP API endpoints provided by Garage are in clear text.
-You have multiple options to have encryption between your client and a node:
-
-  - Setup a reverse proxy with TLS / ACME / Let's encrypt
-  - Setup a Garage gateway locally, and only contact the garage daemon on `localhost`
-  - Only contact your Garage daemon over a secure, encrypted overlay network such as Wireguard
+Adding TLS support built into Garage is not currently planned.
 
 ## Garage stores data in plain text on the filesystem
 
@@ -75,6 +70,14 @@ system such as Hashicorp Vault?
 
 
 # Adding data encryption using external tools
+
+## Encrypting traffic between a Garage node and your client
+
+You have multiple options to have encryption between your client and a node:
+
+  - Setup a reverse proxy with TLS / ACME / Let's encrypt
+  - Setup a Garage gateway locally, and only contact the garage daemon on `localhost`
+  - Only contact your Garage daemon over a secure, encrypted overlay network such as Wireguard
 
 ## Encrypting data at rest
 
