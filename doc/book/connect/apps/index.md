@@ -586,7 +586,7 @@ secret_key = 'abcdef0123456789...'
 
 ```
 PICTRS__STORE__TYPE=object_storage
-PICTRS__STORE__ENDPOINT=http:/my-garage-instance.mydomain.tld:3900
+PICTRS__STORE__ENDPOINT=http://my-garage-instance.mydomain.tld:3900
 PICTRS__STORE__BUCKET_NAME=pictrs-data
 PICTRS__STORE__REGION=garage
 PICTRS__STORE__ACCESS_KEY=GK...
