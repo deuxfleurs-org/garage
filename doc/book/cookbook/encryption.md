@@ -109,3 +109,8 @@ Implementations are very specific to the various applications. Examples:
   [XEP-0454](https://xmpp.org/extensions/xep-0454.html).
 
 - Aerogramme: use the user's password as a key to decrypt data in the user's bucket
+
+- Cyberduck: comes with support for
+  [Cryptomator](https://docs.cyberduck.io/cryptomator/) which allows users to
+  create client-side vaults to encrypt files in before they are uploaded to a
+  cloud storage endpoint.
