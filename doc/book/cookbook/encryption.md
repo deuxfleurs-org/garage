@@ -104,5 +104,13 @@ Implementations are very specific to the various applications. Examples:
   in Matrix are probably encrypted using symmetric encryption, with a key that is
   distributed in the end-to-end encrypted message that contains the link to the object.
 
+- XMPP: clients normally support either OMEMO / OpenPGP for the E2EE of user
+  messages. Media files are encrypted per
+  [XEP-0454](https://xmpp.org/extensions/xep-0454.html).
+
 - Aerogramme: use the user's password as a key to decrypt data in the user's bucket
 
+- Cyberduck: comes with support for
+  [Cryptomator](https://docs.cyberduck.io/cryptomator/) which allows users to
+  create client-side vaults to encrypt files in before they are uploaded to a
+  cloud storage endpoint.
