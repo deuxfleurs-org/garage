@@ -34,7 +34,7 @@ mktemp = "0.5"
 
 [features]
 default = [ "sled" ]
-bundled-libs = [ "rusqlite/bundled" ]
+bundled-libs = [ "rusqlite?/bundled" ]
 cli = ["clap", "pretty_env_logger"]
 lmdb = [ "heed" ]
 sqlite = [ "rusqlite" ]
