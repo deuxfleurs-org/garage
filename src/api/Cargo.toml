@@ -47,7 +47,7 @@ http-range = "0.1"
 hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
 multer = "2.0"
 percent-encoding = "2.1.0"
-roxmltree = "0.14"
+roxmltree = "0.18"
 serde = { version = "1.0", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1.0"

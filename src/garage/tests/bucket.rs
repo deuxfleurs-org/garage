@@ -1,7 +1,6 @@
 use crate::common;
 use crate::common::ext::CommandExt;
-use aws_sdk_s3::model::BucketLocationConstraint;
-use aws_sdk_s3::output::DeleteBucketOutput;
+use aws_sdk_s3::operation::delete_bucket::DeleteBucketOutput;
 
 #[tokio::test]
 async fn test_bucket_all() {
@@ -63,10 +62,7 @@ async fn test_bucket_all() {
 			.await
 			.unwrap();
 
-		match r.location_constraint.unwrap() {
-			BucketLocationConstraint::Unknown(v) if v.as_str() == "garage-integ-test" => (),
-			_ => unreachable!("wrong region"),
-		}
+		assert_eq!(r.location_constraint.unwrap().as_str(), "garage-integ-test");
 	}
 	{
 		// (Stub) check GetVersioning

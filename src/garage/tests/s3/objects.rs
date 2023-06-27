@@ -1,6 +1,6 @@
 use crate::common;
-use aws_sdk_s3::model::{Delete, ObjectIdentifier};
-use aws_sdk_s3::types::ByteStream;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 
 const STD_KEY: &str = "hello world";
 const CTRL_KEY: &str = "\x00\x01\x02\x00";

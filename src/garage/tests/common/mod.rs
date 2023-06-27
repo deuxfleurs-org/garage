@@ -1,4 +1,5 @@
-use aws_sdk_s3::{Client, Region};
+use aws_sdk_s3::config::Region;
+use aws_sdk_s3::Client;
 use ext::*;
 use k2v_client::K2vClient;
 
@@ -32,7 +33,7 @@ impl Context {
 	fn new() -> Self {
 		let garage = garage::instance();
 		let key = garage.key(None);
-		let client = client::build_client(garage, &key);
+		let client = client::build_client(&key);
 		let custom_request = CustomRequester::new_s3(garage, &key);
 		let k2v_request = CustomRequester::new_k2v(garage, &key);
 
