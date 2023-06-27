@@ -311,23 +311,19 @@ impl BatchOutputKind {
 			.collect::<Vec<_>>()
 	}
 
-	fn display_poll_range_output(
-		&self,
-		seen_marker: String,
-		values: BTreeMap<String, CausalValue>,
-	) -> ! {
+	fn display_poll_range_output(&self, poll_range: PollRangeResult) -> ! {
 		if self.json {
 			let json = serde_json::json!({
-				"values": self.values_json(values),
-				"seen_marker": seen_marker,
+				"values": self.values_json(poll_range.items),
+				"seen_marker": poll_range.seen_marker,
 			});
 
 			let stdout = std::io::stdout();
 			serde_json::to_writer_pretty(stdout, &json).unwrap();
 			exit(0)
 		} else {
-			println!("seen marker: {}", seen_marker);
-			self.display_human_output(values)
+			println!("seen marker: {}", poll_range.seen_marker);
+			self.display_human_output(poll_range.items)
 		}
 	}
 
@@ -501,8 +497,8 @@ async fn main() -> Result<(), Error> {
 				)
 				.await?;
 			match res {
-				Some((items, seen_marker)) => {
-					output_kind.display_poll_range_output(seen_marker, items);
+				Some(poll_range_output) => {
+					output_kind.display_poll_range_output(poll_range_output);
 				}
 				None => {
 					if output_kind.json {

@@ -182,7 +182,7 @@ impl K2vClient {
 		filter: Option<PollRangeFilter<'_>>,
 		seen_marker: Option<&str>,
 		timeout: Option<Duration>,
-	) -> Result<Option<(BTreeMap<String, CausalValue>, String)>, Error> {
+	) -> Result<Option<PollRangeResult>, Error> {
 		let timeout = timeout.unwrap_or(DEFAULT_POLL_TIMEOUT);
 
 		let request = PollRangeRequest {
@@ -217,7 +217,10 @@ impl K2vClient {
 			})
 			.collect::<BTreeMap<_, _>>();
 
-		Ok(Some((items, resp.seen_marker)))
+		Ok(Some(PollRangeResult {
+			items,
+			seen_marker: resp.seen_marker,
+		}))
 	}
 
 	/// Perform an InsertItem request, inserting a value for a single pk+sk.
@@ -570,11 +573,21 @@ pub struct Filter<'a> {
 	pub reverse: bool,
 }
 
+/// Filter for a poll range operations.
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct PollRangeFilter<'a> {
 	pub start: Option<&'a str>,
 	pub end: Option<&'a str>,
 	pub prefix: Option<&'a str>,
+}
+
+/// Response to a poll_range query
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PollRangeResult {
+	/// List of items that have changed since last PollRange call.
+	pub items: BTreeMap<String, CausalValue>,
+	/// opaque string representing items already seen for future PollRange calls.
+	pub seen_marker: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
