@@ -27,7 +27,7 @@ pub trait Migrate: Serialize + for<'de> Deserialize<'de> + 'static {
 		Self::Previous::decode(bytes).map(Self::migrate)
 	}
 
-	/// Encode this type with optionnal version marker
+	/// Encode this type with optional version marker
 	fn encode(&self) -> Result<Vec<u8>, rmp_serde::encode::Error> {
 		let mut wr = Vec::with_capacity(128);
 		wr.extend_from_slice(Self::VERSION_MARKER);
