@@ -632,7 +632,7 @@ paths:
       operationId: "UpdateBucket"
       summary: "Update a bucket"
       description: |
-        All fields (`websiteAccess` and `quotas`) are optionnal.
+        All fields (`websiteAccess` and `quotas`) are optional.
         If they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.
 
         In `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.
