@@ -4,7 +4,7 @@ weight = 30
 +++
 
 To ensure the best durability of your data and to fix any inconsistencies that may
-pop up in a distributed system, Garage provides a serires of repair operations.
+pop up in a distributed system, Garage provides a series of repair operations.
 This guide will explain the meaning of each of them and when they should be applied.
 
 
