@@ -18,7 +18,7 @@ garage_util.workspace = true
 
 arc-swap = "1.0"
 bytes = "1.0"
-gethostname = "0.2"
+gethostname = "0.4"
 hex = "0.4"
 tracing = "0.1"
 rand = "0.8"
