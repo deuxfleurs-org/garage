@@ -120,18 +120,34 @@ impl WebServer {
 		req: Request<IncomingBody>,
 		addr: String,
 	) -> Result<Response<BoxBody<Error>>, http::Error> {
+		let request_host_bucket = req
+			.headers()
+			.get(HOST)
+			.expect("No host header found")
+			.to_str()
+			.expect("Error converting host header to string")
+			.to_string();
+
 		if let Ok(forwarded_for_ip_addr) =
 			forwarded_headers::handle_forwarded_for_headers(req.headers())
 		{
+			// uri() below has a preceding '/', so no space with host
 			info!(
-				"{} (via {}) {} {}",
+				"{} (via {}) {} {}{}",
 				forwarded_for_ip_addr,
 				addr,
 				req.method(),
+				request_host_bucket,
 				req.uri()
 			);
 		} else {
-			info!("{} {} {}", addr, req.method(), req.uri());
+			info!(
+				"{} {} {}{}",
+				addr,
+				req.method(),
+				request_host_bucket,
+				req.uri()
+			);
 		}
 
 		// Lots of instrumentation
@@ -140,12 +156,16 @@ impl WebServer {
 			.span_builder(format!("Web {} request", req.method()))
 			.with_trace_id(gen_trace_id())
 			.with_attributes(vec![
+				KeyValue::new("domain", format!("{}", request_host_bucket.to_string())),
 				KeyValue::new("method", format!("{}", req.method())),
 				KeyValue::new("uri", req.uri().to_string()),
 			])
 			.start(&tracer);
 
-		let metrics_tags = &[KeyValue::new("method", req.method().to_string())];
+		let metrics_tags = &[
+			KeyValue::new("domain", request_host_bucket.to_string()),
+			KeyValue::new("method", req.method().to_string()),
+		];
 
 		// The actual handler
 		let res = self
@@ -160,22 +180,30 @@ impl WebServer {
 		// Returning the result
 		match res {
 			Ok(res) => {
-				debug!("{} {} {}", req.method(), res.status(), req.uri());
+				debug!(
+					"{} {} {}{}",
+					req.method(),
+					res.status(),
+					request_host_bucket,
+					req.uri()
+				);
 				Ok(res
 					.map(|body| BoxBody::new(http_body_util::BodyExt::map_err(body, Error::from))))
 			}
 			Err(error) => {
 				info!(
-					"{} {} {} {}",
+					"{} {} {}{} {}",
 					req.method(),
 					error.http_status_code(),
+					request_host_bucket,
 					req.uri(),
 					error
 				);
 				self.metrics.error_counter.add(
 					1,
 					&[
-						metrics_tags[0].clone(),
+						KeyValue::new("domain", request_host_bucket.to_string()),
+						KeyValue::new("method", req.method().to_string()),
 						KeyValue::new("status_code", error.http_status_code().to_string()),
 					],
 				);
