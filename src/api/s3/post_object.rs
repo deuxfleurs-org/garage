@@ -30,7 +30,7 @@ pub async fn handle_post_object(
 		.get(header::CONTENT_TYPE)
 		.and_then(|ct| ct.to_str().ok())
 		.and_then(|ct| multer::parse_boundary(ct).ok())
-		.ok_or_bad_request("Counld not get multipart boundary")?;
+		.ok_or_bad_request("Could not get multipart boundary")?;
 
 	// 16k seems plenty for a header. 5G is the max size of a single part, so it seems reasonable
 	// for a PostObject
@@ -64,15 +64,13 @@ pub async fn handle_post_object(
 				"tag" => (/* tag need to be reencoded, but we don't support them yet anyway */),
 				"acl" => {
 					if params.insert("x-amz-acl", content).is_some() {
-						return Err(Error::bad_request(
-							"Field 'acl' provided more than one time",
-						));
+						return Err(Error::bad_request("Field 'acl' provided more than once"));
 					}
 				}
 				_ => {
 					if params.insert(&name, content).is_some() {
 						return Err(Error::bad_request(format!(
-							"Field '{}' provided more than one time",
+							"Field '{}' provided more than once",
 							name
 						)));
 					}
@@ -149,7 +147,7 @@ pub async fn handle_post_object(
 		.ok_or_bad_request("Invalid expiration date")?
 		.into();
 	if Utc::now() - expiration > Duration::zero() {
-		return Err(Error::bad_request("Expiration date is in the paste"));
+		return Err(Error::bad_request("Expiration date is in the past"));
 	}
 
 	let mut conditions = decoded_policy.into_conditions()?;
@@ -330,7 +328,7 @@ impl Policy {
 					if map.len() != 1 {
 						return Err(Error::bad_request("Invalid policy item"));
 					}
-					let (mut k, v) = map.into_iter().next().expect("size was verified");
+					let (mut k, v) = map.into_iter().next().expect("Size could not be verified");
 					k.make_ascii_lowercase();
 					params.entry(k).or_default().push(Operation::Equal(v));
 				}
