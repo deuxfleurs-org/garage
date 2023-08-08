@@ -72,7 +72,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
+			"message": "Bad request: Domain 'my-website' is not managed by Garage",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -91,24 +91,29 @@ async fn test_website() {
 		BODY.as_ref()
 	);
 
-	let admin_req = || {
-		Request::builder()
-			.method("GET")
-			.uri(format!(
-				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port,
-				BCKT_NAME.to_string()
-			))
-			.body(Body::empty())
-			.unwrap()
-	};
+	for bname in [
+		BCKT_NAME.to_string(),
+		format!("{BCKT_NAME}.web.garage"),
+		format!("{BCKT_NAME}.s3.garage"),
+	] {
+		let admin_req = || {
+			Request::builder()
+				.method("GET")
+				.uri(format!(
+					"http://127.0.0.1:{0}/check?domain={1}",
+					ctx.garage.admin_port, bname
+				))
+				.body(Body::empty())
+				.unwrap()
+		};
 
-	let mut admin_resp = client.request(admin_req()).await.unwrap();
-	assert_eq!(admin_resp.status(), StatusCode::OK);
-	assert_eq!(
-		to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
-		format!("Bucket '{BCKT_NAME}' is authorized for website hosting").as_bytes()
-	);
+		let mut admin_resp = client.request(admin_req()).await.unwrap();
+		assert_eq!(admin_resp.status(), StatusCode::OK);
+		assert_eq!(
+			to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
+			format!("Domain '{bname}' is managed by Garage").as_bytes()
+		);
+	}
 
 	ctx.garage
 		.command()
@@ -142,7 +147,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Bucket 'my-website' is not authorized for website hosting",
+			"message": "Bad request: Domain 'my-website' is not managed by Garage",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -397,7 +402,7 @@ async fn test_website_s3_api() {
 }
 
 #[tokio::test]
-async fn test_website_check_website_enabled() {
+async fn test_website_check_domain() {
 	let ctx = common::context();
 
 	let client = Client::new();
