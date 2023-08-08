@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::Infallible, net::SocketAddr, sync::Arc};
+use std::{convert::Infallible, net::SocketAddr, sync::Arc};
 
 use futures::future::Future;
 
@@ -6,7 +6,7 @@ use hyper::{
 	header::{HeaderValue, HOST},
 	server::conn::AddrStream,
 	service::{make_service_fn, service_fn},
-	Body, Method, Request, Response, Server,
+	Body, Method, Request, Response, Server, StatusCode,
 };
 
 use opentelemetry::{
@@ -28,6 +28,7 @@ use garage_api::s3::get::{handle_get, handle_head};
 use garage_model::garage::Garage;
 
 use garage_table::*;
+use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
@@ -168,6 +169,23 @@ impl WebServer {
 		}
 	}
 
+	async fn check_key_exists(self: &Arc<Self>, bucket_id: Uuid, key: &str) -> Option<()> {
+		self.garage
+			.object_table
+			.get(&bucket_id, &key.to_string())
+			.await
+			.ok()
+			.flatten()
+			.and_then(|object| {
+				object
+					.versions()
+					.iter()
+					.rev()
+					.find(|v| v.is_data())
+					.and(Some(()))
+			})
+	}
+
 	async fn serve_file(self: &Arc<Self>, req: &Request<Body>) -> Result<Response<Body>, Error> {
 		// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 		let authority = req
@@ -207,11 +225,11 @@ impl WebServer {
 		// Get path
 		let path = req.uri().path().to_string();
 		let index = &website_config.index_document;
-		let key = path_to_key(&path, index)?;
+		let (key, may_redirect) = path_to_keys(&path, index)?;
 
 		debug!(
-			"Selected bucket: \"{}\" {:?}, selected key: \"{}\"",
-			bucket_name, bucket_id, key
+			"Selected bucket: \"{}\" {:?}, target key: \"{}\", may redirect to: {:?}",
+			bucket_name, bucket_id, key, may_redirect
 		);
 
 		let ret_doc = match *req.method() {
@@ -219,10 +237,26 @@ impl WebServer {
 			Method::HEAD => handle_head(self.garage.clone(), req, bucket_id, &key, None).await,
 			Method::GET => handle_get(self.garage.clone(), req, bucket_id, &key, None).await,
 			_ => Err(ApiError::bad_request("HTTP method not supported")),
-		}
-		.map_err(Error::from);
+		};
 
-		match ret_doc {
+		// Try implicit redirect on error
+		let ret_doc_with_redir = match (&ret_doc, may_redirect) {
+			(Err(ApiError::NoSuchKey), ImplicitRedirect::To { key, url })
+				if self
+					.check_key_exists(bucket_id, key.as_str())
+					.await
+					.is_some() =>
+			{
+				Ok(Response::builder()
+					.status(StatusCode::FOUND)
+					.header("Location", url)
+					.body(Body::empty())
+					.unwrap())
+			}
+			_ => ret_doc,
+		};
+
+		match ret_doc_with_redir.map_err(Error::from) {
 			Err(error) => {
 				// For a HEAD or OPTIONS method, and for non-4xx errors,
 				// we don't return the error document as content,
@@ -308,30 +342,46 @@ fn error_to_res(e: Error) -> Response<Body> {
 	http_error
 }
 
+#[derive(Debug, PartialEq)]
+enum ImplicitRedirect {
+	No,
+	To { key: String, url: String },
+}
+
 /// Path to key
 ///
 /// Convert the provided path to the internal key
 /// When a path ends with "/", we append the index name to match traditional web server behavior
 /// which is also AWS S3 behavior.
-fn path_to_key<'a>(path: &'a str, index: &str) -> Result<Cow<'a, str>, Error> {
+///
+/// Check: https://docs.aws.amazon.com/AmazonS3/latest/userguide/IndexDocumentSupport.html
+fn path_to_keys<'a>(path: &'a str, index: &str) -> Result<(String, ImplicitRedirect), Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(path).decode_utf8()?;
 
 	if !path_utf8.starts_with('/') {
 		return Err(Error::BadRequest("Path must start with a / (slash)".into()));
 	}
 
-	match path_utf8.chars().last() {
-		None => unreachable!(),
-		Some('/') => {
-			let mut key = String::with_capacity(path_utf8.len() + index.len());
-			key.push_str(&path_utf8[1..]);
-			key.push_str(index);
-			Ok(key.into())
-		}
-		Some(_) => match path_utf8 {
-			Cow::Borrowed(pu8) => Ok((&pu8[1..]).into()),
-			Cow::Owned(pu8) => Ok(pu8[1..].to_string().into()),
-		},
+	let base_key = &path_utf8[1..];
+	let is_bucket_root = base_key.len() == 0;
+	let is_trailing_slash = path_utf8.chars().last().map(|v| v == '/').unwrap_or(false);
+
+	match (is_bucket_root, is_trailing_slash) {
+		// It is not possible to store something at the root of the bucket (ie. empty key),
+		// the only option is to fetch the index
+		(true, _) => Ok((index.to_string(), ImplicitRedirect::No)),
+
+		// "If you create a folder structure in your bucket, you must have an index document at each level. In each folder, the index document must have the same name, for example, index.html. When a user specifies a URL that resembles a folder lookup, the presence or absence of a trailing slash determines the behavior of the website. For example, the following URL, with a trailing slash, returns the photos/index.html index document."
+		(false, true) => Ok((format!("{base_key}{index}"), ImplicitRedirect::No)),
+
+		// "However, if you exclude the trailing slash from the preceding URL, Amazon S3 first looks for an object photos in the bucket. If the photos object is not found, it searches for an index document, photos/index.html. If that document is found, Amazon S3 returns a 302 Found message and points to the photos/ key. For subsequent requests to photos/, Amazon S3 returns photos/index.html. If the index document is not found, Amazon S3 returns an error."
+		(false, false) => Ok((
+			base_key.to_string(),
+			ImplicitRedirect::To {
+				key: format!("{base_key}/{index}"),
+				url: format!("{path}/"),
+			},
+		)),
 	}
 }
 
@@ -340,13 +390,37 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn path_to_key_test() -> Result<(), Error> {
-		assert_eq!(path_to_key("/file%20.jpg", "index.html")?, "file .jpg");
-		assert_eq!(path_to_key("/%20t/", "index.html")?, " t/index.html");
-		assert_eq!(path_to_key("/", "index.html")?, "index.html");
-		assert_eq!(path_to_key("/hello", "index.html")?, "hello");
-		assert!(path_to_key("", "index.html").is_err());
-		assert!(path_to_key("i/am/relative", "index.html").is_err());
+	fn path_to_keys_test() -> Result<(), Error> {
+		assert_eq!(
+			path_to_keys("/file%20.jpg", "index.html")?,
+			(
+				"file .jpg".to_string(),
+				ImplicitRedirect::To {
+					key: "file .jpg/index.html".to_string(),
+					url: "/file%20.jpg/".to_string()
+				}
+			)
+		);
+		assert_eq!(
+			path_to_keys("/%20t/", "index.html")?,
+			(" t/index.html".to_string(), ImplicitRedirect::No)
+		);
+		assert_eq!(
+			path_to_keys("/", "index.html")?,
+			("index.html".to_string(), ImplicitRedirect::No)
+		);
+		assert_eq!(
+			path_to_keys("/hello", "index.html")?,
+			(
+				"hello".to_string(),
+				ImplicitRedirect::To {
+					key: "hello/index.html".to_string(),
+					url: "/hello/".to_string()
+				}
+			)
+		);
+		assert!(path_to_keys("", "index.html").is_err());
+		assert!(path_to_keys("i/am/relative", "index.html").is_err());
 		Ok(())
 	}
 }
