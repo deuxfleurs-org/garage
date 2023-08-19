@@ -216,7 +216,7 @@ object_storage:
 
   # Same settings but for webtorrent videos
   videos:
-    bucket_name: 'peertube-video'
+    bucket_name: 'peertube-videos'
     prefix: ''
     # You must fill this field to make Peertube use our reverse proxy/website logic
     base_url: 'http://peertube-videos.web.garage.localhost'
