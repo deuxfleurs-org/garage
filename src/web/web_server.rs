@@ -169,21 +169,15 @@ impl WebServer {
 		}
 	}
 
-	async fn check_key_exists(self: &Arc<Self>, bucket_id: Uuid, key: &str) -> Option<()> {
-		self.garage
+	async fn check_key_exists(self: &Arc<Self>, bucket_id: Uuid, key: &str) -> Result<bool, Error> {
+		let exists = self
+			.garage
 			.object_table
 			.get(&bucket_id, &key.to_string())
-			.await
-			.ok()
-			.flatten()
-			.and_then(|object| {
-				object
-					.versions()
-					.iter()
-					.rev()
-					.find(|v| v.is_data())
-					.and(Some(()))
-			})
+			.await?
+			.map(|object| object.versions().iter().any(|v| v.is_data()))
+			.unwrap_or(false);
+		Ok(exists)
 	}
 
 	async fn serve_file(self: &Arc<Self>, req: &Request<Body>) -> Result<Response<Body>, Error> {
@@ -242,10 +236,7 @@ impl WebServer {
 		// Try implicit redirect on error
 		let ret_doc_with_redir = match (&ret_doc, may_redirect) {
 			(Err(ApiError::NoSuchKey), ImplicitRedirect::To { key, url })
-				if self
-					.check_key_exists(bucket_id, key.as_str())
-					.await
-					.is_some() =>
+				if self.check_key_exists(bucket_id, key.as_str()).await? =>
 			{
 				Ok(Response::builder()
 					.status(StatusCode::FOUND)
@@ -358,13 +349,12 @@ enum ImplicitRedirect {
 fn path_to_keys<'a>(path: &'a str, index: &str) -> Result<(String, ImplicitRedirect), Error> {
 	let path_utf8 = percent_encoding::percent_decode_str(path).decode_utf8()?;
 
-	if !path_utf8.starts_with('/') {
-		return Err(Error::BadRequest("Path must start with a / (slash)".into()));
-	}
-
-	let base_key = &path_utf8[1..];
+	let base_key = match path_utf8.strip_prefix("/") {
+		Some(bk) => bk,
+		None => return Err(Error::BadRequest("Path must start with a / (slash)".into())),
+	};
 	let is_bucket_root = base_key.len() == 0;
-	let is_trailing_slash = path_utf8.chars().last().map(|v| v == '/').unwrap_or(false);
+	let is_trailing_slash = path_utf8.ends_with("/");
 
 	match (is_bucket_root, is_trailing_slash) {
 		// It is not possible to store something at the root of the bucket (ie. empty key),
