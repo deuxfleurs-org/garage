@@ -469,3 +469,6 @@ https:// {
 	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
 }
 ```
+
+More information on how this endpoint is implemented in Garage is available
+in the [Admin API Reference](@/documentation/reference-manual/admin-api.md) page.

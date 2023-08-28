@@ -26,6 +26,7 @@ use crate::admin::cluster::*;
 use crate::admin::error::*;
 use crate::admin::key::*;
 use crate::admin::router::{Authorization, Endpoint};
+use crate::helpers::host_to_bucket;
 
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
@@ -78,10 +79,7 @@ impl AdminApiServer {
 			.body(Body::empty())?)
 	}
 
-	async fn handle_check_website_enabled(
-		&self,
-		req: Request<Body>,
-	) -> Result<Response<Body>, Error> {
+	async fn handle_check_domain(&self, req: Request<Body>) -> Result<Response<Body>, Error> {
 		let query_params: HashMap<String, String> = req
 			.uri()
 			.query()
@@ -102,12 +100,43 @@ impl AdminApiServer {
 			.get("domain")
 			.ok_or_internal_error("Could not parse domain query string")?;
 
+		// Resolve bucket from domain name, inferring if the website must be activated for the
+		// domain to be valid.
+		let (bucket_name, must_check_website) = if let Some(bname) = self
+			.garage
+			.config
+			.s3_api
+			.root_domain
+			.as_ref()
+			.and_then(|rd| host_to_bucket(domain, rd))
+		{
+			(bname.to_string(), false)
+		} else if let Some(bname) = self
+			.garage
+			.config
+			.s3_web
+			.as_ref()
+			.and_then(|sw| host_to_bucket(domain, sw.root_domain.as_str()))
+		{
+			(bname.to_string(), true)
+		} else {
+			(domain.to_string(), true)
+		};
+
 		let bucket_id = self
 			.garage
 			.bucket_helper()
-			.resolve_global_bucket_name(domain)
+			.resolve_global_bucket_name(&bucket_name)
 			.await?
-			.ok_or(HelperError::NoSuchBucket(domain.to_string()))?;
+			.ok_or(HelperError::NoSuchBucket(bucket_name.to_string()))?;
+
+		if !must_check_website {
+			return Ok(Response::builder()
+				.status(StatusCode::OK)
+				.body(Body::from(format!(
+					"Domain '{domain}' is managed by Garage"
+				)))?);
+		}
 
 		let bucket = self
 			.garage
@@ -123,11 +152,11 @@ impl AdminApiServer {
 				Ok(Response::builder()
 					.status(StatusCode::OK)
 					.body(Body::from(format!(
-						"Bucket '{domain}' is authorized for website hosting"
+						"Domain '{domain}' is managed by Garage"
 					)))?)
 			}
 			None => Err(Error::bad_request(format!(
-				"Bucket '{domain}' is not authorized for website hosting"
+				"Domain '{domain}' is not managed by Garage"
 			))),
 		}
 	}
@@ -229,7 +258,7 @@ impl ApiHandler for AdminApiServer {
 
 		match endpoint {
 			Endpoint::Options => self.handle_options(&req),
-			Endpoint::CheckWebsiteEnabled => self.handle_check_website_enabled(req).await,
+			Endpoint::CheckDomain => self.handle_check_domain(req).await,
 			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
 			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
