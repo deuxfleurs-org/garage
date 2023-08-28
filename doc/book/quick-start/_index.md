@@ -35,28 +35,12 @@ Place this binary somewhere in your `$PATH` so that you can invoke the `garage`
 command directly (for instance you can copy the binary in `/usr/local/bin`
 or in `~/.local/bin`).
 
+You may also check whether your distribution already includes a
+[binary package for Garage](@/documentation/cookbook/binary-packages.md).
+
 If a binary of the last version is not available for your architecture,
 or if you want a build customized for your system,
 you can [build Garage from source](@/documentation/cookbook/from-source.md).
-
-
-### Alpine Linux
-
-If you use Alpine Linux, you can simply install the
-[garage](https://pkgs.alpinelinux.org/packages?name=garage) package from the
-Alpine Linux repositories (available since v3.17):
-
-```bash
-apk add garage
-```
-
-The default configuration file is installed to `/etc/garage.toml`. You can run
-Garage using: `rc-service garage start`. If you don't specify `rpc_secret`, it
-will be automatically replaced with a random string on the first start.
-
-Please note that this package is built without Consul discovery, Kubernetes
-discovery, OpenTelemetry exporter, and K2V features (K2V will be enabled once
-it's stable).
 
 
 ## Configuring and starting Garage
