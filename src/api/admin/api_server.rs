@@ -100,6 +100,20 @@ impl AdminApiServer {
 			.get("domain")
 			.ok_or_internal_error("Could not parse domain query string")?;
 
+		if self.check_domain(domain).await? {
+			Ok(Response::builder()
+				.status(StatusCode::OK)
+				.body(Body::from(format!(
+					"Domain '{domain}' is managed by Garage"
+				)))?)
+		} else {
+			Err(Error::bad_request(format!(
+				"Domain '{domain}' is not managed by Garage"
+			)))
+		}
+	}
+
+	async fn check_domain(&self, domain: &str) -> Result<bool, Error> {
 		// Resolve bucket from domain name, inferring if the website must be activated for the
 		// domain to be valid.
 		let (bucket_name, must_check_website) = if let Some(bname) = self
@@ -123,19 +137,18 @@ impl AdminApiServer {
 			(domain.to_string(), true)
 		};
 
-		let bucket_id = self
+		let bucket_id = match self
 			.garage
 			.bucket_helper()
 			.resolve_global_bucket_name(&bucket_name)
 			.await?
-			.ok_or(HelperError::NoSuchBucket(bucket_name.to_string()))?;
+		{
+			Some(bucket_id) => bucket_id,
+			None => return Ok(false),
+		};
 
 		if !must_check_website {
-			return Ok(Response::builder()
-				.status(StatusCode::OK)
-				.body(Body::from(format!(
-					"Domain '{domain}' is managed by Garage"
-				)))?);
+			return Ok(true);
 		}
 
 		let bucket = self
@@ -148,16 +161,8 @@ impl AdminApiServer {
 		let bucket_website_config = bucket_state.website_config.get();
 
 		match bucket_website_config {
-			Some(_v) => {
-				Ok(Response::builder()
-					.status(StatusCode::OK)
-					.body(Body::from(format!(
-						"Domain '{domain}' is managed by Garage"
-					)))?)
-			}
-			None => Err(Error::bad_request(format!(
-				"Domain '{domain}' is not managed by Garage"
-			))),
+			Some(_v) => Ok(true),
+			None => Ok(false),
 		}
 	}
 
