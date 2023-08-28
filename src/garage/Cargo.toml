@@ -33,7 +33,7 @@ garage_web.workspace = true
 
 backtrace = "0.3"
 bytes = "1.0"
-bytesize = "1.1"
+bytesize = "1.2"
 timeago = { version = "0.4", default-features = false }
 parse_duration = "2.1"
 hex = "0.4"
