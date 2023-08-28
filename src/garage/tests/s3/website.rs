@@ -440,13 +440,13 @@ async fn test_website_check_domain() {
 	};
 
 	let admin_resp = client.request(admin_req()).await.unwrap();
-	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
 	let res_body = json_body(admin_resp).await;
 	assert_json_eq!(
 		res_body,
 		json!({
-			"code": "NoSuchBucket",
-			"message": "Bucket not found: ",
+			"code": "InvalidRequest",
+			"message": "Bad request: Domain '' is not managed by Garage",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -464,13 +464,13 @@ async fn test_website_check_domain() {
 	};
 
 	let admin_resp = client.request(admin_req()).await.unwrap();
-	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
 	let res_body = json_body(admin_resp).await;
 	assert_json_eq!(
 		res_body,
 		json!({
-			"code": "NoSuchBucket",
-			"message": "Bucket not found: foobar",
+			"code": "InvalidRequest",
+			"message": "Bad request: Domain 'foobar' is not managed by Garage",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -488,13 +488,13 @@ async fn test_website_check_domain() {
 	};
 
 	let admin_resp = client.request(admin_req()).await.unwrap();
-	assert_eq!(admin_resp.status(), StatusCode::NOT_FOUND);
+	assert_eq!(admin_resp.status(), StatusCode::BAD_REQUEST);
 	let res_body = json_body(admin_resp).await;
 	assert_json_eq!(
 		res_body,
 		json!({
-			"code": "NoSuchBucket",
-			"message": "Bucket not found: ☹",
+			"code": "InvalidRequest",
+			"message": "Bad request: Domain '☹' is not managed by Garage",
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
