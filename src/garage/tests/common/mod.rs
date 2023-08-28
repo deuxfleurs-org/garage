@@ -1,6 +1,7 @@
 use aws_sdk_s3::config::Region;
 use aws_sdk_s3::Client;
 use ext::*;
+#[cfg(feature = "k2v")]
 use k2v_client::K2vClient;
 
 #[macro_use]
@@ -21,6 +22,7 @@ pub struct Context {
 	pub key: garage::Key,
 	pub client: Client,
 	pub custom_request: CustomRequester,
+	#[cfg(feature = "k2v")]
 	pub k2v: K2VContext,
 }
 
@@ -35,6 +37,7 @@ impl Context {
 		let key = garage.key(None);
 		let client = client::build_client(&key);
 		let custom_request = CustomRequester::new_s3(garage, &key);
+		#[cfg(feature = "k2v")]
 		let k2v_request = CustomRequester::new_k2v(garage, &key);
 
 		Context {
@@ -42,6 +45,7 @@ impl Context {
 			client,
 			key,
 			custom_request,
+			#[cfg(feature = "k2v")]
 			k2v: K2VContext {
 				request: k2v_request,
 			},
@@ -72,6 +76,7 @@ impl Context {
 	}
 
 	/// Build a K2vClient for a given bucket
+	#[cfg(feature = "k2v")]
 	pub fn k2v_client(&self, bucket: &str) -> K2vClient {
 		let config = k2v_client::K2vClientConfig {
 			region: REGION.to_string(),

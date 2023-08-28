@@ -5,8 +5,8 @@ use std::time::Duration;
 use assert_json_diff::assert_json_eq;
 use serde_json::json;
 
-use super::json_body;
 use crate::common;
+use crate::json_body;
 
 #[tokio::test]
 async fn test_poll_item() {

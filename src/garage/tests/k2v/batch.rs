@@ -6,7 +6,7 @@ use assert_json_diff::assert_json_eq;
 use base64::prelude::*;
 use serde_json::json;
 
-use super::json_body;
+use crate::json_body;
 use hyper::{Method, StatusCode};
 
 #[tokio::test]
