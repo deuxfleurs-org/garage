@@ -35,6 +35,9 @@ Place this binary somewhere in your `$PATH` so that you can invoke the `garage`
 command directly (for instance you can copy the binary in `/usr/local/bin`
 or in `~/.local/bin`).
 
+You may also check whether your distribution already includes a
+[binary package for Garage](@/documentation/cookbook/binary-packages.md).
+
 If a binary of the last version is not available for your architecture,
 or if you want a build customized for your system,
 you can [build Garage from source](@/documentation/cookbook/from-source.md).
