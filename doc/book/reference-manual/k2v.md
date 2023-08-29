@@ -3,7 +3,7 @@ title = "K2V"
 weight = 100
 +++
 
-Starting with version 0.7.2, Garage introduces an optionnal feature, K2V,
+Starting with version 0.7.2, Garage introduces an optional feature, K2V,
 which is an alternative storage API designed to help efficiently store
 many small values in buckets (in opposition to S3 which is more designed
 to store large blobs).

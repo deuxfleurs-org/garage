@@ -4,7 +4,7 @@ weight = 30
 +++
 
 To ensure the best durability of your data and to fix any inconsistencies that may
-pop up in a distributed system, Garage provides a serires of repair operations.
+pop up in a distributed system, Garage provides a series of repair operations.
 This guide will explain the meaning of each of them and when they should be applied.
 
 
@@ -26,8 +26,11 @@ their content is correct, by verifying their hash. Any block found to be corrupt
 (e.g. by bitrot or by an accidental manipulation of the datastore) will be
 restored from another node that holds a valid copy.
 
-A scrub is run automatically by Garage every 30 days. It can also be launched
-manually using `garage repair scrub start`.
+Scrubs are automatically scheduled by Garage to run every 25-35 days (the
+actual time is randomized to spread load across nodes). The next scheduled run
+can be viewed with `garage worker get`.
+
+A scrub can also be launched manually using `garage repair scrub start`.
 
 To view the status of an ongoing scrub, first find the task ID of the scrub worker
 using `garage worker list`. Then, run `garage worker info <scrub_task_id>` to
@@ -79,7 +82,7 @@ To help make the difference between cases 1 and cases 2 and 3, you may use the
 `garage block info` command to see which objects hold a reference to each block.
 
 In the second case (transient errors), Garage will try to fetch the block again
-after a certain time, so the error should disappear natuarlly. You can also
+after a certain time, so the error should disappear naturally. You can also
 request Garage to try to fetch the block immediately using `garage block retry-now`
 if you have fixed the transient issue.
 

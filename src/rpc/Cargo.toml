@@ -1,6 +1,6 @@
 [package]
 name = "garage_rpc"
-version = "0.8.2"
+version = "0.8.3"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -14,12 +14,13 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+garage_db.workspace = true
 garage_util.workspace = true
 
 arc-swap = "1.0"
 bytes = "1.0"
 bytesize = "1.1"
-gethostname = "0.2"
+gethostname = "0.4"
 hex = "0.4"
 tracing = "0.1"
 rand = "0.8"

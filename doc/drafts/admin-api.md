@@ -509,7 +509,7 @@ Request body format:
 }
 ```
 
-All fields (`name`, `allow` and `deny`) are optionnal.
+All fields (`name`, `allow` and `deny`) are optional.
 If they are present, the corresponding modifications are applied to the key, otherwise nothing is changed.
 The possible flags in `allow` and `deny` are: `createBucket`.
 
@@ -668,7 +668,7 @@ Request body format:
 }
 ```
 
-All fields (`websiteAccess` and `quotas`) are optionnal.
+All fields (`websiteAccess` and `quotas`) are optional.
 If they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.
 
 In `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.

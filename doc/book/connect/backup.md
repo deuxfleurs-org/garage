@@ -105,6 +105,7 @@ restic restore 79766175 --target /var/lib/postgresql
 Restic has way more features than the ones presented here.
 You can discover all of them by accessing its documentation from the link below.
 
+Files on Android devices can also be backed up with [restic-android](https://github.com/lhns/restic-android).
 
 *External links:* [Restic Documentation > Amazon S3](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#amazon-s3)
 

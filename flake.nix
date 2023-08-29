@@ -6,6 +6,8 @@
   inputs.nixpkgs.url =
     "github:NixOS/nixpkgs/94517a501434a627c5d9e72ac6e7f26174b978d3";
 
+  inputs.flake-compat.url = "github:nix-community/flake-compat";
+
   inputs.cargo2nix = {
     # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
     url = "github:Alexis211/cargo2nix/a7a61179b66054904ef6a195d8da736eaaa06c36";
@@ -20,16 +22,17 @@
       "github:oxalica/rust-overlay/74f1a64dd28faeeb85ef081f32cad2989850322c";
 
     inputs.nixpkgs.follows = "nixpkgs";
+    inputs.flake-compat.follows = "flake-compat";
   };
 
   inputs.flake-utils.follows = "cargo2nix/flake-utils";
-  inputs.flake-compat.follows = "cargo2nix/flake-compat";
 
   outputs = { self, nixpkgs, cargo2nix, flake-utils, ... }:
     let
       git_version = self.lastModifiedDate;
       compile = import ./nix/compile.nix;
-    in flake-utils.lib.eachDefaultSystem (system:
+    in
+    flake-utils.lib.eachDefaultSystem (system:
       let pkgs = nixpkgs.legacyPackages.${system};
       in {
         packages = {

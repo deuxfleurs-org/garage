@@ -39,11 +39,95 @@ Authorization: Bearer <token>
 
 ## Administration API endpoints
 
-### Metrics-related endpoints
-
-#### Metrics `GET /metrics`
+### Metrics `GET /metrics`
 
 Returns internal Garage metrics in Prometheus format.
+The metrics are directly documented when returned by the API.
+
+**Example:**
+
+```
+$ curl -i http://localhost:3903/metrics
+HTTP/1.1 200 OK
+content-type: text/plain; version=0.0.4
+content-length: 12145
+date: Tue, 08 Aug 2023 07:25:05 GMT
+
+# HELP api_admin_error_counter Number of API calls to the various Admin API endpoints that resulted in errors
+# TYPE api_admin_error_counter counter
+api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="400"} 1
+api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="404"} 3
+# HELP api_admin_request_counter Number of API calls to the various Admin API endpoints
+# TYPE api_admin_request_counter counter
+api_admin_request_counter{api_endpoint="CheckWebsiteEnabled"} 7
+api_admin_request_counter{api_endpoint="Health"} 3
+# HELP api_admin_request_duration Duration of API calls to the various Admin API endpoints
+...
+```
+
+### Health `GET /health`
+
+Returns `200 OK` if enough nodes are up to have a quorum (ie. serve requests),
+otherwise returns `503 Service Unavailable`.
+
+**Example:**
+
+```
+$ curl -i http://localhost:3903/health
+HTTP/1.1 200 OK
+content-type: text/plain
+content-length: 102
+date: Tue, 08 Aug 2023 07:22:38 GMT
+
+Garage is fully operational
+Consult the full health check API endpoint at /v0/health for more details
+```
+
+### On-demand TLS `GET /check`
+
+To prevent abuses for on-demand TLS, Caddy developpers have specified an endpoint that can be queried by the reverse proxy
+to know if a given domain is allowed to get a certificate. Garage implements this endpoints to tell if a given domain is handled by Garage or is garbage.
+
+Garage responds with the following logic:
+ - If the domain matches the pattern `<bucket-name>.<s3_api.root_domain>`, returns 200 OK
+ - If the domain matches the pattern `<bucket-name>.<s3_web.root_domain>` and website is configured for `<bucket>`, returns 200 OK
+ - If the domain matches the pattern `<bucket-name>` and website is configured for `<bucket>`, returns 200 OK
+ - Otherwise, returns 404 Not Found, 400 Bad Request or 5xx requests.
+
+*Note 1: because in the path-style URL mode, there is only one domain that is not known by Garage, hence it is not supported by this API endpoint.
+You must manually declare the domain in your reverse-proxy. Idem for K2V.*
+
+*Note 2: buckets in a user's namespace are not supported yet by this endpoint. This is a limitation of this endpoint currently.*
+
+**Example:** Suppose a Garage instance configured with `s3_api.root_domain = .s3.garage.localhost` and `s3_web.root_domain = .web.garage.localhost`.
+
+With a private `media` bucket (name in the global namespace, website is disabled), the endpoint will feature the following behavior:
+
+```
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=media.s3.garage.localhost
+200
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=media
+400
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=media.web.garage.localhost
+400
+```
+
+With a public `example.com` bucket (name in the global namespace, website is activated), the endpoint will feature the following behavior:
+
+```
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=example.com.s3.garage.localhost
+200
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=example.com
+200
+$ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=example.com.web.garage.localhost
+200
+```
+
+
+**References:**
+ - [Using On-Demand TLS](https://caddyserver.com/docs/automatic-https#using-on-demand-tls)
+ - [Add option for a backend check to approve use of on-demand TLS](https://github.com/caddyserver/caddy/pull/1939)
+ - [Serving tens of thousands of domains over HTTPS with Caddy](https://caddy.community/t/serving-tens-of-thousands-of-domains-over-https-with-caddy/11179)
 
 ### Cluster operations
 

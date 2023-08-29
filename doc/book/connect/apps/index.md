@@ -11,6 +11,7 @@ In this section, we cover the following web applications:
 | [Peertube](#peertube)     | ✅       | Supported with the website endpoint, proxifying private videos unsupported     |
 | [Mastodon](#mastodon)     | ✅       | Natively supported    |
 | [Matrix](#matrix)     | ✅       |  Tested with `synapse-s3-storage-provider`    |
+| [ejabberd](#ejabberd)     | ✅       |  `mod_s3_upload`    |
 | [Pixelfed](#pixelfed)     | ❓       |  Not yet tested    |
 | [Pleroma](#pleroma)     | ❓       |  Not yet tested    |
 | [Lemmy](#lemmy)     | ✅        |  Supported with pict-rs    |
@@ -474,6 +475,52 @@ And add a new line. For example, to run it every 10 minutes:
 
 *External link:* [matrix-media-repo Documentation > S3](https://docs.t2bot.io/matrix-media-repo/configuration/s3-datastore.html)
 
+## ejabberd
+
+ejabberd is an XMPP server implementation which, with the `mod_s3_upload`
+module in the [ejabberd-contrib](https://github.com/processone/ejabberd-contrib)
+repository, can be integrated to store chat media files in Garage.
+
+For uploads, this module leverages presigned URLs - this allows XMPP clients to
+directly send media to Garage. Receiving clients then retrieve this media
+through the [static website](@/documentation/cookbook/exposing-websites.md)
+functionality.
+
+As the data itself is publicly accessible to someone with knowledge of the
+object URL - users are recommended to use
+[E2EE](@/documentation/cookbook/encryption.md) to protect this data-at-rest
+from unauthorized access.
+
+Install the module with:
+
+```bash
+ejabberdctl module_install mod_s3_upload
+```
+
+Create the required key and bucket with:
+
+```bash
+garage key new --name ejabberd
+garage bucket create objects.xmpp-server.fr
+garage bucket allow objects.xmpp-server.fr --read --write --key ejabberd
+garage bucket website --allow objects.xmpp-server.fr
+```
+
+The module can then be configured with:
+
+```
+  mod_s3_upload:
+    #bucket_url: https://objects.xmpp-server.fr.my-garage-instance.mydomain.tld
+    bucket_url: https://my-garage-instance.mydomain.tld/objects.xmpp-server.fr
+    access_key_id: GK...
+    access_key_secret: ...
+    region: garage
+    download_url: https://objects.xmpp-server.fr
+```
+
+Other configuration options can be found in the
+[configuration YAML file](https://github.com/processone/ejabberd-contrib/blob/master/mod_s3_upload/conf/mod_s3_upload.yml).
+
 ## Pixelfed
 
 [Pixelfed Technical Documentation > Configuration](https://docs.pixelfed.org/technical-documentation/env.html#filesystem)
@@ -539,7 +586,7 @@ secret_key = 'abcdef0123456789...'
 
 ```
 PICTRS__STORE__TYPE=object_storage
-PICTRS__STORE__ENDPOINT=http:/my-garage-instance.mydomain.tld:3900
+PICTRS__STORE__ENDPOINT=http://my-garage-instance.mydomain.tld:3900
 PICTRS__STORE__BUCKET_NAME=pictrs-data
 PICTRS__STORE__REGION=garage
 PICTRS__STORE__ACCESS_KEY=GK...

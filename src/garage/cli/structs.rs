@@ -227,7 +227,7 @@ pub struct WebsiteOpt {
 	#[structopt(short = "i", long = "index-document", default_value = "index.html")]
 	pub index_document: String,
 
-	/// Error document: the optionnal document returned when an error occurs
+	/// Error document: the optional document returned when an error occurs
 	#[structopt(short = "e", long = "error-document")]
 	pub error_document: Option<String>,
 }

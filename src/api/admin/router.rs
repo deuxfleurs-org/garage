@@ -17,7 +17,7 @@ router_match! {@func
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Endpoint {
 	Options,
-	CheckWebsiteEnabled,
+	CheckDomain,
 	Health,
 	Metrics,
 	GetClusterStatus,
@@ -93,7 +93,7 @@ impl Endpoint {
 
 		let res = router_match!(@gen_path_parser (req.method(), path, query) [
 			OPTIONS _ => Options,
-			GET "/check" => CheckWebsiteEnabled,
+			GET "/check" => CheckDomain,
 			GET "/health" => Health,
 			GET "/metrics" => Metrics,
 			GET "/v1/status" => GetClusterStatus,
@@ -139,7 +139,7 @@ impl Endpoint {
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
 			Self::Health => Authorization::None,
-			Self::CheckWebsiteEnabled => Authorization::None,
+			Self::CheckDomain => Authorization::None,
 			Self::Metrics => Authorization::MetricsToken,
 			_ => Authorization::AdminToken,
 		}

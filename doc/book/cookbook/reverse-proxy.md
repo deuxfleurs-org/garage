@@ -378,6 +378,47 @@ admin.garage.tld {
 But at the same time, the `reverse_proxy` is very flexible.
 For a production deployment, you should [read its documentation](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy) as it supports features like DNS discovery of upstreams, load balancing with checks, streaming parameters, etc.
 
+### Caching
+
+Caddy can compiled with a
+[cache plugin](https://github.com/caddyserver/cache-handler) which can be used
+to provide a hot-cache at the webserver-level for static websites hosted by
+Garage.
+
+This can be configured as follows:
+
+```caddy
+# Caddy global configuration section
+{
+	# Bare minimum configuration to enable cache.
+	order cache before rewrite
+
+	cache
+
+	#cache
+	#	allowed_http_verbs GET
+	#	default_cache_control public
+	#	ttl 8h
+	#}
+}
+
+# Site specific section
+https:// {
+	cache
+
+	#cache {
+	#	timeout {
+	#		backend 30s
+	#	}
+	#}
+
+	reverse_proxy ...
+}
+```
+
+Caching is a complicated subject, and the reader is encouraged to study the
+available options provided by the plugin.
+
 ### On-demand TLS
 
 Caddy supports a technique called
@@ -428,3 +469,6 @@ https:// {
 	reverse_proxy localhost:3902 192.168.1.2:3902 example.tld:3902
 }
 ```
+
+More information on how this endpoint is implemented in Garage is available
+in the [Admin API Reference](@/documentation/reference-manual/admin-api.md) page.

@@ -454,7 +454,7 @@ message that redirects the client to the correct region.
 
 ### `root_domain` {#root_domain}
 
-The optionnal suffix to access bucket using vhost-style in addition to path-style request.
+The optional suffix to access bucket using vhost-style in addition to path-style request.
 Note path-style requests are always enabled, whether or not vhost-style is configured.
 Configuring vhost-style S3 required a wildcard DNS entry, and possibly a wildcard TLS certificate,
 but might be required by softwares not supporting path-style requests.
@@ -477,7 +477,7 @@ This endpoint does not suport TLS: a reverse proxy should be used to provide it.
 
 ### `root_domain`
 
-The optionnal suffix appended to bucket names for the corresponding HTTP Host.
+The optional suffix appended to bucket names for the corresponding HTTP Host.
 
 For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.fr`
 will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
