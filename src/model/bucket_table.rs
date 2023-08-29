@@ -48,6 +48,9 @@ mod v08 {
 		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
 		/// CORS rules
 		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+		/// Lifecycle configuration
+		#[serde(default)]
+		pub lifecycle_config: crdt::Lww<Option<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		#[serde(default)]
 		pub quotas: crdt::Lww<BucketQuotas>,
@@ -67,6 +70,42 @@ mod v08 {
 		pub allow_methods: Vec<String>,
 		pub allow_headers: Vec<String>,
 		pub expose_headers: Vec<String>,
+	}
+
+	/// Lifecycle configuration rule
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct LifecycleRule {
+		/// The ID of the rule
+		pub id: Option<String>,
+		/// Whether the rule is active
+		pub enabled: bool,
+		/// The filter to check whether rule applies to a given object
+		pub filter: LifecycleFilter,
+		/// Number of days after which incomplete multipart uploads are aborted
+		pub abort_incomplete_mpu_days: Option<usize>,
+		/// Expiration policy for stored objects
+		pub expiration: Option<LifecycleExpiration>,
+	}
+
+	/// A lifecycle filter is a set of conditions that must all be true.
+	/// For each condition, if it is None, it is not verified (always true),
+	/// and if it is Some(x), then it is verified for value x
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct LifecycleFilter {
+		/// If Some(x), object key has to start with prefix x
+		pub prefix: Option<String>,
+		/// If Some(x), object size has to be more than x
+		pub size_gt: Option<usize>,
+		/// If Some(x), object size has to be less than x
+		pub size_lt: Option<usize>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub enum LifecycleExpiration {
+		/// Objects expire x days after they were created
+		AfterDays(usize),
+		/// Objects expire at date x (must be in yyyy-mm-dd format)
+		AtDate(String),
 	}
 
 	#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
@@ -96,6 +135,7 @@ impl BucketParams {
 			local_aliases: crdt::LwwMap::new(),
 			website_config: crdt::Lww::new(None),
 			cors_config: crdt::Lww::new(None),
+			lifecycle_config: crdt::Lww::new(None),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
