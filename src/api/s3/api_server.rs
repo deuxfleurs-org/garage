@@ -26,6 +26,7 @@ use crate::s3::copy::*;
 use crate::s3::cors::*;
 use crate::s3::delete::*;
 use crate::s3::get::*;
+use crate::s3::lifecycle::*;
 use crate::s3::list::*;
 use crate::s3::multipart::*;
 use crate::s3::post_object::handle_post_object;
@@ -362,6 +363,11 @@ impl ApiHandler for S3ApiServer {
 				handle_put_cors(garage, bucket_id, req, content_sha256).await
 			}
 			Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket_id).await,
+			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(&bucket).await,
+			Endpoint::PutBucketLifecycleConfiguration {} => {
+				handle_put_lifecycle(garage, bucket_id, req, content_sha256).await
+			}
+			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(garage, bucket_id).await,
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 		};
 
