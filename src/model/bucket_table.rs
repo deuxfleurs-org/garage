@@ -90,7 +90,7 @@ mod v08 {
 	/// A lifecycle filter is a set of conditions that must all be true.
 	/// For each condition, if it is None, it is not verified (always true),
 	/// and if it is Some(x), then it is verified for value x
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Default)]
 	pub struct LifecycleFilter {
 		/// If Some(x), object key has to start with prefix x
 		pub prefix: Option<String>,
