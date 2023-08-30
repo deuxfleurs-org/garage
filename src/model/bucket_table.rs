@@ -105,7 +105,7 @@ mod v08 {
 		/// Objects expire x days after they were created
 		AfterDays(usize),
 		/// Objects expire at date x (must be in yyyy-mm-dd format)
-		AtDate(chrono::naive::NaiveDate),
+		AtDate(String),
 	}
 
 	#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
@@ -152,6 +152,20 @@ impl Crdt for BucketParams {
 		self.website_config.merge(&o.website_config);
 		self.cors_config.merge(&o.cors_config);
 		self.quotas.merge(&o.quotas);
+	}
+}
+
+pub fn parse_lifecycle_date(date: &str) -> Result<chrono::NaiveDate, &'static str> {
+	use chrono::prelude::*;
+
+	if let Ok(datetime) = NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M:%SZ") {
+		if datetime.time() == NaiveTime::MIN {
+			Ok(datetime.date())
+		} else {
+			Err("date must be at midnight")
+		}
+	} else {
+		NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| "date has invalid format")
 	}
 }
 

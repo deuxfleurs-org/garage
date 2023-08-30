@@ -268,7 +268,14 @@ async fn process_object(
 					LifecycleExpiration::AfterDays(n_days) => {
 						(now_date - version_date) >= chrono::Duration::days(*n_days as i64)
 					}
-					LifecycleExpiration::AtDate(exp_date) => now_date >= *exp_date,
+					LifecycleExpiration::AtDate(exp_date) => {
+						if let Ok(exp_date) = parse_lifecycle_date(&exp_date) {
+							now_date >= exp_date
+						} else {
+							warn!("Invalid expiraiton date stored in bucket {:?} lifecycle config: {}", bucket.id, exp_date);
+							false
+						}
+					}
 				};
 
 				if size_match && date_match {
