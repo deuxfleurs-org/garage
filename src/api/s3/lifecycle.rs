@@ -83,7 +83,6 @@ pub async fn handle_put_lifecycle(
 // ---- SERIALIZATION AND DESERIALIZATION TO/FROM S3 XML ----
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(rename = "LifecycleConfiguration")]
 pub struct LifecycleConfiguration {
 	#[serde(serialize_with = "xmlns_tag", skip_deserializing)]
 	pub xmlns: (),
