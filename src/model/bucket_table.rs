@@ -105,7 +105,7 @@ mod v08 {
 		/// Objects expire x days after they were created
 		AfterDays(usize),
 		/// Objects expire at date x (must be in yyyy-mm-dd format)
-		AtDate(String),
+		AtDate(chrono::naive::NaiveDate),
 	}
 
 	#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]

@@ -270,12 +270,11 @@ impl Expiration {
 			(Some(_), Some(_)) => Err("cannot have both <Days> and <Date> in <Expiration>"),
 			(None, None) => Err("<Expiration> must contain either <Days> or <Date>"),
 			(Some(days), None) => Ok(GarageLifecycleExpiration::AfterDays(days.0 as usize)),
-			(None, Some(date)) => {
-				if date.0.parse::<chrono::NaiveDate>().is_err() {
-					return Err("Invalid expiration <Date>");
-				}
-				Ok(GarageLifecycleExpiration::AtDate(date.0))
-			}
+			(None, Some(date)) => date
+				.0
+				.parse::<chrono::NaiveDate>()
+				.map(GarageLifecycleExpiration::AtDate)
+				.map_err(|_| "Invalid expiration <Date>"),
 		}
 	}
 
@@ -285,9 +284,9 @@ impl Expiration {
 				days: Some(IntValue(*days as i64)),
 				at_date: None,
 			},
-			GarageLifecycleExpiration::AtDate(days) => Expiration {
+			GarageLifecycleExpiration::AtDate(date) => Expiration {
 				days: None,
-				at_date: Some(Value::from(days.as_str())),
+				at_date: Some(Value(date.to_string())),
 			},
 		}
 	}
