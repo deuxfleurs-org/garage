@@ -127,7 +127,7 @@ impl AutoCrdt for BucketQuotas {
 
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
-	pub fn new() -> Self {
+	fn new() -> Self {
 		BucketParams {
 			creation_date: now_msec(),
 			authorized_keys: crdt::Map::new(),
