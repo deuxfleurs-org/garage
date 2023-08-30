@@ -19,12 +19,11 @@ use crate::s3::object_table::*;
 use crate::garage::Garage;
 
 mod v090 {
-	use chrono::naive::NaiveDate;
 	use serde::{Deserialize, Serialize};
 
-	#[derive(Serialize, Deserialize, Default, Clone, Copy)]
+	#[derive(Serialize, Deserialize, Default, Clone)]
 	pub struct LifecycleWorkerPersisted {
-		pub last_completed: Option<NaiveDate>,
+		pub last_completed: Option<String>,
 	}
 
 	impl garage_util::migrate::InitialFormat for LifecycleWorkerPersisted {
@@ -65,18 +64,19 @@ pub fn register_bg_vars(
 	vars: &mut vars::BgVars,
 ) {
 	vars.register_ro(persister, "lifecycle-last-completed", |p| {
-		p.get_with(|x| {
-			x.last_completed
-				.map(|date| date.to_string())
-				.unwrap_or("never".to_string())
-		})
+		p.get_with(|x| x.last_completed.clone().unwrap_or("never".to_string()))
 	});
 }
 
 impl LifecycleWorker {
 	pub fn new(garage: Arc<Garage>, persister: PersisterShared<LifecycleWorkerPersisted>) -> Self {
 		let today = today();
-		let state = match persister.get_with(|x| x.last_completed) {
+		let last_completed = persister.get_with(|x| {
+			x.last_completed
+				.as_deref()
+				.and_then(|x| x.parse::<NaiveDate>().ok())
+		});
+		let state = match last_completed {
 			Some(d) if d >= today => State::Completed(d),
 			_ => State::Running {
 				date: today,
@@ -162,7 +162,7 @@ impl Worker for LifecycleWorker {
 					None => {
 						info!("Lifecycle worker finished for {}, objects expired: {}, mpu aborted: {}", date, *objects_expired, *mpu_aborted);
 						self.persister
-							.set_with(|x| x.last_completed = Some(*date))?;
+							.set_with(|x| x.last_completed = Some(date.to_string()))?;
 						self.state = State::Completed(*date);
 						return Ok(WorkerState::Idle);
 					}
