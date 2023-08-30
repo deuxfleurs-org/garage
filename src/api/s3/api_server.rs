@@ -355,19 +355,21 @@ impl ApiHandler for S3ApiServer {
 			}
 			Endpoint::GetBucketWebsite {} => handle_get_website(&bucket).await,
 			Endpoint::PutBucketWebsite {} => {
-				handle_put_website(garage, bucket_id, req, content_sha256).await
+				handle_put_website(garage, bucket.clone(), req, content_sha256).await
 			}
-			Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket_id).await,
+			Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket.clone()).await,
 			Endpoint::GetBucketCors {} => handle_get_cors(&bucket).await,
 			Endpoint::PutBucketCors {} => {
-				handle_put_cors(garage, bucket_id, req, content_sha256).await
+				handle_put_cors(garage, bucket.clone(), req, content_sha256).await
 			}
-			Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket_id).await,
+			Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket.clone()).await,
 			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(&bucket).await,
 			Endpoint::PutBucketLifecycleConfiguration {} => {
-				handle_put_lifecycle(garage, bucket_id, req, content_sha256).await
+				handle_put_lifecycle(garage, bucket.clone(), req, content_sha256).await
 			}
-			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(garage, bucket_id).await,
+			Endpoint::DeleteBucketLifecycle {} => {
+				handle_delete_lifecycle(garage, bucket.clone()).await
+			}
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 		};
 

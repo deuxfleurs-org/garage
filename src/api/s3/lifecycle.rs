@@ -37,14 +37,11 @@ pub async fn handle_get_lifecycle(bucket: &Bucket) -> Result<Response<Body>, Err
 
 pub async fn handle_delete_lifecycle(
 	garage: Arc<Garage>,
-	bucket_id: Uuid,
+	mut bucket: Bucket,
 ) -> Result<Response<Body>, Error> {
-	let mut bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
-
-	let param = bucket.params_mut().unwrap();
+	let param = bucket
+		.params_mut()
+		.ok_or_internal_error("Bucket should not be deleted at this point")?;
 
 	param.lifecycle_config.update(None);
 	garage.bucket_table.insert(&bucket).await?;
@@ -56,7 +53,7 @@ pub async fn handle_delete_lifecycle(
 
 pub async fn handle_put_lifecycle(
 	garage: Arc<Garage>,
-	bucket_id: Uuid,
+	mut bucket: Bucket,
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
@@ -66,12 +63,9 @@ pub async fn handle_put_lifecycle(
 		verify_signed_content(content_sha256, &body[..])?;
 	}
 
-	let mut bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
-
-	let param = bucket.params_mut().unwrap();
+	let param = bucket
+		.params_mut()
+		.ok_or_internal_error("Bucket should not be deleted at this point")?;
 
 	let conf: LifecycleConfiguration = from_reader(&body as &[u8])?;
 	let config = conf
