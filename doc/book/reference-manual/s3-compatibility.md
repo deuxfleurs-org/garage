@@ -75,16 +75,13 @@ but these endpoints are documented in [Red Hat Ceph Storage - Chapter 2. Ceph Ob
 
 | Endpoint                     | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
-| [AbortMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)         | ✅ Implemented                      |  ✅ | ✅ | ✅ | ✅ |
-| [CompleteMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)   | ✅ Implemented (see details below)                      | ✅ | ✅ | ✅ | ✅ |
-| [CreateMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)        | ✅ Implemented                      | ✅| ✅ | ✅ | ✅ |
-| [ListMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUpload.html)          | ✅ Implemented                      | ✅ | ✅ | ✅ | ✅ |
-| [ListParts](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)                    | ✅ Implemented                      | ✅ | ✅ | ✅ | ✅ |
-| [UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)                  | ✅ Implemented (see details below)                      | ✅ | ✅| ✅ | ✅ |
-| [UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)               | ✅ Implemented                      | ✅ | ✅ | ✅ | ✅ |
-
-Our implementation of Multipart Upload is currently a bit more restrictive than Amazon's one in some edge cases.
-For more information, please refer to our [issue tracker](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/204).
+| [AbortMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)         | ✅ Implemented  |  ✅ | ✅ | ✅ | ✅ |
+| [CompleteMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)   | ✅ Implemented  | ✅ | ✅ | ✅ | ✅ |
+| [CreateMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)        | ✅ Implemented | ✅| ✅ | ✅ | ✅ |
+| [ListMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUpload.html)          | ✅ Implemented   | ✅ | ✅ | ✅ | ✅ |
+| [ListParts](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)                    | ✅ Implemented             | ✅ | ✅ | ✅ | ✅ |
+| [UploadPart](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)                  | ✅ Implemented             | ✅ | ✅| ✅ | ✅ |
+| [UploadPartCopy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)               | ✅ Implemented        | ✅ | ✅ | ✅ | ✅ |
 
 ### Website endpoints
 
