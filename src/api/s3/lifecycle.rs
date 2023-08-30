@@ -21,8 +21,6 @@ pub async fn handle_get_lifecycle(bucket: &Bucket) -> Result<Response<Body>, Err
 		.params()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
 
-	trace!("bucket: {:#?}", bucket);
-
 	if let Some(lifecycle) = param.lifecycle_config.get() {
 		let wc = LifecycleConfiguration::from_garage_lifecycle_config(lifecycle);
 		let xml = to_xml_with_header(&wc)?;
@@ -76,20 +74,12 @@ pub async fn handle_put_lifecycle(
 	let param = bucket.params_mut().unwrap();
 
 	let conf: LifecycleConfiguration = from_reader(&body as &[u8])?;
-
 	let config = conf
 		.validate_into_garage_lifecycle_config()
 		.ok_or_bad_request("Invalid lifecycle configuration")?;
+
 	param.lifecycle_config.update(Some(config));
-
 	garage.bucket_table.insert(&bucket).await?;
-	trace!("new bucket: {:#?}", bucket);
-
-	let bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
-	trace!("new bucket again: {:#?}", bucket);
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)
@@ -281,7 +271,6 @@ impl Expiration {
 			(None, None) => Err("<Expiration> must contain either <Days> or <Date>"),
 			(Some(days), None) => Ok(GarageLifecycleExpiration::AfterDays(days.0 as usize)),
 			(None, Some(date)) => {
-				trace!("date: {}", date.0);
 				parse_lifecycle_date(&date.0)?;
 				Ok(GarageLifecycleExpiration::AtDate(date.0))
 			}

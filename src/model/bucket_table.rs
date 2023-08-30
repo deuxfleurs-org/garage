@@ -151,6 +151,7 @@ impl Crdt for BucketParams {
 
 		self.website_config.merge(&o.website_config);
 		self.cors_config.merge(&o.cors_config);
+		self.lifecycle_config.merge(&o.lifecycle_config);
 		self.quotas.merge(&o.quotas);
 	}
 }
