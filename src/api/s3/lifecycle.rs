@@ -239,8 +239,8 @@ impl Filter {
 	fn internal_into_garage_lifecycle_filter(self) -> GarageLifecycleFilter {
 		GarageLifecycleFilter {
 			prefix: self.prefix.map(|x| x.0),
-			size_gt: self.size_gt.map(|x| x.0 as usize),
-			size_lt: self.size_lt.map(|x| x.0 as usize),
+			size_gt: self.size_gt.map(|x| x.0 as u64),
+			size_lt: self.size_lt.map(|x| x.0 as u64),
 		}
 	}
 

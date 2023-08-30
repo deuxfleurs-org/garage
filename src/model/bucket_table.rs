@@ -95,9 +95,9 @@ mod v08 {
 		/// If Some(x), object key has to start with prefix x
 		pub prefix: Option<String>,
 		/// If Some(x), object size has to be more than x
-		pub size_gt: Option<usize>,
+		pub size_gt: Option<u64>,
 		/// If Some(x), object size has to be less than x
-		pub size_lt: Option<usize>,
+		pub size_lt: Option<u64>,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
