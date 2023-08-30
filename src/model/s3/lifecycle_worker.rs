@@ -282,6 +282,10 @@ async fn process_object(
 							state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
 						}],
 					);
+					info!(
+						"Lifecycle: expiring 1 object in bucket {:?}",
+						object.bucket_id
+					);
 					garage.object_table.insert(&deleted_object).await?;
 					*objects_expired += 1;
 				}
@@ -311,6 +315,10 @@ async fn process_object(
 			if !aborted_versions.is_empty() {
 				// Insert aborted mpu info
 				let n_aborted = aborted_versions.len();
+				info!(
+					"Lifecycle: aborting {} incomplete upload(s) in bucket {:?}",
+					n_aborted, object.bucket_id
+				);
 				let aborted_object =
 					Object::new(object.bucket_id, object.key.clone(), aborted_versions);
 				garage.object_table.insert(&aborted_object).await?;
