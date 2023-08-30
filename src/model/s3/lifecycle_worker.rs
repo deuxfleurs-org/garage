@@ -243,11 +243,15 @@ async fn process_object(
 		.and_then(|s| s.lifecycle_config.get().as_deref())
 		.unwrap_or_default();
 
-	if lifecycle_policy.is_empty() {
+	if lifecycle_policy.iter().all(|x| !x.enabled) {
 		return Ok(Skip::SkipBucket);
 	}
 
 	for rule in lifecycle_policy.iter() {
+		if !rule.enabled {
+			continue;
+		}
+
 		if let Some(pfx) = &rule.filter.prefix {
 			if !object.key.starts_with(pfx) {
 				continue;
