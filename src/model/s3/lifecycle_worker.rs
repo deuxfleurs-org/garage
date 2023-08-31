@@ -7,7 +7,7 @@ use tokio::sync::watch;
 
 use garage_util::background::*;
 use garage_util::data::*;
-use garage_util::error::{Error, OkOrMessage};
+use garage_util::error::Error;
 use garage_util::persister::PersisterShared;
 use garage_util::time::*;
 
@@ -305,7 +305,7 @@ async fn process_object(
 						(now_date - version_date) >= chrono::Duration::days(*n_days as i64)
 					}
 					LifecycleExpiration::AtDate(exp_date) => {
-						if let Ok(exp_date) = parse_lifecycle_date(&exp_date) {
+						if let Ok(exp_date) = parse_lifecycle_date(exp_date) {
 							now_date >= exp_date
 						} else {
 							warn!("Invalid expiration date stored in bucket {:?} lifecycle config: {}", bucket.id, exp_date);
@@ -391,7 +391,7 @@ fn check_size_filter(version_data: &ObjectVersionData, filter: &LifecycleFilter)
 			return false;
 		}
 	}
-	return true;
+	true
 }
 
 fn midnight_ts(date: NaiveDate) -> u64 {
