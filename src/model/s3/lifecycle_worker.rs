@@ -78,19 +78,26 @@ impl LifecycleWorker {
 		});
 		let state = match last_completed {
 			Some(d) if d >= today => State::Completed(d),
-			_ => State::Running {
-				date: today,
-				pos: vec![],
-				counter: 0,
-				objects_expired: 0,
-				mpu_aborted: 0,
-				last_bucket: None,
-			},
+			_ => State::start(today),
 		};
 		Self {
 			garage,
 			state,
 			persister,
+		}
+	}
+}
+
+impl State {
+	fn start(date: NaiveDate) -> Self {
+		info!("Starting lifecycle worker for {}", date);
+		State::Running {
+			date,
+			pos: vec![],
+			counter: 0,
+			objects_expired: 0,
+			mpu_aborted: 0,
+			last_bucket: None,
 		}
 	}
 }
@@ -213,14 +220,7 @@ impl Worker for LifecycleWorker {
 						break;
 					}
 				}
-				self.state = State::Running {
-					date: std::cmp::max(next_day, today()),
-					pos: vec![],
-					counter: 0,
-					objects_expired: 0,
-					mpu_aborted: 0,
-					last_bucket: None,
-				};
+				self.state = State::start(std::cmp::max(next_day, today()));
 			}
 			State::Running { .. } => (),
 		}
