@@ -193,7 +193,10 @@ impl Worker for LifecycleWorker {
 					if skip == Skip::SkipBucket {
 						let bucket_id_len = object.bucket_id.as_slice().len();
 						assert_eq!(pos.get(..bucket_id_len), Some(object.bucket_id.as_slice()));
-						*pos = [&pos[..bucket_id_len], &[0xFFu8][..]].concat();
+						*pos = std::cmp::max(
+							next_pos,
+							[&pos[..bucket_id_len], &[0xFFu8][..]].concat(),
+						);
 					} else {
 						*pos = next_pos;
 					}
