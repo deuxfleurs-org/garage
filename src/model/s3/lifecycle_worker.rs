@@ -249,11 +249,22 @@ async fn process_object(
 
 	let bucket = match last_bucket.take() {
 		Some(b) if b.id == object.bucket_id => b,
-		_ => garage
-			.bucket_table
-			.get(&EmptyKey, &object.bucket_id)
-			.await?
-			.ok_or_message("object in non-existent bucket")?,
+		_ => {
+			match garage
+				.bucket_table
+				.get(&EmptyKey, &object.bucket_id)
+				.await?
+			{
+				Some(b) => b,
+				None => {
+					warn!(
+						"Lifecycle worker: object in non-existent bucket {:?}",
+						object.bucket_id
+					);
+					return Ok(Skip::SkipBucket);
+				}
+			}
+		}
 	};
 
 	let lifecycle_policy: &[LifecycleRule] = bucket
