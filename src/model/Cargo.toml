@@ -23,6 +23,7 @@ garage_util.workspace = true
 async-trait = "0.1.7"
 arc-swap = "1.0"
 blake2 = "0.10"
+chrono = "0.4"
 err-derive = "0.3"
 hex = "0.4"
 base64 = "0.21"

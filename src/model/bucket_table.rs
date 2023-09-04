@@ -48,6 +48,9 @@ mod v08 {
 		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
 		/// CORS rules
 		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+		/// Lifecycle configuration
+		#[serde(default)]
+		pub lifecycle_config: crdt::Lww<Option<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		#[serde(default)]
 		pub quotas: crdt::Lww<BucketQuotas>,
@@ -69,6 +72,42 @@ mod v08 {
 		pub expose_headers: Vec<String>,
 	}
 
+	/// Lifecycle configuration rule
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct LifecycleRule {
+		/// The ID of the rule
+		pub id: Option<String>,
+		/// Whether the rule is active
+		pub enabled: bool,
+		/// The filter to check whether rule applies to a given object
+		pub filter: LifecycleFilter,
+		/// Number of days after which incomplete multipart uploads are aborted
+		pub abort_incomplete_mpu_days: Option<usize>,
+		/// Expiration policy for stored objects
+		pub expiration: Option<LifecycleExpiration>,
+	}
+
+	/// A lifecycle filter is a set of conditions that must all be true.
+	/// For each condition, if it is None, it is not verified (always true),
+	/// and if it is Some(x), then it is verified for value x
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Default)]
+	pub struct LifecycleFilter {
+		/// If Some(x), object key has to start with prefix x
+		pub prefix: Option<String>,
+		/// If Some(x), object size has to be more than x
+		pub size_gt: Option<u64>,
+		/// If Some(x), object size has to be less than x
+		pub size_lt: Option<u64>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub enum LifecycleExpiration {
+		/// Objects expire x days after they were created
+		AfterDays(usize),
+		/// Objects expire at date x (must be in yyyy-mm-dd format)
+		AtDate(String),
+	}
+
 	#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 	pub struct BucketQuotas {
 		/// Maximum size in bytes (bucket size = sum of sizes of objects in the bucket)
@@ -88,7 +127,7 @@ impl AutoCrdt for BucketQuotas {
 
 impl BucketParams {
 	/// Create an empty BucketParams with no authorized keys and no website accesss
-	pub fn new() -> Self {
+	fn new() -> Self {
 		BucketParams {
 			creation_date: now_msec(),
 			authorized_keys: crdt::Map::new(),
@@ -96,6 +135,7 @@ impl BucketParams {
 			local_aliases: crdt::LwwMap::new(),
 			website_config: crdt::Lww::new(None),
 			cors_config: crdt::Lww::new(None),
+			lifecycle_config: crdt::Lww::new(None),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
@@ -111,7 +151,22 @@ impl Crdt for BucketParams {
 
 		self.website_config.merge(&o.website_config);
 		self.cors_config.merge(&o.cors_config);
+		self.lifecycle_config.merge(&o.lifecycle_config);
 		self.quotas.merge(&o.quotas);
+	}
+}
+
+pub fn parse_lifecycle_date(date: &str) -> Result<chrono::NaiveDate, &'static str> {
+	use chrono::prelude::*;
+
+	if let Ok(datetime) = NaiveDateTime::parse_from_str(date, "%Y-%m-%dT%H:%M:%SZ") {
+		if datetime.time() == NaiveTime::MIN {
+			Ok(datetime.date())
+		} else {
+			Err("date must be at midnight")
+		}
+	} else {
+		NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| "date has invalid format")
 	}
 }
 

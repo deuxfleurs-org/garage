@@ -7,6 +7,7 @@ use garage_db as db;
 use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::*;
+use garage_util::persister::PersisterShared;
 
 use garage_rpc::replication_mode::ReplicationMode;
 use garage_rpc::system::System;
@@ -17,6 +18,7 @@ use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use crate::s3::block_ref_table::*;
+use crate::s3::lifecycle_worker;
 use crate::s3::mpu_table::*;
 use crate::s3::object_table::*;
 use crate::s3::version_table::*;
@@ -66,6 +68,9 @@ pub struct Garage {
 	pub version_table: Arc<Table<VersionTable, TableShardedReplication>>,
 	/// Table containing S3 block references (not blocks themselves)
 	pub block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
+
+	/// Persister for lifecycle worker info
+	pub lifecycle_persister: PersisterShared<lifecycle_worker::LifecycleWorkerPersisted>,
 
 	#[cfg(feature = "k2v")]
 	pub k2v: GarageK2V,
@@ -199,6 +204,9 @@ impl Garage {
 		let replication_mode = ReplicationMode::parse(&config.replication_mode)
 			.ok_or_message("Invalid replication_mode in config file.")?;
 
+		info!("Initialize background variable system...");
+		let mut bg_vars = vars::BgVars::new();
+
 		info!("Initialize membership management system...");
 		let system = System::new(network_key, replication_mode, &config)?;
 
@@ -230,6 +238,7 @@ impl Garage {
 			data_rep_param,
 			system.clone(),
 		);
+		block_manager.register_bg_vars(&mut bg_vars);
 
 		// ---- admin tables ----
 		info!("Initialize bucket_table...");
@@ -296,13 +305,14 @@ impl Garage {
 			&db,
 		);
 
+		info!("Load lifecycle worker state...");
+		let lifecycle_persister =
+			PersisterShared::new(&system.metadata_dir, "lifecycle_worker_state");
+		lifecycle_worker::register_bg_vars(&lifecycle_persister, &mut bg_vars);
+
 		// ---- K2V ----
 		#[cfg(feature = "k2v")]
 		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
-
-		// Initialize bg vars
-		let mut bg_vars = vars::BgVars::new();
-		block_manager.register_bg_vars(&mut bg_vars);
 
 		// -- done --
 		Ok(Arc::new(Self {
@@ -321,12 +331,13 @@ impl Garage {
 			mpu_counter_table,
 			version_table,
 			block_ref_table,
+			lifecycle_persister,
 			#[cfg(feature = "k2v")]
 			k2v,
 		}))
 	}
 
-	pub fn spawn_workers(&self, bg: &BackgroundRunner) {
+	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
 		self.block_manager.spawn_workers(bg);
 
 		self.bucket_table.spawn_workers(bg);
@@ -339,6 +350,11 @@ impl Garage {
 		self.mpu_counter_table.spawn_workers(bg);
 		self.version_table.spawn_workers(bg);
 		self.block_ref_table.spawn_workers(bg);
+
+		bg.spawn_worker(lifecycle_worker::LifecycleWorker::new(
+			self.clone(),
+			self.lifecycle_persister.clone(),
+		));
 
 		#[cfg(feature = "k2v")]
 		self.k2v.spawn_workers(bg);
