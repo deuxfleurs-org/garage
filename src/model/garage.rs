@@ -92,8 +92,22 @@ impl Garage {
 		// Create meta dir and data dir if they don't exist already
 		std::fs::create_dir_all(&config.metadata_dir)
 			.ok_or_message("Unable to create Garage metadata directory")?;
-		std::fs::create_dir_all(&config.data_dir)
-			.ok_or_message("Unable to create Garage data directory")?;
+		match &config.data_dir {
+			DataDirEnum::Single(data_dir) => {
+				std::fs::create_dir_all(data_dir).ok_or_message(format!(
+					"Unable to create Garage data directory: {}",
+					data_dir.to_string_lossy()
+				))?;
+			}
+			DataDirEnum::Multiple(data_dirs) => {
+				for dir in data_dirs {
+					std::fs::create_dir_all(&dir.path).ok_or_message(format!(
+						"Unable to create Garage data directory: {}",
+						dir.path.to_string_lossy()
+					))?;
+				}
+			}
+		}
 
 		info!("Opening database...");
 		let mut db_path = config.metadata_dir.clone();

@@ -22,9 +22,9 @@ use netapp::peering::fullmesh::FullMeshPeeringStrategy;
 use netapp::util::parse_and_resolve_peer_addr_async;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
-use garage_util::config::Config;
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
+use garage_util::config::{Config, DataDirEnum};
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
@@ -119,7 +119,7 @@ pub struct System {
 	/// Path to metadata directory
 	pub metadata_dir: PathBuf,
 	/// Path to data directory
-	pub data_dir: PathBuf,
+	pub data_dir: DataDirEnum,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -890,7 +890,12 @@ impl NodeStatus {
 		}
 	}
 
-	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path, metrics: &SystemMetrics) {
+	fn update_disk_usage(
+		&mut self,
+		meta_dir: &Path,
+		data_dir: &DataDirEnum,
+		metrics: &SystemMetrics,
+	) {
 		use systemstat::{Platform, System};
 		let mounts = System::new().mounts().unwrap_or_default();
 
@@ -903,7 +908,17 @@ impl NodeStatus {
 		};
 
 		self.meta_disk_avail = mount_avail(meta_dir);
-		self.data_disk_avail = mount_avail(data_dir);
+		self.data_disk_avail = match data_dir {
+			DataDirEnum::Single(dir) => mount_avail(dir),
+			DataDirEnum::Multiple(dirs) => {
+				dirs.iter()
+					.map(|d| mount_avail(&d.path))
+					.fold(Some((0, 0)), |acc, cur| match (acc, cur) {
+						(Some((x, y)), Some((a, b))) => Some((x + a, y + b)),
+						_ => None,
+					})
+			}
+		};
 
 		if let Some((avail, total)) = self.meta_disk_avail {
 			metrics

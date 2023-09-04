@@ -13,7 +13,7 @@ pub struct Config {
 	/// Path where to store metadata. Should be fast, but low volume
 	pub metadata_dir: PathBuf,
 	/// Path where to store data. Can be slower, but need higher volume
-	pub data_dir: PathBuf,
+	pub data_dir: DataDirEnum,
 
 	/// Whether to fsync after all metadata transactions (disabled by default)
 	#[serde(default)]
@@ -92,6 +92,26 @@ pub struct Config {
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
+}
+
+/// Value for data_dir: either a single directory or a list of dirs with attributes
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum DataDirEnum {
+	Single(PathBuf),
+	Multiple(Vec<DataDir>),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct DataDir {
+	/// Path to the data directory
+	pub path: PathBuf,
+	/// Capacity of the drive (required if read_only is false)
+	#[serde(default)]
+	pub capacity: Option<String>,
+	/// Whether this is a legacy read-only path (capacity should be None)
+	#[serde(default)]
+	pub read_only: bool,
 }
 
 /// Configuration for S3 api

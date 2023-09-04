@@ -25,10 +25,11 @@ use garage_rpc::rpc_helper::netapp::stream::{stream_asyncread, ByteStream};
 use garage_db as db;
 
 use garage_util::background::{vars, BackgroundRunner};
+use garage_util::config::DataDirEnum;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::metrics::RecordDuration;
-use garage_util::persister::PersisterShared;
+use garage_util::persister::{Persister, PersisterShared};
 use garage_util::time::msec_to_rfc3339;
 
 use garage_rpc::rpc_helper::OrderTag;
@@ -38,6 +39,7 @@ use garage_rpc::*;
 use garage_table::replication::{TableReplication, TableShardedReplication};
 
 use crate::block::*;
+use crate::layout::*;
 use crate::metrics::*;
 use crate::rc::*;
 use crate::repair::*;
@@ -77,8 +79,11 @@ impl Rpc for BlockRpc {
 pub struct BlockManager {
 	/// Replication strategy, allowing to find on which node blocks should be located
 	pub replication: TableShardedReplication,
-	/// Directory in which block are stored
-	pub data_dir: PathBuf,
+
+	/// Directory/ies in which block are stored
+	pub data_dir: DataDirEnum,
+	/// Data layout
+	pub(crate) data_layout: DataLayout,
 
 	data_fsync: bool,
 	compression_level: Option<i32>,
@@ -114,12 +119,22 @@ struct BlockManagerLocked();
 impl BlockManager {
 	pub fn new(
 		db: &db::Db,
-		data_dir: PathBuf,
+		data_dir: DataDirEnum,
 		data_fsync: bool,
 		compression_level: Option<i32>,
 		replication: TableShardedReplication,
 		system: Arc<System>,
 	) -> Arc<Self> {
+		let layout_persister: Persister<DataLayout> =
+			Persister::new(&system.metadata_dir, "data_layout");
+		let data_layout = match layout_persister.load() {
+			Ok(mut layout) => {
+				layout.update(&data_dir);
+				layout
+			}
+			Err(_) => DataLayout::initialize(&data_dir),
+		};
+
 		let rc = db
 			.open_tree("block_local_rc")
 			.expect("Unable to open block_local_rc tree");
@@ -143,6 +158,7 @@ impl BlockManager {
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
+			data_layout,
 			data_fsync,
 			compression_level,
 			mutation_lock: [(); 256].map(|_| Mutex::new(BlockManagerLocked())),
@@ -586,10 +602,7 @@ impl BlockManager {
 
 	/// Utility: gives the path of the directory in which a block should be found
 	fn block_dir(&self, hash: &Hash) -> PathBuf {
-		let mut path = self.data_dir.clone();
-		path.push(hex::encode(&hash.as_slice()[0..1]));
-		path.push(hex::encode(&hash.as_slice()[1..2]));
-		path
+		self.data_layout.data_dir(hash)
 	}
 
 	/// Utility: give the full path where a block should be found, minus extension if block is
