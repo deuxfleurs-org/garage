@@ -190,32 +190,35 @@ impl DataLayout {
 		})
 	}
 
-	pub(crate) fn primary_data_dir(&self, hash: &Hash) -> PathBuf {
-        let ipart = self.partition_from(hash);
-        let idir = self.part_prim[ipart] as usize;
-        self.data_dir_from(hash, &self.data_dirs[idir].path)
+	pub(crate) fn primary_block_dir(&self, hash: &Hash) -> PathBuf {
+		let ipart = self.partition_from(hash);
+		let idir = self.part_prim[ipart] as usize;
+		self.block_dir_from(hash, &self.data_dirs[idir].path)
 	}
 
-	pub(crate) fn secondary_data_dirs<'a>(&'a self, hash: &'a Hash) -> impl Iterator<Item=PathBuf> + 'a {
-        let ipart = self.partition_from(hash);
-        self.part_sec[ipart]
-            .iter()
-            .map(move |idir| self.data_dir_from(hash, &self.data_dirs[*idir as usize].path))
+	pub(crate) fn secondary_block_dirs<'a>(
+		&'a self,
+		hash: &'a Hash,
+	) -> impl Iterator<Item = PathBuf> + 'a {
+		let ipart = self.partition_from(hash);
+		self.part_sec[ipart]
+			.iter()
+			.map(move |idir| self.block_dir_from(hash, &self.data_dirs[*idir as usize].path))
 	}
 
-    fn partition_from(&self, hash: &Hash) -> usize {
-        u16::from_be_bytes([
-                        hash.as_slice()[DPART_BYTES.0],
-                        hash.as_slice()[DPART_BYTES.1]
-        ]) as usize % DRIVE_NPART
-    }
+	fn partition_from(&self, hash: &Hash) -> usize {
+		u16::from_be_bytes([
+			hash.as_slice()[DPART_BYTES.0],
+			hash.as_slice()[DPART_BYTES.1],
+		]) as usize % DRIVE_NPART
+	}
 
-    fn data_dir_from(&self, hash: &Hash, dir: &PathBuf) -> PathBuf {
+	fn block_dir_from(&self, hash: &Hash, dir: &PathBuf) -> PathBuf {
 		let mut path = dir.clone();
 		path.push(hex::encode(&hash.as_slice()[0..1]));
 		path.push(hex::encode(&hash.as_slice()[1..2]));
 		path
-    }
+	}
 }
 
 impl InitialFormat for DataLayout {
