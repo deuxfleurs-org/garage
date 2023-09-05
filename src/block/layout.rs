@@ -11,25 +11,28 @@ type Idx = u16;
 
 const DRIVE_NPART: usize = 1024;
 
-const DPART_BYTES: (usize, usize) = (2, 3);
+const HASH_DRIVE_BYTES: (usize, usize) = (2, 3);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct DataLayout {
 	pub(crate) data_dirs: Vec<DataDir>,
 
 	/// Primary storage location (index in data_dirs) for each partition
+	/// = the location where the data is supposed to be, blocks are always
+	/// written there (copies in other dirs may be deleted if they exist)
 	pub(crate) part_prim: Vec<Idx>,
-	/// Secondary storage locations for each partition
+	/// Secondary storage locations for each partition = locations
+	/// where data blocks might be, we check from these dirs when reading
 	pub(crate) part_sec: Vec<Vec<Idx>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub(crate) struct DataDir {
 	pub(crate) path: PathBuf,
 	pub(crate) state: DataDirState,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum DataDirState {
 	Active { capacity: u64 },
 	ReadOnly,
@@ -55,8 +58,9 @@ impl DataLayout {
 		assert_eq!(cum_cap, total_cap);
 		assert_eq!(part_prim.len(), DRIVE_NPART);
 
-		// If any of the storage locations is non-empty, add it as a secondary
-		// storage location for all partitions
+		// If any of the storage locations is non-empty, it probably existed before
+		// this algorithm was added, so add it as a secondary storage location for all partitions
+		// to make sure existing files are not lost
 		let mut part_sec = vec![vec![]; DRIVE_NPART];
 		for (i, dd) in data_dirs.iter().enumerate() {
 			if dir_not_empty(&dd.path)? {
@@ -75,10 +79,14 @@ impl DataLayout {
 		})
 	}
 
-	pub(crate) fn update(&mut self, dirs: &DataDirEnum) -> Result<Self, Error> {
-		// Compute list of new data directories and mapping of old indices
-		// to new indices
+	pub(crate) fn update(&mut self, dirs: &DataDirEnum) -> Result<(), Error> {
+		// Make list of new data directories, exit if nothing changed
 		let data_dirs = make_data_dirs(dirs)?;
+		if data_dirs == self.data_dirs {
+			return Ok(());
+		}
+
+		// Compute mapping of old indices to new indices
 		let old2new = self
 			.data_dirs
 			.iter()
@@ -114,15 +122,13 @@ impl DataLayout {
 		// Compute the target number of partitions per data directory
 		let total_cap = data_dirs.iter().filter_map(|x| x.capacity()).sum::<u64>();
 		let mut cum_cap = 0;
-		let mut npart_per_dir = vec![];
-		for dd in data_dirs.iter() {
+		let mut npart_per_dir = vec![0; data_dirs.len()];
+		for (idir, dd) in data_dirs.iter().enumerate() {
 			if let DataDirState::Active { capacity } = dd.state {
 				let begin = (cum_cap * DRIVE_NPART as u64) / total_cap;
 				cum_cap += capacity;
 				let end = (cum_cap * DRIVE_NPART as u64) / total_cap;
-				npart_per_dir.push((end - begin) as usize);
-			} else {
-				npart_per_dir.push(0);
+				npart_per_dir[idir] = (end - begin) as usize;
 			}
 		}
 		assert_eq!(cum_cap, total_cap);
@@ -161,11 +167,14 @@ impl DataLayout {
 		// add partitions from unassigned
 		for (idir, (parts, tgt_npart)) in dir_prim.iter_mut().zip(npart_per_dir.iter()).enumerate()
 		{
-			assert!(unassigned.len() >= *tgt_npart - parts.len());
-			for _ in parts.len()..*tgt_npart {
-				let new_part = unassigned.pop().unwrap();
-				part_prim[new_part] = Some(idir as Idx);
-				part_sec[new_part].retain(|x| *x != idir as Idx);
+			if parts.len() < *tgt_npart {
+				let required = *tgt_npart - parts.len();
+				assert!(unassigned.len() >= required);
+				for _ in 0..required {
+					let new_part = unassigned.pop().unwrap();
+					part_prim[new_part] = Some(idir as Idx);
+					part_sec[new_part].retain(|x| *x != idir as Idx);
+				}
 			}
 		}
 
@@ -183,11 +192,12 @@ impl DataLayout {
 			.unwrap_or(0)
 			> 0));
 
-		Ok(Self {
+		*self = Self {
 			data_dirs,
 			part_prim,
 			part_sec,
-		})
+		};
+		Ok(())
 	}
 
 	pub(crate) fn primary_block_dir(&self, hash: &Hash) -> PathBuf {
@@ -208,8 +218,8 @@ impl DataLayout {
 
 	fn partition_from(&self, hash: &Hash) -> usize {
 		u16::from_be_bytes([
-			hash.as_slice()[DPART_BYTES.0],
-			hash.as_slice()[DPART_BYTES.1],
+			hash.as_slice()[HASH_DRIVE_BYTES.0],
+			hash.as_slice()[HASH_DRIVE_BYTES.1],
 		]) as usize % DRIVE_NPART
 	}
 
