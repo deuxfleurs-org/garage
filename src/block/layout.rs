@@ -276,8 +276,7 @@ fn dir_not_empty(path: &PathBuf) -> Result<bool, Error> {
 				.into_string()
 				.ok()
 				.and_then(|hex| hex::decode(&hex).ok())
-				.map(|bytes| (2..=4).contains(&bytes.len()))
-				.unwrap_or(false)
+				.is_some()
 		{
 			return Ok(true);
 		}
