@@ -251,7 +251,7 @@ impl Garage {
 			config.compression_level,
 			data_rep_param,
 			system.clone(),
-		);
+		)?;
 		block_manager.register_bg_vars(&mut bg_vars);
 
 		// ---- admin tables ----
