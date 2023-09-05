@@ -707,25 +707,39 @@ impl BlockManagerLocked {
 		let compressed = data.is_compressed();
 		let data = data.inner_buffer();
 
-		let mut path = mgr.data_layout.primary_block_dir(hash);
-		let directory = path.clone();
-		path.push(hex::encode(hash));
+		let mut tgt_path = mgr.data_layout.primary_block_dir(hash);
+		let directory = tgt_path.clone();
+		tgt_path.push(hex::encode(hash));
+        if compressed {
+            tgt_path.set_extension("zst");
+        }
 
 		fs::create_dir_all(&directory).await?;
 
 		let to_delete = match (mgr.find_block(hash).await, compressed) {
-			(Some(DataBlockPath::Compressed(_)), _) => return Ok(()),
-			(Some(DataBlockPath::Plain(_)), false) => return Ok(()),
+            // If the block is stored in the wrong directory,
+            // write it again at the correct path and delete the old path
+			(Some(DataBlockPath::Plain(p)), false) if p != tgt_path => Some(p),
+			(Some(DataBlockPath::Compressed(p)), true) if p != tgt_path => Some(p),
+
+            // If the block is already stored not compressed but we have a compressed
+            // copy, write the compressed copy and delete the uncompressed one
 			(Some(DataBlockPath::Plain(plain_path)), true) => Some(plain_path),
-			(None, compressed) => {
-				if compressed {
-					path.set_extension("zst");
-				}
-				None
-			}
+
+            // If the block is already stored compressed,
+            // keep the stored copy, we have nothing to do
+			(Some(DataBlockPath::Compressed(_)), _) => return Ok(()),
+
+            // If the block is already stored not compressed,
+            // and we don't have a compressed copy either,
+            // keep the stored copy, we have nothing to do
+			(Some(DataBlockPath::Plain(_)), false) => return Ok(()),
+
+            // If the block isn't stored already, just store what is given to us
+			(None, _) => None,
 		};
 
-		let mut path_tmp = path.clone();
+		let mut path_tmp = tgt_path.clone();
 		let tmp_extension = format!("tmp{}", hex::encode(thread_rng().gen::<[u8; 4]>()));
 		path_tmp.set_extension(tmp_extension);
 
@@ -740,7 +754,7 @@ impl BlockManagerLocked {
 
 		drop(f);
 
-		fs::rename(path_tmp, path).await?;
+		fs::rename(path_tmp, tgt_path).await?;
 
 		delete_on_drop.cancel();
 
