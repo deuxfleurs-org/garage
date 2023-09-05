@@ -125,15 +125,19 @@ impl BlockManager {
 		replication: TableShardedReplication,
 		system: Arc<System>,
 	) -> Arc<Self> {
+		// TODO don't panic, report error
 		let layout_persister: Persister<DataLayout> =
 			Persister::new(&system.metadata_dir, "data_layout");
 		let data_layout = match layout_persister.load() {
 			Ok(mut layout) => {
-				layout.update(&data_dir);
+				layout.update(&data_dir).expect("invalid data_dir config");
 				layout
 			}
-			Err(_) => DataLayout::initialize(&data_dir),
+			Err(_) => DataLayout::initialize(&data_dir).expect("invalid data_dir config"),
 		};
+		layout_persister
+			.save(&data_layout)
+			.expect("cannot save data_layout");
 
 		let rc = db
 			.open_tree("block_local_rc")
@@ -602,7 +606,7 @@ impl BlockManager {
 
 	/// Utility: gives the path of the directory in which a block should be found
 	fn block_dir(&self, hash: &Hash) -> PathBuf {
-		self.data_layout.data_dir(hash)
+		self.data_layout.primary_data_dir(hash)
 	}
 
 	/// Utility: give the full path where a block should be found, minus extension if block is

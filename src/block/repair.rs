@@ -473,10 +473,7 @@ impl BlockStoreIterator {
 			.data_layout
 			.data_dirs
 			.iter()
-			.filter_map(|x| match x.state {
-				DataDirState::Active { capacity } => Some(capacity),
-				_ => None,
-			})
+			.filter_map(|x| x.capacity())
 			.min()
 			.unwrap_or(0);
 
@@ -484,10 +481,7 @@ impl BlockStoreIterator {
 			.data_layout
 			.data_dirs
 			.iter()
-			.map(|x| match x.state {
-				DataDirState::Active { capacity } => capacity,
-				_ => min_cap, // approximation
-			})
+			.map(|x| x.capacity().unwrap_or(min_cap /* approximation */))
 			.sum::<u64>() as u128;
 
 		let mut cum_cap = 0;
