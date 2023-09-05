@@ -359,20 +359,23 @@ impl BlockResyncManager {
 	}
 
 	async fn resync_block(&self, manager: &BlockManager, hash: &Hash) -> Result<(), Error> {
-		let BlockStatus { exists, needed } = manager.check_block_status(hash).await?;
+		let existing_path = manager.find_block(hash).await;
+		let exists = existing_path.is_some();
+		let rc = manager.rc.get_block_rc(hash)?;
 
-		if exists != needed.is_needed() || exists != needed.is_nonzero() {
+		if exists != rc.is_needed() || exists != rc.is_nonzero() {
 			debug!(
 				"Resync block {:?}: exists {}, nonzero rc {}, deletable {}",
 				hash,
 				exists,
-				needed.is_nonzero(),
-				needed.is_deletable(),
+				rc.is_nonzero(),
+				rc.is_deletable(),
 			);
 		}
 
-		if exists && needed.is_deletable() {
+		if exists && rc.is_deletable() {
 			info!("Resync block {:?}: offloading and deleting", hash);
+			let existing_path = existing_path.unwrap();
 
 			let mut who = manager.replication.write_nodes(hash);
 			if who.len() < manager.replication.write_quorum() {
@@ -419,7 +422,7 @@ impl BlockResyncManager {
 						.add(1, &[KeyValue::new("to", format!("{:?}", node))]);
 				}
 
-				let block = manager.read_block(hash).await?;
+				let block = manager.read_block_from(hash, &existing_path).await?;
 				let (header, bytes) = block.into_parts();
 				let put_block_message = Req::new(BlockRpc::PutBlock {
 					hash: *hash,
@@ -451,7 +454,7 @@ impl BlockResyncManager {
 			manager.rc.clear_deleted_block_rc(hash)?;
 		}
 
-		if needed.is_nonzero() && !exists {
+		if rc.is_nonzero() && !exists {
 			info!(
 				"Resync block {:?}: fetching absent but needed block (refcount > 0)",
 				hash
