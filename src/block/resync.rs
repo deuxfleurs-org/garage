@@ -41,7 +41,7 @@ pub(crate) const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
 pub(crate) const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
 
 // No more than 4 resync workers can be running in the system
-pub(crate) const MAX_RESYNC_WORKERS: usize = 4;
+pub(crate) const MAX_RESYNC_WORKERS: usize = 8;
 // Resync tranquility is initially set to 2, but can be changed in the CLI
 // and the updated version is persisted over Garage restarts
 const INITIAL_RESYNC_TRANQUILITY: u32 = 2;
