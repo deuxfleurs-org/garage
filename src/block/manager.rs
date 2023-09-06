@@ -279,14 +279,18 @@ impl BlockManager {
 					let res = match res {
 						Ok(res) => res,
 						Err(e) => {
-							debug!("Get block {:?}: node {:?} returned error: {}", hash, node, e);
+							debug!("Get block {:?}: node {:?} could not be contacted: {}", hash, node, e);
 							continue;
 						}
 					};
 					let (header, stream) = match res.into_parts() {
 						(Ok(BlockRpc::PutBlock { hash: _, header }), Some(stream)) => (header, stream),
-						_ => {
+						(Ok(_), _) => {
 							debug!("Get block {:?}: node {:?} returned a malformed response", hash, node);
+							continue;
+						}
+						(Err(e), _) => {
+							debug!("Get block {:?}: node {:?} returned error: {}", hash, node, e);
 							continue;
 						}
 					};
