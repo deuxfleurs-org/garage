@@ -200,7 +200,6 @@ impl DataLayout {
 		// it might have been removed and added again and might contain data,
 		// so add it as a secondary storage location for all partitions
 		// to make sure existing files are not lost
-		let mut part_sec = vec![vec![]; DRIVE_NPART];
 		for (i, dd) in data_dirs.iter().enumerate() {
 			if self.data_dirs.iter().any(|ed| ed.path == dd.path) {
 				continue;
