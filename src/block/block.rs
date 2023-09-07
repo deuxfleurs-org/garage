@@ -21,6 +21,7 @@ pub enum DataBlock {
 	Compressed(Bytes),
 }
 
+#[derive(Debug)]
 pub enum DataBlockPath {
 	/// Uncompressed data fail
 	Plain(PathBuf),
