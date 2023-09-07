@@ -471,6 +471,9 @@ pub enum RepairWhat {
 		#[structopt(subcommand)]
 		cmd: ScrubCmd,
 	},
+	/// Rebalance data blocks among storage locations
+	#[structopt(name = "rebalance", version = garage_version())]
+	Rebalance,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]

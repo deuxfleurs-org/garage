@@ -70,6 +70,12 @@ pub async fn launch_online_repair(
 			info!("Sending command to scrub worker: {:?}", cmd);
 			garage.block_manager.send_scrub_command(cmd).await?;
 		}
+		RepairWhat::Rebalance => {
+			info!("Rebalancing the stored blocks among storage locations");
+			bg.spawn_worker(garage_block::repair::RebalanceWorker::new(
+				garage.block_manager.clone(),
+			));
+		}
 	}
 	Ok(())
 }

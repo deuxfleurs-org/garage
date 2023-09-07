@@ -252,6 +252,14 @@ impl DataLayout {
 		path.push(hex::encode(&hash.as_slice()[1..2]));
 		path
 	}
+
+	pub(crate) fn without_secondary_locations(&self) -> Self {
+		Self {
+			data_dirs: self.data_dirs.clone(),
+			part_prim: self.part_prim.clone(),
+			part_sec: self.part_sec.iter().map(|_| vec![]).collect::<Vec<_>>(),
+		}
+	}
 }
 
 impl InitialFormat for DataLayout {

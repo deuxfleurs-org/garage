@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use arc_swap::ArcSwapOption;
+use arc_swap::{ArcSwap, ArcSwapOption};
 use async_trait::async_trait;
 use bytes::Bytes;
 use rand::prelude::*;
@@ -83,7 +83,9 @@ pub struct BlockManager {
 	/// Directory/ies in which block are stored
 	pub data_dir: DataDirEnum,
 	/// Data layout
-	pub(crate) data_layout: DataLayout,
+	pub(crate) data_layout: ArcSwap<DataLayout>,
+	/// Data layout persister
+	pub(crate) data_layout_persister: Persister<DataLayout>,
 
 	data_fsync: bool,
 	compression_level: Option<i32>,
@@ -129,9 +131,9 @@ impl BlockManager {
 		system: Arc<System>,
 	) -> Result<Arc<Self>, Error> {
 		// Load or compute layout, i.e. assignment of data blocks to the different data directories
-		let layout_persister: Persister<DataLayout> =
+		let data_layout_persister: Persister<DataLayout> =
 			Persister::new(&system.metadata_dir, "data_layout");
-		let data_layout = match layout_persister.load() {
+		let data_layout = match data_layout_persister.load() {
 			Ok(mut layout) => {
 				layout
 					.update(&data_dir)
@@ -140,7 +142,7 @@ impl BlockManager {
 			}
 			Err(_) => DataLayout::initialize(&data_dir).ok_or_message("invalid data_dir config")?,
 		};
-		layout_persister
+		data_layout_persister
 			.save(&data_layout)
 			.expect("cannot save data_layout");
 
@@ -168,7 +170,8 @@ impl BlockManager {
 		let block_manager = Arc::new(Self {
 			replication,
 			data_dir,
-			data_layout,
+			data_layout: ArcSwap::new(Arc::new(data_layout)),
+			data_layout_persister,
 			data_fsync,
 			compression_level,
 			mutation_lock: vec![(); MUTEX_COUNT]
@@ -606,9 +609,10 @@ impl BlockManager {
 
 	/// Find the path where a block is currently stored
 	pub(crate) async fn find_block(&self, hash: &Hash) -> Option<DataBlockPath> {
-		let dirs = Some(self.data_layout.primary_block_dir(hash))
+		let data_layout = self.data_layout.load_full();
+		let dirs = Some(data_layout.primary_block_dir(hash))
 			.into_iter()
-			.chain(self.data_layout.secondary_block_dirs(hash));
+			.chain(data_layout.secondary_block_dirs(hash));
 		let filename = hex::encode(hash.as_ref());
 
 		for dir in dirs {
@@ -682,7 +686,7 @@ impl BlockManagerLocked {
 		let compressed = data.is_compressed();
 		let data = data.inner_buffer();
 
-		let directory = mgr.data_layout.primary_block_dir(hash);
+		let directory = mgr.data_layout.load().primary_block_dir(hash);
 
 		let mut tgt_path = directory.clone();
 		tgt_path.push(hex::encode(hash));
