@@ -65,7 +65,8 @@ To rebalance data, two strategies can be used:
   Garage checks whether the existing copy is in the primary directory of the slice
   or in a secondary directory. If the current copy is in a secondary directory,
   Garage re-writes a copy in the primary directory and deletes the one from the
-  secondary directory.
+  secondary directory. This might never end up rebalancing everything if there
+  are data blocks that are only read and never written.
 
 - Active rebalancing: an operator of a Garage node can explicitly launch a repair
   procedure that rebalances the data directories, moving all blocks to their
@@ -94,7 +95,7 @@ it might still contain subdirectories, but no data files. You can check that
 it contains no files using:
 
 ```bash
-find -type f /path/to/old_data
+find -type f /path/to/old_data      # should not print anything
 ```
 
 at which point it can be removed from the `data_dir` list in your config file.
