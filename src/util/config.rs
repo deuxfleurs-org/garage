@@ -72,6 +72,10 @@ pub struct Config {
 	#[serde(default = "default_sled_flush_every_ms")]
 	pub sled_flush_every_ms: u64,
 
+	/// LMDB map size
+	#[serde(default)]
+	pub lmdb_map_size: Option<String>,
+
 	// -- APIs
 	/// Configuration for S3 api
 	pub s3_api: S3ApiConfig,

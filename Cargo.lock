@@ -1340,6 +1340,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.3",
  "blake2",
+ "bytesize",
  "err-derive",
  "futures",
  "futures-util",
