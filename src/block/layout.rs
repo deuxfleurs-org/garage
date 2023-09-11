@@ -287,22 +287,22 @@ fn make_data_dirs(dirs: &DataDirEnum) -> Result<Vec<DataDir>, Error> {
 			let mut ok = false;
 			for dir in dirs.iter() {
 				let state = match &dir.capacity {
-                    Some(cap) if dir.read_only == false => {
-                        let capacity = cap.parse::<bytesize::ByteSize>()
-                                .ok_or_message("invalid capacity value")?.as_u64();
-                        if capacity == 0 {
-                            return Err(Error::Message(format!("data directory {} should have non-zero capacity", dir.path.to_string_lossy())));
-                        }
-                        ok = true;
-                        DataDirState::Active {
-                            capacity,
-                        }
-                    }
-                    None if dir.read_only == true => {
-                        DataDirState::ReadOnly
-                    }
-                    _ => return Err(Error::Message(format!("data directories in data_dir should have a capacity value or be marked read_only, not the case for {}", dir.path.to_string_lossy()))),
-                };
+					Some(cap) if dir.read_only == false => {
+						let capacity = cap.parse::<bytesize::ByteSize>()
+							.ok_or_message("invalid capacity value")?.as_u64();
+						if capacity == 0 {
+							return Err(Error::Message(format!("data directory {} should have non-zero capacity", dir.path.to_string_lossy())));
+						}
+						ok = true;
+						DataDirState::Active {
+							capacity,
+						}
+					}
+					None if dir.read_only == true => {
+						DataDirState::ReadOnly
+					}
+					_ => return Err(Error::Message(format!("data directories in data_dir should have a capacity value or be marked read_only, not the case for {}", dir.path.to_string_lossy()))),
+				};
 				data_dirs.push(DataDir {
 					path: dir.path.clone(),
 					state,
