@@ -75,16 +75,11 @@ to store 2 TB of data in total.
 
 - For the metadata storage, Garage does not do checksumming and integrity
   verification on its own. If you are afraid of bitrot/data corruption,
-  put your metadata directory on a BTRFS partition. Otherwise, just use regular
+  put your metadata directory on a ZFS or BTRFS partition. Otherwise, just use regular
   EXT4 or XFS.
 
-- Having a single server with several storage drives is currently not very well
-  supported in Garage ([#218](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/218)).
-  For an easy setup, just put all your drives in a RAID0 or a ZFS RAIDZ array.
-  If you're adventurous, you can try to format each of your disk as
-  a separate XFS partition, and then run one `garage` daemon per disk drive,
-  or use something like [`mergerfs`](https://github.com/trapexit/mergerfs) to merge
-  all your disks in a single union filesystem that spreads load over them.
+- Servers with multiple HDDs are supported natively by Garage without resorting
+  to RAID, see [our dedicated documentation page](@/documentation/operations/multi-hdd.md).
 
 ## Get a Docker image
 

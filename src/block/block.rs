@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use zstd::stream::{decode_all as zstd_decode, Encoder};
@@ -17,6 +19,14 @@ pub enum DataBlock {
 	Plain(Bytes),
 	/// Data compressed with zstd
 	Compressed(Bytes),
+}
+
+#[derive(Debug)]
+pub enum DataBlockPath {
+	/// Uncompressed data fail
+	Plain(PathBuf),
+	/// Compressed data fail
+	Compressed(PathBuf),
 }
 
 impl DataBlock {

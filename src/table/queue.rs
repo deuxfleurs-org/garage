@@ -12,7 +12,7 @@ use crate::replication::*;
 use crate::schema::*;
 use crate::table::*;
 
-const BATCH_SIZE: usize = 100;
+const BATCH_SIZE: usize = 1024;
 
 pub(crate) struct InsertQueueWorker<F, R>(pub(crate) Arc<Table<F, R>>)
 where

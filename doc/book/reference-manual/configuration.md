@@ -91,6 +91,19 @@ This folder can be placed on an HDD. The space available for `data_dir`
 should be counted to determine a node's capacity
 when [adding it to the cluster layout](@/documentation/cookbook/real-world.md).
 
+Since `v0.9.0`, Garage supports multiple data directories with the following syntax:
+
+```toml
+data_dir = [
+    { path = "/path/to/old_data", read_only = true },
+    { path = "/path/to/new_hdd1", capacity = "2T" },
+    { path = "/path/to/new_hdd2", capacity = "4T" },
+]
+```
+
+See [the dedicated documentation page](@/documentation/operations/multi-hdd.md)
+on how to operate Garage in such a setup.
+
 ### `db_engine` (since `v0.8.0`)
 
 By default, Garage uses the Sled embedded database library

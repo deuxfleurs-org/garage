@@ -1300,6 +1300,7 @@ dependencies = [
  "async-compression",
  "async-trait",
  "bytes",
+ "bytesize",
  "futures",
  "futures-util",
  "garage_db",

@@ -22,9 +22,9 @@ use netapp::peering::fullmesh::FullMeshPeeringStrategy;
 use netapp::util::parse_and_resolve_peer_addr_async;
 use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
 
-use garage_util::config::Config;
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
+use garage_util::config::{Config, DataDirEnum};
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
@@ -119,7 +119,7 @@ pub struct System {
 	/// Path to metadata directory
 	pub metadata_dir: PathBuf,
 	/// Path to data directory
-	pub data_dir: PathBuf,
+	pub data_dir: DataDirEnum,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -890,7 +890,12 @@ impl NodeStatus {
 		}
 	}
 
-	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path, metrics: &SystemMetrics) {
+	fn update_disk_usage(
+		&mut self,
+		meta_dir: &Path,
+		data_dir: &DataDirEnum,
+		metrics: &SystemMetrics,
+	) {
 		use systemstat::{Platform, System};
 		let mounts = System::new().mounts().unwrap_or_default();
 
@@ -903,7 +908,35 @@ impl NodeStatus {
 		};
 
 		self.meta_disk_avail = mount_avail(meta_dir);
-		self.data_disk_avail = mount_avail(data_dir);
+		self.data_disk_avail = match data_dir {
+			DataDirEnum::Single(dir) => mount_avail(dir),
+			DataDirEnum::Multiple(dirs) => {
+				// Take mounts corresponding to all specified data directories that
+				// can be used for writing data
+				let mounts = dirs
+					.iter()
+					.filter(|dir| dir.capacity.is_some())
+					.map(|dir| {
+						mounts
+							.iter()
+							.filter(|mnt| dir.path.starts_with(&mnt.fs_mounted_on))
+							.max_by_key(|mnt| mnt.fs_mounted_on.len())
+					})
+					.collect::<Vec<_>>();
+				if mounts.iter().any(|x| x.is_none()) {
+					None // could not get info for at least one mount
+				} else {
+					// dedup mounts in case several data directories are on the same filesystem
+					let mut mounts = mounts.iter().map(|x| x.unwrap()).collect::<Vec<_>>();
+					mounts.sort_by(|x, y| x.fs_mounted_on.cmp(&y.fs_mounted_on));
+					mounts.dedup_by(|x, y| x.fs_mounted_on == y.fs_mounted_on);
+					// calculate sum of available and total space
+					Some(mounts.iter().fold((0, 0), |(x, y), mnt| {
+						(x + mnt.avail.as_u64(), y + mnt.total.as_u64())
+					}))
+				}
+			}
+		};
 
 		if let Some((avail, total)) = self.meta_disk_avail {
 			metrics
