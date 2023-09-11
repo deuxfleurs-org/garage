@@ -1,4 +1,5 @@
 //! Contains type and functions related to Garage configuration file
+use std::convert::TryFrom;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -16,7 +17,10 @@ pub struct Config {
 	pub data_dir: PathBuf,
 
 	/// Size of data blocks to save to disk
-	#[serde(default = "default_block_size")]
+	#[serde(
+		deserialize_with = "deserialize_capacity",
+		default = "default_block_size"
+	)]
 	pub block_size: usize,
 
 	/// Replication mode. Supported values:
@@ -66,11 +70,18 @@ pub struct Config {
 	pub db_engine: String,
 
 	/// Sled cache size, in bytes
-	#[serde(default = "default_sled_cache_capacity")]
-	pub sled_cache_capacity: u64,
+	#[serde(
+		deserialize_with = "deserialize_capacity",
+		default = "default_sled_cache_capacity"
+	)]
+	pub sled_cache_capacity: usize,
 	/// Sled flush interval in milliseconds
 	#[serde(default = "default_sled_flush_every_ms")]
 	pub sled_flush_every_ms: u64,
+
+	/// LMDB map size
+	#[serde(deserialize_with = "deserialize_capacity", default)]
+	pub lmdb_map_size: usize,
 
 	// -- APIs
 	/// Configuration for S3 api
@@ -186,7 +197,7 @@ fn default_db_engine() -> String {
 	"sled".into()
 }
 
-fn default_sled_cache_capacity() -> u64 {
+fn default_sled_cache_capacity() -> usize {
 	128 * 1024 * 1024
 }
 fn default_sled_flush_every_ms() -> u64 {
@@ -266,8 +277,6 @@ fn deserialize_compression<'de, D>(deserializer: D) -> Result<Option<i32>, D::Er
 where
 	D: de::Deserializer<'de>,
 {
-	use std::convert::TryFrom;
-
 	struct OptionVisitor;
 
 	impl<'de> serde::de::Visitor<'de> for OptionVisitor {
@@ -310,6 +319,50 @@ where
 	}
 
 	deserializer.deserialize_any(OptionVisitor)
+}
+
+fn deserialize_capacity<'de, D>(deserializer: D) -> Result<usize, D::Error>
+where
+	D: de::Deserializer<'de>,
+{
+	struct CapacityVisitor;
+
+	impl<'de> serde::de::Visitor<'de> for CapacityVisitor {
+		type Value = usize;
+		fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+			formatter.write_str("int or '<capacity>'")
+		}
+
+		fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			value
+				.parse::<bytesize::ByteSize>()
+				.map(|x| x.as_u64())
+				.map_err(|e| E::custom(format!("invalid capacity value: {}", e)))
+				.and_then(|v| {
+					usize::try_from(v)
+						.map_err(|_| E::custom("capacity value out of bound".to_owned()))
+				})
+		}
+
+		fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			usize::try_from(v).map_err(|_| E::custom("capacity value out of bound".to_owned()))
+		}
+
+		fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			usize::try_from(v).map_err(|_| E::custom("capacity value out of bound".to_owned()))
+		}
+	}
+
+	deserializer.deserialize_any(CapacityVisitor)
 }
 
 #[cfg(test)]
