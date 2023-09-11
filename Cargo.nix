@@ -33,7 +33,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "685d51432f57c5ad2d5c80e725822b9c9bfd7cc632340f70aa1377c1d89117e4";
+  nixifiedLockHash = "5ed4453c19fb71d30817a98578ec946d1a0f9b23e56fb8c9a41b51599636b488";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -57,15 +57,15 @@ in
 {
   cargo2nixVersion = "0.11.0";
   workspace = {
-    garage_db = rustPackages.unknown.garage_db."0.8.3";
-    garage_util = rustPackages.unknown.garage_util."0.8.3";
-    garage_rpc = rustPackages.unknown.garage_rpc."0.8.3";
-    garage_table = rustPackages.unknown.garage_table."0.8.3";
-    garage_block = rustPackages.unknown.garage_block."0.8.3";
-    garage_model = rustPackages.unknown.garage_model."0.8.3";
-    garage_api = rustPackages.unknown.garage_api."0.8.3";
-    garage_web = rustPackages.unknown.garage_web."0.8.3";
-    garage = rustPackages.unknown.garage."0.8.3";
+    garage_db = rustPackages.unknown.garage_db."0.8.4";
+    garage_util = rustPackages.unknown.garage_util."0.8.4";
+    garage_rpc = rustPackages.unknown.garage_rpc."0.8.4";
+    garage_table = rustPackages.unknown.garage_table."0.8.4";
+    garage_block = rustPackages.unknown.garage_block."0.8.4";
+    garage_model = rustPackages.unknown.garage_model."0.8.4";
+    garage_api = rustPackages.unknown.garage_api."0.8.4";
+    garage_web = rustPackages.unknown.garage_web."0.8.4";
+    garage = rustPackages.unknown.garage."0.8.4";
     format_table = rustPackages.unknown.format_table."0.1.1";
     k2v-client = rustPackages.unknown.k2v-client."0.0.4";
   };
@@ -1705,9 +1705,9 @@ in
     };
   });
   
-  "unknown".garage."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/garage");
     features = builtins.concatLists [
@@ -1734,18 +1734,18 @@ in
       format_table = (rustPackages."unknown".format_table."0.1.1" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_api = (rustPackages."unknown".garage_api."0.8.3" { inherit profileName; }).out;
-      garage_block = (rustPackages."unknown".garage_block."0.8.3" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
-      garage_model = (rustPackages."unknown".garage_model."0.8.3" { inherit profileName; }).out;
-      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.3" { inherit profileName; }).out;
-      garage_table = (rustPackages."unknown".garage_table."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
-      garage_web = (rustPackages."unknown".garage_web."0.8.3" { inherit profileName; }).out;
+      garage_api = (rustPackages."unknown".garage_api."0.8.4" { inherit profileName; }).out;
+      garage_block = (rustPackages."unknown".garage_block."0.8.4" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
+      garage_model = (rustPackages."unknown".garage_model."0.8.4" { inherit profileName; }).out;
+      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.4" { inherit profileName; }).out;
+      garage_table = (rustPackages."unknown".garage_table."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
+      garage_web = (rustPackages."unknown".garage_web."0.8.4" { inherit profileName; }).out;
       git_version = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".git-version."0.3.5" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       sodiumoxide = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; }).out;
-      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.3" { inherit profileName; }).out;
+      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.2" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/opentelemetry-otlp" || rootFeatures' ? "garage/telemetry-otlp" then "opentelemetry_otlp" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-otlp."0.10.0" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/default" || rootFeatures' ? "garage/metrics" || rootFeatures' ? "garage/opentelemetry-prometheus" then "opentelemetry_prometheus" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-prometheus."0.10.0" { inherit profileName; }).out;
@@ -1777,9 +1777,9 @@ in
     };
   });
   
-  "unknown".garage_api."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_api."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_api";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/api");
     features = builtins.concatLists [
@@ -1798,11 +1798,11 @@ in
       form_urlencoded = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".form_urlencoded."1.2.0" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_block = (rustPackages."unknown".garage_block."0.8.3" { inherit profileName; }).out;
-      garage_model = (rustPackages."unknown".garage_model."0.8.3" { inherit profileName; }).out;
-      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.3" { inherit profileName; }).out;
-      garage_table = (rustPackages."unknown".garage_table."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_block = (rustPackages."unknown".garage_block."0.8.4" { inherit profileName; }).out;
+      garage_model = (rustPackages."unknown".garage_model."0.8.4" { inherit profileName; }).out;
+      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.4" { inherit profileName; }).out;
+      garage_table = (rustPackages."unknown".garage_table."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       hmac = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hmac."0.12.1" { inherit profileName; }).out;
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" { inherit profileName; }).out;
@@ -1831,9 +1831,9 @@ in
     };
   });
   
-  "unknown".garage_block."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_block."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_block";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/block");
     features = builtins.concatLists [
@@ -1847,10 +1847,10 @@ in
       bytesize = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytesize."1.3.0" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
-      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.3" { inherit profileName; }).out;
-      garage_table = (rustPackages."unknown".garage_table."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
+      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.4" { inherit profileName; }).out;
+      garage_table = (rustPackages."unknown".garage_table."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
       rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; }).out;
@@ -1863,9 +1863,9 @@ in
     };
   });
   
-  "unknown".garage_db."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_db."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_db";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/db");
     features = builtins.concatLists [
@@ -1895,9 +1895,9 @@ in
     };
   });
   
-  "unknown".garage_model."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_model."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_model";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/model");
     features = builtins.concatLists [
@@ -1916,13 +1916,13 @@ in
       err_derive = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_block = (rustPackages."unknown".garage_block."0.8.3" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
-      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.3" { inherit profileName; }).out;
-      garage_table = (rustPackages."unknown".garage_table."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_block = (rustPackages."unknown".garage_block."0.8.4" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
+      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.4" { inherit profileName; }).out;
+      garage_table = (rustPackages."unknown".garage_table."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
-      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.3" { inherit profileName; }).out;
+      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.2" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
       rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; }).out;
       serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.188" { inherit profileName; }).out;
@@ -1933,9 +1933,9 @@ in
     };
   });
   
-  "unknown".garage_rpc."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_rpc."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_rpc";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/rpc");
     features = builtins.concatLists [
@@ -1956,15 +1956,15 @@ in
       ${ if rootFeatures' ? "garage/consul-discovery" || rootFeatures' ? "garage_rpc/consul-discovery" || rootFeatures' ? "garage_rpc/err-derive" then "err_derive" else null } = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       gethostname = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".gethostname."0.4.3" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       itertools = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".itertools."0.10.5" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/kubernetes-discovery" || rootFeatures' ? "garage_rpc/k8s-openapi" || rootFeatures' ? "garage_rpc/kubernetes-discovery" then "k8s_openapi" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.16.0" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/kubernetes-discovery" || rootFeatures' ? "garage_rpc/kube" || rootFeatures' ? "garage_rpc/kubernetes-discovery" then "kube" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube."0.75.0" { inherit profileName; }).out;
       sodiumoxide = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".kuska-sodiumoxide."0.2.5-0" { inherit profileName; }).out;
-      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.3" { inherit profileName; }).out;
+      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.2" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
       pnet_datalink = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".pnet_datalink."0.33.0" { inherit profileName; }).out;
       rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; }).out;
@@ -1980,9 +1980,9 @@ in
     };
   });
   
-  "unknown".garage_table."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_table."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_table";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/table");
     dependencies = {
@@ -1991,9 +1991,9 @@ in
       bytes = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
-      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
+      garage_rpc = (rustPackages."unknown".garage_rpc."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       hexdump = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hexdump."0.1.1" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
@@ -2005,9 +2005,9 @@ in
     };
   });
   
-  "unknown".garage_util."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_util."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_util";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/util");
     features = builtins.concatLists [
@@ -2022,16 +2022,16 @@ in
       digest = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".digest."0.10.7" { inherit profileName; }).out;
       err_derive = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
-      garage_db = (rustPackages."unknown".garage_db."0.8.3" { inherit profileName; }).out;
+      garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;
       hex = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hex."0.4.3" { inherit profileName; }).out;
       hexdump = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hexdump."0.1.1" { inherit profileName; }).out;
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" { inherit profileName; }).out;
       hyper = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.27" { inherit profileName; }).out;
       lazy_static = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" { inherit profileName; }).out;
-      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.3" { inherit profileName; }).out;
+      netapp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.2" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
       rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; }).out;
-      rmp_serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."1.1.2" { inherit profileName; }).out;
+      rmp_serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; }).out;
       serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.188" { inherit profileName; }).out;
       serde_json = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.105" { inherit profileName; }).out;
       sha2 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".sha2."0.10.7" { inherit profileName; }).out;
@@ -2048,18 +2048,18 @@ in
     };
   });
   
-  "unknown".garage_web."0.8.3" = overridableMkRustCrate (profileName: rec {
+  "unknown".garage_web."0.8.4" = overridableMkRustCrate (profileName: rec {
     name = "garage_web";
-    version = "0.8.3";
+    version = "0.8.4";
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/src/web");
     dependencies = {
       err_derive = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
-      garage_api = (rustPackages."unknown".garage_api."0.8.3" { inherit profileName; }).out;
-      garage_model = (rustPackages."unknown".garage_model."0.8.3" { inherit profileName; }).out;
-      garage_table = (rustPackages."unknown".garage_table."0.8.3" { inherit profileName; }).out;
-      garage_util = (rustPackages."unknown".garage_util."0.8.3" { inherit profileName; }).out;
+      garage_api = (rustPackages."unknown".garage_api."0.8.4" { inherit profileName; }).out;
+      garage_model = (rustPackages."unknown".garage_model."0.8.4" { inherit profileName; }).out;
+      garage_table = (rustPackages."unknown".garage_table."0.8.4" { inherit profileName; }).out;
+      garage_util = (rustPackages."unknown".garage_util."0.8.4" { inherit profileName; }).out;
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" { inherit profileName; }).out;
       hyper = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.27" { inherit profileName; }).out;
       opentelemetry = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.17.0" { inherit profileName; }).out;
@@ -3201,11 +3201,11 @@ in
     src = fetchCratesIo { inherit name version; sha256 = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"; };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.3" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".netapp."0.5.2" = overridableMkRustCrate (profileName: rec {
     name = "netapp";
-    version = "0.5.3";
+    version = "0.5.2";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "0eb28e89e7b21d3fdf2b46e2a580ccaab68f469f2e5c27db74f61994be90b558"; };
+    src = fetchCratesIo { inherit name version; sha256 = "4ffe47ac46d3b2ce2f736a70865492df082e042eb2bfdddfca3b8dd66bd9469d"; };
     features = builtins.concatLists [
       [ "default" ]
       [ "opentelemetry" ]
@@ -3227,7 +3227,7 @@ in
       opentelemetry_contrib = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-contrib."0.9.0" { inherit profileName; }).out;
       pin_project = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.1.3" { inherit profileName; }).out;
       rand = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" { inherit profileName; }).out;
-      rmp_serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."1.1.2" { inherit profileName; }).out;
+      rmp_serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" { inherit profileName; }).out;
       serde = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.188" { inherit profileName; }).out;
       tokio = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.32.0" { inherit profileName; }).out;
       tokio_stream = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-stream."0.1.14" { inherit profileName; }).out;
@@ -4277,11 +4277,11 @@ in
     };
   });
   
-  "registry+https://github.com/rust-lang/crates.io-index".rmp-serde."1.1.2" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".rmp-serde."0.15.5" = overridableMkRustCrate (profileName: rec {
     name = "rmp-serde";
-    version = "1.1.2";
+    version = "0.15.5";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
-    src = fetchCratesIo { inherit name version; sha256 = "bffea85eea980d8a74453e5d02a8d93028f3c34725de143085a844ebe953258a"; };
+    src = fetchCratesIo { inherit name version; sha256 = "723ecff9ad04f4ad92fe1c8ca6c20d2196d9286e9c60727c4cb5511629260e9d"; };
     dependencies = {
       byteorder = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".byteorder."1.4.3" { inherit profileName; }).out;
       rmp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".rmp."0.8.12" { inherit profileName; }).out;
