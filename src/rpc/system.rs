@@ -899,8 +899,8 @@ impl NodeStatus {
 		use nix::sys::statvfs::statvfs;
 		let mount_avail = |path: &Path| match statvfs(path) {
 			Ok(x) => {
-				let avail = x.blocks_available() * x.fragment_size();
-				let total = x.blocks() * x.fragment_size();
+				let avail = x.blocks_available() * x.fragment_size() as u64;
+				let total = x.blocks() * x.fragment_size() as u64;
 				Some((x.filesystem_id(), avail, total))
 			}
 			Err(_) => None,
