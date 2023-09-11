@@ -372,6 +372,9 @@ impl ScrubWorker {
 			ScrubWorkerCommand::Cancel => {
 				self.work = match std::mem::take(&mut self.work) {
 					ScrubWorkerState::Running { .. } | ScrubWorkerState::Paused { .. } => {
+						if let Err(e) = self.persister.set_with(|x| x.checkpoint = None) {
+							error!("Could not save scrub checkpoint: {}", e);
+						}
 						ScrubWorkerState::Finished
 					}
 					work => {
