@@ -18,7 +18,6 @@ use garage_util::time::*;
 use garage_util::tranquilizer::Tranquilizer;
 
 use crate::block::*;
-use crate::layout::*;
 use crate::manager::*;
 
 // Full scrub every 25 days with a random element of 10 days mixed in below
@@ -636,31 +635,23 @@ impl BlockStoreIterator {
 	fn new(manager: &BlockManager) -> Self {
 		let data_layout = manager.data_layout.load_full();
 
-		let min_cap = data_layout
-			.data_dirs
-			.iter()
-			.filter_map(|x| x.capacity())
-			.min()
-			.unwrap_or(0);
-
-		let sum_cap = data_layout
-			.data_dirs
-			.iter()
-			.map(|x| x.capacity().unwrap_or(min_cap /* approximation */))
-			.sum::<u64>() as u128;
+		let mut dir_cap = vec![0; data_layout.data_dirs.len()];
+		for prim in data_layout.part_prim.iter() {
+			dir_cap[*prim as usize] += 1;
+		}
+		for sec_vec in data_layout.part_sec.iter() {
+			for sec in sec_vec.iter() {
+				dir_cap[*sec as usize] += 1;
+			}
+		}
+		let sum_cap = dir_cap.iter().sum::<usize>() as u64;
 
 		let mut cum_cap = 0;
 		let mut todo = vec![];
-		for dir in data_layout.data_dirs.iter() {
-			let cap = match dir.state {
-				DataDirState::Active { capacity } => capacity,
-				_ => min_cap,
-			};
-
-			let progress_min = ((cum_cap as u128 * PROGRESS_FP as u128) / (sum_cap as u128)) as u64;
-			let progress_max =
-				(((cum_cap + cap) as u128 * PROGRESS_FP as u128) / (sum_cap as u128)) as u64;
-			cum_cap += cap;
+		for (dir, cap) in data_layout.data_dirs.iter().zip(dir_cap.into_iter()) {
+			let progress_min = (cum_cap * PROGRESS_FP) / sum_cap;
+			let progress_max = ((cum_cap + cap as u64) * PROGRESS_FP) / sum_cap;
+			cum_cap += cap as u64;
 
 			todo.push(BsiTodo::Directory {
 				path: dir.path.clone(),
