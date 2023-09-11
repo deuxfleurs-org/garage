@@ -15,9 +15,9 @@ db_engine = "lmdb"
 
 block_size = 1048576
 
-sled_cache_capacity = 134217728
+sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
-lmdb_map_size = "10T"
+lmdb_map_size = "1T"
 
 replication_mode = "3"
 
@@ -134,8 +134,8 @@ and not just the path to the metadata directory.
 ### `block_size`
 
 Garage splits stored objects in consecutive chunks of size `block_size`
-(except the last one which might be smaller). The default size is 1MB and
-should work in most cases. We recommend increasing it to e.g. 10MB if
+(except the last one which might be smaller). The default size is 1MiB and
+should work in most cases. We recommend increasing it to e.g. 10MiB if
 you are using Garage to store large files and have fast network connections
 between all nodes (e.g. 1gbps).
 

@@ -95,7 +95,7 @@ impl Garage {
 				info!("Opening Sled database at: {}", db_path.display());
 				let db = db::sled_adapter::sled::Config::default()
 					.path(&db_path)
-					.cache_capacity(config.sled_cache_capacity)
+					.cache_capacity(config.sled_cache_capacity as u64)
 					.flush_every_ms(Some(config.sled_flush_every_ms))
 					.open()
 					.ok_or_message("Unable to open sled DB")?;
@@ -121,21 +121,13 @@ impl Garage {
 			// ---- LMDB DB ----
 			#[cfg(feature = "lmdb")]
 			"lmdb" | "heed" => {
-				use std::convert::TryInto;
 				db_path.push("db.lmdb");
 				info!("Opening LMDB database at: {}", db_path.display());
 				std::fs::create_dir_all(&db_path)
 					.ok_or_message("Unable to create LMDB data directory")?;
-				let map_size = match &config.lmdb_map_size {
-					None => garage_db::lmdb_adapter::recommended_map_size(),
-					Some(v) => {
-						let v: usize = v
-							.parse::<bytesize::ByteSize>()
-							.ok()
-							.and_then(|x| x.as_u64().try_into().ok())
-							.ok_or_message("invalid value for `lmdb_map_size`")?;
-						v - (v % 4096)
-					}
+				let map_size = match config.lmdb_map_size {
+					v if v == usize::default() => garage_db::lmdb_adapter::recommended_map_size(),
+					v => v - (v % 4096),
 				};
 
 				use db::lmdb_adapter::heed;
