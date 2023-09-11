@@ -80,8 +80,6 @@ pub struct BlockManager {
 	/// Replication strategy, allowing to find on which node blocks should be located
 	pub replication: TableShardedReplication,
 
-	/// Directory/ies in which block are stored
-	pub data_dir: DataDirEnum,
 	/// Data layout
 	pub(crate) data_layout: ArcSwap<DataLayout>,
 	/// Data layout persister
@@ -169,7 +167,6 @@ impl BlockManager {
 
 		let block_manager = Arc::new(Self {
 			replication,
-			data_dir,
 			data_layout: ArcSwap::new(Arc::new(data_layout)),
 			data_layout_persister,
 			data_fsync,
