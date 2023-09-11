@@ -124,7 +124,7 @@ impl Garage {
 				info!("Opening Sled database at: {}", db_path.display());
 				let db = db::sled_adapter::sled::Config::default()
 					.path(&db_path)
-					.cache_capacity(config.sled_cache_capacity)
+					.cache_capacity(config.sled_cache_capacity as u64)
 					.flush_every_ms(Some(config.sled_flush_every_ms))
 					.open()
 					.ok_or_message("Unable to open sled DB")?;
@@ -163,7 +163,10 @@ impl Garage {
 				info!("Opening LMDB database at: {}", db_path.display());
 				std::fs::create_dir_all(&db_path)
 					.ok_or_message("Unable to create LMDB data directory")?;
-				let map_size = garage_db::lmdb_adapter::recommended_map_size();
+				let map_size = match config.lmdb_map_size {
+					v if v == usize::default() => garage_db::lmdb_adapter::recommended_map_size(),
+					v => v - (v % 4096),
+				};
 
 				use db::lmdb_adapter::heed;
 				let mut env_builder = heed::EnvOpenOptions::new();
@@ -182,6 +185,7 @@ impl Garage {
 							"OutOfMemory error while trying to open LMDB database. This can happen \
 							if your operating system is not allowing you to use sufficient virtual \
 							memory address space. Please check that no limit is set (ulimit -v). \
+							You may also try to set a smaller `lmdb_map_size` configuration parameter. \
 							On 32-bit machines, you should probably switch to another database engine.".into()))
 					}
 					x => x.ok_or_message("Unable to open LMDB DB")?,

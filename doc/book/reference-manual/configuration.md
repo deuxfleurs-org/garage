@@ -17,8 +17,9 @@ db_engine = "lmdb"
 
 block_size = 1048576
 
-sled_cache_capacity = 134217728
+sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
+lmdb_map_size = "1T"
 
 replication_mode = "3"
 
@@ -191,8 +192,8 @@ if geographical replication is used.
 ### `block_size`
 
 Garage splits stored objects in consecutive chunks of size `block_size`
-(except the last one which might be smaller). The default size is 1MB and
-should work in most cases. We recommend increasing it to e.g. 10MB if
+(except the last one which might be smaller). The default size is 1MiB and
+should work in most cases. We recommend increasing it to e.g. 10MiB if
 you are using Garage to store large files and have fast network connections
 between all nodes (e.g. 1gbps).
 
@@ -217,6 +218,14 @@ This parameters can be used to tune the flushing interval of sled.
 Increase this if sled is thrashing your SSD, at the risk of losing more data in case
 of a power outage (though this should not matter much as data is replicated on other
 nodes). The default value, 2000ms, should be appropriate for most use cases.
+
+### `lmdb_map_size`
+
+This parameters can be used to set the map size used by LMDB,
+which is the size of the virtual memory region used for mapping the database file.
+The value of this parameter is the maximum size the metadata database can take.
+This value is not bound by the physical RAM size of the machine running Garage.
+If not specified, it defaults to 1GiB on 32-bit machines and 1TiB on 64-bit machines.
 
 ### `replication_mode`
 
