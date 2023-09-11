@@ -24,7 +24,7 @@ hex = "0.4"
 tracing = "0.1"
 rand = "0.8"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
-systemstat = "0.2.3"
+nix = { version = "0.27", default-features = false, features = ["fs"] }
 
 async-trait = "0.1.7"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }

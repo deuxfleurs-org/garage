@@ -1377,6 +1377,7 @@ dependencies = [
  "kube",
  "kuska-sodiumoxide",
  "netapp",
+ "nix",
  "opentelemetry",
  "pnet_datalink",
  "rand",
@@ -1385,7 +1386,6 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
- "systemstat",
  "tokio",
  "tokio-stream",
  "tracing",
@@ -2290,6 +2290,17 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util 0.7.8",
+]
+
+[[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.0",
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -3532,20 +3543,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "unicode-xid",
-]
-
-[[package]]
-name = "systemstat"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a24aec24a9312c83999a28e3ef9db7e2afd5c64bf47725b758cdc1cafd5b0bd2"
-dependencies = [
- "bytesize",
- "lazy_static",
- "libc",
- "nom",
- "time 0.3.28",
- "winapi",
 ]
 
 [[package]]

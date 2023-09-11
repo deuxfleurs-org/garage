@@ -891,15 +891,14 @@ impl NodeStatus {
 	}
 
 	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &Path, metrics: &SystemMetrics) {
-		use systemstat::{Platform, System};
-		let mounts = System::new().mounts().unwrap_or_default();
-
-		let mount_avail = |path: &Path| {
-			mounts
-				.iter()
-				.filter(|x| path.starts_with(&x.fs_mounted_on))
-				.max_by_key(|x| x.fs_mounted_on.len())
-				.map(|x| (x.avail.as_u64(), x.total.as_u64()))
+		use nix::sys::statvfs::statvfs;
+		let mount_avail = |path: &Path| match statvfs(path) {
+			Ok(x) => {
+				let avail = x.blocks_available() * x.fragment_size();
+				let total = x.blocks() * x.fragment_size();
+				Some((avail, total))
+			}
+			Err(_) => None,
 		};
 
 		self.meta_disk_avail = mount_avail(meta_dir);
