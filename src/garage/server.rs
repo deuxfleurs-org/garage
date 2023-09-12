@@ -130,20 +130,27 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 		warn!("This Garage version is built without the metrics feature");
 	}
 
-	// Stuff runs
+	if servers.is_empty() {
+		// Nothing runs except netapp (not in servers)
+		// Await shutdown signal before proceeding to shutting down netapp
+		wait_from(watch_cancel).await;
+	} else {
+		// Stuff runs
 
-	// When a cancel signal is sent, stuff stops
+		// When a cancel signal is sent, stuff stops
 
-	// Collect stuff
-	for (desc, join_handle) in servers {
-		if let Err(e) = join_handle.await? {
-			error!("{} server exited with error: {}", desc, e);
-		} else {
-			info!("{} server exited without error.", desc);
+		// Collect stuff
+		for (desc, join_handle) in servers {
+			if let Err(e) = join_handle.await? {
+				error!("{} server exited with error: {}", desc, e);
+			} else {
+				info!("{} server exited without error.", desc);
+			}
 		}
 	}
 
 	// Remove RPC handlers for system to break reference cycles
+	info!("Deregistering RPC handlers for shutdown...");
 	garage.system.netapp.drop_all_handlers();
 	opentelemetry::global::shutdown_tracer_provider();
 
