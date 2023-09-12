@@ -174,16 +174,12 @@ pub async fn cmd_show_layout(
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	println!("==== CURRENT CLUSTER LAYOUT ====");
-	if !print_cluster_layout(&layout) {
-		println!("No nodes currently have a role in the cluster.");
-		println!("See `garage status` to view available nodes.");
-	}
+	print_cluster_layout(&layout, "No nodes currently have a role in the cluster.\nSee `garage status` to view available nodes.");
 	println!();
 	println!("Current cluster layout version: {}", layout.version);
 
 	let has_role_changes = print_staging_role_changes(&layout);
-	let has_param_changes = print_staging_parameters_changes(&layout);
-	if has_role_changes || has_param_changes {
+	if has_role_changes {
 		let v = layout.version;
 		let res_apply = layout.apply_staged_changes(Some(v + 1));
 
@@ -193,9 +189,7 @@ pub async fn cmd_show_layout(
 			Ok((layout, msg)) => {
 				println!();
 				println!("==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====");
-				if !print_cluster_layout(&layout) {
-					println!("No nodes have a role in the new layout.");
-				}
+				print_cluster_layout(&layout, "No nodes have a role in the new layout.");
 				println!();
 
 				for line in msg.iter() {
@@ -326,7 +320,7 @@ pub async fn send_layout(
 	Ok(())
 }
 
-pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
+pub fn print_cluster_layout(layout: &ClusterLayout, empty_msg: &str) {
 	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable capacity".to_string()];
 	for (id, _, role) in layout.roles.items().iter() {
 		let role = match &role.0 {
@@ -356,61 +350,54 @@ pub fn print_cluster_layout(layout: &ClusterLayout) -> bool {
 			));
 		};
 	}
-	println!();
-	println!("Parameters of the layout computation:");
-	println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
-	println!();
-	if table.len() == 1 {
-		false
-	} else {
+	if table.len() > 1 {
 		format_table(table);
-		true
+	} else {
+		println!("{}", empty_msg);
 	}
-}
-
-pub fn print_staging_parameters_changes(layout: &ClusterLayout) -> bool {
-	let has_changes = *layout.staging_parameters.get() != layout.parameters;
-	if has_changes {
-		println!();
-		println!("==== NEW LAYOUT PARAMETERS ====");
-		println!(
-			"Zone redundancy: {}",
-			layout.staging_parameters.get().zone_redundancy
-		);
-		println!();
-	}
-	has_changes
+	println!();
+	println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
 }
 
 pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
-	let has_changes = layout
+	let has_role_changes = layout
 		.staging_roles
 		.items()
 		.iter()
 		.any(|(k, _, v)| layout.roles.get(k) != Some(v));
+	let has_layout_changes = *layout.staging_parameters.get() != layout.parameters;
 
-	if has_changes {
+	if has_role_changes || has_layout_changes {
 		println!();
 		println!("==== STAGED ROLE CHANGES ====");
-		let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
-		for (id, _, role) in layout.staging_roles.items().iter() {
-			if layout.roles.get(id) == Some(role) {
-				continue;
+		if has_role_changes {
+			let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
+			for (id, _, role) in layout.staging_roles.items().iter() {
+				if layout.roles.get(id) == Some(role) {
+					continue;
+				}
+				if let Some(role) = &role.0 {
+					let tags = role.tags.join(",");
+					table.push(format!(
+						"{:?}\t{}\t{}\t{}",
+						id,
+						tags,
+						role.zone,
+						role.capacity_string()
+					));
+				} else {
+					table.push(format!("{:?}\tREMOVED", id));
+				}
 			}
-			if let Some(role) = &role.0 {
-				let tags = role.tags.join(",");
-				table.push(format!(
-					"{:?}\t{}\t{}\t{}",
-					id,
-					tags,
-					role.zone,
-					role.capacity_string()
-				));
-			} else {
-				table.push(format!("{:?}\tREMOVED", id));
-			}
+			format_table(table);
+			println!();
 		}
-		format_table(table);
+		if has_layout_changes {
+			println!(
+				"Zone redundancy: {}",
+				layout.staging_parameters.get().zone_redundancy
+			);
+		}
 		true
 	} else {
 		false

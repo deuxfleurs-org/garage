@@ -585,16 +585,16 @@ impl ClusterLayout {
 		// optimality.
 		let partition_size = self.compute_optimal_partition_size(&zone_to_id)?;
 
+		msg.push("".into());
 		if old_assignment_opt != None {
 			msg.push(format!(
-				"Optimal size of a partition: {} (was {} in the previous layout).",
+				"Optimal partition size:                     {} ({} in previous layout)",
 				ByteSize::b(partition_size).to_string_as(false),
 				ByteSize::b(self.partition_size).to_string_as(false)
 			));
 		} else {
 			msg.push(format!(
-				"Given the replication and redundancy constraints, the \
-                optimal size of a partition is {}.",
+				"Optimal partition size:                     {}",
 				ByteSize::b(partition_size).to_string_as(false)
 			));
 		}
@@ -618,7 +618,6 @@ impl ClusterLayout {
 
 		// We display statistics of the computation
 		msg.extend(self.output_stat(&gflow, &old_assignment_opt, &zone_to_id, &id_to_zone)?);
-		msg.push("".to_string());
 
 		// We update the layout structure
 		self.update_ring_from_flow(id_to_zone.len(), &gflow)?;
@@ -931,29 +930,33 @@ impl ClusterLayout {
 		let used_cap = self.partition_size * NB_PARTITIONS as u64 * self.replication_factor as u64;
 		let total_cap = self.get_total_capacity()?;
 		let percent_cap = 100.0 * (used_cap as f32) / (total_cap as f32);
-		msg.push("".into());
 		msg.push(format!(
-			"Usable capacity / Total cluster capacity: {} / {} ({:.1} %)",
+			"Usable capacity / total cluster capacity:   {} / {} ({:.1} %)",
 			ByteSize::b(used_cap).to_string_as(false),
 			ByteSize::b(total_cap).to_string_as(false),
 			percent_cap
 		));
-		msg.push("".into());
-		msg.push(
-			"If the percentage is too low, it might be that the \
-        replication/redundancy constraints force the use of nodes/zones with small \
-        storage capacities. \
-        You might want to rebalance the storage capacities or relax the constraints. \
-        See the detailed statistics below and look for saturated nodes/zones."
-				.into(),
-		);
 		msg.push(format!(
-			"Recall that because of the replication factor, the actual available \
-                         storage capacity is {} / {} = {}.",
-			ByteSize::b(used_cap).to_string_as(false),
+			"Effective capacity (replication factor {}):  {}",
 			self.replication_factor,
 			ByteSize::b(used_cap / self.replication_factor as u64).to_string_as(false)
 		));
+		if percent_cap < 80. {
+			msg.push("".into());
+			msg.push(
+				"If the percentage is too low, it might be that the \
+            replication/redundancy constraints force the use of nodes/zones with small \
+            storage capacities."
+					.into(),
+			);
+			msg.push(
+				"You might want to rebalance the storage capacities or relax the constraints."
+					.into(),
+			);
+			msg.push(
+				"See the detailed statistics below and look for saturated nodes/zones.".into(),
+			);
+		}
 
 		// We define and fill in the following tables
 		let storing_nodes = self.nongateway_nodes();
@@ -1007,10 +1010,10 @@ impl ClusterLayout {
                              transferred.",
 				total_new_partitions
 			));
+			msg.push("".into());
 		}
-		msg.push("".into());
-		msg.push("==== DETAILED STATISTICS BY ZONES AND NODES ====".into());
 
+		let mut table = vec![];
 		for z in 0..id_to_zone.len() {
 			let mut nodes_of_z = Vec::<usize>::new();
 			for n in 0..storing_nodes.len() {
@@ -1020,15 +1023,9 @@ impl ClusterLayout {
 			}
 			let replicated_partitions: usize =
 				nodes_of_z.iter().map(|n| stored_partitions[*n]).sum();
-			msg.push("".into());
-
-			msg.push(format!(
-				"Zone {}: {} distinct partitions stored ({} new, \
-                {} partition copies) ",
-				id_to_zone[z],
-				stored_partitions_zone[z],
-				new_partitions_zone[z],
-				replicated_partitions
+			table.push(format!(
+				"{}\tTags\tPartitions\tCapacity\tUsable capacity",
+				id_to_zone[z]
 			));
 
 			let available_cap_z: u64 = self.partition_size * replicated_partitions as u64;
@@ -1037,33 +1034,35 @@ impl ClusterLayout {
 				total_cap_z += self.get_node_capacity(&self.node_id_vec[*n])?;
 			}
 			let percent_cap_z = 100.0 * (available_cap_z as f32) / (total_cap_z as f32);
-			msg.push(format!(
-				"  Usable capacity / Total capacity: {} / {} ({:.1}%).",
-				ByteSize::b(available_cap_z).to_string_as(false),
-				ByteSize::b(total_cap_z).to_string_as(false),
-				percent_cap_z
-			));
 
 			for n in nodes_of_z.iter() {
 				let available_cap_n = stored_partitions[*n] as u64 * self.partition_size;
 				let total_cap_n = self.get_node_capacity(&self.node_id_vec[*n])?;
-				let tags_n = (self
-					.node_role(&self.node_id_vec[*n])
-					.ok_or("Node not found."))?
-				.tags_string();
-				msg.push(format!(
-					"  Node {:?}: {} partitions ({} new) ; \
-                                 usable/total capacity: {} / {} ({:.1}%) ; tags:{}",
+				let tags_n = (self.node_role(&self.node_id_vec[*n]).ok_or("<??>"))?.tags_string();
+				table.push(format!(
+					"  {:?}\t{}\t{} ({} new)\t{}\t{} ({:.1}%)",
 					self.node_id_vec[*n],
+					tags_n,
 					stored_partitions[*n],
 					new_partitions[*n],
 					ByteSize::b(available_cap_n).to_string_as(false),
 					ByteSize::b(total_cap_n).to_string_as(false),
 					(available_cap_n as f32) / (total_cap_n as f32) * 100.0,
-					tags_n
 				));
 			}
+
+			table.push(format!(
+				"  TOTAL\t\t{} ({} unique)\t{}\t{} ({:.1}%)",
+				replicated_partitions,
+				stored_partitions_zone[z],
+				//new_partitions_zone[z],
+				ByteSize::b(available_cap_z).to_string_as(false),
+				ByteSize::b(total_cap_z).to_string_as(false),
+				percent_cap_z
+			));
+			table.push("".into());
 		}
+		msg.push(format_table::format_table_to_string(table));
 
 		Ok(msg)
 	}
