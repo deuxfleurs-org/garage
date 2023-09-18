@@ -261,28 +261,35 @@ pub async fn cmd_config_layout(
 	let mut did_something = false;
 	match config_opt.redundancy {
 		None => (),
-		Some(r) => {
-			if r > layout.replication_factor {
-				println!(
-					"The zone redundancy must be smaller or equal to the \
-                replication factor ({}).",
-					layout.replication_factor
-				);
-			} else if r < 1 {
-				println!("The zone redundancy must be at least 1.");
-			} else {
-				layout
-					.staging_parameters
-					.update(LayoutParameters { zone_redundancy: r });
-				println!("The new zone redundancy has been saved ({}).", r);
+		Some(r_str) => {
+			let r = r_str
+				.parse::<ZoneRedundancy>()
+				.ok_or_message("invalid zone redundancy value")?;
+			if let ZoneRedundancy::AtLeast(r_int) = r {
+				if r_int > layout.replication_factor {
+					return Err(Error::Message(format!(
+						"The zone redundancy must be smaller or equal to the \
+                    replication factor ({}).",
+						layout.replication_factor
+					)));
+				} else if r_int < 1 {
+					return Err(Error::Message(
+						"The zone redundancy must be at least 1.".into(),
+					));
+				}
 			}
+
+			layout
+				.staging_parameters
+				.update(LayoutParameters { zone_redundancy: r });
+			println!("The new zone redundancy has been saved ({}).", r);
 			did_something = true;
 		}
 	}
 
 	if !did_something {
 		return Err(Error::Message(
-			"Please specify an action for `garage layout config` to do".into(),
+			"Please specify an action for `garage layout config`".into(),
 		));
 	}
 

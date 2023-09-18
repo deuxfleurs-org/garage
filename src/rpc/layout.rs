@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt;
 
 use bytesize::ByteSize;
 use itertools::Itertools;
@@ -115,7 +116,16 @@ mod v09 {
 	/// algorithm. It is stored as a Crdt.
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
 	pub struct LayoutParameters {
-		pub zone_redundancy: usize,
+		pub zone_redundancy: ZoneRedundancy,
+	}
+
+	/// Zone redundancy: if set to AtLeast(x), the layout calculation will aim to store copies
+	/// of each partition on at least that number of different zones.
+	/// If None, copies will be stored on the maximum possible number of zones.
+	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
+	pub enum ZoneRedundancy {
+		AtLeast(usize),
+		Maximum,
 	}
 
 	impl garage_util::migrate::Migrate for ClusterLayout {
@@ -125,7 +135,6 @@ mod v09 {
 
 		fn migrate(previous: Self::Previous) -> Self {
 			use itertools::Itertools;
-			use std::collections::HashSet;
 
 			// In the old layout, capacities are in an arbitrary unit,
 			// but in the new layout they are in bytes.
@@ -152,17 +161,10 @@ mod v09 {
 				.min()
 				.unwrap_or(0);
 
-			// Determine zone redundancy parameter
-			let zone_redundancy = std::cmp::min(
-				previous.replication_factor,
-				roles
-					.items()
-					.iter()
-					.filter_map(|(_, _, r)| r.0.as_ref().map(|p| p.zone.as_str()))
-					.collect::<HashSet<&str>>()
-					.len(),
-			);
-			let parameters = LayoutParameters { zone_redundancy };
+			// By default, zone_redundancy is None (i.e. maximum possible value)
+			let parameters = LayoutParameters {
+				zone_redundancy: ZoneRedundancy::Maximum,
+			};
 
 			let mut res = Self {
 				version: previous.version,
@@ -224,13 +226,37 @@ impl NodeRole {
 	}
 }
 
+impl fmt::Display for ZoneRedundancy {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			ZoneRedundancy::Maximum => write!(f, "maximum"),
+			ZoneRedundancy::AtLeast(x) => write!(f, "{}", x),
+		}
+	}
+}
+
+impl core::str::FromStr for ZoneRedundancy {
+	type Err = &'static str;
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"none" | "max" | "maximum" => Ok(ZoneRedundancy::Maximum),
+			x => {
+				let v = x
+					.parse::<usize>()
+					.map_err(|_| "zone redundancy must be 'none'/'max' or an integer")?;
+				Ok(ZoneRedundancy::AtLeast(v))
+			}
+		}
+	}
+}
+
 // Implementation of the ClusterLayout methods unrelated to the assignment algorithm.
 impl ClusterLayout {
 	pub fn new(replication_factor: usize) -> Self {
-		// We set the default zone redundancy to be equal to the replication factor,
-		// i.e. as strict as possible.
+		// We set the default zone redundancy to be None, meaning that the maximum
+		// possible value will be used depending on the cluster topology
 		let parameters = LayoutParameters {
-			zone_redundancy: replication_factor,
+			zone_redundancy: ZoneRedundancy::Maximum,
 		};
 		let staging_parameters = Lww::<LayoutParameters>::new(parameters.clone());
 
@@ -418,6 +444,23 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		Ok(total_capacity)
 	}
 
+	/// Returns the effective value of the zone_redundancy parameter
+	fn effective_zone_redundancy(&self) -> usize {
+		match self.parameters.zone_redundancy {
+			ZoneRedundancy::AtLeast(v) => v,
+			ZoneRedundancy::Maximum => {
+				let n_zones = self
+					.roles
+					.items()
+					.iter()
+					.filter_map(|(_, _, role)| role.0.as_ref().map(|x| x.zone.as_str()))
+					.collect::<HashSet<&str>>()
+					.len();
+				std::cmp::min(n_zones, self.replication_factor)
+			}
+		}
+	}
+
 	/// Check a cluster layout for internal consistency
 	/// (assignment, roles, parameters, partition size)
 	/// returns true if consistent, false if error
@@ -471,6 +514,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		// Check that every partition is associated to distinct nodes
+		let zone_redundancy = self.effective_zone_redundancy();
 		let rf = self.replication_factor;
 		for p in 0..(1 << PARTITION_BITS) {
 			let nodes_of_p = self.ring_assignment_data[rf * p..rf * (p + 1)].to_vec();
@@ -485,11 +529,10 @@ To know the correct value of the new layout version, invoke `garage layout show`
 						.expect("Zone not found.")
 				})
 				.collect::<Vec<_>>();
-			let redundancy = self.parameters.zone_redundancy;
-			if zones_of_p.iter().unique().count() < redundancy {
+			if zones_of_p.iter().unique().count() < zone_redundancy {
 				return Err(format!(
 					"nodes of partition are in less than {} distinct zones",
-					redundancy
+					zone_redundancy
 				));
 			}
 		}
@@ -518,7 +561,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		// algorithm.
 		let cl2 = self.clone();
 		let (_, zone_to_id) = cl2.generate_nongateway_zone_ids().unwrap();
-		match cl2.compute_optimal_partition_size(&zone_to_id) {
+		match cl2.compute_optimal_partition_size(&zone_to_id, zone_redundancy) {
 			Ok(s) if s != self.partition_size => {
 				return Err(format!(
 					"partition_size ({}) is different than optimal value ({})",
@@ -532,6 +575,8 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		Ok(())
 	}
 }
+
+// ====================================================================================
 
 // Implementation of the ClusterLayout methods related to the assignment algorithm.
 impl ClusterLayout {
@@ -549,13 +594,15 @@ impl ClusterLayout {
 		// changes in the layout. We retrieve the old_assignment reframed with new ids
 		let old_assignment_opt = self.update_node_id_vec()?;
 
+		let zone_redundancy = self.effective_zone_redundancy();
+
 		let mut msg = Message::new();
 		msg.push("==== COMPUTATION OF A NEW PARTITION ASSIGNATION ====".into());
 		msg.push("".into());
 		msg.push(format!(
 			"Partitions are \
         replicated {} times on at least {} distinct zones.",
-			self.replication_factor, self.parameters.zone_redundancy
+			self.replication_factor, zone_redundancy
 		));
 
 		// We generate for once numerical ids for the zones of non gateway nodes,
@@ -570,12 +617,12 @@ impl ClusterLayout {
 				nb_nongateway_nodes, self.replication_factor
 			)));
 		}
-		if id_to_zone.len() < self.parameters.zone_redundancy {
+		if id_to_zone.len() < zone_redundancy {
 			return Err(Error::Message(format!(
 				"The number of zones with non-gateway \
             nodes ({}) is smaller than the redundancy parameter ({})",
 				id_to_zone.len(),
-				self.parameters.zone_redundancy
+				zone_redundancy
 			)));
 		}
 
@@ -583,7 +630,7 @@ impl ClusterLayout {
 		// Capacities should be given in a unit so that partition size is at least 100.
 		// In this case, integer rounding plays a marginal role in the percentages of
 		// optimality.
-		let partition_size = self.compute_optimal_partition_size(&zone_to_id)?;
+		let partition_size = self.compute_optimal_partition_size(&zone_to_id, zone_redundancy)?;
 
 		msg.push("".into());
 		if old_assignment_opt != None {
@@ -610,7 +657,8 @@ impl ClusterLayout {
 
 		// We compute a first flow/assignment that is heuristically close to the previous
 		// assignment
-		let mut gflow = self.compute_candidate_assignment(&zone_to_id, &old_assignment_opt)?;
+		let mut gflow =
+			self.compute_candidate_assignment(&zone_to_id, &old_assignment_opt, zone_redundancy)?;
 		if let Some(assoc) = &old_assignment_opt {
 			// We minimize the distance to the previous assignment.
 			self.minimize_rebalance_load(&mut gflow, &zone_to_id, assoc)?;
@@ -735,9 +783,10 @@ impl ClusterLayout {
 	fn compute_optimal_partition_size(
 		&self,
 		zone_to_id: &HashMap<String, usize>,
+		zone_redundancy: usize,
 	) -> Result<u64, Error> {
 		let empty_set = HashSet::<(usize, usize)>::new();
-		let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set)?;
+		let mut g = self.generate_flow_graph(1, zone_to_id, &empty_set, zone_redundancy)?;
 		g.compute_maximal_flow()?;
 		if g.get_flow_value()? < (NB_PARTITIONS * self.replication_factor) as i64 {
 			return Err(Error::Message(
@@ -750,7 +799,12 @@ impl ClusterLayout {
 		let mut s_down = 1;
 		let mut s_up = self.get_total_capacity()?;
 		while s_down + 1 < s_up {
-			g = self.generate_flow_graph((s_down + s_up) / 2, zone_to_id, &empty_set)?;
+			g = self.generate_flow_graph(
+				(s_down + s_up) / 2,
+				zone_to_id,
+				&empty_set,
+				zone_redundancy,
+			)?;
 			g.compute_maximal_flow()?;
 			if g.get_flow_value()? < (NB_PARTITIONS * self.replication_factor) as i64 {
 				s_up = (s_down + s_up) / 2;
@@ -789,18 +843,18 @@ impl ClusterLayout {
 		partition_size: u64,
 		zone_to_id: &HashMap<String, usize>,
 		exclude_assoc: &HashSet<(usize, usize)>,
+		zone_redundancy: usize,
 	) -> Result<Graph<FlowEdge>, Error> {
 		let vertices =
 			ClusterLayout::generate_graph_vertices(zone_to_id.len(), self.nongateway_nodes().len());
 		let mut g = Graph::<FlowEdge>::new(&vertices);
 		let nb_zones = zone_to_id.len();
-		let redundancy = self.parameters.zone_redundancy;
 		for p in 0..NB_PARTITIONS {
-			g.add_edge(Vertex::Source, Vertex::Pup(p), redundancy as u64)?;
+			g.add_edge(Vertex::Source, Vertex::Pup(p), zone_redundancy as u64)?;
 			g.add_edge(
 				Vertex::Source,
 				Vertex::Pdown(p),
-				(self.replication_factor - redundancy) as u64,
+				(self.replication_factor - zone_redundancy) as u64,
 			)?;
 			for z in 0..nb_zones {
 				g.add_edge(Vertex::Pup(p), Vertex::PZ(p, z), 1)?;
@@ -829,6 +883,7 @@ impl ClusterLayout {
 		&self,
 		zone_to_id: &HashMap<String, usize>,
 		prev_assign_opt: &Option<Vec<Vec<usize>>>,
+		zone_redundancy: usize,
 	) -> Result<Graph<FlowEdge>, Error> {
 		// We list the (partition,node) associations that are not used in the
 		// previous assignment
@@ -846,7 +901,12 @@ impl ClusterLayout {
 		}
 
 		// We compute the best flow using only the edges used in the previous assignment
-		let mut g = self.generate_flow_graph(self.partition_size, zone_to_id, &exclude_edge)?;
+		let mut g = self.generate_flow_graph(
+			self.partition_size,
+			zone_to_id,
+			&exclude_edge,
+			zone_redundancy,
+		)?;
 		g.compute_maximal_flow()?;
 
 		// We add the excluded edges and compute the maximal flow with the full graph.
@@ -997,7 +1057,7 @@ impl ClusterLayout {
 
 		if *prev_assign_opt == None {
 			new_partitions = stored_partitions.clone();
-			new_partitions_zone = stored_partitions_zone.clone();
+			//new_partitions_zone = stored_partitions_zone.clone();
 		}
 
 		// We display the statistics
@@ -1124,7 +1184,7 @@ mod tests {
 
 		let mut curr_zone = 0;
 
-		let redundancy = cl.parameters.zone_redundancy;
+		let redundancy = cl.effective_zone_redundancy();
 
 		for replic in 0..cl.replication_factor {
 			for p in 0..NB_PARTITIONS {
@@ -1176,8 +1236,9 @@ mod tests {
 			);
 			cl.staging_roles.merge(&update);
 		}
-		cl.staging_parameters
-			.update(LayoutParameters { zone_redundancy });
+		cl.staging_parameters.update(LayoutParameters {
+			zone_redundancy: ZoneRedundancy::AtLeast(zone_redundancy),
+		});
 		cl.staging_hash = cl.calculate_staging_hash();
 	}
 
