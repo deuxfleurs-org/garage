@@ -121,7 +121,7 @@ mod v09 {
 
 	/// Zone redundancy: if set to AtLeast(x), the layout calculation will aim to store copies
 	/// of each partition on at least that number of different zones.
-	/// If None, copies will be stored on the maximum possible number of zones.
+	/// Otherwise, copies will be stored on the maximum possible number of zones.
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
 	pub enum ZoneRedundancy {
 		AtLeast(usize),
@@ -161,7 +161,7 @@ mod v09 {
 				.min()
 				.unwrap_or(0);
 
-			// By default, zone_redundancy is None (i.e. maximum possible value)
+			// By default, zone_redundancy is maximum possible value
 			let parameters = LayoutParameters {
 				zone_redundancy: ZoneRedundancy::Maximum,
 			};
@@ -253,7 +253,7 @@ impl core::str::FromStr for ZoneRedundancy {
 // Implementation of the ClusterLayout methods unrelated to the assignment algorithm.
 impl ClusterLayout {
 	pub fn new(replication_factor: usize) -> Self {
-		// We set the default zone redundancy to be None, meaning that the maximum
+		// We set the default zone redundancy to be Maximum, meaning that the maximum
 		// possible value will be used depending on the cluster topology
 		let parameters = LayoutParameters {
 			zone_redundancy: ZoneRedundancy::Maximum,
@@ -1005,12 +1005,12 @@ impl ClusterLayout {
 			msg.push("".into());
 			msg.push(
 				"If the percentage is too low, it might be that the \
-            replication/redundancy constraints force the use of nodes/zones with small \
+            cluster topology and redundancy constraints are forcing the use of nodes/zones with small \
             storage capacities."
 					.into(),
 			);
 			msg.push(
-				"You might want to rebalance the storage capacities or relax the constraints."
+				"You might want to move storage capacity between zones or relax the redundancy constraint."
 					.into(),
 			);
 			msg.push(
@@ -1105,8 +1105,8 @@ impl ClusterLayout {
 					tags_n,
 					stored_partitions[*n],
 					new_partitions[*n],
-					ByteSize::b(available_cap_n).to_string_as(false),
 					ByteSize::b(total_cap_n).to_string_as(false),
+					ByteSize::b(available_cap_n).to_string_as(false),
 					(available_cap_n as f32) / (total_cap_n as f32) * 100.0,
 				));
 			}
@@ -1116,8 +1116,8 @@ impl ClusterLayout {
 				replicated_partitions,
 				stored_partitions_zone[z],
 				//new_partitions_zone[z],
-				ByteSize::b(available_cap_z).to_string_as(false),
 				ByteSize::b(total_cap_z).to_string_as(false),
+				ByteSize::b(available_cap_z).to_string_as(false),
 				percent_cap_z
 			));
 			table.push("".into());

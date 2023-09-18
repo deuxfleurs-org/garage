@@ -282,7 +282,7 @@ pub async fn cmd_config_layout(
 			layout
 				.staging_parameters
 				.update(LayoutParameters { zone_redundancy: r });
-			println!("The new zone redundancy has been saved ({}).", r);
+			println!("The zone redundancy parameter has been set to '{}'.", r);
 			did_something = true;
 		}
 	}
@@ -359,11 +359,11 @@ pub fn print_cluster_layout(layout: &ClusterLayout, empty_msg: &str) {
 	}
 	if table.len() > 1 {
 		format_table(table);
+		println!();
+		println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
 	} else {
 		println!("{}", empty_msg);
 	}
-	println!();
-	println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
 }
 
 pub fn print_staging_role_changes(layout: &ClusterLayout) -> bool {
