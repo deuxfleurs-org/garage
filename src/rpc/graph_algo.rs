@@ -189,7 +189,7 @@ impl Graph<FlowEdge> {
 			let mut fifo = VecDeque::new();
 			fifo.push_back((idsource, 0));
 			while let Some((id, lvl)) = fifo.pop_front() {
-				if level[id] == None {
+				if level[id].is_none() {
 					// it means id has not yet been reached
 					level[id] = Some(lvl);
 					for edge in self.graph[id].iter() {
@@ -199,7 +199,7 @@ impl Graph<FlowEdge> {
 					}
 				}
 			}
-			if level[idsink] == None {
+			if level[idsink].is_none() {
 				// There is no residual flow
 				break;
 			}
@@ -383,7 +383,7 @@ fn cycles_of_1_forest(forest: &[Option<usize>]) -> Vec<Vec<usize>> {
 	for t in 0..forest.len() {
 		let mut id = t;
 		// while we are on a valid undiscovered node
-		while time_of_discovery[id] == None {
+		while time_of_discovery[id].is_none() {
 			time_of_discovery[id] = Some(t);
 			if let Some(i) = forest[id] {
 				id = i;
@@ -391,7 +391,7 @@ fn cycles_of_1_forest(forest: &[Option<usize>]) -> Vec<Vec<usize>> {
 				break;
 			}
 		}
-		if forest[id] != None && time_of_discovery[id] == Some(t) {
+		if forest[id].is_some() && time_of_discovery[id] == Some(t) {
 			// We discovered an id that we explored at this iteration t.
 			// It means we are on a cycle
 			let mut cy = vec![id; 1];

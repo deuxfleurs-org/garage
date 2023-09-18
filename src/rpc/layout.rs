@@ -195,7 +195,7 @@ mod v09 {
 				..
 			})) = role
 			{
-				*cap = *cap * mul;
+				*cap *= mul;
 			}
 			new_roles.merge_raw(node, *ts, &role);
 		}
@@ -258,7 +258,7 @@ impl ClusterLayout {
 		let parameters = LayoutParameters {
 			zone_redundancy: ZoneRedundancy::Maximum,
 		};
-		let staging_parameters = Lww::<LayoutParameters>::new(parameters.clone());
+		let staging_parameters = Lww::<LayoutParameters>::new(parameters);
 
 		let empty_lwwmap = LwwMap::new();
 
@@ -322,7 +322,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 
 		self.roles.merge(&self.staging_roles);
 		self.roles.retain(|(_, _, v)| v.0.is_some());
-		self.parameters = self.staging_parameters.get().clone();
+		self.parameters = *self.staging_parameters.get();
 
 		self.staging_roles.clear();
 		self.staging_hash = self.calculate_staging_hash();
@@ -351,7 +351,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		self.staging_roles.clear();
-		self.staging_parameters.update(self.parameters.clone());
+		self.staging_parameters.update(self.parameters);
 		self.staging_hash = self.calculate_staging_hash();
 
 		self.version += 1;
@@ -382,7 +382,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		let mut result = Vec::<Uuid>::new();
 		for uuid in self.node_id_vec.iter() {
 			match self.node_role(uuid) {
-				Some(role) if role.capacity != None => result.push(*uuid),
+				Some(role) if role.capacity.is_some() => result.push(*uuid),
 				_ => (),
 			}
 		}
@@ -633,7 +633,7 @@ impl ClusterLayout {
 		let partition_size = self.compute_optimal_partition_size(&zone_to_id, zone_redundancy)?;
 
 		msg.push("".into());
-		if old_assignment_opt != None {
+		if old_assignment_opt.is_some() {
 			msg.push(format!(
 				"Optimal partition size:                     {} ({} in previous layout)",
 				ByteSize::b(partition_size).to_string_as(false),
@@ -692,7 +692,7 @@ impl ClusterLayout {
 			.roles
 			.items()
 			.iter()
-			.filter(|(_, _, v)| matches!(&v.0, Some(r) if r.capacity != None))
+			.filter(|(_, _, v)| matches!(&v.0, Some(r) if r.capacity.is_some()))
 			.map(|(k, _, _)| *k)
 			.collect();
 
@@ -708,7 +708,7 @@ impl ClusterLayout {
 			.roles
 			.items()
 			.iter()
-			.filter(|(_, _, v)| matches!(v, NodeRoleV(Some(r)) if r.capacity == None))
+			.filter(|(_, _, v)| matches!(v, NodeRoleV(Some(r)) if r.capacity.is_none()))
 			.map(|(k, _, _)| *k)
 			.collect();
 
@@ -770,7 +770,7 @@ impl ClusterLayout {
 
 		for uuid in self.nongateway_nodes().iter() {
 			let r = self.node_role(uuid).unwrap();
-			if !zone_to_id.contains_key(&r.zone) && r.capacity != None {
+			if !zone_to_id.contains_key(&r.zone) && r.capacity.is_some() {
 				zone_to_id.insert(r.zone.clone(), id_to_zone.len());
 				id_to_zone.push(r.zone.clone());
 			}
@@ -1055,7 +1055,7 @@ impl ClusterLayout {
 			}
 		}
 
-		if *prev_assign_opt == None {
+		if prev_assign_opt.is_none() {
 			new_partitions = stored_partitions.clone();
 			//new_partitions_zone = stored_partitions_zone.clone();
 		}
@@ -1063,7 +1063,7 @@ impl ClusterLayout {
 		// We display the statistics
 
 		msg.push("".into());
-		if *prev_assign_opt != None {
+		if prev_assign_opt.is_some() {
 			let total_new_partitions: usize = new_partitions.iter().sum();
 			msg.push(format!(
 				"A total of {} new copies of partitions need to be \
