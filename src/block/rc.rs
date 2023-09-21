@@ -56,7 +56,7 @@ impl BlockRc {
 	/// deletion time has passed
 	pub(crate) fn clear_deleted_block_rc(&self, hash: &Hash) -> Result<(), Error> {
 		let now = now_msec();
-		self.rc.db().transaction(|mut tx| {
+		self.rc.db().transaction(|tx| {
 			let rcval = RcEntry::parse_opt(tx.get(&self.rc, hash)?);
 			match rcval {
 				RcEntry::Deletable { at_time } if now > at_time => {
@@ -64,7 +64,7 @@ impl BlockRc {
 				}
 				_ => (),
 			};
-			tx.commit(())
+			Ok(())
 		})?;
 		Ok(())
 	}

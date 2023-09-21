@@ -108,9 +108,9 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		self.data
 			.merkle_tree
 			.db()
-			.transaction(|mut tx| self.update_item_rec(&mut tx, k, &khash, &key, new_vhash))?;
+			.transaction(|tx| self.update_item_rec(tx, k, &khash, &key, new_vhash))?;
 
-		let deleted = self.data.merkle_todo.db().transaction(|mut tx| {
+		let deleted = self.data.merkle_todo.db().transaction(|tx| {
 			let remove = matches!(tx.get(&self.data.merkle_todo, k)?, Some(ov) if ov == vhash_by);
 			if remove {
 				tx.remove(&self.data.merkle_todo, k)?;

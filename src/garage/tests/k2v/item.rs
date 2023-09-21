@@ -44,6 +44,7 @@ async fn test_items_and_indices() {
 		let content = format!("{}: hello world", sk).into_bytes();
 		let content2 = format!("{}: hello universe", sk).into_bytes();
 		let content3 = format!("{}: concurrent value", sk).into_bytes();
+		eprintln!("test iteration {}: {}", i, sk);
 
 		// Put initially, no causality token
 		let res = ctx
@@ -89,7 +90,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res_body, content);
 
 		// ReadIndex -- now there should be some stuff
-		tokio::time::sleep(Duration::from_secs(1)).await;
+		tokio::time::sleep(Duration::from_millis(100)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -158,7 +159,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res_body, content2);
 
 		// ReadIndex -- now there should be some stuff
-		tokio::time::sleep(Duration::from_secs(1)).await;
+		tokio::time::sleep(Duration::from_millis(100)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -230,7 +231,7 @@ async fn test_items_and_indices() {
 		);
 
 		// ReadIndex -- now there should be some stuff
-		tokio::time::sleep(Duration::from_secs(1)).await;
+		tokio::time::sleep(Duration::from_millis(100)).await;
 		let res = ctx
 			.k2v
 			.request
@@ -299,7 +300,7 @@ async fn test_items_and_indices() {
 		assert_eq!(res.status(), StatusCode::NO_CONTENT);
 
 		// ReadIndex -- now there should be some stuff
-		tokio::time::sleep(Duration::from_secs(1)).await;
+		tokio::time::sleep(Duration::from_millis(100)).await;
 		let res = ctx
 			.k2v
 			.request

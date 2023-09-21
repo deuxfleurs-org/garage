@@ -10,8 +10,8 @@ use sled::transaction::{
 };
 
 use crate::{
-	Db, Error, IDb, ITx, ITxFn, Result, TxError, TxFnResult, TxOpError, TxOpResult, TxResult,
-	TxValueIter, Value, ValueIter,
+	Db, Error, IDb, ITx, ITxFn, OnCommit, Result, TxError, TxFnResult, TxOpError, TxOpResult,
+	TxResult, TxValueIter, Value, ValueIter,
 };
 
 pub use sled;
@@ -166,7 +166,7 @@ impl IDb for SledDb {
 
 	// ----
 
-	fn transaction(&self, f: &dyn ITxFn) -> TxResult<(), ()> {
+	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		let trees = self.trees.read().unwrap();
 		let res = trees.0.transaction(|txtrees| {
 			let mut tx = SledTx {
@@ -174,9 +174,9 @@ impl IDb for SledDb {
 				err: Cell::new(None),
 			};
 			match f.try_on(&mut tx) {
-				TxFnResult::Ok => {
+				TxFnResult::Ok(on_commit) => {
 					assert!(tx.err.into_inner().is_none());
-					Ok(())
+					Ok(on_commit)
 				}
 				TxFnResult::Abort => {
 					assert!(tx.err.into_inner().is_none());
@@ -189,7 +189,7 @@ impl IDb for SledDb {
 			}
 		});
 		match res {
-			Ok(()) => Ok(()),
+			Ok(on_commit) => Ok(on_commit),
 			Err(TransactionError::Abort(())) => Err(TxError::Abort(())),
 			Err(TransactionError::Storage(s)) => Err(TxError::Db(s.into())),
 		}

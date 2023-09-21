@@ -53,7 +53,7 @@ impl<F: TableSchema, R: TableReplication> Worker for InsertQueueWorker<F, R> {
 
 		self.0.insert_many(values).await?;
 
-		self.0.data.insert_queue.db().transaction(|mut tx| {
+		self.0.data.insert_queue.db().transaction(|tx| {
 			for (k, v) in kv_pairs.iter() {
 				if let Some(v2) = tx.get(&self.0.data.insert_queue, k)? {
 					if &v2 == v {

@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use rusqlite::{params, Connection, Rows, Statement, Transaction};
 
 use crate::{
-	Db, Error, IDb, ITx, ITxFn, Result, TxError, TxFnResult, TxOpError, TxOpResult, TxResult,
-	TxValueIter, Value, ValueIter,
+	Db, Error, IDb, ITx, ITxFn, OnCommit, Result, TxError, TxFnResult, TxOpError, TxOpResult,
+	TxResult, TxValueIter, Value, ValueIter,
 };
 
 pub use rusqlite;
@@ -261,7 +261,7 @@ impl IDb for SqliteDb {
 
 	// ----
 
-	fn transaction(&self, f: &dyn ITxFn) -> TxResult<(), ()> {
+	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		trace!("transaction: lock db");
 		let mut this = self.0.lock().unwrap();
 		trace!("transaction: lock acquired");
@@ -277,9 +277,9 @@ impl IDb for SqliteDb {
 			trees: &this_mut_ref.trees,
 		};
 		let res = match f.try_on(&mut tx) {
-			TxFnResult::Ok => {
+			TxFnResult::Ok(on_commit) => {
 				tx.tx.commit().map_err(Error::from).map_err(TxError::Db)?;
-				Ok(())
+				Ok(on_commit)
 			}
 			TxFnResult::Abort => {
 				tx.tx.rollback().map_err(Error::from).map_err(TxError::Db)?;
