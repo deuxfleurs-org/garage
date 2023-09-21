@@ -34,7 +34,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_todo_notify: Notify,
 
 	pub(crate) insert_queue: db::Tree,
-	pub(crate) insert_queue_notify: Notify,
+	pub(crate) insert_queue_notify: Arc<Notify>,
 
 	pub(crate) gc_todo: CountedTree,
 
@@ -80,7 +80,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			merkle_todo,
 			merkle_todo_notify: Notify::new(),
 			insert_queue,
-			insert_queue_notify: Notify::new(),
+			insert_queue_notify: Arc::new(Notify::new()),
 			gc_todo,
 			metrics,
 		})
@@ -339,7 +339,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			.map_err(Error::RmpEncode)
 			.map_err(db::TxError::Abort)?;
 		tx.insert(&self.insert_queue, &tree_key, new_entry)?;
-		self.insert_queue_notify.notify_one();
+
+		let notif = self.insert_queue_notify.clone();
+		tx.on_commit(move || notif.notify_one());
 
 		Ok(())
 	}
