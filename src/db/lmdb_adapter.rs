@@ -9,8 +9,8 @@ use heed::types::ByteSlice;
 use heed::{BytesDecode, Env, RoTxn, RwTxn, UntypedDatabase as Database};
 
 use crate::{
-	Db, Error, IDb, ITx, ITxFn, Result, TxError, TxFnResult, TxOpError, TxOpResult, TxResult,
-	TxValueIter, Value, ValueIter,
+	Db, Error, IDb, ITx, ITxFn, OnCommit, Result, TxError, TxFnResult, TxOpError, TxOpResult,
+	TxResult, TxValueIter, Value, ValueIter,
 };
 
 pub use heed;
@@ -186,7 +186,7 @@ impl IDb for LmdbDb {
 
 	// ----
 
-	fn transaction(&self, f: &dyn ITxFn) -> TxResult<(), ()> {
+	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		let trees = self.trees.read().unwrap();
 		let mut tx = LmdbTx {
 			trees: &trees.0[..],
@@ -199,9 +199,9 @@ impl IDb for LmdbDb {
 
 		let res = f.try_on(&mut tx);
 		match res {
-			TxFnResult::Ok => {
+			TxFnResult::Ok(on_commit) => {
 				tx.tx.commit().map_err(Error::from).map_err(TxError::Db)?;
-				Ok(())
+				Ok(on_commit)
 			}
 			TxFnResult::Abort => {
 				tx.tx.abort().map_err(Error::from).map_err(TxError::Db)?;

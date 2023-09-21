@@ -330,9 +330,7 @@ async fn process_object(
 						"Lifecycle: expiring 1 object in bucket {:?}",
 						object.bucket_id
 					);
-					db.transaction(|mut tx| {
-						garage.object_table.queue_insert(&mut tx, &deleted_object)
-					})?;
+					db.transaction(|tx| garage.object_table.queue_insert(tx, &deleted_object))?;
 					*objects_expired += 1;
 				}
 			}
@@ -365,9 +363,7 @@ async fn process_object(
 				);
 				let aborted_object =
 					Object::new(object.bucket_id, object.key.clone(), aborted_versions);
-				db.transaction(|mut tx| {
-					garage.object_table.queue_insert(&mut tx, &aborted_object)
-				})?;
+				db.transaction(|tx| garage.object_table.queue_insert(tx, &aborted_object))?;
 				*mpu_aborted += n_aborted;
 			}
 		}

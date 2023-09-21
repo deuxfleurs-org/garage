@@ -85,7 +85,7 @@ impl CountedTree {
 		let old_some = expected_old.is_some();
 		let new_some = new.is_some();
 
-		let tx_res = self.0.tree.db().transaction(|mut tx| {
+		let tx_res = self.0.tree.db().transaction(|tx| {
 			let old_val = tx.get(&self.0.tree, &key)?;
 			let is_same = match (&old_val, &expected_old) {
 				(None, None) => true,
@@ -101,9 +101,9 @@ impl CountedTree {
 						tx.remove(&self.0.tree, &key)?;
 					}
 				}
-				tx.commit(())
+				Ok(())
 			} else {
-				tx.abort(())
+				Err(TxError::Abort(()))
 			}
 		});
 

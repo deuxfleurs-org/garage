@@ -203,14 +203,14 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	) -> Result<Option<F::E>, Error> {
 		let tree_key = self.tree_key(partition_key, sort_key);
 
-		let changed = self.store.db().transaction(|mut tx| {
+		let changed = self.store.db().transaction(|tx| {
 			let (old_entry, old_bytes, new_entry) = match tx.get(&self.store, &tree_key)? {
 				Some(old_bytes) => {
 					let old_entry = self.decode_entry(&old_bytes).map_err(db::TxError::Abort)?;
-					let new_entry = update_fn(&mut tx, Some(old_entry.clone()))?;
+					let new_entry = update_fn(tx, Some(old_entry.clone()))?;
 					(Some(old_entry), Some(old_bytes), new_entry)
 				}
-				None => (None, None, update_fn(&mut tx, None)?),
+				None => (None, None, update_fn(tx, None)?),
 			};
 
 			// Changed can be true in two scenarios
@@ -233,7 +233,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				tx.insert(&self.store, &tree_key, new_bytes)?;
 
 				self.instance
-					.updated(&mut tx, old_entry.as_ref(), Some(&new_entry))?;
+					.updated(tx, old_entry.as_ref(), Some(&new_entry))?;
 
 				Ok(Some((new_entry, new_bytes_hash)))
 			} else {
@@ -270,14 +270,14 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let removed = self
 			.store
 			.db()
-			.transaction(|mut tx| match tx.get(&self.store, k)? {
+			.transaction(|tx| match tx.get(&self.store, k)? {
 				Some(cur_v) if cur_v == v => {
 					let old_entry = self.decode_entry(v).map_err(db::TxError::Abort)?;
 
 					tx.remove(&self.store, k)?;
 					tx.insert(&self.merkle_todo, k, vec![])?;
 
-					self.instance.updated(&mut tx, Some(&old_entry), None)?;
+					self.instance.updated(tx, Some(&old_entry), None)?;
 					Ok(true)
 				}
 				_ => Ok(false),
@@ -298,14 +298,14 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let removed = self
 			.store
 			.db()
-			.transaction(|mut tx| match tx.get(&self.store, k)? {
+			.transaction(|tx| match tx.get(&self.store, k)? {
 				Some(cur_v) if blake2sum(&cur_v[..]) == vhash => {
 					let old_entry = self.decode_entry(&cur_v[..]).map_err(db::TxError::Abort)?;
 
 					tx.remove(&self.store, k)?;
 					tx.insert(&self.merkle_todo, k, vec![])?;
 
-					self.instance.updated(&mut tx, Some(&old_entry), None)?;
+					self.instance.updated(tx, Some(&old_entry), None)?;
 					Ok(true)
 				}
 				_ => Ok(false),
