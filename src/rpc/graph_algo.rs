@@ -1,7 +1,7 @@
 //! This module deals with graph algorithms.
 //! It is used in layout.rs to build the partition to node assignment.
 
-use rand::prelude::SliceRandom;
+use rand::prelude::{SeedableRng, SliceRandom};
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -143,7 +143,11 @@ impl Graph<FlowEdge> {
 	/// This function shuffles the order of the edge lists. It keeps the ids of the
 	/// reversed edges consistent.
 	fn shuffle_edges(&mut self) {
-		let mut rng = rand::thread_rng();
+		// We use deterministic randomness so that the layout calculation algorihtm
+		// will output the same thing every time it is run. This way, the results
+		// pre-calculated in `garage layout show` will match exactly those used
+		// in practice with `garage layout apply`
+		let mut rng = rand::rngs::StdRng::from_seed([0x12u8; 32]);
 		for i in 0..self.graph.len() {
 			self.graph[i].shuffle(&mut rng);
 			// We need to update the ids of the reverse edges.
