@@ -9,18 +9,30 @@ a certain capacity, or a gateway node that does not store data and is only
 used as an API entry point for faster cluster access.
 An introduction to building cluster layouts can be found in the [production deployment](@/documentation/cookbook/real-world.md) page.
 
+In Garage, all of the data that can be stored in a given cluster is divided
+into slices which we call *partitions*. Each partition is stored by
+one or several nodes in the cluster
+(see [`replication_mode`](@/documentation/reference-manual/configuration.md#replication-mode)).
+The layout determines the correspondence between these partition,
+which exist on a logical level, and actual storage nodes.
+
 ## How cluster layouts work in Garage
 
-In Garage, a cluster layout is composed of the following components:
+A cluster layout is composed of the following components:
 
-- a table of roles assigned to nodes
+- a table of roles assigned to nodes, defined by the user
+- an optimal assignation of partitions to nodes, computed by an algorithm that is ran once when calling `garage layout apply` or the ApplyClusterLayout API endpoint
 - a version number
 
 Garage nodes will always use the cluster layout with the highest version number.
 
 Garage nodes also maintain and synchronize between them a set of proposed role
 changes that haven't yet been applied. These changes will be applied (or
-canceled) in the next version of the layout
+canceled) in the next version of the layout.
+
+All operations on the layout can be realized using the `garage` CLI or using the
+[administration API endpoint](@/documentation/reference-manual/admin-api.md).
+We give here a description of CLI commands, the admin API semantics are very similar.
 
 The following commands insert modifications to the set of proposed role changes
 for the next layout version (but they do not create the new layout immediately):
@@ -51,7 +63,7 @@ commands will fail otherwise.
 
 ## Warnings about Garage cluster layout management
 
-**Warning: never make several calls to `garage layout apply` or `garage layout
+**⚠️ Never make several calls to `garage layout apply` or `garage layout
 revert` with the same value of the `--version` flag. Doing so can lead to the
 creation of several different layouts with the same version number, in which
 case your Garage cluster will become inconsistent until fixed.** If a call to
@@ -65,16 +77,18 @@ shell, you shouldn't have much issues as long as you run commands one after
 the other and take care of checking the output of `garage layout show`
 before applying any changes.
 
-If you are using the `garage` CLI to script layout changes, follow the following recommendations:
+If you are using the `garage` CLI or the admin API to script layout changes,
+follow the following recommendations:
 
-- Make all of your `garage` CLI calls to the same RPC host. Do not use the
-  `garage` CLI to connect to individual nodes to send them each a piece of the
-  layout changes you are making, as the changes propagate asynchronously
-  between nodes and might not all be taken into account at the time when the
-  new layout is applied.
+- If using the CLI, make all of your `garage` CLI calls to the same RPC host.
+  If using the admin API, make all of your API calls to the same Garage node. Do
+  not connect to individual nodes to send them each a piece of the layout changes
+  you are making, as the changes propagate asynchronously between nodes and might
+  not all be taken into account at the time when the new layout is applied.
 
-- **Only call `garage layout apply` once**, and call it **strictly after** all
-  of the `layout assign` and `layout remove` commands have returned.
+- **Only call `garage layout apply`/ApplyClusterLayout once**, and call it
+  **strictly after** all of the `layout assign` and `layout remove`
+  commands/UpdateClusterLayout API calls have returned.
 
 
 ## Understanding unexpected layout calculations
