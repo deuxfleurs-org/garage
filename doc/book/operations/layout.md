@@ -75,3 +75,111 @@ If you are using the `garage` CLI to script layout changes, follow the following
 
 - **Only call `garage layout apply` once**, and call it **strictly after** all
   of the `layout assign` and `layout remove` commands have returned.
+
+
+## Understanding unexpected layout calculations
+
+
+### Example 1
+
+```
+$ garage layout show
+==== CURRENT CLUSTER LAYOUT ====
+ID                Tags   Zone  Capacity   Usable capacity
+b10c110e4e854e5a  node1  dc1   1000.0 MB  1000.0 MB (100.0%)
+a235ac7695e0c54d  node2  dc2   1000.0 MB  1000.0 MB (100.0%)
+62b218d848e86a64  node3  dc3   1000.0 MB  1000.0 MB (100.0%)
+
+Zone redundancy: maximum
+
+Current cluster layout version: 6
+
+==== STAGED ROLE CHANGES ====
+ID                Tags   Zone  Capacity
+a11c7cf18af29737  node4  dc1   1000.0 MB
+
+
+==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====
+ID                Tags   Zone  Capacity   Usable capacity
+b10c110e4e854e5a  node1  dc1   1000.0 MB  1000.0 MB (100.0%)
+a11c7cf18af29737  node4  dc1   1000.0 MB  0 B (0.0%)
+a235ac7695e0c54d  node2  dc2   1000.0 MB  1000.0 MB (100.0%)
+62b218d848e86a64  node3  dc3   1000.0 MB  1000.0 MB (100.0%)
+
+Zone redundancy: maximum
+
+==== COMPUTATION OF A NEW PARTITION ASSIGNATION ====
+
+Partitions are replicated 3 times on at least 3 distinct zones.
+
+Optimal partition size:                     3.9 MB (3.9 MB in previous layout)
+Usable capacity / total cluster capacity:   3.0 GB / 4.0 GB (75.0 %)
+Effective capacity (replication factor 3):  1000.0 MB
+
+A total of 0 new copies of partitions need to be transferred.
+
+dc1                 Tags   Partitions        Capacity   Usable capacity
+  b10c110e4e854e5a  node1  256 (0 new)       1000.0 MB  1000.0 MB (100.0%)
+  a11c7cf18af29737  node4  0 (0 new)         1000.0 MB  0 B (0.0%)
+  TOTAL                    256 (256 unique)  2.0 GB     1000.0 MB (50.0%)
+
+dc2                 Tags   Partitions        Capacity   Usable capacity
+  a235ac7695e0c54d  node2  256 (0 new)       1000.0 MB  1000.0 MB (100.0%)
+  TOTAL                    256 (256 unique)  1000.0 MB  1000.0 MB (100.0%)
+
+dc3                 Tags   Partitions        Capacity   Usable capacity
+  62b218d848e86a64  node3  256 (0 new)       1000.0 MB  1000.0 MB (100.0%)
+  TOTAL                    256 (256 unique)  1000.0 MB  1000.0 MB (100.0%)
+```
+
+### Example 2
+
+```
+==== CURRENT CLUSTER LAYOUT ====
+ID                Tags   Zone  Capacity   Usable capacity
+b10c110e4e854e5a  node1  dc1   1000.0 MB  500.0 MB (50.0%)
+a11c7cf18af29737  node4  dc1   1000.0 MB  500.0 MB (50.0%)
+a235ac7695e0c54d  node2  dc2   1000.0 MB  1000.0 MB (100.0%)
+62b218d848e86a64  node3  dc3   1000.0 MB  1000.0 MB (100.0%)
+
+Zone redundancy: maximum
+
+Current cluster layout version: 8
+
+==== STAGED ROLE CHANGES ====
+ID                Tags   Zone  Capacity
+a11c7cf18af29737  node4  dc3   1000.0 MB
+
+
+==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====
+ID                Tags   Zone  Capacity   Usable capacity
+b10c110e4e854e5a  node1  dc1   1000.0 MB  1000.0 MB (100.0%)
+a235ac7695e0c54d  node2  dc2   1000.0 MB  1000.0 MB (100.0%)
+62b218d848e86a64  node3  dc3   1000.0 MB  753.9 MB (75.4%)
+a11c7cf18af29737  node4  dc3   1000.0 MB  246.1 MB (24.6%)
+
+Zone redundancy: maximum
+
+==== COMPUTATION OF A NEW PARTITION ASSIGNATION ====
+
+Partitions are replicated 3 times on at least 3 distinct zones.
+
+Optimal partition size:                     3.9 MB (3.9 MB in previous layout)
+Usable capacity / total cluster capacity:   3.0 GB / 4.0 GB (75.0 %)
+Effective capacity (replication factor 3):  1000.0 MB
+
+A total of 128 new copies of partitions need to be transferred.
+
+dc1                 Tags   Partitions        Capacity   Usable capacity
+  b10c110e4e854e5a  node1  256 (128 new)     1000.0 MB  1000.0 MB (100.0%)
+  TOTAL                    256 (256 unique)  1000.0 MB  1000.0 MB (100.0%)
+
+dc2                 Tags   Partitions        Capacity   Usable capacity
+  a235ac7695e0c54d  node2  256 (0 new)       1000.0 MB  1000.0 MB (100.0%)
+  TOTAL                    256 (256 unique)  1000.0 MB  1000.0 MB (100.0%)
+
+dc3                 Tags   Partitions        Capacity   Usable capacity
+  62b218d848e86a64  node3  193 (0 new)       1000.0 MB  753.9 MB (75.4%)
+  a11c7cf18af29737  node4  63 (0 new)        1000.0 MB  246.1 MB (24.6%)
+  TOTAL                    256 (256 unique)  2.0 GB     1000.0 MB (50.0%)
+```
