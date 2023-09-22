@@ -93,8 +93,22 @@ follow the following recommendations:
 
 ## Understanding unexpected layout calculations
 
+When adding, removing or modifying nodes in a cluster layout, sometimes
+unexpected assigntations of partitions to node can occure. These assignations
+are in fact normal and logical, given the objectives of the algorihtm.  Indeed,
+**the layout algorithm prioritizes moving less data between nodes over the fact
+of achieving equal distribution of load**.  This section presents two examples
+and illustrates how one can control Garage's behavior to obtain the desired
+results.
 
 ### Example 1
+
+In this example, a cluster is originally composed of 3 nodes in 3 different
+zones (data centers).  The three nodes are of equal capacity, therefore they
+are all fully exploited and all store a copy of all of the data in the cluster.
+
+Then, a fourth node of the same size is added in the datacenter `dc1`.
+As illustrated by the following, **Garage will by default not store any data on the new node**:
 
 ```
 $ garage layout show
@@ -146,7 +160,36 @@ dc3                 Tags   Partitions        Capacity   Usable capacity
   TOTAL                    256 (256 unique)  1000.0 MB  1000.0 MB (100.0%)
 ```
 
+While unexpected, this is logical because of the following facts:
+
+- storing some data on the new node does not help increase the total quantity
+  of data that can be stored on the cluster, as the two other zones (`dc2` and
+  `dc3`) still need to store a full copy of everything, and their capacity is
+  still the same;
+
+- there is therefore no need to move any data on the new node as this would be pointless;
+
+- moving data to the new node has a cost which the algorithm decides to not pay if not necessary.
+
+This distribution of data can however not be what the administrator wanted: if
+they added a new node to `dc1`, it might be because the existing node is too
+slow, and they wish to divide its load by half. In that case, what they need to
+do to force Garage to distribute the data between the two nodes is to attribute
+only half of the capacity to each node in `dc1` (in our example, 500M instead of 1G).
+In that case, Garage would determine that to be able to store 1G in total, it
+would need to store 500M on the old node and 500M on the added one.
+
+
 ### Example 2
+
+The following example is a slightly different scenario, where `dc1` had two
+nodes that were used at 50%, and `dc2` and `dc3` each have one node that is
+100% used. All node capacities are the same.
+
+Then, a node from `dc1` is moved into `dc3`. One could expect that the roles of
+`dc1` and `dc3` would simply be swapped: the remaining node in `dc1` would be
+used at 100%, and the two nodes now in `dc3` would be used at 50%. Instead,
+this happens:
 
 ```
 ==== CURRENT CLUSTER LAYOUT ====
@@ -197,3 +240,34 @@ dc3                 Tags   Partitions        Capacity   Usable capacity
   a11c7cf18af29737  node4  63 (0 new)        1000.0 MB  246.1 MB (24.6%)
   TOTAL                    256 (256 unique)  2.0 GB     1000.0 MB (50.0%)
 ```
+
+As we can see, the node that was moved to `dc3` (node4) is only used at 25% (approximatively),
+whereas the node that was already in `dc3` (node3) is used at 75%.
+
+This can be explained by the following:
+
+- node1 will now be the only node remaining in `dc1`, thus it has to store all
+  of the data in the cluster. Since it was storing only half of it before, it has
+  to retrieve the other half from other nodes in the cluster.
+
+- The data which it does not have is entirely stored by the other node that was
+  in `dc1` and that is now in `dc3` (node4). There is also a copy of it on node2
+  and node3 since both these nodes have a copy of everything.
+
+- node3 and node4 are the two nodes that will now be in a datacenter that is
+ under-utilized (`dc3`), this means that those are the two candidates from which
+ data can be removed to be moved to node1.
+
+- Garage will move data in equal proportions from all possible sources, in this
+  case it means that it will tranfer 25% of the entire data set from node3 to
+  node1 and another 25% from node4 to node1.
+
+This explains why node3 ends with 75% utilization (100% from before minus 25%
+that is moved to node1), and node4 ends with 25% (50% from before minus 25%
+that is moved to node1).
+
+This illustrates another principle of the layout computation: **if there is a
+choice in moving data out of some nodes, then all links between pairs of nodes
+are used in equal proportions** (this is approximately true, there is
+randomness in the algorihtm to achieve this so there might be some small
+fluctuations, as we see above).
