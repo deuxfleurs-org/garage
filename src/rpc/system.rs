@@ -9,10 +9,10 @@ use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
-use futures::{join, select};
-use futures_util::future::*;
+use futures::join;
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::sign::ed25519;
+use tokio::select;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 
@@ -702,7 +702,7 @@ impl System {
 
 	async fn status_exchange_loop(&self, mut stop_signal: watch::Receiver<bool>) {
 		while !*stop_signal.borrow() {
-			let restart_at = tokio::time::sleep(STATUS_EXCHANGE_INTERVAL);
+			let restart_at = Instant::now() + STATUS_EXCHANGE_INTERVAL;
 
 			self.update_local_status();
 			let local_status: NodeStatus = self.local_status.load().as_ref().clone();
@@ -711,13 +711,14 @@ impl System {
 				.broadcast(
 					&self.system_endpoint,
 					SystemRpc::AdvertiseStatus(local_status),
-					RequestStrategy::with_priority(PRIO_HIGH),
+					RequestStrategy::with_priority(PRIO_HIGH)
+						.with_custom_timeout(STATUS_EXCHANGE_INTERVAL),
 				)
 				.await;
 
 			select! {
-				_ = restart_at.fuse() => {},
-				_ = stop_signal.changed().fuse() => {},
+				_ = tokio::time::sleep_until(restart_at.into()) => {},
+				_ = stop_signal.changed() => {},
 			}
 		}
 	}
@@ -799,10 +800,9 @@ impl System {
 			#[cfg(feature = "kubernetes-discovery")]
 			tokio::spawn(self.clone().advertise_to_kubernetes());
 
-			let restart_at = tokio::time::sleep(DISCOVERY_INTERVAL);
 			select! {
-				_ = restart_at.fuse() => {},
-				_ = stop_signal.changed().fuse() => {},
+				_ = tokio::time::sleep(DISCOVERY_INTERVAL) => {},
+				_ = stop_signal.changed() => {},
 			}
 		}
 	}
