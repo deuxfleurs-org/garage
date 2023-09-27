@@ -1,7 +1,7 @@
 //! This module deals with graph algorithms.
 //! It is used in layout.rs to build the partition to node assignment.
 
-use rand::prelude::SliceRandom;
+use rand::prelude::{SeedableRng, SliceRandom};
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -143,7 +143,11 @@ impl Graph<FlowEdge> {
 	/// This function shuffles the order of the edge lists. It keeps the ids of the
 	/// reversed edges consistent.
 	fn shuffle_edges(&mut self) {
-		let mut rng = rand::thread_rng();
+		// We use deterministic randomness so that the layout calculation algorihtm
+		// will output the same thing every time it is run. This way, the results
+		// pre-calculated in `garage layout show` will match exactly those used
+		// in practice with `garage layout apply`
+		let mut rng = rand::rngs::StdRng::from_seed([0x12u8; 32]);
 		for i in 0..self.graph.len() {
 			self.graph[i].shuffle(&mut rng);
 			// We need to update the ids of the reverse edges.
@@ -189,7 +193,7 @@ impl Graph<FlowEdge> {
 			let mut fifo = VecDeque::new();
 			fifo.push_back((idsource, 0));
 			while let Some((id, lvl)) = fifo.pop_front() {
-				if level[id] == None {
+				if level[id].is_none() {
 					// it means id has not yet been reached
 					level[id] = Some(lvl);
 					for edge in self.graph[id].iter() {
@@ -199,7 +203,7 @@ impl Graph<FlowEdge> {
 					}
 				}
 			}
-			if level[idsink] == None {
+			if level[idsink].is_none() {
 				// There is no residual flow
 				break;
 			}
@@ -383,7 +387,7 @@ fn cycles_of_1_forest(forest: &[Option<usize>]) -> Vec<Vec<usize>> {
 	for t in 0..forest.len() {
 		let mut id = t;
 		// while we are on a valid undiscovered node
-		while time_of_discovery[id] == None {
+		while time_of_discovery[id].is_none() {
 			time_of_discovery[id] = Some(t);
 			if let Some(i) = forest[id] {
 				id = i;
@@ -391,7 +395,7 @@ fn cycles_of_1_forest(forest: &[Option<usize>]) -> Vec<Vec<usize>> {
 				break;
 			}
 		}
-		if forest[id] != None && time_of_discovery[id] == Some(t) {
+		if forest[id].is_some() && time_of_discovery[id] == Some(t) {
 			// We discovered an id that we explored at this iteration t.
 			// It means we are on a cycle
 			let mut cy = vec![id; 1];

@@ -7,13 +7,13 @@ args@{
     "garage_db/default"
     "garage_util/default"
     "garage_rpc/default"
+    "format_table/default"
     "garage_table/default"
     "garage_block/default"
     "garage_model/default"
     "garage_api/default"
     "garage_web/default"
     "garage/default"
-    "format_table/default"
     "k2v-client/default"
   ],
   rustPackages,
@@ -33,7 +33,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "7bef0004fa84feec502c75d50632d54202c272d56d2549fc09e2a356141685bb";
+  nixifiedLockHash = "5df33eefe787762bf831e92c723c153faf8d5910332dcdf2fd941fe03be59936";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -60,13 +60,13 @@ in
     garage_db = rustPackages.unknown.garage_db."0.8.4";
     garage_util = rustPackages.unknown.garage_util."0.8.4";
     garage_rpc = rustPackages.unknown.garage_rpc."0.8.4";
+    format_table = rustPackages.unknown.format_table."0.1.1";
     garage_table = rustPackages.unknown.garage_table."0.8.4";
     garage_block = rustPackages.unknown.garage_block."0.8.4";
     garage_model = rustPackages.unknown.garage_model."0.8.4";
     garage_api = rustPackages.unknown.garage_api."0.8.4";
     garage_web = rustPackages.unknown.garage_web."0.8.4";
     garage = rustPackages.unknown.garage."0.8.4";
-    format_table = rustPackages.unknown.format_table."0.1.1";
     k2v-client = rustPackages.unknown.k2v-client."0.0.4";
   };
   "registry+https://github.com/rust-lang/crates.io-index".addr2line."0.21.0" = overridableMkRustCrate (profileName: rec {
@@ -1954,6 +1954,7 @@ in
       bytes = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" { inherit profileName; }).out;
       bytesize = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytesize."1.3.0" { inherit profileName; }).out;
       ${ if rootFeatures' ? "garage/consul-discovery" || rootFeatures' ? "garage_rpc/consul-discovery" || rootFeatures' ? "garage_rpc/err-derive" then "err_derive" else null } = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
+      format_table = (rustPackages."unknown".format_table."0.1.1" { inherit profileName; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.28" { inherit profileName; }).out;
       futures_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.28" { inherit profileName; }).out;
       garage_db = (rustPackages."unknown".garage_db."0.8.4" { inherit profileName; }).out;

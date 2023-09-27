@@ -1370,6 +1370,7 @@ dependencies = [
  "bytes",
  "bytesize",
  "err-derive",
+ "format_table",
  "futures",
  "futures-util",
  "garage_db",

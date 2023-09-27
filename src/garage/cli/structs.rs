@@ -143,9 +143,9 @@ pub struct RemoveRoleOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct ConfigLayoutOpt {
-	/// Zone redundancy parameter
+	/// Zone redundancy parameter ('none'/'max' or integer)
 	#[structopt(short = "r", long = "redundancy")]
-	pub(crate) redundancy: Option<usize>,
+	pub(crate) redundancy: Option<String>,
 }
 
 #[derive(StructOpt, Debug)]
