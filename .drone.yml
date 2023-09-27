@@ -42,6 +42,12 @@ steps:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
+  - name: upgrade tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
+      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
+
 trigger:
   event:
   - custom
@@ -285,6 +291,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 24aebbcdba84fd0cdf963061d7bb72ae5b915bfdd0f50c7b019001126fb7fa56
+hmac: dcf68ed6536e3fd9b359377e4c6c1d321fa9cc0f6fe5645d69c8f1d604569b4c
 
 ...
