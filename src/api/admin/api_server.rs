@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -18,6 +17,7 @@ use prometheus::{Encoder, TextEncoder};
 use garage_model::garage::Garage;
 use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
+use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use crate::generic_server::*;
 
@@ -61,7 +61,7 @@ impl AdminApiServer {
 
 	pub async fn run(
 		self,
-		bind_addr: SocketAddr,
+		bind_addr: UnixOrTCPSocketAddress,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		let region = self.garage.config.s3_api.s3_region.clone();
