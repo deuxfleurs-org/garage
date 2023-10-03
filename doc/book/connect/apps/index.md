@@ -421,7 +421,7 @@ Now we can write a simple script (eg `~/.local/bin/matrix-cache-gc`):
 ## CONFIGURATION ##
 AWS_ACCESS_KEY_ID=GKxxx
 AWS_SECRET_ACCESS_KEY=xxxx
-S3_ENDPOINT=http://localhost:3900
+AWS_ENDPOINT_URL=http://localhost:3900
 S3_BUCKET=matrix
 MEDIA_STORE=/var/lib/matrix-synapse/media
 PG_USER=matrix
@@ -442,7 +442,7 @@ EOF
 
 s3_media_upload update-db 1d
 s3_media_upload --no-progress check-deleted $MEDIA_STORE
-s3_media_upload --no-progress upload $MEDIA_STORE $S3_BUCKET --delete --endpoint-url $S3_ENDPOINT
+s3_media_upload --no-progress upload $MEDIA_STORE $S3_BUCKET --delete --endpoint-url $AWS_ENDPOINT_URL
 ```
 
 This script will list all the medias that were not accessed in the 24 hours according to your database.

@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,6 +9,7 @@ use hyper::{Body, Request, Response};
 use opentelemetry::{trace::SpanRef, KeyValue};
 
 use garage_util::error::Error as GarageError;
+use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
@@ -46,12 +46,12 @@ pub(crate) struct S3ApiEndpoint {
 impl S3ApiServer {
 	pub async fn run(
 		garage: Arc<Garage>,
-		addr: SocketAddr,
+		addr: UnixOrTCPSocketAddress,
 		s3_region: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, S3ApiServer { garage })
-			.run_server(addr, shutdown_signal)
+			.run_server(addr, None, shutdown_signal)
 			.await
 	}
 

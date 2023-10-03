@@ -468,6 +468,8 @@ manually.
 The IP and port on which to bind for accepting S3 API calls.
 This endpoint does not suport TLS: a reverse proxy should be used to provide it.
 
+Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0222 mode.
+
 ### `s3_region`
 
 Garage will accept S3 API calls that are targetted to the S3 region defined here.
@@ -497,6 +499,8 @@ The IP and port on which to bind for accepting HTTP requests to buckets configur
 for website access.
 This endpoint does not suport TLS: a reverse proxy should be used to provide it.
 
+Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0222 mode.
+
 ### `root_domain`
 
 The optional suffix appended to bucket names for the corresponding HTTP Host.
@@ -515,6 +519,9 @@ Garage has a few administration capabilities, in particular to allow remote moni
 If specified, Garage will bind an HTTP server to this port and address, on
 which it will listen to requests for administration features.
 See [administration API reference](@/documentation/reference-manual/admin-api.md) to learn more about these features.
+
+Alternatively, since `v0.8.5`, a path can be used to create a unix socket. Note that for security reasons,
+the socket will have 0220 mode. Make sure to set user and group permissions accordingly.
 
 ### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN` (env)
 

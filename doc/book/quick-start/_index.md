@@ -269,11 +269,13 @@ named `~/.awsrc` with this content:
 export AWS_ACCESS_KEY_ID=xxxx      # put your Key ID here
 export AWS_SECRET_ACCESS_KEY=xxxx  # put your Secret key here
 export AWS_DEFAULT_REGION='garage'
-export AWS_ENDPOINT='http://localhost:3900'
+export AWS_ENDPOINT_URL='http://localhost:3900'
 
-function aws { command aws --endpoint-url $AWS_ENDPOINT $@ ; }
 aws --version
 ```
+
+Note you need to have at least `awscli` `>=1.29.0` or `>=2.13.0`, otherwise you
+need to specify `--endpoint-url` explicitly on each `awscli` invocation.
 
 Now, each time you want to use `awscli` on this target, run:
 

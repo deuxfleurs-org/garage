@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use serde::{de, Deserialize};
 
 use crate::error::Error;
+use crate::socket_address::UnixOrTCPSocketAddress;
 
 /// Represent the whole configuration
 #[derive(Deserialize, Debug, Clone)]
@@ -129,7 +130,7 @@ pub struct DataDir {
 #[derive(Deserialize, Debug, Clone)]
 pub struct S3ApiConfig {
 	/// Address and port to bind for api serving
-	pub api_bind_addr: Option<SocketAddr>,
+	pub api_bind_addr: Option<UnixOrTCPSocketAddress>,
 	/// S3 region to use
 	pub s3_region: String,
 	/// Suffix to remove from domain name to find bucket. If None,
@@ -141,14 +142,14 @@ pub struct S3ApiConfig {
 #[derive(Deserialize, Debug, Clone)]
 pub struct K2VApiConfig {
 	/// Address and port to bind for api serving
-	pub api_bind_addr: SocketAddr,
+	pub api_bind_addr: UnixOrTCPSocketAddress,
 }
 
 /// Configuration for serving files as normal web server
 #[derive(Deserialize, Debug, Clone)]
 pub struct WebConfig {
 	/// Address and port to bind for web serving
-	pub bind_addr: SocketAddr,
+	pub bind_addr: UnixOrTCPSocketAddress,
 	/// Suffix to remove from domain name to find bucket
 	pub root_domain: String,
 }
@@ -157,7 +158,7 @@ pub struct WebConfig {
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct AdminConfig {
 	/// Address and port to bind for admin API serving
-	pub api_bind_addr: Option<SocketAddr>,
+	pub api_bind_addr: Option<UnixOrTCPSocketAddress>,
 
 	/// Bearer token to use to scrape metrics
 	pub metrics_token: Option<String>,
