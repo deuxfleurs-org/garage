@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,6 +8,7 @@ use hyper::{Body, Method, Request, Response};
 use opentelemetry::{trace::SpanRef, KeyValue};
 
 use garage_util::error::Error as GarageError;
+use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 
@@ -37,12 +37,12 @@ pub(crate) struct K2VApiEndpoint {
 impl K2VApiServer {
 	pub async fn run(
 		garage: Arc<Garage>,
-		bind_addr: SocketAddr,
+		bind_addr: UnixOrTCPSocketAddress,
 		s3_region: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, K2VApiServer { garage })
-			.run_server(bind_addr, shutdown_signal)
+			.run_server(bind_addr, None, shutdown_signal)
 			.await
 	}
 }

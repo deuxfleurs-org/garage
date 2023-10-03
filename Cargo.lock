@@ -1271,6 +1271,7 @@ dependencies = [
  "http-range",
  "httpdate",
  "hyper",
+ "hyperlocal",
  "idna",
  "md-5",
  "multer",
@@ -1459,8 +1460,10 @@ dependencies = [
  "garage_util",
  "http",
  "hyper",
+ "hyperlocal",
  "opentelemetry",
  "percent-encoding",
+ "tokio",
  "tracing",
 ]
 
@@ -1768,6 +1771,19 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-io-timeout",
+]
+
+[[package]]
+name = "hyperlocal"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fafdf7b2b2de7c9784f76e02c0935e65a8117ec3b768644379983ab333ac98c"
+dependencies = [
+ "futures-util",
+ "hex",
+ "hyper",
+ "pin-project",
+ "tokio",
 ]
 
 [[package]]

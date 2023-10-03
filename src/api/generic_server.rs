@@ -1,4 +1,5 @@
-use std::net::SocketAddr;
+use std::fs::{self, Permissions};
+use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -11,6 +12,10 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use hyper::{HeaderMap, StatusCode};
 
+use hyperlocal::UnixServerExt;
+
+use tokio::net::UnixStream;
+
 use opentelemetry::{
 	global,
 	metrics::{Counter, ValueRecorder},
@@ -21,6 +26,7 @@ use opentelemetry::{
 use garage_util::error::Error as GarageError;
 use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
+use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 pub(crate) trait ApiEndpoint: Send + Sync + 'static {
 	fn name(&self) -> &'static str;
@@ -91,10 +97,11 @@ impl<A: ApiHandler> ApiServer<A> {
 
 	pub async fn run_server(
 		self: Arc<Self>,
-		bind_addr: SocketAddr,
+		bind_addr: UnixOrTCPSocketAddress,
+		unix_bind_addr_mode: Option<u32>,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
-		let service = make_service_fn(|conn: &AddrStream| {
+		let tcp_service = make_service_fn(|conn: &AddrStream| {
 			let this = self.clone();
 
 			let client_addr = conn.remote_addr();
@@ -102,28 +109,63 @@ impl<A: ApiHandler> ApiServer<A> {
 				Ok::<_, GarageError>(service_fn(move |req: Request<Body>| {
 					let this = this.clone();
 
-					this.handler(req, client_addr)
+					this.handler(req, client_addr.to_string())
 				}))
 			}
 		});
 
-		let server = Server::bind(&bind_addr).serve(service);
+		let unix_service = make_service_fn(|_: &UnixStream| {
+			let this = self.clone();
 
-		let graceful = server.with_graceful_shutdown(shutdown_signal);
+			let path = bind_addr.to_string();
+			async move {
+				Ok::<_, GarageError>(service_fn(move |req: Request<Body>| {
+					let this = this.clone();
+
+					this.handler(req, path.clone())
+				}))
+			}
+		});
+
 		info!(
-			"{} API server listening on http://{}",
+			"{} API server listening on {}",
 			A::API_NAME_DISPLAY,
 			bind_addr
 		);
 
-		graceful.await?;
+		match bind_addr {
+			UnixOrTCPSocketAddress::TCPSocket(addr) => {
+				Server::bind(&addr)
+					.serve(tcp_service)
+					.with_graceful_shutdown(shutdown_signal)
+					.await?
+			}
+			UnixOrTCPSocketAddress::UnixSocket(ref path) => {
+				if path.exists() {
+					fs::remove_file(path)?
+				}
+
+				let bound = Server::bind_unix(path)?;
+
+				fs::set_permissions(
+					path,
+					Permissions::from_mode(unix_bind_addr_mode.unwrap_or(0o222)),
+				)?;
+
+				bound
+					.serve(unix_service)
+					.with_graceful_shutdown(shutdown_signal)
+					.await?;
+			}
+		};
+
 		Ok(())
 	}
 
 	async fn handler(
 		self: Arc<Self>,
 		req: Request<Body>,
-		addr: SocketAddr,
+		addr: String,
 	) -> Result<Response<Body>, GarageError> {
 		let uri = req.uri().clone();
 

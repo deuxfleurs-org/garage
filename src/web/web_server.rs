@@ -1,4 +1,6 @@
-use std::{convert::Infallible, net::SocketAddr, sync::Arc};
+use std::fs::{self, Permissions};
+use std::os::unix::prelude::PermissionsExt;
+use std::{convert::Infallible, sync::Arc};
 
 use futures::future::Future;
 
@@ -8,6 +10,10 @@ use hyper::{
 	service::{make_service_fn, service_fn},
 	Body, Method, Request, Response, Server, StatusCode,
 };
+
+use hyperlocal::UnixServerExt;
+
+use tokio::net::UnixStream;
 
 use opentelemetry::{
 	global,
@@ -32,6 +38,7 @@ use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
+use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 struct WebMetrics {
 	request_counter: Counter<u64>,
@@ -69,7 +76,7 @@ impl WebServer {
 	/// Run a web server
 	pub async fn run(
 		garage: Arc<Garage>,
-		addr: SocketAddr,
+		addr: UnixOrTCPSocketAddress,
 		root_domain: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
@@ -80,7 +87,7 @@ impl WebServer {
 			root_domain,
 		});
 
-		let service = make_service_fn(|conn: &AddrStream| {
+		let tcp_service = make_service_fn(|conn: &AddrStream| {
 			let web_server = web_server.clone();
 
 			let client_addr = conn.remote_addr();
@@ -88,23 +95,56 @@ impl WebServer {
 				Ok::<_, Error>(service_fn(move |req: Request<Body>| {
 					let web_server = web_server.clone();
 
-					web_server.handle_request(req, client_addr)
+					web_server.handle_request(req, client_addr.to_string())
 				}))
 			}
 		});
 
-		let server = Server::bind(&addr).serve(service);
-		let graceful = server.with_graceful_shutdown(shutdown_signal);
-		info!("Web server listening on http://{}", addr);
+		let unix_service = make_service_fn(|_: &UnixStream| {
+			let web_server = web_server.clone();
 
-		graceful.await?;
+			let path = addr.to_string();
+			async move {
+				Ok::<_, Error>(service_fn(move |req: Request<Body>| {
+					let web_server = web_server.clone();
+
+					web_server.handle_request(req, path.clone())
+				}))
+			}
+		});
+
+		info!("Web server listening on {}", addr);
+
+		match addr {
+			UnixOrTCPSocketAddress::TCPSocket(addr) => {
+				Server::bind(&addr)
+					.serve(tcp_service)
+					.with_graceful_shutdown(shutdown_signal)
+					.await?
+			}
+			UnixOrTCPSocketAddress::UnixSocket(ref path) => {
+				if path.exists() {
+					fs::remove_file(path)?
+				}
+
+				let bound = Server::bind_unix(path)?;
+
+				fs::set_permissions(path, Permissions::from_mode(0o222))?;
+
+				bound
+					.serve(unix_service)
+					.with_graceful_shutdown(shutdown_signal)
+					.await?;
+			}
+		};
+
 		Ok(())
 	}
 
 	async fn handle_request(
 		self: Arc<Self>,
 		req: Request<Body>,
-		addr: SocketAddr,
+		addr: String,
 	) -> Result<Response<Body>, Infallible> {
 		if let Ok(forwarded_for_ip_addr) =
 			forwarded_headers::handle_forwarded_for_headers(req.headers())
