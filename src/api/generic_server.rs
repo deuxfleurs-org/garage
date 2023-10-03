@@ -98,6 +98,7 @@ impl<A: ApiHandler> ApiServer<A> {
 	pub async fn run_server(
 		self: Arc<Self>,
 		bind_addr: UnixOrTCPSocketAddress,
+		unix_bind_addr_mode: Option<u32>,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		let tcp_service = make_service_fn(|conn: &AddrStream| {
@@ -146,7 +147,10 @@ impl<A: ApiHandler> ApiServer<A> {
 
 				let bound = Server::bind_unix(path)?;
 
-				fs::set_permissions(path, Permissions::from_mode(0o222))?;
+				fs::set_permissions(
+					path,
+					Permissions::from_mode(unix_bind_addr_mode.unwrap_or(0o222)),
+				)?;
 
 				bound
 					.serve(unix_service)

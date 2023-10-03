@@ -42,7 +42,7 @@ impl K2VApiServer {
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, K2VApiServer { garage })
-			.run_server(bind_addr, shutdown_signal)
+			.run_server(bind_addr, None, shutdown_signal)
 			.await
 	}
 }

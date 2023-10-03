@@ -49,7 +49,7 @@ impl S3ApiServer {
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, S3ApiServer { garage })
-			.run_server(addr, shutdown_signal)
+			.run_server(addr, None, shutdown_signal)
 			.await
 	}
 

@@ -66,7 +66,7 @@ impl AdminApiServer {
 	) -> Result<(), GarageError> {
 		let region = self.garage.config.s3_api.s3_region.clone();
 		ApiServer::new(region, self)
-			.run_server(bind_addr, shutdown_signal)
+			.run_server(bind_addr, Some(0o220), shutdown_signal)
 			.await
 	}
 
