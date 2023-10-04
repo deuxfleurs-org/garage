@@ -453,7 +453,7 @@ pub enum RepairWhat {
 	/// Do a full sync of metadata tables
 	#[structopt(name = "tables", version = garage_version())]
 	Tables,
-	/// Repair (resync/rebalance) the set of stored blocks
+	/// Repair (resync/rebalance) the set of stored blocks in the cluster
 	#[structopt(name = "blocks", version = garage_version())]
 	Blocks,
 	/// Repropagate object deletions to the version table
@@ -471,7 +471,7 @@ pub enum RepairWhat {
 		#[structopt(subcommand)]
 		cmd: ScrubCmd,
 	},
-	/// Rebalance data blocks among storage locations
+	/// Rebalance data blocks among HDDs on individual nodes
 	#[structopt(name = "rebalance", version = garage_version())]
 	Rebalance,
 }
