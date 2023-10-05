@@ -25,7 +25,8 @@ use crate::admin::bucket::*;
 use crate::admin::cluster::*;
 use crate::admin::error::*;
 use crate::admin::key::*;
-use crate::admin::router::{Authorization, Endpoint};
+use crate::admin::router_v0;
+use crate::admin::router_v1::{Authorization, Endpoint};
 use crate::helpers::host_to_bucket;
 
 pub struct AdminApiServer {
@@ -229,7 +230,12 @@ impl ApiHandler for AdminApiServer {
 	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<Endpoint, Error> {
-		Endpoint::from_request(req)
+		if req.uri().path().starts_with("/v0/") {
+			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
+			Endpoint::from_v0(endpoint_v0)
+		} else {
+			Endpoint::from_request(req)
+		}
 	}
 
 	async fn handle(
