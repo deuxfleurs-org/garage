@@ -42,12 +42,6 @@ steps:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
-  - name: upgrade tests
-    image: nixpkgs/nix:nixos-22.05
-    commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
-
 trigger:
   event:
   - custom
@@ -71,10 +65,15 @@ steps:
       - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
 
-  - name: integration
+  - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+  - name: upgrade tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -122,10 +121,15 @@ steps:
       - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
 
-  - name: integration
+  - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+  - name: upgrade tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 i686-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -291,6 +295,6 @@ trigger:
 
 ---
 kind: signature
-hmac: dcf68ed6536e3fd9b359377e4c6c1d321fa9cc0f6fe5645d69c8f1d604569b4c
+hmac: 0c4b57eb4b27b7c6a6ff21ab87f0767fe3eb90f5d95d5cbcdccf794e9d2a5d86
 
 ...
