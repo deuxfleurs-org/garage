@@ -25,7 +25,7 @@ The following are **breaking changes** in Garage v0.9 that require your attentio
 The migration steps are as follows:
 
 1. Disable API and web access. You may do this by stopping your reverse proxy or by commenting out
-   the `api_bind_addr` values in your `config.toml` file.
+   the `api_bind_addr` values in your `config.toml` file and restarting Garage.
 2. Do `garage repair --all-nodes --yes tables` and `garage repair --all-nodes --yes blocks`,
    check the logs and check that all data seems to be synced correctly between
    nodes. If you have time, do additional checks (`versions`, `block_refs`, etc.)
@@ -62,7 +62,8 @@ The migration steps are as follows:
 
 3. Prepare your binaries and configuration files for Garage v0.9
 
-4. Shut down all v087 nodes simultaneously, and restart them all simultaneously in v0.9.
+4. Shut down all v0.8 nodes simultaneously, and restart them all simultaneously in v0.9.
    Use your favorite deployment tool (Ansible, Kubernetes, Nomad) to achieve this as fast as possible.
+   Garage v0.9 should be in a working state as soon as it starts.
 
-5. Proceed with steps 9-12 above.
+5. Proceed with repair and monitoring as described in steps 9-12 above.
