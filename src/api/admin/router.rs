@@ -111,7 +111,7 @@ impl Endpoint {
 			POST "/v1/key" => CreateKey,
 			POST "/v1/key/import" => ImportKey,
 			DELETE ("/v0/key" | "/v1/key") if id => DeleteKey (query::id),
-			GET ("/v0/key" | "/v1/key") => ListKeys,
+			GET "/v1/key" => ListKeys,
 			// Bucket endpoints
 			GET ("/v0/bucket" | "/v1/bucket") if id => GetBucketInfo (query_opt::id, query_opt::global_alias),
 			GET ("/v0/bucket" | "/v1/bucket") if global_alias => GetBucketInfo (query_opt::id, query_opt::global_alias),
