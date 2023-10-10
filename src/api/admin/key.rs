@@ -10,7 +10,7 @@ use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::admin::error::*;
-use crate::helpers::{json_ok_response, parse_json_body};
+use crate::helpers::{is_default, json_ok_response, parse_json_body};
 
 pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let res = garage
@@ -34,6 +34,7 @@ pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Er
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ListKeyResultItem {
 	id: String,
 	name: String,
@@ -43,6 +44,7 @@ pub async fn handle_get_key_info(
 	garage: &Arc<Garage>,
 	id: Option<String>,
 	search: Option<String>,
+	show_secret_key: bool,
 ) -> Result<Response<Body>, Error> {
 	let key = if let Some(id) = id {
 		garage.key_helper().get_existing_key(&id).await?
@@ -55,7 +57,7 @@ pub async fn handle_get_key_info(
 		unreachable!();
 	};
 
-	key_info_results(garage, key).await
+	key_info_results(garage, key, show_secret_key).await
 }
 
 pub async fn handle_create_key(
@@ -64,15 +66,16 @@ pub async fn handle_create_key(
 ) -> Result<Response<Body>, Error> {
 	let req = parse_json_body::<CreateKeyRequest>(req).await?;
 
-	let key = Key::new(&req.name);
+	let key = Key::new(req.name.as_deref().unwrap_or("Unnamed key"));
 	garage.key_table.insert(&key).await?;
 
-	key_info_results(garage, key).await
+	key_info_results(garage, key, true).await
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateKeyRequest {
-	name: String,
+	name: Option<String>,
 }
 
 pub async fn handle_import_key(
@@ -86,10 +89,15 @@ pub async fn handle_import_key(
 		return Err(Error::KeyAlreadyExists(req.access_key_id.to_string()));
 	}
 
-	let imported_key = Key::import(&req.access_key_id, &req.secret_access_key, &req.name);
+	let imported_key = Key::import(
+		&req.access_key_id,
+		&req.secret_access_key,
+		req.name.as_deref().unwrap_or("Imported key"),
+	)
+	.ok_or_bad_request("Invalid key format")?;
 	garage.key_table.insert(&imported_key).await?;
 
-	key_info_results(garage, imported_key).await
+	key_info_results(garage, imported_key, false).await
 }
 
 #[derive(Deserialize)]
@@ -97,7 +105,7 @@ pub async fn handle_import_key(
 struct ImportKeyRequest {
 	access_key_id: String,
 	secret_access_key: String,
-	name: String,
+	name: Option<String>,
 }
 
 pub async fn handle_update_key(
@@ -127,10 +135,11 @@ pub async fn handle_update_key(
 
 	garage.key_table.insert(&key).await?;
 
-	key_info_results(garage, key).await
+	key_info_results(garage, key, false).await
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct UpdateKeyRequest {
 	name: Option<String>,
 	allow: Option<KeyPerm>,
@@ -149,7 +158,11 @@ pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Respo
 		.body(Body::empty())?)
 }
 
-async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Body>, Error> {
+async fn key_info_results(
+	garage: &Arc<Garage>,
+	key: Key,
+	show_secret: bool,
+) -> Result<Response<Body>, Error> {
 	let mut relevant_buckets = HashMap::new();
 
 	let key_state = key.state.as_option().unwrap();
@@ -178,7 +191,11 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 	let res = GetKeyInfoResult {
 		name: key_state.name.get().clone(),
 		access_key_id: key.key_id.clone(),
-		secret_access_key: key_state.secret_key.clone(),
+		secret_access_key: if show_secret {
+			Some(key_state.secret_key.clone())
+		} else {
+			None
+		},
 		permissions: KeyPerm {
 			create_bucket: *key_state.allow_create_bucket.get(),
 		},
@@ -224,7 +241,8 @@ async fn key_info_results(garage: &Arc<Garage>, key: Key) -> Result<Response<Bod
 struct GetKeyInfoResult {
 	name: String,
 	access_key_id: String,
-	secret_access_key: String,
+	#[serde(skip_serializing_if = "is_default")]
+	secret_access_key: Option<String>,
 	permissions: KeyPerm,
 	buckets: Vec<KeyInfoBucketResult>,
 }
@@ -246,6 +264,7 @@ struct KeyInfoBucketResult {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ApiBucketKeyPerm {
 	#[serde(default)]
 	pub(crate) read: bool,

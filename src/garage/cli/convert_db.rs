@@ -41,6 +41,8 @@ fn open_db(path: PathBuf, engine: String) -> Result<Db> {
 		#[cfg(feature = "sqlite")]
 		"sqlite" | "sqlite3" | "rusqlite" => {
 			let db = sqlite_adapter::rusqlite::Connection::open(&path)?;
+			db.pragma_update(None, "journal_mode", &"WAL")?;
+			db.pragma_update(None, "synchronous", &"NORMAL")?;
 			Ok(sqlite_adapter::SqliteDb::init(db))
 		}
 		#[cfg(feature = "lmdb")]
@@ -51,11 +53,13 @@ fn open_db(path: PathBuf, engine: String) -> Result<Db> {
 
 			let map_size = lmdb_adapter::recommended_map_size();
 
-			let db = lmdb_adapter::heed::EnvOpenOptions::new()
-				.max_dbs(100)
-				.map_size(map_size)
-				.open(&path)
-				.unwrap();
+			let mut env_builder = lmdb_adapter::heed::EnvOpenOptions::new();
+			env_builder.max_dbs(100);
+			env_builder.map_size(map_size);
+			unsafe {
+				env_builder.flag(lmdb_adapter::heed::flags::Flags::MdbNoMetaSync);
+			}
+			let db = env_builder.open(&path)?;
 			Ok(lmdb_adapter::LmdbDb::init(db))
 		}
 		e => Err(Error(

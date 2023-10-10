@@ -1,6 +1,7 @@
 pub mod api_server;
 mod error;
-mod router;
+mod router_v0;
+mod router_v1;
 
 mod bucket;
 mod cluster;

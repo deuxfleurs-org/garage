@@ -85,7 +85,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				));
 			}
 			_ => {
-				let new_role = match layout.staging.get(&adv.id) {
+				let new_role = match layout.staging_roles.get(&adv.id) {
 					Some(NodeRoleV(Some(_))) => "(pending)",
 					_ => "NO ROLE ASSIGNED",
 				};
@@ -190,8 +190,9 @@ pub async fn cmd_admin(
 			bucket,
 			relevant_keys,
 			counters,
+			mpu_counters,
 		} => {
-			print_bucket_info(&bucket, &relevant_keys, &counters);
+			print_bucket_info(&bucket, &relevant_keys, &counters, &mpu_counters);
 		}
 		AdminRpc::KeyList(kl) => {
 			print_key_list(kl);
@@ -215,8 +216,9 @@ pub async fn cmd_admin(
 			hash,
 			refcount,
 			versions,
+			uploads,
 		} => {
-			print_block_info(hash, refcount, versions);
+			print_block_info(hash, refcount, versions, uploads);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

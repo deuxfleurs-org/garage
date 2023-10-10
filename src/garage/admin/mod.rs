@@ -28,6 +28,7 @@ use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::key_table::*;
 use garage_model::migrate::Migrate;
+use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
 use crate::cli::*;
@@ -53,6 +54,7 @@ pub enum AdminRpc {
 		bucket: Bucket,
 		relevant_keys: HashMap<String, Key>,
 		counters: HashMap<String, i64>,
+		mpu_counters: HashMap<String, i64>,
 	},
 	KeyList(Vec<(String, String)>),
 	KeyInfo(Key, HashMap<Uuid, Bucket>),
@@ -67,6 +69,7 @@ pub enum AdminRpc {
 		hash: Hash,
 		refcount: u64,
 		versions: Vec<Result<Version, Uuid>>,
+		uploads: Vec<MultipartUpload>,
 	},
 }
 
@@ -274,7 +277,7 @@ impl AdminRpcHandler {
 		// Gather storage node and free space statistics
 		let layout = &self.garage.system.ring.borrow().layout;
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
-		for short_id in layout.ring_assignation_data.iter() {
+		for short_id in layout.ring_assignment_data.iter() {
 			let id = layout.node_id_vec[*short_id as usize];
 			*node_partition_count.entry(id).or_default() += 1;
 		}

@@ -15,7 +15,14 @@ pub struct Config {
 	/// Path where to store metadata. Should be fast, but low volume
 	pub metadata_dir: PathBuf,
 	/// Path where to store data. Can be slower, but need higher volume
-	pub data_dir: PathBuf,
+	pub data_dir: DataDirEnum,
+
+	/// Whether to fsync after all metadata transactions (disabled by default)
+	#[serde(default)]
+	pub metadata_fsync: bool,
+	/// Whether to fsync after all data block writes (disabled by default)
+	#[serde(default)]
+	pub data_fsync: bool,
 
 	/// Size of data blocks to save to disk
 	#[serde(
@@ -97,6 +104,26 @@ pub struct Config {
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
+}
+
+/// Value for data_dir: either a single directory or a list of dirs with attributes
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum DataDirEnum {
+	Single(PathBuf),
+	Multiple(Vec<DataDir>),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct DataDir {
+	/// Path to the data directory
+	pub path: PathBuf,
+	/// Capacity of the drive (required if read_only is false)
+	#[serde(default)]
+	pub capacity: Option<String>,
+	/// Whether this is a legacy read-only path (capacity should be None)
+	#[serde(default)]
+	pub read_only: bool,
 }
 
 /// Configuration for S3 api
@@ -195,7 +222,7 @@ pub struct KubernetesDiscoveryConfig {
 }
 
 fn default_db_engine() -> String {
-	"sled".into()
+	"lmdb".into()
 }
 
 fn default_sled_cache_capacity() -> usize {

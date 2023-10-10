@@ -20,6 +20,7 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     environment:
       GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
+      GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-build --no-build-output --attr test.amd64
@@ -31,8 +32,9 @@ steps:
       - ./result/bin/garage_util-*
       - ./result/bin/garage_web-*
       - ./result/bin/garage-*
-      - ./result/bin/integration-*
+      - ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
       - rm result
+      - rm -rv tmp-garage-integration
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
@@ -63,10 +65,15 @@ steps:
       - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
 
-  - name: integration
+  - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+  - name: upgrade tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -114,10 +121,15 @@ steps:
       - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
       - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
 
-  - name: integration
+  - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+
+  - name: upgrade tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 i686-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -283,6 +295,6 @@ trigger:
 
 ---
 kind: signature
-hmac: ac09a5a8c82502f67271f93afa1e1e21ce66383b8e24a6deb26b285cc1c378ba
+hmac: 0c4b57eb4b27b7c6a6ff21ab87f0767fe3eb90f5d95d5cbcdccf794e9d2a5d86
 
 ...

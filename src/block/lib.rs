@@ -6,5 +6,6 @@ pub mod repair;
 pub mod resync;
 
 mod block;
+mod layout;
 mod metrics;
 mod rc;

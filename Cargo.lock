@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1249,7 +1249,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "base64 0.21.3",
@@ -1295,12 +1295,13 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-compression",
  "async-trait",
  "bytes",
+ "bytesize",
  "futures",
  "futures-util",
  "garage_db",
@@ -1320,7 +1321,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "clap 4.4.0",
  "err-derive",
@@ -1335,12 +1336,13 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-trait",
  "base64 0.21.3",
  "blake2",
+ "chrono",
  "err-derive",
  "futures",
  "futures-util",
@@ -1362,18 +1364,21 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes",
+ "bytesize",
  "err-derive",
+ "format_table",
  "futures",
  "futures-util",
  "garage_db",
  "garage_util",
  "gethostname",
  "hex",
+ "itertools 0.10.5",
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
@@ -1394,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1416,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1450,7 +1455,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.8.4"
+version = "0.9.0"
 dependencies = [
  "err-derive",
  "futures",
@@ -2283,9 +2288,9 @@ checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
 name = "netapp"
-version = "0.5.2"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ffe47ac46d3b2ce2f736a70865492df082e042eb2bfdddfca3b8dd66bd9469d"
+checksum = "0a00b76cec93e3ae68c9ed5f08e27a1507424987ee23d5ec961ebd4da820a265"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -3032,9 +3037,9 @@ dependencies = [
 
 [[package]]
 name = "rmp-serde"
-version = "0.15.5"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "723ecff9ad04f4ad92fe1c8ca6c20d2196d9286e9c60727c4cb5511629260e9d"
+checksum = "bffea85eea980d8a74453e5d02a8d93028f3c34725de143085a844ebe953258a"
 dependencies = [
  "byteorder",
  "rmp",

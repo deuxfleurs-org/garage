@@ -294,7 +294,7 @@ impl<T: CountedItem> IndexCounter<T> {
 				let counter_entry = local_counter.into_counter_entry(self.this_node);
 				self.local_counter
 					.db()
-					.transaction(|mut tx| self.table.queue_insert(&mut tx, &counter_entry))?;
+					.transaction(|tx| self.table.queue_insert(tx, &counter_entry))?;
 
 				next_start = Some(local_counter_k);
 			}
@@ -360,7 +360,7 @@ impl<T: CountedItem> IndexCounter<T> {
 				let counter_entry = local_counter.into_counter_entry(self.this_node);
 				self.local_counter
 					.db()
-					.transaction(|mut tx| self.table.queue_insert(&mut tx, &counter_entry))?;
+					.transaction(|tx| self.table.queue_insert(tx, &counter_entry))?;
 
 				next_start = Some(counted_entry_k);
 			}

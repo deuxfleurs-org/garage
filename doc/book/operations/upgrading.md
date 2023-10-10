@@ -80,6 +80,6 @@ The entire procedure would look something like this:
 5. If any specific migration procedure is required, it is usually in one of the two cases:
 
   - It can be run on online nodes after the new version has started, during regular cluster operation.
-  - it has to be run offline
+  - it has to be run offline, in which case you will have to again take all nodes offline one after the other to run the repair
 
    For this last step, please refer to the specific documentation pertaining to the version upgrade you are doing.

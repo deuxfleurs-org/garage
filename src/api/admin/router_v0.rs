@@ -5,12 +5,6 @@ use hyper::{Method, Request};
 use crate::admin::error::*;
 use crate::router_macros::*;
 
-pub enum Authorization {
-	None,
-	MetricsToken,
-	AdminToken,
-}
-
 router_match! {@func
 
 /// List of all Admin API endpoints.
@@ -133,15 +127,6 @@ impl Endpoint {
 		}
 
 		Ok(res)
-	}
-	/// Get the kind of authorization which is required to perform the operation.
-	pub fn authorization_type(&self) -> Authorization {
-		match self {
-			Self::Health => Authorization::None,
-			Self::CheckDomain => Authorization::None,
-			Self::Metrics => Authorization::MetricsToken,
-			_ => Authorization::AdminToken,
-		}
 	}
 }
 

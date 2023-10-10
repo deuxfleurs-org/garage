@@ -13,26 +13,26 @@ fn test_suite(db: Db) {
 	assert!(tree.insert(ka, va).unwrap().is_none());
 	assert_eq!(tree.get(ka).unwrap().unwrap(), va);
 
-	let res = db.transaction::<_, (), _>(|mut tx| {
+	let res = db.transaction::<_, (), _>(|tx| {
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), va);
 
 		assert_eq!(tx.insert(&tree, ka, vb).unwrap().unwrap(), va);
 
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vb);
 
-		tx.commit(12)
+		Ok(12)
 	});
 	assert!(matches!(res, Ok(12)));
 	assert_eq!(tree.get(ka).unwrap().unwrap(), vb);
 
-	let res = db.transaction::<(), _, _>(|mut tx| {
+	let res = db.transaction::<(), _, _>(|tx| {
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vb);
 
 		assert_eq!(tx.insert(&tree, ka, vc).unwrap().unwrap(), vb);
 
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vc);
 
-		tx.abort(42)
+		Err(TxError::Abort(42))
 	});
 	assert!(matches!(res, Err(TxError::Abort(42))));
 	assert_eq!(tree.get(ka).unwrap().unwrap(), vb);

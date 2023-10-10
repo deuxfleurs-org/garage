@@ -26,6 +26,7 @@ macro_rules! router_match {
      $($meth:ident $path:pat $(if $required:ident)? => $api:ident $(($($conv:ident :: $param:ident),*))?,)*
      ]) => {{
         {
+            #[allow(unused_parens)]
             match ($method, $reqpath) {
                 $(
                     (&Method::$meth, $path) if true $(&& $query.$required.is_some())? => Endpoint::$api {
@@ -127,12 +128,6 @@ macro_rules! router_match {
                 }
             }
         }
-    };
-    (@if ($($cond:tt)+) then ($($then:tt)*) else ($($else:tt)*)) => {
-        $($then)*
-    };
-    (@if () then ($($then:tt)*) else ($($else:tt)*)) => {
-        $($else)*
     };
 }
 

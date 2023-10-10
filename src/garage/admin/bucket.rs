@@ -73,6 +73,15 @@ impl AdminRpcHandler {
 			.map(|x| x.filtered_values(&self.garage.system.ring.borrow()))
 			.unwrap_or_default();
 
+		let mpu_counters = self
+			.garage
+			.mpu_counter_table
+			.table
+			.get(&bucket_id, &EmptyKey)
+			.await?
+			.map(|x| x.filtered_values(&self.garage.system.ring.borrow()))
+			.unwrap_or_default();
+
 		let mut relevant_keys = HashMap::new();
 		for (k, _) in bucket
 			.state
@@ -112,6 +121,7 @@ impl AdminRpcHandler {
 			bucket,
 			relevant_keys,
 			counters,
+			mpu_counters,
 		})
 	}
 

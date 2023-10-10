@@ -31,6 +31,11 @@ dd if=/dev/urandom of=/tmp/garage.1.rnd bs=1k count=2 # No multipart, inline sto
 dd if=/dev/urandom of=/tmp/garage.2.rnd bs=1M count=5 # No multipart but file will be chunked
 dd if=/dev/urandom of=/tmp/garage.3.rnd bs=1M count=10 # by default, AWS starts using multipart at 8MB
 
+dd if=/dev/urandom of=/tmp/garage.part1.rnd bs=1M count=5
+dd if=/dev/urandom of=/tmp/garage.part2.rnd bs=1M count=5
+dd if=/dev/urandom of=/tmp/garage.part3.rnd bs=1M count=5
+dd if=/dev/urandom of=/tmp/garage.part4.rnd bs=1M count=5
+
 # data of lower entropy, to test compression
 dd if=/dev/urandom bs=1k count=2  | base64 -w0 > /tmp/garage.1.b64
 dd if=/dev/urandom bs=1M count=5  | base64 -w0 > /tmp/garage.2.b64
@@ -40,7 +45,7 @@ echo "🧪 S3 API testing..."
 
 # AWS
 if [ -z "$SKIP_AWS" ]; then
-  echo "🛠️ Testing with awscli"
+  echo "🛠️ Testing with awscli (aws s3)"
   source ${SCRIPT_FOLDER}/dev-env-aws.sh
   aws s3 ls
   for idx in {1..3}.{rnd,b64}; do
@@ -51,7 +56,35 @@ if [ -z "$SKIP_AWS" ]; then
     rm /tmp/garage.$idx.dl
     aws s3 rm "s3://eprouvette/&+-é\"/garage.$idx.aws"
   done
+
+  echo "🛠️ Testing multipart uploads with awscli (aws s3api)"
+  UPLOAD=$(aws s3api create-multipart-upload --bucket eprouvette --key 'upload' | jq -r ".UploadId")
+  echo "Upload ID: $UPLOAD"
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 3 --body "/tmp/garage.part1.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG2=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 2 --body "/tmp/garage.part2.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG3=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 3 --body "/tmp/garage.part3.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  ETAG6=$(aws s3api upload-part --bucket eprouvette --key 'upload' \
+      --part-number 6 --body "/tmp/garage.part4.rnd" --upload-id "$UPLOAD" \
+      | jq -r ".ETag")
+  MPU="{\"Parts\":[{\"PartNumber\":2,\"ETag\":$ETAG2}, {\"PartNumber\":3,\"ETag\":$ETAG3}, {\"PartNumber\":6,\"ETag\":$ETAG6}]}"
+  echo $MPU > /tmp/garage.mpu.json
+  aws s3api complete-multipart-upload --multipart-upload file:///tmp/garage.mpu.json \
+      --bucket eprouvette --key 'upload' --upload-id "$UPLOAD"
+  aws s3api get-object --bucket eprouvette --key upload /tmp/garage.mpu.get
+  if [ "$(md5sum /tmp/garage.mpu.get | cut -d ' ' -f 1)" != "$(cat /tmp/garage.part{2,3,4}.rnd | md5sum | cut -d ' ' -f 1)" ]; then
+    echo "Invalid multipart upload"
+    exit 1
+  fi
 fi
+
+echo "OK!!"
+exit 0
 
 # S3CMD
 if [ -z "$SKIP_S3CMD" ]; then
@@ -141,6 +174,7 @@ rm eprouvette/winscp
 EOF
 fi
 
+rm /tmp/garage.part{1..4}.rnd
 rm /tmp/garage.{1..3}.{rnd,b64}
 
 echo "🏁 Teardown"

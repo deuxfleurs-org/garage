@@ -26,7 +26,9 @@ use crate::s3::copy::*;
 use crate::s3::cors::*;
 use crate::s3::delete::*;
 use crate::s3::get::*;
+use crate::s3::lifecycle::*;
 use crate::s3::list::*;
+use crate::s3::multipart::*;
 use crate::s3::post_object::handle_post_object;
 use crate::s3::put::*;
 use crate::s3::router::Endpoint;
@@ -256,7 +258,7 @@ impl ApiHandler for S3ApiServer {
 							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
-							page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 						},
@@ -286,7 +288,7 @@ impl ApiHandler for S3ApiServer {
 								bucket_name,
 								bucket_id,
 								delimiter: delimiter.map(|d| d.to_string()),
-								page_size: max_keys.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 								prefix: prefix.unwrap_or_default(),
 							},
@@ -319,7 +321,7 @@ impl ApiHandler for S3ApiServer {
 							bucket_name,
 							bucket_id,
 							delimiter: delimiter.map(|d| d.to_string()),
-							page_size: max_uploads.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+							page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 						},
@@ -343,7 +345,7 @@ impl ApiHandler for S3ApiServer {
 						key,
 						upload_id,
 						part_number_marker: part_number_marker.map(|p| p.clamp(1, 10000)),
-						max_parts: max_parts.map(|p| p.clamp(1, 1000)).unwrap_or(1000),
+						max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
 					},
 				)
 				.await
@@ -353,14 +355,21 @@ impl ApiHandler for S3ApiServer {
 			}
 			Endpoint::GetBucketWebsite {} => handle_get_website(&bucket).await,
 			Endpoint::PutBucketWebsite {} => {
-				handle_put_website(garage, bucket_id, req, content_sha256).await
+				handle_put_website(garage, bucket.clone(), req, content_sha256).await
 			}
-			Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket_id).await,
+			Endpoint::DeleteBucketWebsite {} => handle_delete_website(garage, bucket.clone()).await,
 			Endpoint::GetBucketCors {} => handle_get_cors(&bucket).await,
 			Endpoint::PutBucketCors {} => {
-				handle_put_cors(garage, bucket_id, req, content_sha256).await
+				handle_put_cors(garage, bucket.clone(), req, content_sha256).await
 			}
-			Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket_id).await,
+			Endpoint::DeleteBucketCors {} => handle_delete_cors(garage, bucket.clone()).await,
+			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(&bucket).await,
+			Endpoint::PutBucketLifecycleConfiguration {} => {
+				handle_put_lifecycle(garage, bucket.clone(), req, content_sha256).await
+			}
+			Endpoint::DeleteBucketLifecycle {} => {
+				handle_delete_lifecycle(garage, bucket.clone()).await
+			}
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 		};
 

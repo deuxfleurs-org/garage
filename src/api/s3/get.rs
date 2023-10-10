@@ -149,7 +149,6 @@ pub async fn handle_head(
 
 				let (part_offset, part_end) =
 					calculate_part_bounds(&version, pn).ok_or(Error::InvalidPart)?;
-				let n_parts = version.parts_etags.items().len();
 
 				Ok(object_headers(object_version, version_meta)
 					.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
@@ -162,7 +161,7 @@ pub async fn handle_head(
 							version_meta.size
 						),
 					)
-					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", n_parts))
+					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
 					.status(StatusCode::PARTIAL_CONTENT)
 					.body(Body::empty())?)
 			}
@@ -376,7 +375,6 @@ async fn handle_get_part(
 
 			let (begin, end) =
 				calculate_part_bounds(&version, part_number).ok_or(Error::InvalidPart)?;
-			let n_parts = version.parts_etags.items().len();
 
 			let body = body_from_blocks_range(garage, version.blocks.items(), begin, end);
 
@@ -386,7 +384,7 @@ async fn handle_get_part(
 					CONTENT_RANGE,
 					format!("bytes {}-{}/{}", begin, end - 1, version_meta.size),
 				)
-				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", n_parts))
+				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
 				.body(body)?)
 		}
 		_ => unreachable!(),

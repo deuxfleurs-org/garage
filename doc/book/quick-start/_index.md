@@ -209,7 +209,7 @@ one key can access multiple buckets, multiple keys can access one bucket.
 Create an API key using the following command:
 
 ```
-garage key new --name nextcloud-app-key
+garage key create nextcloud-app-key
 ```
 
 The output should look as follows:

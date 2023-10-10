@@ -11,11 +11,16 @@ PATH="${GARAGE_DEBUG}:${GARAGE_RELEASE}:${NIX_RELEASE}:$PATH"
 FANCYCOLORS=("41m" "42m" "44m" "45m" "100m" "104m")
 
 export RUST_BACKTRACE=1 
-export RUST_LOG=garage=info,garage_api=debug,netapp=trace
+export RUST_LOG=garage=info,garage_api=debug
 MAIN_LABEL="\e[${FANCYCOLORS[0]}[main]\e[49m"
 
-WHICH_GARAGE=$(which garage || exit 1)
-echo -en "${MAIN_LABEL} Found garage at: ${WHICH_GARAGE}\n"
+if [ -z "$GARAGE_BIN" ]; then
+	GARAGE_BIN=$(which garage || exit 1)
+	echo -en "${MAIN_LABEL} Found garage at: ${GARAGE_BIN}\n"
+else
+	echo -en "${MAIN_LABEL} Using garage binary at: ${GARAGE_BIN}\n"
+fi
+$GARAGE_BIN --version
 
 NETWORK_SECRET="$(openssl rand -hex 32)"
 
@@ -28,6 +33,7 @@ LABEL="\e[${FANCYCOLORS[$count]}[$count]\e[49m"
 cat > $CONF_PATH <<EOF
 block_size = 1048576			# objects are split in blocks of maximum this number of bytes
 metadata_dir = "/tmp/garage-meta-$count"
+db_engine = "lmdb"
 data_dir = "/tmp/garage-data-$count"
 rpc_bind_addr = "0.0.0.0:$((3900+$count))"		# the port other Garage nodes will use to talk to this node
 rpc_public_addr = "127.0.0.1:$((3900+$count))"
@@ -51,7 +57,7 @@ EOF
 
 echo -en "$LABEL configuration written to $CONF_PATH\n"
 
-(garage -c /tmp/config.$count.toml server 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
+($GARAGE_BIN -c /tmp/config.$count.toml server 2>&1|while read r; do echo -en "$LABEL $r\n"; done) &
 done
 # >>>>>>>>>>>>>>>> END FOR LOOP ON NODES
 
@@ -73,14 +79,14 @@ fi
 sleep 3
 # Establish connections between nodes
 for count in $(seq 1 3); do
-	NODE=$(garage -c /tmp/config.$count.toml node id -q)
+	NODE=$($GARAGE_BIN -c /tmp/config.$count.toml node id -q)
 	for count2 in $(seq 1 3); do
-		garage -c /tmp/config.$count2.toml node connect $NODE
+		$GARAGE_BIN -c /tmp/config.$count2.toml node connect $NODE
 	done
 done
 
 RETRY=120
-until garage -c /tmp/config.1.toml status 2>&1|grep -q HEALTHY ; do 
+until $GARAGE_BIN -c /tmp/config.1.toml status 2>&1|grep -q HEALTHY ; do 
   (( RETRY-- ))
   if (( RETRY <= 0 )); then 
     echo -en "${MAIN_LABEL} Garage did not start"

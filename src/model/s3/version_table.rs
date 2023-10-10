@@ -3,6 +3,7 @@ use std::sync::Arc;
 use garage_db as db;
 
 use garage_util::data::*;
+use garage_util::error::*;
 
 use garage_table::crdt::*;
 use garage_table::replication::TableShardedReplication;
@@ -66,6 +67,8 @@ mod v08 {
 
 	use super::v05;
 
+	pub use v05::{VersionBlock, VersionBlockKey};
+
 	/// A version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Version {
@@ -90,8 +93,6 @@ mod v08 {
 		pub key: String,
 	}
 
-	pub use v05::{VersionBlock, VersionBlockKey};
-
 	impl garage_util::migrate::Migrate for Version {
 		type Previous = v05::Version;
 
@@ -110,32 +111,94 @@ mod v08 {
 	}
 }
 
-pub use v08::*;
+pub(crate) mod v09 {
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	use super::v08;
+
+	pub use v08::{VersionBlock, VersionBlockKey};
+
+	/// A version of an object
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Version {
+		/// UUID of the version, used as partition key
+		pub uuid: Uuid,
+
+		// Actual data: the blocks for this version
+		// In the case of a multipart upload, also store the etags
+		// of individual parts and check them when doing CompleteMultipartUpload
+		/// Is this version deleted
+		pub deleted: crdt::Bool,
+		/// list of blocks of data composing the version
+		pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
+
+		// Back link to owner of this version (either an object or a multipart
+		// upload), used to find whether it has been deleted and this version
+		// should in turn be deleted (see versions repair procedure)
+		pub backlink: VersionBacklink,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub enum VersionBacklink {
+		Object {
+			/// Bucket in which the related object is stored
+			bucket_id: Uuid,
+			/// Key in which the related object is stored
+			key: String,
+		},
+		MultipartUpload {
+			upload_id: Uuid,
+		},
+	}
+
+	impl garage_util::migrate::Migrate for Version {
+		const VERSION_MARKER: &'static [u8] = b"G09s3v";
+
+		type Previous = v08::Version;
+
+		fn migrate(old: v08::Version) -> Version {
+			Version {
+				uuid: old.uuid,
+				deleted: old.deleted,
+				blocks: old.blocks,
+				backlink: VersionBacklink::Object {
+					bucket_id: old.bucket_id,
+					key: old.key,
+				},
+			}
+		}
+	}
+}
+
+pub use v09::*;
 
 impl Version {
-	pub fn new(uuid: Uuid, bucket_id: Uuid, key: String, deleted: bool) -> Self {
+	pub fn new(uuid: Uuid, backlink: VersionBacklink, deleted: bool) -> Self {
 		Self {
 			uuid,
 			deleted: deleted.into(),
 			blocks: crdt::Map::new(),
-			parts_etags: crdt::Map::new(),
-			bucket_id,
-			key,
+			backlink,
 		}
 	}
 
 	pub fn has_part_number(&self, part_number: u64) -> bool {
-		let case1 = self
-			.parts_etags
-			.items()
-			.binary_search_by(|(k, _)| k.cmp(&part_number))
-			.is_ok();
-		let case2 = self
-			.blocks
+		self.blocks
 			.items()
 			.binary_search_by(|(k, _)| k.part_number.cmp(&part_number))
-			.is_ok();
-		case1 || case2
+			.is_ok()
+	}
+
+	pub fn n_parts(&self) -> Result<u64, Error> {
+		Ok(self
+			.blocks
+			.items()
+			.last()
+			.ok_or_message("version has no parts")?
+			.0
+			.part_number)
 	}
 }
 
@@ -175,10 +238,8 @@ impl Crdt for Version {
 
 		if self.deleted.get() {
 			self.blocks.clear();
-			self.parts_etags.clear();
 		} else {
 			self.blocks.merge(&other.blocks);
-			self.parts_etags.merge(&other.parts_etags);
 		}
 	}
 }

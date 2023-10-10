@@ -14,6 +14,7 @@ use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::permission::*;
+use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
 use crate::admin::error::*;
@@ -124,6 +125,14 @@ async fn bucket_info_results(
 		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
 		.unwrap_or_default();
 
+	let mpu_counters = garage
+		.mpu_counter_table
+		.table
+		.get(&bucket_id, &EmptyKey)
+		.await?
+		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
+		.unwrap_or_default();
+
 	let mut relevant_keys = HashMap::new();
 	for (k, _) in bucket
 		.state
@@ -208,12 +217,12 @@ async fn bucket_info_results(
 					}
 				})
 				.collect::<Vec<_>>(),
-			objects: counters.get(OBJECTS).cloned().unwrap_or_default(),
-			bytes: counters.get(BYTES).cloned().unwrap_or_default(),
-			unfinished_uploads: counters
-				.get(UNFINISHED_UPLOADS)
-				.cloned()
-				.unwrap_or_default(),
+			objects: *counters.get(OBJECTS).unwrap_or(&0),
+			bytes: *counters.get(BYTES).unwrap_or(&0),
+			unfinished_uploads: *counters.get(UNFINISHED_UPLOADS).unwrap_or(&0),
+			unfinished_multipart_uploads: *mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0),
+			unfinished_multipart_upload_parts: *mpu_counters.get(mpu_table::PARTS).unwrap_or(&0),
+			unfinished_multipart_upload_bytes: *mpu_counters.get(mpu_table::BYTES).unwrap_or(&0),
 			quotas: ApiBucketQuotas {
 				max_size: quotas.max_size,
 				max_objects: quotas.max_objects,
@@ -235,6 +244,9 @@ struct GetBucketInfoResult {
 	objects: i64,
 	bytes: i64,
 	unfinished_uploads: i64,
+	unfinished_multipart_uploads: i64,
+	unfinished_multipart_upload_parts: i64,
+	unfinished_multipart_upload_bytes: i64,
 	quotas: ApiBucketQuotas,
 }
 

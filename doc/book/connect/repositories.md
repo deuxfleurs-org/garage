@@ -23,7 +23,7 @@ You can configure a different target for each data type (check `[lfs]` and `[att
 Let's start by creating a key and a bucket (your key id and secret will be needed later, keep them somewhere):
 
 ```bash
-garage key new --name gitea-key
+garage key create gitea-key
 garage bucket create gitea
 garage bucket allow gitea --read --write --key gitea-key
 ```
@@ -118,7 +118,7 @@ through another support, like a git repository.
 As a first step, we will need to create a bucket on Garage and enabling website access on it:
 
 ```bash
-garage key new --name nix-key
+garage key create nix-key
 garage bucket create nix.example.com
 garage bucket allow nix.example.com --read --write --key nix-key
 garage bucket website nix.example.com --allow

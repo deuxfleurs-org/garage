@@ -25,7 +25,8 @@ use crate::admin::bucket::*;
 use crate::admin::cluster::*;
 use crate::admin::error::*;
 use crate::admin::key::*;
-use crate::admin::router::{Authorization, Endpoint};
+use crate::admin::router_v0;
+use crate::admin::router_v1::{Authorization, Endpoint};
 use crate::helpers::host_to_bucket;
 
 pub struct AdminApiServer {
@@ -229,7 +230,12 @@ impl ApiHandler for AdminApiServer {
 	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<Body>) -> Result<Endpoint, Error> {
-		Endpoint::from_request(req)
+		if req.uri().path().starts_with("/v0/") {
+			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
+			Endpoint::from_v0(endpoint_v0)
+		} else {
+			Endpoint::from_request(req)
+		}
 	}
 
 	async fn handle(
@@ -276,8 +282,13 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage, req).await,
 			// Keys
 			Endpoint::ListKeys => handle_list_keys(&self.garage).await,
-			Endpoint::GetKeyInfo { id, search } => {
-				handle_get_key_info(&self.garage, id, search).await
+			Endpoint::GetKeyInfo {
+				id,
+				search,
+				show_secret_key,
+			} => {
+				let show_secret_key = show_secret_key.map(|x| x == "true").unwrap_or(false);
+				handle_get_key_info(&self.garage, id, search, show_secret_key).await
 			}
 			Endpoint::CreateKey => handle_create_key(&self.garage, req).await,
 			Endpoint::ImportKey => handle_import_key(&self.garage, req).await,

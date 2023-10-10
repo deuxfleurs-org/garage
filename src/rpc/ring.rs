@@ -40,6 +40,7 @@ pub struct Ring {
 // Type to store compactly the id of a node in the system
 // Change this to u16 the day we want to have more than 256 nodes in a cluster
 pub type CompactNodeType = u8;
+pub const MAX_NODE_NUMBER: usize = 256;
 
 // The maximum number of times an object might get replicated
 // This must be at least 3 because Garage supports 3-way replication
@@ -62,12 +63,12 @@ struct RingEntry {
 impl Ring {
 	pub(crate) fn new(layout: ClusterLayout, replication_factor: usize) -> Self {
 		if replication_factor != layout.replication_factor {
-			warn!("Could not build ring: replication factor does not match between local configuration and network role assignation.");
+			warn!("Could not build ring: replication factor does not match between local configuration and network role assignment.");
 			return Self::empty(layout, replication_factor);
 		}
 
-		if layout.ring_assignation_data.len() != replication_factor * (1 << PARTITION_BITS) {
-			warn!("Could not build ring: network role assignation data has invalid length");
+		if layout.ring_assignment_data.len() != replication_factor * (1 << PARTITION_BITS) {
+			warn!("Could not build ring: network role assignment data has invalid length");
 			return Self::empty(layout, replication_factor);
 		}
 
@@ -77,7 +78,7 @@ impl Ring {
 				let top = (i as u16) << (16 - PARTITION_BITS);
 				let mut nodes_buf = [0u8; MAX_REPLICATION];
 				nodes_buf[..replication_factor].copy_from_slice(
-					&layout.ring_assignation_data
+					&layout.ring_assignment_data
 						[replication_factor * i..replication_factor * (i + 1)],
 				);
 				RingEntry {

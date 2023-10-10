@@ -52,6 +52,7 @@ impl Instance {
 			r#"
 metadata_dir = "{path}/meta"
 data_dir = "{path}/data"
+db_engine = "lmdb"
 
 replication_mode = "1"
 
@@ -141,7 +142,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		self.command()
 			.args(["layout", "assign"])
 			.arg(node_short_id)
-			.args(["-c", "1", "-z", "unzonned"])
+			.args(["-c", "1G", "-z", "unzonned"])
 			.quiet()
 			.expect_success_status("Could not assign garage node layout");
 		self.command()
@@ -186,9 +187,9 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		let mut key = Key::default();
 
 		let mut cmd = self.command();
-		let base = cmd.args(["key", "new"]);
+		let base = cmd.args(["key", "create"]);
 		let with_name = match maybe_name {
-			Some(name) => base.args(["--name", name]),
+			Some(name) => base.args([name]),
 			None => base,
 		};
 

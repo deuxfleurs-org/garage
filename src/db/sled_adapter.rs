@@ -10,8 +10,8 @@ use sled::transaction::{
 };
 
 use crate::{
-	Db, Error, IDb, ITx, ITxFn, Result, TxError, TxFnResult, TxOpError, TxOpResult, TxResult,
-	TxValueIter, Value, ValueIter,
+	Db, Error, IDb, ITx, ITxFn, OnCommit, Result, TxError, TxFnResult, TxOpError, TxOpResult,
+	TxResult, TxValueIter, Value, ValueIter,
 };
 
 pub use sled;
@@ -38,7 +38,15 @@ pub struct SledDb {
 }
 
 impl SledDb {
+	#[deprecated(
+		since = "0.9.0",
+		note = "The Sled database is now deprecated and will be removed in Garage v1.0. Please migrate to LMDB or Sqlite as soon as possible."
+	)]
 	pub fn init(db: sled::Db) -> Db {
+		tracing::warn!("--------------------    IMPORTANT WARNING !!!    ----------------------");
+		tracing::warn!("The Sled database is now deprecated and will be removed in Garage v1.0.");
+		tracing::warn!("Please migrate to LMDB or Sqlite as soon as possible.");
+		tracing::warn!("-----------------------------------------------------------------------");
 		let s = Self {
 			db,
 			trees: RwLock::new((Vec::new(), HashMap::new())),
@@ -158,7 +166,7 @@ impl IDb for SledDb {
 
 	// ----
 
-	fn transaction(&self, f: &dyn ITxFn) -> TxResult<(), ()> {
+	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		let trees = self.trees.read().unwrap();
 		let res = trees.0.transaction(|txtrees| {
 			let mut tx = SledTx {
@@ -166,9 +174,9 @@ impl IDb for SledDb {
 				err: Cell::new(None),
 			};
 			match f.try_on(&mut tx) {
-				TxFnResult::Ok => {
+				TxFnResult::Ok(on_commit) => {
 					assert!(tx.err.into_inner().is_none());
-					Ok(())
+					Ok(on_commit)
 				}
 				TxFnResult::Abort => {
 					assert!(tx.err.into_inner().is_none());
@@ -181,7 +189,7 @@ impl IDb for SledDb {
 			}
 		});
 		match res {
-			Ok(()) => Ok(()),
+			Ok(on_commit) => Ok(on_commit),
 			Err(TransactionError::Abort(())) => Err(TxError::Abort(())),
 			Err(TransactionError::Storage(s)) => Err(TxError::Db(s.into())),
 		}

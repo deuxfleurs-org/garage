@@ -8,9 +8,7 @@ where
 	T: Serialize + ?Sized,
 {
 	let mut wr = Vec::with_capacity(128);
-	let mut se = rmp_serde::Serializer::new(&mut wr)
-		.with_struct_map()
-		.with_string_variants();
+	let mut se = rmp_serde::Serializer::new(&mut wr).with_struct_map();
 	val.serialize(&mut se)?;
 	Ok(wr)
 }
@@ -22,7 +20,7 @@ pub fn nonversioned_decode<T>(bytes: &[u8]) -> Result<T, rmp_serde::decode::Erro
 where
 	T: for<'de> Deserialize<'de> + ?Sized,
 {
-	rmp_serde::decode::from_read_ref::<_, T>(bytes)
+	rmp_serde::decode::from_slice::<_>(bytes)
 }
 
 /// Serialize to JSON, truncating long result

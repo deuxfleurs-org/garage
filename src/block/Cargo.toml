@@ -1,6 +1,6 @@
 [package]
 name = "garage_block"
-version = "0.8.4"
+version = "0.9.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -24,6 +24,7 @@ opentelemetry = "0.17"
 arc-swap = "1.5"
 async-trait = "0.1.7"
 bytes = "1.0"
+bytesize = "1.2"
 hex = "0.4"
 tracing = "0.1"
 rand = "0.8"
