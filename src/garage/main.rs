@@ -173,6 +173,9 @@ async fn main() {
 		Command::OfflineRepair(repair_opt) => {
 			repair::offline::offline_repair(opt.config_file, opt.secrets, repair_opt).await
 		}
+		Command::ConvertDb(conv_opt) => {
+			cli::convert_db::do_conversion(conv_opt).map_err(From::from)
+		}
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
 			node_id_command(opt.config_file, node_id_opt.quiet)
 		}

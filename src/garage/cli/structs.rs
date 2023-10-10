@@ -3,6 +3,8 @@ use structopt::StructOpt;
 
 use garage_util::version::garage_version;
 
+use crate::cli::convert_db;
+
 #[derive(StructOpt, Debug)]
 pub enum Command {
 	/// Run Garage server
@@ -54,6 +56,10 @@ pub enum Command {
 	/// Low-level debug operations on data blocks
 	#[structopt(name = "block", version = garage_version())]
 	Block(BlockOperation),
+
+	/// Convert metadata db between database engine formats
+	#[structopt(name = "convert-db", version = garage_version())]
+	ConvertDb(convert_db::ConvertDbOpt),
 }
 
 #[derive(StructOpt, Debug)]
