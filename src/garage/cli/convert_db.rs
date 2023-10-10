@@ -57,7 +57,7 @@ fn open_db(path: PathBuf, engine: String) -> Result<Db> {
 			env_builder.max_dbs(100);
 			env_builder.map_size(map_size);
 			unsafe {
-				env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
+				env_builder.flag(lmdb_adapter::heed::flags::Flags::MdbNoMetaSync);
 			}
 			let db = env_builder.open(&path)?;
 			Ok(lmdb_adapter::LmdbDb::init(db))
