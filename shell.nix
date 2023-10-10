@@ -15,16 +15,17 @@ in {
   # --- Rust Shell ---
   # Use it to compile Garage
   rust = pkgs.mkShell {
-    nativeBuildInputs = [
-      #pkgs.rustPlatform.rust.rustc
-      pkgs.rustPlatform.rust.cargo
-      #pkgs.clippy
-      pkgs.rustfmt
-      #pkgs.perl
-      #pkgs.protobuf
-      #pkgs.pkg-config
-      #pkgs.openssl
-      pkgs.file
+    nativeBuildInputs = with pkgs; [
+      #rustPlatform.rust.rustc
+      rustPlatform.rust.cargo
+      mold
+      #clippy
+      rustfmt
+      #perl
+      #protobuf
+      #pkg-config
+      #openssl
+      file
       #cargo2nix.packages.x86_64-linux.cargo2nix
     ];
   };
