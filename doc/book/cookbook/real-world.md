@@ -19,9 +19,10 @@ To run a real-world deployment, make sure the following conditions are met:
 
 - You have at least three machines with sufficient storage space available.
 
-- Each machine has a public IP address which is reachable by other machines. It
-  is highly recommended that you use IPv6 for this end-to-end connectivity. If
-  IPv6 is not available, then using a mesh VPN such as
+- Each machine has an IP address which makes it directly reachable by all other machines.
+  In many cases, nodes will be behind a NAT and will not each have a public
+  IPv4 addresses. In this case, is recommended that you use IPv6 for this
+  end-to-end connectivity if it is available. Otherwise, using a mesh VPN such as
   [Nebula](https://github.com/slackhq/nebula) or
   [Yggdrasil](https://yggdrasil-network.github.io/) are approaches to consider
   in addition to building out your own VPN tunneling.
@@ -42,7 +43,7 @@ For our example, we will suppose the following infrastructure with IPv6 connecti
 | Brussels | Mars    | fc00:F::1  | 1.5 TB     |
 
 Note that Garage will **always** store the three copies of your data on nodes at different
-locations. This means that in the case of this small example, the available capacity
+locations. This means that in the case of this small example, the usable capacity
 of the cluster is in fact only 1.5 TB, because nodes in Brussels can't store more than that.
 This also means that nodes in Paris and London will be under-utilized.
 To make better use of the available hardware, you should ensure that the capacity
@@ -84,14 +85,14 @@ to store 2 TB of data in total.
 ## Get a Docker image
 
 Our docker image is currently named `dxflrs/garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
-We encourage you to use a fixed tag (eg. `v0.8.0`) and not the `latest` tag.
-For this example, we will use the latest published version at the time of the writing which is `v0.8.0` but it's up to you
+We encourage you to use a fixed tag (eg. `v0.9.0`) and not the `latest` tag.
+For this example, we will use the latest published version at the time of the writing which is `v0.9.0` but it's up to you
 to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull dxflrs/garage:v0.8.0
+sudo docker pull dxflrs/garage:v0.9.0
 ```
 
 ## Deploying and configuring Garage
@@ -156,12 +157,13 @@ docker run \
   -v /etc/garage.toml:/etc/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
-  dxflrs/garage:v0.8.0
+  dxflrs/garage:v0.9.0
 ```
 
-It should be restarted automatically at each reboot.
-Please note that we use host networking as otherwise Docker containers
-can not communicate with IPv6.
+With this command line, Garage should be started automatically at each boot.
+Please note that we use host networking as otherwise the network indirection
+added by Docker would prevent Garage nodes from communicating with one another
+(especially if using IPv6).
 
 If you want to use `docker-compose`, you may use the following `docker-compose.yml` file as a reference:
 
@@ -169,7 +171,7 @@ If you want to use `docker-compose`, you may use the following `docker-compose.y
 version: "3"
 services:
   garage:
-    image: dxflrs/garage:v0.8.0
+    image: dxflrs/garage:v0.9.0
     network_mode: "host"
     restart: unless-stopped
     volumes:
@@ -178,10 +180,12 @@ services:
       - /var/lib/garage/data:/var/lib/garage/data
 ```
 
-Upgrading between Garage versions should be supported transparently,
-but please check the relase notes before doing so!
-To upgrade, simply stop and remove this container and
-start again the command with a new version of Garage.
+If you wish to upgrade your cluster, make sure to read the corresponding
+[documentation page](@/documentation/operations/upgrading.md) first, as well as
+the documentation relevant to your version of Garage in the case of major
+upgrades.  With the containerized setup proposed here, the upgrade process
+will require stopping and removing the existing container, and re-creating it
+with the upgraded version.
 
 ## Controling the daemon
 
@@ -265,12 +269,12 @@ of a role that is assigned to each active cluster node.
 For our example, we will suppose we have the following infrastructure
 (Capacity, Identifier and Zone are specific values to Garage described in the following):
 
-| Location | Name    | Disk Space | `Capacity` | `Identifier` | `Zone` |
-|----------|---------|------------|------------|--------------|--------------|
-| Paris    | Mercury | 1 TB       | `10`       | `563e`     | `par1`       |
-| Paris    | Venus   | 2 TB       | `20`       | `86f0`     | `par1`       |
-| London   | Earth   | 2 TB       | `20`       | `6814`     | `lon1`       |
-| Brussels | Mars    | 1.5 TB     | `15`       | `212f`     | `bru1`       |
+| Location | Name    | Disk Space | Identifier | Zone (`-z`) | Capacity (`-c`) |
+|----------|---------|------------|------------|-------------|-----------------|
+| Paris    | Mercury | 1 TB       | `563e`     | `par1`      | `1T`            |
+| Paris    | Venus   | 2 TB       | `86f0`     | `par1`      | `2T`            |
+| London   | Earth   | 2 TB       | `6814`     | `lon1`      | `2T`            |
+| Brussels | Mars    | 1.5 TB     | `212f`     | `bru1`      | `1.5T`          |
 
 #### Node identifiers
 
@@ -292,6 +296,8 @@ garage status
 It will display the IP address associated with each node;
 from the IP address you will be able to recognize the node.
 
+We will now use the `garage layout assign` command to configure the correct parameters for each node.
+
 #### Zones
 
 Zones are simply a user-chosen identifier that identify a group of server that are grouped together logically.
@@ -301,29 +307,29 @@ In most cases, a zone will correspond to a geographical location (i.e. a datacen
 Behind the scene, Garage will use zone definition to try to store the same data on different zones,
 in order to provide high availability despite failure of a zone.
 
+Zones are passed to Garage using the `-z` flag of `garage layout assign` (see below).
+
 #### Capacity
 
-Garage reasons on an abstract metric about disk storage that is named the *capacity* of a node.
-The capacity configured in Garage must be proportional to the disk space dedicated to the node.
+Garage needs to know the storage capacity (disk space) it can/should use on
+each node, to be able to correctly balance data.
 
-Capacity values must be **integers** but can be given any signification.
-Here we chose that 1 unit of capacity = 100 GB.
+Capacity values are expressed in bytes and are passed to Garage using the `-c` flag of `garage layout assign` (see below).
 
-Note that the amount of data stored by Garage on each server may not be strictly proportional to
-its capacity value, as Garage will priorize having 3 copies of data in different zones,
-even if this means that capacities will not be strictly respected. For example in our above examples,
-nodes Earth and Mars will always store a copy of everything each, and the third copy will
-have 66% chance of being stored by Venus and 33% chance of being stored by Mercury.
+#### Tags
+
+You can add additional tags to nodes using the `-t` flag of `garage layout assign` (see below).
+Tags have no specific meaning for Garage and can be used at your convenience.
 
 #### Injecting the topology
 
 Given the information above, we will configure our cluster as follow:
 
 ```bash
-garage layout assign 563e -z par1 -c 10 -t mercury
-garage layout assign 86f0 -z par1 -c 20 -t venus
-garage layout assign 6814 -z lon1 -c 20 -t earth 
-garage layout assign 212f -z bru1 -c 15 -t mars 
+garage layout assign 563e -z par1 -c 1T -t mercury
+garage layout assign 86f0 -z par1 -c 2T -t venus
+garage layout assign 6814 -z lon1 -c 2T -t earth 
+garage layout assign 212f -z bru1 -c 1.5T -t mars 
 ```
 
 At this point, the changes in the cluster layout have not yet been applied.
@@ -333,6 +339,7 @@ To show the new layout that will be applied, call:
 garage layout show
 ```
 
+Make sure to read carefully the output of `garage layout show`.
 Once you are satisfied with your new layout, apply it with:
 
 ```bash

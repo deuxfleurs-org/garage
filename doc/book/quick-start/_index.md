@@ -84,9 +84,8 @@ admin_token = "$(openssl rand -base64 32)"
 EOF
 ```
 
-Now that your configuration file has been created, you can put
-it in the right place. By default, garage looks at **`/etc/garage.toml`.**
-
+Now that your configuration file has been created, you may save it to the directory of your choice.
+By default, Garage looks for **`/etc/garage.toml`.**
 You can also store it somewhere else, but you will have to specify `-c path/to/garage.toml`
 at each invocation of the `garage` binary (for example: `garage -c ./garage.toml server`, `garage -c ./garage.toml status`).
 
@@ -103,11 +102,13 @@ your data to be persisted properly.
 
 ### Launching the Garage server
 
-Use the following command to launch the Garage server with our configuration file:
+Use the following command to launch the Garage server:
 
 ```
-garage server
+garage -c path/to/garage.toml server
 ```
+
+If you have placed the `garage.toml` file in `/etc` (its default location), you can simply run `garage server`.
 
 You can tune Garage's verbosity as follows (from less verbose to more verbose):
 
@@ -126,7 +127,7 @@ Log level `debug` can help you check why your S3 API calls are not working.
 The `garage` utility is also used as a CLI tool to configure your Garage deployment.
 It uses values from the TOML configuration file to find the Garage daemon running on the
 local node, therefore if your configuration file is not at `/etc/garage.toml` you will
-again have to specify `-c path/to/garage.toml`.
+again have to specify `-c path/to/garage.toml` at each invocation.
 
 If the `garage` CLI is able to correctly detect the parameters of your local Garage node,
 the following command should be enough to show the status of your cluster:
@@ -140,7 +141,7 @@ This should show something like this:
 ```
 ==== HEALTHY NODES ====
 ID                 Hostname  Address         Tag                   Zone  Capacity
-563e1ac825ee3323…  linuxbox  127.0.0.1:3901  NO ROLE ASSIGNED
+563e1ac825ee3323   linuxbox  127.0.0.1:3901  NO ROLE ASSIGNED
 ```
 
 ## Creating a cluster layout
@@ -153,12 +154,12 @@ For our test deployment, we are using only one node. The way in which we configu
 it does not matter, you can simply write:
 
 ```bash
-garage layout assign -z dc1 -c 1 <node_id>
+garage layout assign -z dc1 -c 1G <node_id>
 ```
 
 where `<node_id>` corresponds to the identifier of the node shown by `garage status` (first column).
 You can enter simply a prefix of that identifier.
-For instance here you could write just `garage layout assign -z dc1 -c 1 563e`.
+For instance here you could write just `garage layout assign -z dc1 -c 1G 563e`.
 
 The layout then has to be applied to the cluster, using:
 

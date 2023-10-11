@@ -1,13 +1,16 @@
 +++
 title = "Migrating from 0.8 to 0.9"
-weight = 14
+weight = 12
 +++
 
 **This guide explains how to migrate to 0.9 if you have an existing 0.8 cluster.
 We don't recommend trying to migrate to 0.9 directly from 0.7 or older.**
 
-**We make no guarantee that this migration will work perfectly:
-back up all your data before attempting it!**
+This migration procedure has been tested on several clusters without issues.
+However, it is still a *critical procedure* that might cause issues.
+**Make sure to back up all your data before attempting it!**
+
+You might also want to read our [general documentation on upgrading Garage](@/documentation/operations/upgrading.md).
 
 The following are **breaking changes** in Garage v0.9 that require your attention when migrating:
 
