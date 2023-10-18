@@ -87,7 +87,7 @@
 (defn s3-creds
   "Get S3 credentials for node"
   [node]
-  (let [key-info (c/on node (c/exec binary :key :info grg-key))
+  (let [key-info (c/on node (c/exec binary :key :info grg-key :--show-secret))
         [_ ak sk] (re-matches
                     #"(?s).*Key ID: (.*)\nSecret key: (.*)\nCan create.*"
                     key-info)]
