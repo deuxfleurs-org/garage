@@ -33,19 +33,25 @@
     (let [[k v] (:value op)]
       (case (:f op)
         :read
-          (let [value (s3/get (:creds this) k)]
-            (assoc op :type :ok, :value (independent/tuple k value)))
+          (try+
+            (let [value (s3/get (:creds this) k)]
+              (assoc op :type :ok, :value (independent/tuple k value)))
+            (catch (re-find #"Unavailable" (.getMessage %)) ex
+              (assoc op :type :fail, :error [:s3-error (.getMessage ex)])))
         :write
-          (do
-            (s3/put (:creds this) k v)
-            (assoc op :type :ok)))))
+          (try+
+            (do
+              (s3/put (:creds this) k v)
+              (assoc op :type :ok))
+            (catch (re-find #"Unavailable" (.getMessage %)) ex
+              (assoc op :type :fail, :error [:s3-error (.getMessage ex)]))))))
   (teardown! [this test])
   (close! [this test]))
 
 (defn workload
   "Tests linearizable reads and writes"
   [opts]
-  {:client           (RegClient. nil)
+  {:client           (client/timeout 10 (RegClient. nil))
    :checker          (independent/checker
                        (checker/compose
                          {:linear (checker/linearizable
@@ -53,8 +59,8 @@
                                      :algorithm :linear})
                           :timeline (timeline/html)}))
    :generator        (independent/concurrent-generator
-                       10
-                       (range)
+                       (/ (:concurrency opts) 10) ; divide threads in 10 groups
+                       (range)                    ; working on 10 keys
                        (fn [k]
                          (->>
                            (gen/mix [op-get op-put op-del])

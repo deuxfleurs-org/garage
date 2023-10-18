@@ -41,7 +41,7 @@
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
         garage-version (if (:increasing-timestamps opts)
-                         "03490d41d58576d7b3bcf977b2726d72a3a66ada"
+                         "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"
                          "v0.9.0")]
     (merge tests/noop-test
            opts
@@ -56,16 +56,23 @@
                                   (gen/stagger (/ (:rate opts)))
                                   (gen/nemesis
                                     (cycle [(gen/sleep 5)
-                                            {:type :info, :f :start}
+                                            ;{:type :info, :f :partition-start}
+                                            ;(gen/sleep 5)
+                                            {:type :info, :f :clock-scramble}
                                             (gen/sleep 5)
-                                            {:type :info, :f :stop}]))
+                                            ;{:type :info, :f :partition-stop}
+                                            ;(gen/sleep 5)
+                                            {:type :info, :f :clock-scramble}]))
                                   (gen/time-limit (:time-limit opts)))
                                 (gen/log "Healing cluster")
-                                (gen/nemesis (gen/once {:type :info, :f :stop}))
+                                (gen/nemesis (gen/once {:type :info, :f :partition-stop}))
                                 (gen/log "Waiting for recovery")
                                 (gen/sleep 10)
                                 (gen/clients (:final-generator workload)))
-            :nemesis          (nemesis/partition-random-halves)
+            :nemesis          (nemesis/compose
+                                {{:partition-start :start
+                                  :partition-stop :stop} (nemesis/partition-random-halves)
+                                 {:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})
             :checker          (checker/compose
                                 {:perf (checker/perf)
                                  :workload (:checker workload)})

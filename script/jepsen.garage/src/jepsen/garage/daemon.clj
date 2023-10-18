@@ -15,7 +15,8 @@
 (def pidfile (str base-dir "/garage.pid"))
 
 (def admin-token "icanhazadmin")
-(def access-key "jepsen")
+(def access-key-id "GK8bfb6a51286071c6c9cd8bc3")
+(def secret-access-key "b0be95f71c1c6f16858a9edf395078b75c12ecb6b1c03385c4ae92076e4994a3")
 (def bucket-name "jepsen")
 
 ; THE GARAGE DB
@@ -78,10 +79,10 @@
   (c/trace
     (c/exec binary :layout :apply :--version 1)
     (info node "garage status:" (c/exec binary :status))
-    (c/exec binary :key :create access-key)
+    (c/exec binary :key :import access-key-id secret-access-key :--yes)
     (c/exec binary :bucket :create bucket-name)
-    (c/exec binary :bucket :allow :--read :--write bucket-name :--key access-key)
-    (info node "key info: " (c/exec binary :key :info access-key))))
+    (c/exec binary :bucket :allow :--read :--write bucket-name :--key access-key-id)
+    (info node "key info: " (c/exec binary :key :info access-key-id))))
 
 (defn db
   "Garage DB for a particular version"
@@ -122,13 +123,9 @@
 (defn creds
   "Obtain Garage credentials for node"
   [node]
-  (let [key-info (c/on node (c/exec binary :key :info access-key :--show-secret))
-        [_ ak sk] (re-matches
-                    #"(?s).*Key ID: (.*)\nSecret key: (.*)\nCan create.*"
-                    key-info)]
-    {:access-key ak
-     :secret-key sk
-     :endpoint (str "http://" node ":3900")
-     :bucket bucket-name
-     :client-config {:path-style-access-enabled true}}))
+  {:access-key access-key-id
+   :secret-key secret-access-key
+   :endpoint (str "http://" node ":3900")
+   :bucket bucket-name
+   :client-config {:path-style-access-enabled true}})
 
