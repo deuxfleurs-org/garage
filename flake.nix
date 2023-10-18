@@ -48,6 +48,9 @@
           pkgsSrc = nixpkgs;
           cargo2nixOverlay = cargo2nix.overlays.default;
           release = false;
-        }).workspaceShell { packages = [ pkgs.rustfmt ]; };
+        }).workspaceShell { packages = with pkgs; [
+          rustfmt
+          mold
+        ]; };
       });
 }
