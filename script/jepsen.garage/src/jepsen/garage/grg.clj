@@ -9,6 +9,8 @@
 ; CONSTANTS -- HOW GARAGE IS SET UP
 
 (def dir "/opt/garage")
+(def data-dir (str dir "/data"))
+(def meta-dir (str dir "/meta"))
 (def binary (str dir "/garage"))
 (def logfile (str dir "/garage.log"))
 (def pidfile (str dir "/garage.pid"))
@@ -54,18 +56,19 @@
            :chdir dir}
           binary
           :server)
-        (Thread/sleep 100)
+        (info node "garage daemon started")
+        (c/exec :sleep 5)
         (let [node-id (c/exec binary :node :id :-q)]
           (info node "node id:" node-id)
           (c/on-many (:nodes test)
                      (c/exec binary :node :connect node-id))
-          (c/exec binary :layout :assign (subs node-id 0 16) :-c 1 :-z :dc1 :-t node))
+          (c/exec binary :layout :assign (subs node-id 0 16) :-c :1G :-z :dc1 :-t node))
         (if (= node (first (:nodes test)))
           (do
-            (Thread/sleep 2000)
+            (c/exec :sleep 5)
             (c/exec binary :layout :apply :--version 1)
             (info node "garage status:" (c/exec binary :status))
-            (c/exec binary :key :new :--name grg-key)
+            (c/exec binary :key :create grg-key)
             (c/exec binary :bucket :create grg-bucket)
             (c/exec binary :bucket :allow :--read :--write grg-bucket :--key grg-key)
             (info node "key info: " (c/exec binary :key :info grg-key))))))
@@ -73,7 +76,8 @@
       (info node "tearing down garage" version)
       (c/su
         (cu/stop-daemon! binary pidfile)
-        (c/exec :rm :-rf dir)))
+        (c/exec :rm :-rf data-dir)
+        (c/exec :rm :-rf meta-dir)))
     db/LogFiles
     (log-files [_ test node]
       [logfile])))

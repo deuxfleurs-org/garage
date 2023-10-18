@@ -42,7 +42,7 @@
   (let [workload ((get workloads (:workload opts)) opts)
         garage-version (if (:increasing-timestamps opts)
                          "03490d41d58576d7b3bcf977b2726d72a3a66ada"
-                         "v0.8.2")]
+                         "v0.9.0")]
     (merge tests/noop-test
            opts
            {:pure-generators  true
