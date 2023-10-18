@@ -9,7 +9,7 @@
      [tests :as tests]]
     [jepsen.os.debian :as debian]
     [jepsen.garage
-     [grg :as grg]
+     [daemon :as grg]
      [reg :as reg]
      [set :as set]]))
 

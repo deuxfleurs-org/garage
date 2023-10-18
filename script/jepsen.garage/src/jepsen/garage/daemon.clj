@@ -1,24 +1,22 @@
-(ns jepsen.garage.grg
+(ns jepsen.garage.daemon
   (:require [clojure.tools.logging :refer :all]
             [jepsen [control :as c]
              [core :as jepsen]
              [db :as db]]
-            [jepsen.control.util :as cu]
-            [amazonica.aws.s3 :as s3]
-            [slingshot.slingshot :refer [try+]]))
+            [jepsen.control.util :as cu]))
 
 ; CONSTANTS -- HOW GARAGE IS SET UP
 
-(def dir "/opt/garage")
-(def data-dir (str dir "/data"))
-(def meta-dir (str dir "/meta"))
-(def binary (str dir "/garage"))
-(def logfile (str dir "/garage.log"))
-(def pidfile (str dir "/garage.pid"))
+(def base-dir "/opt/garage")
+(def data-dir (str base-dir "/data"))
+(def meta-dir (str base-dir "/meta"))
+(def binary (str base-dir "/garage"))
+(def logfile (str base-dir "/garage.log"))
+(def pidfile (str base-dir "/garage.pid"))
 
-(def grg-admin-token "icanhazadmin")
-(def grg-key "jepsen")
-(def grg-bucket "jepsen")
+(def admin-token "icanhazadmin")
+(def access-key "jepsen")
+(def bucket-name "jepsen")
 
 ; THE GARAGE DB
 
@@ -28,7 +26,7 @@
   (c/su
     (c/trace
       (info node "installing garage" version)
-      (c/exec :mkdir :-p dir)
+      (c/exec :mkdir :-p base-dir)
       (let [url (str "https://garagehq.deuxfleurs.fr/_releases/" version "/x86_64-unknown-linux-musl/garage")
             cache (cu/cached-wget! url)]
         (c/exec :cp cache binary))
@@ -45,8 +43,8 @@
              "rpc_public_addr = \"" node ":3901\"\n"
              "db_engine = \"lmdb\"\n"
              "replication_mode = \"3\"\n"
-             "data_dir = \"" dir "/data\"\n"
-             "metadata_dir = \"" dir "/meta\"\n"
+             "data_dir = \"" data-dir "\"\n"
+             "metadata_dir = \"" meta-dir "\"\n"
              "[s3_api]\n"
              "s3_region = \"us-east-1\"\n"
              "api_bind_addr = \"0.0.0.0:3900\"\n"
@@ -54,7 +52,7 @@
              "api_bind_addr = \"0.0.0.0:3902\"\n"
              "[admin]\n"
              "api_bind_addr = \"0.0.0.0:3903\"\n"
-             "admin_token = \"" grg-admin-token "\"\n")
+             "admin_token = \"" admin-token "\"\n")
         "/etc/garage.toml"))))
 
 (defn connect-node!
@@ -80,10 +78,10 @@
   (c/trace
     (c/exec binary :layout :apply :--version 1)
     (info node "garage status:" (c/exec binary :status))
-    (c/exec binary :key :create grg-key)
-    (c/exec binary :bucket :create grg-bucket)
-    (c/exec binary :bucket :allow :--read :--write grg-bucket :--key grg-key)
-    (info node "key info: " (c/exec binary :key :info grg-key))))
+    (c/exec binary :key :create access-key)
+    (c/exec binary :bucket :create bucket-name)
+    (c/exec binary :bucket :allow :--read :--write bucket-name :--key access-key)
+    (info node "key info: " (c/exec binary :key :info access-key))))
 
 (defn db
   "Garage DB for a particular version"
@@ -95,7 +93,7 @@
       (cu/start-daemon!
         {:logfile logfile
          :pidfile pidfile
-         :chdir dir}
+         :chdir base-dir}
         binary
         :server)
       (c/exec :sleep 3)
@@ -121,58 +119,16 @@
     (log-files [_ test node]
       [logfile])))
 
-; GARAGE S3 HELPER FUNCTIONS
-
-(defn s3-creds
-  "Get S3 credentials for node"
+(defn creds
+  "Obtain Garage credentials for node"
   [node]
-  (let [key-info (c/on node (c/exec binary :key :info grg-key :--show-secret))
+  (let [key-info (c/on node (c/exec binary :key :info access-key :--show-secret))
         [_ ak sk] (re-matches
                     #"(?s).*Key ID: (.*)\nSecret key: (.*)\nCan create.*"
                     key-info)]
     {:access-key ak
      :secret-key sk
      :endpoint (str "http://" node ":3900")
-     :bucket grg-bucket
+     :bucket bucket-name
      :client-config {:path-style-access-enabled true}}))
 
-(defn s3-get
-  "Helper for GetObject"
-  [creds k]
-  (try+
-    (-> (s3/get-object creds (:bucket creds) k)
-        :input-stream
-        slurp)
-    (catch (re-find #"Key not found" (.getMessage %)) ex
-      nil)))
-
-(defn s3-put
-  "Helper for PutObject or DeleteObject (is a delete if value is nil)"
-  [creds k v]
-  (if (= v nil)
-    (s3/delete-object creds
-                      :bucket-name (:bucket creds)
-                      :key k)
-    (let [some-bytes (.getBytes v "UTF-8")
-          bytes-stream (java.io.ByteArrayInputStream. some-bytes)]
-      (s3/put-object creds
-                     :bucket-name (:bucket creds)
-                     :key k
-                     :input-stream bytes-stream
-                     :metadata {:content-length (count some-bytes)}))))
-
-(defn s3-list
-  "Helper for ListObjects -- just lists everything in the bucket"
-  [creds prefix]
-  (defn list-inner [ct accum]
-    (let [list-result (s3/list-objects-v2 creds
-                                          {:bucket-name (:bucket creds)
-                                           :prefix prefix
-                                           :continuation-token ct})
-          new-object-summaries (:object-summaries list-result)
-          new-objects (map (fn [d] (:key d)) new-object-summaries)
-          objects (concat new-objects accum)]
-      (if (:truncated? list-result)
-        (list-inner (:next-continuation-token list-result) objects)
-        objects)))
-  (list-inner nil []))

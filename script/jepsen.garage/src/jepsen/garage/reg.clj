@@ -13,7 +13,8 @@
             [jepsen.checker.timeline :as timeline]
             [jepsen.control.util :as cu]
             [jepsen.os.debian :as debian]
-            [jepsen.garage.grg :as grg]
+            [jepsen.garage.daemon :as grg]
+            [jepsen.garage.s3api :as s3]
             [knossos.model :as model]
             [slingshot.slingshot :refer [try+]]))
 
@@ -24,7 +25,7 @@
 (defrecord RegClient [creds]
   client/Client
   (open! [this test node]
-    (let [creds (grg/s3-creds node)]
+    (let [creds (grg/creds node)]
       (info node "s3 credentials:" creds)
       (assoc this :creds creds)))
   (setup! [this test])
@@ -32,11 +33,11 @@
     (let [[k v] (:value op)]
       (case (:f op)
         :read
-          (let [value (grg/s3-get (:creds this) k)]
+          (let [value (s3/get (:creds this) k)]
             (assoc op :type :ok, :value (independent/tuple k value)))
         :write
           (do
-            (grg/s3-put (:creds this) k v)
+            (s3/put (:creds this) k v)
             (assoc op :type :ok)))))
   (teardown! [this test])
   (close! [this test]))
