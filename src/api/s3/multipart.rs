@@ -233,7 +233,8 @@ pub async fn handle_complete_multipart_upload(
 
 	// Get object and multipart upload
 	let key = key.to_string();
-	let (object, mut object_version, mpu) = get_upload(&garage, &bucket.id, &key, &upload_id).await?;
+	let (object, mut object_version, mpu) =
+		get_upload(&garage, &bucket.id, &key, &upload_id).await?;
 
 	if mpu.parts.is_empty() {
 		return Err(Error::bad_request("No data was uploaded"));
