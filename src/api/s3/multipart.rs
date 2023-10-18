@@ -233,7 +233,7 @@ pub async fn handle_complete_multipart_upload(
 
 	// Get object and multipart upload
 	let key = key.to_string();
-	let (_, mut object_version, mpu) = get_upload(&garage, &bucket.id, &key, &upload_id).await?;
+	let (object, mut object_version, mpu) = get_upload(&garage, &bucket.id, &key, &upload_id).await?;
 
 	if mpu.parts.is_empty() {
 		return Err(Error::bad_request("No data was uploaded"));
@@ -331,7 +331,7 @@ pub async fn handle_complete_multipart_upload(
 	// Calculate total size of final object
 	let total_size = parts.iter().map(|x| x.size.unwrap()).sum();
 
-	if let Err(e) = check_quotas(&garage, bucket, &key, total_size).await {
+	if let Err(e) = check_quotas(&garage, bucket, &key, total_size, Some(&object)).await {
 		object_version.state = ObjectVersionState::Aborted;
 		let final_object = Object::new(bucket.id, key.clone(), vec![object_version]);
 		garage.object_table.insert(&final_object).await?;
