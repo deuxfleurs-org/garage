@@ -70,7 +70,7 @@ pub struct Secrets {
 	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
 	pub rpc_secret: Option<String>,
 
-	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
+	/// Admin API authentication token, replaces admin.admin_token in config.toml when
 	/// running the Garage daemon
 	#[structopt(long = "admin-token", env = "GARAGE_ADMIN_TOKEN")]
 	pub admin_token: Option<String>,
