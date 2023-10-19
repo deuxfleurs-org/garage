@@ -42,6 +42,7 @@
           new-object-summaries (:object-summaries list-result)
           new-objects (map (fn [d] (:key d)) new-object-summaries)
           objects (concat new-objects accum)]
+      (info (:endpoint creds) "ListObjectsV2 prefix(" prefix "), ct(" ct "): " new-objects)
       (if (:truncated? list-result)
         (list-inner (:next-continuation-token list-result) objects)
         objects)))

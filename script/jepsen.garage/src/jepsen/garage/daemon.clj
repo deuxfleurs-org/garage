@@ -53,7 +53,8 @@
              "api_bind_addr = \"0.0.0.0:3902\"\n"
              "[admin]\n"
              "api_bind_addr = \"0.0.0.0:3903\"\n"
-             "admin_token = \"" admin-token "\"\n")
+             "admin_token = \"" admin-token "\"\n"
+             "trace_sink = \"http://192.168.56.1:4317\"\n")
         "/etc/garage.toml"))))
 
 (defn connect-node!
@@ -94,7 +95,8 @@
       (cu/start-daemon!
         {:logfile logfile
          :pidfile pidfile
-         :chdir base-dir}
+         :chdir base-dir
+         :env {:RUST_LOG "garage=debug,garage_api=trace"}}
         binary
         :server)
       (c/exec :sleep 3)
@@ -113,6 +115,7 @@
       (info node "tearing down garage" version)
       (c/su
         (cu/stop-daemon! binary pidfile)
+        (c/exec :rm :-rf logfile)
         (c/exec :rm :-rf data-dir)
         (c/exec :rm :-rf meta-dir)))
 
