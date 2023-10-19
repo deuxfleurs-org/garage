@@ -31,6 +31,39 @@ lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrenc
 lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrency 50 --workload set2
 ```
 
+## Results
+
+**Register linear, without timestamp patch**
+
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100`
+
+Results: fails with a simple clock-scramble nemesis.
+
+Explanation: without the timestamp patch, nodes will create objects using their
+local clock only as a timestamp, so the ordering will be all over the place if
+clocks are scrambled.
+
+**Register linear, with timestamp patch**
+
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100 -I`
+
+Results:
+
+- No failure with clock-scramble nemesis
+- Fails with clock-scramble nemesis + partition nemesis
+
+Explanation: S3 objects are not meant to behave like linearizable registers. TODO explain using a counter-example
+
+**Read-after-write CRDT register model**: TODO: determine the expected semantics of such a register, code a checker and show that results are correct
+
+**Set, basic test**
+
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload set1 --ops-per-key 100`
+
+Results:
+
+- ListObjects returns objects not within prefix????
+
 ## License
 
 Copyright © 2023 Alex Auvolat

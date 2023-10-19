@@ -9,6 +9,7 @@
              [generator :as gen]
              [independent :as independent]
              [nemesis :as nemesis]
+             [util :as util]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.control.util :as cu]
@@ -25,33 +26,31 @@
 (defrecord RegClient [creds]
   client/Client
   (open! [this test node]
-    (let [creds (grg/creds node)]
-      (info node "s3 credentials:" creds)
-      (assoc this :creds creds)))
+    (assoc this :creds (grg/creds node)))
   (setup! [this test])
   (invoke! [this test op]
     (let [[k v] (:value op)]
       (case (:f op)
         :read
-          (try+
+          (util/timeout
+            10000
+            (assoc op :type :fail, :error ::timeout)
             (let [value (s3/get (:creds this) k)]
-              (assoc op :type :ok, :value (independent/tuple k value)))
-            (catch (re-find #"Unavailable" (.getMessage %)) ex
-              (assoc op :type :fail, :error [:s3-error (.getMessage ex)])))
+              (assoc op :type :ok, :value (independent/tuple k value))))
         :write
-          (try+
+          (util/timeout
+            10000
+            (assoc op :type :info, :error ::timeout)
             (do
               (s3/put (:creds this) k v)
-              (assoc op :type :ok))
-            (catch (re-find #"Unavailable" (.getMessage %)) ex
-              (assoc op :type :fail, :error [:s3-error (.getMessage ex)]))))))
+              (assoc op :type :ok))))))
   (teardown! [this test])
   (close! [this test]))
 
 (defn workload
   "Tests linearizable reads and writes"
   [opts]
-  {:client           (client/timeout 10 (RegClient. nil))
+  {:client           (RegClient. nil)
    :checker          (independent/checker
                        (checker/compose
                          {:linear (checker/linearizable
@@ -59,8 +58,8 @@
                                      :algorithm :linear})
                           :timeline (timeline/html)}))
    :generator        (independent/concurrent-generator
-                       (/ (:concurrency opts) 10) ; divide threads in 10 groups
-                       (range)                    ; working on 10 keys
+                       10
+                       (range)
                        (fn [k]
                          (->>
                            (gen/mix [op-get op-put op-del])

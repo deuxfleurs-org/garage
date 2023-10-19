@@ -11,6 +11,7 @@
              [generator :as gen]
              [independent :as independent]
              [nemesis :as nemesis]
+             [util :as util]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
             [jepsen.control.util :as cu]
@@ -26,23 +27,29 @@
 (defrecord SetClient [creds]
   client/Client
   (open! [this test node]
-    (let [creds (grg/creds node)]
-      (info node "s3 credentials:" creds)
-      (assoc this :creds creds)))
+    (assoc this :creds (grg/creds node)))
   (setup! [this test])
   (invoke! [this test op]
     (let [[k v] (:value op)
           prefix (str "set" k "/")]
       (case (:f op)
         :add
-          (do
-            (s3/put (:creds this) (str prefix v) "present")
-            (assoc op :type :ok))
+          (util/timeout
+            10000
+            (assoc op :type :info, :error ::timeout)
+            (do
+              (s3/put (:creds this) (str prefix v) "present")
+              (assoc op :type :ok)))
         :read
-          (let [items (s3/list (:creds this) prefix)
-                items-stripped (map (fn [o] (str/replace-first o prefix "")) items)
-                items-set (set (map read-string items-stripped))]
-            (assoc op :type :ok, :value (independent/tuple k items-set))))))
+          (util/timeout
+            10000
+            (assoc op :type :fail, :error ::timeout)
+            (let [items (s3/list (:creds this) prefix)
+                  items-stripped (map (fn [o]
+                                        (assert (str/starts-with? o prefix))
+                                        (str/replace-first o prefix "")) items)
+                  items-set (set (map parse-long items-stripped))]
+              (assoc op :type :ok, :value (independent/tuple k items-set)))))))
   (teardown! [this test])
   (close! [this test]))
 
@@ -110,6 +117,7 @@
                         10
                         (range)
                         (fn [k]
-                          (gen/mix [op-add-rand100 op-read])))})
+                          (->> (gen/mix [op-add-rand100 op-read])
+                               (gen/limit (:ops-per-key opts)))))})
 
 

@@ -56,12 +56,12 @@
                                   (gen/stagger (/ (:rate opts)))
                                   (gen/nemesis
                                     (cycle [(gen/sleep 5)
-                                            ;{:type :info, :f :partition-start}
-                                            ;(gen/sleep 5)
+                                            {:type :info, :f :partition-start}
+                                            (gen/sleep 5)
                                             {:type :info, :f :clock-scramble}
                                             (gen/sleep 5)
-                                            ;{:type :info, :f :partition-stop}
-                                            ;(gen/sleep 5)
+                                            {:type :info, :f :partition-stop}
+                                            (gen/sleep 5)
                                             {:type :info, :f :clock-scramble}]))
                                   (gen/time-limit (:time-limit opts)))
                                 (gen/log "Healing cluster")
