@@ -44,13 +44,15 @@
           (util/timeout
             10000
             (assoc op :type :fail, :error ::timeout)
-            (let [items (s3/list (:creds this) prefix)]
-              (info "list results for prefix" prefix ":" items " (node:" (:endpoint (:creds this)) ")")
-              (let [items-stripped (map (fn [o]
-                                        (assert (str/starts-with? o prefix))
-                                        (str/replace-first o prefix "")) items)
-                    items-set (set (map parse-long items-stripped))]
-                (assoc op :type :ok, :value (independent/tuple k items-set))))))))
+            (do
+              (info "call s3/list creds: " (:creds this) ", prefix:" prefix)
+              (let [items (s3/list (:creds this) prefix)]
+                (info "list results for prefix" prefix ":" items " (node:" (:endpoint (:creds this)) ")")
+                (let [items-stripped (map (fn [o]
+                                          (assert (str/starts-with? o prefix))
+                                          (str/replace-first o prefix "")) items)
+                      items-set (set (map parse-long items-stripped))]
+                  (assoc op :type :ok, :value (independent/tuple k items-set)))))))))
   (teardown! [this test])
   (close! [this test]))
 

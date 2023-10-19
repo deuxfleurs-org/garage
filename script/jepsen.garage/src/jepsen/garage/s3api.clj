@@ -31,19 +31,20 @@
                      :input-stream bytes-stream
                      :metadata {:content-length (count some-bytes)}))))
 
+(defn list-inner [creds prefix ct accum]
+  (let [list-result (s3/list-objects-v2 creds
+                                        {:bucket-name (:bucket creds)
+                                         :prefix prefix
+                                         :continuation-token ct})
+        new-object-summaries (:object-summaries list-result)
+        new-objects (map (fn [d] (:key d)) new-object-summaries)
+        objects (concat new-objects accum)]
+    (info (:endpoint creds) "ListObjectsV2 prefix(" prefix "), ct(" ct "): " new-objects)
+    (if (:truncated? list-result)
+      (list-inner creds prefix (:next-continuation-token list-result) objects)
+      objects)))
 (defn list
   "Helper for ListObjects -- just lists everything in the bucket"
   [creds prefix]
-  (defn list-inner [ct accum]
-    (let [list-result (s3/list-objects-v2 creds
-                                          {:bucket-name (:bucket creds)
-                                           :prefix prefix
-                                           :continuation-token ct})
-          new-object-summaries (:object-summaries list-result)
-          new-objects (map (fn [d] (:key d)) new-object-summaries)
-          objects (concat new-objects accum)]
-      (info (:endpoint creds) "ListObjectsV2 prefix(" prefix "), ct(" ct "): " new-objects)
-      (if (:truncated? list-result)
-        (list-inner (:next-continuation-token list-result) objects)
-        objects)))
-  (list-inner nil []))
+  (info "in s3/list creds:" creds ", prefix:" prefix)
+  (list-inner creds prefix nil []))

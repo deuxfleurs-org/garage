@@ -33,7 +33,7 @@ lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrenc
 
 ## Results
 
-**Register linear, without timestamp patch**
+### Register linear, without timestamp patch
 
 Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100`
 
@@ -43,7 +43,7 @@ Explanation: without the timestamp patch, nodes will create objects using their
 local clock only as a timestamp, so the ordering will be all over the place if
 clocks are scrambled.
 
-**Register linear, with timestamp patch**
+### Register linear, with timestamp patch
 
 Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100 -I`
 
@@ -54,24 +54,45 @@ Results:
 
 Explanation: S3 objects are not meant to behave like linearizable registers. TODO explain using a counter-example
 
-**Read-after-write CRDT register model**: TODO: determine the expected semantics of such a register, code a checker and show that results are correct
+### Read-after-write CRDT register model
 
-**Set, basic test**
+TODO: determine the expected semantics of such a register, code a checker and show that results are correct
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload set1 --ops-per-key 100`
+### Set, basic test (write some items, then read)
+
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set1 --ops-per-key 100`
 
 Results:
 
-- ListObjects returns objects not within prefix???? -> BAD, definitely a bug, but maybe it's in the instrumentation code?
+- For now, no failures with clock-scramble nemesis + partition nemesis
+
+### Set, continuous test (interspersed reads and writes)
+
+TODO
+
+TODO: nemesis that reconfigures the cluster with a different subset of nodes, to have requests that occur during a resync period.
+
+
+## Investigating (and fixing) wierd behavior
+
+### Segfaults
+
+They are due to the download being interrupted in the middle (^C during first launch on clean VMs), the `garage` binary is truncated.
+Add `:force?` to the `cached-wget!` call in `daemon.clj` to re-download the binary.
+
+### In `jepsen.garage`: prefix wierdness
 
 In `store/garage set1/20231019T163358.615+0200`:
 
 ```
 INFO [2023-10-19 16:35:20,977] clojure-agent-send-off-pool-207 - jepsen.garage.set list results for prefix set20/ : (set13/0 set13/1 set13/10 set13/11 set13/12 set13/13 set13/14 set13/15 set13/16 set13/17 set13/18 set13/19 set13/2 set13/20 set13/21 set13/22 set13/23 set13/24 set13/25 set13/26 set13/27 set13/28 set13/29 set13/3 set13/30 set13/31 set13/32 set13/33 set13/34 set13/35 set13/36 set13/37 set13/38 set13/39 set13/4 set13/40 set13/41 set13/42 set13/43 set13/44 set13/45 set13/46 set13/47 set13/48 set13/49 set13/5 set13/50 set13/51 set13/52 set13/53 set13/54 set13/55 set13/56 set13/57 set13/58 set13/59 set13/6 set13/60 set13/61 set13/62 set13/63 set13/64 set13/65 set13/66 set13/67 set13/68 set13/69 set13/7 set13/70 set13/71 set13/72 set13/73 set13/74 set13/75 set13/76 set13/77 set13/78 set13/79 set13/8 set13/80 set13/81 set13/82 set13/83 set13/84 set13/85 set13/86 set13/87 set13/88 set13/89 set13/9 set13/90 set13/91 set13/92 set13/93 set13/94 set13/95 set13/96 set13/97 set13/98 set13/99)  (node: http://192.168.56.25:3900 )
-
 ```
 
-- Sometimes ListObjects returns an empty list???? -> BAD, quorums should ensure this doesn't happen
+After inspecting, the actual S3 call made was with prefix "set13/", so at least this is not an error in Garage itself but in the jepsen code.
+
+Finally found out that this was due to closures not correctly capturing their context in the list function in s3api.clj (wtf clojure?)
+Not sure exactly where it came from but it seems to have been fixed by making list-inner a separate function and not a sub-function,
+and passing all values that were previously in the context (creds and prefix) as additional arguments.
 
 ## License
 
