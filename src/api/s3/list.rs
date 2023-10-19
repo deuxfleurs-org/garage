@@ -530,8 +530,8 @@ impl ListObjectsQuery {
 				// string in the spec, so we can do whatever we want with it.
 				// In our case, it is defined as either [ or ] (for include
 				// representing the key to start with.
-				(Some(token), _) => match &token[..1] {
-					"[" => Ok(RangeBegin::IncludingKey {
+				(Some(token), _) => match &token.get(..1) {
+					Some("[") => Ok(RangeBegin::IncludingKey {
 						key: String::from_utf8(
 							BASE64_STANDARD
 								.decode(token[1..].as_bytes())
@@ -539,7 +539,7 @@ impl ListObjectsQuery {
 						)?,
 						fallback_key: None,
 					}),
-					"]" => Ok(RangeBegin::AfterKey {
+					Some("]") => Ok(RangeBegin::AfterKey {
 						key: String::from_utf8(
 							BASE64_STANDARD
 								.decode(token[1..].as_bytes())
