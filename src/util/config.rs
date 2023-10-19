@@ -238,6 +238,24 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	Ok(parsed_config)
 }
 
+pub fn read_secret_file(file_path: &String) -> Result<String, Error> {
+	#[cfg(unix)]
+	if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
+		use std::os::unix::fs::MetadataExt;
+		let metadata = std::fs::metadata(file_path)?;
+		if metadata.mode() & 0o077 != 0 {
+			return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
+		}
+	}
+	let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
+	let mut secret_buf = String::new();
+	file.read_to_string(&mut secret_buf)?;
+
+	// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
+	//           also editors sometimes add a trailing newline
+	Ok(String::from(secret_buf.trim_end()))
+}
+
 fn secret_from_file(
 	secret: &mut Option<String>,
 	secret_file: &Option<String>,
@@ -250,22 +268,7 @@ fn secret_from_file(
 		(Some(_), Some(_)) => {
 			return Err(format!("only one of `{}` and `{}_file` can be set", name, name).into());
 		}
-		(None, Some(file_path)) => {
-			#[cfg(unix)]
-			if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
-				use std::os::unix::fs::MetadataExt;
-				let metadata = std::fs::metadata(file_path)?;
-				if metadata.mode() & 0o077 != 0 {
-					return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
-				}
-			}
-			let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
-			let mut secret_buf = String::new();
-			file.read_to_string(&mut secret_buf)?;
-			// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
-			//           also editors sometimes add a trailing newline
-			*secret = Some(String::from(secret_buf.trim_end()));
-		}
+		(None, Some(file_path)) => *secret = Some(read_secret_file(file_path)?),
 	}
 	Ok(())
 }
