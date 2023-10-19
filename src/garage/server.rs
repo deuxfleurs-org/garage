@@ -29,7 +29,7 @@ async fn wait_from(mut chan: watch::Receiver<bool>) {
 
 pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Error> {
 	info!("Loading configuration...");
-	let config = fill_secrets(read_config(config_file)?, secrets);
+	let config = fill_secrets(read_config(config_file)?, secrets)?;
 
 	// ---- Initialize Garage internals ----
 
