@@ -25,7 +25,7 @@ use structopt::StructOpt;
 use netapp::util::parse_and_resolve_peer_addr;
 use netapp::NetworkKey;
 
-use garage_util::config::Config;
+use garage_util::config::{read_secret_file, Config};
 use garage_util::error::*;
 
 use garage_rpc::system::*;
@@ -70,15 +70,30 @@ pub struct Secrets {
 	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
 	pub rpc_secret: Option<String>,
 
-	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
+	/// RPC secret network key, used to replace rpc_secret in config.toml and rpc-secret
+	/// when running the daemon or doing admin operations
+	#[structopt(long = "rpc-secret-file", env = "GARAGE_RPC_SECRET_FILE")]
+	pub rpc_secret_file: Option<String>,
+
+	/// Admin API authentication token, replaces admin.admin_token in config.toml when
 	/// running the Garage daemon
 	#[structopt(long = "admin-token", env = "GARAGE_ADMIN_TOKEN")]
 	pub admin_token: Option<String>,
+
+	/// Admin API authentication token file path, replaces admin.admin_token in config.toml
+	/// and admin-token when running the Garage daemon
+	#[structopt(long = "admin-token-file", env = "GARAGE_ADMIN_TOKEN_FILE")]
+	pub admin_token_file: Option<String>,
 
 	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
 	/// running the Garage daemon
 	#[structopt(long = "metrics-token", env = "GARAGE_METRICS_TOKEN")]
 	pub metrics_token: Option<String>,
+
+	/// Metrics API authentication token file path, replaces admin.metrics_token in config.toml
+	/// and metrics-token when running the Garage daemon
+	#[structopt(long = "metrics-token-file", env = "GARAGE_METRICS_TOKEN_FILE")]
+	pub metrics_token_file: Option<String>,
 }
 
 #[tokio::main]
@@ -259,15 +274,24 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	}
 }
 
-fn fill_secrets(mut config: Config, secrets: Secrets) -> Config {
+fn fill_secrets(mut config: Config, secrets: Secrets) -> Result<Config, Error> {
 	if secrets.rpc_secret.is_some() {
 		config.rpc_secret = secrets.rpc_secret;
+	} else if secrets.rpc_secret_file.is_some() {
+		config.rpc_secret = Some(read_secret_file(&secrets.rpc_secret_file.unwrap())?);
 	}
+
 	if secrets.admin_token.is_some() {
 		config.admin.admin_token = secrets.admin_token;
+	} else if secrets.admin_token_file.is_some() {
+		config.admin.admin_token = Some(read_secret_file(&secrets.admin_token_file.unwrap())?);
 	}
+
 	if secrets.metrics_token.is_some() {
 		config.admin.metrics_token = secrets.metrics_token;
+	} else if secrets.metrics_token_file.is_some() {
+		config.admin.metrics_token = Some(read_secret_file(&secrets.metrics_token_file.unwrap())?);
 	}
-	config
+
+	Ok(config)
 }

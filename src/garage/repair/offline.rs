@@ -20,7 +20,7 @@ pub async fn offline_repair(
 	}
 
 	info!("Loading configuration...");
-	let config = fill_secrets(read_config(config_file)?, secrets);
+	let config = fill_secrets(read_config(config_file)?, secrets)?;
 
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config)?;
