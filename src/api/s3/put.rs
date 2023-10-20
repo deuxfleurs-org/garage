@@ -110,7 +110,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 			content_sha256,
 		)?;
 
-		check_quotas(&garage, bucket, key, size, existing_object.as_ref()).await?;
+		check_quotas(&garage, bucket, size, existing_object.as_ref()).await?;
 
 		let object_version = ObjectVersion {
 			uuid: version_uuid,
@@ -189,7 +189,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		content_sha256,
 	)?;
 
-	check_quotas(&garage, bucket, key, total_size, existing_object.as_ref()).await?;
+	check_quotas(&garage, bucket, total_size, existing_object.as_ref()).await?;
 
 	// Save final object state, marked as Complete
 	let md5sum_hex = hex::encode(data_md5sum);
@@ -242,7 +242,6 @@ pub(crate) fn ensure_checksum_matches(
 pub(crate) async fn check_quotas(
 	garage: &Arc<Garage>,
 	bucket: &Bucket,
-	key: &str,
 	size: u64,
 	prev_object: Option<&Object>,
 ) -> Result<(), Error> {

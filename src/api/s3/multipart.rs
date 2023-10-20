@@ -332,7 +332,7 @@ pub async fn handle_complete_multipart_upload(
 	// Calculate total size of final object
 	let total_size = parts.iter().map(|x| x.size.unwrap()).sum();
 
-	if let Err(e) = check_quotas(&garage, bucket, &key, total_size, Some(&object)).await {
+	if let Err(e) = check_quotas(&garage, bucket, total_size, Some(&object)).await {
 		object_version.state = ObjectVersionState::Aborted;
 		let final_object = Object::new(bucket.id, key.clone(), vec![object_version]);
 		garage.object_table.insert(&final_object).await?;
