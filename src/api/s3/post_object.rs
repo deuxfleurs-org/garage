@@ -15,6 +15,7 @@ use serde::Deserialize;
 
 use garage_model::garage::Garage;
 
+use crate::s3::cors::*;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
@@ -242,7 +243,7 @@ pub async fn handle_post_object(
 
 	let etag = format!("\"{}\"", md5);
 
-	let resp = if let Some(mut target) = params
+	let mut resp = if let Some(mut target) = params
 		.get("success_action_redirect")
 		.and_then(|h| h.to_str().ok())
 		.and_then(|u| url::Url::parse(u).ok())
@@ -262,8 +263,7 @@ pub async fn handle_post_object(
 	} else {
 		let path = head
 			.uri
-			.into_parts()
-			.path_and_query
+			.path_and_query()
 			.map(|paq| paq.path().to_string())
 			.unwrap_or_else(|| "/".to_string());
 		let authority = head
@@ -307,6 +307,13 @@ pub async fn handle_post_object(
 			_ => builder.status(StatusCode::NO_CONTENT).body(Body::empty())?,
 		}
 	};
+
+	let matching_cors_rule =
+		find_matching_cors_rule(&bucket, &Request::from_parts(head, Body::empty()))?;
+	if let Some(rule) = matching_cors_rule {
+		add_cors_headers(&mut resp, rule)
+			.ok_or_internal_error("Invalid bucket CORS configuration")?;
+	}
 
 	Ok(resp)
 }
