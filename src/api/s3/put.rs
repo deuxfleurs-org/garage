@@ -86,7 +86,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 
 	// Generate identity of new version
 	let version_uuid = gen_uuid();
-	let version_timestamp = next_timestamp(&existing_object);
+	let version_timestamp = next_timestamp(existing_object.as_ref());
 
 	// If body is small enough, store it directly in the object table
 	// as "inline data". We can then return immediately.
@@ -529,7 +529,7 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVers
 	})
 }
 
-pub(crate) fn next_timestamp(existing_object: &Option<Object>) -> u64 {
+pub(crate) fn next_timestamp(existing_object: Option<&Object>) -> u64 {
 	existing_object
 		.as_ref()
 		.and_then(|obj| obj.versions().iter().map(|v| v.timestamp).max())

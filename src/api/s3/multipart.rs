@@ -9,7 +9,6 @@ use md5::{Digest as Md5Digest, Md5};
 use garage_table::*;
 use garage_util::async_hash::*;
 use garage_util::data::*;
-use garage_util::time::*;
 
 use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
@@ -35,7 +34,7 @@ pub async fn handle_create_multipart_upload(
 	let existing_object = garage.object_table.get(&bucket_id, &key).await?;
 
 	let upload_id = gen_uuid();
-	let timestamp = next_timestamp(&existing_object);
+	let timestamp = next_timestamp(existing_object.as_ref());
 
 	let headers = get_headers(req.headers())?;
 
