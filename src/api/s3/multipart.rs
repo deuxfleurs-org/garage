@@ -30,10 +30,13 @@ pub async fn handle_create_multipart_upload(
 	req: &Request<Body>,
 	bucket_name: &str,
 	bucket_id: Uuid,
-	key: &str,
+	key: &String,
 ) -> Result<Response<Body>, Error> {
+	let existing_object = garage.object_table.get(&bucket_id, &key).await?;
+
 	let upload_id = gen_uuid();
-	let timestamp = now_msec();
+	let timestamp = next_timestamp(&existing_object);
+
 	let headers = get_headers(req.headers())?;
 
 	// Create object in object table

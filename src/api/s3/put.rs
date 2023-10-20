@@ -86,11 +86,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 
 	// Generate identity of new version
 	let version_uuid = gen_uuid();
-	let version_timestamp = existing_object
-		.as_ref()
-		.and_then(|obj| obj.versions().iter().map(|v| v.timestamp).max())
-		.map(|t| std::cmp::max(t + 1, now_msec()))
-		.unwrap_or_else(now_msec);
+	let version_timestamp = next_timestamp(&existing_object);
 
 	// If body is small enough, store it directly in the object table
 	// as "inline data". We can then return immediately.
@@ -531,4 +527,12 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVers
 		content_type,
 		other,
 	})
+}
+
+pub(crate) fn next_timestamp(existing_object: &Option<Object>) -> u64 {
+	existing_object
+		.as_ref()
+		.and_then(|obj| obj.versions().iter().map(|v| v.timestamp).max())
+		.map(|t| std::cmp::max(t + 1, now_msec()))
+		.unwrap_or_else(now_msec)
 }
