@@ -20,10 +20,16 @@
    "set1" set/workload1
    "set2" set/workload2})
 
+(def patches
+  "A map of patch names to Garage builds"
+  {"default" "v0.9.0"
+   "tsfix1" "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"})
+
 (def cli-opts
   "Additional command line options."
-  [["-I" "--increasing-timestamps" "Garage version with increasing timestamps on PutObject"
-    :default false]
+  [["-p" "--patch NAME" "Garage patch to use"
+    :default "default"
+    :validate [patches (cli/one-of patches)]]
    ["-r" "--rate HZ" "Approximate number of requests per second, per thread."
     :default  10
     :parse-fn read-string
@@ -41,9 +47,7 @@
   :concurrency, ...), constructs a test map."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
-        garage-version (if (:increasing-timestamps opts)
-                         "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"
-                         "v0.9.0")]
+        garage-version (get patches (:patch opts))]
     (merge tests/noop-test
            opts
            {:pure-generators  true

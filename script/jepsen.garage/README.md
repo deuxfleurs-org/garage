@@ -69,6 +69,8 @@ Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  -
 Results:
 
 - Failures with clock-scramble nemesis + partition nemesis ???? TODO INVESTIGATE
+  -> the issue seems to be only after DeleteObject (deletions are not always taken into account),
+     the issue does not appear if we are using only PutObject with an actual object content
 - TODO: layout reconfiguration nemesis
 
 
@@ -86,7 +88,7 @@ Results:
 TODO
 
 
-## Investigating (and fixing) wierd behavior
+## Investigating (and fixing) errors
 
 ### Segfaults
 
@@ -106,6 +108,22 @@ After inspecting, the actual S3 call made was with prefix "set13/", so at least 
 Finally found out that this was due to closures not correctly capturing their context in the list function in s3api.clj (wtf clojure?)
 Not sure exactly where it came from but it seems to have been fixed by making list-inner a separate function and not a sub-function,
 and passing all values that were previously in the context (creds and prefix) as additional arguments.
+
+### `reg2` test inconsistency, even with timestamp fix
+
+The reg2 test is our custom checker for CRDT read-after-write on individual object keys, acting as registers which can be updated.
+The test fails without the timestamp fix, which is expected as the clock scrambler will prevent nodes from having a correct ordering of objects.
+
+With the timestamp fix, the happenned-before relationship should at least be respected, meaning that when a PutObject call starts
+after another PutObject call has ended, the second call should overwrite the value of the first call, and that value should not be
+readable by future GetObject calls.
+However, we observed inconsistencies even with the timestamp fix.
+
+The inconsistencies seemed to always happenned after writing a nil value, which translates to a DeleteObject call
+instead of a PutObject. By removing the possibility of writing nil values, therefore only doing
+PutObject calls, the issue disappears. There is therefore an issue to fix in DeleteObject.
+
+
 
 ## License
 
