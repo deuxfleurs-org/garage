@@ -10,6 +10,7 @@
     [jepsen.os.debian :as debian]
     [jepsen.garage
      [daemon :as grg]
+     [nemesis :as grgNemesis]
      [reg :as reg]
      [set :as set]]))
 
@@ -19,6 +20,11 @@
    "reg2" reg/workload2
    "set1" set/workload1
    "set2" set/workload2})
+
+(def scenari
+  "A map of scenari to the associated nemesis"
+  {"cp" grgNemesis/scenario-cp
+   "r"  grgNemesis/scenario-r})
 
 (def patches
   "A map of patch names to Garage builds"
@@ -31,6 +37,9 @@
   [["-p" "--patch NAME" "Garage patch to use"
     :default "default"
     :validate [patches (cli/one-of patches)]]
+   ["-s" "--scenario NAME" "Nemesis scenario to run"
+    :default "cp"
+    :validate [scenari (cli/one-of scenari)]]
    ["-r" "--rate HZ" "Approximate number of requests per second, per thread."
     :default  10
     :parse-fn read-string
@@ -40,7 +49,7 @@
     :parse-fn parse-long
     :validate [pos? "Must be a positive integer."]]
    ["-w" "--workload NAME" "Workload of test to run"
-    :default "reg"
+    :default "reg1"
     :validate [workloads (cli/one-of workloads)]]])
 
 (defn garage-test
@@ -48,6 +57,7 @@
   :concurrency, ...), constructs a test map."
   [opts]
   (let [workload ((get workloads (:workload opts)) opts)
+        scenario ((get scenari (:scenario opts)) opts)
         garage-version (get patches (:patch opts))]
     (merge tests/noop-test
            opts
@@ -60,25 +70,14 @@
                                 (->>
                                   (:generator workload)
                                   (gen/stagger (/ (:rate opts)))
-                                  (gen/nemesis
-                                    (cycle [(gen/sleep 5)
-                                            {:type :info, :f :partition-start}
-                                            (gen/sleep 5)
-                                            {:type :info, :f :clock-scramble}
-                                            (gen/sleep 5)
-                                            {:type :info, :f :partition-stop}
-                                            (gen/sleep 5)
-                                            {:type :info, :f :clock-scramble}]))
+                                  (gen/nemesis (:generator scenario))
                                   (gen/time-limit (:time-limit opts)))
                                 (gen/log "Healing cluster")
                                 (gen/nemesis (gen/once {:type :info, :f :partition-stop}))
                                 (gen/log "Waiting for recovery")
                                 (gen/sleep 10)
                                 (gen/clients (:final-generator workload)))
-            :nemesis          (nemesis/compose
-                                {{:partition-start :start
-                                  :partition-stop :stop} (nemesis/partition-random-halves)
-                                 {:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})
+            :nemesis          (:nemesis scenario)
             :checker          (checker/compose
                                 {:perf (checker/perf)
                                  :workload (:checker workload)})
