@@ -69,7 +69,7 @@ Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  -
 Results:
 
 - No failures with clock-scramble nemesis + partition nemesis
-- TODO: layout reconfiguration nemesis
+- Fails with layout reconfiguration nemesis (TODO: test more and investigate)
 
 
 ### Set, basic test (write some items, then read)
@@ -79,7 +79,7 @@ Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  -
 Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis
-- TODO: layout reconfiguration nemesis
+- TODO: layout reconfiguration nemesis (does not fail yet! but it should)
 
 ### Set, continuous test (interspersed reads and writes)
 
