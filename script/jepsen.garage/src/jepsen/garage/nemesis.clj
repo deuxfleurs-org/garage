@@ -64,28 +64,30 @@
 (defn scenario-cp
   "Clock scramble + parittion scenario"
   [opts]
-  {:generator      (cycle [(gen/sleep 5)
-                           {:type :info, :f :partition-start}
-                           (gen/sleep 5)
-                           {:type :info, :f :clock-scramble}
-                           (gen/sleep 5)
-                           {:type :info, :f :partition-stop}
-                           (gen/sleep 5)
-                           {:type :info, :f :clock-scramble}])
-   :nemesis        (nemesis/compose
-                     {{:partition-start :start
-                       :partition-stop :stop} (nemesis/partition-random-halves)
-                      {:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})})
+  {:generator        (cycle [(gen/sleep 5)
+                             {:type :info, :f :partition-start}
+                             (gen/sleep 5)
+                             {:type :info, :f :clock-scramble}
+                             (gen/sleep 5)
+                             {:type :info, :f :partition-stop}
+                             (gen/sleep 5)
+                             {:type :info, :f :clock-scramble}])
+   :final-generator  (gen/once {:type :info, :f :partition-stop})
+   :nemesis          (nemesis/compose
+                       {{:partition-start :start
+                         :partition-stop :stop} (nemesis/partition-random-halves)
+                        {:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})})
 
 (defn scenario-r
   "Cluster reconfiguration scenario"
   [opts]
-  {:generator      (cycle [(gen/sleep 5)
-                           {:type :info, :f :reconfigure-start}
-                           (gen/sleep 5)
-                           {:type :info, :f :reconfigure-start}
-                           (gen/sleep 5)
-                           {:type :info, :f :reconfigure-stop}])
-   :nemesis        (nemesis/compose
-                     {{:reconfigure-start :start
-                       :reconfigure-stop :stop} (reconfigure-subset 3)})})
+  {:generator        (cycle [(gen/sleep 5)
+                             {:type :info, :f :reconfigure-start}
+                             (gen/sleep 5)
+                             {:type :info, :f :reconfigure-start}
+                             (gen/sleep 5)
+                             {:type :info, :f :reconfigure-stop}])
+   :final-generator  (gen/once {:type :info, :f :reconfigure-stop})
+   :nemesis          (nemesis/compose
+                       {{:reconfigure-start :start
+                         :reconfigure-stop :stop} (reconfigure-subset 3)})})

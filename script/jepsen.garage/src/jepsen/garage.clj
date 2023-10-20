@@ -73,7 +73,7 @@
                                   (gen/nemesis (:generator scenario))
                                   (gen/time-limit (:time-limit opts)))
                                 (gen/log "Healing cluster")
-                                (gen/nemesis (gen/once {:type :info, :f :partition-stop}))
+                                (gen/nemesis (:final-generator scenario))
                                 (gen/log "Waiting for recovery")
                                 (gen/sleep 10)
                                 (gen/clients (:final-generator workload)))
