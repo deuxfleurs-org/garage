@@ -23,7 +23,8 @@
 (def patches
   "A map of patch names to Garage builds"
   {"default" "v0.9.0"
-   "tsfix1" "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"})
+   "tsfix1" "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"
+   "tsfix2" "c82d91c6bccf307186332b6c5c6fc0b128b1b2b1"})
 
 (def cli-opts
   "Additional command line options."

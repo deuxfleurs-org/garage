@@ -112,8 +112,7 @@
                        (range)
                        (fn [k]
                          (->>
-                           ; (gen/mix [op-get op-put op-del])
-                           (gen/mix [op-get op-put])
+                           (gen/mix [op-get op-put op-del])
                            (gen/limit (:ops-per-key opts)))))})
 
 (defn workload1

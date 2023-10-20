@@ -45,7 +45,7 @@ clocks are scrambled.
 
 ### Register linear, with timestamp patch
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100 -I`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100 --patch tsfix1`
 
 Results:
 
@@ -62,15 +62,13 @@ Results: fails with a simple clock-scramble nemesis.
 
 Explanation: old values are not overwritten correctly when their timestamps are in the future.
 
-### Read-after-write CRDT register model, with timestamp patch
+### Read-after-write CRDT register model, with timestamp patch (v2 with DeleteObject fix as well)
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100 -I`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100 --patch tsfix2`
 
 Results:
 
-- Failures with clock-scramble nemesis + partition nemesis ???? TODO INVESTIGATE
-  -> the issue seems to be only after DeleteObject (deletions are not always taken into account),
-     the issue does not appear if we are using only PutObject with an actual object content
+- No failures with clock-scramble nemesis + partition nemesis
 - TODO: layout reconfiguration nemesis
 
 
@@ -123,6 +121,7 @@ The inconsistencies seemed to always happenned after writing a nil value, which 
 instead of a PutObject. By removing the possibility of writing nil values, therefore only doing
 PutObject calls, the issue disappears. There is therefore an issue to fix in DeleteObject.
 
+The issue in DeleteObject seems to have been fixed by commit `c82d91c6bccf307186332b6c5c6fc0b128b1b2b1`
 
 
 ## License
