@@ -35,7 +35,7 @@ lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrenc
 
 ### Register linear, without timestamp patch
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100`
 
 Results: fails with a simple clock-scramble nemesis.
 
@@ -45,7 +45,7 @@ clocks are scrambled.
 
 ### Register linear, with timestamp patch
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg --ops-per-key 100 -I`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100 -I`
 
 Results:
 
@@ -54,9 +54,23 @@ Results:
 
 Explanation: S3 objects are not meant to behave like linearizable registers. TODO explain using a counter-example
 
-### Read-after-write CRDT register model
+### Read-after-write CRDT register model, without timestamp patch
 
-TODO: determine the expected semantics of such a register, code a checker and show that results are correct
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100`
+
+Results: fails with a simple clock-scramble nemesis.
+
+Explanation: old values are not overwritten correctly when their timestamps are in the future.
+
+### Read-after-write CRDT register model, with timestamp patch
+
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100 -I`
+
+Results:
+
+- Failures with clock-scramble nemesis + partition nemesis ???? TODO INVESTIGATE
+- TODO: layout reconfiguration nemesis
+
 
 ### Set, basic test (write some items, then read)
 
@@ -65,12 +79,11 @@ Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  -
 Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis
+- TODO: layout reconfiguration nemesis
 
 ### Set, continuous test (interspersed reads and writes)
 
 TODO
-
-TODO: nemesis that reconfigures the cluster with a different subset of nodes, to have requests that occur during a resync period.
 
 
 ## Investigating (and fixing) wierd behavior

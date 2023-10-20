@@ -15,7 +15,8 @@
 
 (def workloads
   "A map of workload names to functions that construct workloads, given opts."
-  {"reg"  reg/workload
+  {"reg1" reg/workload1
+   "reg2" reg/workload2
    "set1" set/workload1
    "set2" set/workload2})
 

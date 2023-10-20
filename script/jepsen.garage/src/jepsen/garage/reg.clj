@@ -103,18 +103,10 @@
             valid? (empty? (:bad-reads final))]
         (assoc final :valid? valid?)))))
 
-(defn workload
-  "Tests linearizable reads and writes"
+(defn workload-common
+  "Common parts of workload"
   [opts]
   {:client           (RegClient. nil)
-   :checker          (independent/checker
-                       (checker/compose
-                         {:reg-read-after-write (reg-read-after-write)
-                          ; linear test is desactivated, indeed Garage is not linear
-                          ;:linear (checker/linearizable
-                          ;          {:model     (model/register)
-                          ;           :algorithm :linear})
-                          :timeline (timeline/html)}))
    :generator        (independent/concurrent-generator
                        10
                        (range)
@@ -123,4 +115,22 @@
                            (gen/mix [op-get op-put op-del])
                            (gen/limit (:ops-per-key opts)))))})
 
+(defn workload1
+  "Tests linearizable reads and writes"
+  [opts]
+  (assoc (workload-common opts)
+         :checker (independent/checker
+                    (checker/compose
+                      {:linear (checker/linearizable
+                                 {:model     (model/register)
+                                  :algorithm :linear})
+                       :timeline (timeline/html)}))))
 
+(defn workload2
+  "Tests CRDT reads and writes"
+  [opts]
+  (assoc (workload-common opts)
+         :checker (independent/checker
+                    (checker/compose
+                      {:reg-read-after-write (reg-read-after-write)
+                       :timeline (timeline/html)}))))
