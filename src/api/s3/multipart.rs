@@ -9,7 +9,6 @@ use md5::{Digest as Md5Digest, Md5};
 use garage_table::*;
 use garage_util::async_hash::*;
 use garage_util::data::*;
-use garage_util::time::*;
 
 use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
@@ -30,10 +29,13 @@ pub async fn handle_create_multipart_upload(
 	req: &Request<Body>,
 	bucket_name: &str,
 	bucket_id: Uuid,
-	key: &str,
+	key: &String,
 ) -> Result<Response<Body>, Error> {
+	let existing_object = garage.object_table.get(&bucket_id, &key).await?;
+
 	let upload_id = gen_uuid();
-	let timestamp = now_msec();
+	let timestamp = next_timestamp(existing_object.as_ref());
+
 	let headers = get_headers(req.headers())?;
 
 	// Create object in object table
@@ -233,7 +235,8 @@ pub async fn handle_complete_multipart_upload(
 
 	// Get object and multipart upload
 	let key = key.to_string();
-	let (_, mut object_version, mpu) = get_upload(&garage, &bucket.id, &key, &upload_id).await?;
+	let (object, mut object_version, mpu) =
+		get_upload(&garage, &bucket.id, &key, &upload_id).await?;
 
 	if mpu.parts.is_empty() {
 		return Err(Error::bad_request("No data was uploaded"));
@@ -331,7 +334,7 @@ pub async fn handle_complete_multipart_upload(
 	// Calculate total size of final object
 	let total_size = parts.iter().map(|x| x.size.unwrap()).sum();
 
-	if let Err(e) = check_quotas(&garage, bucket, &key, total_size).await {
+	if let Err(e) = check_quotas(&garage, bucket, total_size, Some(&object)).await {
 		object_version.state = ObjectVersionState::Aborted;
 		let final_object = Object::new(bucket.id, key.clone(), vec![object_version]);
 		garage.object_table.insert(&final_object).await?;
