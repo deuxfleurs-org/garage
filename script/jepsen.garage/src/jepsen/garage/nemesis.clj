@@ -32,9 +32,12 @@
   [test]
   (let [layout-show (c/on (jepsen/primary test) (c/exec grg/binary :layout :show))
         [_ layout-next-version] (re-find #"apply --version (\d+)\n" layout-show)]
-    (info "layout show: " layout-show "; next-version: " layout-next-version)
-    (c/on (jepsen/primary test)
-          (c/exec grg/binary :layout :apply :--version layout-next-version))))
+    (if layout-next-version
+      (do
+        (info "layout show: " layout-show "; next-version: " layout-next-version)
+        (c/on (jepsen/primary test)
+              (c/exec grg/binary :layout :apply :--version layout-next-version)))
+      (info "no layout changes to apply"))))
 
 (defn reconfigure-subset
   "Reconfigure cluster with only a subset of nodes"
@@ -65,22 +68,28 @@
 
 ; ---- nemesis scenari ----
 
+(defn nemesis-op
+  "A generator for a single nemesis operation"
+  [op]
+  (fn [_ _] {:type :info, :f op}))
+
 (defn scenario-c
   "Clock scramble scenario"
   [opts]
-  {:generator        (cycle [(gen/sleep 5)
-                             {:type :info, :f :clock-scramble}])
+  {:generator        (->>
+                       (nemesis-op :clock-scramble)
+                       (gen/stagger 5))
    :nemesis          (nemesis/compose
-                        {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})})
+                       {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})})
 
 (defn scenario-cp
   "Clock scramble + partition scenario"
   [opts]
   {:generator        (->>
-                       (gen/mix [{:type :info, :f :clock-scramble}
-                                 {:type :info, :f :partition-stop}
-                                 {:type :info, :f :partition-start}])
-                       (gen/stagger 3))
+                       (gen/mix [(nemesis-op :clock-scramble)
+                                 (nemesis-op :partition-stop)
+                                 (nemesis-op :partition-start)])
+                       (gen/stagger 5))
    :final-generator  (gen/once {:type :info, :f :partition-stop})
    :nemesis          (nemesis/compose
                        {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)
@@ -91,9 +100,9 @@
   "Cluster reconfiguration scenario"
   [opts]
   {:generator        (->>
-                       (gen/mix [{:type :info, :f :reconfigure-start}
-                                 {:type :info, :f :reconfigure-stop}])
-                       (gen/stagger 3))
+                       (gen/mix [(nemesis-op :reconfigure-start)
+                                 (nemesis-op :reconfigure-stop)])
+                       (gen/stagger 5))
    :nemesis          (nemesis/compose
                        {{:reconfigure-start :start
                          :reconfigure-stop :stop} (reconfigure-subset 3)})})
@@ -102,11 +111,11 @@
   "Partition + cluster reconfiguration scenario"
   [opts]
   {:generator        (->>
-                       (gen/mix [{:type :info, :f :partition-start}
-                                 {:type :info, :f :partition-stop}
-                                 {:type :info, :f :reconfigure-start}
-                                 {:type :info, :f :reconfigure-stop}])
-                       (gen/stagger 3))
+                       (gen/mix [(nemesis-op :partition-start)
+                                 (nemesis-op :partition-stop)
+                                 (nemesis-op :reconfigure-start)
+                                 (nemesis-op :reconfigure-stop)])
+                       (gen/stagger 5))
    :final-generator  (gen/once {:type :info, :f :partition-stop})
    :nemesis          (nemesis/compose
                        {{:partition-start :start
@@ -118,12 +127,12 @@
   "Clock scramble + partition + cluster reconfiguration scenario"
   [opts]
   {:generator        (->>
-                       (gen/mix [{:type :info, :f :clock-scramble}
-                                 {:type :info, :f :partition-start}
-                                 {:type :info, :f :partition-stop}
-                                 {:type :info, :f :reconfigure-start}
-                                 {:type :info, :f :reconfigure-stop}])
-                       (gen/stagger 3))
+                       (gen/mix [(nemesis-op :clock-scramble)
+                                 (nemesis-op :partition-start)
+                                 (nemesis-op :partition-stop)
+                                 (nemesis-op :reconfigure-start)
+                                 (nemesis-op :reconfigure-stop)])
+                       (gen/stagger 5))
    :final-generator  (gen/once {:type :info, :f :partition-stop})
    :nemesis          (nemesis/compose
                        {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)
