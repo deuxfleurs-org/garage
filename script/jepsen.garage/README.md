@@ -77,17 +77,16 @@ Results with timestamp patch (`--patch tsfix2`):
 
 ### Set, basic test (write some items, then read)
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set1 --ops-per-key 100 --patch tsfix2`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 200  --concurrency 200 --workload set1 --ops-per-key 100 --patch tsfix2`
 
 Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
-- Does not seem to fail with only the layout reconfiguation nemesis (>20 runs), although theoretically it could
+- Does not seem to fail with only the layout reconfiguation nemesis (<10 runs), although theoretically it could
 
-- Does not seem to fail with the layout reconfiguation + partition nemesis (<10 runs), although theoretically it could
-
-TODO: make it fail!!!
+- **Fails with the partition + layout reconfiguration nemesis** (`--scenario pr`).
+  EXample of a failed run: `garage set1/20231024T172214.488+0200` (1 failure in 4 runs).
 
 
 ### Set, continuous test (interspersed reads and writes)
