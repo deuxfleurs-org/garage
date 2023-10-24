@@ -23,8 +23,10 @@
 
 (def scenari
   "A map of scenari to the associated nemesis"
-  {"cp" grgNemesis/scenario-cp
-   "r"  grgNemesis/scenario-r})
+  {"c" grgNemesis/scenario-c
+   "cp" grgNemesis/scenario-cp
+   "r"  grgNemesis/scenario-r
+   "pr"  grgNemesis/scenario-pr})
 
 (def patches
   "A map of patch names to Garage builds"

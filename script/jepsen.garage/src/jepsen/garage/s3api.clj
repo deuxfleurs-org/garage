@@ -39,12 +39,10 @@
         new-object-summaries (:object-summaries list-result)
         new-objects (map (fn [d] (:key d)) new-object-summaries)
         objects (concat new-objects accum)]
-    (info (:endpoint creds) "ListObjectsV2 prefix(" prefix "), ct(" ct "): " new-objects)
     (if (:truncated? list-result)
       (list-inner creds prefix (:next-continuation-token list-result) objects)
       objects)))
 (defn list
   "Helper for ListObjects -- just lists everything in the bucket"
   [creds prefix]
-  (info "in s3/list creds:" creds ", prefix:" prefix)
   (list-inner creds prefix nil []))

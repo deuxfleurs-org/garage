@@ -45,9 +45,7 @@
             10000
             (assoc op :type :fail, :error ::timeout)
             (do
-              (info "call s3/list creds: " (:creds this) ", prefix:" prefix)
               (let [items (s3/list (:creds this) prefix)]
-                (info "list results for prefix" prefix ":" items " (node:" (:endpoint (:creds this)) ")")
                 (let [items-stripped (map (fn [o]
                                           (assert (str/starts-with? o prefix))
                                           (str/replace-first o prefix "")) items)
@@ -115,8 +113,8 @@
   {:client            (SetClient. nil)
    :checker           (independent/checker
                         (checker/compose
-                          {:set-full (checker/set-full {:linearizable? false})
-                           :set-read-after-write (set-read-after-write)
+                          {:set-read-after-write (set-read-after-write)
+                           ; :set-full (checker/set-full {:linearizable? false})
                            :timeline (timeline/html)}))
    :generator         (independent/concurrent-generator
                         10

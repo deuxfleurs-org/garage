@@ -35,55 +35,74 @@ lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrenc
 
 ### Register linear, without timestamp patch
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 20 --workload reg1 --ops-per-key 100`
 
-Results: fails with a simple clock-scramble nemesis.
+Results without timestamp patch:
 
-Explanation: without the timestamp patch, nodes will create objects using their
-local clock only as a timestamp, so the ordering will be all over the place if
-clocks are scrambled.
+- Fails with a simple clock-scramble nemesis (`--scenario c`).
+  Explanation: without the timestamp patch, nodes will create objects using their
+  local clock only as a timestamp, so the ordering will be all over the place if
+  clocks are scrambled.
 
-### Register linear, with timestamp patch
-
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 20  --concurrency 20 --workload reg1 --ops-per-key 100 --patch tsfix1`
-
-Results:
+Results with timestamp patch (`--patch tsfix2`):
 
 - No failure with clock-scramble nemesis
-- Fails with clock-scramble nemesis + partition nemesis
 
-Explanation: S3 objects are not meant to behave like linearizable registers. TODO explain using a counter-example
+- Fails with clock-scramble nemesis + partition nemesis (`--scenario cp`).
 
-### Read-after-write CRDT register model, without timestamp patch
+**This test is expected to fail.**
+Indeed, S3 objects are not meant to behave like linearizable registers.
+TODO explain using a counter-example
+
+
+### Read-after-write CRDT register model
 
 Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100`
 
-Results: fails with a simple clock-scramble nemesis.
+Results without timestamp patch:
 
-Explanation: old values are not overwritten correctly when their timestamps are in the future.
+- Fails with a simple clock-scramble nemesis (`--scenario c`).
+  Explanation: old values are not overwritten correctly when their timestamps are in the future.
 
-### Read-after-write CRDT register model, with timestamp patch (v2 with DeleteObject fix as well)
+Results with timestamp patch (`--patch tsfix2`):
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload reg2 --ops-per-key 100 --patch tsfix2`
+- No failures with clock-scramble nemesis + partition nemesis (`--scenario cp`).
+  This proves that `tsfix2` (PR#543) does improve consistency.
 
-Results:
-
-- No failures with clock-scramble nemesis + partition nemesis
-- Fails with layout reconfiguration nemesis (TODO: test more and investigate)
+- **Fails with layout reconfiguration nemesis** (`--scenario r`)
+  (TODO: note down the run id of a failed run)
+  (TODO: test more and investigate).
+  This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
 
 ### Set, basic test (write some items, then read)
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set1 --ops-per-key 100`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set1 --ops-per-key 100 --patch tsfix2`
 
 Results:
 
-- For now, no failures with clock-scramble nemesis + partition nemesis
-- TODO: layout reconfiguration nemesis (does not fail yet! but it should)
+- For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
+
+- Failures were not yet achieved with only the layout reconfiguration nemesis, although they should be.
+
+- **Fails with partition + layout reconfiguration nemesis** (`--scenario pr`)
+  (TODO: note down the run id of a failed run)
+  (TODO: test more and investigate).
+  This is the failure mode we are looking for and trying to fix for NLnet task 3.
+
 
 ### Set, continuous test (interspersed reads and writes)
 
-TODO
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set2 --ops-per-key 100 --patch tsfix2`
+
+Results:
+
+- For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
+
+- Failures were not yet achieved with only the layout reconfiguration nemesis, although they should be.
+
+- TODO: failures should be achieved with `--scenario pr`? Even with 4 or 5 consecutive test runs, no failures were achieved, why?
+  (TODO: note down the run id of a failed run)
 
 
 ## Investigating (and fixing) errors
@@ -112,7 +131,7 @@ and passing all values that were previously in the context (creds and prefix) as
 The reg2 test is our custom checker for CRDT read-after-write on individual object keys, acting as registers which can be updated.
 The test fails without the timestamp fix, which is expected as the clock scrambler will prevent nodes from having a correct ordering of objects.
 
-With the timestamp fix, the happenned-before relationship should at least be respected, meaning that when a PutObject call starts
+With the timestamp fix (`--patch tsfix1`), the happenned-before relationship should at least be respected, meaning that when a PutObject call starts
 after another PutObject call has ended, the second call should overwrite the value of the first call, and that value should not be
 readable by future GetObject calls.
 However, we observed inconsistencies even with the timestamp fix.
@@ -121,7 +140,7 @@ The inconsistencies seemed to always happenned after writing a nil value, which 
 instead of a PutObject. By removing the possibility of writing nil values, therefore only doing
 PutObject calls, the issue disappears. There is therefore an issue to fix in DeleteObject.
 
-The issue in DeleteObject seems to have been fixed by commit `c82d91c6bccf307186332b6c5c6fc0b128b1b2b1`
+The issue in DeleteObject seems to have been fixed by commit `c82d91c6bccf307186332b6c5c6fc0b128b1b2b1`, which can be used using `--patch tsfix2`.
 
 
 ## License
