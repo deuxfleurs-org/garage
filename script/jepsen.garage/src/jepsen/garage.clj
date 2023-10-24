@@ -26,7 +26,8 @@
   {"c" grgNemesis/scenario-c
    "cp" grgNemesis/scenario-cp
    "r"  grgNemesis/scenario-r
-   "pr"  grgNemesis/scenario-pr})
+   "pr"  grgNemesis/scenario-pr
+   "cpr"  grgNemesis/scenario-cpr})
 
 (def patches
   "A map of patch names to Garage builds"

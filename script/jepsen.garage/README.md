@@ -69,9 +69,9 @@ Results with timestamp patch (`--patch tsfix2`):
 - No failures with clock-scramble nemesis + partition nemesis (`--scenario cp`).
   This proves that `tsfix2` (PR#543) does improve consistency.
 
-- **Fails with layout reconfiguration nemesis** (`--scenario r`)
-  (TODO: note down the run id of a failed run)
-  (TODO: test more and investigate).
+- **Fails with layout reconfiguration nemesis** (`--scenario r`).
+  Example of a failed run: `garage reg2/20231024T120806.899+0200`.
+  TODO: investigate.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
 
@@ -83,12 +83,11 @@ Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
-- Failures were not yet achieved with only the layout reconfiguration nemesis, although they should be.
+- Does not seem to fail with only the layout reconfiguation nemesis (>20 runs), although theoretically it could
 
-- **Fails with partition + layout reconfiguration nemesis** (`--scenario pr`)
-  (TODO: note down the run id of a failed run)
-  (TODO: test more and investigate).
-  This is the failure mode we are looking for and trying to fix for NLnet task 3.
+- Does not seem to fail with the layout reconfiguation + partition nemesis (<10 runs), although theoretically it could
+
+TODO: make it fail!!!
 
 
 ### Set, continuous test (interspersed reads and writes)
@@ -99,10 +98,9 @@ Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
-- Failures were not yet achieved with only the layout reconfiguration nemesis, although they should be.
+- Does not seem to fail with the clock scrambler + partition + layout reconfiguation nemesis (>10 runs), although theoretically it could
 
-- TODO: failures should be achieved with `--scenario pr`? Even with 4 or 5 consecutive test runs, no failures were achieved, why?
-  (TODO: note down the run id of a failed run)
+TODO: make it fail!!!
 
 
 ## Investigating (and fixing) errors
