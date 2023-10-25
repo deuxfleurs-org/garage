@@ -87,6 +87,8 @@ Results:
 
 - **Fails with the partition + layout reconfiguration nemesis** (`--scenario pr`).
   Example of a failed run: `garage set1/20231024T172214.488+0200` (1 failure in 4 runs).
+  TODO: investigate.
+  This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
 
 ### Set, continuous test (interspersed reads and writes)
