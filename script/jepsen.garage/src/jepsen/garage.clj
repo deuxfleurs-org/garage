@@ -28,6 +28,7 @@
    "r"  grgNemesis/scenario-r
    "pr"  grgNemesis/scenario-pr
    "cpr"  grgNemesis/scenario-cpr
+   "cdp"  grgNemesis/scenario-cdp
    "dpr"  grgNemesis/scenario-dpr})
 
 (def patches

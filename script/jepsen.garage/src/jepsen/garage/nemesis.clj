@@ -124,6 +124,14 @@
      (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})
      (reconfiguration-package {:interval 1})]))
 
+(defn scenario-cdp
+  "Clock modifying + db + partition scenario"
+  [opts]
+  (combined/compose-packages
+    [(combined/clock-package {:db (:db opts), :interval 1, :faults #{:clock}})
+     (combined/db-package {:db (:db opts), :interval 1, :faults #{:db :pause :kill}})
+     (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})]))
+
 (defn scenario-dpr
   "Db + partition + cluster reconfiguration scenario"
   [opts]
@@ -131,3 +139,4 @@
     [(combined/db-package {:db (:db opts), :interval 1, :faults #{:db :pause :kill}})
      (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})
      (reconfiguration-package {:interval 1})]))
+

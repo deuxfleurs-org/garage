@@ -97,10 +97,10 @@ Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  -
 
 Results:
 
-- For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
+- No failures with clock-scramble nemesis + db nemesis + partition nemesis (`--scenario cdp`) (0 failures in 10 runs).
 
-- **Fails with layout reconfiguration nemesis** (`--scenario r`).
-  Example of a failed run: `garage set2/20231025T115033.553+0200` (2 failures in 2 runs).
+- **Fails with just layout reconfiguration nemesis** (`--scenario r`).
+  Example of a failed run: `garage set2/20231025T141940.198+0200` (10 failures in 10 runs).
   TODO: investigate.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
