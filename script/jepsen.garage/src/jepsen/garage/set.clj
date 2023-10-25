@@ -81,7 +81,7 @@
                         ([:invoke :read])
                           (assoc-in state [:read-must-contain (:process op)] (:add-done state))
                         ([:ok :read])
-                          (let [read-must-contain (get (:process op) (:read-must-contain state))
+                          (let [read-must-contain (get (:read-must-contain state) (:process op))
                                 new-missed (set/difference read-must-contain (:value op))
                                 new-unexpected (set/difference (:value op) (:add-started state))]
                             (assoc state
