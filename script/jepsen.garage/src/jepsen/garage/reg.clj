@@ -30,21 +30,28 @@
     (assoc this :creds (grg/creds node)))
   (setup! [this test])
   (invoke! [this test op]
-    (let [[k v] (:value op)]
-      (case (:f op)
-        :read
-          (util/timeout
-            10000
-            (assoc op :type :fail, :error ::timeout)
-            (let [value (s3/get (:creds this) k)]
-              (assoc op :type :ok, :value (independent/tuple k value))))
-        :write
-          (util/timeout
-            10000
-            (assoc op :type :info, :error ::timeout)
-            (do
-              (s3/put (:creds this) k v)
-              (assoc op :type :ok))))))
+    (try+
+      (let [[k v] (:value op)]
+        (case (:f op)
+          :read
+            (util/timeout
+              10000
+              (assoc op :type :fail, :error ::timeout)
+              (let [value (s3/get (:creds this) k)]
+                (assoc op :type :ok, :value (independent/tuple k value))))
+          :write
+            (util/timeout
+              10000
+              (assoc op :type :info, :error ::timeout)
+              (do
+                (s3/put (:creds this) k v)
+                (assoc op :type :ok)))))
+      (catch (re-find #"Unavailable" (.getMessage %)) ex
+        (assoc op :type :info, :error ::unavailable))
+      (catch (re-find #"Broken pipe" (.getMessage %)) ex
+        (assoc op :type :info, :error ::broken-pipe))
+      (catch (re-find #"Connection refused" (.getMessage %)) ex
+        (assoc op :type :info, :error ::connection-refused))))
   (teardown! [this test])
   (close! [this test]))
 

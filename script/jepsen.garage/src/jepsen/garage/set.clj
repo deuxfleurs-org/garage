@@ -30,27 +30,34 @@
     (assoc this :creds (grg/creds node)))
   (setup! [this test])
   (invoke! [this test op]
-    (let [[k v] (:value op)
-          prefix (str "set" k "/")]
-      (case (:f op)
-        :add
-          (util/timeout
-            10000
-            (assoc op :type :info, :error ::timeout)
-            (do
-              (s3/put (:creds this) (str prefix v) "present")
-              (assoc op :type :ok)))
-        :read
-          (util/timeout
-            10000
-            (assoc op :type :fail, :error ::timeout)
-            (do
-              (let [items (s3/list (:creds this) prefix)]
-                (let [items-stripped (map (fn [o]
-                                          (assert (str/starts-with? o prefix))
-                                          (str/replace-first o prefix "")) items)
-                      items-set (set (map parse-long items-stripped))]
-                  (assoc op :type :ok, :value (independent/tuple k items-set)))))))))
+    (try+
+      (let [[k v] (:value op)
+            prefix (str "set" k "/")]
+        (case (:f op)
+          :add
+            (util/timeout
+              10000
+              (assoc op :type :info, :error ::timeout)
+              (do
+                (s3/put (:creds this) (str prefix v) "present")
+                (assoc op :type :ok)))
+          :read
+            (util/timeout
+              10000
+              (assoc op :type :fail, :error ::timeout)
+              (do
+                (let [items (s3/list (:creds this) prefix)]
+                  (let [items-stripped (map (fn [o]
+                                            (assert (str/starts-with? o prefix))
+                                            (str/replace-first o prefix "")) items)
+                        items-set (set (map parse-long items-stripped))]
+                    (assoc op :type :ok, :value (independent/tuple k items-set))))))))
+      (catch (re-find #"Unavailable" (.getMessage %)) ex
+        (assoc op :type :info, :error ::unavailable))
+      (catch (re-find #"Broken pipe" (.getMessage %)) ex
+        (assoc op :type :info, :error ::broken-pipe))
+      (catch (re-find #"Connection refused" (.getMessage %)) ex
+        (assoc op :type :info, :error ::connection-refused))))
   (teardown! [this test])
   (close! [this test]))
 

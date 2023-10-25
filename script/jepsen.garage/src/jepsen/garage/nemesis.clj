@@ -4,6 +4,7 @@
              [core :as jepsen]
              [generator :as gen]
              [nemesis :as nemesis]]
+            [jepsen.nemesis.combined :as combined]
             [jepsen.garage.daemon :as grg]
             [jepsen.control.util :as cu]))
 
@@ -11,21 +12,23 @@
 
 (defn configure-present!
   "Configure node to be active in new cluster layout"
-  [test node]
-  (info "configure-present!" node)
-  (let [node-id (c/on node (c/exec grg/binary :node :id :-q))]
-   (c/on
-     (jepsen/primary test)
-     (c/exec grg/binary :layout :assign (subs node-id 0 16) :-c :1G))))
+  [test nodes]
+  (info "configure-present!" nodes)
+  (let [node-ids (c/on-many nodes (c/exec grg/binary :node :id :-q))
+        node-id-strs (map (fn [[_ v]] (subs v  0 16)) node-ids)]
+    (c/on
+      (jepsen/primary test)
+      (apply c/exec (concat [grg/binary :layout :assign :-c :1G] node-id-strs)))))
 
 (defn configure-absent!
-  "Configure node to be active in new cluster layout"
-  [test node]
-  (info "configure-absent!" node)
-  (let [node-id (c/on node (c/exec grg/binary :node :id :-q))]
-   (c/on
-     (jepsen/primary test)
-     (c/exec grg/binary :layout :assign (subs node-id 0 16) :-g))))
+  "Configure nodes to be active in new cluster layout"
+  [test nodes]
+  (info "configure-absent!" nodes)
+  (let [node-ids (c/on-many nodes (c/exec grg/binary :node :id :-q))
+        node-id-strs (map (fn [[_ v]] (subs v  0 16)) node-ids)]
+    (c/on
+      (jepsen/primary test)
+      (apply c/exec (concat [grg/binary :layout :assign :-g] node-id-strs)))))
 
 (defn finalize-config!
   "Apply the proposed cluster layout"
@@ -53,14 +56,14 @@
                      shuffle
                      (split-at cnt))]
             (info "layout split: keep " keep-nodes ", remove " remove-nodes)
-            (run! #(configure-present! test %) keep-nodes)
-            (run! #(configure-absent! test %) remove-nodes)
+            (configure-present! test keep-nodes)
+            (configure-absent! test remove-nodes)
             (finalize-config! test)
             (assoc op :value keep-nodes))
         :stop
           (do
             (info "layout un-split: all nodes=" (:nodes test))
-            (run! #(configure-present! test %) (:nodes test))
+            (configure-present! test (:nodes test))
             (finalize-config! test)
             (assoc op :value (:nodes test)))))
 
@@ -73,70 +76,58 @@
   [op]
   (fn [_ _] {:type :info, :f op}))
 
-(defn scenario-c
-  "Clock scramble scenario"
-  [opts]
-  {:generator        (->>
-                       (nemesis-op :clock-scramble)
-                       (gen/stagger 5))
-   :nemesis          (nemesis/compose
-                       {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)})})
-
-(defn scenario-cp
-  "Clock scramble + partition scenario"
-  [opts]
-  {:generator        (->>
-                       (gen/mix [(nemesis-op :clock-scramble)
-                                 (nemesis-op :partition-stop)
-                                 (nemesis-op :partition-start)])
-                       (gen/stagger 5))
-   :final-generator  (gen/once {:type :info, :f :partition-stop})
-   :nemesis          (nemesis/compose
-                       {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)
-                        {:partition-start :start
-                         :partition-stop :stop} (nemesis/partition-random-halves)})})
-
-(defn scenario-r
-  "Cluster reconfiguration scenario"
+(defn reconfiguration-package
+  "Cluster reconfiguration nemesis package"
   [opts]
   {:generator        (->>
                        (gen/mix [(nemesis-op :reconfigure-start)
                                  (nemesis-op :reconfigure-stop)])
-                       (gen/stagger 5))
+                       (gen/stagger (:interval opts 5)))
+   :final-generator  {:type :info, :f :reconfigure-stop}
    :nemesis          (nemesis/compose
                        {{:reconfigure-start :start
-                         :reconfigure-stop :stop} (reconfigure-subset 3)})})
+                         :reconfigure-stop :stop} (reconfigure-subset 3)})
+   :perf              #{{:name  "reconfigure"
+                         :start #{:reconfigure-start}
+                         :stop  #{:reconfigur-stop}
+                         :color "#A197E9"}}})
+
+(defn scenario-c
+  "Clock modifying scenario"
+  [opts]
+  (combined/clock-package {:db (:db opts), :interval 1, :faults #{:clock}}))
+
+(defn scenario-cp
+  "Clock modifying + partition scenario"
+  [opts]
+  (combined/compose-packages
+    [(combined/clock-package {:db (:db opts), :interval 1, :faults #{:clock}})
+     (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})]))
+
+(defn scenario-r
+  "Cluster reconfiguration scenario"
+  [opts]
+  (reconfiguration-package {:interval 1}))
 
 (defn scenario-pr
   "Partition + cluster reconfiguration scenario"
   [opts]
-  {:generator        (->>
-                       (gen/mix [(nemesis-op :partition-start)
-                                 (nemesis-op :partition-stop)
-                                 (nemesis-op :reconfigure-start)
-                                 (nemesis-op :reconfigure-stop)])
-                       (gen/stagger 5))
-   :final-generator  (gen/once {:type :info, :f :partition-stop})
-   :nemesis          (nemesis/compose
-                       {{:partition-start :start
-                         :partition-stop :stop} (nemesis/partition-random-halves)
-                        {:reconfigure-start :start
-                         :reconfigure-stop :stop} (reconfigure-subset 3)})})
+  (combined/compose-packages
+    [(combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})
+     (reconfiguration-package {:interval 1})]))
 
 (defn scenario-cpr
   "Clock scramble + partition + cluster reconfiguration scenario"
   [opts]
-  {:generator        (->>
-                       (gen/mix [(nemesis-op :clock-scramble)
-                                 (nemesis-op :partition-start)
-                                 (nemesis-op :partition-stop)
-                                 (nemesis-op :reconfigure-start)
-                                 (nemesis-op :reconfigure-stop)])
-                       (gen/stagger 5))
-   :final-generator  (gen/once {:type :info, :f :partition-stop})
-   :nemesis          (nemesis/compose
-                       {{:clock-scramble :scramble} (nemesis/clock-scrambler 20.0)
-                        {:partition-start :start
-                         :partition-stop :stop} (nemesis/partition-random-halves)
-                        {:reconfigure-start :start
-                         :reconfigure-stop :stop} (reconfigure-subset 3)})})
+  (combined/compose-packages
+    [(combined/clock-package {:db (:db opts), :interval 1, :faults #{:clock}})
+     (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})
+     (reconfiguration-package {:interval 1})]))
+
+(defn scenario-dpr
+  "Db + partition + cluster reconfiguration scenario"
+  [opts]
+  (combined/compose-packages
+    [(combined/db-package {:db (:db opts), :interval 1, :faults #{:db :pause :kill}})
+     (combined/partition-package {:db (:db opts), :interval 1, :faults #{:partition}})
+     (reconfiguration-package {:interval 1})]))

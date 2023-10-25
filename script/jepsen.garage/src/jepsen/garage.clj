@@ -27,7 +27,8 @@
    "cp" grgNemesis/scenario-cp
    "r"  grgNemesis/scenario-r
    "pr"  grgNemesis/scenario-pr
-   "cpr"  grgNemesis/scenario-cpr})
+   "cpr"  grgNemesis/scenario-cpr
+   "dpr"  grgNemesis/scenario-dpr})
 
 (def patches
   "A map of patch names to Garage builds"
@@ -59,15 +60,16 @@
   "Given an options map from the command line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [workload ((get workloads (:workload opts)) opts)
-        scenario ((get scenari (:scenario opts)) opts)
-        garage-version (get patches (:patch opts))]
+  (let [garage-version (get patches (:patch opts))
+        db (grg/db garage-version)
+        workload ((get workloads (:workload opts)) opts)
+        scenario ((get scenari (:scenario opts)) (assoc opts :db db))]
     (merge tests/noop-test
            opts
            {:pure-generators  true
             :name             (str "garage " (name (:workload opts)))
             :os               debian/os
-            :db               (grg/db garage-version)
+            :db               db
             :client           (:client workload)
             :generator        (gen/phases
                                 (->>
@@ -82,7 +84,7 @@
                                 (gen/clients (:final-generator workload)))
             :nemesis          (:nemesis scenario)
             :checker          (checker/compose
-                                {:perf (checker/perf)
+                                {:perf (checker/perf (:perf scenario))
                                  :workload (:checker workload)})
             })))
 

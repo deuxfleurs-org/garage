@@ -119,6 +119,24 @@
         (c/exec :rm :-rf data-dir)
         (c/exec :rm :-rf meta-dir)))
 
+    db/Pause
+    (pause! [_ test node]
+      (cu/grepkill! :stop binary))
+    (resume! [_ test node]
+      (cu/grepkill! :cont binary))
+
+    db/Kill
+    (kill! [_ test node]
+      (cu/stop-daemon! binary pidfile))
+    (start! [_ test node]
+      (cu/start-daemon!
+        {:logfile logfile
+         :pidfile pidfile
+         :chdir base-dir
+         :env {:RUST_LOG "garage=debug,garage_api=trace"}}
+        binary
+        :server))
+
     db/LogFiles
     (log-files [_ test node]
       [logfile])))

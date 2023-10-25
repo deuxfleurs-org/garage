@@ -97,6 +97,8 @@ Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
+- Does not seem to fail with partition + layout reconfiguration nemesis (>100 runs)
+
 - Does not seem to fail with the clock scrambler + partition + layout reconfiguation nemesis (>10 runs), although theoretically it could
 
 TODO: make it fail!!!
