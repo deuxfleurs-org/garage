@@ -86,7 +86,7 @@ Results:
 - Does not seem to fail with only the layout reconfiguation nemesis (<10 runs), although theoretically it could
 
 - **Fails with the partition + layout reconfiguration nemesis** (`--scenario pr`).
-  EXample of a failed run: `garage set1/20231024T172214.488+0200` (1 failure in 4 runs).
+  Example of a failed run: `garage set1/20231024T172214.488+0200` (1 failure in 4 runs).
 
 
 ### Set, continuous test (interspersed reads and writes)
@@ -97,11 +97,10 @@ Results:
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
-- Does not seem to fail with partition + layout reconfiguration nemesis (>100 runs)
-
-- Does not seem to fail with the clock scrambler + partition + layout reconfiguation nemesis (>10 runs), although theoretically it could
-
-TODO: make it fail!!!
+- **Fails with layout reconfiguration nemesis** (`--scenario r`).
+  Example of a failed run: `garage set2/20231025T115033.553+0200` (2 failures in 2 runs).
+  TODO: investigate.
+  This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
 
 ## Investigating (and fixing) errors
