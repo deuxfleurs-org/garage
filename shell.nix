@@ -18,6 +18,7 @@ in {
     nativeBuildInputs = with pkgs; [
       #rustPlatform.rust.rustc
       rustPlatform.rust.cargo
+      clang
       mold
       #clippy
       rustfmt

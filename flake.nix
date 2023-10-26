@@ -50,6 +50,7 @@
           release = false;
         }).workspaceShell { packages = with pkgs; [
           rustfmt
+          clang
           mold
         ]; };
       });
