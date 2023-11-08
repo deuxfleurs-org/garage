@@ -46,7 +46,7 @@ const STATUS_EXCHANGE_INTERVAL: Duration = Duration::from_secs(10);
 /// Version tag used for version check upon Netapp connection.
 /// Cluster nodes with different version tags are deemed
 /// incompatible and will refuse to connect.
-pub const GARAGE_VERSION_TAG: u64 = 0x6761726167650008; // garage 0x0008
+pub const GARAGE_VERSION_TAG: u64 = 0x676172616765000A; // garage 0x000A
 
 /// RPC endpoint used for calls related to membership
 pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
