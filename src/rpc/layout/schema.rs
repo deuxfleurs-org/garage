@@ -184,7 +184,6 @@ mod v010 {
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
 	use std::collections::HashMap;
-	use std::sync::Arc;
 	pub use v09::{LayoutParameters, NodeRole, NodeRoleV, ZoneRedundancy};
 
 	/// The layout of the cluster, i.e. the list of roles
@@ -215,7 +214,7 @@ mod v010 {
 	#[derive(Clone, Debug, Serialize, Deserialize)]
 	pub struct LayoutHistory {
 		/// The versions currently in use in the cluster
-		pub versions: Arc<[LayoutVersion]>,
+		pub versions: Vec<LayoutVersion>,
 
 		/// Update trackers
 		pub update_trackers: UpdateTrackers,
@@ -267,7 +266,7 @@ mod v010 {
 					.collect::<HashMap<Uuid, u64>>(),
 			);
 			let mut ret = Self {
-				versions: Arc::from(vec![version].into_boxed_slice()),
+				versions: vec![version],
 				update_trackers: UpdateTrackers {
 					ack_map: update_tracker.clone(),
 					sync_map: update_tracker.clone(),

@@ -89,8 +89,9 @@ pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<
 	Ok(json_ok_response(&res)?)
 }
 
-fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResponse {
+fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResponse {
 	let roles = layout
+		.current()
 		.roles
 		.items()
 		.iter()
@@ -107,7 +108,7 @@ fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResp
 		.staging_roles
 		.items()
 		.iter()
-		.filter(|(k, _, v)| layout.roles.get(k) != Some(v))
+		.filter(|(k, _, v)| layout.current().roles.get(k) != Some(v))
 		.map(|(k, _, v)| match &v.0 {
 			None => NodeRoleChange {
 				id: hex::encode(k),
@@ -125,7 +126,7 @@ fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResp
 		.collect::<Vec<_>>();
 
 	GetClusterLayoutResponse {
-		version: layout.version,
+		version: layout.current().version,
 		roles,
 		staged_role_changes,
 	}
@@ -209,7 +210,7 @@ pub async fn handle_update_cluster_layout(
 
 	let mut layout = garage.system.cluster_layout().as_ref().clone();
 
-	let mut roles = layout.roles.clone();
+	let mut roles = layout.current().roles.clone();
 	roles.merge(&layout.staging_roles);
 
 	for change in updates {

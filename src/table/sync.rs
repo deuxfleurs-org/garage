@@ -492,8 +492,8 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSync
 
 struct SyncWorker<F: TableSchema, R: TableReplication> {
 	syncer: Arc<TableSyncer<F, R>>,
-	layout_watch: watch::Receiver<Arc<ClusterLayout>>,
-	layout: Arc<ClusterLayout>,
+	layout_watch: watch::Receiver<Arc<LayoutHistory>>,
+	layout: Arc<LayoutHistory>,
 	add_full_sync_rx: mpsc::UnboundedReceiver<()>,
 	todo: Vec<TodoPartition>,
 	next_full_sync: Instant,

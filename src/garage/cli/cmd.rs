@@ -62,7 +62,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	let mut healthy_nodes =
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
-		match layout.roles.get(&adv.id) {
+		match layout.current().roles.get(&adv.id) {
 			Some(NodeRoleV(Some(cfg))) => {
 				let data_avail = match &adv.status.data_disk_avail {
 					_ if cfg.capacity.is_none() => "N/A".into(),
@@ -102,10 +102,15 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	format_table(healthy_nodes);
 
 	let status_keys = status.iter().map(|adv| adv.id).collect::<HashSet<_>>();
-	let failure_case_1 = status
-		.iter()
-		.any(|adv| !adv.is_up && matches!(layout.roles.get(&adv.id), Some(NodeRoleV(Some(_)))));
+	let failure_case_1 = status.iter().any(|adv| {
+		!adv.is_up
+			&& matches!(
+				layout.current().roles.get(&adv.id),
+				Some(NodeRoleV(Some(_)))
+			)
+	});
 	let failure_case_2 = layout
+		.current()
 		.roles
 		.items()
 		.iter()
@@ -115,7 +120,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 		let mut failed_nodes =
 			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
 		for adv in status.iter().filter(|adv| !adv.is_up) {
-			if let Some(NodeRoleV(Some(cfg))) = layout.roles.get(&adv.id) {
+			if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
 				let tf = timeago::Formatter::new();
 				failed_nodes.push(format!(
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
@@ -132,7 +137,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				));
 			}
 		}
-		for (id, _, role_v) in layout.roles.items().iter() {
+		for (id, _, role_v) in layout.current().roles.items().iter() {
 			if let NodeRoleV(Some(cfg)) = role_v {
 				if !status_keys.contains(id) {
 					failed_nodes.push(format!(

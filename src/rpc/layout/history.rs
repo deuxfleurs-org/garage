@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::sync::Arc;
 
 use garage_util::crdt::{Crdt, Lww, LwwMap};
 use garage_util::data::*;
@@ -64,24 +63,22 @@ impl LayoutHistory {
 		}
 
 		// Add any new versions to history
-		let mut versions = self.versions.to_vec();
 		for v2 in other.versions.iter() {
-			if let Some(v1) = versions.iter().find(|v| v.version == v2.version) {
+			if let Some(v1) = self.versions.iter().find(|v| v.version == v2.version) {
 				if v1 != v2 {
 					error!("Inconsistent layout histories: different layout compositions for version {}. Your cluster will be broken as long as this layout version is not replaced.", v2.version);
 				}
-			} else if versions.iter().all(|v| v.version != v2.version - 1) {
+			} else if self.versions.iter().all(|v| v.version != v2.version - 1) {
 				error!(
 					"Cannot receive new layout version {}, version {} is missing",
 					v2.version,
 					v2.version - 1
 				);
 			} else {
-				versions.push(v2.clone());
+				self.versions.push(v2.clone());
 				changed = true;
 			}
 		}
-		self.versions = Arc::from(versions.into_boxed_slice());
 
 		// Merge trackers
 		self.update_trackers.merge(&other.update_trackers);
@@ -117,9 +114,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 
 		let msg = new_version.calculate_partition_assignment()?;
 
-		let mut versions = self.versions.to_vec();
-		versions.push(new_version);
-		self.versions = Arc::from(versions.into_boxed_slice());
+		self.versions.push(new_version);
 
 		Ok((self, msg))
 	}
@@ -149,9 +144,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		let mut new_version = self.current().clone();
 		new_version.version += 1;
 
-		let mut versions = self.versions.to_vec();
-		versions.push(new_version);
-		self.versions = Arc::from(versions.into_boxed_slice());
+		self.versions.push(new_version);
 
 		Ok(self)
 	}

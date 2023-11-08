@@ -127,7 +127,7 @@ impl AdminRpcHandler {
 
 			let mut failures = vec![];
 			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.node_ids().iter() {
+			for node in layout.current().node_ids().iter() {
 				let node = (*node).into();
 				let resp = self
 					.endpoint
@@ -165,7 +165,7 @@ impl AdminRpcHandler {
 			let mut ret = String::new();
 			let layout = self.garage.system.cluster_layout().clone();
 
-			for node in layout.node_ids().iter() {
+			for node in layout.current().node_ids().iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 				opt.skip_global = true;
@@ -277,8 +277,8 @@ impl AdminRpcHandler {
 		// Gather storage node and free space statistics
 		let layout = &self.garage.system.cluster_layout();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
-		for short_id in layout.ring_assignment_data.iter() {
-			let id = layout.node_id_vec[*short_id as usize];
+		for short_id in layout.current().ring_assignment_data.iter() {
+			let id = layout.current().node_id_vec[*short_id as usize];
 			*node_partition_count.entry(id).or_default() += 1;
 		}
 		let node_info = self
@@ -293,7 +293,7 @@ impl AdminRpcHandler {
 		for (id, parts) in node_partition_count.iter() {
 			let info = node_info.get(id);
 			let status = info.map(|x| &x.status);
-			let role = layout.roles.get(id).and_then(|x| x.0.as_ref());
+			let role = layout.current().roles.get(id).and_then(|x| x.0.as_ref());
 			let hostname = status.map(|x| x.hostname.as_str()).unwrap_or("?");
 			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
 			let capacity = role
@@ -441,7 +441,7 @@ impl AdminRpcHandler {
 		if all_nodes {
 			let mut ret = vec![];
 			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.node_ids().iter() {
+			for node in layout.current().node_ids().iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
@@ -489,7 +489,7 @@ impl AdminRpcHandler {
 		if all_nodes {
 			let mut ret = vec![];
 			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.node_ids().iter() {
+			for node in layout.current().node_ids().iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
