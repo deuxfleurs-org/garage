@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_db as db;
 
-use garage_rpc::ring::Ring;
+use garage_rpc::layout::ClusterLayout;
 use garage_rpc::system::System;
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -83,8 +83,8 @@ impl<T: CountedItem> Entry<T::CP, T::CS> for CounterEntry<T> {
 }
 
 impl<T: CountedItem> CounterEntry<T> {
-	pub fn filtered_values(&self, ring: &Ring) -> HashMap<String, i64> {
-		let nodes = &ring.layout.node_id_vec[..];
+	pub fn filtered_values(&self, layout: &ClusterLayout) -> HashMap<String, i64> {
+		let nodes = &layout.node_id_vec[..];
 		self.filtered_values_with_nodes(nodes)
 	}
 

@@ -450,10 +450,10 @@ impl<'a> BucketHelper<'a> {
 
 		#[cfg(feature = "k2v")]
 		{
-			use garage_rpc::ring::Ring;
+			use garage_rpc::layout::ClusterLayout;
 			use std::sync::Arc;
 
-			let ring: Arc<Ring> = self.0.system.ring.borrow().clone();
+			let layout: Arc<ClusterLayout> = self.0.system.layout_watch.borrow().clone();
 			let k2vindexes = self
 				.0
 				.k2v
@@ -462,7 +462,7 @@ impl<'a> BucketHelper<'a> {
 				.get_range(
 					&bucket_id,
 					None,
-					Some((DeletedFilter::NotDeleted, ring.layout.node_id_vec.clone())),
+					Some((DeletedFilter::NotDeleted, layout.node_id_vec.clone())),
 					10,
 					EnumerationOrder::Forward,
 				)

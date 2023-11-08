@@ -17,7 +17,7 @@ use garage_util::data::*;
 use garage_util::encode::{debug_serialize, nonversioned_encode};
 use garage_util::error::{Error, OkOrMessage};
 
-use garage_rpc::ring::*;
+use garage_rpc::layout::*;
 use garage_rpc::system::System;
 use garage_rpc::*;
 
@@ -91,8 +91,8 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 		bg.spawn_worker(SyncWorker {
 			syncer: self.clone(),
-			ring_recv: self.system.ring.clone(),
-			ring: self.system.ring.borrow().clone(),
+			layout_watch: self.system.layout_watch.clone(),
+			layout: self.system.layout_watch.borrow().clone(),
 			add_full_sync_rx,
 			todo: vec![],
 			next_full_sync: Instant::now() + Duration::from_secs(20),
@@ -492,8 +492,8 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSync
 
 struct SyncWorker<F: TableSchema, R: TableReplication> {
 	syncer: Arc<TableSyncer<F, R>>,
-	ring_recv: watch::Receiver<Arc<Ring>>,
-	ring: Arc<Ring>,
+	layout_watch: watch::Receiver<Arc<ClusterLayout>>,
+	layout: Arc<ClusterLayout>,
 	add_full_sync_rx: mpsc::UnboundedReceiver<()>,
 	todo: Vec<TodoPartition>,
 	next_full_sync: Instant,
@@ -593,11 +593,11 @@ impl<F: TableSchema, R: TableReplication> Worker for SyncWorker<F, R> {
 					self.add_full_sync();
 				}
 			},
-			_ = self.ring_recv.changed() => {
-				let new_ring = self.ring_recv.borrow();
-				if !Arc::ptr_eq(&new_ring, &self.ring) {
-					self.ring = new_ring.clone();
-					drop(new_ring);
+			_ = self.layout_watch.changed() => {
+				let new_layout = self.layout_watch.borrow();
+				if !Arc::ptr_eq(&new_layout, &self.layout) {
+					self.layout = new_layout.clone();
+					drop(new_layout);
 					debug!("({}) Ring changed, adding full sync to syncer todo list", F::TABLE_NAME);
 					self.add_full_sync();
 				}

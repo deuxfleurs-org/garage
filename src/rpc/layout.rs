@@ -13,17 +13,39 @@ use garage_util::error::*;
 
 use crate::graph_algo::*;
 
-use crate::ring::*;
-
 use std::convert::TryInto;
+
+// ---- defines: partitions ----
+
+/// A partition id, which is stored on 16 bits
+/// i.e. we have up to 2**16 partitions.
+/// (in practice we have exactly 2**PARTITION_BITS partitions)
+pub type Partition = u16;
+
+// TODO: make this constant parametrizable in the config file
+// For deployments with many nodes it might make sense to bump
+// it up to 10.
+// Maximum value : 16
+/// How many bits from the hash are used to make partitions. Higher numbers means more fairness in
+/// presence of numerous nodes, but exponentially bigger ring. Max 16
+pub const PARTITION_BITS: usize = 8;
 
 const NB_PARTITIONS: usize = 1usize << PARTITION_BITS;
 
+// ---- defines: nodes ----
+
+// Type to store compactly the id of a node in the system
+// Change this to u16 the day we want to have more than 256 nodes in a cluster
+pub type CompactNodeType = u8;
+pub const MAX_NODE_NUMBER: usize = 256;
+
+// ---- defines: other ----
+
 // The Message type will be used to collect information on the algorithm.
-type Message = Vec<String>;
+pub type Message = Vec<String>;
 
 mod v08 {
-	use crate::ring::CompactNodeType;
+	use super::CompactNodeType;
 	use garage_util::crdt::LwwMap;
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
@@ -76,7 +98,7 @@ mod v08 {
 
 mod v09 {
 	use super::v08;
-	use crate::ring::CompactNodeType;
+	use super::CompactNodeType;
 	use garage_util::crdt::{Lww, LwwMap};
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
@@ -332,6 +354,46 @@ impl ClusterLayout {
                     cluster or this node does not have a positive capacity."
 				.into(),
 		))
+	}
+
+	/// Get the partition in which data would fall on
+	pub fn partition_of(&self, position: &Hash) -> Partition {
+		let top = u16::from_be_bytes(position.as_slice()[0..2].try_into().unwrap());
+		top >> (16 - PARTITION_BITS)
+	}
+
+	/// Get the list of partitions and the first hash of a partition key that would fall in it
+	pub fn partitions(&self) -> Vec<(Partition, Hash)> {
+		(0..(1 << PARTITION_BITS))
+			.map(|i| {
+				let top = (i as u16) << (16 - PARTITION_BITS);
+				let mut location = [0u8; 32];
+				location[..2].copy_from_slice(&u16::to_be_bytes(top)[..]);
+				(i as u16, Hash::from(location))
+			})
+			.collect::<Vec<_>>()
+	}
+
+	/// Walk the ring to find the n servers in which data should be replicated
+	pub fn nodes_of(&self, position: &Hash, n: usize) -> Vec<Uuid> {
+		assert_eq!(n, self.replication_factor);
+
+		let data = &self.ring_assignment_data;
+
+		if data.len() != self.replication_factor * (1 << PARTITION_BITS) {
+			warn!("Ring not yet ready, read/writes will be lost!");
+			return vec![];
+		}
+
+		let partition_idx = self.partition_of(position) as usize;
+		let partition_start = partition_idx * self.replication_factor;
+		let partition_end = (partition_idx + 1) * self.replication_factor;
+		let partition_nodes = &data[partition_start..partition_end];
+
+		partition_nodes
+			.iter()
+			.map(|i| self.node_id_vec[*i as usize])
+			.collect::<Vec<_>>()
 	}
 
 	// ===================== internal information extractors ======================

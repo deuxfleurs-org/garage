@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use garage_util::data::*;
 
-use garage_rpc::ring::Ring;
+use garage_rpc::layout::ClusterLayout;
 use garage_table::util::*;
 
 use garage_model::garage::Garage;
@@ -26,7 +26,7 @@ pub async fn handle_read_index(
 ) -> Result<Response<Body>, Error> {
 	let reverse = reverse.unwrap_or(false);
 
-	let ring: Arc<Ring> = garage.system.ring.borrow().clone();
+	let layout: Arc<ClusterLayout> = garage.system.layout_watch.borrow().clone();
 
 	let (partition_keys, more, next_start) = read_range(
 		&garage.k2v.counter_table.table,
@@ -35,7 +35,7 @@ pub async fn handle_read_index(
 		&start,
 		&end,
 		limit,
-		Some((DeletedFilter::NotDeleted, ring.layout.node_id_vec.clone())),
+		Some((DeletedFilter::NotDeleted, layout.node_id_vec.clone())),
 		EnumerationOrder::from_reverse(reverse),
 	)
 	.await?;
@@ -54,7 +54,7 @@ pub async fn handle_read_index(
 		partition_keys: partition_keys
 			.into_iter()
 			.map(|part| {
-				let vals = part.filtered_values(&ring);
+				let vals = part.filtered_values(&layout);
 				ReadIndexResponseEntry {
 					pk: part.sk,
 					entries: *vals.get(&s_entries).unwrap_or(&0),

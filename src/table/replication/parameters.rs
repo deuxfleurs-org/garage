@@ -1,4 +1,4 @@
-use garage_rpc::ring::*;
+use garage_rpc::layout::*;
 use garage_util::data::*;
 
 /// Trait to describe how a table shall be replicated

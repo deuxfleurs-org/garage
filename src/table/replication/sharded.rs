@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use garage_rpc::ring::*;
+use garage_rpc::layout::*;
 use garage_rpc::system::System;
 use garage_util::data::*;
 
@@ -26,16 +26,16 @@ pub struct TableShardedReplication {
 
 impl TableReplication for TableShardedReplication {
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		let ring = self.system.ring.borrow();
-		ring.get_nodes(hash, self.replication_factor)
+		let layout = self.system.layout_watch.borrow();
+		layout.nodes_of(hash, self.replication_factor)
 	}
 	fn read_quorum(&self) -> usize {
 		self.read_quorum
 	}
 
 	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		let ring = self.system.ring.borrow();
-		ring.get_nodes(hash, self.replication_factor)
+		let layout = self.system.layout_watch.borrow();
+		layout.nodes_of(hash, self.replication_factor)
 	}
 	fn write_quorum(&self) -> usize {
 		self.write_quorum
@@ -45,9 +45,9 @@ impl TableReplication for TableShardedReplication {
 	}
 
 	fn partition_of(&self, hash: &Hash) -> Partition {
-		self.system.ring.borrow().partition_of(hash)
+		self.system.layout_watch.borrow().partition_of(hash)
 	}
 	fn partitions(&self) -> Vec<(Partition, Hash)> {
-		self.system.ring.borrow().partitions()
+		self.system.layout_watch.borrow().partitions()
 	}
 }

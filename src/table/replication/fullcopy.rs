@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use garage_rpc::ring::*;
+use garage_rpc::layout::*;
 use garage_rpc::system::System;
 use garage_util::data::*;
 
@@ -27,11 +27,11 @@ impl TableReplication for TableFullReplication {
 	}
 
 	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
-		let ring = self.system.ring.borrow();
-		ring.layout.node_ids().to_vec()
+		let layout = self.system.layout_watch.borrow();
+		layout.node_ids().to_vec()
 	}
 	fn write_quorum(&self) -> usize {
-		let nmembers = self.system.ring.borrow().layout.node_ids().len();
+		let nmembers = self.system.layout_watch.borrow().node_ids().len();
 		if nmembers > self.max_faults {
 			nmembers - self.max_faults
 		} else {

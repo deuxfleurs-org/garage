@@ -253,7 +253,7 @@ pub(crate) async fn check_quotas(
 		.await?;
 
 	let counters = counters
-		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
+		.map(|x| x.filtered_values(&garage.system.layout_watch.borrow()))
 		.unwrap_or_default();
 
 	let (prev_cnt_obj, prev_cnt_size) = match prev_object {

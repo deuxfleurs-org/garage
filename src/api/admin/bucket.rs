@@ -122,7 +122,7 @@ async fn bucket_info_results(
 		.table
 		.get(&bucket_id, &EmptyKey)
 		.await?
-		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
+		.map(|x| x.filtered_values(&garage.system.layout_watch.borrow()))
 		.unwrap_or_default();
 
 	let mpu_counters = garage
@@ -130,7 +130,7 @@ async fn bucket_info_results(
 		.table
 		.get(&bucket_id, &EmptyKey)
 		.await?
-		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
+		.map(|x| x.filtered_values(&garage.system.layout_watch.borrow()))
 		.unwrap_or_default();
 
 	let mut relevant_keys = HashMap::new();

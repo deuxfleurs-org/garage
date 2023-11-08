@@ -18,7 +18,7 @@ use garage_util::error::Error as GarageError;
 use garage_table::replication::*;
 use garage_table::*;
 
-use garage_rpc::ring::PARTITION_BITS;
+use garage_rpc::layout::PARTITION_BITS;
 use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
@@ -126,8 +126,8 @@ impl AdminRpcHandler {
 			opt_to_send.all_nodes = false;
 
 			let mut failures = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let layout = self.garage.system.layout_watch.borrow().clone();
+			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				let resp = self
 					.endpoint
@@ -163,9 +163,9 @@ impl AdminRpcHandler {
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRpc, Error> {
 		if opt.all_nodes {
 			let mut ret = String::new();
-			let ring = self.garage.system.ring.borrow().clone();
+			let layout = self.garage.system.layout_watch.borrow().clone();
 
-			for node in ring.layout.node_ids().iter() {
+			for node in layout.node_ids().iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 				opt.skip_global = true;
@@ -275,7 +275,7 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 
 		// Gather storage node and free space statistics
-		let layout = &self.garage.system.ring.borrow().layout;
+		let layout = &self.garage.system.layout_watch.borrow();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
 		for short_id in layout.ring_assignment_data.iter() {
 			let id = layout.node_id_vec[*short_id as usize];
@@ -440,8 +440,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let layout = self.garage.system.layout_watch.borrow().clone();
+			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
@@ -488,8 +488,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let layout = self.garage.system.layout_watch.borrow().clone();
+			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
