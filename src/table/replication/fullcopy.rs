@@ -27,11 +27,11 @@ impl TableReplication for TableFullReplication {
 	}
 
 	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
-		let layout = self.system.layout_watch.borrow();
+		let layout = self.system.cluster_layout();
 		layout.node_ids().to_vec()
 	}
 	fn write_quorum(&self) -> usize {
-		let nmembers = self.system.layout_watch.borrow().node_ids().len();
+		let nmembers = self.system.cluster_layout().node_ids().len();
 		if nmembers > self.max_faults {
 			nmembers - self.max_faults
 		} else {

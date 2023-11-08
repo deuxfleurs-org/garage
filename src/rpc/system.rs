@@ -423,8 +423,8 @@ impl System {
 		known_nodes
 	}
 
-	pub fn get_cluster_layout(&self) -> ClusterLayout {
-		self.layout_watch.borrow().as_ref().clone()
+	pub fn cluster_layout(&self) -> watch::Ref<Arc<ClusterLayout>> {
+		self.layout_watch.borrow()
 	}
 
 	pub async fn update_cluster_layout(

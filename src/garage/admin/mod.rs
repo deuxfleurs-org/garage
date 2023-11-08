@@ -126,7 +126,7 @@ impl AdminRpcHandler {
 			opt_to_send.all_nodes = false;
 
 			let mut failures = vec![];
-			let layout = self.garage.system.layout_watch.borrow().clone();
+			let layout = self.garage.system.cluster_layout().clone();
 			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				let resp = self
@@ -163,7 +163,7 @@ impl AdminRpcHandler {
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRpc, Error> {
 		if opt.all_nodes {
 			let mut ret = String::new();
-			let layout = self.garage.system.layout_watch.borrow().clone();
+			let layout = self.garage.system.cluster_layout().clone();
 
 			for node in layout.node_ids().iter() {
 				let mut opt = opt.clone();
@@ -275,7 +275,7 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 
 		// Gather storage node and free space statistics
-		let layout = &self.garage.system.layout_watch.borrow();
+		let layout = &self.garage.system.cluster_layout();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
 		for short_id in layout.ring_assignment_data.iter() {
 			let id = layout.node_id_vec[*short_id as usize];
@@ -440,7 +440,7 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let layout = self.garage.system.layout_watch.borrow().clone();
+			let layout = self.garage.system.cluster_layout().clone();
 			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				match self
@@ -488,7 +488,7 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let layout = self.garage.system.layout_watch.borrow().clone();
+			let layout = self.garage.system.cluster_layout().clone();
 			for node in layout.node_ids().iter() {
 				let node = (*node).into();
 				match self

@@ -33,7 +33,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 				hostname: i.status.hostname,
 			})
 			.collect(),
-		layout: format_cluster_layout(&garage.system.get_cluster_layout()),
+		layout: format_cluster_layout(&garage.system.cluster_layout()),
 	};
 
 	Ok(json_ok_response(&res)?)
@@ -84,7 +84,7 @@ pub async fn handle_connect_cluster_nodes(
 }
 
 pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
-	let res = format_cluster_layout(&garage.system.get_cluster_layout());
+	let res = format_cluster_layout(&garage.system.cluster_layout());
 
 	Ok(json_ok_response(&res)?)
 }
@@ -207,7 +207,7 @@ pub async fn handle_update_cluster_layout(
 ) -> Result<Response<Body>, Error> {
 	let updates = parse_json_body::<UpdateClusterLayoutRequest>(req).await?;
 
-	let mut layout = garage.system.get_cluster_layout();
+	let mut layout = garage.system.cluster_layout().as_ref().clone();
 
 	let mut roles = layout.roles.clone();
 	roles.merge(&layout.staging_roles);
@@ -247,7 +247,7 @@ pub async fn handle_apply_cluster_layout(
 ) -> Result<Response<Body>, Error> {
 	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
 
-	let layout = garage.system.get_cluster_layout();
+	let layout = garage.system.cluster_layout().as_ref().clone();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
 
 	garage.system.update_cluster_layout(&layout).await?;
@@ -265,7 +265,7 @@ pub async fn handle_revert_cluster_layout(
 ) -> Result<Response<Body>, Error> {
 	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
 
-	let layout = garage.system.get_cluster_layout();
+	let layout = garage.system.cluster_layout().as_ref().clone();
 	let layout = layout.revert_staged_changes(Some(param.version))?;
 	garage.system.update_cluster_layout(&layout).await?;
 

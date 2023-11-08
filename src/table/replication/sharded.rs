@@ -26,7 +26,7 @@ pub struct TableShardedReplication {
 
 impl TableReplication for TableShardedReplication {
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		let layout = self.system.layout_watch.borrow();
+		let layout = self.system.cluster_layout();
 		layout.nodes_of(hash, self.replication_factor)
 	}
 	fn read_quorum(&self) -> usize {
@@ -34,7 +34,7 @@ impl TableReplication for TableShardedReplication {
 	}
 
 	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		let layout = self.system.layout_watch.borrow();
+		let layout = self.system.cluster_layout();
 		layout.nodes_of(hash, self.replication_factor)
 	}
 	fn write_quorum(&self) -> usize {
@@ -45,9 +45,9 @@ impl TableReplication for TableShardedReplication {
 	}
 
 	fn partition_of(&self, hash: &Hash) -> Partition {
-		self.system.layout_watch.borrow().partition_of(hash)
+		self.system.cluster_layout().partition_of(hash)
 	}
 	fn partitions(&self) -> Vec<(Partition, Hash)> {
-		self.system.layout_watch.borrow().partitions()
+		self.system.cluster_layout().partitions()
 	}
 }

@@ -70,7 +70,7 @@ impl AdminRpcHandler {
 			.table
 			.get(&bucket_id, &EmptyKey)
 			.await?
-			.map(|x| x.filtered_values(&self.garage.system.layout_watch.borrow()))
+			.map(|x| x.filtered_values(&self.garage.system.cluster_layout()))
 			.unwrap_or_default();
 
 		let mpu_counters = self
@@ -79,7 +79,7 @@ impl AdminRpcHandler {
 			.table
 			.get(&bucket_id, &EmptyKey)
 			.await?
-			.map(|x| x.filtered_values(&self.garage.system.layout_watch.borrow()))
+			.map(|x| x.filtered_values(&self.garage.system.cluster_layout()))
 			.unwrap_or_default();
 
 		let mut relevant_keys = HashMap::new();

@@ -453,7 +453,7 @@ impl<'a> BucketHelper<'a> {
 			use garage_rpc::layout::ClusterLayout;
 			use std::sync::Arc;
 
-			let layout: Arc<ClusterLayout> = self.0.system.layout_watch.borrow().clone();
+			let layout: Arc<ClusterLayout> = self.0.system.cluster_layout().clone();
 			let k2vindexes = self
 				.0
 				.k2v

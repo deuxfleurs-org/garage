@@ -92,7 +92,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		bg.spawn_worker(SyncWorker {
 			syncer: self.clone(),
 			layout_watch: self.system.layout_watch.clone(),
-			layout: self.system.layout_watch.borrow().clone(),
+			layout: self.system.cluster_layout().clone(),
 			add_full_sync_rx,
 			todo: vec![],
 			next_full_sync: Instant::now() + Duration::from_secs(20),

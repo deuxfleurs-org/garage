@@ -26,7 +26,7 @@ pub async fn handle_read_index(
 ) -> Result<Response<Body>, Error> {
 	let reverse = reverse.unwrap_or(false);
 
-	let layout: Arc<ClusterLayout> = garage.system.layout_watch.borrow().clone();
+	let layout: Arc<ClusterLayout> = garage.system.cluster_layout().clone();
 
 	let (partition_keys, more, next_start) = read_range(
 		&garage.k2v.counter_table.table,
