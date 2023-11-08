@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -6,226 +5,19 @@ use std::fmt;
 use bytesize::ByteSize;
 use itertools::Itertools;
 
-use garage_util::crdt::{AutoCrdt, Crdt, Lww, LwwMap};
+use garage_util::crdt::{AutoCrdt, LwwMap};
 use garage_util::data::*;
-use garage_util::encode::nonversioned_encode;
 use garage_util::error::*;
 
 use crate::graph_algo::*;
 
 use std::convert::TryInto;
 
-// ---- defines: partitions ----
-
-/// A partition id, which is stored on 16 bits
-/// i.e. we have up to 2**16 partitions.
-/// (in practice we have exactly 2**PARTITION_BITS partitions)
-pub type Partition = u16;
-
-// TODO: make this constant parametrizable in the config file
-// For deployments with many nodes it might make sense to bump
-// it up to 10.
-// Maximum value : 16
-/// How many bits from the hash are used to make partitions. Higher numbers means more fairness in
-/// presence of numerous nodes, but exponentially bigger ring. Max 16
-pub const PARTITION_BITS: usize = 8;
-
-const NB_PARTITIONS: usize = 1usize << PARTITION_BITS;
-
-// ---- defines: nodes ----
-
-// Type to store compactly the id of a node in the system
-// Change this to u16 the day we want to have more than 256 nodes in a cluster
-pub type CompactNodeType = u8;
-pub const MAX_NODE_NUMBER: usize = 256;
-
-// ---- defines: other ----
+use super::schema::*;
+use super::*;
 
 // The Message type will be used to collect information on the algorithm.
 pub type Message = Vec<String>;
-
-mod v08 {
-	use super::CompactNodeType;
-	use garage_util::crdt::LwwMap;
-	use garage_util::data::{Hash, Uuid};
-	use serde::{Deserialize, Serialize};
-
-	/// The layout of the cluster, i.e. the list of roles
-	/// which are assigned to each cluster node
-	#[derive(Clone, Debug, Serialize, Deserialize)]
-	pub struct ClusterLayout {
-		pub version: u64,
-
-		pub replication_factor: usize,
-		pub roles: LwwMap<Uuid, NodeRoleV>,
-
-		/// node_id_vec: a vector of node IDs with a role assigned
-		/// in the system (this includes gateway nodes).
-		/// The order here is different than the vec stored by `roles`, because:
-		/// 1. non-gateway nodes are first so that they have lower numbers
-		/// 2. nodes that don't have a role are excluded (but they need to
-		///    stay in the CRDT as tombstones)
-		pub node_id_vec: Vec<Uuid>,
-		/// the assignation of data partitions to node, the values
-		/// are indices in node_id_vec
-		#[serde(with = "serde_bytes")]
-		pub ring_assignation_data: Vec<CompactNodeType>,
-
-		/// Role changes which are staged for the next version of the layout
-		pub staging: LwwMap<Uuid, NodeRoleV>,
-		pub staging_hash: Hash,
-	}
-
-	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
-	pub struct NodeRoleV(pub Option<NodeRole>);
-
-	/// The user-assigned roles of cluster nodes
-	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
-	pub struct NodeRole {
-		/// Datacenter at which this entry belong. This information is used to
-		/// perform a better geodistribution
-		pub zone: String,
-		/// The capacity of the node
-		/// If this is set to None, the node does not participate in storing data for the system
-		/// and is only active as an API gateway to other nodes
-		pub capacity: Option<u64>,
-		/// A set of tags to recognize the node
-		pub tags: Vec<String>,
-	}
-
-	impl garage_util::migrate::InitialFormat for ClusterLayout {}
-}
-
-mod v09 {
-	use super::v08;
-	use super::CompactNodeType;
-	use garage_util::crdt::{Lww, LwwMap};
-	use garage_util::data::{Hash, Uuid};
-	use serde::{Deserialize, Serialize};
-	pub use v08::{NodeRole, NodeRoleV};
-
-	/// The layout of the cluster, i.e. the list of roles
-	/// which are assigned to each cluster node
-	#[derive(Clone, Debug, Serialize, Deserialize)]
-	pub struct ClusterLayout {
-		pub version: u64,
-
-		pub replication_factor: usize,
-
-		/// This attribute is only used to retain the previously computed partition size,
-		/// to know to what extent does it change with the layout update.
-		pub partition_size: u64,
-		/// Parameters used to compute the assignment currently given by
-		/// ring_assignment_data
-		pub parameters: LayoutParameters,
-
-		pub roles: LwwMap<Uuid, NodeRoleV>,
-
-		/// see comment in v08::ClusterLayout
-		pub node_id_vec: Vec<Uuid>,
-		/// see comment in v08::ClusterLayout
-		#[serde(with = "serde_bytes")]
-		pub ring_assignment_data: Vec<CompactNodeType>,
-
-		/// Parameters to be used in the next partition assignment computation.
-		pub staging_parameters: Lww<LayoutParameters>,
-		/// Role changes which are staged for the next version of the layout
-		pub staging_roles: LwwMap<Uuid, NodeRoleV>,
-		pub staging_hash: Hash,
-	}
-
-	/// This struct is used to set the parameters to be used in the assignment computation
-	/// algorithm. It is stored as a Crdt.
-	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
-	pub struct LayoutParameters {
-		pub zone_redundancy: ZoneRedundancy,
-	}
-
-	/// Zone redundancy: if set to AtLeast(x), the layout calculation will aim to store copies
-	/// of each partition on at least that number of different zones.
-	/// Otherwise, copies will be stored on the maximum possible number of zones.
-	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
-	pub enum ZoneRedundancy {
-		AtLeast(usize),
-		Maximum,
-	}
-
-	impl garage_util::migrate::Migrate for ClusterLayout {
-		const VERSION_MARKER: &'static [u8] = b"G09layout";
-
-		type Previous = v08::ClusterLayout;
-
-		fn migrate(previous: Self::Previous) -> Self {
-			use itertools::Itertools;
-
-			// In the old layout, capacities are in an arbitrary unit,
-			// but in the new layout they are in bytes.
-			// Here we arbitrarily multiply everything by 1G,
-			// such that 1 old capacity unit = 1GB in the new units.
-			// This is totally arbitrary and won't work for most users.
-			let cap_mul = 1024 * 1024 * 1024;
-			let roles = multiply_all_capacities(previous.roles, cap_mul);
-			let staging_roles = multiply_all_capacities(previous.staging, cap_mul);
-			let node_id_vec = previous.node_id_vec;
-
-			// Determine partition size
-			let mut tmp = previous.ring_assignation_data.clone();
-			tmp.sort();
-			let partition_size = tmp
-				.into_iter()
-				.dedup_with_count()
-				.map(|(npart, node)| {
-					roles
-						.get(&node_id_vec[node as usize])
-						.and_then(|p| p.0.as_ref().and_then(|r| r.capacity))
-						.unwrap_or(0) / npart as u64
-				})
-				.min()
-				.unwrap_or(0);
-
-			// By default, zone_redundancy is maximum possible value
-			let parameters = LayoutParameters {
-				zone_redundancy: ZoneRedundancy::Maximum,
-			};
-
-			let mut res = Self {
-				version: previous.version,
-				replication_factor: previous.replication_factor,
-				partition_size,
-				parameters,
-				roles,
-				node_id_vec,
-				ring_assignment_data: previous.ring_assignation_data,
-				staging_parameters: Lww::new(parameters),
-				staging_roles,
-				staging_hash: [0u8; 32].into(),
-			};
-			res.staging_hash = res.calculate_staging_hash();
-			res
-		}
-	}
-
-	fn multiply_all_capacities(
-		old_roles: LwwMap<Uuid, NodeRoleV>,
-		mul: u64,
-	) -> LwwMap<Uuid, NodeRoleV> {
-		let mut new_roles = LwwMap::new();
-		for (node, ts, role) in old_roles.items() {
-			let mut role = role.clone();
-			if let NodeRoleV(Some(NodeRole {
-				capacity: Some(ref mut cap),
-				..
-			})) = role
-			{
-				*cap *= mul;
-			}
-			new_roles.merge_raw(node, *ts, &role);
-		}
-		new_roles
-	}
-}
-
-pub use v09::*;
 
 impl AutoCrdt for LayoutParameters {
 	const WARN_IF_DIFFERENT: bool = true;
@@ -272,19 +64,15 @@ impl core::str::FromStr for ZoneRedundancy {
 	}
 }
 
-// Implementation of the ClusterLayout methods unrelated to the assignment algorithm.
-impl ClusterLayout {
+impl LayoutVersion {
 	pub fn new(replication_factor: usize) -> Self {
 		// We set the default zone redundancy to be Maximum, meaning that the maximum
 		// possible value will be used depending on the cluster topology
 		let parameters = LayoutParameters {
 			zone_redundancy: ZoneRedundancy::Maximum,
 		};
-		let staging_parameters = Lww::<LayoutParameters>::new(parameters);
 
-		let empty_lwwmap = LwwMap::new();
-
-		let mut ret = ClusterLayout {
+		LayoutVersion {
 			version: 0,
 			replication_factor,
 			partition_size: 0,
@@ -292,12 +80,7 @@ impl ClusterLayout {
 			node_id_vec: Vec::new(),
 			ring_assignment_data: Vec::new(),
 			parameters,
-			staging_parameters,
-			staging_roles: empty_lwwmap,
-			staging_hash: [0u8; 32].into(),
-		};
-		ret.staging_hash = ret.calculate_staging_hash();
-		ret
+		}
 	}
 
 	// ===================== accessors ======================
@@ -399,7 +182,7 @@ impl ClusterLayout {
 	// ===================== internal information extractors ======================
 
 	/// Returns the uuids of the non_gateway nodes in self.node_id_vec.
-	fn nongateway_nodes(&self) -> Vec<Uuid> {
+	pub(crate) fn nongateway_nodes(&self) -> Vec<Uuid> {
 		let mut result = Vec::<Uuid>::new();
 		for uuid in self.node_id_vec.iter() {
 			match self.node_role(uuid) {
@@ -446,99 +229,10 @@ impl ClusterLayout {
 		}
 	}
 
-	fn calculate_staging_hash(&self) -> Hash {
-		let hashed_tuple = (&self.staging_roles, &self.staging_parameters);
-		blake2sum(&nonversioned_encode(&hashed_tuple).unwrap()[..])
-	}
-
-	// ================== updates to layout, public interface ===================
-
-	pub fn merge(&mut self, other: &ClusterLayout) -> bool {
-		match other.version.cmp(&self.version) {
-			Ordering::Greater => {
-				*self = other.clone();
-				true
-			}
-			Ordering::Equal => {
-				self.staging_parameters.merge(&other.staging_parameters);
-				self.staging_roles.merge(&other.staging_roles);
-
-				let new_staging_hash = self.calculate_staging_hash();
-				let changed = new_staging_hash != self.staging_hash;
-
-				self.staging_hash = new_staging_hash;
-
-				changed
-			}
-			Ordering::Less => false,
-		}
-	}
-
-	pub fn apply_staged_changes(mut self, version: Option<u64>) -> Result<(Self, Message), Error> {
-		match version {
-			None => {
-				let error = r#"
-Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
-To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
-				"#;
-				return Err(Error::Message(error.into()));
-			}
-			Some(v) => {
-				if v != self.version + 1 {
-					return Err(Error::Message("Invalid new layout version".into()));
-				}
-			}
-		}
-
-		self.roles.merge(&self.staging_roles);
-		self.roles.retain(|(_, _, v)| v.0.is_some());
-		self.parameters = *self.staging_parameters.get();
-
-		self.staging_roles.clear();
-		self.staging_hash = self.calculate_staging_hash();
-
-		let msg = self.calculate_partition_assignment()?;
-
-		self.version += 1;
-
-		Ok((self, msg))
-	}
-
-	pub fn revert_staged_changes(mut self, version: Option<u64>) -> Result<Self, Error> {
-		match version {
-			None => {
-				let error = r#"
-Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
-To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
-				"#;
-				return Err(Error::Message(error.into()));
-			}
-			Some(v) => {
-				if v != self.version + 1 {
-					return Err(Error::Message("Invalid new layout version".into()));
-				}
-			}
-		}
-
-		self.staging_roles.clear();
-		self.staging_parameters.update(self.parameters);
-		self.staging_hash = self.calculate_staging_hash();
-
-		self.version += 1;
-
-		Ok(self)
-	}
-
 	/// Check a cluster layout for internal consistency
 	/// (assignment, roles, parameters, partition size)
 	/// returns true if consistent, false if error
 	pub fn check(&self) -> Result<(), String> {
-		// Check that the hash of the staging data is correct
-		let staging_hash = self.calculate_staging_hash();
-		if staging_hash != self.staging_hash {
-			return Err("staging_hash is incorrect".into());
-		}
-
 		// Check that node_id_vec contains the correct list of nodes
 		let mut expected_nodes = self
 			.roles
@@ -654,7 +348,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 	/// data to be moved.
 	/// Staged role changes must be merged with nodes roles before calling this function,
 	/// hence it must only be called from apply_staged_changes() and hence is not public.
-	fn calculate_partition_assignment(&mut self) -> Result<Message, Error> {
+	pub(crate) fn calculate_partition_assignment(&mut self) -> Result<Message, Error> {
 		// We update the node ids, since the node role list might have changed with the
 		// changes in the layout. We retrieve the old_assignment reframed with new ids
 		let old_assignment_opt = self.update_node_id_vec()?;
@@ -911,7 +605,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		zone_redundancy: usize,
 	) -> Result<Graph<FlowEdge>, Error> {
 		let vertices =
-			ClusterLayout::generate_graph_vertices(zone_to_id.len(), self.nongateway_nodes().len());
+			LayoutVersion::generate_graph_vertices(zone_to_id.len(), self.nongateway_nodes().len());
 		let mut g = Graph::<FlowEdge>::new(&vertices);
 		let nb_zones = zone_to_id.len();
 		for p in 0..NB_PARTITIONS {
@@ -1214,7 +908,7 @@ mod tests {
 	// number of tokens by zone : (A, 4), (B,1), (C,4), (D, 4), (E, 2)
 	// With these parameters, the naive algo fails, whereas there is a solution:
 	// (A,A,C,D,E) , (A,B,C,D,D) (A,C,C,D,E)
-	fn check_against_naive(cl: &ClusterLayout) -> Result<bool, Error> {
+	fn check_against_naive(cl: &LayoutVersion) -> Result<bool, Error> {
 		let over_size = cl.partition_size + 1;
 		let mut zone_token = HashMap::<String, usize>::new();
 
@@ -1280,7 +974,7 @@ mod tests {
 	}
 
 	fn update_layout(
-		cl: &mut ClusterLayout,
+		cl: &mut LayoutVersion,
 		node_id_vec: &Vec<u8>,
 		node_capacity_vec: &Vec<u64>,
 		node_zone_vec: &Vec<String>,
@@ -1316,7 +1010,7 @@ mod tests {
 			.map(|x| x.to_string())
 			.collect();
 
-		let mut cl = ClusterLayout::new(3);
+		let mut cl = LayoutVersion::new(3);
 		update_layout(&mut cl, &node_id_vec, &node_capacity_vec, &node_zone_vec, 3);
 		let v = cl.version;
 		let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();

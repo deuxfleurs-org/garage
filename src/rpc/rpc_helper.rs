@@ -26,7 +26,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
 
-use crate::layout::ClusterLayout;
+use crate::layout::LayoutHistory;
 use crate::metrics::RpcMetrics;
 
 // Default RPC timeout = 5 minutes
@@ -91,7 +91,7 @@ pub struct RpcHelper(Arc<RpcHelperInner>);
 struct RpcHelperInner {
 	our_node_id: Uuid,
 	fullmesh: Arc<FullMeshPeeringStrategy>,
-	layout_watch: watch::Receiver<Arc<ClusterLayout>>,
+	layout_watch: watch::Receiver<Arc<LayoutHistory>>,
 	metrics: RpcMetrics,
 	rpc_timeout: Duration,
 }
@@ -100,7 +100,7 @@ impl RpcHelper {
 	pub(crate) fn new(
 		our_node_id: Uuid,
 		fullmesh: Arc<FullMeshPeeringStrategy>,
-		layout_watch: watch::Receiver<Arc<ClusterLayout>>,
+		layout_watch: watch::Receiver<Arc<LayoutHistory>>,
 		rpc_timeout: Option<Duration>,
 	) -> Self {
 		let metrics = RpcMetrics::new();
@@ -392,8 +392,8 @@ impl RpcHelper {
 	pub fn request_order(&self, nodes: &[Uuid]) -> Vec<Uuid> {
 		// Retrieve some status variables that we will use to sort requests
 		let peer_list = self.0.fullmesh.get_peer_list();
-		let layout: Arc<ClusterLayout> = self.0.layout_watch.borrow().clone();
-		let our_zone = match layout.node_role(&self.0.our_node_id) {
+		let layout: Arc<LayoutHistory> = self.0.layout_watch.borrow().clone();
+		let our_zone = match layout.current().node_role(&self.0.our_node_id) {
 			Some(pc) => &pc.zone,
 			None => "",
 		};
@@ -407,7 +407,7 @@ impl RpcHelper {
 		let mut nodes = nodes
 			.iter()
 			.map(|to| {
-				let peer_zone = match layout.node_role(to) {
+				let peer_zone = match layout.current().node_role(to) {
 					Some(pc) => &pc.zone,
 					None => "",
 				};
