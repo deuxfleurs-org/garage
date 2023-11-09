@@ -125,10 +125,10 @@ impl LayoutManager {
 
 		if !prev_layout_check || adv.check().is_ok() {
 			if layout.merge(adv) {
+				layout.update_trackers(self.node_id);
 				if prev_layout_check && layout.check().is_err() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
-				layout.update_trackers(self.node_id);
 				return Some(layout.clone());
 			}
 		}
@@ -245,6 +245,8 @@ impl LayoutManager {
 		self: &Arc<Self>,
 		adv: &LayoutHistory,
 	) -> Result<SystemRpc, Error> {
+		debug!("handle_advertise_cluster_layout: {:?}", adv);
+
 		if adv.current().replication_factor != self.replication_factor {
 			let msg = format!(
 				"Received a cluster layout from another node with replication factor {}, which is different from what we have in our configuration ({}). Discarding the cluster layout we received.",
@@ -256,6 +258,8 @@ impl LayoutManager {
 		}
 
 		if let Some(new_layout) = self.merge_layout(adv) {
+			debug!("handle_advertise_cluster_layout: some changes were added to the current stuff");
+
 			self.change_notify.notify_waiters();
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayout(new_layout));
 			self.save_cluster_layout().await?;
@@ -268,6 +272,8 @@ impl LayoutManager {
 		self: &Arc<Self>,
 		trackers: &UpdateTrackers,
 	) -> Result<SystemRpc, Error> {
+		debug!("handle_advertise_cluster_layout_trackers: {:?}", trackers);
+
 		if let Some(new_trackers) = self.merge_layout_trackers(trackers) {
 			self.change_notify.notify_waiters();
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(new_trackers));

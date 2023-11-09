@@ -190,7 +190,7 @@ mod v010 {
 	use garage_util::crdt::{Lww, LwwMap};
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
-	use std::collections::HashMap;
+	use std::collections::BTreeMap;
 	pub use v09::{LayoutParameters, NodeRole, NodeRoleV, ZoneRedundancy};
 
 	/// The layout of the cluster, i.e. the list of roles
@@ -257,7 +257,7 @@ mod v010 {
 
 	/// The history of cluster layouts
 	#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-	pub struct UpdateTracker(pub HashMap<Uuid, u64>);
+	pub struct UpdateTracker(pub BTreeMap<Uuid, u64>);
 
 	impl garage_util::migrate::Migrate for LayoutHistory {
 		const VERSION_MARKER: &'static [u8] = b"G010lh";
@@ -278,7 +278,7 @@ mod v010 {
 				version
 					.nongateway_nodes()
 					.map(|x| (x, version.version))
-					.collect::<HashMap<Uuid, u64>>(),
+					.collect::<BTreeMap<Uuid, u64>>(),
 			);
 			let staging = LayoutStaging {
 				parameters: previous.staging_parameters,
