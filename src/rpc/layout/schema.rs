@@ -226,7 +226,7 @@ mod v010 {
 	}
 
 	/// The history of cluster layouts
-	#[derive(Clone, Debug, Serialize, Deserialize)]
+	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 	pub struct LayoutHistory {
 		/// The versions currently in use in the cluster
 		pub versions: Vec<LayoutVersion>,
@@ -241,7 +241,7 @@ mod v010 {
 	}
 
 	/// The tracker of acknowlegments and data syncs around the cluster
-	#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+	#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 	pub struct UpdateTrackers {
 		/// The highest layout version number each node has ack'ed
 		pub ack_map: UpdateTracker,
@@ -253,7 +253,7 @@ mod v010 {
 	}
 
 	/// The history of cluster layouts
-	#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+	#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 	pub struct UpdateTracker(pub HashMap<Uuid, u64>);
 
 	impl garage_util::migrate::Migrate for LayoutHistory {

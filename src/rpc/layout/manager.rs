@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::{Deserialize, Serialize};
+
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 
@@ -28,6 +30,16 @@ pub struct LayoutManager {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LayoutStatus {
+	/// Cluster layout version
+	pub cluster_layout_version: u64,
+	/// Hash of cluster layout update trackers
+	// (TODO) pub cluster_layout_trackers_hash: Hash,
+	/// Hash of cluster layout staging data
+	pub cluster_layout_staging_hash: Hash,
+}
+
 impl LayoutManager {
 	pub fn new(
 		config: &Config,
@@ -35,7 +47,7 @@ impl LayoutManager {
 		system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 		fullmesh: Arc<FullMeshPeeringStrategy>,
 		replication_factor: usize,
-	) -> Result<Self, Error> {
+	) -> Result<Arc<Self>, Error> {
 		let persist_cluster_layout: Persister<LayoutHistory> =
 			Persister::new(&config.metadata_dir, "cluster_layout");
 
@@ -68,28 +80,39 @@ impl LayoutManager {
 			config.rpc_timeout_msec.map(Duration::from_millis),
 		);
 
-		Ok(Self {
+		Ok(Arc::new(Self {
 			replication_factor,
 			persist_cluster_layout,
 			layout_watch,
 			update_layout: Mutex::new(update_layout),
 			system_endpoint,
 			rpc_helper,
-		})
+		}))
 	}
 
 	// ---- PUBLIC INTERFACE ----
 
-	pub async fn update_cluster_layout(&self, layout: &LayoutHistory) -> Result<(), Error> {
+	pub fn status(&self) -> LayoutStatus {
+		let layout = self.layout();
+		LayoutStatus {
+			cluster_layout_version: layout.current().version,
+			cluster_layout_staging_hash: layout.staging_hash,
+		}
+	}
+
+	pub async fn update_cluster_layout(
+		self: &Arc<Self>,
+		layout: &LayoutHistory,
+	) -> Result<(), Error> {
 		self.handle_advertise_cluster_layout(layout).await?;
 		Ok(())
 	}
 
-	pub fn history(&self) -> watch::Ref<Arc<LayoutHistory>> {
+	pub fn layout(&self) -> watch::Ref<Arc<LayoutHistory>> {
 		self.layout_watch.borrow()
 	}
 
-	pub(crate) async fn pull_cluster_layout(&self, peer: Uuid) {
+	pub(crate) async fn pull_cluster_layout(self: &Arc<Self>, peer: Uuid) {
 		let resp = self
 			.rpc_helper
 			.call(
@@ -118,13 +141,25 @@ impl LayoutManager {
 
 	// ---- RPC HANDLERS ----
 
+	pub(crate) fn handle_advertise_status(self: &Arc<Self>, from: Uuid, status: &LayoutStatus) {
+		let local_status = self.status();
+		if status.cluster_layout_version > local_status.cluster_layout_version
+			|| status.cluster_layout_staging_hash != local_status.cluster_layout_staging_hash
+		{
+			tokio::spawn({
+				let this = self.clone();
+				async move { this.pull_cluster_layout(from).await }
+			});
+		}
+	}
+
 	pub(crate) fn handle_pull_cluster_layout(&self) -> SystemRpc {
-		let layout = self.layout_watch.borrow().as_ref().clone();
+		let layout = self.layout_watch.borrow().clone();
 		SystemRpc::AdvertiseClusterLayout(layout)
 	}
 
 	pub(crate) async fn handle_advertise_cluster_layout(
-		&self,
+		self: &Arc<Self>,
 		adv: &LayoutHistory,
 	) -> Result<SystemRpc, Error> {
 		if adv.current().replication_factor != self.replication_factor {
@@ -137,39 +172,42 @@ impl LayoutManager {
 			return Err(Error::Message(msg));
 		}
 
-		let update_layout = self.update_layout.lock().await;
-		// TODO: don't clone each time an AdvertiseClusterLayout is received
-		let mut layout: LayoutHistory = self.layout_watch.borrow().as_ref().clone();
+		if *adv != **self.layout_watch.borrow() {
+			let update_layout = self.update_layout.lock().await;
+			let mut layout: LayoutHistory = self.layout_watch.borrow().as_ref().clone();
 
-		let prev_layout_check = layout.check().is_ok();
-		if layout.merge(adv) {
-			if prev_layout_check && layout.check().is_err() {
-				error!("New cluster layout is invalid, discarding.");
-				return Err(Error::Message(
-					"New cluster layout is invalid, discarding.".into(),
-				));
-			}
-
-			update_layout.send(Arc::new(layout.clone()))?;
-			drop(update_layout);
-
-			/* TODO
-			tokio::spawn(async move {
-				if let Err(e) = system
-					.rpc_helper()
-					.broadcast(
-						&system.system_endpoint,
-						SystemRpc::AdvertiseClusterLayout(layout),
-						RequestStrategy::with_priority(PRIO_HIGH),
-					)
-					.await
-				{
-					warn!("Error while broadcasting new cluster layout: {}", e);
+			let prev_layout_check = layout.check().is_ok();
+			if layout.merge(adv) {
+				if prev_layout_check && layout.check().is_err() {
+					error!("New cluster layout is invalid, discarding.");
+					return Err(Error::Message(
+						"New cluster layout is invalid, discarding.".into(),
+					));
 				}
-			});
-			*/
 
-			self.save_cluster_layout().await?;
+				let layout = Arc::new(layout);
+				update_layout.send(layout.clone())?;
+				drop(update_layout); // release mutex
+
+				tokio::spawn({
+					let this = self.clone();
+					async move {
+						if let Err(e) = this
+							.rpc_helper
+							.broadcast(
+								&this.system_endpoint,
+								SystemRpc::AdvertiseClusterLayout(layout),
+								RequestStrategy::with_priority(PRIO_HIGH),
+							)
+							.await
+						{
+							warn!("Error while broadcasting new cluster layout: {}", e);
+						}
+					}
+				});
+
+				self.save_cluster_layout().await?;
+			}
 		}
 
 		Ok(SystemRpc::Ok)

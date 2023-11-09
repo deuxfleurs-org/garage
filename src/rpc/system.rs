@@ -33,7 +33,7 @@ use garage_util::time::*;
 use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
-use crate::layout::manager::LayoutManager;
+use crate::layout::manager::{LayoutManager, LayoutStatus};
 use crate::layout::*;
 use crate::replication_mode::*;
 use crate::rpc_helper::*;
@@ -68,7 +68,7 @@ pub enum SystemRpc {
 	/// Ask other node its cluster layout. Answered with AdvertiseClusterLayout
 	PullClusterLayout,
 	/// Advertisement of cluster layout. Sent spontanously or in response to PullClusterLayout
-	AdvertiseClusterLayout(LayoutHistory),
+	AdvertiseClusterLayout(Arc<LayoutHistory>),
 }
 
 impl Rpc for SystemRpc {
@@ -104,7 +104,7 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
-	pub layout_manager: LayoutManager,
+	pub layout_manager: Arc<LayoutManager>,
 
 	metrics: SystemMetrics,
 
@@ -125,12 +125,8 @@ pub struct NodeStatus {
 	/// Replication factor configured on the node
 	pub replication_factor: usize,
 
-	/// Cluster layout version
-	pub cluster_layout_version: u64,
-	/// Hash of cluster layout update trackers
-	// (TODO) pub cluster_layout_trackers_hash: Hash,
-	/// Hash of cluster layout staging data
-	pub cluster_layout_staging_hash: Hash,
+	/// Layout status
+	pub layout_status: LayoutStatus,
 
 	/// Disk usage on partition containing metadata directory (tuple: `(avail, total)`)
 	#[serde(default)]
@@ -284,7 +280,7 @@ impl System {
 		// ---- set up metrics and status exchange ----
 		let metrics = SystemMetrics::new(replication_factor);
 
-		let mut local_status = NodeStatus::initial(replication_factor, &layout_manager.history());
+		let mut local_status = NodeStatus::initial(replication_factor, &layout_manager);
 		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir, &metrics);
 
 		// ---- if enabled, set up additionnal peer discovery methods ----
@@ -350,7 +346,7 @@ impl System {
 	// ---- Public utilities / accessors ----
 
 	pub fn cluster_layout(&self) -> watch::Ref<Arc<LayoutHistory>> {
-		self.layout_manager.history()
+		self.layout_manager.layout()
 	}
 
 	pub fn layout_watch(&self) -> watch::Receiver<Arc<LayoutHistory>> {
@@ -536,9 +532,7 @@ impl System {
 	fn update_local_status(&self) {
 		let mut new_si: NodeStatus = self.local_status.load().as_ref().clone();
 
-		let layout = self.cluster_layout();
-		new_si.cluster_layout_version = layout.current().version;
-		new_si.cluster_layout_staging_hash = layout.staging_hash;
+		new_si.layout_status = self.layout_manager.status();
 
 		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
 
@@ -571,14 +565,8 @@ impl System {
 			std::process::exit(1);
 		}
 
-		if info.cluster_layout_version > local_info.cluster_layout_version
-			|| info.cluster_layout_staging_hash != local_info.cluster_layout_staging_hash
-		{
-			tokio::spawn({
-				let system = self.clone();
-				async move { system.layout_manager.pull_cluster_layout(from).await }
-			});
-		}
+		self.layout_manager
+			.handle_advertise_status(from, &info.layout_status);
 
 		self.node_status
 			.write()
@@ -746,14 +734,13 @@ impl EndpointHandler<SystemRpc> for System {
 }
 
 impl NodeStatus {
-	fn initial(replication_factor: usize, layout: &LayoutHistory) -> Self {
+	fn initial(replication_factor: usize, layout_manager: &LayoutManager) -> Self {
 		NodeStatus {
 			hostname: gethostname::gethostname()
 				.into_string()
 				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 			replication_factor,
-			cluster_layout_version: layout.current().version,
-			cluster_layout_staging_hash: layout.staging_hash,
+			layout_status: layout_manager.status(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
 		}
@@ -763,8 +750,7 @@ impl NodeStatus {
 		NodeStatus {
 			hostname: "?".to_string(),
 			replication_factor: 0,
-			cluster_layout_version: 0,
-			cluster_layout_staging_hash: Hash::from([0u8; 32]),
+			layout_status: Default::default(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
 		}
