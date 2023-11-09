@@ -265,7 +265,7 @@ impl BlockManager {
 		Fut: futures::Future<Output = Result<T, Error>>,
 	{
 		let who = self.replication.read_nodes(hash);
-		let who = self.system.rpc.request_order(&who);
+		let who = self.system.rpc_helper().request_order(&who);
 
 		for node in who.iter() {
 			let node_id = NodeID::from(*node);
@@ -305,7 +305,7 @@ impl BlockManager {
 				// if the first one doesn't succeed rapidly
 				// TODO: keep first request running when initiating a new one and take the
 				// one that finishes earlier
-				_ = tokio::time::sleep(self.system.rpc.rpc_timeout()) => {
+				_ = tokio::time::sleep(self.system.rpc_helper().rpc_timeout()) => {
 					debug!("Get block {:?}: node {:?} didn't return block in time, trying next.", hash, node);
 				}
 			};
@@ -363,7 +363,7 @@ impl BlockManager {
 			Req::new(BlockRpc::PutBlock { hash, header })?.with_stream_from_buffer(bytes);
 
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&who[..],
@@ -439,7 +439,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, 2 * this.system.rpc.rpc_timeout())
+					.put_to_resync(&hash, 2 * this.system.rpc_helper().rpc_timeout())
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -533,7 +533,7 @@ impl BlockManager {
 				None => {
 					// Not found but maybe we should have had it ??
 					self.resync
-						.put_to_resync(hash, 2 * self.system.rpc.rpc_timeout())?;
+						.put_to_resync(hash, 2 * self.system.rpc_helper().rpc_timeout())?;
 					return Err(Error::Message(format!(
 						"block {:?} not found on node",
 						hash

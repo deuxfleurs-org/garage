@@ -3,6 +3,8 @@ mod history;
 mod schema;
 mod version;
 
+pub mod manager;
+
 // ---- re-exports ----
 
 pub use history::*;

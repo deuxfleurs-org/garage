@@ -385,7 +385,7 @@ impl BlockResyncManager {
 
 			let who_needs_resps = manager
 				.system
-				.rpc
+				.rpc_helper()
 				.call_many(
 					&manager.endpoint,
 					&who,
@@ -431,7 +431,7 @@ impl BlockResyncManager {
 				.with_stream_from_buffer(bytes);
 				manager
 					.system
-					.rpc
+					.rpc_helper()
 					.try_call_many(
 						&manager.endpoint,
 						&need_nodes[..],

@@ -227,7 +227,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		// GC'ing is not a critical function of the system, so it's not a big
 		// deal if we can't do it right now.
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&nodes[..],
@@ -248,7 +248,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		// it means that the garbage collection wasn't completed and has
 		// to be retried later.
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&nodes[..],

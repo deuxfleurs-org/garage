@@ -91,7 +91,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 		bg.spawn_worker(SyncWorker {
 			syncer: self.clone(),
-			layout_watch: self.system.layout_watch.clone(),
+			layout_watch: self.system.layout_watch(),
 			layout: self.system.cluster_layout().clone(),
 			add_full_sync_rx,
 			todo: vec![],
@@ -244,7 +244,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		}
 
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				nodes,
@@ -305,7 +305,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		// If so, do nothing.
 		let root_resp = self
 			.system
-			.rpc
+			.rpc_helper()
 			.call(
 				&self.endpoint,
 				who,
@@ -361,7 +361,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 					// and compare it with local node
 					let remote_node = match self
 						.system
-						.rpc
+						.rpc_helper()
 						.call(
 							&self.endpoint,
 							who,
@@ -437,7 +437,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 		let rpc_resp = self
 			.system
-			.rpc
+			.rpc_helper()
 			.call(
 				&self.endpoint,
 				who,

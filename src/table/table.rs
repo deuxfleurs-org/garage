@@ -123,7 +123,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
 
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&who[..],
@@ -181,7 +181,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 			let resp = self
 				.system
-				.rpc
+				.rpc_helper()
 				.call(
 					&self.endpoint,
 					node,
@@ -236,7 +236,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		let rpc = TableRpc::<F>::ReadEntry(partition_key.clone(), sort_key.clone());
 		let resps = self
 			.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&who[..],
@@ -332,7 +332,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 		let resps = self
 			.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				&who[..],
@@ -411,7 +411,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	async fn repair_on_read(&self, who: &[Uuid], what: F::E) -> Result<(), Error> {
 		let what_enc = Arc::new(ByteBuf::from(what.encode()?));
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
 				who,
