@@ -40,7 +40,7 @@ impl LayoutHistory {
 			.collect::<HashSet<_>>()
 	}
 
-	pub(crate) fn update_hashes(&mut self) {
+	pub fn update_hashes(&mut self) {
 		self.trackers_hash = self.calculate_trackers_hash();
 		self.staging_hash = self.calculate_staging_hash();
 	}
