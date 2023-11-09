@@ -134,15 +134,14 @@ impl LayoutVersion {
 	// ===================== internal information extractors ======================
 
 	/// Returns the uuids of the non_gateway nodes in self.node_id_vec.
-	pub(crate) fn nongateway_nodes(&self) -> Vec<Uuid> {
-		let mut result = Vec::<Uuid>::new();
-		for uuid in self.node_id_vec.iter() {
-			match self.node_role(uuid) {
-				Some(role) if role.capacity.is_some() => result.push(*uuid),
-				_ => (),
-			}
-		}
-		result
+	pub(crate) fn nongateway_nodes(&self) -> impl Iterator<Item = Uuid> + '_ {
+		self.node_id_vec
+			.iter()
+			.copied()
+			.filter(move |uuid| match self.node_role(uuid) {
+				Some(role) if role.capacity.is_some() => true,
+				_ => false,
+			})
 	}
 
 	/// Given a node uuids, this function returns the label of its zone
@@ -158,8 +157,8 @@ impl LayoutVersion {
 	/// Returns the sum of capacities of non gateway nodes in the cluster
 	fn get_total_capacity(&self) -> Result<u64, Error> {
 		let mut total_capacity = 0;
-		for uuid in self.nongateway_nodes().iter() {
-			total_capacity += self.get_node_capacity(uuid)?;
+		for uuid in self.nongateway_nodes() {
+			total_capacity += self.get_node_capacity(&uuid)?;
 		}
 		Ok(total_capacity)
 	}
@@ -320,7 +319,7 @@ impl LayoutVersion {
 		// to use them as indices in the flow graphs.
 		let (id_to_zone, zone_to_id) = self.generate_nongateway_zone_ids()?;
 
-		let nb_nongateway_nodes = self.nongateway_nodes().len();
+		let nb_nongateway_nodes = self.nongateway_nodes().count();
 		if nb_nongateway_nodes < self.replication_factor {
 			return Err(Error::Message(format!(
 				"The number of nodes with positive \
@@ -479,7 +478,8 @@ impl LayoutVersion {
 		let mut id_to_zone = Vec::<String>::new();
 		let mut zone_to_id = HashMap::<String, usize>::new();
 
-		for uuid in self.nongateway_nodes().iter() {
+		let nongateway_nodes = self.nongateway_nodes().collect::<Vec<_>>();
+		for uuid in nongateway_nodes.iter() {
 			let r = self.node_role(uuid).unwrap();
 			if !zone_to_id.contains_key(&r.zone) && r.capacity.is_some() {
 				zone_to_id.insert(r.zone.clone(), id_to_zone.len());
@@ -556,8 +556,10 @@ impl LayoutVersion {
 		exclude_assoc: &HashSet<(usize, usize)>,
 		zone_redundancy: usize,
 	) -> Result<Graph<FlowEdge>, Error> {
-		let vertices =
-			LayoutVersion::generate_graph_vertices(zone_to_id.len(), self.nongateway_nodes().len());
+		let vertices = LayoutVersion::generate_graph_vertices(
+			zone_to_id.len(),
+			self.nongateway_nodes().count(),
+		);
 		let mut g = Graph::<FlowEdge>::new(&vertices);
 		let nb_zones = zone_to_id.len();
 		for p in 0..NB_PARTITIONS {
@@ -576,7 +578,7 @@ impl LayoutVersion {
 				)?;
 			}
 		}
-		for n in 0..self.nongateway_nodes().len() {
+		for n in 0..self.nongateway_nodes().count() {
 			let node_capacity = self.get_node_capacity(&self.node_id_vec[n])?;
 			let node_zone = zone_to_id[self.get_node_zone(&self.node_id_vec[n])?];
 			g.add_edge(Vertex::N(n), Vertex::Sink, node_capacity / partition_size)?;
@@ -600,7 +602,7 @@ impl LayoutVersion {
 		// previous assignment
 		let mut exclude_edge = HashSet::<(usize, usize)>::new();
 		if let Some(prev_assign) = prev_assign_opt {
-			let nb_nodes = self.nongateway_nodes().len();
+			let nb_nodes = self.nongateway_nodes().count();
 			for (p, prev_assign_p) in prev_assign.iter().enumerate() {
 				for n in 0..nb_nodes {
 					exclude_edge.insert((p, n));
@@ -652,7 +654,7 @@ impl LayoutVersion {
 		// We compute the maximal length of a simple path in gflow. It is used in the
 		// Bellman-Ford algorithm in optimize_flow_with_cost to set the number
 		// of iterations.
-		let nb_nodes = self.nongateway_nodes().len();
+		let nb_nodes = self.nongateway_nodes().count();
 		let path_length = 4 * nb_nodes;
 		gflow.optimize_flow_with_cost(&cost, path_length)?;
 
@@ -730,7 +732,7 @@ impl LayoutVersion {
 		}
 
 		// We define and fill in the following tables
-		let storing_nodes = self.nongateway_nodes();
+		let storing_nodes = self.nongateway_nodes().collect::<Vec<_>>();
 		let mut new_partitions = vec![0; storing_nodes.len()];
 		let mut stored_partitions = vec![0; storing_nodes.len()];
 
@@ -873,9 +875,9 @@ mod tests {
 		for z in zones.iter() {
 			zone_token.insert(z.clone(), 0);
 		}
-		for uuid in cl.nongateway_nodes().iter() {
-			let z = cl.get_node_zone(uuid)?;
-			let c = cl.get_node_capacity(uuid)?;
+		for uuid in cl.nongateway_nodes() {
+			let z = cl.get_node_zone(&uuid)?;
+			let c = cl.get_node_capacity(&uuid)?;
 			zone_token.insert(
 				z.clone(),
 				zone_token[&z] + min(NB_PARTITIONS, (c / over_size) as usize),

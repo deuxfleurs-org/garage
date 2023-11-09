@@ -51,7 +51,7 @@ impl LayoutManager {
 		let persist_cluster_layout: Persister<LayoutHistory> =
 			Persister::new(&config.metadata_dir, "cluster_layout");
 
-		let cluster_layout = match persist_cluster_layout.load() {
+		let mut cluster_layout = match persist_cluster_layout.load() {
 			Ok(x) => {
 				if x.current().replication_factor != replication_factor {
 					return Err(Error::Message(format!(
@@ -70,6 +70,8 @@ impl LayoutManager {
 				LayoutHistory::new(replication_factor)
 			}
 		};
+
+		cluster_layout.update_trackers(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
 		let change_notify = Arc::new(Notify::new());
@@ -126,7 +128,7 @@ impl LayoutManager {
 				if prev_layout_check && layout.check().is_err() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
-
+				layout.update_trackers(self.node_id);
 				return Some(layout.clone());
 			}
 		}
@@ -137,6 +139,7 @@ impl LayoutManager {
 		let mut layout = self.layout.write().unwrap();
 		if layout.update_trackers != *adv {
 			if layout.update_trackers.merge(adv) {
+				layout.update_trackers(self.node_id);
 				return Some(layout.update_trackers.clone());
 			}
 		}

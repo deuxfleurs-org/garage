@@ -3,6 +3,7 @@ use std::fmt;
 use bytesize::ByteSize;
 
 use garage_util::crdt::{AutoCrdt, Crdt};
+use garage_util::data::Uuid;
 
 mod v08 {
 	use crate::layout::CompactNodeType;
@@ -276,8 +277,7 @@ mod v010 {
 			let update_tracker = UpdateTracker(
 				version
 					.nongateway_nodes()
-					.iter()
-					.map(|x| (*x, version.version))
+					.map(|x| (x, version.version))
 					.collect::<HashMap<Uuid, u64>>(),
 			);
 			let staging = LayoutStaging {
@@ -375,8 +375,15 @@ impl UpdateTracker {
 		changed
 	}
 
-	pub(crate) fn min(&self) -> u64 {
-		self.0.iter().map(|(_, v)| *v).min().unwrap_or(0)
+	pub(crate) fn set_max(&mut self, peer: Uuid, value: u64) {
+		match self.0.get_mut(&peer) {
+			Some(e) => {
+				*e = std::cmp::max(*e, value);
+			}
+			None => {
+				self.0.insert(peer, value);
+			}
+		}
 	}
 }
 
