@@ -1,7 +1,9 @@
+mod graph_algo;
 mod history;
 mod schema;
-mod tracker;
 mod version;
+
+// ---- re-exports ----
 
 pub use history::*;
 pub use schema::*;

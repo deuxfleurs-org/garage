@@ -65,7 +65,7 @@ pub async fn cmd_assign_role(
 		.collect::<Result<Vec<_>, _>>()?;
 
 	let mut roles = layout.current().roles.clone();
-	roles.merge(&layout.staging_roles);
+	roles.merge(&layout.staging.get().roles);
 
 	for replaced in args.replace.iter() {
 		let replaced_node =
@@ -73,7 +73,9 @@ pub async fn cmd_assign_role(
 		match roles.get(&replaced_node) {
 			Some(NodeRoleV(Some(_))) => {
 				layout
-					.staging_roles
+					.staging
+					.get_mut()
+					.roles
 					.merge(&roles.update_mutator(replaced_node, NodeRoleV(None)));
 			}
 			_ => {
@@ -131,7 +133,9 @@ pub async fn cmd_assign_role(
 		};
 
 		layout
-			.staging_roles
+			.staging
+			.get_mut()
+			.roles
 			.merge(&roles.update_mutator(added_node, NodeRoleV(Some(new_entry))));
 	}
 
@@ -151,13 +155,15 @@ pub async fn cmd_remove_role(
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	let mut roles = layout.current().roles.clone();
-	roles.merge(&layout.staging_roles);
+	roles.merge(&layout.staging.get().roles);
 
 	let deleted_node =
 		find_matching_node(roles.items().iter().map(|(id, _, _)| *id), &args.node_id)?;
 
 	layout
-		.staging_roles
+		.staging
+		.get_mut()
+		.roles
 		.merge(&roles.update_mutator(deleted_node, NodeRoleV(None)));
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
@@ -203,16 +209,12 @@ pub async fn cmd_show_layout(
 				println!();
 				println!("    garage layout apply --version {}", v + 1);
 				println!();
-				println!(
-                    "You can also revert all proposed changes with: garage layout revert --version {}",
-                    v + 1)
+				println!("You can also revert all proposed changes with: garage layout revert");
 			}
 			Err(e) => {
 				println!("Error while trying to compute the assignment: {}", e);
 				println!("This new layout cannot yet be applied.");
-				println!(
-                    "You can also revert all proposed changes with: garage layout revert --version {}",
-                    v + 1)
+				println!("You can also revert all proposed changes with: garage layout revert");
 			}
 		}
 	}
@@ -245,9 +247,15 @@ pub async fn cmd_revert_layout(
 	rpc_host: NodeID,
 	revert_opt: RevertLayoutOpt,
 ) -> Result<(), Error> {
+	if !revert_opt.yes {
+		return Err(Error::Message(
+			"Please add the --yes flag to run the layout revert operation".into(),
+		));
+	}
+
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
-	let layout = layout.revert_staged_changes(revert_opt.version)?;
+	let layout = layout.revert_staged_changes()?;
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
@@ -284,7 +292,9 @@ pub async fn cmd_config_layout(
 			}
 
 			layout
-				.staging_parameters
+				.staging
+				.get_mut()
+				.parameters
 				.update(LayoutParameters { zone_redundancy: r });
 			println!("The zone redundancy parameter has been set to '{}'.", r);
 			did_something = true;
@@ -371,19 +381,20 @@ pub fn print_cluster_layout(layout: &LayoutVersion, empty_msg: &str) {
 }
 
 pub fn print_staging_role_changes(layout: &LayoutHistory) -> bool {
-	let has_role_changes = layout
-		.staging_roles
+	let staging = layout.staging.get();
+	let has_role_changes = staging
+		.roles
 		.items()
 		.iter()
 		.any(|(k, _, v)| layout.current().roles.get(k) != Some(v));
-	let has_layout_changes = *layout.staging_parameters.get() != layout.current().parameters;
+	let has_layout_changes = *staging.parameters.get() != layout.current().parameters;
 
 	if has_role_changes || has_layout_changes {
 		println!();
 		println!("==== STAGED ROLE CHANGES ====");
 		if has_role_changes {
 			let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
-			for (id, _, role) in layout.staging_roles.items().iter() {
+			for (id, _, role) in staging.roles.items().iter() {
 				if layout.current().roles.get(id) == Some(role) {
 					continue;
 				}
@@ -406,7 +417,7 @@ pub fn print_staging_role_changes(layout: &LayoutHistory) -> bool {
 		if has_layout_changes {
 			println!(
 				"Zone redundancy: {}",
-				layout.staging_parameters.get().zone_redundancy
+				staging.parameters.get().zone_redundancy
 			);
 		}
 		true

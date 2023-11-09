@@ -105,7 +105,9 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 		.collect::<Vec<_>>();
 
 	let staged_role_changes = layout
-		.staging_roles
+		.staging
+		.get()
+		.roles
 		.items()
 		.iter()
 		.filter(|(k, _, v)| layout.current().roles.get(k) != Some(v))
@@ -211,7 +213,7 @@ pub async fn handle_update_cluster_layout(
 	let mut layout = garage.system.cluster_layout().as_ref().clone();
 
 	let mut roles = layout.current().roles.clone();
-	roles.merge(&layout.staging_roles);
+	roles.merge(&layout.staging.get().roles);
 
 	for change in updates {
 		let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
@@ -232,7 +234,9 @@ pub async fn handle_update_cluster_layout(
 		};
 
 		layout
-			.staging_roles
+			.staging
+			.get_mut()
+			.roles
 			.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
 	}
 
@@ -246,7 +250,7 @@ pub async fn handle_apply_cluster_layout(
 	garage: &Arc<Garage>,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+	let param = parse_json_body::<ApplyLayoutRequest>(req).await?;
 
 	let layout = garage.system.cluster_layout().as_ref().clone();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
@@ -260,14 +264,9 @@ pub async fn handle_apply_cluster_layout(
 	Ok(json_ok_response(&res)?)
 }
 
-pub async fn handle_revert_cluster_layout(
-	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
-
+pub async fn handle_revert_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
 	let layout = garage.system.cluster_layout().as_ref().clone();
-	let layout = layout.revert_staged_changes(Some(param.version))?;
+	let layout = layout.revert_staged_changes()?;
 	garage.system.update_cluster_layout(&layout).await?;
 
 	let res = format_cluster_layout(&layout);
@@ -280,7 +279,7 @@ type UpdateClusterLayoutRequest = Vec<NodeRoleChange>;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ApplyRevertLayoutRequest {
+struct ApplyLayoutRequest {
 	version: u64,
 }
 

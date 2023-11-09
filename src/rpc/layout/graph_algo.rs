@@ -114,16 +114,6 @@ impl Graph<FlowEdge> {
 		Ok(result)
 	}
 
-	/// This function returns the value of the flow incoming to v.
-	pub fn get_inflow(&self, v: Vertex) -> Result<i64, String> {
-		let idv = self.get_vertex_id(&v)?;
-		let mut result = 0;
-		for edge in self.graph[idv].iter() {
-			result += max(0, self.graph[edge.dest][edge.rev].flow);
-		}
-		Ok(result)
-	}
-
 	/// This function returns the value of the flow outgoing from v.
 	pub fn get_outflow(&self, v: Vertex) -> Result<i64, String> {
 		let idv = self.get_vertex_id(&v)?;

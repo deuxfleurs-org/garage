@@ -1,68 +1,20 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt;
+use std::convert::TryInto;
 
 use bytesize::ByteSize;
 use itertools::Itertools;
 
-use garage_util::crdt::{AutoCrdt, LwwMap};
+use garage_util::crdt::LwwMap;
 use garage_util::data::*;
 use garage_util::error::*;
 
-use crate::graph_algo::*;
-
-use std::convert::TryInto;
-
+use super::graph_algo::*;
 use super::schema::*;
 use super::*;
 
 // The Message type will be used to collect information on the algorithm.
 pub type Message = Vec<String>;
-
-impl AutoCrdt for LayoutParameters {
-	const WARN_IF_DIFFERENT: bool = true;
-}
-
-impl AutoCrdt for NodeRoleV {
-	const WARN_IF_DIFFERENT: bool = true;
-}
-
-impl NodeRole {
-	pub fn capacity_string(&self) -> String {
-		match self.capacity {
-			Some(c) => ByteSize::b(c).to_string_as(false),
-			None => "gateway".to_string(),
-		}
-	}
-
-	pub fn tags_string(&self) -> String {
-		self.tags.join(",")
-	}
-}
-
-impl fmt::Display for ZoneRedundancy {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			ZoneRedundancy::Maximum => write!(f, "maximum"),
-			ZoneRedundancy::AtLeast(x) => write!(f, "{}", x),
-		}
-	}
-}
-
-impl core::str::FromStr for ZoneRedundancy {
-	type Err = &'static str;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"none" | "max" | "maximum" => Ok(ZoneRedundancy::Maximum),
-			x => {
-				let v = x
-					.parse::<usize>()
-					.map_err(|_| "zone redundancy must be 'none'/'max' or an integer")?;
-				Ok(ZoneRedundancy::AtLeast(v))
-			}
-		}
-	}
-}
 
 impl LayoutVersion {
 	pub fn new(replication_factor: usize) -> Self {

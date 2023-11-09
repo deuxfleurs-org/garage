@@ -164,9 +164,9 @@ pub struct ApplyLayoutOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct RevertLayoutOpt {
-	/// Version number of old configuration to which to revert
-	#[structopt(long = "version")]
-	pub(crate) version: Option<u64>,
+	/// The revert operation will not be ran unless this flag is added
+	#[structopt(long = "yes")]
+	pub(crate) yes: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
