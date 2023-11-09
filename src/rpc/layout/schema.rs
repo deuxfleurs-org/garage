@@ -233,6 +233,8 @@ mod v010 {
 
 		/// Update trackers
 		pub update_trackers: UpdateTrackers,
+		/// Hash of the update trackers
+		pub trackers_hash: Hash,
 
 		/// Staged changes for the next version
 		pub staging: Lww<LayoutStaging>,
@@ -289,10 +291,12 @@ mod v010 {
 					sync_map: update_tracker.clone(),
 					sync_ack_map: update_tracker.clone(),
 				},
+				trackers_hash: [0u8; 32].into(),
 				staging: Lww::raw(previous.version, staging),
 				staging_hash: [0u8; 32].into(),
 			};
 			ret.staging_hash = ret.calculate_staging_hash();
+			ret.trackers_hash = ret.calculate_trackers_hash();
 			ret
 		}
 	}
@@ -355,14 +359,20 @@ impl core::str::FromStr for ZoneRedundancy {
 }
 
 impl UpdateTracker {
-	fn merge(&mut self, other: &UpdateTracker) {
+	fn merge(&mut self, other: &UpdateTracker) -> bool {
+		let mut changed = false;
 		for (k, v) in other.0.iter() {
 			if let Some(v_mut) = self.0.get_mut(k) {
-				*v_mut = std::cmp::max(*v_mut, *v);
+				if *v > *v_mut {
+					*v_mut = *v;
+					changed = true;
+				}
 			} else {
 				self.0.insert(*k, *v);
+				changed = true;
 			}
 		}
+		changed
 	}
 
 	pub(crate) fn min(&self) -> u64 {
@@ -371,9 +381,10 @@ impl UpdateTracker {
 }
 
 impl UpdateTrackers {
-	pub(crate) fn merge(&mut self, other: &UpdateTrackers) {
-		self.ack_map.merge(&other.ack_map);
-		self.sync_map.merge(&other.sync_map);
-		self.sync_ack_map.merge(&other.sync_ack_map);
+	pub(crate) fn merge(&mut self, other: &UpdateTrackers) -> bool {
+		let c1 = self.ack_map.merge(&other.ack_map);
+		let c2 = self.sync_map.merge(&other.sync_map);
+		let c3 = self.sync_ack_map.merge(&other.sync_ack_map);
+		c1 || c2 || c3
 	}
 }

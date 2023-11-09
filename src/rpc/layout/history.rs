@@ -18,15 +18,25 @@ impl LayoutHistory {
 		let mut ret = LayoutHistory {
 			versions: vec![version].into_boxed_slice().into(),
 			update_trackers: Default::default(),
+			trackers_hash: [0u8; 32].into(),
 			staging: Lww::raw(0, staging),
 			staging_hash: [0u8; 32].into(),
 		};
-		ret.staging_hash = ret.calculate_staging_hash();
+		ret.update_hashes();
 		ret
 	}
 
 	pub fn current(&self) -> &LayoutVersion {
 		self.versions.last().as_ref().unwrap()
+	}
+
+	pub(crate) fn update_hashes(&mut self) {
+		self.trackers_hash = self.calculate_trackers_hash();
+		self.staging_hash = self.calculate_staging_hash();
+	}
+
+	pub(crate) fn calculate_trackers_hash(&self) -> Hash {
+		blake2sum(&nonversioned_encode(&self.update_trackers).unwrap()[..])
 	}
 
 	pub(crate) fn calculate_staging_hash(&self) -> Hash {
@@ -37,12 +47,6 @@ impl LayoutHistory {
 
 	pub fn merge(&mut self, other: &LayoutHistory) -> bool {
 		let mut changed = false;
-
-		// Merge staged layout changes
-		if self.staging != other.staging {
-			changed = true;
-		}
-		self.staging.merge(&other.staging);
 
 		// Add any new versions to history
 		for v2 in other.versions.iter() {
@@ -63,7 +67,21 @@ impl LayoutHistory {
 		}
 
 		// Merge trackers
-		self.update_trackers.merge(&other.update_trackers);
+		if self.update_trackers != other.update_trackers {
+			let c = self.update_trackers.merge(&other.update_trackers);
+			changed = changed || c;
+		}
+
+		// Merge staged layout changes
+		if self.staging != other.staging {
+			self.staging.merge(&other.staging);
+			changed = true;
+		}
+
+		// Update hashes if there are changes
+		if changed {
+			self.update_hashes();
+		}
 
 		changed
 	}
@@ -100,7 +118,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 			parameters: self.staging.get().parameters.clone(),
 			roles: LwwMap::new(),
 		});
-		self.staging_hash = self.calculate_staging_hash();
+		self.update_hashes();
 
 		Ok((self, msg))
 	}
@@ -110,20 +128,25 @@ To know the correct value of the new layout version, invoke `garage layout show`
 			parameters: Lww::new(self.current().parameters.clone()),
 			roles: LwwMap::new(),
 		});
-		self.staging_hash = self.calculate_staging_hash();
+		self.update_hashes();
 
 		Ok(self)
 	}
 
 	pub fn check(&self) -> Result<(), String> {
 		// Check that the hash of the staging data is correct
-		let staging_hash = self.calculate_staging_hash();
-		if staging_hash != self.staging_hash {
+		if self.trackers_hash != self.calculate_trackers_hash() {
+			return Err("trackers_hash is incorrect".into());
+		}
+		if self.staging_hash != self.calculate_staging_hash() {
 			return Err("staging_hash is incorrect".into());
 		}
 
-		// TODO: anythign more ?
+		for version in self.versions.iter() {
+			version.check()?;
+		}
 
-		self.current().check()
+		// TODO: anythign more ?
+		Ok(())
 	}
 }

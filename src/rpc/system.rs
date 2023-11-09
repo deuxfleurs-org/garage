@@ -34,7 +34,7 @@ use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::manager::{LayoutManager, LayoutStatus};
-use crate::layout::*;
+use crate::layout::{self, LayoutHistory, NodeRoleV};
 use crate::replication_mode::*;
 use crate::rpc_helper::*;
 
@@ -65,10 +65,15 @@ pub enum SystemRpc {
 	GetKnownNodes,
 	/// Return known nodes
 	ReturnKnownNodes(Vec<KnownNodeInfo>),
+
 	/// Ask other node its cluster layout. Answered with AdvertiseClusterLayout
 	PullClusterLayout,
 	/// Advertisement of cluster layout. Sent spontanously or in response to PullClusterLayout
 	AdvertiseClusterLayout(LayoutHistory),
+	/// Ask other node its cluster layout update trackers.
+	PullClusterLayoutTrackers,
+	/// Advertisement of cluster layout update trackers.
+	AdvertiseClusterLayoutTrackers(layout::UpdateTrackers),
 }
 
 impl Rpc for SystemRpc {
@@ -725,6 +730,14 @@ impl EndpointHandler<SystemRpc> for System {
 			SystemRpc::AdvertiseClusterLayout(adv) => {
 				self.layout_manager
 					.handle_advertise_cluster_layout(adv)
+					.await
+			}
+			SystemRpc::PullClusterLayoutTrackers => {
+				Ok(self.layout_manager.handle_pull_cluster_layout_trackers())
+			}
+			SystemRpc::AdvertiseClusterLayoutTrackers(adv) => {
+				self.layout_manager
+					.handle_advertise_cluster_layout_trackers(adv)
 					.await
 			}
 
