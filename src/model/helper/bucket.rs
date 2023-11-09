@@ -450,10 +450,8 @@ impl<'a> BucketHelper<'a> {
 
 		#[cfg(feature = "k2v")]
 		{
-			use garage_rpc::layout::LayoutHistory;
-			use std::sync::Arc;
-
-			let layout: Arc<LayoutHistory> = self.0.system.cluster_layout().clone();
+			// TODO: not only current
+			let node_id_vec = self.0.system.cluster_layout().current().node_ids().to_vec();
 			let k2vindexes = self
 				.0
 				.k2v
@@ -462,10 +460,7 @@ impl<'a> BucketHelper<'a> {
 				.get_range(
 					&bucket_id,
 					None,
-					Some((
-						DeletedFilter::NotDeleted,
-						layout.current().node_id_vec.clone(),
-					)),
+					Some((DeletedFilter::NotDeleted, node_id_vec)),
 					10,
 					EnumerationOrder::Forward,
 				)

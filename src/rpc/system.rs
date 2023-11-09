@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
@@ -13,7 +13,7 @@ use futures::join;
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::sign::ed25519;
 use tokio::select;
-use tokio::sync::watch;
+use tokio::sync::{watch, Notify};
 
 use netapp::endpoint::{Endpoint, EndpointHandler};
 use netapp::message::*;
@@ -68,7 +68,7 @@ pub enum SystemRpc {
 	/// Ask other node its cluster layout. Answered with AdvertiseClusterLayout
 	PullClusterLayout,
 	/// Advertisement of cluster layout. Sent spontanously or in response to PullClusterLayout
-	AdvertiseClusterLayout(Arc<LayoutHistory>),
+	AdvertiseClusterLayout(LayoutHistory),
 }
 
 impl Rpc for SystemRpc {
@@ -345,12 +345,12 @@ impl System {
 
 	// ---- Public utilities / accessors ----
 
-	pub fn cluster_layout(&self) -> watch::Ref<Arc<LayoutHistory>> {
+	pub fn cluster_layout(&self) -> RwLockReadGuard<'_, LayoutHistory> {
 		self.layout_manager.layout()
 	}
 
-	pub fn layout_watch(&self) -> watch::Receiver<Arc<LayoutHistory>> {
-		self.layout_manager.layout_watch.clone()
+	pub fn layout_notify(&self) -> Arc<Notify> {
+		self.layout_manager.change_notify.clone()
 	}
 
 	pub fn rpc_helper(&self) -> &RpcHelper {
@@ -412,7 +412,6 @@ impl System {
 	}
 
 	pub fn health(&self) -> ClusterHealth {
-		let layout: Arc<_> = self.cluster_layout().clone();
 		let quorum = self.replication_mode.write_quorum();
 		let replication_factor = self.replication_factor;
 
@@ -422,6 +421,8 @@ impl System {
 			.map(|n| (n.id, n))
 			.collect::<HashMap<Uuid, _>>();
 		let connected_nodes = nodes.iter().filter(|(_, n)| n.is_up).count();
+
+		let layout = self.cluster_layout(); // acquires a rwlock
 
 		// TODO: not only layout.current()
 		let storage_nodes = layout

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bytesize::ByteSize;
 
 use format_table::format_table;
@@ -323,7 +321,7 @@ pub async fn fetch_layout(
 		.call(&rpc_host, SystemRpc::PullClusterLayout, PRIO_NORMAL)
 		.await??
 	{
-		SystemRpc::AdvertiseClusterLayout(t) => Ok(Arc::try_unwrap(t).unwrap()),
+		SystemRpc::AdvertiseClusterLayout(t) => Ok(t),
 		resp => Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
 	}
 }
@@ -336,7 +334,7 @@ pub async fn send_layout(
 	rpc_cli
 		.call(
 			&rpc_host,
-			SystemRpc::AdvertiseClusterLayout(Arc::new(layout)),
+			SystemRpc::AdvertiseClusterLayout(layout),
 			PRIO_NORMAL,
 		)
 		.await??;
