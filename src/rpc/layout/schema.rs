@@ -375,14 +375,17 @@ impl UpdateTracker {
 		changed
 	}
 
-	pub(crate) fn set_max(&mut self, peer: Uuid, value: u64) {
+	pub(crate) fn set_max(&mut self, peer: Uuid, value: u64) -> bool {
 		match self.0.get_mut(&peer) {
-			Some(e) => {
-				*e = std::cmp::max(*e, value);
+			Some(e) if *e < value => {
+				*e = value;
+				true
 			}
 			None => {
 				self.0.insert(peer, value);
+				true
 			}
+			_ => false,
 		}
 	}
 }

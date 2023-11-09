@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,8 @@ pub struct LayoutManager {
 
 	layout: Arc<RwLock<LayoutHistory>>,
 	pub(crate) change_notify: Arc<Notify>,
+
+	table_sync_version: Mutex<HashMap<String, u64>>,
 
 	pub(crate) rpc_helper: RpcHelper,
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
@@ -115,6 +118,34 @@ impl LayoutManager {
 	) -> Result<(), Error> {
 		self.handle_advertise_cluster_layout(layout).await?;
 		Ok(())
+	}
+
+	pub fn add_table(&self, table_name: &'static str) {
+		let first_version = self.layout().versions.first().unwrap().version;
+
+		self.table_sync_version
+			.lock()
+			.unwrap()
+			.insert(table_name.to_string(), first_version);
+	}
+
+	pub fn sync_table_until(self: &Arc<Self>, table_name: &'static str, version: u64) {
+		let mut table_sync_version = self.table_sync_version.lock().unwrap();
+		*table_sync_version.get_mut(table_name).unwrap() = version;
+		let sync_until = table_sync_version.iter().map(|(_, v)| *v).max().unwrap();
+		drop(table_sync_version);
+
+		let mut layout = self.layout.write().unwrap();
+		if layout
+			.update_trackers
+			.sync_map
+			.set_max(self.node_id, sync_until)
+		{
+			layout.update_hashes();
+			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(
+				layout.update_trackers.clone(),
+			));
+		}
 	}
 
 	// ---- INTERNALS ---

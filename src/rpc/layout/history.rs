@@ -32,14 +32,6 @@ impl LayoutHistory {
 		self.versions.last().as_ref().unwrap()
 	}
 
-	pub fn all_storage_nodes(&self) -> HashSet<Uuid> {
-		self.versions
-			.iter()
-			.map(|x| x.nongateway_nodes())
-			.flatten()
-			.collect::<HashSet<_>>()
-	}
-
 	pub fn update_hashes(&mut self) {
 		self.trackers_hash = self.calculate_trackers_hash();
 		self.staging_hash = self.calculate_staging_hash();
@@ -51,6 +43,39 @@ impl LayoutHistory {
 
 	pub(crate) fn calculate_staging_hash(&self) -> Hash {
 		blake2sum(&nonversioned_encode(&self.staging).unwrap()[..])
+	}
+
+	// ------------------ who stores what now? ---------------
+
+	pub fn max_ack(&self) -> u64 {
+		self.calculate_global_min(&self.update_trackers.ack_map)
+	}
+
+	pub fn all_storage_nodes(&self) -> HashSet<Uuid> {
+		// TODO: cache this
+		self.versions
+			.iter()
+			.map(|x| x.nongateway_nodes())
+			.flatten()
+			.collect::<HashSet<_>>()
+	}
+
+	pub fn read_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
+		let sync_min = self.calculate_global_min(&self.update_trackers.sync_map);
+		let version = self
+			.versions
+			.iter()
+			.find(|x| x.version == sync_min)
+			.or(self.versions.last())
+			.unwrap();
+		version.nodes_of(position, version.replication_factor)
+	}
+
+	pub fn write_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
+		self.versions
+			.iter()
+			.map(|x| x.nodes_of(position, x.replication_factor))
+			.collect::<Vec<_>>()
 	}
 
 	// ------------------ update tracking ---------------

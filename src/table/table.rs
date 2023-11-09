@@ -80,6 +80,8 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		let syncer = TableSyncer::new(system.clone(), data.clone(), merkle_updater.clone());
 		let gc = TableGc::new(system.clone(), data.clone());
 
+		system.layout_manager.add_table(F::TABLE_NAME);
+
 		let table = Arc::new(Self {
 			system,
 			data,

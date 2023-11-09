@@ -109,7 +109,7 @@ impl LayoutVersion {
 			.collect::<Vec<_>>()
 	}
 
-	/// Walk the ring to find the n servers in which data should be replicated
+	/// Return the n servers in which data for this hash should be replicated
 	pub fn nodes_of(&self, position: &Hash, n: usize) -> Vec<Uuid> {
 		assert_eq!(n, self.replication_factor);
 
