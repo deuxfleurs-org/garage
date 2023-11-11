@@ -18,7 +18,7 @@ impl LayoutHistory {
 		};
 
 		let mut ret = LayoutHistory {
-			versions: vec![version].into_boxed_slice().into(),
+			versions: vec![version],
 			update_trackers: Default::default(),
 			trackers_hash: [0u8; 32].into(),
 			staging: Lww::raw(0, staging),
@@ -211,6 +211,11 @@ To know the correct value of the new layout version, invoke `garage layout show`
 
 		let msg = new_version.calculate_partition_assignment()?;
 		self.versions.push(new_version);
+		if self.current().check().is_ok() {
+			while self.versions.first().unwrap().check().is_err() {
+				self.versions.remove(0);
+			}
+		}
 
 		// Reset the staged layout changes
 		self.staging.update(LayoutStaging {
@@ -245,7 +250,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 			version.check()?;
 		}
 
-		// TODO: anythign more ?
+		// TODO: anything more ?
 		Ok(())
 	}
 }

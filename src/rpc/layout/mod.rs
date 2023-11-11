@@ -3,6 +3,9 @@ mod history;
 mod schema;
 mod version;
 
+#[cfg(test)]
+mod test;
+
 pub mod manager;
 
 // ---- re-exports ----
