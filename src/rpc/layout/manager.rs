@@ -92,6 +92,7 @@ impl LayoutManager {
 			persist_cluster_layout,
 			layout,
 			change_notify,
+			table_sync_version: Mutex::new(HashMap::new()),
 			system_endpoint,
 			rpc_helper,
 		}))

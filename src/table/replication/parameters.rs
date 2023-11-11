@@ -20,6 +20,21 @@ pub trait TableReplication: Send + Sync + 'static {
 	// Accessing partitions, for Merkle tree & sync
 	/// Get partition for data with given hash
 	fn partition_of(&self, hash: &Hash) -> Partition;
-	/// List of existing partitions
-	fn partitions(&self) -> Vec<(Partition, Hash)>;
+
+	/// List of partitions and nodes to sync with in current layout
+	fn sync_partitions(&self) -> SyncPartitions;
+}
+
+#[derive(Debug)]
+pub struct SyncPartitions {
+	pub layout_version: u64,
+	pub partitions: Vec<SyncPartition>,
+}
+
+#[derive(Debug)]
+pub struct SyncPartition {
+	pub partition: Partition,
+	pub first_hash: Hash,
+	pub last_hash: Hash,
+	pub storage_nodes: Vec<Uuid>,
 }

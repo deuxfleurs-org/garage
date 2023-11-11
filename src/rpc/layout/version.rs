@@ -98,15 +98,13 @@ impl LayoutVersion {
 	}
 
 	/// Get the list of partitions and the first hash of a partition key that would fall in it
-	pub fn partitions(&self) -> Vec<(Partition, Hash)> {
-		(0..(1 << PARTITION_BITS))
-			.map(|i| {
-				let top = (i as u16) << (16 - PARTITION_BITS);
-				let mut location = [0u8; 32];
-				location[..2].copy_from_slice(&u16::to_be_bytes(top)[..]);
-				(i as u16, Hash::from(location))
-			})
-			.collect::<Vec<_>>()
+	pub fn partitions(&self) -> impl Iterator<Item = (Partition, Hash)> + '_ {
+		(0..(1 << PARTITION_BITS)).map(|i| {
+			let top = (i as u16) << (16 - PARTITION_BITS);
+			let mut location = [0u8; 32];
+			location[..2].copy_from_slice(&u16::to_be_bytes(top)[..]);
+			(i as u16, Hash::from(location))
+		})
 	}
 
 	/// Return the n servers in which data for this hash should be replicated

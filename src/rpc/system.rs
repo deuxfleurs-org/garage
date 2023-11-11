@@ -442,7 +442,7 @@ impl System {
 			.filter(|(x, _, _)| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
 			.count();
 
-		let partitions = layout.current().partitions();
+		let partitions = layout.current().partitions().collect::<Vec<_>>();
 		let partitions_n_up = partitions
 			.iter()
 			.map(|(_, h)| {

@@ -47,11 +47,19 @@ impl LayoutHistory {
 
 	// ------------------ who stores what now? ---------------
 
-	pub fn max_ack(&self) -> u64 {
+	pub fn all_ack(&self) -> u64 {
 		self.calculate_global_min(&self.update_trackers.ack_map)
 	}
 
-	pub fn all_storage_nodes(&self) -> HashSet<Uuid> {
+	pub fn min_stored(&self) -> u64 {
+		self.versions.first().as_ref().unwrap().version
+	}
+
+	pub fn sync_versions(&self) -> (u64, u64, u64) {
+		(self.current().version, self.all_ack(), self.min_stored())
+	}
+
+	pub fn all_nongateway_nodes(&self) -> HashSet<Uuid> {
 		// TODO: cache this
 		self.versions
 			.iter()
@@ -71,11 +79,10 @@ impl LayoutHistory {
 		version.nodes_of(position, version.replication_factor)
 	}
 
-	pub fn write_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
+	pub fn write_sets_of<'a>(&'a self, position: &'a Hash) -> impl Iterator<Item = Vec<Uuid>> + 'a {
 		self.versions
 			.iter()
-			.map(|x| x.nodes_of(position, x.replication_factor))
-			.collect::<Vec<_>>()
+			.map(move |x| x.nodes_of(position, x.replication_factor))
 	}
 
 	// ------------------ update tracking ---------------
@@ -129,7 +136,9 @@ impl LayoutHistory {
 	}
 
 	pub(crate) fn calculate_global_min(&self, tracker: &UpdateTracker) -> u64 {
-		let storage_nodes = self.all_storage_nodes();
+		// TODO: for TableFullReplication, counting gateway nodes might be
+		// necessary? Think about this more.
+		let storage_nodes = self.all_nongateway_nodes();
 		storage_nodes
 			.iter()
 			.map(|x| tracker.0.get(x).copied().unwrap_or(0))
