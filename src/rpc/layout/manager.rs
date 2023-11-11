@@ -133,7 +133,7 @@ impl LayoutManager {
 	pub fn sync_table_until(self: &Arc<Self>, table_name: &'static str, version: u64) {
 		let mut table_sync_version = self.table_sync_version.lock().unwrap();
 		*table_sync_version.get_mut(table_name).unwrap() = version;
-		let sync_until = table_sync_version.iter().map(|(_, v)| *v).max().unwrap();
+		let sync_until = table_sync_version.iter().map(|(_, v)| *v).min().unwrap();
 		drop(table_sync_version);
 
 		let mut layout = self.layout.write().unwrap();
@@ -142,6 +142,7 @@ impl LayoutManager {
 			.sync_map
 			.set_max(self.node_id, sync_until)
 		{
+			debug!("sync_until updated to {}", sync_until);
 			layout.update_hashes();
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(
 				layout.update_trackers.clone(),
@@ -277,7 +278,12 @@ impl LayoutManager {
 		self: &Arc<Self>,
 		adv: &LayoutHistory,
 	) -> Result<SystemRpc, Error> {
-		debug!("handle_advertise_cluster_layout: {:?}", adv);
+		debug!(
+			"handle_advertise_cluster_layout: {} versions, last={}, trackers={:?}",
+			adv.versions.len(),
+			adv.current().version,
+			adv.update_trackers
+		);
 
 		if adv.current().replication_factor != self.replication_factor {
 			let msg = format!(

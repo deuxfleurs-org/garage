@@ -131,7 +131,8 @@ impl LayoutHistory {
 	pub(crate) fn cleanup_old_versions(&mut self) {
 		let min_sync_ack = self.calculate_global_min(&self.update_trackers.sync_ack_map);
 		while self.versions.first().as_ref().unwrap().version < min_sync_ack {
-			self.versions.remove(0);
+			let removed = self.versions.remove(0);
+			info!("Layout history: pruning old version {}", removed.version);
 		}
 	}
 
