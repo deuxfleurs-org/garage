@@ -417,6 +417,9 @@ impl System {
 	}
 
 	pub fn health(&self) -> ClusterHealth {
+		// TODO: adapt this function to take into account layout history
+		// when estimating cluster health, and not just use current layout
+
 		let quorum = self.replication_mode.write_quorum();
 		let replication_factor = self.replication_factor;
 
@@ -429,7 +432,6 @@ impl System {
 
 		let layout = self.cluster_layout(); // acquires a rwlock
 
-		// TODO: not only layout.current()
 		let storage_nodes = layout
 			.current()
 			.roles
