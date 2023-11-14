@@ -212,6 +212,8 @@ mod v010 {
 
 		/// see comment in v08::ClusterLayout
 		pub node_id_vec: Vec<Uuid>,
+		/// number of non-gateway nodes, which are the first ids in node_id_vec
+		pub nongateway_node_count: usize,
 		/// see comment in v08::ClusterLayout
 		#[serde(with = "serde_bytes")]
 		pub ring_assignment_data: Vec<CompactNodeType>,
@@ -265,6 +267,18 @@ mod v010 {
 		type Previous = v09::ClusterLayout;
 
 		fn migrate(previous: Self::Previous) -> Self {
+			let nongateway_node_count = previous
+				.node_id_vec
+				.iter()
+				.enumerate()
+				.filter(|(_, uuid)| {
+					let role = previous.roles.get(uuid);
+					matches!(role, Some(NodeRoleV(Some(role))) if role.capacity.is_some())
+				})
+				.map(|(i, _)| i)
+				.max()
+				.unwrap_or(0);
+
 			let version = LayoutVersion {
 				version: previous.version,
 				replication_factor: previous.replication_factor,
@@ -272,11 +286,14 @@ mod v010 {
 				parameters: previous.parameters,
 				roles: previous.roles,
 				node_id_vec: previous.node_id_vec,
+				nongateway_node_count,
 				ring_assignment_data: previous.ring_assignment_data,
 			};
 			let update_tracker = UpdateTracker(
 				version
 					.nongateway_nodes()
+					.iter()
+					.copied()
 					.map(|x| (x, version.version))
 					.collect::<BTreeMap<Uuid, u64>>(),
 			);

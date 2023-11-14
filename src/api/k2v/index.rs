@@ -25,8 +25,11 @@ pub async fn handle_read_index(
 ) -> Result<Response<Body>, Error> {
 	let reverse = reverse.unwrap_or(false);
 
-	// TODO: not only current
-	let node_id_vec = garage.system.cluster_layout().current().node_ids().to_vec();
+	let node_id_vec = garage
+		.system
+		.cluster_layout()
+		.all_nongateway_nodes()
+		.into_owned();
 
 	let (partition_keys, more, next_start) = read_range(
 		&garage.k2v.counter_table.table,

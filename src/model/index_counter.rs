@@ -84,8 +84,8 @@ impl<T: CountedItem> Entry<T::CP, T::CS> for CounterEntry<T> {
 
 impl<T: CountedItem> CounterEntry<T> {
 	pub fn filtered_values(&self, layout: &LayoutHistory) -> HashMap<String, i64> {
-		let nodes = &layout.current().node_id_vec[..];
-		self.filtered_values_with_nodes(nodes)
+		let nodes = layout.all_nongateway_nodes();
+		self.filtered_values_with_nodes(&nodes)
 	}
 
 	pub fn filtered_values_with_nodes(&self, nodes: &[Uuid]) -> HashMap<String, i64> {

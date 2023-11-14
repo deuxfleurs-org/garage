@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 use garage_util::crdt::{Crdt, Lww, LwwMap};
@@ -59,13 +60,19 @@ impl LayoutHistory {
 		(self.current().version, self.all_ack(), self.min_stored())
 	}
 
-	pub fn all_nongateway_nodes(&self) -> HashSet<Uuid> {
+	pub fn all_nongateway_nodes(&self) -> Cow<'_, [Uuid]> {
 		// TODO: cache this
-		self.versions
-			.iter()
-			.map(|x| x.nongateway_nodes())
-			.flatten()
-			.collect::<HashSet<_>>()
+		if self.versions.len() == 1 {
+			self.versions[0].nongateway_nodes().into()
+		} else {
+			let set = self
+				.versions
+				.iter()
+				.map(|x| x.nongateway_nodes())
+				.flatten()
+				.collect::<HashSet<_>>();
+			set.into_iter().copied().collect::<Vec<_>>().into()
+		}
 	}
 
 	pub fn read_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
@@ -202,14 +209,11 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		// Compute new version and add it to history
-		let mut new_version = self.current().clone();
-		new_version.version += 1;
+		let (new_version, msg) = self
+			.current()
+			.clone()
+			.calculate_next_version(&self.staging.get())?;
 
-		new_version.roles.merge(&self.staging.get().roles);
-		new_version.roles.retain(|(_, _, v)| v.0.is_some());
-		new_version.parameters = *self.staging.get().parameters.get();
-
-		let msg = new_version.calculate_partition_assignment()?;
 		self.versions.push(new_version);
 		if self.current().check().is_ok() {
 			while self.versions.first().unwrap().check().is_err() {
