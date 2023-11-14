@@ -6,21 +6,23 @@ pub trait TableReplication: Send + Sync + 'static {
 	// See examples in table_sharded.rs and table_fullcopy.rs
 	// To understand various replication methods
 
+	/// The entire list of all nodes that store a partition
+	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid>;
+
 	/// Which nodes to send read requests to
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid>;
 	/// Responses needed to consider a read succesfull
 	fn read_quorum(&self) -> usize;
 
 	/// Which nodes to send writes to
-	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid>;
-	/// Responses needed to consider a write succesfull
+	fn write_sets(&self, hash: &Hash) -> Vec<Vec<Uuid>>;
+	/// Responses needed to consider a write succesfull in each set
 	fn write_quorum(&self) -> usize;
 	fn max_write_errors(&self) -> usize;
 
 	// Accessing partitions, for Merkle tree & sync
 	/// Get partition for data with given hash
 	fn partition_of(&self, hash: &Hash) -> Partition;
-
 	/// List of partitions and nodes to sync with in current layout
 	fn sync_partitions(&self) -> SyncPartitions;
 }

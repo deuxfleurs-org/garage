@@ -449,8 +449,7 @@ impl System {
 			.iter()
 			.map(|(_, h)| {
 				let pn = layout.current().nodes_of(h, replication_factor);
-				pn.iter()
-					.filter(|x| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
+				pn.filter(|x| nodes.get(x).map(|n| n.is_up).unwrap_or(false))
 					.count()
 			})
 			.collect::<Vec<usize>>();

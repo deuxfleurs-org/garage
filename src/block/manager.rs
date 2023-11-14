@@ -354,7 +354,8 @@ impl BlockManager {
 
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(&self, hash: Hash, data: Bytes) -> Result<(), Error> {
-		let who = self.replication.write_nodes(&hash);
+		// TODO: use quorums among latest write set
+		let who = self.replication.storage_nodes(&hash);
 
 		let (header, bytes) = DataBlock::from_buffer(data, self.compression_level)
 			.await

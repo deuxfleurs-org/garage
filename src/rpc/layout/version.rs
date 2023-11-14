@@ -107,25 +107,24 @@ impl LayoutVersion {
 	}
 
 	/// Return the n servers in which data for this hash should be replicated
-	pub fn nodes_of(&self, position: &Hash, n: usize) -> Vec<Uuid> {
+	pub fn nodes_of(&self, position: &Hash, n: usize) -> impl Iterator<Item = Uuid> + '_ {
 		assert_eq!(n, self.replication_factor);
 
 		let data = &self.ring_assignment_data;
 
-		if data.len() != self.replication_factor * (1 << PARTITION_BITS) {
+		let partition_nodes = if data.len() == self.replication_factor * (1 << PARTITION_BITS) {
+			let partition_idx = self.partition_of(position) as usize;
+			let partition_start = partition_idx * self.replication_factor;
+			let partition_end = (partition_idx + 1) * self.replication_factor;
+			&data[partition_start..partition_end]
+		} else {
 			warn!("Ring not yet ready, read/writes will be lost!");
-			return vec![];
-		}
-
-		let partition_idx = self.partition_of(position) as usize;
-		let partition_start = partition_idx * self.replication_factor;
-		let partition_end = (partition_idx + 1) * self.replication_factor;
-		let partition_nodes = &data[partition_start..partition_end];
+			&[]
+		};
 
 		partition_nodes
 			.iter()
-			.map(|i| self.node_id_vec[*i as usize])
-			.collect::<Vec<_>>()
+			.map(move |i| self.node_id_vec[*i as usize])
 	}
 
 	// ===================== internal information extractors ======================

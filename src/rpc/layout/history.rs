@@ -98,13 +98,26 @@ impl LayoutHistory {
 			.find(|x| x.version == sync_min)
 			.or(self.versions.last())
 			.unwrap();
-		version.nodes_of(position, version.replication_factor)
+		version
+			.nodes_of(position, version.replication_factor)
+			.collect()
 	}
 
-	pub fn write_sets_of<'a>(&'a self, position: &'a Hash) -> impl Iterator<Item = Vec<Uuid>> + 'a {
+	pub fn write_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
 		self.versions
 			.iter()
-			.map(move |x| x.nodes_of(position, x.replication_factor))
+			.map(|x| x.nodes_of(position, x.replication_factor).collect())
+			.collect()
+	}
+
+	pub fn storage_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
+		let mut ret = vec![];
+		for version in self.versions.iter() {
+			ret.extend(version.nodes_of(position, version.replication_factor));
+		}
+		ret.sort();
+		ret.dedup();
+		ret
 	}
 
 	// ------------------ update tracking ---------------

@@ -127,7 +127,7 @@ impl K2VRpcHandler {
 			.item_table
 			.data
 			.replication
-			.write_nodes(&partition.hash());
+			.storage_nodes(&partition.hash());
 		who.sort();
 
 		self.system
@@ -168,7 +168,7 @@ impl K2VRpcHandler {
 				.item_table
 				.data
 				.replication
-				.write_nodes(&partition.hash());
+				.storage_nodes(&partition.hash());
 			who.sort();
 
 			call_list.entry(who).or_default().push(InsertedItem {
@@ -223,11 +223,12 @@ impl K2VRpcHandler {
 			},
 			sort_key,
 		};
+		// TODO figure this out with write sets, does it still work????
 		let nodes = self
 			.item_table
 			.data
 			.replication
-			.write_nodes(&poll_key.partition.hash());
+			.read_nodes(&poll_key.partition.hash());
 
 		let rpc = self.system.rpc_helper().try_call_many(
 			&self.endpoint,
@@ -284,11 +285,12 @@ impl K2VRpcHandler {
 		seen.restrict(&range);
 
 		// Prepare PollRange RPC to send to the storage nodes responsible for the parititon
+		// TODO figure this out with write sets, does it still work????
 		let nodes = self
 			.item_table
 			.data
 			.replication
-			.write_nodes(&range.partition.hash());
+			.read_nodes(&range.partition.hash());
 		let quorum = self.item_table.data.replication.read_quorum();
 		let msg = K2VRpc::PollRange {
 			range,

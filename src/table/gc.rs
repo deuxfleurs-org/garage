@@ -152,7 +152,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		let mut partitions = HashMap::new();
 		for entry in entries {
 			let pkh = Hash::try_from(&entry.key[..32]).unwrap();
-			let mut nodes = self.data.replication.write_nodes(&pkh);
+			let mut nodes = self.data.replication.storage_nodes(&pkh);
 			nodes.retain(|x| *x != self.system.id);
 			nodes.sort();
 

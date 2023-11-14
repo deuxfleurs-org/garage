@@ -119,7 +119,8 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 	async fn insert_internal(&self, e: &F::E) -> Result<(), Error> {
 		let hash = e.partition_key().hash();
-		let who = self.data.replication.write_nodes(&hash);
+		// TODO: use write sets
+		let who = self.data.replication.storage_nodes(&hash);
 
 		let e_enc = Arc::new(ByteBuf::from(e.encode()?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
@@ -171,7 +172,8 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		for entry in entries.into_iter() {
 			let entry = entry.borrow();
 			let hash = entry.partition_key().hash();
-			let who = self.data.replication.write_nodes(&hash);
+			// TODO: use write sets
+			let who = self.data.replication.storage_nodes(&hash);
 			let e_enc = Arc::new(ByteBuf::from(entry.encode()?));
 			for node in who {
 				call_list.entry(node).or_default().push(e_enc.clone());

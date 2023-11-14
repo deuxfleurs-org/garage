@@ -176,7 +176,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 				let nodes = self
 					.data
 					.replication
-					.write_nodes(begin)
+					.storage_nodes(begin)
 					.into_iter()
 					.collect::<Vec<_>>();
 				if nodes.contains(&self.system.id) {

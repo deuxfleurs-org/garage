@@ -25,21 +25,19 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
+	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {
+		self.system.cluster_layout().storage_nodes_of(hash)
+	}
+
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system
-			.cluster_layout()
-			.current()
-			.nodes_of(hash, self.replication_factor)
+		self.system.cluster_layout().read_nodes_of(hash)
 	}
 	fn read_quorum(&self) -> usize {
 		self.read_quorum
 	}
 
-	fn write_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system
-			.cluster_layout()
-			.current()
-			.nodes_of(hash, self.replication_factor)
+	fn write_sets(&self, hash: &Hash) -> Vec<Vec<Uuid>> {
+		self.system.cluster_layout().write_sets_of(hash)
 	}
 	fn write_quorum(&self) -> usize {
 		self.write_quorum
@@ -60,13 +58,7 @@ impl TableReplication for TableShardedReplication {
 			.current()
 			.partitions()
 			.map(|(partition, first_hash)| {
-				let mut storage_nodes = layout
-					.write_sets_of(&first_hash)
-					.map(|x| x.into_iter())
-					.flatten()
-					.collect::<Vec<_>>();
-				storage_nodes.sort();
-				storage_nodes.dedup();
+				let storage_nodes = layout.storage_nodes_of(&first_hash);
 				SyncPartition {
 					partition,
 					first_hash,

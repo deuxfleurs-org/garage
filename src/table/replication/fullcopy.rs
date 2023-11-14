@@ -27,6 +27,11 @@ pub struct TableFullReplication {
 }
 
 impl TableReplication for TableFullReplication {
+	fn storage_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
+		let layout = self.system.cluster_layout();
+		layout.current().all_nodes().to_vec()
+	}
+
 	fn read_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		vec![self.system.id]
 	}
@@ -34,8 +39,8 @@ impl TableReplication for TableFullReplication {
 		1
 	}
 
-	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().current().all_nodes().to_vec()
+	fn write_sets(&self, hash: &Hash) -> Vec<Vec<Uuid>> {
+		vec![self.storage_nodes(hash)]
 	}
 	fn write_quorum(&self) -> usize {
 		let nmembers = self.system.cluster_layout().current().all_nodes().len();
