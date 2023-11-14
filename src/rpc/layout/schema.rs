@@ -193,7 +193,25 @@ mod v010 {
 	use std::collections::BTreeMap;
 	pub use v09::{LayoutParameters, NodeRole, NodeRoleV, ZoneRedundancy};
 
-	/// The layout of the cluster, i.e. the list of roles
+	/// The history of cluster layouts, with trackers to keep a record
+	/// of which nodes are up-to-date to current cluster data
+	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+	pub struct LayoutHistory {
+		/// The versions currently in use in the cluster
+		pub versions: Vec<LayoutVersion>,
+
+		/// Update trackers
+		pub update_trackers: UpdateTrackers,
+		/// Hash of the update trackers
+		pub trackers_hash: Hash,
+
+		/// Staged changes for the next version
+		pub staging: Lww<LayoutStaging>,
+		/// Hash of the serialized staging_parameters + staging_roles
+		pub staging_hash: Hash,
+	}
+
+	/// A version of the layout of the cluster, i.e. the list of roles
 	/// which are assigned to each cluster node
 	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 	pub struct LayoutVersion {
@@ -228,23 +246,6 @@ mod v010 {
 		pub roles: LwwMap<Uuid, NodeRoleV>,
 	}
 
-	/// The history of cluster layouts
-	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-	pub struct LayoutHistory {
-		/// The versions currently in use in the cluster
-		pub versions: Vec<LayoutVersion>,
-
-		/// Update trackers
-		pub update_trackers: UpdateTrackers,
-		/// Hash of the update trackers
-		pub trackers_hash: Hash,
-
-		/// Staged changes for the next version
-		pub staging: Lww<LayoutStaging>,
-		/// Hash of the serialized staging_parameters + staging_roles
-		pub staging_hash: Hash,
-	}
-
 	/// The tracker of acknowlegments and data syncs around the cluster
 	#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 	pub struct UpdateTrackers {
@@ -275,7 +276,7 @@ mod v010 {
 					let role = previous.roles.get(uuid);
 					matches!(role, Some(NodeRoleV(Some(role))) if role.capacity.is_some())
 				})
-				.map(|(i, _)| i)
+				.map(|(i, _)| i + 1)
 				.max()
 				.unwrap_or(0);
 
@@ -312,8 +313,7 @@ mod v010 {
 				staging: Lww::raw(previous.version, staging),
 				staging_hash: [0u8; 32].into(),
 			};
-			ret.staging_hash = ret.calculate_staging_hash();
-			ret.trackers_hash = ret.calculate_trackers_hash();
+			ret.update_hashes();
 			ret
 		}
 	}
