@@ -434,7 +434,7 @@ impl BlockResyncManager {
 					.rpc_helper()
 					.try_call_many(
 						&manager.endpoint,
-						&need_nodes[..],
+						&need_nodes,
 						put_block_message,
 						RequestStrategy::with_priority(PRIO_BACKGROUND)
 							.with_quorum(need_nodes.len()),

@@ -134,16 +134,14 @@ impl K2VRpcHandler {
 			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&who[..],
+				&who,
 				K2VRpc::InsertItem(InsertedItem {
 					partition,
 					sort_key,
 					causal_context,
 					value,
 				}),
-				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(1)
-					.interrupt_after_quorum(true),
+				RequestStrategy::with_priority(PRIO_NORMAL).with_quorum(1),
 			)
 			.await?;
 
@@ -192,9 +190,7 @@ impl K2VRpcHandler {
 					&self.endpoint,
 					&nodes[..],
 					K2VRpc::InsertManyItems(items),
-					RequestStrategy::with_priority(PRIO_NORMAL)
-						.with_quorum(1)
-						.interrupt_after_quorum(true),
+					RequestStrategy::with_priority(PRIO_NORMAL).with_quorum(1),
 				)
 				.await?;
 			Ok::<_, Error>((nodes, resp))
@@ -223,7 +219,7 @@ impl K2VRpcHandler {
 			},
 			sort_key,
 		};
-		// TODO figure this out with write sets, does it still work????
+		// TODO figure this out with write sets, is it still appropriate???
 		let nodes = self
 			.item_table
 			.data
@@ -232,7 +228,7 @@ impl K2VRpcHandler {
 
 		let rpc = self.system.rpc_helper().try_call_many(
 			&self.endpoint,
-			&nodes[..],
+			&nodes,
 			K2VRpc::PollItem {
 				key: poll_key,
 				causal_context,
@@ -240,6 +236,7 @@ impl K2VRpcHandler {
 			},
 			RequestStrategy::with_priority(PRIO_NORMAL)
 				.with_quorum(self.item_table.data.replication.read_quorum())
+				.send_all_at_once(true)
 				.without_timeout(),
 		);
 		let timeout_duration =

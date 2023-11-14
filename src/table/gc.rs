@@ -230,7 +230,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&nodes[..],
+				&nodes,
 				GcRpc::Update(updates),
 				RequestStrategy::with_priority(PRIO_BACKGROUND).with_quorum(nodes.len()),
 			)
@@ -251,7 +251,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&nodes[..],
+				&nodes,
 				GcRpc::DeleteIfEqualHash(deletes),
 				RequestStrategy::with_priority(PRIO_BACKGROUND).with_quorum(nodes.len()),
 			)

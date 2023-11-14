@@ -354,8 +354,7 @@ impl BlockManager {
 
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(&self, hash: Hash, data: Bytes) -> Result<(), Error> {
-		// TODO: use quorums among latest write set
-		let who = self.replication.storage_nodes(&hash);
+		let who = self.replication.write_sets(&hash);
 
 		let (header, bytes) = DataBlock::from_buffer(data, self.compression_level)
 			.await
@@ -365,9 +364,9 @@ impl BlockManager {
 
 		self.system
 			.rpc_helper()
-			.try_call_many(
+			.try_write_many_sets(
 				&self.endpoint,
-				&who[..],
+				&who,
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_quorum(self.replication.write_quorum()),

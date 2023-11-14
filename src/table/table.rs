@@ -119,17 +119,16 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 	async fn insert_internal(&self, e: &F::E) -> Result<(), Error> {
 		let hash = e.partition_key().hash();
-		// TODO: use write sets
-		let who = self.data.replication.storage_nodes(&hash);
+		let who = self.data.replication.write_sets(&hash);
 
 		let e_enc = Arc::new(ByteBuf::from(e.encode()?));
 		let rpc = TableRpc::<F>::Update(vec![e_enc]);
 
 		self.system
 			.rpc_helper()
-			.try_call_many(
+			.try_write_many_sets(
 				&self.endpoint,
-				&who[..],
+				&who,
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.write_quorum()),
@@ -243,11 +242,10 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&who[..],
+				&who,
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(self.data.replication.read_quorum())
-					.interrupt_after_quorum(true),
+					.with_quorum(self.data.replication.read_quorum()),
 			)
 			.await?;
 
@@ -339,11 +337,10 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&who[..],
+				&who,
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(self.data.replication.read_quorum())
-					.interrupt_after_quorum(true),
+					.with_quorum(self.data.replication.read_quorum()),
 			)
 			.await?;
 
