@@ -450,8 +450,12 @@ impl<'a> BucketHelper<'a> {
 
 		#[cfg(feature = "k2v")]
 		{
-			// TODO: not only current
-			let node_id_vec = self.0.system.cluster_layout().current().node_ids().to_vec();
+			let node_id_vec = self
+				.0
+				.system
+				.cluster_layout()
+				.all_nongateway_nodes()
+				.into_owned();
 			let k2vindexes = self
 				.0
 				.k2v

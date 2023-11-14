@@ -49,6 +49,7 @@ pub async fn cmd_assign_role(
 	};
 
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+	let all_nodes = layout.all_nodes().into_owned();
 
 	let added_nodes = args
 		.node_ids
@@ -58,7 +59,7 @@ pub async fn cmd_assign_role(
 				status
 					.iter()
 					.map(|adv| adv.id)
-					.chain(layout.current().node_ids().iter().cloned()),
+					.chain(all_nodes.iter().cloned()),
 				node_id,
 			)
 		})
@@ -68,8 +69,7 @@ pub async fn cmd_assign_role(
 	roles.merge(&layout.staging.get().roles);
 
 	for replaced in args.replace.iter() {
-		let replaced_node =
-			find_matching_node(layout.current().node_ids().iter().cloned(), replaced)?;
+		let replaced_node = find_matching_node(all_nodes.iter().cloned(), replaced)?;
 		match roles.get(&replaced_node) {
 			Some(NodeRoleV(Some(_))) => {
 				layout

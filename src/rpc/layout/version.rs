@@ -38,22 +38,19 @@ impl LayoutVersion {
 
 	// ===================== accessors ======================
 
-	/// Returns a list of IDs of nodes that currently have
-	/// a role in the cluster
-	pub fn node_ids(&self) -> &[Uuid] {
+	/// Returns a list of IDs of nodes that have a role in this
+	/// version of the cluster layout, including gateway nodes
+	pub fn all_nodes(&self) -> &[Uuid] {
 		&self.node_id_vec[..]
 	}
 
-	/// Returns the uuids of the non_gateway nodes in self.node_id_vec.
+	/// Returns a list of IDs of nodes that have a storage capacity
+	/// assigned in this version of the cluster layout
 	pub fn nongateway_nodes(&self) -> &[Uuid] {
 		&self.node_id_vec[..self.nongateway_node_count]
 	}
 
-	pub fn num_nodes(&self) -> usize {
-		self.node_id_vec.len()
-	}
-
-	/// Returns the role of a node in the layout
+	/// Returns the role of a node in the layout, if it has one
 	pub fn node_role(&self, node: &Uuid) -> Option<&NodeRole> {
 		match self.roles.get(node) {
 			Some(NodeRoleV(Some(v))) => Some(v),
@@ -61,7 +58,7 @@ impl LayoutVersion {
 		}
 	}
 
-	/// Given a node uuids, this function returns its capacity or fails if it does not have any
+	/// Returns the capacity of a node in the layout, if it has one
 	pub fn get_node_capacity(&self, uuid: &Uuid) -> Option<u64> {
 		match self.node_role(uuid) {
 			Some(NodeRole {

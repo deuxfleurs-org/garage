@@ -609,7 +609,7 @@ impl System {
 		while !*stop_signal.borrow() {
 			let not_configured = self.cluster_layout().check().is_err();
 			let no_peers = self.fullmesh.get_peer_list().len() < self.replication_factor;
-			let expected_n_nodes = self.cluster_layout().current().num_nodes();
+			let expected_n_nodes = self.cluster_layout().all_nodes().len();
 			let bad_peers = self
 				.fullmesh
 				.get_peer_list()

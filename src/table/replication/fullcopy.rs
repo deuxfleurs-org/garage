@@ -35,10 +35,10 @@ impl TableReplication for TableFullReplication {
 	}
 
 	fn write_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().current().node_ids().to_vec()
+		self.system.cluster_layout().current().all_nodes().to_vec()
 	}
 	fn write_quorum(&self) -> usize {
-		let nmembers = self.system.cluster_layout().current().node_ids().len();
+		let nmembers = self.system.cluster_layout().current().all_nodes().len();
 		if nmembers > self.max_faults {
 			nmembers - self.max_faults
 		} else {
@@ -62,7 +62,7 @@ impl TableReplication for TableFullReplication {
 				partition: 0u16,
 				first_hash: [0u8; 32].into(),
 				last_hash: [0xff; 32].into(),
-				storage_nodes: Vec::from_iter(layout.current().node_ids().to_vec()),
+				storage_nodes: Vec::from_iter(layout.current().all_nodes().to_vec()),
 			}],
 		}
 	}

@@ -126,8 +126,8 @@ impl AdminRpcHandler {
 			opt_to_send.all_nodes = false;
 
 			let mut failures = vec![];
-			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.current().node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				let resp = self
 					.endpoint
@@ -163,9 +163,9 @@ impl AdminRpcHandler {
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRpc, Error> {
 		if opt.all_nodes {
 			let mut ret = String::new();
-			let layout = self.garage.system.cluster_layout().clone();
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
 
-			for node in layout.current().node_ids().iter() {
+			for node in all_nodes.iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 				opt.skip_global = true;
@@ -275,6 +275,7 @@ impl AdminRpcHandler {
 		let mut ret = String::new();
 
 		// Gather storage node and free space statistics
+		// TODO: not only layout.current() ???
 		let layout = &self.garage.system.cluster_layout();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
 		for short_id in layout.current().ring_assignment_data.iter() {
@@ -440,8 +441,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.current().node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
@@ -488,8 +489,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let layout = self.garage.system.cluster_layout().clone();
-			for node in layout.current().node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				match self
 					.endpoint

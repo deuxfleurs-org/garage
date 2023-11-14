@@ -60,6 +60,21 @@ impl LayoutHistory {
 		(self.current().version, self.all_ack(), self.min_stored())
 	}
 
+	pub fn all_nodes(&self) -> Cow<'_, [Uuid]> {
+		// TODO: cache this
+		if self.versions.len() == 1 {
+			self.versions[0].all_nodes().into()
+		} else {
+			let set = self
+				.versions
+				.iter()
+				.map(|x| x.all_nodes())
+				.flatten()
+				.collect::<HashSet<_>>();
+			set.into_iter().copied().collect::<Vec<_>>().into()
+		}
+	}
+
 	pub fn all_nongateway_nodes(&self) -> Cow<'_, [Uuid]> {
 		// TODO: cache this
 		if self.versions.len() == 1 {
