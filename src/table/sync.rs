@@ -173,12 +173,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 			}
 
 			if !items.is_empty() {
-				let nodes = self
-					.data
-					.replication
-					.storage_nodes(begin)
-					.into_iter()
-					.collect::<Vec<_>>();
+				let nodes = self.data.replication.storage_nodes(begin);
 				if nodes.contains(&self.system.id) {
 					warn!(
 						"({}) Interrupting offload as partitions seem to have changed",
@@ -202,7 +197,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 					end,
 					counter
 				);
-				self.offload_items(&items, &nodes[..]).await?;
+				self.offload_items(&items, &nodes).await?;
 			} else {
 				break;
 			}

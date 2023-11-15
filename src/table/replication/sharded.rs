@@ -25,6 +25,8 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
+	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
+
 	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {
 		self.system.cluster_layout().storage_nodes_of(hash)
 	}
@@ -36,8 +38,8 @@ impl TableReplication for TableShardedReplication {
 		self.read_quorum
 	}
 
-	fn write_sets(&self, hash: &Hash) -> Vec<Vec<Uuid>> {
-		self.system.cluster_layout().write_sets_of(hash)
+	fn write_sets(&self, hash: &Hash) -> Self::WriteSets {
+		self.system.layout_manager.write_sets_of(hash)
 	}
 	fn write_quorum(&self) -> usize {
 		self.write_quorum

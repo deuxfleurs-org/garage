@@ -128,7 +128,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			.rpc_helper()
 			.try_write_many_sets(
 				&self.endpoint,
-				&who,
+				who.as_ref(),
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
 					.with_quorum(self.data.replication.write_quorum()),

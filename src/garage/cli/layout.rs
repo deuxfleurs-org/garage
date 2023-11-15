@@ -329,7 +329,7 @@ pub async fn fetch_layout(
 pub async fn send_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
-	mut layout: LayoutHistory,
+	layout: LayoutHistory,
 ) -> Result<(), Error> {
 	rpc_cli
 		.call(

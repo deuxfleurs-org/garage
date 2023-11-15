@@ -11,6 +11,7 @@ pub mod manager;
 // ---- re-exports ----
 
 pub use history::*;
+pub use manager::WriteLock;
 pub use schema::*;
 pub use version::*;
 

@@ -366,7 +366,7 @@ impl BlockManager {
 			.rpc_helper()
 			.try_write_many_sets(
 				&self.endpoint,
-				&who,
+				who.as_ref(),
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_quorum(self.replication.write_quorum()),
