@@ -113,8 +113,6 @@ fn update_layout(
 	staging.parameters.update(LayoutParameters {
 		zone_redundancy: ZoneRedundancy::AtLeast(zone_redundancy),
 	});
-
-	cl.update_hashes();
 }
 
 #[test]
