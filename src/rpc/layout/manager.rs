@@ -74,7 +74,7 @@ impl LayoutManager {
 			}
 		};
 
-		cluster_layout.update_trackers(node_id.into());
+		cluster_layout.update_trackers_of(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
 		let change_notify = Arc::new(Notify::new());
@@ -158,7 +158,7 @@ impl LayoutManager {
 
 		if !prev_layout_check || adv.check().is_ok() {
 			if layout.merge(adv) {
-				layout.update_trackers(self.node_id);
+				layout.update_trackers_of(self.node_id);
 				if prev_layout_check && layout.check().is_err() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
@@ -172,7 +172,7 @@ impl LayoutManager {
 		let mut layout = self.layout.write().unwrap();
 		if layout.update_trackers != *adv {
 			if layout.update_trackers.merge(adv) {
-				layout.update_trackers(self.node_id);
+				layout.update_trackers_of(self.node_id);
 				return Some(layout.update_trackers.clone());
 			}
 		}
