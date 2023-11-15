@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_db as db;
 
-use garage_rpc::layout::LayoutHistory;
+use garage_rpc::layout::LayoutHelper;
 use garage_rpc::system::System;
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
@@ -83,7 +83,7 @@ impl<T: CountedItem> Entry<T::CP, T::CS> for CounterEntry<T> {
 }
 
 impl<T: CountedItem> CounterEntry<T> {
-	pub fn filtered_values(&self, layout: &LayoutHistory) -> HashMap<String, i64> {
+	pub fn filtered_values(&self, layout: &LayoutHelper) -> HashMap<String, i64> {
 		let nodes = layout.all_nongateway_nodes();
 		self.filtered_values_with_nodes(&nodes)
 	}

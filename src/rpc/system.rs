@@ -34,7 +34,7 @@ use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::manager::{LayoutManager, LayoutStatus};
-use crate::layout::{self, LayoutHistory, NodeRoleV};
+use crate::layout::{self, LayoutHelper, LayoutHistory, NodeRoleV};
 use crate::replication_mode::*;
 use crate::rpc_helper::*;
 
@@ -350,7 +350,7 @@ impl System {
 
 	// ---- Public utilities / accessors ----
 
-	pub fn cluster_layout(&self) -> RwLockReadGuard<'_, LayoutHistory> {
+	pub fn cluster_layout(&self) -> RwLockReadGuard<'_, LayoutHelper> {
 		self.layout_manager.layout()
 	}
 

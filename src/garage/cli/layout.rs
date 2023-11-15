@@ -49,7 +49,7 @@ pub async fn cmd_assign_role(
 	};
 
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
-	let all_nodes = layout.all_nodes().into_owned();
+	let all_nodes = layout.get_all_nodes();
 
 	let added_nodes = args
 		.node_ids
@@ -331,7 +331,6 @@ pub async fn send_layout(
 	rpc_host: NodeID,
 	mut layout: LayoutHistory,
 ) -> Result<(), Error> {
-	layout.update_hashes();
 	rpc_cli
 		.call(
 			&rpc_host,

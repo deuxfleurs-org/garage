@@ -188,7 +188,7 @@ mod v010 {
 	use super::v09;
 	use crate::layout::CompactNodeType;
 	use garage_util::crdt::{Lww, LwwMap};
-	use garage_util::data::{Hash, Uuid};
+	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
 	use std::collections::BTreeMap;
 	pub use v09::{LayoutParameters, NodeRole, NodeRoleV, ZoneRedundancy};
@@ -202,13 +202,9 @@ mod v010 {
 
 		/// Update trackers
 		pub update_trackers: UpdateTrackers,
-		/// Hash of the update trackers
-		pub trackers_hash: Hash,
 
 		/// Staged changes for the next version
 		pub staging: Lww<LayoutStaging>,
-		/// Hash of the serialized staging_parameters + staging_roles
-		pub staging_hash: Hash,
 	}
 
 	/// A version of the layout of the cluster, i.e. the list of roles
@@ -260,10 +256,7 @@ mod v010 {
 
 	/// The history of cluster layouts
 	#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
-	pub struct UpdateTracker {
-		pub values: BTreeMap<Uuid, u64>,
-		pub current_min: u64,
-	}
+	pub struct UpdateTracker(pub BTreeMap<Uuid, u64>);
 
 	impl garage_util::migrate::Migrate for LayoutHistory {
 		const VERSION_MARKER: &'static [u8] = b"G010lh";
@@ -293,32 +286,27 @@ mod v010 {
 				nongateway_node_count,
 				ring_assignment_data: previous.ring_assignment_data,
 			};
-			let update_tracker = UpdateTracker {
-				values: version
+			let update_tracker = UpdateTracker(
+				version
 					.nongateway_nodes()
 					.iter()
 					.copied()
 					.map(|x| (x, version.version))
 					.collect::<BTreeMap<Uuid, u64>>(),
-				current_min: 0,
-			};
+			);
 			let staging = LayoutStaging {
 				parameters: previous.staging_parameters,
 				roles: previous.staging_roles,
 			};
-			let mut ret = Self {
+			Self {
 				versions: vec![version],
 				update_trackers: UpdateTrackers {
 					ack_map: update_tracker.clone(),
 					sync_map: update_tracker.clone(),
 					sync_ack_map: update_tracker.clone(),
 				},
-				trackers_hash: [0u8; 32].into(),
 				staging: Lww::raw(previous.version, staging),
-				staging_hash: [0u8; 32].into(),
-			};
-			ret.update_hashes();
-			ret
+			}
 		}
 	}
 }
@@ -382,14 +370,14 @@ impl core::str::FromStr for ZoneRedundancy {
 impl UpdateTracker {
 	fn merge(&mut self, other: &UpdateTracker) -> bool {
 		let mut changed = false;
-		for (k, v) in other.values.iter() {
-			if let Some(v_mut) = self.values.get_mut(k) {
+		for (k, v) in other.0.iter() {
+			if let Some(v_mut) = self.0.get_mut(k) {
 				if *v > *v_mut {
 					*v_mut = *v;
 					changed = true;
 				}
 			} else {
-				self.values.insert(*k, *v);
+				self.0.insert(*k, *v);
 				changed = true;
 			}
 		}
@@ -397,23 +385,23 @@ impl UpdateTracker {
 	}
 
 	pub(crate) fn set_max(&mut self, peer: Uuid, value: u64) -> bool {
-		match self.values.get_mut(&peer) {
+		match self.0.get_mut(&peer) {
 			Some(e) if *e < value => {
 				*e = value;
 				true
 			}
 			None => {
-				self.values.insert(peer, value);
+				self.0.insert(peer, value);
 				true
 			}
 			_ => false,
 		}
 	}
 
-	fn update_min(&mut self, storage_nodes: &[Uuid], min_version: u64) {
-		self.current_min = storage_nodes
+	pub(crate) fn min(&self, storage_nodes: &[Uuid], min_version: u64) -> u64 {
+		storage_nodes
 			.iter()
-			.map(|x| self.values.get(x).copied().unwrap_or(min_version))
+			.map(|x| self.0.get(x).copied().unwrap_or(min_version))
 			.min()
 			.unwrap_or(min_version)
 	}
@@ -425,11 +413,5 @@ impl UpdateTrackers {
 		let c2 = self.sync_map.merge(&other.sync_map);
 		let c3 = self.sync_ack_map.merge(&other.sync_ack_map);
 		c1 || c2 || c3
-	}
-
-	pub(crate) fn update_min(&mut self, storage_nodes: &[Uuid], min_version: u64) {
-		self.ack_map.update_min(&storage_nodes, min_version);
-		self.sync_map.update_min(&storage_nodes, min_version);
-		self.sync_ack_map.update_min(&storage_nodes, min_version);
 	}
 }

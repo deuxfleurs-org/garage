@@ -29,7 +29,7 @@ pub async fn handle_read_index(
 		.system
 		.cluster_layout()
 		.all_nongateway_nodes()
-		.into_owned();
+		.to_vec();
 
 	let (partition_keys, more, next_start) = read_range(
 		&garage.k2v.counter_table.table,

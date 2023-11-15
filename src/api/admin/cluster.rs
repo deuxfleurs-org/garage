@@ -240,7 +240,6 @@ pub async fn handle_update_cluster_layout(
 			.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
 	}
 
-	layout.update_hashes();
 	garage
 		.system
 		.layout_manager

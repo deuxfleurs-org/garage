@@ -455,7 +455,7 @@ impl<'a> BucketHelper<'a> {
 				.system
 				.cluster_layout()
 				.all_nongateway_nodes()
-				.into_owned();
+				.to_vec();
 			let k2vindexes = self
 				.0
 				.k2v

@@ -26,7 +26,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
 
-use crate::layout::LayoutHistory;
+use crate::layout::LayoutHelper;
 use crate::metrics::RpcMetrics;
 
 // Default RPC timeout = 5 minutes
@@ -90,7 +90,7 @@ pub struct RpcHelper(Arc<RpcHelperInner>);
 struct RpcHelperInner {
 	our_node_id: Uuid,
 	fullmesh: Arc<FullMeshPeeringStrategy>,
-	layout: Arc<RwLock<LayoutHistory>>,
+	layout: Arc<RwLock<LayoutHelper>>,
 	metrics: RpcMetrics,
 	rpc_timeout: Duration,
 }
@@ -99,7 +99,7 @@ impl RpcHelper {
 	pub(crate) fn new(
 		our_node_id: Uuid,
 		fullmesh: Arc<FullMeshPeeringStrategy>,
-		layout: Arc<RwLock<LayoutHistory>>,
+		layout: Arc<RwLock<LayoutHelper>>,
 		rpc_timeout: Option<Duration>,
 	) -> Self {
 		let metrics = RpcMetrics::new();
