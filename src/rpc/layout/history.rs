@@ -211,6 +211,24 @@ impl LayoutHistory {
 			changed = changed || c;
 		}
 
+		// If there are invalid versions before valid versions, remove them,
+		// and increment update trackers
+		if self.versions.len() > 1 && self.current().check().is_ok() {
+			while self.versions.first().unwrap().check().is_err() {
+				self.versions.remove(0);
+				changed = true;
+			}
+			if changed {
+				let min_v = self.versions.first().unwrap().version;
+				let nodes = self.all_nongateway_nodes().into_owned();
+				for node in nodes {
+					self.update_trackers.ack_map.set_max(node, min_v);
+					self.update_trackers.sync_map.set_max(node, min_v);
+					self.update_trackers.sync_ack_map.set_max(node, min_v);
+				}
+			}
+		}
+
 		// Merge staged layout changes
 		if self.staging != other.staging {
 			self.staging.merge(&other.staging);

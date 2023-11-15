@@ -174,6 +174,16 @@ impl LayoutVersion {
 	/// (assignment, roles, parameters, partition size)
 	/// returns true if consistent, false if error
 	pub fn check(&self) -> Result<(), String> {
+		// Check that the assignment data has the correct length
+		let expected_assignment_data_len = (1 << PARTITION_BITS) * self.replication_factor;
+		if self.ring_assignment_data.len() != expected_assignment_data_len {
+			return Err(format!(
+				"ring_assignment_data has incorrect length {} instead of {}",
+				self.ring_assignment_data.len(),
+				expected_assignment_data_len
+			));
+		}
+
 		// Check that node_id_vec contains the correct list of nodes
 		let mut expected_nodes = self
 			.roles
@@ -187,16 +197,6 @@ impl LayoutVersion {
 		node_id_vec.sort();
 		if expected_nodes != node_id_vec {
 			return Err(format!("node_id_vec does not contain the correct set of nodes\nnode_id_vec: {:?}\nexpected: {:?}", node_id_vec, expected_nodes));
-		}
-
-		// Check that the assignment data has the correct length
-		let expected_assignment_data_len = (1 << PARTITION_BITS) * self.replication_factor;
-		if self.ring_assignment_data.len() != expected_assignment_data_len {
-			return Err(format!(
-				"ring_assignment_data has incorrect length {} instead of {}",
-				self.ring_assignment_data.len(),
-				expected_assignment_data_len
-			));
 		}
 
 		// Check that the assigned nodes are correct identifiers
