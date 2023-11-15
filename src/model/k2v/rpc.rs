@@ -344,7 +344,7 @@ impl K2VRpcHandler {
 		}
 		if errors.len() > nodes.len() - quorum {
 			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
-			return Err(Error::Quorum(quorum, resps.len(), nodes.len(), errors).into());
+			return Err(Error::Quorum(quorum, None, resps.len(), nodes.len(), errors).into());
 		}
 
 		// Take all returned items into account to produce the response.

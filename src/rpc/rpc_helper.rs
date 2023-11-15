@@ -327,7 +327,13 @@ impl RpcHelper {
 			Ok(successes)
 		} else {
 			let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
-			Err(Error::Quorum(quorum, successes.len(), to.len(), errors))
+			Err(Error::Quorum(
+				quorum,
+				None,
+				successes.len(),
+				to.len(),
+				errors,
+			))
 		}
 	}
 
@@ -469,7 +475,7 @@ impl RpcHelper {
 				}
 			}
 
-			if set_counters.iter().all(|x| x.0 > quorum) {
+			if set_counters.iter().all(|x| x.0 >= quorum) {
 				// Success
 
 				// Continue all other requets in background
@@ -492,6 +498,12 @@ impl RpcHelper {
 
 		// Failure, could not get quorum
 		let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
-		Err(Error::Quorum(quorum, successes.len(), peers.len(), errors))
+		Err(Error::Quorum(
+			quorum,
+			Some(to_sets.len()),
+			successes.len(),
+			peers.len(),
+			errors,
+		))
 	}
 }
