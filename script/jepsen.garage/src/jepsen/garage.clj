@@ -35,7 +35,8 @@
   "A map of patch names to Garage builds"
   {"default" "v0.9.0"
    "tsfix1" "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"
-   "tsfix2" "c82d91c6bccf307186332b6c5c6fc0b128b1b2b1"})
+   "tsfix2" "c82d91c6bccf307186332b6c5c6fc0b128b1b2b1"
+   "task3a" "d4df03424f1c7f3cc1eaba9e16d2e1d049131b97"})
 
 (def cli-opts
   "Additional command line options."
@@ -68,7 +69,7 @@
     (merge tests/noop-test
            opts
            {:pure-generators  true
-            :name             (str "garage " (name (:workload opts)))
+            :name             (str "garage " (name (:workload opts)) " " (name (:scenario opts)) " " (name (:patch opts)))
             :os               debian/os
             :db               db
             :client           (:client workload)
