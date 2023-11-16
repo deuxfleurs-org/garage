@@ -33,8 +33,9 @@ use garage_util::time::*;
 use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
-use crate::layout::manager::{LayoutManager, LayoutStatus};
-use crate::layout::{self, LayoutHelper, LayoutHistory, NodeRoleV};
+use crate::layout::{
+	self, manager::LayoutManager, LayoutDigest, LayoutHelper, LayoutHistory, NodeRoleV,
+};
 use crate::replication_mode::*;
 use crate::rpc_helper::*;
 
@@ -130,8 +131,8 @@ pub struct NodeStatus {
 	/// Replication factor configured on the node
 	pub replication_factor: usize,
 
-	/// Layout status
-	pub layout_status: LayoutStatus,
+	/// Cluster layout digest
+	pub layout_digest: LayoutDigest,
 
 	/// Disk usage on partition containing metadata directory (tuple: `(avail, total)`)
 	#[serde(default)]
@@ -539,7 +540,7 @@ impl System {
 	fn update_local_status(&self) {
 		let mut new_si: NodeStatus = self.local_status.load().as_ref().clone();
 
-		new_si.layout_status = self.layout_manager.status();
+		new_si.layout_digest = self.layout_manager.layout().digest();
 
 		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
 
@@ -573,7 +574,7 @@ impl System {
 		}
 
 		self.layout_manager
-			.handle_advertise_status(from, &info.layout_status);
+			.handle_advertise_status(from, &info.layout_digest);
 
 		self.node_status
 			.write()
@@ -755,7 +756,7 @@ impl NodeStatus {
 				.into_string()
 				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 			replication_factor,
-			layout_status: layout_manager.status(),
+			layout_digest: layout_manager.layout().digest(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
 		}
@@ -765,7 +766,7 @@ impl NodeStatus {
 		NodeStatus {
 			hostname: "?".to_string(),
 			replication_factor: 0,
-			layout_status: Default::default(),
+			layout_digest: Default::default(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
 		}

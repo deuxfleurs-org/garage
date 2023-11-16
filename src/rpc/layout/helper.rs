@@ -2,9 +2,23 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use serde::{Deserialize, Serialize};
+
 use garage_util::data::*;
 
 use super::schema::*;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct LayoutDigest {
+	/// Cluster layout version
+	pub current_version: u64,
+	/// Number of active layout versions
+	pub active_versions: usize,
+	/// Hash of cluster layout update trackers
+	pub trackers_hash: Hash,
+	/// Hash of cluster layout staging data
+	pub staging_hash: Hash,
+}
 
 pub struct LayoutHelper {
 	layout: Option<LayoutHistory>,
@@ -16,8 +30,8 @@ pub struct LayoutHelper {
 	all_nodes: Vec<Uuid>,
 	all_nongateway_nodes: Vec<Uuid>,
 
-	pub(crate) trackers_hash: Hash,
-	pub(crate) staging_hash: Hash,
+	trackers_hash: Hash,
+	staging_hash: Hash,
 
 	// ack lock: counts in-progress write operations for each
 	// layout version ; we don't increase the ack update tracker
@@ -150,6 +164,15 @@ impl LayoutHelper {
 
 	pub fn staging_hash(&self) -> Hash {
 		self.staging_hash
+	}
+
+	pub fn digest(&self) -> LayoutDigest {
+		LayoutDigest {
+			current_version: self.current().version,
+			active_versions: self.versions.len(),
+			trackers_hash: self.trackers_hash,
+			staging_hash: self.staging_hash,
+		}
 	}
 
 	// ------------------ helpers for update tracking ---------------

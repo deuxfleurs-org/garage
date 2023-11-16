@@ -5,7 +5,6 @@ use garage_util::data::*;
 use garage_util::encode::nonversioned_encode;
 use garage_util::error::*;
 
-use super::schema::*;
 use super::*;
 
 impl LayoutHistory {
