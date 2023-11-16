@@ -71,8 +71,11 @@ Results with timestamp patch (`--patch tsfix2`):
 
 - **Fails with layout reconfiguration nemesis** (`--scenario r`).
   Example of a failed run: `garage reg2/20231024T120806.899+0200`.
-  TODO: investigate.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
+
+- Changes brought by NLnet task 3 code (commit 707442f5de):
+  no failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs),
+  `--scenario cpr` (0 of 10 runs) and `--scenario dpr` (0 of 10 runs).
 
 
 ### Set, basic test (write some items, then read)
@@ -101,8 +104,11 @@ Results:
 
 - **Fails with just layout reconfiguration nemesis** (`--scenario r`).
   Example of a failed run: `garage set2/20231025T141940.198+0200` (10 failures in 10 runs).
-  TODO: investigate.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
+
+- Changes brought by NLnet task 3 code (commit 707442f5de):
+  no failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs).
+  `--scenario cpr` (0 of 10 runs) and `--scenario dpr` (0 of 10 runs).
 
 
 ## Investigating (and fixing) errors

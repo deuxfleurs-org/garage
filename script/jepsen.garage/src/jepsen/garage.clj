@@ -36,7 +36,7 @@
   {"default" "v0.9.0"
    "tsfix1" "d146cdd5b66ca1d3ed65ce93ca42c6db22defc09"
    "tsfix2" "c82d91c6bccf307186332b6c5c6fc0b128b1b2b1"
-   "task3a" "d4df03424f1c7f3cc1eaba9e16d2e1d049131b97"})
+   "task3a" "707442f5de416fdbed4681a33b739f0a787b7834"})
 
 (def cli-opts
   "Additional command line options."
