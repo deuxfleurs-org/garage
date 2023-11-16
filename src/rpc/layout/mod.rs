@@ -1,4 +1,5 @@
 mod graph_algo;
+mod helper;
 mod history;
 mod schema;
 mod version;
@@ -10,7 +11,7 @@ pub mod manager;
 
 // ---- re-exports ----
 
-pub use history::*;
+pub use helper::LayoutHelper;
 pub use manager::WriteLock;
 pub use schema::*;
 pub use version::*;

@@ -184,17 +184,20 @@ impl LayoutManager {
 				return Some(layout.clone());
 			}
 		}
+
 		None
 	}
 
 	fn merge_layout_trackers(&self, adv: &UpdateTrackers) -> Option<UpdateTrackers> {
 		let mut layout = self.layout.write().unwrap();
+
 		if layout.update_trackers != *adv {
 			if layout.update(|l| l.update_trackers.merge(adv)) {
 				layout.update_trackers(self.node_id);
 				return Some(layout.update_trackers.clone());
 			}
 		}
+
 		None
 	}
 
@@ -284,7 +287,7 @@ impl LayoutManager {
 	}
 
 	pub(crate) fn handle_pull_cluster_layout(&self) -> SystemRpc {
-		let layout = self.layout.read().unwrap().clone(); // TODO: avoid cloning
+		let layout = self.layout.read().unwrap().clone();
 		SystemRpc::AdvertiseClusterLayout(layout)
 	}
 
