@@ -344,7 +344,7 @@ impl ApiHandler for S3ApiServer {
 						bucket_id,
 						key,
 						upload_id,
-						part_number_marker: part_number_marker.map(|p| p.clamp(1, 10000)),
+						part_number_marker: part_number_marker.map(|p| p.min(10000)),
 						max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
 					},
 				)
