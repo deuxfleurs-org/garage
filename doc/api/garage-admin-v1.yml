@@ -30,33 +30,53 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ node, garageVersion, knownNodes, layout ]
+                required: [ node, garageVersion, garageFeatures, rustVersion, dbEngine, knownNodes, layout ]
                 properties:
                   node: 
                     type: string
                     example: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
                   garageVersion:
                     type: string
-                    example: "v0.7.3"
-                  knownNodes:
-                    type: object
+                    example: "v0.9.0"
+                  garageFeatures:
+                    type: array
+                    items:
+                      type: string
                     example:
-                      "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+                      - "k2v"
+                      - "sled"
+                      - "lmdb"
+                      - "sqlite"
+                      - "consul-discovery"
+                      - "kubernetes-discovery"
+                      - "metrics"
+                      - "telemetry-otlp"
+                      -  "bundled-libs"
+                  rustVersion:
+                    type: string
+                    example: "1.68.0"
+                  dbEngine:
+                    type: string
+                    example: "LMDB (using Heed crate)"
+                  knownNodes:
+                    type: array
+                    example:
+                      - id: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
                         addr: "10.0.0.11:3901"
-                        is_up: true
-                        last_seen_secs_ago: 9
+                        isUp: true
+                        lastSeenSecsAgo: 9
                         hostname: orion
-                      "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+                      - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
                         addr: "10.0.0.12:3901"
-                        is_up: true
-                        last_seen_secs_ago: 13
+                        isUp: true
+                        lastSeenSecsAgo: 13
                         hostname: pegasus
-                      "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                      - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
                         addr: "10.0.0.13:3901"
-                        is_up: true
-                        last_seen_secs_ago: 2
+                        isUp: true
+                        lastSeenSecsAgo: 2
                         hostname: neptune
-                    additionalProperties:
+                    items:
                       $ref: '#/components/schemas/NodeNetworkInfo'
                   layout:
                     $ref: '#/components/schemas/ClusterLayout'
@@ -1007,15 +1027,18 @@ components:
   schemas:
     NodeNetworkInfo:
       type: object
-      required: [ addr, is_up, last_seen_secs_ago, hostname ]
+      required: [ addr, isUp, lastSeenSecsAgo, hostname ]
       properties:
+        id:
+          type: string
+          example: "6a8e08af2aab1083ebab9b22165ea8b5b9d333b60a39ecd504e85cc1f432c36f"
         addr:
           type: string
           example: "10.0.0.11:3901"
-        is_up:
+        isUp:
           type: boolean
           example: true
-        last_seen_secs_ago:
+        lastSeenSecsAgo:
           type: integer
           nullable: true
           example: 9
@@ -1024,7 +1047,7 @@ components:
           example: "node1"
     NodeClusterInfo:
       type: object
-      required: [ zone, capacity, tags ]
+      required: [ id, zone, tags ]
       properties:
         zone:
           type: string
@@ -1050,30 +1073,30 @@ components:
           type: integer
           example: 12
         roles:
-          type: object
+          type: array
           example:
-            "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f":
+            - id: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
               zone: "madrid"
               capacity: 3
               tags:
                 - fast
                 - amd64
-            "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
+            - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
               zone: "geneva"
               capacity: 7
               tags:
                 - arm64
-          additionalProperties:
+          items:
             $ref: '#/components/schemas/NodeClusterInfo'
         stagedRoleChanges:
-          type: object
+          type: array
           example:
-            "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+            - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
               zone: "geneva"
               capacity: 4
               tags:
                 - gateway
-          additionalProperties:
+          items:
             $ref: '#/components/schemas/NodeClusterInfo'
     LayoutVersion:
       type: object
