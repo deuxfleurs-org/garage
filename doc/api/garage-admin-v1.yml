@@ -167,25 +167,26 @@ paths:
         Note that setting the capacity to `null` will configure the node as a gateway.
       requestBody:
         description: |
-          To add a new node to the layout or to change the configuration of an existing node, simply set the values you want.
-          To remove a node, set it to `null` instead of passing a configuration object.
+          To add a new node to the layout or to change the configuration of an existing node, simply set the values you want (`zone`, `capacity`, and `tags`).
+          To remove a node, simply pass the `remove: true` field.
+          This logic is represented in OpenAPI with a "One Of" object.
         
           Contrary to the CLI that may update only a subset of the fields capacity, zone and tags, when calling this API all of these values must be specified.
         required: true
         content:
           application/json:
             schema:
-              type: object
+              type: array
               example:
-                "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b":
+                - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
                   zone: "geneva"
-                  capacity: 4
+                  capacity: 8
                   tags:
                     - gateway
-                "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff":
-                
-              additionalProperties:
-                $ref: '#/components/schemas/NodeClusterInfo'
+                - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
+                  remove: true
+              items:
+                $ref: '#/components/schemas/NodeRoleChange'
       responses:
         '500':
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -193,6 +194,10 @@ paths:
           description: "Invalid syntax or requested change"
         '200':
           description: "The layout modification has been correctly staged"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterLayout'
           
   /layout/apply:
     post:
@@ -1065,6 +1070,42 @@ components:
             - fast
           items:
             type: string
+    NodeRoleChange:
+      oneOf:
+        - $ref: '#/components/schemas/NodeRoleRemove'
+        - $ref: '#/components/schemas/NodeRoleUpdate'
+    NodeRoleRemove:
+      type: object
+      required: [ remove ]
+      properties:
+        id:
+          type: string
+          example: "6a8e08af2aab1083ebab9b22165ea8b5b9d333b60a39ecd504e85cc1f432c36f"
+        remove:
+          type: bool
+          example: true
+    NodeRoleUpdate:
+      type: object
+      required: [ zone, capacity, tags ]
+      properties:
+        id:
+          type: string
+          example: "6a8e08af2aab1083ebab9b22165ea8b5b9d333b60a39ecd504e85cc1f432c36f"
+        zone:
+          type: string
+          example: "dc1"
+        capacity:
+          type: integer
+          nullable: true
+          example: 150
+        tags:
+          type: array
+          items:
+            type: string
+          example:
+            - gateway
+            - fast
+
     ClusterLayout:
       type: object
       required: [ version, roles, stagedRoleChanges ]
@@ -1093,11 +1134,13 @@ components:
           example:
             - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
               zone: "geneva"
-              capacity: 4
+              capacity: 8
               tags:
                 - gateway
+            - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
+              remove: true
           items:
-            $ref: '#/components/schemas/NodeClusterInfo'
+            $ref: '#/components/schemas/NodeRoleChange'
     LayoutVersion:
       type: object
       properties:
