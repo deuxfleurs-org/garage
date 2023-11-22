@@ -361,6 +361,14 @@ paths:
           example: "GK31c2f218a2e44f485b94239e"
           schema:
             type: string
+        - name: showSecretKey
+          in: query
+          schema:
+            type: boolean
+            default: false
+          example: true
+          required: false
+          description: "Wether or not the secret key should be returned in the response"
       responses:
         '500':
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -464,6 +472,14 @@ paths:
           example: "test-k"
           schema:
             type: string
+        - name: showSecretKey
+          in: query
+          schema:
+            type: boolean
+            default: false
+          example: true
+          required: false
+          description: "Wether or not the secret key should be returned in the response"
       responses:
         '500':
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -1117,7 +1133,7 @@ components:
           type: string
           example: "6a8e08af2aab1083ebab9b22165ea8b5b9d333b60a39ecd504e85cc1f432c36f"
         remove:
-          type: bool
+          type: boolean
           example: true
     NodeRoleUpdate:
       type: object
@@ -1194,6 +1210,7 @@ components:
           example: "GK31c2f218a2e44f485b94239e"
         secretAccessKey:
           type: string
+          nullable: true
           example: "b892c0665f0ada8a4755dae98baa3b133590e11dae3bcc1f9d769d67f16c3835"
         permissions:
           type: object
