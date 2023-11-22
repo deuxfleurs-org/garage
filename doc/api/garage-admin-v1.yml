@@ -19,6 +19,8 @@ paths:
          - Live nodes
          - Currently configured cluster layout
          - Staged changes to the cluster layout
+
+        *Capacity is given in bytes*
       responses:
         '500':
           description: |
@@ -142,6 +144,7 @@ paths:
           - Currently configured cluster layout
           - Staged changes to the cluster layout
           
+        *Capacity is given in bytes*
         *The info returned by this endpoint is a subset of the info returned by `GET /status`.*
       responses:
         '500':
@@ -164,7 +167,12 @@ paths:
       summary: "Send modifications to the cluster layout"
       description: |
         Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
-        Note that setting the capacity to `null` will configure the node as a gateway.
+
+        Setting the capacity to `null` will configure the node as a gateway.
+        Otherwise, capacity must be now set in bytes (before Garage 0.9 it was arbitrary weights).
+        For example to declare 100GB, you must set `capacity: 100000000000`.
+
+        Garage uses internally the International System of Units (SI), it assumes that 1kB = 1000 bytes, and displays storage as kB, MB, GB (and not KiB, MiB, GiB that assume 1KiB = 1024 bytes).
       requestBody:
         description: |
           To add a new node to the layout or to change the configuration of an existing node, simply set the values you want (`zone`, `capacity`, and `tags`).
@@ -180,7 +188,7 @@ paths:
               example:
                 - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
                   zone: "geneva"
-                  capacity: 8
+                  capacity: 100000000000
                   tags:
                     - gateway
                 - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
@@ -207,6 +215,8 @@ paths:
       summary: "Apply staged layout"
       description: |
         Applies to the cluster the layout changes currently registered as staged layout changes.
+
+        *Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*
       requestBody:
         description: |
           Similarly to the CLI, the body must include the version of the new layout that will be created, which MUST be 1 + the value of the currently existing layout in the cluster.
@@ -223,6 +233,31 @@ paths:
           description: "Invalid syntax or requested change"
         '200':
           description: "The staged layout has been applied as the new layout of the cluster, a rebalance has been triggered."
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ message, layout ]
+                properties:
+                  message:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                      - "==== COMPUTATION OF A NEW PARTITION ASSIGNATION ===="
+                      - ""
+                      - "Partitions are replicated 1 times on at least 1 distinct zones."
+                      - ""
+                      - "Optimal partition size:                     419.4 MB (3 B in previous layout)"
+                      - "Usable capacity / total cluster capacity:   107.4 GB / 107.4 GB (100.0 %)"
+                      - "Effective capacity (replication factor 1):  107.4 GB"
+                      - ""
+                      - "A total of 0 new copies of partitions need to be transferred."
+                      - ""
+                      - "dc1                 Tags  Partitions        Capacity  Usable capacity\n  6a8e08af2aab1083  a,v   256 (0 new)       107.4 GB  107.4 GB (100.0%)\n  TOTAL                   256 (256 unique)  107.4 GB  107.4 GB (100.0%)\n\n"
+                  layout:
+                    $ref: '#/components/schemas/ClusterLayout'
+
           
   /layout/revert:
     post:
@@ -1097,7 +1132,7 @@ components:
         capacity:
           type: integer
           nullable: true
-          example: 150
+          example: 150000000000
         tags:
           type: array
           items:
@@ -1118,13 +1153,13 @@ components:
           example:
             - id: "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f"
               zone: "madrid"
-              capacity: 3
+              capacity: 300000000000
               tags:
                 - fast
                 - amd64
             - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
               zone: "geneva"
-              capacity: 7
+              capacity: 700000000000
               tags:
                 - arm64
           items:
@@ -1134,7 +1169,7 @@ components:
           example:
             - id: "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b"
               zone: "geneva"
-              capacity: 8
+              capacity: 800000000000
               tags:
                 - gateway
             - id: "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff"
