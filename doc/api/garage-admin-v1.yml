@@ -323,7 +323,10 @@ paths:
         Creates a new API access key.
       requestBody:
         description: |
-          "You can set a friendly name for this key, send an empty string instead"
+          You can set a friendly name for this key.
+          If you don't want to, you can set the name to `null`.
+        
+          *Note: the secret key is returned in the response.*
         required: true
         content:
           application/json:
@@ -332,6 +335,7 @@ paths:
               properties:
                 name:
                   type: string
+                  nullable: true
                   example: "test-key"
       responses:
         '500':
@@ -352,7 +356,9 @@ paths:
       operationId: "GetKey"
       summary: "Get key information"
       description: |
-        Return information about a specific key and return its information
+        Return information about a specific key like its identifiers, its permissions and buckets on which it has permissions. 
+
+        For confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.
       parameters:
         - name: access_key
           in: path
@@ -409,6 +415,8 @@ paths:
       summary: "Update a key"
       description: |
         Updates information about the specified API access key.
+
+        *Note: the secret key is not returned in the response, `null` is sent instead.*
       parameters:
         - name: access_key
           in: path
@@ -463,7 +471,9 @@ paths:
       operationId: "SearchKey"
       summary: "Select key by pattern"
       description: |
-        Find the first key matching the given pattern based on its identifier aor friendly name and return its information.
+        Find the first key matching the given pattern based on its identifier or friendly name and return its information.
+
+        For confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.
       parameters:
         - name: pattern
           in: path
@@ -514,6 +524,7 @@ paths:
                 name:
                   type: string
                   example: "test-key"
+                  nullable: true
                 accessKeyId:
                   type: string
                   example: "GK31c2f218a2e44f485b94239e"
