@@ -382,9 +382,12 @@ paths:
         - name: showSecretKey
           in: query
           schema:
-            type: boolean
-            default: false
-          example: true
+            type: string
+            default: "false"
+            enum:
+              - "true"
+              - "false"
+          example: "true"
           required: false
           description: "Wether or not the secret key should be returned in the response"
       responses:
