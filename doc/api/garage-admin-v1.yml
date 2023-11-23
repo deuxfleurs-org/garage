@@ -1167,9 +1167,11 @@ components:
             $ref: '#/components/schemas/NodeRoleChange'
     LayoutVersion:
       type: object
+      required: [ version ]
       properties:
         version:
           type: integer
+          format: int64
           example: 13
           
     KeyInfo:
