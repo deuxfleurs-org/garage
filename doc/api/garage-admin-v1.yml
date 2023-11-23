@@ -1171,7 +1171,7 @@ components:
       properties:
         version:
           type: integer
-          format: int64
+          #format: int64
           example: 13
           
     KeyInfo:
