@@ -1081,6 +1081,7 @@ components:
           example: dc1
         capacity:
           type: integer
+          format: int64
           nullable: true
           example: 4
         tags:
@@ -1098,7 +1099,7 @@ components:
         - $ref: '#/components/schemas/NodeRoleUpdate'
     NodeRoleRemove:
       type: object
-      required: [ remove ]
+      required: [ id, remove ]
       properties:
         id:
           type: string
@@ -1108,7 +1109,7 @@ components:
           example: true
     NodeRoleUpdate:
       type: object
-      required: [ zone, capacity, tags ]
+      required: [ id, zone, capacity, tags ]
       properties:
         id:
           type: string
@@ -1118,6 +1119,7 @@ components:
           example: "dc1"
         capacity:
           type: integer
+          format: int64
           nullable: true
           example: 150000000000
         tags:
