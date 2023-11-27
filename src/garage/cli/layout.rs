@@ -32,6 +32,10 @@ pub async fn cli_layout_command_dispatch(
 		LayoutOperation::Config(config_opt) => {
 			cmd_config_layout(system_rpc_endpoint, rpc_host, config_opt).await
 		}
+		LayoutOperation::History => cmd_layout_history(system_rpc_endpoint, rpc_host).await,
+		LayoutOperation::AssumeSync(assume_sync_opt) => {
+			cmd_layout_assume_sync(system_rpc_endpoint, rpc_host, assume_sync_opt).await
+		}
 	}
 }
 
@@ -308,6 +312,113 @@ pub async fn cmd_config_layout(
 	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
+	Ok(())
+}
+
+pub async fn cmd_layout_history(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+) -> Result<(), Error> {
+	let layout = fetch_layout(rpc_cli, rpc_host).await?;
+	let min_stored = layout.min_stored();
+
+	println!("==== LAYOUT HISTORY ====");
+	let mut table = vec!["Version\tStatus\tStorage nodes\tGateway nodes".to_string()];
+	for ver in layout
+		.versions
+		.iter()
+		.rev()
+		.chain(layout.old_versions.iter().rev())
+	{
+		let status = if ver.version == layout.current().version {
+			"current"
+		} else if ver.version >= min_stored {
+			"draining"
+		} else {
+			"historical"
+		};
+		table.push(format!(
+			"#{}\t{}\t{}\t{}",
+			ver.version,
+			status,
+			ver.roles
+				.items()
+				.iter()
+				.filter(|(_, _, x)| matches!(x, NodeRoleV(Some(c)) if c.capacity.is_some()))
+				.count(),
+			ver.roles
+				.items()
+				.iter()
+				.filter(|(_, _, x)| matches!(x, NodeRoleV(Some(c)) if c.capacity.is_none()))
+				.count(),
+		));
+	}
+	format_table(table);
+
+	println!();
+	println!("==== UPDATE TRACKERS ====");
+	println!("This is the internal data that Garage stores to know which nodes have what data.");
+	println!();
+	let mut table = vec!["Node\tAck\tSync\tSync_ack".to_string()];
+	let all_nodes = layout.get_all_nodes();
+	for node in all_nodes.iter() {
+		table.push(format!(
+			"{:?}\t#{}\t#{}\t#{}",
+			node,
+			layout.update_trackers.ack_map.get(node),
+			layout.update_trackers.sync_map.get(node),
+			layout.update_trackers.sync_ack_map.get(node),
+		));
+	}
+	table[1..].sort();
+	format_table(table);
+
+	if layout.versions.len() > 1 {
+		println!();
+		println!(
+			"If some nodes are not catching up to the latest layout version in the update tracker,"
+		);
+		println!("it might be because they are offline or unable to complete a sync successfully.");
+		println!(
+			"You may force progress using `garage layout assume-sync --version {}`",
+			layout.current().version
+		);
+	}
+
+	Ok(())
+}
+
+pub async fn cmd_layout_assume_sync(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+	opt: AssumeSyncOpt,
+) -> Result<(), Error> {
+	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+
+	let min_v = layout.min_stored();
+	if opt.version <= min_v || opt.version > layout.current().version {
+		return Err(Error::Message(format!(
+			"Invalid version, you may use the following version numbers: {}",
+			(min_v + 1..=layout.current().version)
+				.map(|x| x.to_string())
+				.collect::<Vec<_>>()
+				.join(" ")
+		)));
+	}
+
+	let all_nodes = layout.get_all_nodes();
+	for node in all_nodes.iter() {
+		layout.update_trackers.ack_map.set_max(*node, opt.version);
+		layout.update_trackers.sync_map.set_max(*node, opt.version);
+		layout
+			.update_trackers
+			.sync_ack_map
+			.set_max(*node, opt.version);
+	}
+
+	send_layout(rpc_cli, rpc_host, layout).await?;
+	println!("Success.");
+
 	Ok(())
 }
 

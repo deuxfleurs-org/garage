@@ -112,6 +112,14 @@ pub enum LayoutOperation {
 	/// Revert staged changes to cluster layout
 	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
+
+	/// View the history of layouts in the cluster
+	#[structopt(name = "history", version = garage_version())]
+	History,
+
+	/// Assume all nodes are synchronized up to a certain layout version
+	#[structopt(name = "assume-sync", version = garage_version())]
+	AssumeSync(AssumeSyncOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -167,6 +175,14 @@ pub struct RevertLayoutOpt {
 	/// The revert operation will not be ran unless this flag is added
 	#[structopt(long = "yes")]
 	pub(crate) yes: bool,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct AssumeSyncOpt {
+	/// Version number of the layout to assume is currently up-to-date.
+	/// This will generally be the current layout version.
+	#[structopt(long = "version")]
+	pub(crate) version: u64,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

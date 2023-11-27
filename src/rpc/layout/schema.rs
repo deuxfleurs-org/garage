@@ -391,7 +391,10 @@ impl UpdateTracker {
 		changed
 	}
 
-	pub(crate) fn set_max(&mut self, peer: Uuid, value: u64) -> bool {
+	/// This bumps the update tracker for a given node up to the specified value.
+	/// This has potential impacts on the correctness of Garage and should only
+	/// be used in very specific circumstances.
+	pub fn set_max(&mut self, peer: Uuid, value: u64) -> bool {
 		match self.0.get_mut(&peer) {
 			Some(e) if *e < value => {
 				*e = value;
@@ -411,6 +414,10 @@ impl UpdateTracker {
 			.map(|x| self.0.get(x).copied().unwrap_or(min_version))
 			.min()
 			.unwrap_or(min_version)
+	}
+
+	pub fn get(&self, node: &Uuid) -> u64 {
+		self.0.get(node).copied().unwrap_or(0)
 	}
 }
 

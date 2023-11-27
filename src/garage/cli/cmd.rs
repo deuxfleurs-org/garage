@@ -135,13 +135,14 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	}
 	format_table(healthy_nodes);
 
-    // Determine which nodes are unhealthy and print that to stdout
+	// Determine which nodes are unhealthy and print that to stdout
 	let status_map = status
 		.iter()
 		.map(|adv| (adv.id, adv))
 		.collect::<HashMap<_, _>>();
 
 	let tf = timeago::Formatter::new();
+	let mut drain_msg = false;
 	let mut failed_nodes =
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
 	let mut listed = HashSet::new();
@@ -163,7 +164,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			}
 
 			// Node is in a layout version, is not a gateway node, and is not up:
-            // it is in a failed state, add proper line to the output
+			// it is in a failed state, add proper line to the output
 			let (host, addr, last_seen) = match adv {
 				Some(adv) => (
 					adv.status.hostname.as_str(),
@@ -177,6 +178,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			let capacity = if ver.version == layout.current().version {
 				cfg.capacity_string()
 			} else {
+				drain_msg = true;
 				"draining metadata...".to_string()
 			};
 			failed_nodes.push(format!(
@@ -195,6 +197,14 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	if failed_nodes.len() > 1 {
 		println!("\n==== FAILED NODES ====");
 		format_table(failed_nodes);
+		if drain_msg {
+			println!();
+			println!("Your cluster is expecting to drain data from nodes that are currently unavailable.");
+			println!("If these nodes are definitely dead, please review the layout history with");
+			println!(
+				"`garage layout history` and use `garage layout assume-sync` to force progress."
+			);
+		}
 	}
 
 	if print_staging_role_changes(&layout) {
