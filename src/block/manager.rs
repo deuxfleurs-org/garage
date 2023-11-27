@@ -264,8 +264,10 @@ impl BlockManager {
 		F: Fn(DataBlockHeader, ByteStream) -> Fut,
 		Fut: futures::Future<Output = Result<T, Error>>,
 	{
-		let who = self.replication.read_nodes(hash);
-		let who = self.system.rpc_helper().request_order(&who);
+		let who = self
+			.system
+			.cluster_layout()
+			.block_read_nodes_of(hash, self.system.rpc_helper());
 
 		for node in who.iter() {
 			let node_id = NodeID::from(*node);

@@ -18,6 +18,7 @@ impl LayoutHistory {
 
 		LayoutHistory {
 			versions: vec![version],
+			old_versions: vec![],
 			update_trackers: Default::default(),
 			staging: Lww::raw(0, staging),
 		}
@@ -86,10 +87,19 @@ impl LayoutHistory {
 				.min(&all_nongateway_nodes, min_version);
 			if self.min_stored() < sync_ack_map_min {
 				let removed = self.versions.remove(0);
-				info!("Layout history: pruning old version {}", removed.version);
+				info!(
+					"Layout history: moving version {} to old_versions",
+					removed.version
+				);
+				self.old_versions.push(removed);
 			} else {
 				break;
 			}
+		}
+
+		while self.old_versions.len() > OLD_VERSION_COUNT {
+			let removed = self.old_versions.remove(0);
+			info!("Layout history: removing old_version {}", removed.version);
 		}
 	}
 

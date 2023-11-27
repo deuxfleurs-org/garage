@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use garage_util::data::*;
 
 use super::schema::*;
+use crate::rpc_helper::RpcHelper;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct LayoutDigest {
@@ -138,6 +139,28 @@ impl LayoutHelper {
 		version
 			.nodes_of(position, version.replication_factor)
 			.collect()
+	}
+
+	pub fn block_read_nodes_of(&self, position: &Hash, rpc_helper: &RpcHelper) -> Vec<Uuid> {
+		let mut ret = Vec::with_capacity(12);
+		let ver_iter = self
+			.layout()
+			.versions
+			.iter()
+			.rev()
+			.chain(self.layout().old_versions.iter().rev());
+		for ver in ver_iter {
+			if ver.version > self.sync_map_min {
+				continue;
+			}
+			let nodes = ver.nodes_of(position, ver.replication_factor);
+			for node in rpc_helper.request_order(nodes) {
+				if !ret.contains(&node) {
+					ret.push(node);
+				}
+			}
+		}
+		ret
 	}
 
 	pub(crate) fn write_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {

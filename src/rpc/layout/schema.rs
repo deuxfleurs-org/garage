@@ -193,12 +193,18 @@ mod v010 {
 	use std::collections::BTreeMap;
 	pub use v09::{LayoutParameters, NodeRole, NodeRoleV, ZoneRedundancy};
 
+	pub const OLD_VERSION_COUNT: usize = 5;
+
 	/// The history of cluster layouts, with trackers to keep a record
 	/// of which nodes are up-to-date to current cluster data
 	#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 	pub struct LayoutHistory {
 		/// The versions currently in use in the cluster
 		pub versions: Vec<LayoutVersion>,
+		/// At most 5 of the previous versions, not used by the garage_table
+		/// module, but usefull for the garage_block module to find data blocks
+		/// that have not yet been moved
+		pub old_versions: Vec<LayoutVersion>,
 
 		/// Update trackers
 		pub update_trackers: UpdateTrackers,
@@ -300,6 +306,7 @@ mod v010 {
 			};
 			Self {
 				versions: vec![version],
+				old_versions: vec![],
 				update_trackers: UpdateTrackers {
 					ack_map: update_tracker.clone(),
 					sync_map: update_tracker.clone(),

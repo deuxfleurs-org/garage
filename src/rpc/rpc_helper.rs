@@ -267,7 +267,7 @@ impl RpcHelper {
 		// When there are errors, we start new requests to compensate.
 
 		// Reorder requests to priorize closeness / low latency
-		let request_order = self.request_order(to);
+		let request_order = self.request_order(to.iter().copied());
 		let send_all_at_once = strategy.rs_send_all_at_once.unwrap_or(false);
 
 		// Build future for each request
@@ -335,7 +335,7 @@ impl RpcHelper {
 		}
 	}
 
-	pub fn request_order(&self, nodes: &[Uuid]) -> Vec<Uuid> {
+	pub fn request_order(&self, nodes: impl Iterator<Item = Uuid>) -> Vec<Uuid> {
 		// Retrieve some status variables that we will use to sort requests
 		let peer_list = self.0.fullmesh.get_peer_list();
 		let layout = self.0.layout.read().unwrap();
@@ -351,9 +351,8 @@ impl RpcHelper {
 		// By sorting this vec, we priorize ourself, then nodes in the same zone,
 		// and within a same zone we priorize nodes with the lowest latency.
 		let mut nodes = nodes
-			.iter()
 			.map(|to| {
-				let peer_zone = match layout.current().node_role(to) {
+				let peer_zone = match layout.current().node_role(&to) {
 					Some(pc) => &pc.zone,
 					None => "",
 				};
@@ -363,10 +362,10 @@ impl RpcHelper {
 					.and_then(|pi| pi.avg_ping)
 					.unwrap_or_else(|| Duration::from_secs(10));
 				(
-					*to != self.0.our_node_id,
+					to != self.0.our_node_id,
 					peer_zone != our_zone,
 					peer_avg_ping,
-					*to,
+					to,
 				)
 			})
 			.collect::<Vec<_>>();
