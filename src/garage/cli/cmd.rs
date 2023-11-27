@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use format_table::format_table;
@@ -62,35 +62,69 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	let mut healthy_nodes =
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
-		match layout.current().roles.get(&adv.id) {
-			Some(NodeRoleV(Some(cfg))) => {
-				let data_avail = match &adv.status.data_disk_avail {
-					_ if cfg.capacity.is_none() => "N/A".into(),
-					Some((avail, total)) => {
-						let pct = (*avail as f64) / (*total as f64) * 100.;
-						let avail = bytesize::ByteSize::b(*avail);
-						format!("{} ({:.1}%)", avail, pct)
-					}
-					None => "?".into(),
-				};
+		if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
+			let data_avail = match &adv.status.data_disk_avail {
+				_ if cfg.capacity.is_none() => "N/A".into(),
+				Some((avail, total)) => {
+					let pct = (*avail as f64) / (*total as f64) * 100.;
+					let avail = bytesize::ByteSize::b(*avail);
+					format!("{} ({:.1}%)", avail, pct)
+				}
+				None => "?".into(),
+			};
+			healthy_nodes.push(format!(
+				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
+				id = adv.id,
+				host = adv.status.hostname,
+				addr = adv.addr,
+				tags = cfg.tags.join(","),
+				zone = cfg.zone,
+				capacity = cfg.capacity_string(),
+				data_avail = data_avail,
+			));
+		} else {
+			let prev_role = layout
+				.versions
+				.iter()
+				.rev()
+				.find_map(|x| match x.roles.get(&adv.id) {
+					Some(NodeRoleV(Some(cfg))) => Some(cfg),
+					_ => None,
+				});
+			let historic_role =
+				layout
+					.old_versions
+					.iter()
+					.rev()
+					.find_map(|x| match x.roles.get(&adv.id) {
+						Some(NodeRoleV(Some(cfg))) => Some(cfg),
+						_ => None,
+					});
+			if let Some(cfg) = prev_role {
 				healthy_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
+					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
 					id = adv.id,
 					host = adv.status.hostname,
 					addr = adv.addr,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
-					capacity = cfg.capacity_string(),
-					data_avail = data_avail,
 				));
-			}
-			_ => {
+			} else if let Some(cfg) = historic_role {
+				healthy_nodes.push(format!(
+					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tremoved, metadata drained",
+					id = adv.id,
+					host = adv.status.hostname,
+					addr = adv.addr,
+					tags = cfg.tags.join(","),
+					zone = cfg.zone,
+				));
+			} else {
 				let new_role = match layout.staging.get().roles.get(&adv.id) {
-					Some(NodeRoleV(Some(_))) => "(pending)",
+					Some(NodeRoleV(Some(_))) => "pending...",
 					_ => "NO ROLE ASSIGNED",
 				};
 				healthy_nodes.push(format!(
-					"{id:?}\t{h}\t{addr}\t{new_role}",
+					"{id:?}\t{h}\t{addr}\t\t\t{new_role}",
 					id = adv.id,
 					h = adv.status.hostname,
 					addr = adv.addr,
@@ -101,55 +135,65 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	}
 	format_table(healthy_nodes);
 
-	let status_keys = status.iter().map(|adv| adv.id).collect::<HashSet<_>>();
-	let failure_case_1 = status.iter().any(|adv| {
-		!adv.is_up
-			&& matches!(
-				layout.current().roles.get(&adv.id),
-				Some(NodeRoleV(Some(_)))
-			)
-	});
-	let failure_case_2 = layout
-		.current()
-		.roles
-		.items()
+    // Determine which nodes are unhealthy and print that to stdout
+	let status_map = status
 		.iter()
-		.any(|(id, _, v)| !status_keys.contains(id) && v.0.is_some());
-	if failure_case_1 || failure_case_2 {
-		println!("\n==== FAILED NODES ====");
-		let mut failed_nodes =
-			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
-		for adv in status.iter().filter(|adv| !adv.is_up) {
-			if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
-				let tf = timeago::Formatter::new();
-				failed_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
-					id = adv.id,
-					host = adv.status.hostname,
-					addr = adv.addr,
-					tags = cfg.tags.join(","),
-					zone = cfg.zone,
-					capacity = cfg.capacity_string(),
-					last_seen = adv
-						.last_seen_secs_ago
+		.map(|adv| (adv.id, adv))
+		.collect::<HashMap<_, _>>();
+
+	let tf = timeago::Formatter::new();
+	let mut failed_nodes =
+		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
+	let mut listed = HashSet::new();
+	for ver in layout.versions.iter().rev() {
+		for (node, _, role) in ver.roles.items().iter() {
+			let cfg = match role {
+				NodeRoleV(Some(role)) if role.capacity.is_some() => role,
+				_ => continue,
+			};
+
+			if listed.contains(node) {
+				continue;
+			}
+			listed.insert(*node);
+
+			let adv = status_map.get(node);
+			if adv.map(|x| x.is_up).unwrap_or(false) {
+				continue;
+			}
+
+			// Node is in a layout version, is not a gateway node, and is not up:
+            // it is in a failed state, add proper line to the output
+			let (host, addr, last_seen) = match adv {
+				Some(adv) => (
+					adv.status.hostname.as_str(),
+					adv.addr.to_string(),
+					adv.last_seen_secs_ago
 						.map(|s| tf.convert(Duration::from_secs(s)))
 						.unwrap_or_else(|| "never seen".into()),
-				));
-			}
+				),
+				None => ("??", "??".into(), "never seen".into()),
+			};
+			let capacity = if ver.version == layout.current().version {
+				cfg.capacity_string()
+			} else {
+				"draining metadata...".to_string()
+			};
+			failed_nodes.push(format!(
+				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
+				id = node,
+				host = host,
+				addr = addr,
+				tags = cfg.tags.join(","),
+				zone = cfg.zone,
+				capacity = capacity,
+				last_seen = last_seen,
+			));
 		}
-		for (id, _, role_v) in layout.current().roles.items().iter() {
-			if let NodeRoleV(Some(cfg)) = role_v {
-				if !status_keys.contains(id) {
-					failed_nodes.push(format!(
-						"{id:?}\t??\t??\t[{tags}]\t{zone}\t{capacity}\tnever seen",
-						id = id,
-						tags = cfg.tags.join(","),
-						zone = cfg.zone,
-						capacity = cfg.capacity_string(),
-					));
-				}
-			}
-		}
+	}
+
+	if failed_nodes.len() > 1 {
+		println!("\n==== FAILED NODES ====");
 		format_table(failed_nodes);
 	}
 
