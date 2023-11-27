@@ -91,27 +91,9 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					Some(NodeRoleV(Some(cfg))) => Some(cfg),
 					_ => None,
 				});
-			let historic_role =
-				layout
-					.old_versions
-					.iter()
-					.rev()
-					.find_map(|x| match x.roles.get(&adv.id) {
-						Some(NodeRoleV(Some(cfg))) => Some(cfg),
-						_ => None,
-					});
 			if let Some(cfg) = prev_role {
 				healthy_nodes.push(format!(
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
-					id = adv.id,
-					host = adv.status.hostname,
-					addr = adv.addr,
-					tags = cfg.tags.join(","),
-					zone = cfg.zone,
-				));
-			} else if let Some(cfg) = historic_role {
-				healthy_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tremoved, metadata drained",
 					id = adv.id,
 					host = adv.status.hostname,
 					addr = adv.addr,
