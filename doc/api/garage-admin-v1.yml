@@ -7,12 +7,64 @@ info:
     
     *Disclaimer: The API is not stable yet, hence its v0 tag. The API can change at any time, and changes can include breaking backward compatibility. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*
 paths: 
+  /health:
+    get:
+      tags:
+        - Nodes               
+      operationId: "GetHealth"
+      summary: "Cluster health report"
+      description: |
+        Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).
+      responses:
+        '500':
+          description: |
+            The server can not answer your request because it is in a bad state
+        '200':
+          description: |
+            Information about the queried node, its environment and the current layout
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ status, knownNodes, connectedNodes, storageNodes, storageNodesOk, partitions, partitionsQuorum, partitionsAllOk ]
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  knownNodes:
+                    type: integer
+                    format: int64
+                    example: 4
+                  connectedNodes:
+                    type: integer
+                    format: int64
+                    example: 4
+                  storageNodes:
+                    type: integer
+                    format: int64
+                    example: 3
+                  storageNodesOk:
+                    type: integer
+                    format: int64
+                    example: 3
+                  partitions:
+                    type: integer
+                    format: int64
+                    example: 256
+                  partitionsQuorum:
+                    type: integer
+                    format: int64
+                    example: 256
+                  partitionsAllOk:
+                    type: integer
+                    format: int64
+                    example: 256
   /status:
     get:
       tags: 
         - Nodes
       operationId: "GetNodes"
-      summary: "Status of this node and other nodes in the cluster"
+      summary: "Describe cluster"
       description: |
         Returns the cluster's current status, including:
          - ID of the node being queried and its version of the Garage daemon
@@ -88,7 +140,7 @@ paths:
       tags:
         - Nodes
       operationId: "AddNode"
-      summary: "Connect target node to other Garage nodes"
+      summary: "Connect a new node"
       description: |
         Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
       requestBody:
@@ -131,8 +183,8 @@ paths:
                     error:
                       type: string
                       nullable: true
-                      example: 
-                
+                      example: null
+
   /layout:
     get:
       tags:
