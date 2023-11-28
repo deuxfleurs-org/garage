@@ -77,7 +77,64 @@ The following gives details about each available configuration option.
 
 ## Available configuration options
 
-### `metadata_dir`
+### Index
+
+Top-level configuration options:
+[`block_size`](#block_size),
+[`bootstrap_peers`](#bootstrap_peers),
+[`compression_level`](#compression_level),
+[`data_dir`](#metadata_dir),
+[`data_fsync`](#data_fsync),
+[`db_engine`](#db_engine),
+[`lmdb_map_size`](#lmdb_map_size),
+[`metadata_dir`](#metadata_dir),
+[`metadata_fsync`](#metadata_fsync),
+[`replication_mode`](#replication_mode),
+[`rpc_bind_addr`](#rpc_bind_addr),
+[`rpc_public_addr`](#rpc_public_addr),
+[`rpc_secret`](#rpc_secret),
+[`rpc_secret_file`](#rpc_secret),
+[`sled_cache_capacity`](#sled_cache_capacity),
+[`sled_flush_every_ms`](#sled_flush_every_ms).
+
+The `[consul_discovery]` section:
+[`api`](#consul_api),
+[`ca_cert`](#consul_ca_cert),
+[`client_cert`](#consul_client_cert),
+[`client_key`](#consul_client_cert),
+[`consul_http_addr`](#consul_http_addr),
+[`meta`](#consul_tags),
+[`service_name`](#consul_service_name),
+[`tags`](#consul_tags),
+[`tls_skip_verify`](#consul_tls_skip_verify),
+[`token`](#consul_token).
+
+The `[kubernetes_discovery]` section:
+[`namespace`](#kube_namespace),
+[`service_name`](#kube_service_name),
+[`skip_crd`](#kube_skip_crd).
+
+The `[s3_api]` section:
+[`api_bind_addr`](#s3_api_bind_addr),
+[`root_domain`](#s3_root_domain),
+[`s3_region`](#s3_region).
+
+The `[s3_web]` section:
+[`bind_addr`](#web_bind_addr),
+[`root_domain`](#web_root_domain).
+
+The `[admin]` section:
+[`api_bind_addr`](#admin_api_bind_addr),
+[`metrics_token`](#admin_metrics_token),
+[`metrics_token_file`](#admin_metrics_token),
+[`admin_token`](#admin_token),
+[`admin_token_file`](#admin_token),
+[`trace_sink`](#admin_trace_sink),
+
+
+### Top-level configuration options
+
+#### `metadata_dir` {#metadata_dir}
 
 The directory in which Garage will store its metadata. This contains the node identifier,
 the network configuration and the peer list, the list of buckets and keys as well
@@ -85,7 +142,7 @@ as the index of all objects, object version and object blocks.
 
 Store this folder on a fast SSD drive if possible to maximize Garage's performance.
 
-### `data_dir`
+#### `data_dir` {#data_dir}
 
 The directory in which Garage will store the data blocks of objects.
 This folder can be placed on an HDD. The space available for `data_dir`
@@ -105,7 +162,7 @@ data_dir = [
 See [the dedicated documentation page](@/documentation/operations/multi-hdd.md)
 on how to operate Garage in such a setup.
 
-### `db_engine` (since `v0.8.0`)
+#### `db_engine` (since `v0.8.0`) {#db_engine}
 
 Since `v0.8.0`, Garage can use alternative storage backends as follows:
 
@@ -149,7 +206,7 @@ garage convert-db -a <input db engine> -i <input db path> \
 Make sure to specify the full database path as presented in the table above
 (third colummn), and not just the path to the metadata directory.
 
-### `metadata_fsync`
+#### `metadata_fsync` {#metadata_fsync}
 
 Whether to enable synchronous mode for the database engine or not.
 This is disabled (`false`) by default.
@@ -179,7 +236,7 @@ Here is how this option impacts the different database engines:
 
 Note that the Sqlite database is always ran in `WAL` mode (`PRAGMA journal_mode = WAL`).
 
-### `data_fsync`
+#### `data_fsync` {#data_fsync}
 
 Whether to `fsync` data blocks and their containing directory after they are
 saved to disk.
@@ -192,7 +249,7 @@ at the cost of a moderate drop in write performance.
 Similarly to `metatada_fsync`, this is likely not necessary
 if geographical replication is used.
 
-### `block_size`
+#### `block_size` {#block_size}
 
 Garage splits stored objects in consecutive chunks of size `block_size`
 (except the last one which might be smaller). The default size is 1MiB and
@@ -207,7 +264,7 @@ files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
 
-### `sled_cache_capacity`
+#### `sled_cache_capacity` {#sled_cache_capacity}
 
 This parameter can be used to tune the capacity of the cache used by
 [sled](https://sled.rs), the database Garage uses internally to store metadata.
@@ -215,14 +272,14 @@ Tune this to fit the RAM you wish to make available to your Garage instance.
 This value has a conservative default (128MB) so that Garage doesn't use too much
 RAM by default, but feel free to increase this for higher performance.
 
-### `sled_flush_every_ms`
+#### `sled_flush_every_ms` {#sled_flush_every_ms}
 
 This parameters can be used to tune the flushing interval of sled.
 Increase this if sled is thrashing your SSD, at the risk of losing more data in case
 of a power outage (though this should not matter much as data is replicated on other
 nodes). The default value, 2000ms, should be appropriate for most use cases.
 
-### `lmdb_map_size`
+#### `lmdb_map_size` {#lmdb_map_size}
 
 This parameters can be used to set the map size used by LMDB,
 which is the size of the virtual memory region used for mapping the database file.
@@ -230,7 +287,7 @@ The value of this parameter is the maximum size the metadata database can take.
 This value is not bound by the physical RAM size of the machine running Garage.
 If not specified, it defaults to 1GiB on 32-bit machines and 1TiB on 64-bit machines.
 
-### `replication_mode`
+#### `replication_mode` {#replication_mode}
 
 Garage supports the following replication modes:
 
@@ -313,7 +370,7 @@ to the cluster while rebalancing is in progress.  In theory, no data should be
 lost as rebalancing is a routine operation for Garage, although we cannot
 guarantee you that everything will go right in such an extreme scenario.
 
-### `compression_level`
+#### `compression_level` {#compression_level}
 
 Zstd compression level to use for storing blocks.
 
@@ -337,7 +394,7 @@ Compression is done synchronously, setting a value too high will add latency to 
 This value can be different between nodes, compression is done by the node which receive the
 API call.
 
-### `rpc_secret`, `rpc_secret_file` or `GARAGE_RPC_SECRET` (env)
+#### `rpc_secret`, `rpc_secret_file` or `GARAGE_RPC_SECRET` (env) {#rpc_secret}
 
 Garage uses a secret key, called an RPC secret, that is shared between all
 nodes of the cluster in order to identify these nodes and allow them to
@@ -349,7 +406,7 @@ Since Garage `v0.8.2`, the RPC secret can also be stored in a file whose path is
 given in the configuration variable `rpc_secret_file`, or specified as an
 environment variable `GARAGE_RPC_SECRET`.
 
-### `rpc_bind_addr`
+#### `rpc_bind_addr` {#rpc_bind_addr}
 
 The address and port on which to bind for inter-cluster communcations
 (reffered to as RPC for remote procedure calls).
@@ -358,14 +415,14 @@ the node, even in the case of a NAT: the NAT should be configured to forward the
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
 
-### `rpc_public_addr`
+#### `rpc_public_addr` {#rpc_public_addr}
 
 The address and port that other nodes need to use to contact this node for
 RPC calls.  **This parameter is optional but recommended.** In case you have
 a NAT that binds the RPC port to a port that is different on your public IP,
 this field might help making it work.
 
-### `bootstrap_peers`
+#### `bootstrap_peers` {#bootstrap_peers}
 
 A list of peer identifiers on which to contact other Garage peers of this cluster.
 These peer identifiers have the following syntax:
@@ -382,42 +439,42 @@ key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
 
-## The `[consul_discovery]` section
+### The `[consul_discovery]` section
 
 Garage supports discovering other nodes of the cluster using Consul.  For this
 to work correctly, nodes need to know their IP address by which they can be
 reached by other nodes of the cluster, which should be set in `rpc_public_addr`.
 
-### `consul_http_addr` and `service_name`
+#### `consul_http_addr` {#consul_http_addr}
 
 The `consul_http_addr` parameter should be set to the full HTTP(S) address of the Consul server.
 
-### `api`
+#### `api` {#consul_api}
 
 Two APIs for service registration are supported: `catalog`  and `agent`. `catalog`, the default, will register a service using
 the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are provided. The `agent` API uses the
 `v1/agent` endpoints instead, where an optional `token` may be provided.
 
-### `service_name`
+#### `service_name` {#consul_service_name}
 
 `service_name` should be set to the service name under which Garage's
 RPC ports are announced.
 
-### `client_cert`, `client_key`
+#### `client_cert`, `client_key` {#consul_client_cert}
 
 TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
 Only available when `api = "catalog"`.
 
-### `ca_cert`
+#### `ca_cert` {#consul_ca_cert}
 
 TLS CA certificate to use when communicating with Consul over TLS.
 
-### `tls_skip_verify`
+#### `tls_skip_verify` {#consul_tls_skip_verify}
 
 Skip server hostname verification in TLS handshake.
 `ca_cert` is ignored when this is set.
 
-### `token`
+#### `token` {#consul_token}
 
 Uses the provided token for communication with Consul. Only available when `api = "agent"`.
 The policy assigned to this token should at least have these rules:
@@ -437,49 +494,49 @@ node_prefix "" {
 }
 ```
 
-### `tags` and `meta`
+#### `tags` and `meta` {#consul_tags}
 
 Additional list of tags and map of service meta to add during service registration.
 
-## The `[kubernetes_discovery]` section
+### The `[kubernetes_discovery]` section
 
 Garage supports discovering other nodes of the cluster using kubernetes custom
 resources. For this to work, a `[kubernetes_discovery]` section must be present
 with at least the `namespace` and `service_name` parameters.
 
-### `namespace`
+#### `namespace` {#kube_namespace}
 
 `namespace` sets the namespace in which the custom resources are
 configured.
 
-### `service_name`
+#### `service_name` {#kube_service_name}
 
 `service_name` is added as a label to the advertised resources to
 filter them, to allow for multiple deployments in a single namespace.
 
-### `skip_crd`
+#### `skip_crd` {#kube_skip_crd}
 
 `skip_crd` can be set to true to disable the automatic creation and
 patching of the `garagenodes.deuxfleurs.fr` CRD. You will need to create the CRD
 manually.
 
 
-## The `[s3_api]` section
+### The `[s3_api]` section
 
-### `api_bind_addr`
+#### `api_bind_addr` {#s3_api_bind_addr}
 
 The IP and port on which to bind for accepting S3 API calls.
 This endpoint does not suport TLS: a reverse proxy should be used to provide it.
 
 Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0222 mode.
 
-### `s3_region`
+#### `s3_region` {#s3_region}
 
 Garage will accept S3 API calls that are targetted to the S3 region defined here.
 API calls targetted to other regions will fail with a AuthorizationHeaderMalformed error
 message that redirects the client to the correct region.
 
-### `root_domain` {#root_domain}
+#### `root_domain` {#s3_root_domain}
 
 The optional suffix to access bucket using vhost-style in addition to path-style request.
 Note path-style requests are always enabled, whether or not vhost-style is configured.
@@ -491,12 +548,12 @@ using the hostname `my-bucket.s3.garage.eu`.
 
 
 
-## The `[s3_web]` section
+### The `[s3_web]` section
 
 Garage allows to publish content of buckets as websites. This section configures the
 behaviour of this module.
 
-### `bind_addr`
+#### `bind_addr` {#web_bind_addr}
 
 The IP and port on which to bind for accepting HTTP requests to buckets configured
 for website access.
@@ -504,7 +561,7 @@ This endpoint does not suport TLS: a reverse proxy should be used to provide it.
 
 Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0222 mode.
 
-### `root_domain`
+#### `root_domain` {#web_root_domain}
 
 The optional suffix appended to bucket names for the corresponding HTTP Host.
 
@@ -513,11 +570,11 @@ will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
 or with hostname `deuxfleurs.fr`.
 
 
-## The `[admin]` section
+### The `[admin]` section
 
 Garage has a few administration capabilities, in particular to allow remote monitoring. These features are detailed below.
 
-### `api_bind_addr`
+#### `api_bind_addr` {#admin_api_bind_addr}
 
 If specified, Garage will bind an HTTP server to this port and address, on
 which it will listen to requests for administration features.
@@ -526,7 +583,7 @@ See [administration API reference](@/documentation/reference-manual/admin-api.md
 Alternatively, since `v0.8.5`, a path can be used to create a unix socket. Note that for security reasons,
 the socket will have 0220 mode. Make sure to set user and group permissions accordingly.
 
-### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN` (env)
+#### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN` (env) {#admin_metrics_token}
 
 The token for accessing the Metrics endpoint. If this token is not set, the
 Metrics endpoint can be accessed without access control.
@@ -537,7 +594,7 @@ You can use any random string for this value. We recommend generating a random t
 `metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
 
-### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN` (env)
+#### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN` (env) {#admin_token}
 
 The token for accessing all of the other administration endpoints.  If this
 token is not set, access to these endpoints is disabled entirely.
@@ -548,7 +605,7 @@ You can use any random string for this value. We recommend generating a random t
 `admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
 
-### `trace_sink`
+#### `trace_sink` {#admin_trace_sink}
 
 Optionally, the address of an OpenTelemetry collector.  If specified,
 Garage will send traces in the OpenTelemetry format to this endpoint. These
