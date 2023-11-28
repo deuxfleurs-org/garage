@@ -8,6 +8,8 @@ weight = 20
 Here is an example `garage.toml` configuration file that illustrates all of the possible options:
 
 ```toml
+replication_mode = "3"
+
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 metadata_fsync = true
@@ -20,8 +22,6 @@ block_size = 1048576
 sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
 lmdb_map_size = "1T"
-
-replication_mode = "3"
 
 compression_level = 1
 
@@ -133,6 +133,89 @@ The `[admin]` section:
 
 
 ### Top-level configuration options
+
+#### `replication_mode` {#replication_mode}
+
+Garage supports the following replication modes:
+
+- `none` or `1`: data stored on Garage is stored on a single node. There is no
+  redundancy, and data will be unavailable as soon as one node fails or its
+  network is disconnected.  Do not use this for anything else than test
+  deployments.
+
+- `2`: data stored on Garage will be stored on two different nodes, if possible
+  in different zones. Garage tolerates one node failure, or several nodes
+  failing but all in a single zone (in a deployment with at least two zones),
+  before losing data. Data remains available in read-only mode when one node is
+  down, but write operations will fail.
+
+  - `2-dangerous`: a variant of mode `2`, where written objects are written to
+    the second replica asynchronously. This means that Garage will return `200
+    OK` to a PutObject request before the second copy is fully written (or even
+    before it even starts being written).  This means that data can more easily
+    be lost if the node crashes before a second copy can be completed.  This
+    also means that written objects might not be visible immediately in read
+    operations.  In other words, this mode severely breaks the consistency and
+    durability guarantees of standard Garage cluster operation.  Benefits of
+    this mode: you can still write to your cluster when one node is
+    unavailable.
+
+- `3`: data stored on Garage will be stored on three different nodes, if
+  possible each in a different zones.  Garage tolerates two node failure, or
+  several node failures but in no more than two zones (in a deployment with at
+  least three zones), before losing data. As long as only a single node fails,
+  or node failures are only in a single zone, reading and writing data to
+  Garage can continue normally.
+
+  - `3-degraded`: a variant of replication mode `3`, that lowers the read
+    quorum to `1`, to allow you to read data from your cluster when several
+    nodes (or nodes in several zones) are unavailable.  In this mode, Garage
+    does not provide read-after-write consistency anymore.  The write quorum is
+    still 2, ensuring that data successfully written to Garage is stored on at
+    least two nodes.
+
+  - `3-dangerous`: a variant of replication mode `3` that lowers both the read
+    and write quorums to `1`, to allow you to both read and write to your
+    cluster when several nodes (or nodes in several zones) are unavailable.  It
+    is the least consistent mode of operation proposed by Garage, and also one
+    that should probably never be used.
+
+Note that in modes `2` and `3`,
+if at least the same number of zones are available, an arbitrary number of failures in
+any given zone is tolerated as copies of data will be spread over several zones.
+
+**Make sure `replication_mode` is the same in the configuration files of all nodes.
+Never run a Garage cluster where that is not the case.**
+
+The quorums associated with each replication mode are described below:
+
+| `replication_mode` | Number of replicas | Write quorum | Read quorum | Read-after-write consistency? |
+| ------------------ | ------------------ | ------------ | ----------- | ----------------------------- |
+| `none` or `1`      | 1                  | 1            | 1           | yes                           |
+| `2`                | 2                  | 2            | 1           | yes                           |
+| `2-dangerous`      | 2                  | 1            | 1           | NO                            |
+| `3`                | 3                  | 2            | 2           | yes                           |
+| `3-degraded`       | 3                  | 2            | 1           | NO                            |
+| `3-dangerous`      | 3                  | 1            | 1           | NO                            |
+
+Changing the `replication_mode` between modes with the same number of replicas
+(e.g. from `3` to `3-degraded`, or from `2-dangerous` to `2`), can be done easily by
+just changing the `replication_mode` parameter in your config files and restarting all your
+Garage nodes.
+
+It is also technically possible to change the replication mode to a mode with a
+different numbers of replicas, although it's a dangerous operation that is not
+officially supported.  This requires you to delete the existing cluster layout
+and create a new layout from scratch, meaning that a full rebalancing of your
+cluster's data will be needed.  To do it, shut down your cluster entirely,
+delete the `custer_layout` files in the meta directories of all your nodes,
+update all your configuration files with the new `replication_mode` parameter,
+restart your cluster, and then create a new layout with all the nodes you want
+to keep.  Rebalancing data will take some time, and data might temporarily
+appear unavailable to your users.  It is recommended to shut down public access
+to the cluster while rebalancing is in progress.  In theory, no data should be
+lost as rebalancing is a routine operation for Garage, although we cannot
+guarantee you that everything will go right in such an extreme scenario.
 
 #### `metadata_dir` {#metadata_dir}
 
@@ -286,89 +369,6 @@ which is the size of the virtual memory region used for mapping the database fil
 The value of this parameter is the maximum size the metadata database can take.
 This value is not bound by the physical RAM size of the machine running Garage.
 If not specified, it defaults to 1GiB on 32-bit machines and 1TiB on 64-bit machines.
-
-#### `replication_mode` {#replication_mode}
-
-Garage supports the following replication modes:
-
-- `none` or `1`: data stored on Garage is stored on a single node. There is no
-  redundancy, and data will be unavailable as soon as one node fails or its
-  network is disconnected.  Do not use this for anything else than test
-  deployments.
-
-- `2`: data stored on Garage will be stored on two different nodes, if possible
-  in different zones. Garage tolerates one node failure, or several nodes
-  failing but all in a single zone (in a deployment with at least two zones),
-  before losing data. Data remains available in read-only mode when one node is
-  down, but write operations will fail.
-
-  - `2-dangerous`: a variant of mode `2`, where written objects are written to
-    the second replica asynchronously. This means that Garage will return `200
-    OK` to a PutObject request before the second copy is fully written (or even
-    before it even starts being written).  This means that data can more easily
-    be lost if the node crashes before a second copy can be completed.  This
-    also means that written objects might not be visible immediately in read
-    operations.  In other words, this mode severely breaks the consistency and
-    durability guarantees of standard Garage cluster operation.  Benefits of
-    this mode: you can still write to your cluster when one node is
-    unavailable.
-
-- `3`: data stored on Garage will be stored on three different nodes, if
-  possible each in a different zones.  Garage tolerates two node failure, or
-  several node failures but in no more than two zones (in a deployment with at
-  least three zones), before losing data. As long as only a single node fails,
-  or node failures are only in a single zone, reading and writing data to
-  Garage can continue normally.
-
-  - `3-degraded`: a variant of replication mode `3`, that lowers the read
-    quorum to `1`, to allow you to read data from your cluster when several
-    nodes (or nodes in several zones) are unavailable.  In this mode, Garage
-    does not provide read-after-write consistency anymore.  The write quorum is
-    still 2, ensuring that data successfully written to Garage is stored on at
-    least two nodes.
-
-  - `3-dangerous`: a variant of replication mode `3` that lowers both the read
-    and write quorums to `1`, to allow you to both read and write to your
-    cluster when several nodes (or nodes in several zones) are unavailable.  It
-    is the least consistent mode of operation proposed by Garage, and also one
-    that should probably never be used.
-
-Note that in modes `2` and `3`,
-if at least the same number of zones are available, an arbitrary number of failures in
-any given zone is tolerated as copies of data will be spread over several zones.
-
-**Make sure `replication_mode` is the same in the configuration files of all nodes.
-Never run a Garage cluster where that is not the case.**
-
-The quorums associated with each replication mode are described below:
-
-| `replication_mode` | Number of replicas | Write quorum | Read quorum | Read-after-write consistency? |
-| ------------------ | ------------------ | ------------ | ----------- | ----------------------------- |
-| `none` or `1`      | 1                  | 1            | 1           | yes                           |
-| `2`                | 2                  | 2            | 1           | yes                           |
-| `2-dangerous`      | 2                  | 1            | 1           | NO                            |
-| `3`                | 3                  | 2            | 2           | yes                           |
-| `3-degraded`       | 3                  | 2            | 1           | NO                            |
-| `3-dangerous`      | 3                  | 1            | 1           | NO                            |
-
-Changing the `replication_mode` between modes with the same number of replicas
-(e.g. from `3` to `3-degraded`, or from `2-dangerous` to `2`), can be done easily by
-just changing the `replication_mode` parameter in your config files and restarting all your
-Garage nodes.
-
-It is also technically possible to change the replication mode to a mode with a
-different numbers of replicas, although it's a dangerous operation that is not
-officially supported.  This requires you to delete the existing cluster layout
-and create a new layout from scratch, meaning that a full rebalancing of your
-cluster's data will be needed.  To do it, shut down your cluster entirely,
-delete the `custer_layout` files in the meta directories of all your nodes,
-update all your configuration files with the new `replication_mode` parameter,
-restart your cluster, and then create a new layout with all the nodes you want
-to keep.  Rebalancing data will take some time, and data might temporarily
-appear unavailable to your users.  It is recommended to shut down public access
-to the cluster while rebalancing is in progress.  In theory, no data should be
-lost as rebalancing is a routine operation for Garage, although we cannot
-guarantee you that everything will go right in such an extreme scenario.
 
 #### `compression_level` {#compression_level}
 
