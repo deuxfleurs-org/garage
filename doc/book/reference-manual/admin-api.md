@@ -13,8 +13,11 @@ We will bump the version numbers prefixed to each API endpoint at each time the 
 or semantics change, meaning that code that relies on these endpoint will break
 when changes are introduced.
 
-The Garage administration API was introduced in version 0.7.2, this document
-does not apply to older versions of Garage.
+Versions:
+ - Before Garage 0.7.2 - no admin API
+ - Garage 0.7.2 - admin APIv0
+ - Garage 0.9.0 - admin APIv1, deprecate admin APIv0
+
 
 
 ## Access control
@@ -131,7 +134,9 @@ $ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=exampl
 
 ### Cluster operations
 
-These endpoints are defined on a dedicated [Redocly page](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.html). You can also download its [OpenAPI specification](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.yml).
+These endpoints have a dedicated OpenAPI spec.
+ - APIv1 - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.yml)
+ - APIv0 (deprecated) - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.yml)
 
 Requesting the API from the command line can be as simple as running:
 

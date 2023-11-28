@@ -80,7 +80,7 @@ from garage_admin_sdk.apis import *
 from garage_admin_sdk.models import *
 
 configuration = garage_admin_sdk.Configuration(
-  host = "http://localhost:3903/v0",
+  host = "http://localhost:3903/v1",
   access_token = "s3cr3t"
 )
 
@@ -94,13 +94,14 @@ print(f"running garage {status.garage_version}, node_id {status.node}")
 
 # Change layout of this node
 current = layout.get_layout()
-layout.add_layout({
-  status.node: NodeClusterInfo(
+layout.add_layout([
+  NodeRoleChange(
+    id = status.node,
     zone = "dc1",
-    capacity = 1,
+    capacity = 1000000000,
     tags = [ "dev" ],
   )
-})
+])
 layout.apply_layout(LayoutVersion(
   version = current.version + 1
 ))

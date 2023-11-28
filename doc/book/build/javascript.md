@@ -31,9 +31,9 @@ npm install --save git+https://git.deuxfleurs.fr/garage-sdk/garage-admin-sdk-js.
 A short example:
 
 ```javascript
-const garage = require('garage_administration_api_v0garage_v0_8_0');
+const garage = require('garage_administration_api_v1garage_v0_9_0');
 
-const api = new garage.ApiClient("http://127.0.0.1:3903/v0");
+const api = new garage.ApiClient("http://127.0.0.1:3903/v1");
 api.authentications['bearerAuth'].accessToken = "s3cr3t";
 
 const [node, layout, key, bucket] = [
