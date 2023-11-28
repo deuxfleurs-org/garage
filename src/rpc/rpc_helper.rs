@@ -129,6 +129,12 @@ impl RpcHelper {
 		N: IntoReq<M> + Send,
 		H: StreamingEndpointHandler<M>,
 	{
+		let tracer = opentelemetry::global::tracer("garage");
+		let span_name = format!("RPC [{}] to {:?}", endpoint.path(), to);
+		let mut span = tracer.start(span_name);
+		span.set_attribute(KeyValue::new("from", format!("{:?}", self.0.our_node_id)));
+		span.set_attribute(KeyValue::new("to", format!("{:?}", to)));
+
 		let metric_tags = [
 			KeyValue::new("rpc_endpoint", endpoint.path().to_string()),
 			KeyValue::new("from", format!("{:?}", self.0.our_node_id)),
@@ -140,6 +146,7 @@ impl RpcHelper {
 		let node_id = to.into();
 		let rpc_call = endpoint
 			.call_streaming(&node_id, msg, strat.rs_priority)
+			.with_context(Context::current_with_span(span))
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 
 		let timeout = async {
@@ -182,12 +189,17 @@ impl RpcHelper {
 		N: IntoReq<M>,
 		H: StreamingEndpointHandler<M>,
 	{
+		let tracer = opentelemetry::global::tracer("garage");
+		let span_name = format!("RPC [{}] call_many {} nodes", endpoint.path(), to.len());
+		let span = tracer.start(span_name);
+
 		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
 
 		let resps = join_all(
 			to.iter()
 				.map(|to| self.call(endpoint, *to, msg.clone(), strat)),
 		)
+		.with_context(Context::current_with_span(span))
 		.await;
 		Ok(to
 			.iter()
@@ -219,6 +231,22 @@ impl RpcHelper {
 
 	/// Make a RPC call to multiple servers, returning either a Vec of responses,
 	/// or an error if quorum could not be reached due to too many errors
+	///
+	/// If RequestStrategy has send_all_at_once set, then all requests will be
+	/// sent at once, and `try_call_many` will return as soon as a quorum of
+	/// responses is achieved, dropping and cancelling the remaining requests.
+	///
+	/// Otherwise, `quorum` requests will be sent at the same time, and if an
+	/// error response is received, a new request will be sent to replace it.
+	/// The ordering of nodes to which requests are sent is determined by
+	/// the `RpcHelper::request_order` function, which takes into account
+	/// parameters such as node zones and measured ping values.
+	///
+	/// In both cases, the basic contract of this function is that even in the
+	/// absence of failures, the RPC call might not be driven to completion
+	/// on all of the specified nodes. It is therefore unfit for broadcast
+	/// write operations where we expect all nodes to successfully store
+	/// the written date.
 	pub async fn try_call_many<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
@@ -235,7 +263,12 @@ impl RpcHelper {
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
 
 		let tracer = opentelemetry::global::tracer("garage");
-		let span_name = format!("Read RPC {} to {} of {}", endpoint.path(), quorum, to.len());
+		let span_name = format!(
+			"RPC [{}] try_call_many (quorum {}/{})",
+			endpoint.path(),
+			quorum,
+			to.len()
+		);
 
 		let mut span = tracer.start(span_name);
 		span.set_attribute(KeyValue::new("from", format!("{:?}", self.0.our_node_id)));
@@ -266,6 +299,10 @@ impl RpcHelper {
 		// to reach a quorum, priorizing nodes with the lowest latency.
 		// When there are errors, we start new requests to compensate.
 
+		// TODO: this could be made more aggressive, e.g. if after 2x the
+		// average ping of a given request, the response is not yet received,
+		// preemptively send an additional request to any remaining nodes.
+
 		// Reorder requests to priorize closeness / low latency
 		let request_order = self.request_order(to.iter().copied());
 		let send_all_at_once = strategy.rs_send_all_at_once.unwrap_or(false);
@@ -278,9 +315,7 @@ impl RpcHelper {
 			let self2 = self.clone();
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();
-			(to, async move {
-				self2.call(&endpoint2, to, msg, strategy).await
-			})
+			async move { self2.call(&endpoint2, to, msg, strategy).await }
 		});
 
 		// Vectors in which success results and errors will be collected
@@ -296,10 +331,8 @@ impl RpcHelper {
 			// If the current set of requests that are running is not enough to possibly
 			// reach quorum, start some new requests.
 			while send_all_at_once || successes.len() + resp_stream.len() < quorum {
-				if let Some((req_to, fut)) = requests.next() {
-					let tracer = opentelemetry::global::tracer("garage");
-					let span = tracer.start(format!("RPC to {:?}", req_to));
-					resp_stream.push(fut.with_context(Context::current_with_span(span)));
+				if let Some(fut) = requests.next() {
+					resp_stream.push(fut)
 				} else {
 					break;
 				}
@@ -379,6 +412,25 @@ impl RpcHelper {
 			.collect::<Vec<_>>()
 	}
 
+	/// Make a RPC call to multiple servers, returning either a Vec of responses,
+	/// or an error if quorum could not be reached due to too many errors
+	///
+	/// Contrary to try_call_many, this fuction is especially made for broadcast
+	/// write operations. In particular:
+	///
+	/// - The request are sent to all specified nodes as soon as `try_write_many_sets`
+	///   is invoked.
+	///
+	/// - When `try_write_many_sets` returns, all remaining requests that haven't
+	///   completed move to a background task so that they have a chance to
+	///   complete successfully if there are no failures.
+	///
+	/// In addition, the nodes to which requests should be sent are divided in
+	/// "quorum sets", and `try_write_many_sets` only returns once a quorum
+	/// has been validated in each set. This is used in the case of cluster layout
+	/// changes, where data has to be written both in the old layout and in the
+	/// new one as long as all nodes have not successfully tranisitionned and
+	/// moved all data to the new layout.
 	pub async fn try_write_many_sets<M, N, H, S>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
@@ -394,11 +446,11 @@ impl RpcHelper {
 	{
 		let quorum = strategy
 			.rs_quorum
-			.expect("internal error: missing quroum in try_write_many_sets");
+			.expect("internal error: missing quorum value in try_write_many_sets");
 
 		let tracer = opentelemetry::global::tracer("garage");
 		let span_name = format!(
-			"Write RPC {} (quorum {} in {} sets)",
+			"RPC [{}] try_write_many_sets (quorum {} in {} sets)",
 			endpoint.path(),
 			quorum,
 			to_sets.len()
@@ -430,6 +482,8 @@ impl RpcHelper {
 	{
 		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
 
+		// Peers may appear in many quorum sets. Here, build a list of peers,
+		// mapping to the index of the quorum sets in which they appear.
 		let mut peers = HashMap::<Uuid, Vec<usize>>::new();
 		for (i, set) in to_sets.iter().enumerate() {
 			for peer in set.iter() {
@@ -437,24 +491,30 @@ impl RpcHelper {
 			}
 		}
 
+		// Send one request to each peer of the quorum sets
 		let requests = peers.iter().map(|(peer, _)| {
 			let self2 = self.clone();
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();
 			let to = *peer;
-			let tracer = opentelemetry::global::tracer("garage");
-			let span = tracer.start(format!("RPC to {:?}", to));
-			let fut = async move { (to, self2.call(&endpoint2, to, msg, strategy).await) };
-			fut.with_context(Context::current_with_span(span))
+			async move { (to, self2.call(&endpoint2, to, msg, strategy).await) }
 		});
 		let mut resp_stream = requests.collect::<FuturesUnordered<_>>();
 
+		// Success and error responses will be collected in these two vectors
 		let mut successes = vec![];
 		let mut errors = vec![];
 
+		// `set_counters` is used to keep track of how many success and error
+		// responses are received within each quorum set. When a node returns
+		// its response, it counts as a sucess/an error for all of the quorum
+		// sets which it is part of.
 		let mut set_counters = vec![(0, 0); to_sets.len()];
 
+		// Drive requests to completion
 		while let Some((node, resp)) = resp_stream.next().await {
+			// Store the response in the correct vector and increment the
+			// appropriate counters
 			match resp {
 				Ok(msg) => {
 					for set in peers.get(&node).unwrap().iter() {
@@ -470,9 +530,8 @@ impl RpcHelper {
 				}
 			}
 
+			// If we have a quorum of ok in all quorum sets, then it's a success!
 			if set_counters.iter().all(|(ok_cnt, _)| *ok_cnt >= quorum) {
-				// Success
-
 				// Continue all other requets in background
 				tokio::spawn(async move {
 					resp_stream.collect::<Vec<(Uuid, Result<_, _>)>>().await;
@@ -481,15 +540,27 @@ impl RpcHelper {
 				return Ok(successes);
 			}
 
+			// If there is a quorum set for which too many errors were received,
+			// we know it's impossible to get a quorum, so return immediately.
 			if set_counters
 				.iter()
 				.enumerate()
 				.any(|(i, (_, err_cnt))| err_cnt + quorum > to_sets[i].len())
 			{
-				// Too many errors in this set, we know we won't get a quorum
 				break;
 			}
 		}
+
+		// At this point, there is no quorum and we know that a quorum
+		// will never be achieved. Currently, we drop all remaining requests.
+		// Should we still move them to background so that they can continue
+		// for non-failed nodes? Not doing so has no impact on correctness,
+		// but it means that more cancellation messages will be sent. Idk.
+		// (When an in-progress request future is dropped, Netapp automatically
+		// sends a cancellation message to the remote node to inform it that
+		// the result is no longer needed. In turn, if the remote node receives
+		// the cancellation message in time, it interrupts the task of the
+		// running request handler.)
 
 		// Failure, could not get quorum
 		let errors = errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>();
