@@ -107,44 +107,47 @@ on how to operate Garage in such a setup.
 
 ### `db_engine` (since `v0.8.0`)
 
-By default, Garage uses the Sled embedded database library
-to store its metadata on-disk. Since `v0.8.0`, Garage can use alternative storage backends as follows:
+Since `v0.8.0`, Garage can use alternative storage backends as follows:
 
 | DB engine | `db_engine` value | Database path |
 | --------- | ----------------- | ------------- |
-| [Sled](https://sled.rs) | `"sled"` | `<metadata_dir>/db/` |
-| [LMDB](https://www.lmdb.tech) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [LMDB](https://www.lmdb.tech) (default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [Sled](https://sled.rs) (default up to `v0.8.0`) | `"sled"` | `<metadata_dir>/db/` |
 | [Sqlite](https://sqlite.org) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+
+Sled was the only database engine up to Garage v0.7.0. Performance issues and
+API limitations of Sled prompted the addition of alternative engines in v0.8.0.
+Since v0.9.0, LMDB is the default engine instead of Sled, and Sled is
+deprecated. We plan to remove Sled in Garage v1.0.
 
 Performance characteristics of the different DB engines are as follows:
 
-- Sled: the default database engine, which tends to produce
-  large data files and also has performance issues, especially when the metadata folder
-  is on a traditional HDD and not on SSD.
-- LMDB: the recommended alternative on 64-bit systems,
-  much more space-efficiant and slightly faster. Note that the data format of LMDB is not portable
-  between architectures, so for instance the Garage database of an x86-64
-  node cannot be moved to an ARM64 node. Also note that, while LMDB can technically be used on 32-bit systems,
-  this will limit your node to very small database sizes due to how LMDB works; it is therefore not recommended.
-- Sqlite: Garage supports Sqlite as a storage backend for metadata,
-  however it may have issues and is also very slow in its current implementation,
-  so it is not recommended to be used for now.
+- Sled: tends to produce large data files and also has performance issues,
+  especially when the metadata folder is on a traditional HDD and not on SSD.
 
-It is possible to convert Garage's metadata directory from one format to another with a small utility named `convert_db`,
-which can be downloaded at the following locations:
-[for amd64](https://garagehq.deuxfleurs.fr/_releases/convert_db/amd64/convert_db),
-[for i386](https://garagehq.deuxfleurs.fr/_releases/convert_db/i386/convert_db),
-[for arm64](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm64/convert_db),
-[for arm](https://garagehq.deuxfleurs.fr/_releases/convert_db/arm/convert_db).
-The `convert_db` utility is used as folows:
+- LMDB: the recommended database engine on 64-bit systems, much more
+  space-efficient and slightly faster. Note that the data format of LMDB is not
+  portable between architectures, so for instance the Garage database of an
+  x86-64 node cannot be moved to an ARM64 node. Also note that, while LMDB can
+  technically be used on 32-bit systems, this will limit your node to very
+  small database sizes due to how LMDB works; it is therefore not recommended.
+
+- Sqlite: Garage supports Sqlite as an alternative storage backend for
+  metadata, and although it has not been tested as much, it is expected to work
+  satisfactorily.  Since Garage v0.9.0, performance issues have largely been
+  fixed by allowing for a no-fsync mode (see `metadata_fsync`). Sqlite does not
+  have the database size limitation of LMDB on 32-bit systems.
+
+It is possible to convert Garage's metadata directory from one format to another
+using the `garage convert-db` command, which should be used as follows:
 
 ```
-convert-db -a <input db engine> -i <input db path> \
-  		   -b <output db engine> -o <output db path>
+garage convert-db -a <input db engine> -i <input db path> \
+                  -b <output db engine> -o <output db path>
 ```
 
-Make sure to specify the full database path as presented in the table above,
-and not just the path to the metadata directory.
+Make sure to specify the full database path as presented in the table above
+(third colummn), and not just the path to the metadata directory.
 
 ### `metadata_fsync`
 
