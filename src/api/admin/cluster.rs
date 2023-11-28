@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -15,25 +16,95 @@ use crate::admin::error::*;
 use crate::helpers::{json_ok_response, parse_json_body};
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	let layout = garage.system.cluster_layout();
+	let mut nodes = garage
+		.system
+		.get_known_nodes()
+		.into_iter()
+		.map(|i| {
+			(
+				i.id,
+				NodeResp {
+					id: hex::encode(i.id),
+					addr: Some(i.addr),
+					hostname: i.status.hostname,
+					is_up: i.is_up,
+					last_seen_secs_ago: i.last_seen_secs_ago,
+					data_partition: i
+						.status
+						.data_disk_avail
+						.map(|(avail, total)| FreeSpaceResp {
+							available: avail,
+							total,
+						}),
+					metadata_partition: i.status.meta_disk_avail.map(|(avail, total)| {
+						FreeSpaceResp {
+							available: avail,
+							total,
+						}
+					}),
+					..Default::default()
+				},
+			)
+		})
+		.collect::<HashMap<_, _>>();
+
+	for (id, _, role) in layout.current().roles.items().iter() {
+		if let layout::NodeRoleV(Some(r)) = role {
+			let role = NodeRoleResp {
+				id: hex::encode(id),
+				zone: r.zone.to_string(),
+				capacity: r.capacity,
+				tags: r.tags.clone(),
+			};
+			match nodes.get_mut(id) {
+				None => {
+					nodes.insert(
+						*id,
+						NodeResp {
+							id: hex::encode(id),
+							role: Some(role),
+							..Default::default()
+						},
+					);
+				}
+				Some(n) => {
+					if n.role.is_none() {
+						n.role = Some(role);
+					}
+				}
+			}
+		}
+	}
+
+	for ver in layout.versions.iter().rev().skip(1) {
+		for (id, _, role) in ver.roles.items().iter() {
+			if let layout::NodeRoleV(Some(r)) = role {
+				if !nodes.contains_key(id) && r.capacity.is_some() {
+					nodes.insert(
+						*id,
+						NodeResp {
+							id: hex::encode(id),
+							draining: true,
+							..Default::default()
+						},
+					);
+				}
+			}
+		}
+	}
+
+	let mut nodes = nodes.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+	nodes.sort_by(|x, y| x.id.cmp(&y.id));
+
 	let res = GetClusterStatusResponse {
 		node: hex::encode(garage.system.id),
 		garage_version: garage_util::version::garage_version(),
 		garage_features: garage_util::version::garage_features(),
 		rust_version: garage_util::version::rust_version(),
 		db_engine: garage.db.engine(),
-		known_nodes: garage
-			.system
-			.get_known_nodes()
-			.into_iter()
-			.map(|i| KnownNodeResp {
-				id: hex::encode(i.id),
-				addr: i.addr,
-				is_up: i.is_up,
-				last_seen_secs_ago: i.last_seen_secs_ago,
-				hostname: i.status.hostname,
-			})
-			.collect(),
-		layout: format_cluster_layout(&garage.system.cluster_layout()),
+		layout_version: layout.current().version,
+		nodes,
 	};
 
 	Ok(json_ok_response(&res)?)
@@ -157,8 +228,8 @@ struct GetClusterStatusResponse {
 	garage_features: Option<&'static [&'static str]>,
 	rust_version: &'static str,
 	db_engine: String,
-	known_nodes: Vec<KnownNodeResp>,
-	layout: GetClusterLayoutResponse,
+	layout_version: u64,
+	nodes: Vec<NodeResp>,
 }
 
 #[derive(Serialize)]
@@ -192,14 +263,27 @@ struct NodeRoleResp {
 	tags: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct KnownNodeResp {
+struct FreeSpaceResp {
+	available: u64,
+	total: u64,
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct NodeResp {
 	id: String,
-	addr: SocketAddr,
+	role: Option<NodeRoleResp>,
+	addr: Option<SocketAddr>,
+	hostname: Option<String>,
 	is_up: bool,
 	last_seen_secs_ago: Option<u64>,
-	hostname: String,
+	draining: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	data_partition: Option<FreeSpaceResp>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	metadata_partition: Option<FreeSpaceResp>,
 }
 
 // ---- update functions ----

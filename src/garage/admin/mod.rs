@@ -295,7 +295,7 @@ impl AdminRpcHandler {
 			let info = node_info.get(id);
 			let status = info.map(|x| &x.status);
 			let role = layout.current().roles.get(id).and_then(|x| x.0.as_ref());
-			let hostname = status.map(|x| x.hostname.as_str()).unwrap_or("?");
+			let hostname = status.and_then(|x| x.hostname.as_deref()).unwrap_or("?");
 			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
 			let capacity = role
 				.map(|x| x.capacity_string())

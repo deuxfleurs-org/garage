@@ -62,6 +62,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	let mut healthy_nodes =
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
+		let host = adv.status.hostname.as_deref().unwrap_or("?");
 		if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
 			let data_avail = match &adv.status.data_disk_avail {
 				_ if cfg.capacity.is_none() => "N/A".into(),
@@ -75,7 +76,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			healthy_nodes.push(format!(
 				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
 				id = adv.id,
-				host = adv.status.hostname,
+				host = host,
 				addr = adv.addr,
 				tags = cfg.tags.join(","),
 				zone = cfg.zone,
@@ -95,7 +96,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				healthy_nodes.push(format!(
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
 					id = adv.id,
-					host = adv.status.hostname,
+					host = host,
 					addr = adv.addr,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
@@ -108,7 +109,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				healthy_nodes.push(format!(
 					"{id:?}\t{h}\t{addr}\t\t\t{new_role}",
 					id = adv.id,
-					h = adv.status.hostname,
+					h = host,
 					addr = adv.addr,
 					new_role = new_role,
 				));
@@ -149,7 +150,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			// it is in a failed state, add proper line to the output
 			let (host, addr, last_seen) = match adv {
 				Some(adv) => (
-					adv.status.hostname.as_str(),
+					adv.status.hostname.as_deref().unwrap_or("?"),
 					adv.addr.to_string(),
 					adv.last_seen_secs_ago
 						.map(|s| tf.convert(Duration::from_secs(s)))

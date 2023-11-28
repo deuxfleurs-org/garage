@@ -126,7 +126,7 @@ pub struct System {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeStatus {
 	/// Hostname of the node
-	pub hostname: String,
+	pub hostname: Option<String>,
 
 	/// Replication factor configured on the node
 	pub replication_factor: usize,
@@ -765,9 +765,11 @@ impl EndpointHandler<SystemRpc> for System {
 impl NodeStatus {
 	fn initial(replication_factor: usize, layout_manager: &LayoutManager) -> Self {
 		NodeStatus {
-			hostname: gethostname::gethostname()
-				.into_string()
-				.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
+			hostname: Some(
+				gethostname::gethostname()
+					.into_string()
+					.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
+			),
 			replication_factor,
 			layout_digest: layout_manager.layout().digest(),
 			meta_disk_avail: None,
@@ -777,7 +779,7 @@ impl NodeStatus {
 
 	fn unknown() -> Self {
 		NodeStatus {
-			hostname: "?".to_string(),
+			hostname: None,
 			replication_factor: 0,
 			layout_digest: Default::default(),
 			meta_disk_avail: None,
