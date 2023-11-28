@@ -38,7 +38,7 @@ Our website serving logic is as follow:
 
 Now we need to infer the URL of your website through your bucket name.
 Let assume:
-  - we set `root_domain = ".web.example.com"` in `garage.toml` ([ref](@/documentation/reference-manual/configuration.md#root_domain))
+  - we set `root_domain = ".web.example.com"` in `garage.toml` ([ref](@/documentation/reference-manual/configuration.md#web_root_domain))
   - our bucket name is `garagehq.deuxfleurs.fr`.
 
 Our bucket will be served if the Host field matches one of these 2 values (the port is ignored):

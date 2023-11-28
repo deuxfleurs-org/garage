@@ -52,7 +52,7 @@ This is particularly usefull when nodes are far from one another and talk to one
 
 Garage supports a variety of replication modes, with 1 copy, 2 copies or 3 copies of your data,
 and with various levels of consistency, in order to adapt to a variety of usage scenarios.
-Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication-mode)
+Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication_mode)
 to select the replication mode best suited to your use case (hint: in most cases, `replication_mode = "3"` is what you want).
 
 ### Web server for static websites
