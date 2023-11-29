@@ -182,7 +182,7 @@ impl AdminApiServer {
 			),
 		};
 		let status_str = format!(
-			"{}\nConsult the full health check API endpoint at /v0/health for more details\n",
+			"{}\nConsult the full health check API endpoint at /v1/health for more details\n",
 			status_str
 		);
 
