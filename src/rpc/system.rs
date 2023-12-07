@@ -514,7 +514,7 @@ impl System {
 		if let Err(e) = c
 			.publish_consul_service(
 				self.netapp.id,
-				&self.local_status.load_full().hostname,
+				&self.local_status.load_full().hostname.as_deref().unwrap(),
 				rpc_public_addr,
 			)
 			.await
@@ -541,7 +541,7 @@ impl System {
 		if let Err(e) = publish_kubernetes_node(
 			k,
 			self.netapp.id,
-			&self.local_status.load_full().hostname,
+			&self.local_status.load_full().hostname.as_deref().unwrap(),
 			rpc_public_addr,
 		)
 		.await
