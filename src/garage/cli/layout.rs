@@ -33,8 +33,8 @@ pub async fn cli_layout_command_dispatch(
 			cmd_config_layout(system_rpc_endpoint, rpc_host, config_opt).await
 		}
 		LayoutOperation::History => cmd_layout_history(system_rpc_endpoint, rpc_host).await,
-		LayoutOperation::AssumeSync(assume_sync_opt) => {
-			cmd_layout_assume_sync(system_rpc_endpoint, rpc_host, assume_sync_opt).await
+		LayoutOperation::SkipDeadNodes(assume_sync_opt) => {
+			cmd_layout_skip_dead_nodes(system_rpc_endpoint, rpc_host, assume_sync_opt).await
 		}
 	}
 }
@@ -388,12 +388,20 @@ pub async fn cmd_layout_history(
 	Ok(())
 }
 
-pub async fn cmd_layout_assume_sync(
+pub async fn cmd_layout_skip_dead_nodes(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
-	opt: AssumeSyncOpt,
+	opt: SkipDeadNodesOpt,
 ) -> Result<(), Error> {
+	let status = fetch_status(rpc_cli, rpc_host).await?;
 	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
+
+	if layout.versions.len() == 1 {
+		return Err(Error::Message(
+			"This command cannot be called when there is only one live cluster layout version"
+				.into(),
+		));
+	}
 
 	let min_v = layout.min_stored();
 	if opt.version <= min_v || opt.version > layout.current().version {
@@ -408,12 +416,19 @@ pub async fn cmd_layout_assume_sync(
 
 	let all_nodes = layout.get_all_nodes();
 	for node in all_nodes.iter() {
-		layout.update_trackers.ack_map.set_max(*node, opt.version);
-		layout.update_trackers.sync_map.set_max(*node, opt.version);
-		layout
-			.update_trackers
-			.sync_ack_map
-			.set_max(*node, opt.version);
+		if status.iter().any(|x| x.id == *node && x.is_up) {
+			continue;
+		}
+
+		if layout.update_trackers.ack_map.set_max(*node, opt.version) {
+			println!("Increased the ACK tracker for node {:?}", node);
+		}
+
+		if opt.allow_missing_data {
+			if layout.update_trackers.sync_map.set_max(*node, opt.version) {
+				println!("Increased the SYNC tracker for node {:?}", node);
+			}
+		}
 	}
 
 	send_layout(rpc_cli, rpc_host, layout).await?;

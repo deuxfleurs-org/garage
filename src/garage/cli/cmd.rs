@@ -49,13 +49,7 @@ pub async fn cli_command_dispatch(
 }
 
 pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> Result<(), Error> {
-	let status = match rpc_cli
-		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
-		.await??
-	{
-		SystemRpc::ReturnKnownNodes(nodes) => nodes,
-		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
-	};
+	let status = fetch_status(rpc_cli, rpc_host).await?;
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	println!("==== HEALTHY NODES ====");
@@ -267,4 +261,19 @@ pub async fn cmd_admin(
 		}
 	}
 	Ok(())
+}
+
+// ---- utility ----
+
+pub async fn fetch_status(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+) -> Result<Vec<KnownNodeInfo>, Error> {
+	match rpc_cli
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.await??
+	{
+		SystemRpc::ReturnKnownNodes(nodes) => Ok(nodes),
+		resp => Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
+	}
 }
