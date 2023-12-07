@@ -352,6 +352,12 @@ impl<T> AsRef<T> for WriteLock<T> {
 	}
 }
 
+impl<T> AsMut<T> for WriteLock<T> {
+	fn as_mut(&mut self) -> &mut T {
+		&mut self.value
+	}
+}
+
 impl<T> Drop for WriteLock<T> {
 	fn drop(&mut self) {
 		let layout = self.layout_manager.layout(); // acquire read lock
