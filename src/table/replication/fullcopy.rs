@@ -1,4 +1,3 @@
-use std::iter::FromIterator;
 use std::sync::Arc;
 
 use garage_rpc::layout::*;
@@ -69,7 +68,7 @@ impl TableReplication for TableFullReplication {
 				partition: 0u16,
 				first_hash: [0u8; 32].into(),
 				last_hash: [0xff; 32].into(),
-				storage_nodes: Vec::from_iter(layout.current().all_nodes().to_vec()),
+				storage_sets: vec![layout.current().all_nodes().to_vec()],
 			}],
 		}
 	}

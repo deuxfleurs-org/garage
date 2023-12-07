@@ -139,7 +139,7 @@ impl LayoutManager {
 	pub fn write_sets_of(self: &Arc<Self>, position: &Hash) -> WriteLock<Vec<Vec<Uuid>>> {
 		let layout = self.layout();
 		let version = layout.current().version;
-		let nodes = layout.write_sets_of(position);
+		let nodes = layout.storage_sets_of(position);
 		layout
 			.ack_lock
 			.get(&version)

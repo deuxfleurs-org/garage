@@ -40,5 +40,5 @@ pub struct SyncPartition {
 	pub partition: Partition,
 	pub first_hash: Hash,
 	pub last_hash: Hash,
-	pub storage_nodes: Vec<Uuid>,
+	pub storage_sets: Vec<Vec<Uuid>>,
 }

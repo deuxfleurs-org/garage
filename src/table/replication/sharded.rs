@@ -60,12 +60,12 @@ impl TableReplication for TableShardedReplication {
 			.current()
 			.partitions()
 			.map(|(partition, first_hash)| {
-				let storage_nodes = layout.storage_nodes_of(&first_hash);
+				let storage_sets = layout.storage_sets_of(&first_hash);
 				SyncPartition {
 					partition,
 					first_hash,
 					last_hash: [0u8; 32].into(), // filled in just after
-					storage_nodes,
+					storage_sets,
 				}
 			})
 			.collect::<Vec<_>>();

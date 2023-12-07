@@ -18,6 +18,7 @@ use garage_util::encode::{debug_serialize, nonversioned_encode};
 use garage_util::error::{Error, OkOrMessage};
 
 use garage_rpc::layout::*;
+use garage_rpc::rpc_helper::QuorumSetResultTracker;
 use garage_rpc::system::System;
 use garage_rpc::*;
 
@@ -106,44 +107,52 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		must_exit: &mut watch::Receiver<bool>,
 	) -> Result<(), Error> {
 		let my_id = self.system.id;
-		let retain = partition.storage_nodes.contains(&my_id);
+		let retain = partition.storage_sets.iter().any(|x| x.contains(&my_id));
 
 		if retain {
 			debug!(
 				"({}) Syncing {:?} with {:?}...",
 				F::TABLE_NAME,
 				partition,
-				partition.storage_nodes
+				partition.storage_sets
 			);
-			let mut sync_futures = partition
-				.storage_nodes
+			let mut result_tracker = QuorumSetResultTracker::new(
+				&partition.storage_sets,
+				self.data.replication.write_quorum(),
+			);
+
+			let mut sync_futures = result_tracker
+				.nodes
 				.iter()
-				.filter(|node| **node != my_id)
+				.map(|(node, _)| *node)
 				.map(|node| {
-					self.clone()
-						.do_sync_with(&partition, *node, must_exit.clone())
+					let must_exit = must_exit.clone();
+					async move {
+						if node == my_id {
+							(node, Ok(()))
+						} else {
+							(node, self.do_sync_with(&partition, node, must_exit).await)
+						}
+					}
 				})
 				.collect::<FuturesUnordered<_>>();
 
-			let mut n_errors = 0;
-			while let Some(r) = sync_futures.next().await {
-				if let Err(e) = r {
-					n_errors += 1;
-					warn!("({}) Sync error: {}", F::TABLE_NAME, e);
+			while let Some((node, res)) = sync_futures.next().await {
+				if let Err(e) = &res {
+					warn!("({}) Sync error with {:?}: {}", F::TABLE_NAME, node, e);
 				}
+				result_tracker.register_result(node, res);
 			}
-			if n_errors > 0 {
-				return Err(Error::Message(format!(
-					"Sync failed with {} nodes.",
-					n_errors
-				)));
+
+			if result_tracker.too_many_failures() {
+				return Err(result_tracker.quorum_error());
+			} else {
+				Ok(())
 			}
 		} else {
 			self.offload_partition(&partition.first_hash, &partition.last_hash, must_exit)
-				.await?;
+				.await
 		}
-
-		Ok(())
 	}
 
 	// Offload partition: this partition is not something we are storing,
@@ -264,7 +273,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 	}
 
 	async fn do_sync_with(
-		self: Arc<Self>,
+		self: &Arc<Self>,
 		partition: &SyncPartition,
 		who: Uuid,
 		must_exit: watch::Receiver<bool>,

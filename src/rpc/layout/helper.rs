@@ -180,7 +180,7 @@ impl LayoutHelper {
 		ret
 	}
 
-	pub(crate) fn write_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
+	pub fn storage_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
 		self.layout()
 			.versions
 			.iter()
