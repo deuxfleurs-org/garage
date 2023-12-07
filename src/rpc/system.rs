@@ -280,7 +280,7 @@ impl System {
 			netapp.id,
 			system_endpoint.clone(),
 			fullmesh.clone(),
-			replication_factor,
+			replication_mode,
 		)?;
 
 		// ---- set up metrics and status exchange ----

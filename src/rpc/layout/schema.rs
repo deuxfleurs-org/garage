@@ -411,13 +411,13 @@ impl UpdateTracker {
 	pub(crate) fn min_among(&self, storage_nodes: &[Uuid], min_version: u64) -> u64 {
 		storage_nodes
 			.iter()
-			.map(|x| self.0.get(x).copied().unwrap_or(min_version))
+			.map(|x| self.get(x, min_version))
 			.min()
 			.unwrap_or(min_version)
 	}
 
-	pub fn get(&self, node: &Uuid) -> u64 {
-		self.0.get(node).copied().unwrap_or(0)
+	pub fn get(&self, node: &Uuid, min_version: u64) -> u64 {
+		self.0.get(node).copied().unwrap_or(min_version)
 	}
 }
 

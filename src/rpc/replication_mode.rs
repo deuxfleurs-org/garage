@@ -54,4 +54,11 @@ impl ReplicationMode {
 			Self::ThreeWayDangerous => 1,
 		}
 	}
+
+	pub fn is_read_after_write_consistent(&self) -> bool {
+		match self {
+			Self::None | Self::TwoWay | Self::ThreeWay => true,
+			_ => false,
+		}
+	}
 }

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use garage_util::data::*;
 
 use super::schema::*;
+use crate::replication_mode::ReplicationMode;
 use crate::rpc_helper::RpcHelper;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -22,6 +23,7 @@ pub struct LayoutDigest {
 }
 
 pub struct LayoutHelper {
+	replication_mode: ReplicationMode,
 	layout: Option<LayoutHistory>,
 
 	// cached values
@@ -48,7 +50,23 @@ impl Deref for LayoutHelper {
 }
 
 impl LayoutHelper {
-	pub fn new(mut layout: LayoutHistory, mut ack_lock: HashMap<u64, AtomicUsize>) -> Self {
+	pub fn new(
+		replication_mode: ReplicationMode,
+		mut layout: LayoutHistory,
+		mut ack_lock: HashMap<u64, AtomicUsize>,
+	) -> Self {
+		// In the new() function of the helper, we do a bunch of cleanup
+		// and calculations on the layout history to make sure things are
+		// correct and we have rapid access to important values such as
+		// the layout versions to use when reading to ensure consistency.
+
+		if !replication_mode.is_read_after_write_consistent() {
+			// Fast path for when no consistency is required.
+			// In this case we only need to keep the last version of the layout,
+			// we don't care about coordinating stuff in the cluster.
+			layout.keep_current_version_only();
+		}
+
 		layout.cleanup_old_versions();
 
 		let all_nodes = layout.get_all_nodes();
@@ -68,7 +86,7 @@ impl LayoutHelper {
 			.ack_map
 			.min_among(&all_nodes, min_version);
 
-		// sync_map_min is the minimum value of sync_map among all storage nodes
+		// sync_map_min is the minimum value of sync_map among storage nodes
 		// in the cluster (non-gateway nodes only, current and previous layouts).
 		// It is the highest layout version for which we know that all relevant
 		// storage nodes have fullfilled a sync, and therefore it is safe to
@@ -76,11 +94,10 @@ impl LayoutHelper {
 		// Gateway nodes are excluded here because they hold no relevant data
 		// (they store the bucket and access key tables, but we don't have
 		// consistency on those).
-		// TODO: this value could take quorums into account instead.
-		let sync_map_min = layout
-			.update_trackers
-			.sync_map
-			.min_among(&all_nongateway_nodes, min_version);
+		// This value is calculated using quorums to allow progress even
+		// if not all nodes have successfully completed a sync.
+		let sync_map_min =
+			layout.calculate_sync_map_min_with_quorum(replication_mode, &all_nongateway_nodes);
 
 		let trackers_hash = layout.calculate_trackers_hash();
 		let staging_hash = layout.calculate_staging_hash();
@@ -91,6 +108,7 @@ impl LayoutHelper {
 			.or_insert(AtomicUsize::new(0));
 
 		LayoutHelper {
+			replication_mode,
 			layout: Some(layout),
 			ack_map_min,
 			sync_map_min,
@@ -115,6 +133,7 @@ impl LayoutHelper {
 		let changed = f(&mut self.layout.as_mut().unwrap());
 		if changed {
 			*self = Self::new(
+				self.replication_mode,
 				self.layout.take().unwrap(),
 				std::mem::take(&mut self.ack_lock),
 			);

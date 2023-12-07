@@ -365,9 +365,9 @@ pub async fn cmd_layout_history(
 		table.push(format!(
 			"{:?}\t#{}\t#{}\t#{}",
 			node,
-			layout.update_trackers.ack_map.get(node),
-			layout.update_trackers.sync_map.get(node),
-			layout.update_trackers.sync_ack_map.get(node),
+			layout.update_trackers.ack_map.get(node, min_stored),
+			layout.update_trackers.sync_map.get(node, min_stored),
+			layout.update_trackers.sync_ack_map.get(node, min_stored),
 		));
 	}
 	table[1..].sort();
