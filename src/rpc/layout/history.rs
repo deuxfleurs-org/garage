@@ -77,14 +77,16 @@ impl LayoutHistory {
 		}
 
 		// If there are old versions that no one is reading from anymore,
-		// remove them
+		// remove them (keep them in self.old_versions).
+		// ASSUMPTION: we only care about where nodes in the current layout version
+		// are reading from, as we assume older nodes are being discarded.
 		while self.versions.len() > 1 {
-			let all_nongateway_nodes = self.get_all_nongateway_nodes();
+			let current_nodes = &self.current().node_id_vec;
 			let min_version = self.min_stored();
 			let sync_ack_map_min = self
 				.update_trackers
 				.sync_ack_map
-				.min(&all_nongateway_nodes, min_version);
+				.min_among(&current_nodes, min_version);
 			if self.min_stored() < sync_ack_map_min {
 				let removed = self.versions.remove(0);
 				info!(

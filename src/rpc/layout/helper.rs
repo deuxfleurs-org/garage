@@ -51,20 +51,37 @@ impl LayoutHelper {
 	pub fn new(mut layout: LayoutHistory, mut ack_lock: HashMap<u64, AtomicUsize>) -> Self {
 		layout.cleanup_old_versions();
 
+		let all_nodes = layout.get_all_nodes();
 		let all_nongateway_nodes = layout.get_all_nongateway_nodes();
-		layout.clamp_update_trackers(&all_nongateway_nodes);
+
+		layout.clamp_update_trackers(&all_nodes);
 
 		let min_version = layout.min_stored();
+
+		// ack_map_min is the minimum value of ack_map among all nodes
+		// in the cluster (gateway, non-gateway, current and previous layouts).
+		// It is the highest layout version which all of these nodes have
+		// acknowledged, indicating that they are aware of it and are no
+		// longer processing write operations that did not take it into account.
 		let ack_map_min = layout
 			.update_trackers
 			.ack_map
-			.min(&all_nongateway_nodes, min_version);
+			.min_among(&all_nodes, min_version);
+
+		// sync_map_min is the minimum value of sync_map among all storage nodes
+		// in the cluster (non-gateway nodes only, current and previous layouts).
+		// It is the highest layout version for which we know that all relevant
+		// storage nodes have fullfilled a sync, and therefore it is safe to
+		// use a read quorum within that layout to ensure consistency.
+		// Gateway nodes are excluded here because they hold no relevant data
+		// (they store the bucket and access key tables, but we don't have
+		// consistency on those).
+		// TODO: this value could take quorums into account instead.
 		let sync_map_min = layout
 			.update_trackers
 			.sync_map
-			.min(&all_nongateway_nodes, min_version);
+			.min_among(&all_nongateway_nodes, min_version);
 
-		let all_nodes = layout.get_all_nodes();
 		let trackers_hash = layout.calculate_trackers_hash();
 		let staging_hash = layout.calculate_staging_hash();
 
