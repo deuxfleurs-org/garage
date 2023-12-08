@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
-use super::schema::*;
+use super::*;
 use crate::replication_mode::ReplicationMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]

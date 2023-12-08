@@ -10,7 +10,6 @@ use garage_util::data::*;
 use garage_util::error::*;
 
 use super::graph_algo::*;
-use super::schema::*;
 use super::*;
 
 // The Message type will be used to collect information on the algorithm.
