@@ -34,8 +34,8 @@ fn check_against_naive(cl: &LayoutVersion) -> Result<bool, Error> {
 		zone_token.insert(z.clone(), 0);
 	}
 	for uuid in cl.nongateway_nodes() {
-		let z = cl.get_node_zone(&uuid)?;
-		let c = cl.get_node_capacity(&uuid).unwrap();
+		let z = cl.expect_get_node_zone(&uuid);
+		let c = cl.expect_get_node_capacity(&uuid);
 		zone_token.insert(
 			z.to_string(),
 			zone_token[z] + min(NB_PARTITIONS, (c / over_size) as usize),
