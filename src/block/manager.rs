@@ -266,7 +266,7 @@ impl BlockManager {
 	{
 		let who = self
 			.system
-			.cluster_layout()
+			.rpc_helper()
 			.block_read_nodes_of(hash, self.system.rpc_helper());
 
 		for node in who.iter() {
