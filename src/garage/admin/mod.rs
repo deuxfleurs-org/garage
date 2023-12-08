@@ -274,8 +274,7 @@ impl AdminRpcHandler {
 	fn gather_cluster_stats(&self) -> String {
 		let mut ret = String::new();
 
-		// Gather storage node and free space statistics
-		// TODO: not only layout.current() ???
+		// Gather storage node and free space statistics for current nodes
 		let layout = &self.garage.system.cluster_layout();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
 		for short_id in layout.current().ring_assignment_data.iter() {

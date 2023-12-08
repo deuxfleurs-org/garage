@@ -354,34 +354,43 @@ pub async fn cmd_layout_history(
 		));
 	}
 	format_table(table);
-
 	println!();
-	println!("==== UPDATE TRACKERS ====");
-	println!("This is the internal data that Garage stores to know which nodes have what data.");
-	println!();
-	let mut table = vec!["Node\tAck\tSync\tSync_ack".to_string()];
-	let all_nodes = layout.get_all_nodes();
-	for node in all_nodes.iter() {
-		table.push(format!(
-			"{:?}\t#{}\t#{}\t#{}",
-			node,
-			layout.update_trackers.ack_map.get(node, min_stored),
-			layout.update_trackers.sync_map.get(node, min_stored),
-			layout.update_trackers.sync_ack_map.get(node, min_stored),
-		));
-	}
-	table[1..].sort();
-	format_table(table);
 
 	if layout.versions.len() > 1 {
+		println!("==== UPDATE TRACKERS ====");
+		println!("Several layout versions are currently live in the version, and data is being migrated.");
+		println!(
+			"This is the internal data that Garage stores to know which nodes have what data."
+		);
+		println!();
+		let mut table = vec!["Node\tAck\tSync\tSync_ack".to_string()];
+		let all_nodes = layout.get_all_nodes();
+		for node in all_nodes.iter() {
+			table.push(format!(
+				"{:?}\t#{}\t#{}\t#{}",
+				node,
+				layout.update_trackers.ack_map.get(node, min_stored),
+				layout.update_trackers.sync_map.get(node, min_stored),
+				layout.update_trackers.sync_ack_map.get(node, min_stored),
+			));
+		}
+		table[1..].sort();
+		format_table(table);
+
 		println!();
 		println!(
-			"If some nodes are not catching up to the latest layout version in the update tracker,"
+			"If some nodes are not catching up to the latest layout version in the update trackers,"
 		);
 		println!("it might be because they are offline or unable to complete a sync successfully.");
 		println!(
-			"You may force progress using `garage layout assume-sync --version {}`",
+			"You may force progress using `garage layout skip-dead-nodes --version {}`",
 			layout.current().version
+		);
+	} else {
+		println!("Your cluster is currently in a stable state with a single live layout version.");
+		println!("No metadata migration is in progress. Note that the migration of data blocks is not tracked,");
+		println!(
+			"so you might want to keep old nodes online until their data directories become empty."
 		);
 	}
 
@@ -415,6 +424,7 @@ pub async fn cmd_layout_skip_dead_nodes(
 	}
 
 	let all_nodes = layout.get_all_nodes();
+	let mut did_something = false;
 	for node in all_nodes.iter() {
 		if status.iter().any(|x| x.id == *node && x.is_up) {
 			continue;
@@ -422,19 +432,28 @@ pub async fn cmd_layout_skip_dead_nodes(
 
 		if layout.update_trackers.ack_map.set_max(*node, opt.version) {
 			println!("Increased the ACK tracker for node {:?}", node);
+			did_something = true;
 		}
 
 		if opt.allow_missing_data {
 			if layout.update_trackers.sync_map.set_max(*node, opt.version) {
 				println!("Increased the SYNC tracker for node {:?}", node);
+				did_something = true;
 			}
 		}
 	}
 
-	send_layout(rpc_cli, rpc_host, layout).await?;
-	println!("Success.");
-
-	Ok(())
+	if did_something {
+		send_layout(rpc_cli, rpc_host, layout).await?;
+		println!("Success.");
+		Ok(())
+	} else if !opt.allow_missing_data {
+		Err(Error::Message("Nothing was done, try passing the `--allow-missing-data` flag to force progress even when not enough nodes can complete a metadata sync.".into()))
+	} else {
+		Err(Error::Message(
+			"Sorry, there is nothing I can do for you. Please wait patiently. If you ask for help, please send the output of the `garage layout history` command.".into(),
+		))
+	}
 }
 
 // --- utility ---
@@ -448,7 +467,7 @@ pub async fn fetch_layout(
 		.await??
 	{
 		SystemRpc::AdvertiseClusterLayout(t) => Ok(t),
-		resp => Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
+		resp => Err(Error::unexpected_rpc_message(resp)),
 	}
 }
 

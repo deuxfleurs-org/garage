@@ -179,7 +179,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 			println!("Your cluster is expecting to drain data from nodes that are currently unavailable.");
 			println!("If these nodes are definitely dead, please review the layout history with");
 			println!(
-				"`garage layout history` and use `garage layout assume-sync` to force progress."
+				"`garage layout history` and use `garage layout skip-dead-nodes` to force progress."
 			);
 		}
 	}
@@ -274,6 +274,6 @@ pub async fn fetch_status(
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => Ok(nodes),
-		resp => Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
+		resp => Err(Error::unexpected_rpc_message(resp)),
 	}
 }
