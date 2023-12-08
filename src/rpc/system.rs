@@ -456,14 +456,14 @@ impl System {
 		let mut partitions_quorum = 0;
 		let mut partitions_all_ok = 0;
 		for (_, hash) in partitions.iter() {
-			let write_sets = layout
+			let mut write_sets = layout
 				.versions
 				.iter()
 				.map(|x| x.nodes_of(hash, x.replication_factor));
 			let has_quorum = write_sets
 				.clone()
 				.all(|set| set.filter(|x| node_up(x)).count() >= quorum);
-			let all_ok = write_sets.clone().all(|mut set| set.all(|x| node_up(&x)));
+			let all_ok = write_sets.all(|mut set| set.all(|x| node_up(&x)));
 			if has_quorum {
 				partitions_quorum += 1;
 			}
@@ -474,7 +474,7 @@ impl System {
 
 		// Determine overall cluster status
 		let status =
-			if partitions_quorum == partitions.len() && storage_nodes_ok == storage_nodes.len() {
+			if partitions_all_ok == partitions.len() && storage_nodes_ok == storage_nodes.len() {
 				ClusterHealthStatus::Healthy
 			} else if partitions_quorum == partitions.len() {
 				ClusterHealthStatus::Degraded
