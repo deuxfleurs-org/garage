@@ -315,7 +315,7 @@ impl System {
 			local_status: ArcSwap::new(Arc::new(local_status)),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
-			fullmesh: fullmesh.clone(),
+			fullmesh,
 			system_endpoint,
 			replication_mode,
 			replication_factor,

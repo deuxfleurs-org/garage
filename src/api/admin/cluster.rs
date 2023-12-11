@@ -94,7 +94,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 		}
 	}
 
-	let mut nodes = nodes.into_iter().map(|(_, v)| v).collect::<Vec<_>>();
+	let mut nodes = nodes.into_values().collect::<Vec<_>>();
 	nodes.sort_by(|x, y| x.id.cmp(&y.id));
 
 	let res = GetClusterStatusResponse {

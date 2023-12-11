@@ -209,8 +209,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		// it takes part, to optimize the detection of a quorum.
 		let mut write_sets = entries_vec
 			.iter()
-			.map(|(wss, _)| wss.as_ref().iter().map(|ws| ws.as_slice()))
-			.flatten()
+			.flat_map(|(wss, _)| wss.as_ref().iter().map(|ws| ws.as_slice()))
 			.collect::<Vec<&[Uuid]>>();
 		write_sets.sort();
 		write_sets.dedup();

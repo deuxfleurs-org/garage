@@ -42,8 +42,7 @@ impl LayoutHistory {
 			let set = self
 				.versions
 				.iter()
-				.map(|x| x.all_nodes())
-				.flatten()
+				.flat_map(|x| x.all_nodes())
 				.collect::<HashSet<_>>();
 			set.into_iter().copied().collect::<Vec<_>>()
 		}
@@ -56,8 +55,7 @@ impl LayoutHistory {
 			let set = self
 				.versions
 				.iter()
-				.map(|x| x.nongateway_nodes())
-				.flatten()
+				.flat_map(|x| x.nongateway_nodes())
 				.collect::<HashSet<_>>();
 			set.into_iter().copied().collect::<Vec<_>>()
 		}
@@ -94,7 +92,7 @@ impl LayoutHistory {
 			let sync_ack_map_min = self
 				.update_trackers
 				.sync_ack_map
-				.min_among(&current_nodes, min_version);
+				.min_among(current_nodes, min_version);
 			if self.min_stored() < sync_ack_map_min {
 				let removed = self.versions.remove(0);
 				info!(
@@ -144,7 +142,7 @@ impl LayoutHistory {
 		let global_min = self
 			.update_trackers
 			.sync_map
-			.min_among(&all_nongateway_nodes, min_version);
+			.min_among(all_nongateway_nodes, min_version);
 
 		// If the write quorums are equal to the total number of nodes,
 		// i.e. no writes can succeed while they are not written to all nodes,
@@ -281,7 +279,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		let (new_version, msg) = self
 			.current()
 			.clone()
-			.calculate_next_version(&self.staging.get())?;
+			.calculate_next_version(self.staging.get())?;
 
 		self.versions.push(new_version);
 		self.cleanup_old_versions();
@@ -297,7 +295,7 @@ To know the correct value of the new layout version, invoke `garage layout show`
 
 	pub fn revert_staged_changes(mut self) -> Result<Self, Error> {
 		self.staging.update(LayoutStaging {
-			parameters: Lww::new(self.current().parameters.clone()),
+			parameters: Lww::new(self.current().parameters),
 			roles: LwwMap::new(),
 		});
 

@@ -137,19 +137,19 @@ impl LayoutVersion {
 	// ===================== internal information extractors ======================
 
 	pub(crate) fn expect_get_node_capacity(&self, uuid: &Uuid) -> u64 {
-		self.get_node_capacity(&uuid)
+		self.get_node_capacity(uuid)
 			.expect("non-gateway node with zero capacity")
 	}
 
 	pub(crate) fn expect_get_node_zone(&self, uuid: &Uuid) -> &str {
-		self.get_node_zone(&uuid).expect("node without a zone")
+		self.get_node_zone(uuid).expect("node without a zone")
 	}
 
 	/// Returns the sum of capacities of non gateway nodes in the cluster
 	fn get_total_capacity(&self) -> u64 {
 		let mut total_capacity = 0;
 		for uuid in self.nongateway_nodes() {
-			total_capacity += self.expect_get_node_capacity(&uuid);
+			total_capacity += self.expect_get_node_capacity(uuid);
 		}
 		total_capacity
 	}

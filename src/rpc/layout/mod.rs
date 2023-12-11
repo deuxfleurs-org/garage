@@ -357,7 +357,7 @@ mod v010 {
 				update_trackers: UpdateTrackers {
 					ack_map: update_tracker.clone(),
 					sync_map: update_tracker.clone(),
-					sync_ack_map: update_tracker.clone(),
+					sync_ack_map: update_tracker,
 				},
 				staging: Lww::raw(previous.version, staging),
 			}

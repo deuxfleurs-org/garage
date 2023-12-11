@@ -442,7 +442,7 @@ impl RpcHelper {
 
 		// Send one request to each peer of the quorum sets
 		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
-		let requests = result_tracker.nodes.iter().map(|(peer, _)| {
+		let requests = result_tracker.nodes.keys().map(|peer| {
 			let self2 = self.clone();
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();

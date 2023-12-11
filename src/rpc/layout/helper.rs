@@ -129,7 +129,7 @@ impl LayoutHelper {
 	where
 		F: FnOnce(&mut LayoutHistory) -> bool,
 	{
-		let changed = f(&mut self.layout.as_mut().unwrap());
+		let changed = f(self.layout.as_mut().unwrap());
 		if changed {
 			*self = Self::new(
 				self.replication_mode,

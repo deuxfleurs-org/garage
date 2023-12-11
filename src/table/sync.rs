@@ -123,15 +123,15 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 			let mut sync_futures = result_tracker
 				.nodes
-				.iter()
-				.map(|(node, _)| *node)
+				.keys()
+				.copied()
 				.map(|node| {
 					let must_exit = must_exit.clone();
 					async move {
 						if node == my_id {
 							(node, Ok(()))
 						} else {
-							(node, self.do_sync_with(&partition, node, must_exit).await)
+							(node, self.do_sync_with(partition, node, must_exit).await)
 						}
 					}
 				})
@@ -145,7 +145,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 			}
 
 			if result_tracker.too_many_failures() {
-				return Err(result_tracker.quorum_error());
+				Err(result_tracker.quorum_error())
 			} else {
 				Ok(())
 			}
