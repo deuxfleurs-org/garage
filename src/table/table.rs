@@ -239,9 +239,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		// Build futures to actually perform each of the corresponding RPC calls
 		let call_futures = call_list.into_iter().map(|(node, entries)| {
 			let this = self.clone();
-			let tracer = opentelemetry::global::tracer("garage");
-			let span = tracer.start(format!("RPC to {:?}", node));
-			let fut = async move {
+			async move {
 				let rpc = TableRpc::<F>::Update(entries);
 				let resp = this
 					.system
@@ -254,8 +252,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 					)
 					.await;
 				(node, resp)
-			};
-			fut.with_context(Context::current_with_span(span))
+			}
 		});
 
 		// Run all requests in parallel thanks to FuturesUnordered, and collect results.
