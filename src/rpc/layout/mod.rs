@@ -17,7 +17,7 @@ pub mod manager;
 
 // ---- re-exports ----
 
-pub use helper::{LayoutDigest, LayoutHelper};
+pub use helper::{LayoutHelper, RpcLayoutDigest, SyncLayoutDigest};
 pub use manager::WriteLock;
 pub use version::*;
 

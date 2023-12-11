@@ -502,7 +502,7 @@ impl RpcHelper {
 			.rev()
 			.chain(layout.old_versions.iter().rev());
 		for ver in ver_iter {
-			if ver.version > layout.all_sync() {
+			if ver.version > layout.sync_map_min() {
 				continue;
 			}
 			let nodes = ver.nodes_of(position, ver.replication_factor);

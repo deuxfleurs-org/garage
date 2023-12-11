@@ -83,7 +83,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		bg.spawn_worker(SyncWorker {
 			syncer: self.clone(),
 			layout_notify: self.system.layout_notify(),
-			layout_versions: self.system.cluster_layout().sync_versions(),
+			layout_digest: self.system.cluster_layout().sync_digest(),
 			add_full_sync_rx,
 			todo: None,
 			next_full_sync: Instant::now() + Duration::from_secs(20),
@@ -483,7 +483,7 @@ struct SyncWorker<F: TableSchema, R: TableReplication> {
 	syncer: Arc<TableSyncer<F, R>>,
 
 	layout_notify: Arc<Notify>,
-	layout_versions: (u64, u64, u64),
+	layout_digest: SyncLayoutDigest,
 
 	add_full_sync_rx: mpsc::UnboundedReceiver<()>,
 	next_full_sync: Instant,
@@ -493,15 +493,13 @@ struct SyncWorker<F: TableSchema, R: TableReplication> {
 
 impl<F: TableSchema, R: TableReplication> SyncWorker<F, R> {
 	fn check_add_full_sync(&mut self) {
-		let layout_versions = self.syncer.system.cluster_layout().sync_versions();
-		if layout_versions != self.layout_versions {
-			self.layout_versions = layout_versions;
+		let layout_digest = self.syncer.system.cluster_layout().sync_digest();
+		if layout_digest != self.layout_digest {
+			self.layout_digest = layout_digest;
 			info!(
-				"({}) Layout versions changed (max={}, ack={}, min stored={}), adding full sync to syncer todo list",
+				"({}) Layout versions changed ({:?}), adding full sync to syncer todo list",
 				F::TABLE_NAME,
-				layout_versions.0,
-				layout_versions.1,
-				layout_versions.2
+				layout_digest,
 			);
 			self.add_full_sync();
 		}

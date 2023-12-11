@@ -10,7 +10,7 @@ use super::*;
 use crate::replication_mode::ReplicationMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct LayoutDigest {
+pub struct RpcLayoutDigest {
 	/// Cluster layout version
 	pub current_version: u64,
 	/// Number of active layout versions
@@ -19,6 +19,13 @@ pub struct LayoutDigest {
 	pub trackers_hash: Hash,
 	/// Hash of cluster layout staging data
 	pub staging_hash: Hash,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct SyncLayoutDigest {
+	current: u64,
+	ack_map_min: u64,
+	min_stored: u64,
 }
 
 pub struct LayoutHelper {
@@ -150,20 +157,20 @@ impl LayoutHelper {
 		&self.all_nongateway_nodes
 	}
 
-	pub fn all_ack(&self) -> u64 {
+	pub fn ack_map_min(&self) -> u64 {
 		self.ack_map_min
 	}
 
-	pub fn all_sync(&self) -> u64 {
+	pub fn sync_map_min(&self) -> u64 {
 		self.sync_map_min
 	}
 
-	pub fn sync_versions(&self) -> (u64, u64, u64) {
-		(
-			self.layout().current().version,
-			self.all_ack(),
-			self.layout().min_stored(),
-		)
+	pub fn sync_digest(&self) -> SyncLayoutDigest {
+		SyncLayoutDigest {
+			current: self.layout().current().version,
+			ack_map_min: self.ack_map_min(),
+			min_stored: self.layout().min_stored(),
+		}
 	}
 
 	pub fn read_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
@@ -206,8 +213,8 @@ impl LayoutHelper {
 		self.staging_hash
 	}
 
-	pub fn digest(&self) -> LayoutDigest {
-		LayoutDigest {
+	pub fn digest(&self) -> RpcLayoutDigest {
+		RpcLayoutDigest {
 			current_version: self.current().version,
 			active_versions: self.versions.len(),
 			trackers_hash: self.trackers_hash,
@@ -231,13 +238,13 @@ impl LayoutHelper {
 		// 3. Acknowledge everyone has synced up to min(self.sync_map)
 		self.sync_ack(local_node_id);
 
-		info!("ack_map: {:?}", self.update_trackers.ack_map);
-		info!("sync_map: {:?}", self.update_trackers.sync_map);
-		info!("sync_ack_map: {:?}", self.update_trackers.sync_ack_map);
+		debug!("ack_map: {:?}", self.update_trackers.ack_map);
+		debug!("sync_map: {:?}", self.update_trackers.sync_map);
+		debug!("sync_ack_map: {:?}", self.update_trackers.sync_ack_map);
 	}
 
 	fn sync_first(&mut self, local_node_id: Uuid) {
-		let first_version = self.versions.first().as_ref().unwrap().version;
+		let first_version = self.min_stored();
 		self.update(|layout| {
 			layout
 				.update_trackers
@@ -275,13 +282,13 @@ impl LayoutHelper {
 			.versions
 			.iter()
 			.map(|x| x.version)
-			.take_while(|v| {
+			.skip_while(|v| {
 				self.ack_lock
 					.get(v)
 					.map(|x| x.load(Ordering::Relaxed) == 0)
 					.unwrap_or(true)
 			})
-			.max()
-			.unwrap_or(self.min_stored())
+			.next()
+			.unwrap_or(self.current().version)
 	}
 }

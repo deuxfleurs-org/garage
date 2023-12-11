@@ -256,7 +256,7 @@ impl LayoutManager {
 
 	// ---- RPC HANDLERS ----
 
-	pub(crate) fn handle_advertise_status(self: &Arc<Self>, from: Uuid, remote: &LayoutDigest) {
+	pub(crate) fn handle_advertise_status(self: &Arc<Self>, from: Uuid, remote: &RpcLayoutDigest) {
 		let local = self.layout().digest();
 		if remote.current_version > local.current_version
 			|| remote.active_versions != local.active_versions

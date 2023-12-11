@@ -54,7 +54,7 @@ impl TableReplication for TableShardedReplication {
 
 	fn sync_partitions(&self) -> SyncPartitions {
 		let layout = self.system.cluster_layout();
-		let layout_version = layout.all_ack();
+		let layout_version = layout.ack_map_min();
 
 		let mut partitions = layout
 			.current()

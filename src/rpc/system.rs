@@ -34,7 +34,7 @@ use crate::consul::ConsulDiscovery;
 #[cfg(feature = "kubernetes-discovery")]
 use crate::kubernetes::*;
 use crate::layout::{
-	self, manager::LayoutManager, LayoutDigest, LayoutHelper, LayoutHistory, NodeRoleV,
+	self, manager::LayoutManager, LayoutHelper, LayoutHistory, NodeRoleV, RpcLayoutDigest,
 };
 use crate::replication_mode::*;
 use crate::rpc_helper::*;
@@ -132,7 +132,7 @@ pub struct NodeStatus {
 	pub replication_factor: usize,
 
 	/// Cluster layout digest
-	pub layout_digest: LayoutDigest,
+	pub layout_digest: RpcLayoutDigest,
 
 	/// Disk usage on partition containing metadata directory (tuple: `(avail, total)`)
 	#[serde(default)]
