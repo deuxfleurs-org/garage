@@ -108,11 +108,13 @@
                           (->> (range)
                            (map (fn [x] {:type :invoke, :f :add, :value x}))
                            (gen/limit (:ops-per-key opts)))))
-   :final-generator   (gen/phases
-                        (independent/sequential-generator
-                          (range 100)
-                          (fn [k] (gen/once op-read)))
-                        (gen/sleep 5))})
+   :final-generator   (independent/concurrent-generator
+                        10
+                        (range 100)
+                        (fn [k]
+                          (gen/phases
+                            (gen/once op-read)
+                            (gen/sleep 5))))})
 
 (defn workload2
   "Tests insertions and deletions"

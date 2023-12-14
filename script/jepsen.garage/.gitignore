@@ -13,4 +13,5 @@ pom.xml.asc
 .hg/
 .direnv
 /store
+/store.*
 .vagrant

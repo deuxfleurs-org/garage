@@ -7,29 +7,19 @@ Jepsen checking of Garage consistency properties.
 Requirements:
 
 - vagrant
-- VirtualBox, configured so that nodes can take an IP in a private network `192.168.56.0/24`
+- VirtualBox, configured so that nodes can take an IP in a private network `192.168.56.0/24` (it's the default)
 - a user that can create VirtualBox VMs
 - leiningen
 - gnuplot
 
-Set up VMs:
+Set up VMs before running tests:
 
 ```
 vagrant up
 ```
 
-Run tests (this one should fail):
+Run tests: see commands below.
 
-```
-lein run test --nodes-file nodes.vagrant --time-limit 64 --concurrency 50 --rate 50 --workload reg
-```
-
-These ones are working:
-
-```
-lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrency 50 --workload set1
-lein run test --nodes-file nodes.vagrant --time-limit 64 --rate 50  --concurrency 50 --workload set2
-```
 
 ## Results
 
@@ -73,16 +63,19 @@ Results with timestamp patch (`--patch tsfix2`):
   Example of a failed run: `garage reg2/20231024T120806.899+0200`.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
-- Changes brought by NLnet task 3 code (commit 707442f5de):
-  no failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs),
+Results with NLnet task 3 code (commit 707442f5de, `--patch task3a`):
+
+- No failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs),
   `--scenario cpr` (0 of 10 runs) and `--scenario dpr` (0 of 10 runs).
+
+- Same with `--patch task3c` (commit `0041b013`, the final version).
 
 
 ### Set, basic test (write some items, then read)
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 200  --concurrency 200 --workload set1 --ops-per-key 100 --patch tsfix2`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 200  --concurrency 200 --workload set1 --ops-per-key 100`
 
-Results:
+Results without NLnet task3 code (`--patch tsfix2`):
 
 - For now, no failures with clock-scramble nemesis + partition nemesis -> TODO long test run
 
@@ -90,15 +83,22 @@ Results:
 
 - **Fails with the partition + layout reconfiguration nemesis** (`--scenario pr`).
   Example of a failed run: `garage set1/20231024T172214.488+0200` (1 failure in 4 runs).
-  TODO: investigate.
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
+
+Results with NLnet task 3 code (commit 707442f5de, `--patch task3a`):
+
+- The tests are buggy and often result in an "unknown" validity status, which
+  is caused by some requests not returning results during network partitions or
+  other nemesis-induced broken cluster states.  However, when the tests were
+  able to finish, there were no failures with scenarios `r`, `pr`, `cpr`,
+  `dpr`.
 
 
 ### Set, continuous test (interspersed reads and writes)
 
-Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set2 --ops-per-key 100 --patch tsfix2`
+Command: `lein run test --nodes-file nodes.vagrant --time-limit 60 --rate 100  --concurrency 100 --workload set2 --ops-per-key 100`
 
-Results:
+Results without NLnet task3 code (`--patch tsfix2`):
 
 - No failures with clock-scramble nemesis + db nemesis + partition nemesis (`--scenario cdp`) (0 failures in 10 runs).
 
@@ -106,17 +106,26 @@ Results:
   Example of a failed run: `garage set2/20231025T141940.198+0200` (10 failures in 10 runs).
   This is the failure mode we are looking for and trying to fix for NLnet task 3.
 
-- Changes brought by NLnet task 3 code (commit 707442f5de):
-  no failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs).
+Results with NLnet task3 code (commit 707442f5de, `--patch task3a`):
+
+- No failures with `--scenario r` (0 of 10 runs), `--scenario pr` (0 of 10 runs),
   `--scenario cpr` (0 of 10 runs) and `--scenario dpr` (0 of 10 runs).
 
+- Same with `--patch task3c` (commit `0041b013`, the final version).
+
+
+## NLnet task 3 final results
+
+- With code from task3 (`--patch task3c`): [reg2 and set2](results/Results-2023-12-13-task3c.png), [set1](results/Results-2023-12-14-task3-set1.png).
+- Without (`--patch tsfix2`): [reg2 and set2](results/Results-2023-12-13-tsfix2.png), set1 TBD.
 
 ## Investigating (and fixing) errors
 
 ### Segfaults
 
 They are due to the download being interrupted in the middle (^C during first launch on clean VMs), the `garage` binary is truncated.
-Add `:force?` to the `cached-wget!` call in `daemon.clj` to re-download the binary.
+Add `:force?` to the `cached-wget!` call in `daemon.clj` to re-download the binary,
+or restar the VMs to clear temporary files.
 
 ### In `jepsen.garage`: prefix wierdness
 
