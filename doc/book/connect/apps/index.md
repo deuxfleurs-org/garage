@@ -146,7 +146,7 @@ Keep the Key ID and the Secret key in a pad, they will be needed later.
 
 We need two buckets, one for normal videos (named peertube-video) and one for webtorrent videos (named peertube-playlist).
 ```bash
-garage bucket create peertube-video
+garage bucket create peertube-videos
 garage bucket create peertube-playlist
 ```
 
@@ -216,7 +216,7 @@ object_storage:
 
   # Same settings but for webtorrent videos
   videos:
-    bucket_name: 'peertube-video'
+    bucket_name: 'peertube-videos'
     prefix: ''
     # You must fill this field to make Peertube use our reverse proxy/website logic
     base_url: 'http://peertube-videos.web.garage.localhost'
