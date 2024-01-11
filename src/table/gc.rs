@@ -152,7 +152,7 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		let mut partitions = HashMap::new();
 		for entry in entries {
 			let pkh = Hash::try_from(&entry.key[..32]).unwrap();
-			let mut nodes = self.data.replication.write_nodes(&pkh);
+			let mut nodes = self.data.replication.storage_nodes(&pkh);
 			nodes.retain(|x| *x != self.system.id);
 			nodes.sort();
 
@@ -227,10 +227,10 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		// GC'ing is not a critical function of the system, so it's not a big
 		// deal if we can't do it right now.
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&nodes[..],
+				&nodes,
 				GcRpc::Update(updates),
 				RequestStrategy::with_priority(PRIO_BACKGROUND).with_quorum(nodes.len()),
 			)
@@ -248,10 +248,10 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 		// it means that the garbage collection wasn't completed and has
 		// to be retried later.
 		self.system
-			.rpc
+			.rpc_helper()
 			.try_call_many(
 				&self.endpoint,
-				&nodes[..],
+				&nodes,
 				GcRpc::DeleteIfEqualHash(deletes),
 				RequestStrategy::with_priority(PRIO_BACKGROUND).with_quorum(nodes.len()),
 			)

@@ -69,8 +69,8 @@ Example response body:
 
 ```json
 {
-  "node": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
-  "garageVersion": "git:v0.9.0-dev",
+  "node": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
+  "garageVersion": "v0.10.0",
   "garageFeatures": [
     "k2v",
     "sled",
@@ -81,83 +81,92 @@ Example response body:
   ],
   "rustVersion": "1.68.0",
   "dbEngine": "LMDB (using Heed crate)",
-  "knownNodes": [
+  "layoutVersion": 5,
+  "nodes": [
     {
-      "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
-      "addr": "10.0.0.11:3901",
+      "id": "62b218d848e86a64f7fe1909735f29a4350547b54c4b204f91246a14eb0a1a8c",
+      "role": {
+        "id": "62b218d848e86a64f7fe1909735f29a4350547b54c4b204f91246a14eb0a1a8c",
+        "zone": "dc1",
+        "capacity": 100000000000,
+        "tags": []
+      },
+      "addr": "10.0.0.3:3901",
+      "hostname": "node3",
       "isUp": true,
-      "lastSeenSecsAgo": 9,
-      "hostname": "node1"
+      "lastSeenSecsAgo": 12,
+      "draining": false,
+      "dataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      },
+      "metadataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      }
     },
     {
-      "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
-      "addr": "10.0.0.12:3901",
+      "id": "a11c7cf18af297379eff8688360155fe68d9061654449ba0ce239252f5a7487f",
+      "role": null,
+      "addr": "10.0.0.2:3901",
+      "hostname": "node2",
       "isUp": true,
-      "lastSeenSecsAgo": 1,
-      "hostname": "node2"
+      "lastSeenSecsAgo": 11,
+      "draining": true,
+      "dataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      },
+      "metadataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      }
     },
     {
-      "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
-      "addr": "10.0.0.21:3901",
+      "id": "a235ac7695e0c54d7b403943025f57504d500fdcc5c3e42c71c5212faca040a2",
+      "role": {
+        "id": "a235ac7695e0c54d7b403943025f57504d500fdcc5c3e42c71c5212faca040a2",
+        "zone": "dc1",
+        "capacity": 100000000000,
+        "tags": []
+      },
+      "addr": "127.0.0.1:3904",
+      "hostname": "lindy",
       "isUp": true,
-      "lastSeenSecsAgo": 7,
-      "hostname": "node3"
+      "lastSeenSecsAgo": 2,
+      "draining": false,
+      "dataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      },
+      "metadataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      }
     },
     {
-      "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
-      "addr": "10.0.0.22:3901",
+      "id": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
+      "role": {
+        "id": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
+        "zone": "dc1",
+        "capacity": 100000000000,
+        "tags": []
+      },
+      "addr": "10.0.0.1:3901",
+      "hostname": "node1",
       "isUp": true,
-      "lastSeenSecsAgo": 1,
-      "hostname": "node4"
+      "lastSeenSecsAgo": 3,
+      "draining": false,
+      "dataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      },
+      "metadataPartition": {
+        "available": 660270088192,
+        "total": 873862266880
+      }
     }
-  ],
-  "layout": {
-    "version": 12,
-    "roles": [
-      {
-        "id": "ec79480e0ce52ae26fd00c9da684e4fa56658d9c64cdcecb094e936de0bfe71f",
-        "zone": "dc1",
-        "capacity": 10737418240,
-        "tags": [
-          "node1"
-        ]
-      },
-      {
-        "id": "4a6ae5a1d0d33bf895f5bb4f0a418b7dc94c47c0dd2eb108d1158f3c8f60b0ff",
-        "zone": "dc1",
-        "capacity": 10737418240,
-        "tags": [
-          "node2"
-        ]
-      },
-      {
-        "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
-        "zone": "dc2",
-        "capacity": 10737418240,
-        "tags": [
-          "node3"
-        ]
-      }
-    ],
-    "stagedRoleChanges": [
-      {
-        "id": "e2ee7984ee65b260682086ec70026165903c86e601a4a5a501c1900afe28d84b",
-        "remove": false,
-        "zone": "dc2",
-        "capacity": 10737418240,
-        "tags": [
-          "node4"
-        ]
-      }
-      {
-        "id": "23ffd0cdd375ebff573b20cc5cef38996b51c1a7d6dbcf2c6e619876e507cf27",
-        "remove": true,
-        "zone": null,
-        "capacity": null,
-        "tags": null,
-      }
-    ]
-  }
+  ]
 }
 ```
 

@@ -279,7 +279,7 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,
 			Endpoint::UpdateClusterLayout => handle_update_cluster_layout(&self.garage, req).await,
 			Endpoint::ApplyClusterLayout => handle_apply_cluster_layout(&self.garage, req).await,
-			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage, req).await,
+			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage).await,
 			// Keys
 			Endpoint::ListKeys => handle_list_keys(&self.garage).await,
 			Endpoint::GetKeyInfo {

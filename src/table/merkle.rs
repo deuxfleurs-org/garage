@@ -13,7 +13,7 @@ use garage_util::data::*;
 use garage_util::encode::{nonversioned_decode, nonversioned_encode};
 use garage_util::error::Error;
 
-use garage_rpc::ring::*;
+use garage_rpc::layout::*;
 
 use crate::data::*;
 use crate::replication::*;

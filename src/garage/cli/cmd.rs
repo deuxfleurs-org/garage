@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use format_table::format_table;
@@ -49,50 +49,61 @@ pub async fn cli_command_dispatch(
 }
 
 pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> Result<(), Error> {
-	let status = match rpc_cli
-		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
-		.await??
-	{
-		SystemRpc::ReturnKnownNodes(nodes) => nodes,
-		resp => return Err(Error::Message(format!("Invalid RPC response: {:?}", resp))),
-	};
+	let status = fetch_status(rpc_cli, rpc_host).await?;
 	let layout = fetch_layout(rpc_cli, rpc_host).await?;
 
 	println!("==== HEALTHY NODES ====");
 	let mut healthy_nodes =
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
-		match layout.roles.get(&adv.id) {
-			Some(NodeRoleV(Some(cfg))) => {
-				let data_avail = match &adv.status.data_disk_avail {
-					_ if cfg.capacity.is_none() => "N/A".into(),
-					Some((avail, total)) => {
-						let pct = (*avail as f64) / (*total as f64) * 100.;
-						let avail = bytesize::ByteSize::b(*avail);
-						format!("{} ({:.1}%)", avail, pct)
-					}
-					None => "?".into(),
-				};
+		let host = adv.status.hostname.as_deref().unwrap_or("?");
+		if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
+			let data_avail = match &adv.status.data_disk_avail {
+				_ if cfg.capacity.is_none() => "N/A".into(),
+				Some((avail, total)) => {
+					let pct = (*avail as f64) / (*total as f64) * 100.;
+					let avail = bytesize::ByteSize::b(*avail);
+					format!("{} ({:.1}%)", avail, pct)
+				}
+				None => "?".into(),
+			};
+			healthy_nodes.push(format!(
+				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
+				id = adv.id,
+				host = host,
+				addr = adv.addr,
+				tags = cfg.tags.join(","),
+				zone = cfg.zone,
+				capacity = cfg.capacity_string(),
+				data_avail = data_avail,
+			));
+		} else {
+			let prev_role = layout
+				.versions
+				.iter()
+				.rev()
+				.find_map(|x| match x.roles.get(&adv.id) {
+					Some(NodeRoleV(Some(cfg))) => Some(cfg),
+					_ => None,
+				});
+			if let Some(cfg) = prev_role {
 				healthy_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
+					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
 					id = adv.id,
-					host = adv.status.hostname,
+					host = host,
 					addr = adv.addr,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
-					capacity = cfg.capacity_string(),
-					data_avail = data_avail,
 				));
-			}
-			_ => {
-				let new_role = match layout.staging_roles.get(&adv.id) {
-					Some(NodeRoleV(Some(_))) => "(pending)",
+			} else {
+				let new_role = match layout.staging.get().roles.get(&adv.id) {
+					Some(NodeRoleV(Some(_))) => "pending...",
 					_ => "NO ROLE ASSIGNED",
 				};
 				healthy_nodes.push(format!(
-					"{id:?}\t{h}\t{addr}\t{new_role}",
+					"{id:?}\t{h}\t{addr}\t\t\t{new_role}",
 					id = adv.id,
-					h = adv.status.hostname,
+					h = host,
 					addr = adv.addr,
 					new_role = new_role,
 				));
@@ -101,51 +112,76 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 	}
 	format_table(healthy_nodes);
 
-	let status_keys = status.iter().map(|adv| adv.id).collect::<HashSet<_>>();
-	let failure_case_1 = status
+	// Determine which nodes are unhealthy and print that to stdout
+	let status_map = status
 		.iter()
-		.any(|adv| !adv.is_up && matches!(layout.roles.get(&adv.id), Some(NodeRoleV(Some(_)))));
-	let failure_case_2 = layout
-		.roles
-		.items()
-		.iter()
-		.any(|(id, _, v)| !status_keys.contains(id) && v.0.is_some());
-	if failure_case_1 || failure_case_2 {
-		println!("\n==== FAILED NODES ====");
-		let mut failed_nodes =
-			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
-		for adv in status.iter().filter(|adv| !adv.is_up) {
-			if let Some(NodeRoleV(Some(cfg))) = layout.roles.get(&adv.id) {
-				let tf = timeago::Formatter::new();
-				failed_nodes.push(format!(
-					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
-					id = adv.id,
-					host = adv.status.hostname,
-					addr = adv.addr,
-					tags = cfg.tags.join(","),
-					zone = cfg.zone,
-					capacity = cfg.capacity_string(),
-					last_seen = adv
-						.last_seen_secs_ago
+		.map(|adv| (adv.id, adv))
+		.collect::<HashMap<_, _>>();
+
+	let tf = timeago::Formatter::new();
+	let mut drain_msg = false;
+	let mut failed_nodes =
+		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
+	let mut listed = HashSet::new();
+	for ver in layout.versions.iter().rev() {
+		for (node, _, role) in ver.roles.items().iter() {
+			let cfg = match role {
+				NodeRoleV(Some(role)) if role.capacity.is_some() => role,
+				_ => continue,
+			};
+
+			if listed.contains(node) {
+				continue;
+			}
+			listed.insert(*node);
+
+			let adv = status_map.get(node);
+			if adv.map(|x| x.is_up).unwrap_or(false) {
+				continue;
+			}
+
+			// Node is in a layout version, is not a gateway node, and is not up:
+			// it is in a failed state, add proper line to the output
+			let (host, addr, last_seen) = match adv {
+				Some(adv) => (
+					adv.status.hostname.as_deref().unwrap_or("?"),
+					adv.addr.to_string(),
+					adv.last_seen_secs_ago
 						.map(|s| tf.convert(Duration::from_secs(s)))
 						.unwrap_or_else(|| "never seen".into()),
-				));
-			}
+				),
+				None => ("??", "??".into(), "never seen".into()),
+			};
+			let capacity = if ver.version == layout.current().version {
+				cfg.capacity_string()
+			} else {
+				drain_msg = true;
+				"draining metadata...".to_string()
+			};
+			failed_nodes.push(format!(
+				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
+				id = node,
+				host = host,
+				addr = addr,
+				tags = cfg.tags.join(","),
+				zone = cfg.zone,
+				capacity = capacity,
+				last_seen = last_seen,
+			));
 		}
-		for (id, _, role_v) in layout.roles.items().iter() {
-			if let NodeRoleV(Some(cfg)) = role_v {
-				if !status_keys.contains(id) {
-					failed_nodes.push(format!(
-						"{id:?}\t??\t??\t[{tags}]\t{zone}\t{capacity}\tnever seen",
-						id = id,
-						tags = cfg.tags.join(","),
-						zone = cfg.zone,
-						capacity = cfg.capacity_string(),
-					));
-				}
-			}
-		}
+	}
+
+	if failed_nodes.len() > 1 {
+		println!("\n==== FAILED NODES ====");
 		format_table(failed_nodes);
+		if drain_msg {
+			println!();
+			println!("Your cluster is expecting to drain data from nodes that are currently unavailable.");
+			println!("If these nodes are definitely dead, please review the layout history with");
+			println!(
+				"`garage layout history` and use `garage layout skip-dead-nodes` to force progress."
+			);
+		}
 	}
 
 	if print_staging_role_changes(&layout) {
@@ -225,4 +261,19 @@ pub async fn cmd_admin(
 		}
 	}
 	Ok(())
+}
+
+// ---- utility ----
+
+pub async fn fetch_status(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+) -> Result<Vec<KnownNodeInfo>, Error> {
+	match rpc_cli
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.await??
+	{
+		SystemRpc::ReturnKnownNodes(nodes) => Ok(nodes),
+		resp => Err(Error::unexpected_rpc_message(resp)),
+	}
 }

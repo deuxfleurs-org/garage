@@ -377,7 +377,7 @@ impl BlockResyncManager {
 			info!("Resync block {:?}: offloading and deleting", hash);
 			let existing_path = existing_path.unwrap();
 
-			let mut who = manager.replication.write_nodes(hash);
+			let mut who = manager.replication.storage_nodes(hash);
 			if who.len() < manager.replication.write_quorum() {
 				return Err(Error::Message("Not trying to offload block because we don't have a quorum of nodes to write to".to_string()));
 			}
@@ -385,7 +385,7 @@ impl BlockResyncManager {
 
 			let who_needs_resps = manager
 				.system
-				.rpc
+				.rpc_helper()
 				.call_many(
 					&manager.endpoint,
 					&who,
@@ -431,10 +431,10 @@ impl BlockResyncManager {
 				.with_stream_from_buffer(bytes);
 				manager
 					.system
-					.rpc
+					.rpc_helper()
 					.try_call_many(
 						&manager.endpoint,
-						&need_nodes[..],
+						&need_nodes,
 						put_block_message,
 						RequestStrategy::with_priority(PRIO_BACKGROUND)
 							.with_quorum(need_nodes.len()),

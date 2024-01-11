@@ -55,13 +55,14 @@ pub enum Error {
 	Timeout,
 
 	#[error(
-		display = "Could not reach quorum of {}. {} of {} request succeeded, others returned errors: {:?}",
+		display = "Could not reach quorum of {} (sets={:?}). {} of {} request succeeded, others returned errors: {:?}",
 		_0,
 		_1,
 		_2,
-		_3
+		_3,
+		_4
 	)]
-	Quorum(usize, usize, usize, Vec<String>),
+	Quorum(usize, Option<usize>, usize, usize, Vec<String>),
 
 	#[error(display = "Unexpected RPC message: {}", _0)]
 	UnexpectedRpcMessage(String),

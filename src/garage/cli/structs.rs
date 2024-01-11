@@ -112,6 +112,14 @@ pub enum LayoutOperation {
 	/// Revert staged changes to cluster layout
 	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
+
+	/// View the history of layouts in the cluster
+	#[structopt(name = "history", version = garage_version())]
+	History,
+
+	/// Skip dead nodes when awaiting for a new layout version to be synchronized
+	#[structopt(name = "skip-dead-nodes", version = garage_version())]
+	SkipDeadNodes(SkipDeadNodesOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -164,9 +172,21 @@ pub struct ApplyLayoutOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct RevertLayoutOpt {
-	/// Version number of old configuration to which to revert
+	/// The revert operation will not be ran unless this flag is added
+	#[structopt(long = "yes")]
+	pub(crate) yes: bool,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct SkipDeadNodesOpt {
+	/// Version number of the layout to assume is currently up-to-date.
+	/// This will generally be the current layout version.
 	#[structopt(long = "version")]
-	pub(crate) version: Option<u64>,
+	pub(crate) version: u64,
+	/// Allow the skip even if a quorum of ndoes could not be found for
+	/// the data among the remaining nodes
+	#[structopt(long = "allow-missing-data")]
+	pub(crate) allow_missing_data: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]

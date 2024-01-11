@@ -264,8 +264,10 @@ impl BlockManager {
 		F: Fn(DataBlockHeader, ByteStream) -> Fut,
 		Fut: futures::Future<Output = Result<T, Error>>,
 	{
-		let who = self.replication.read_nodes(hash);
-		let who = self.system.rpc.request_order(&who);
+		let who = self
+			.system
+			.rpc_helper()
+			.block_read_nodes_of(hash, self.system.rpc_helper());
 
 		for node in who.iter() {
 			let node_id = NodeID::from(*node);
@@ -305,7 +307,7 @@ impl BlockManager {
 				// if the first one doesn't succeed rapidly
 				// TODO: keep first request running when initiating a new one and take the
 				// one that finishes earlier
-				_ = tokio::time::sleep(self.system.rpc.rpc_timeout()) => {
+				_ = tokio::time::sleep(self.system.rpc_helper().rpc_timeout()) => {
 					debug!("Get block {:?}: node {:?} didn't return block in time, trying next.", hash, node);
 				}
 			};
@@ -354,7 +356,7 @@ impl BlockManager {
 
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(&self, hash: Hash, data: Bytes) -> Result<(), Error> {
-		let who = self.replication.write_nodes(&hash);
+		let who = self.replication.write_sets(&hash);
 
 		let (header, bytes) = DataBlock::from_buffer(data, self.compression_level)
 			.await
@@ -363,10 +365,10 @@ impl BlockManager {
 			Req::new(BlockRpc::PutBlock { hash, header })?.with_stream_from_buffer(bytes);
 
 		self.system
-			.rpc
-			.try_call_many(
+			.rpc_helper()
+			.try_write_many_sets(
 				&self.endpoint,
-				&who[..],
+				who.as_ref(),
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_quorum(self.replication.write_quorum()),
@@ -439,7 +441,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, 2 * this.system.rpc.rpc_timeout())
+					.put_to_resync(&hash, 2 * this.system.rpc_helper().rpc_timeout())
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -533,7 +535,7 @@ impl BlockManager {
 				None => {
 					// Not found but maybe we should have had it ??
 					self.resync
-						.put_to_resync(hash, 2 * self.system.rpc.rpc_timeout())?;
+						.put_to_resync(hash, 2 * self.system.rpc_helper().rpc_timeout())?;
 					return Err(Error::Message(format!(
 						"block {:?} not found on node",
 						hash

@@ -18,7 +18,7 @@ use garage_util::error::Error as GarageError;
 use garage_table::replication::*;
 use garage_table::*;
 
-use garage_rpc::ring::PARTITION_BITS;
+use garage_rpc::layout::PARTITION_BITS;
 use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
@@ -126,8 +126,8 @@ impl AdminRpcHandler {
 			opt_to_send.all_nodes = false;
 
 			let mut failures = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				let resp = self
 					.endpoint
@@ -163,9 +163,9 @@ impl AdminRpcHandler {
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRpc, Error> {
 		if opt.all_nodes {
 			let mut ret = String::new();
-			let ring = self.garage.system.ring.borrow().clone();
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
 
-			for node in ring.layout.node_ids().iter() {
+			for node in all_nodes.iter() {
 				let mut opt = opt.clone();
 				opt.all_nodes = false;
 				opt.skip_global = true;
@@ -274,11 +274,11 @@ impl AdminRpcHandler {
 	fn gather_cluster_stats(&self) -> String {
 		let mut ret = String::new();
 
-		// Gather storage node and free space statistics
-		let layout = &self.garage.system.ring.borrow().layout;
+		// Gather storage node and free space statistics for current nodes
+		let layout = &self.garage.system.cluster_layout();
 		let mut node_partition_count = HashMap::<Uuid, u64>::new();
-		for short_id in layout.ring_assignment_data.iter() {
-			let id = layout.node_id_vec[*short_id as usize];
+		for short_id in layout.current().ring_assignment_data.iter() {
+			let id = layout.current().node_id_vec[*short_id as usize];
 			*node_partition_count.entry(id).or_default() += 1;
 		}
 		let node_info = self
@@ -293,8 +293,8 @@ impl AdminRpcHandler {
 		for (id, parts) in node_partition_count.iter() {
 			let info = node_info.get(id);
 			let status = info.map(|x| &x.status);
-			let role = layout.roles.get(id).and_then(|x| x.0.as_ref());
-			let hostname = status.map(|x| x.hostname.as_str()).unwrap_or("?");
+			let role = layout.current().roles.get(id).and_then(|x| x.0.as_ref());
+			let hostname = status.and_then(|x| x.hostname.as_deref()).unwrap_or("?");
 			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
 			let capacity = role
 				.map(|x| x.capacity_string())
@@ -440,8 +440,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				match self
 					.endpoint
@@ -488,8 +488,8 @@ impl AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		if all_nodes {
 			let mut ret = vec![];
-			let ring = self.garage.system.ring.borrow().clone();
-			for node in ring.layout.node_ids().iter() {
+			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in all_nodes.iter() {
 				let node = (*node).into();
 				match self
 					.endpoint

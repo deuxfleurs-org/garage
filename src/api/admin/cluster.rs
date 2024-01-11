@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -15,25 +16,95 @@ use crate::admin::error::*;
 use crate::helpers::{json_ok_response, parse_json_body};
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	let layout = garage.system.cluster_layout();
+	let mut nodes = garage
+		.system
+		.get_known_nodes()
+		.into_iter()
+		.map(|i| {
+			(
+				i.id,
+				NodeResp {
+					id: hex::encode(i.id),
+					addr: Some(i.addr),
+					hostname: i.status.hostname,
+					is_up: i.is_up,
+					last_seen_secs_ago: i.last_seen_secs_ago,
+					data_partition: i
+						.status
+						.data_disk_avail
+						.map(|(avail, total)| FreeSpaceResp {
+							available: avail,
+							total,
+						}),
+					metadata_partition: i.status.meta_disk_avail.map(|(avail, total)| {
+						FreeSpaceResp {
+							available: avail,
+							total,
+						}
+					}),
+					..Default::default()
+				},
+			)
+		})
+		.collect::<HashMap<_, _>>();
+
+	for (id, _, role) in layout.current().roles.items().iter() {
+		if let layout::NodeRoleV(Some(r)) = role {
+			let role = NodeRoleResp {
+				id: hex::encode(id),
+				zone: r.zone.to_string(),
+				capacity: r.capacity,
+				tags: r.tags.clone(),
+			};
+			match nodes.get_mut(id) {
+				None => {
+					nodes.insert(
+						*id,
+						NodeResp {
+							id: hex::encode(id),
+							role: Some(role),
+							..Default::default()
+						},
+					);
+				}
+				Some(n) => {
+					if n.role.is_none() {
+						n.role = Some(role);
+					}
+				}
+			}
+		}
+	}
+
+	for ver in layout.versions.iter().rev().skip(1) {
+		for (id, _, role) in ver.roles.items().iter() {
+			if let layout::NodeRoleV(Some(r)) = role {
+				if !nodes.contains_key(id) && r.capacity.is_some() {
+					nodes.insert(
+						*id,
+						NodeResp {
+							id: hex::encode(id),
+							draining: true,
+							..Default::default()
+						},
+					);
+				}
+			}
+		}
+	}
+
+	let mut nodes = nodes.into_values().collect::<Vec<_>>();
+	nodes.sort_by(|x, y| x.id.cmp(&y.id));
+
 	let res = GetClusterStatusResponse {
 		node: hex::encode(garage.system.id),
 		garage_version: garage_util::version::garage_version(),
 		garage_features: garage_util::version::garage_features(),
 		rust_version: garage_util::version::rust_version(),
 		db_engine: garage.db.engine(),
-		known_nodes: garage
-			.system
-			.get_known_nodes()
-			.into_iter()
-			.map(|i| KnownNodeResp {
-				id: hex::encode(i.id),
-				addr: i.addr,
-				is_up: i.is_up,
-				last_seen_secs_ago: i.last_seen_secs_ago,
-				hostname: i.status.hostname,
-			})
-			.collect(),
-		layout: format_cluster_layout(&garage.system.get_cluster_layout()),
+		layout_version: layout.current().version,
+		nodes,
 	};
 
 	Ok(json_ok_response(&res)?)
@@ -84,13 +155,14 @@ pub async fn handle_connect_cluster_nodes(
 }
 
 pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
-	let res = format_cluster_layout(&garage.system.get_cluster_layout());
+	let res = format_cluster_layout(&garage.system.cluster_layout());
 
 	Ok(json_ok_response(&res)?)
 }
 
-fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResponse {
+fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResponse {
 	let roles = layout
+		.current()
 		.roles
 		.items()
 		.iter()
@@ -104,10 +176,12 @@ fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResp
 		.collect::<Vec<_>>();
 
 	let staged_role_changes = layout
-		.staging_roles
+		.staging
+		.get()
+		.roles
 		.items()
 		.iter()
-		.filter(|(k, _, v)| layout.roles.get(k) != Some(v))
+		.filter(|(k, _, v)| layout.current().roles.get(k) != Some(v))
 		.map(|(k, _, v)| match &v.0 {
 			None => NodeRoleChange {
 				id: hex::encode(k),
@@ -125,7 +199,7 @@ fn format_cluster_layout(layout: &layout::ClusterLayout) -> GetClusterLayoutResp
 		.collect::<Vec<_>>();
 
 	GetClusterLayoutResponse {
-		version: layout.version,
+		version: layout.current().version,
 		roles,
 		staged_role_changes,
 	}
@@ -154,8 +228,8 @@ struct GetClusterStatusResponse {
 	garage_features: Option<&'static [&'static str]>,
 	rust_version: &'static str,
 	db_engine: String,
-	known_nodes: Vec<KnownNodeResp>,
-	layout: GetClusterLayoutResponse,
+	layout_version: u64,
+	nodes: Vec<NodeResp>,
 }
 
 #[derive(Serialize)]
@@ -189,14 +263,27 @@ struct NodeRoleResp {
 	tags: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct KnownNodeResp {
+struct FreeSpaceResp {
+	available: u64,
+	total: u64,
+}
+
+#[derive(Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct NodeResp {
 	id: String,
-	addr: SocketAddr,
+	role: Option<NodeRoleResp>,
+	addr: Option<SocketAddr>,
+	hostname: Option<String>,
 	is_up: bool,
 	last_seen_secs_ago: Option<u64>,
-	hostname: String,
+	draining: bool,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	data_partition: Option<FreeSpaceResp>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	metadata_partition: Option<FreeSpaceResp>,
 }
 
 // ---- update functions ----
@@ -207,10 +294,10 @@ pub async fn handle_update_cluster_layout(
 ) -> Result<Response<Body>, Error> {
 	let updates = parse_json_body::<UpdateClusterLayoutRequest>(req).await?;
 
-	let mut layout = garage.system.get_cluster_layout();
+	let mut layout = garage.system.cluster_layout().clone();
 
-	let mut roles = layout.roles.clone();
-	roles.merge(&layout.staging_roles);
+	let mut roles = layout.current().roles.clone();
+	roles.merge(&layout.staging.get().roles);
 
 	for change in updates {
 		let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
@@ -231,11 +318,17 @@ pub async fn handle_update_cluster_layout(
 		};
 
 		layout
-			.staging_roles
+			.staging
+			.get_mut()
+			.roles
 			.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
 	}
 
-	garage.system.update_cluster_layout(&layout).await?;
+	garage
+		.system
+		.layout_manager
+		.update_cluster_layout(&layout)
+		.await?;
 
 	let res = format_cluster_layout(&layout);
 	Ok(json_ok_response(&res)?)
@@ -245,12 +338,16 @@ pub async fn handle_apply_cluster_layout(
 	garage: &Arc<Garage>,
 	req: Request<Body>,
 ) -> Result<Response<Body>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+	let param = parse_json_body::<ApplyLayoutRequest>(req).await?;
 
-	let layout = garage.system.get_cluster_layout();
+	let layout = garage.system.cluster_layout().clone();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
 
-	garage.system.update_cluster_layout(&layout).await?;
+	garage
+		.system
+		.layout_manager
+		.update_cluster_layout(&layout)
+		.await?;
 
 	let res = ApplyClusterLayoutResponse {
 		message: msg,
@@ -259,15 +356,14 @@ pub async fn handle_apply_cluster_layout(
 	Ok(json_ok_response(&res)?)
 }
 
-pub async fn handle_revert_cluster_layout(
-	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
-
-	let layout = garage.system.get_cluster_layout();
-	let layout = layout.revert_staged_changes(Some(param.version))?;
-	garage.system.update_cluster_layout(&layout).await?;
+pub async fn handle_revert_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+	let layout = garage.system.cluster_layout().clone();
+	let layout = layout.revert_staged_changes()?;
+	garage
+		.system
+		.layout_manager
+		.update_cluster_layout(&layout)
+		.await?;
 
 	let res = format_cluster_layout(&layout);
 	Ok(json_ok_response(&res)?)
@@ -279,7 +375,7 @@ type UpdateClusterLayoutRequest = Vec<NodeRoleChange>;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ApplyRevertLayoutRequest {
+struct ApplyLayoutRequest {
 	version: u64,
 }
 
