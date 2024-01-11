@@ -1,0 +1,40 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+
+def vm(config, hostname, ip)
+  config.vm.hostname = hostname
+  config.vm.network "private_network", ip: ip
+end
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/debian10"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = false
+    vb.memory = "512"
+    vb.customize ["modifyvm", :id, "--vram=12"]
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "root:root" | chpasswd
+    mkdir -p /root/.ssh
+    echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJpaBZdYxHqMxhv2RExAOa7nkKhPBOHupMP3mYaZ73w9 lx@lindy" >> /root/.ssh/authorized_keys
+  SHELL
+
+  config.vm.define "n1" do |config| vm(config, "n1", "192.168.56.21") end
+  config.vm.define "n2" do |config| vm(config, "n2", "192.168.56.22") end
+  config.vm.define "n3" do |config| vm(config, "n3", "192.168.56.23") end
+  config.vm.define "n4" do |config| vm(config, "n4", "192.168.56.24") end
+  config.vm.define "n5" do |config| vm(config, "n5", "192.168.56.25") end
+  config.vm.define "n6" do |config| vm(config, "n6", "192.168.56.26") end
+  config.vm.define "n7" do |config| vm(config, "n7", "192.168.56.27") end
+
+  config.vm.define "n8" do |config| vm(config, "n8", "192.168.56.28") end
+  config.vm.define "n9" do |config| vm(config, "n9", "192.168.56.29") end
+  config.vm.define "n10" do |config| vm(config, "n10", "192.168.56.30") end
+  config.vm.define "n11" do |config| vm(config, "n11", "192.168.56.31") end
+  config.vm.define "n12" do |config| vm(config, "n12", "192.168.56.32") end
+  config.vm.define "n13" do |config| vm(config, "n13", "192.168.56.33") end
+  config.vm.define "n14" do |config| vm(config, "n14", "192.168.56.34") end
+end
