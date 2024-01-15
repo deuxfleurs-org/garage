@@ -325,10 +325,9 @@ yourself.
 
 ### `allow_world_readable_secrets`
 
-Garage checks the permissions of your secret files to make sure
-they're not world-readable. In some cases, the check might fail and
-consider your files as world-readable even if they're not. Such as
-when using Posix ACLs.
+Garage checks the permissions of your secret files to make sure they're not
+world-readable. In some cases, the check might fail and consider your files as
+world-readable even if they're not, for instance when using Posix ACLs.
 
 Setting `allow_world_readable_secrets` to `true` bypass this
 permission verification.

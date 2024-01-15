@@ -6,7 +6,7 @@ use garage_util::error::*;
 use garage_model::garage::Garage;
 
 use crate::cli::structs::*;
-use crate::{fill_secrets, Secrets};
+use crate::secrets::{fill_secrets, Secrets};
 
 pub async fn offline_repair(
 	config_file: PathBuf,

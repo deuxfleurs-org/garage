@@ -15,9 +15,9 @@ use garage_web::WebServer;
 use garage_api::k2v::api_server::K2VApiServer;
 
 use crate::admin::*;
+use crate::secrets::{fill_secrets, Secrets};
 #[cfg(feature = "telemetry-otlp")]
 use crate::tracing_setup::*;
-use crate::{fill_secrets, Secrets};
 
 async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {

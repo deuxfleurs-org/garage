@@ -1,6 +1,5 @@
 //! Contains type and functions related to Garage configuration file
 use std::convert::TryFrom;
-use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -198,6 +197,13 @@ pub struct KubernetesDiscoveryConfig {
 	pub skip_crd: bool,
 }
 
+/// Read and parse configuration
+pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
+	let config = std::fs::read_to_string(config_file)?;
+
+	Ok(toml::from_str(&config)?)
+}
+
 fn default_db_engine() -> String {
 	"sled".into()
 }
@@ -210,105 +216,6 @@ fn default_sled_flush_every_ms() -> u64 {
 }
 fn default_block_size() -> usize {
 	1048576
-}
-
-/// Read and parse configuration
-pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
-	let mut file = std::fs::OpenOptions::new()
-		.read(true)
-		.open(config_file.as_path())?;
-
-	let mut config = String::new();
-	file.read_to_string(&mut config)?;
-
-	let mut parsed_config: Config = toml::from_str(&config)?;
-
-	secret_from_file(
-		&mut parsed_config.rpc_secret,
-		&parsed_config.rpc_secret_file,
-		"rpc_secret",
-		parsed_config.allow_world_readable_secrets,
-	)?;
-	secret_from_file(
-		&mut parsed_config.admin.metrics_token,
-		&parsed_config.admin.metrics_token_file,
-		"admin.metrics_token",
-		parsed_config.allow_world_readable_secrets,
-	)?;
-	secret_from_file(
-		&mut parsed_config.admin.admin_token,
-		&parsed_config.admin.admin_token_file,
-		"admin.admin_token",
-		parsed_config.allow_world_readable_secrets,
-	)?;
-
-	Ok(parsed_config)
-}
-
-pub fn read_secret_file(file_path: &String) -> Result<String, Error> {
-	#[cfg(unix)]
-	if std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS").as_deref() != Ok("true") {
-		use std::os::unix::fs::MetadataExt;
-		let metadata = std::fs::metadata(file_path)?;
-		if metadata.mode() & 0o077 != 0 {
-			return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
-		}
-	}
-	let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
-	let mut secret_buf = String::new();
-	file.read_to_string(&mut secret_buf)?;
-
-	// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
-	//           also editors sometimes add a trailing newline
-	Ok(String::from(secret_buf.trim_end()))
-}
-
-fn secret_from_file(
-	secret: &mut Option<String>,
-	secret_file: &Option<String>,
-	name: &'static str,
-	conf_allow_world_readable: bool,
-) -> Result<(), Error> {
-	match (&secret, &secret_file) {
-		(_, None) => {
-			// no-op
-		}
-		(Some(_), Some(_)) => {
-			return Err(format!("only one of `{}` and `{}_file` can be set", name, name).into());
-		}
-		(None, Some(file_path)) => {
-			#[cfg(unix)]
-			// decide whether to ignore or check permission
-			// bits. GARAGE_ALLOW_WORLD_READABLE_SECRETS
-			// always takes precedence over what's specified
-			// in the config file, to allow overriding it in
-			// case the config file is read-only.
-			let ignore_perms = {
-				let ignore_perms_env = std::env::var("GARAGE_ALLOW_WORLD_READABLE_SECRETS");
-				if ignore_perms_env.as_deref() == Ok("true") {
-					true
-				} else if ignore_perms_env.as_deref() == Ok("false") {
-					false
-				} else {
-					conf_allow_world_readable
-				}
-			};
-			if !ignore_perms {
-				use std::os::unix::fs::MetadataExt;
-				let metadata = std::fs::metadata(file_path)?;
-				if metadata.mode() & 0o077 != 0 {
-					return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
-				}
-			}
-			let mut file = std::fs::OpenOptions::new().read(true).open(file_path)?;
-			let mut secret_buf = String::new();
-			file.read_to_string(&mut secret_buf)?;
-			// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
-			//           also editors sometimes add a trailing newline
-			*secret = Some(String::from(secret_buf.trim_end()));
-		}
-	}
-	Ok(())
 }
 
 fn default_compression() -> Option<i32> {
@@ -437,119 +344,6 @@ mod tests {
 		drop(path2);
 		drop(file2);
 
-		Ok(())
-	}
-
-	#[test]
-	fn test_rpc_secret_file_works() -> Result<(), Error> {
-		let path_secret = mktemp::Temp::new_file()?;
-		let mut file_secret = File::create(path_secret.as_path())?;
-		writeln!(file_secret, "foo")?;
-		drop(file_secret);
-
-		let path_config = mktemp::Temp::new_file()?;
-		let mut file_config = File::create(path_config.as_path())?;
-		let path_secret_path = path_secret.as_path();
-		writeln!(
-			file_config,
-			r#"
-			metadata_dir = "/tmp/garage/meta"
-			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
-			rpc_bind_addr = "[::]:3901"
-			rpc_secret_file = "{}"
-
-			[s3_api]
-			s3_region = "garage"
-			api_bind_addr = "[::]:3900"
-			"#,
-			path_secret_path.display()
-		)?;
-
-		// Second configuration file, same as previous one
-		// except it allows world-readable secrets.
-		let path_config_allow_world_readable = mktemp::Temp::new_file()?;
-		let mut file_config_allow_world_readable =
-			File::create(path_config_allow_world_readable.as_path())?;
-		writeln!(
-			file_config_allow_world_readable,
-			r#"
-			metadata_dir = "/tmp/garage/meta"
-			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
-			rpc_bind_addr = "[::]:3901"
-			rpc_secret_file = "{}"
-                        allow_world_readable_secrets = true
-
-			[s3_api]
-			s3_region = "garage"
-			api_bind_addr = "[::]:3900"
-			"#,
-			path_secret_path.display()
-		)?;
-
-		let mut config = super::read_config(path_config.to_path_buf())?;
-		assert_eq!("foo", config.rpc_secret.unwrap());
-		#[cfg(unix)]
-		{
-			// Check non world-readable secrets config
-			use std::os::unix::fs::PermissionsExt;
-			let metadata = std::fs::metadata(&path_secret_path)?;
-			let mut perm = metadata.permissions();
-			perm.set_mode(0o660);
-			std::fs::set_permissions(&path_secret_path, perm)?;
-
-			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "false");
-			assert!(super::read_config(path_config.to_path_buf()).is_err());
-
-			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "true");
-			assert!(super::read_config(path_config.to_path_buf()).is_ok());
-
-			std::env::remove_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS");
-
-			// Check world-readable secrets config.
-			assert!(super::read_config(path_config_allow_world_readable.to_path_buf()).is_ok());
-
-			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "false");
-			assert!(super::read_config(path_config_allow_world_readable.to_path_buf()).is_err());
-
-			std::env::set_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS", "true");
-			assert!(super::read_config(path_config_allow_world_readable.to_path_buf()).is_ok());
-		}
-		std::env::remove_var("GARAGE_ALLOW_WORLD_READABLE_SECRETS");
-		drop(path_config);
-		drop(path_secret);
-		drop(file_config);
-		Ok(())
-	}
-
-	#[test]
-	fn test_rcp_secret_and_rpc_secret_file_cannot_be_set_both() -> Result<(), Error> {
-		let path_config = mktemp::Temp::new_file()?;
-		let mut file_config = File::create(path_config.as_path())?;
-		writeln!(
-			file_config,
-			r#"
-			metadata_dir = "/tmp/garage/meta"
-			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
-			rpc_bind_addr = "[::]:3901"
-			rpc_secret= "dummy"
-			rpc_secret_file = "dummy"
-
-			[s3_api]
-			s3_region = "garage"
-			api_bind_addr = "[::]:3900"
-			"#
-		)?;
-		assert_eq!(
-			"only one of `rpc_secret` and `rpc_secret_file` can be set",
-			super::read_config(path_config.to_path_buf())
-				.unwrap_err()
-				.to_string()
-		);
-		drop(path_config);
-		drop(file_config);
 		Ok(())
 	}
 }
