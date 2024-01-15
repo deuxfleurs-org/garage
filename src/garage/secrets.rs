@@ -200,10 +200,9 @@ mod tests {
 		let config = fill_secrets(config, Secrets::default())?;
 		assert_eq!("foo", config.rpc_secret.unwrap());
 
+		// ---- Check non world-readable secrets config ----
 		#[cfg(unix)]
 		{
-			// Check non world-readable secrets config
-
 			let secrets_allow_world_readable = Secrets {
 				allow_world_readable_secrets: Some(true),
 				..Default::default()
@@ -240,7 +239,46 @@ mod tests {
 			assert!(fill_secrets(config, secrets_no_allow_world_readable).is_err());
 		}
 
+		// ---- Check alternative secrets specified on CLI ----
+
+		let path_secret2 = mktemp::Temp::new_file()?;
+		let mut file_secret2 = File::create(path_secret2.as_path())?;
+		writeln!(file_secret2, "bar")?;
+		drop(file_secret2);
+
+		let config = read_config(path_config.to_path_buf())?;
+		let config = fill_secrets(
+			config,
+			Secrets {
+				rpc_secret: Some("baz".into()),
+				..Default::default()
+			},
+		)?;
+		assert_eq!(config.rpc_secret.as_deref(), Some("baz"));
+
+		let config = read_config(path_config.to_path_buf())?;
+		let config = fill_secrets(
+			config,
+			Secrets {
+				rpc_secret_file: Some(path_secret2.display().to_string()),
+				..Default::default()
+			},
+		)?;
+		assert_eq!(config.rpc_secret.as_deref(), Some("bar"));
+
+		let config = read_config(path_config.to_path_buf())?;
+		assert!(fill_secrets(
+			config,
+			Secrets {
+				rpc_secret: Some("baz".into()),
+				rpc_secret_file: Some(path_secret2.display().to_string()),
+				..Default::default()
+			}
+		)
+		.is_err());
+
 		drop(path_secret);
+		drop(path_secret2);
 		drop(path_config);
 		drop(path_config_allow_world_readable);
 
