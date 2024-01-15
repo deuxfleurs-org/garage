@@ -323,6 +323,18 @@ be obtained by running `garage node id` and then included directly in the
 key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
+### `allow_world_readable_secrets`
+
+Garage checks the permissions of your secret files to make sure
+they're not world-readable. In some cases, the check might fail and
+consider your files as world-readable even if they're not. Such as
+when using Posix ACLs.
+
+Setting `allow_world_readable_secrets` to `true` bypass this
+permission verification.
+
+Alternatively, you can set the `GARAGE_ALLOW_WORLD_READABLE_SECRETS`
+environment variable to `true` to bypass the permissions check.
 
 ## The `[consul_discovery]` section
 
