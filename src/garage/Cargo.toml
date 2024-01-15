@@ -67,6 +67,7 @@ chrono = "0.4"
 http = "0.2"
 hmac = "0.12"
 hyper = { version = "0.14", features = ["client", "http1", "runtime"] }
+mktemp = "0.5"
 sha2 = "0.10"
 
 static_init = "1.0"
