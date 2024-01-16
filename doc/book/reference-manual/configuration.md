@@ -394,7 +394,7 @@ Compression is done synchronously, setting a value too high will add latency to 
 This value can be different between nodes, compression is done by the node which receive the
 API call.
 
-#### `rpc_secret`, `rpc_secret_file` or `GARAGE_RPC_SECRET` (env) {#rpc_secret}
+#### `rpc_secret`, `rpc_secret_file` or `GARAGE_RPC_SECRET`, `GARAGE_RPC_SECRET_FILE` (env) {#rpc_secret}
 
 Garage uses a secret key, called an RPC secret, that is shared between all
 nodes of the cluster in order to identify these nodes and allow them to
@@ -405,6 +405,9 @@ The RPC secret should be specified in the `rpc_secret` configuration variable.
 Since Garage `v0.8.2`, the RPC secret can also be stored in a file whose path is
 given in the configuration variable `rpc_secret_file`, or specified as an
 environment variable `GARAGE_RPC_SECRET`.
+
+Since Garage `v0.8.5` and `v0.9.1`, you can also specify the path of a file
+storing the secret as the `GARAGE_RPC_SECRET_FILE` environment variable.
 
 #### `rpc_bind_addr` {#rpc_bind_addr}
 
@@ -438,6 +441,17 @@ be obtained by running `garage node id` and then included directly in the
 key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
+### `allow_world_readable_secrets`
+
+Garage checks the permissions of your secret files to make sure they're not
+world-readable. In some cases, the check might fail and consider your files as
+world-readable even if they're not, for instance when using Posix ACLs.
+
+Setting `allow_world_readable_secrets` to `true` bypass this
+permission verification.
+
+Alternatively, you can set the `GARAGE_ALLOW_WORLD_READABLE_SECRETS`
+environment variable to `true` to bypass the permissions check.
 
 ### The `[consul_discovery]` section
 
@@ -583,7 +597,7 @@ See [administration API reference](@/documentation/reference-manual/admin-api.md
 Alternatively, since `v0.8.5`, a path can be used to create a unix socket. Note that for security reasons,
 the socket will have 0220 mode. Make sure to set user and group permissions accordingly.
 
-#### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN` (env) {#admin_metrics_token}
+#### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN`, `GARAGE_METRICS_TOKEN_FILE` (env) {#admin_metrics_token}
 
 The token for accessing the Metrics endpoint. If this token is not set, the
 Metrics endpoint can be accessed without access control.
@@ -593,8 +607,9 @@ You can use any random string for this value. We recommend generating a random t
 `metrics_token` was introduced in Garage `v0.7.2`.
 `metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
+`GARAGE_METRICS_TOKEN_FILE` is supported since `v0.8.5` / `v0.9.1`.
 
-#### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN` (env) {#admin_token}
+#### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN`, `GARAGE_ADMIN_TOKEN_FILE` (env) {#admin_token}
 
 The token for accessing all of the other administration endpoints.  If this
 token is not set, access to these endpoints is disabled entirely.
@@ -604,6 +619,7 @@ You can use any random string for this value. We recommend generating a random t
 `admin_token` was introduced in Garage `v0.7.2`.
 `admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
 
+`GARAGE_ADMIN_TOKEN_FILE` is supported since `v0.8.5` / `v0.9.1`.
 
 #### `trace_sink` {#admin_trace_sink}
 

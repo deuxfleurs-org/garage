@@ -1227,6 +1227,7 @@ dependencies = [
  "hyper",
  "k2v-client",
  "kuska-sodiumoxide",
+ "mktemp",
  "netapp",
  "opentelemetry",
  "opentelemetry-otlp",
