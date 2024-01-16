@@ -148,7 +148,7 @@ impl ConsulDiscovery {
 				ret.push((pubkey, SocketAddr::new(ip, ent.service_port)));
 			} else {
 				warn!(
-					"Could not process node spec from Consul: {:?} (invalid IP or public key)",
+					"Could not process node spec from Consul: {:?} (invalid IP address or node ID/pubkey)",
 					ent
 				);
 			}
