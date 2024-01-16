@@ -46,8 +46,7 @@ use secrets::Secrets;
 	about = "S3-compatible object store for self-hosted geo-distributed deployments"
 )]
 struct Opt {
-	/// Host to connect to for admin operations, in the format:
-	/// <public-key>@<ip>:<port>
+	/// Host to connect to for admin operations, in the format: <full-node-id>@<ip>:<port>
 	#[structopt(short = "h", long = "rpc-host", env = "GARAGE_RPC_HOST")]
 	pub rpc_host: Option<String>,
 
@@ -201,7 +200,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 
 	// Find and parse the address of the target host
 	let (id, addr, is_default_addr) = if let Some(h) = opt.rpc_host {
-		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <pubkey>@<IP or hostname>:<port>.", h))?;
+		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <full node id>@<IP or hostname>:<port>.", h))?;
 		(id, addrs[0], false)
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
@@ -231,7 +230,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 				addr
 			);
 		}
-		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct public key.")?;
+		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct full-length node ID (public key).")?;
 	}
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());

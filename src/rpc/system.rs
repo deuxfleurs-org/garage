@@ -57,7 +57,7 @@ pub const SYSTEM_RPC_PATH: &str = "garage_rpc/membership.rs/SystemRpc";
 pub enum SystemRpc {
 	/// Response to successfull advertisements
 	Ok,
-	/// Request to connect to a specific node (in <pubkey>@<host>:<port> format)
+	/// Request to connect to a specific node (in <pubkey>@<host>:<port> format, pubkey = full-length node ID)
 	Connect(String),
 	/// Ask other node its cluster layout. Answered with AdvertiseClusterLayout
 	PullClusterLayout,

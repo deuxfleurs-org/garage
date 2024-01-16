@@ -43,7 +43,7 @@ pub fn node_id_command(config_file: PathBuf, quiet: bool) -> Result<(), Error> {
 			idstr
 		);
 		eprintln!(
-			"where <remote_node> is their own node identifier in the format: <pubkey>@<ip>:<port>"
+			"where <remote_node> is their own node identifier in the format: <full-node-id>@<ip>:<port>"
 		);
 		eprintln!();
 		eprintln!("This node identifier can also be added as a bootstrap node in other node's garage.toml files:");
