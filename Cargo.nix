@@ -33,7 +33,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "1a87886681a3ef0b83c95addc26674a538b8a93d35bc80db8998e1fcd0821f6c";
+  nixifiedLockHash = "a8ba32879366acd517e5c5feb96e9b009e1dc1991b51fb3acbb6dba2e5c0d935";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1771,6 +1771,7 @@ in
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" { inherit profileName; }).out;
       hyper = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper."0.14.27" { inherit profileName; }).out;
       k2v_client = (rustPackages."unknown".k2v-client."0.0.4" { inherit profileName; }).out;
+      mktemp = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".mktemp."0.5.0" { inherit profileName; }).out;
       serde_json = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.105" { inherit profileName; }).out;
       sha2 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".sha2."0.10.7" { inherit profileName; }).out;
       static_init = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".static_init."1.0.3" { inherit profileName; }).out;

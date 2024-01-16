@@ -6,7 +6,7 @@ use garage_util::error::*;
 use garage_model::garage::Garage;
 
 use crate::cli::structs::*;
-use crate::{fill_secrets, Secrets};
+use crate::secrets::{fill_secrets, Secrets};
 
 pub async fn offline_repair(
 	config_file: PathBuf,
@@ -20,7 +20,7 @@ pub async fn offline_repair(
 	}
 
 	info!("Loading configuration...");
-	let config = fill_secrets(read_config(config_file)?, secrets);
+	let config = fill_secrets(read_config(config_file)?, secrets)?;
 
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config)?;
