@@ -1,6 +1,6 @@
 [package]
 name = "garage_web"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Alex Auvolat <alex@adnab.me>", "Quentin Dufour <quentin@dufour.io>"]
 edition = "2018"
 license = "AGPL-3.0"
