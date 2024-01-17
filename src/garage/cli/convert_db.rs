@@ -22,16 +22,38 @@ pub struct ConvertDbOpt {
 	/// Output database engine
 	#[structopt(short = "b")]
 	output_engine: String,
+
+	#[structopt(flatten)]
+	output_open: OpenDbOpt,
+}
+
+/// Open database config overrides
+#[derive(StructOpt, Debug, Default)]
+pub struct OpenDbOpt {
+	#[cfg(feature = "lmdb")]
+	#[structopt(flatten)]
+	lmdb: OpenLmdbOpt,
+}
+
+/// Output LMDB database config overrides
+#[cfg(feature = "lmdb")]
+#[derive(StructOpt, Debug, Default)]
+pub struct OpenLmdbOpt {
+	/// Output LMDB map size override
+	/// (supported suffixes: B, KiB, MiB, GiB, TiB, PiB)
+	#[cfg(feature = "lmdb")]
+	#[structopt(long = "lmdb-map-size", name = "bytes", display_order = 1_000)]
+	map_size: Option<bytesize::ByteSize>,
 }
 
 pub(crate) fn do_conversion(args: ConvertDbOpt) -> Result<()> {
-	let input = open_db(args.input_path, args.input_engine)?;
-	let output = open_db(args.output_path, args.output_engine)?;
+	let input = open_db(args.input_path, args.input_engine, OpenDbOpt::default())?;
+	let output = open_db(args.output_path, args.output_engine, args.output_open)?;
 	output.import(&input)?;
 	Ok(())
 }
 
-fn open_db(path: PathBuf, engine: String) -> Result<Db> {
+fn open_db(path: PathBuf, engine: String, open: OpenDbOpt) -> Result<Db> {
 	match engine.as_str() {
 		#[cfg(feature = "sled")]
 		"sled" => {
@@ -51,7 +73,10 @@ fn open_db(path: PathBuf, engine: String) -> Result<Db> {
 				Error(format!("Unable to create LMDB data directory: {}", e).into())
 			})?;
 
-			let map_size = lmdb_adapter::recommended_map_size();
+			let map_size = match open.lmdb.map_size {
+				Some(c) => c.as_u64() as usize,
+				None => lmdb_adapter::recommended_map_size(),
+			};
 
 			let mut env_builder = lmdb_adapter::heed::EnvOpenOptions::new();
 			env_builder.max_dbs(100);
