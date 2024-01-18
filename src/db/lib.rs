@@ -171,6 +171,53 @@ impl Db {
 	}
 }
 
+/// List of supported database engine types
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Engine {
+	#[cfg(feature = "lmdb")]
+	Lmdb,
+
+	#[cfg(feature = "sqlite")]
+	Sqlite,
+
+	#[cfg(feature = "sled")]
+	Sled,
+}
+
+impl std::fmt::Display for Engine {
+	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			#[cfg(feature = "lmdb")]
+			Self::Lmdb => fmt.write_str("lmdb"),
+
+			#[cfg(feature = "sqlite")]
+			Self::Sqlite => fmt.write_str("sqlite"),
+
+			#[cfg(feature = "sled")]
+			Self::Sled => fmt.write_str("sled"),
+		}
+	}
+}
+
+impl std::str::FromStr for Engine {
+	type Err = Error;
+
+	fn from_str(text: &str) -> Result<Engine> {
+		match text {
+			#[cfg(feature = "lmdb")]
+			"lmdb" | "heed" => Ok(Self::Lmdb),
+
+			#[cfg(feature = "sqlite")]
+			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
+
+			#[cfg(feature = "sled")]
+			"sled" => Ok(Self::Sled),
+
+			kind => Err(Error(format!("Invalid DB engine: {}", kind).into())),
+		}
+	}
+}
+
 #[allow(clippy::len_without_is_empty)]
 impl Tree {
 	#[inline]

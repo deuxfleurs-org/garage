@@ -14,14 +14,14 @@ pub struct ConvertDbOpt {
 	/// Input database engine (sled, lmdb or sqlite; limited by db engines
 	/// enabled in this build)
 	#[structopt(short = "a")]
-	input_engine: String,
+	input_engine: Engine,
 
 	/// Output database path
 	#[structopt(short = "o")]
 	output_path: PathBuf,
 	/// Output database engine
 	#[structopt(short = "b")]
-	output_engine: String,
+	output_engine: Engine,
 
 	#[structopt(flatten)]
 	output_open: OpenDbOpt,
@@ -47,28 +47,32 @@ pub struct OpenLmdbOpt {
 }
 
 pub(crate) fn do_conversion(args: ConvertDbOpt) -> Result<()> {
-	let input = open_db(args.input_path, args.input_engine, OpenDbOpt::default())?;
-	let output = open_db(args.output_path, args.output_engine, args.output_open)?;
+	if args.input_engine == args.output_engine {
+		return Err(Error("input and output database engine must differ".into()));
+	}
+
+	let input = open_db(args.input_path, args.input_engine, &args.output_open)?;
+	let output = open_db(args.output_path, args.output_engine, &args.output_open)?;
 	output.import(&input)?;
 	Ok(())
 }
 
-fn open_db(path: PathBuf, engine: String, open: OpenDbOpt) -> Result<Db> {
-	match engine.as_str() {
+fn open_db(path: PathBuf, engine: Engine, open: &OpenDbOpt) -> Result<Db> {
+	match engine {
 		#[cfg(feature = "sled")]
-		"sled" => {
+		Engine::Sled => {
 			let db = sled_adapter::sled::Config::default().path(&path).open()?;
 			Ok(sled_adapter::SledDb::init(db))
 		}
 		#[cfg(feature = "sqlite")]
-		"sqlite" | "sqlite3" | "rusqlite" => {
+		Engine::Sqlite => {
 			let db = sqlite_adapter::rusqlite::Connection::open(&path)?;
 			db.pragma_update(None, "journal_mode", &"WAL")?;
 			db.pragma_update(None, "synchronous", &"NORMAL")?;
 			Ok(sqlite_adapter::SqliteDb::init(db))
 		}
 		#[cfg(feature = "lmdb")]
-		"lmdb" | "heed" => {
+		Engine::Lmdb => {
 			std::fs::create_dir_all(&path).map_err(|e| {
 				Error(format!("Unable to create LMDB data directory: {}", e).into())
 			})?;
@@ -87,8 +91,5 @@ fn open_db(path: PathBuf, engine: String, open: OpenDbOpt) -> Result<Db> {
 			let db = env_builder.open(&path)?;
 			Ok(lmdb_adapter::LmdbDb::init(db))
 		}
-		e => Err(Error(
-			format!("Invalid or unsupported DB engine: {}", e).into(),
-		)),
 	}
 }
