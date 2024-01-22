@@ -24,10 +24,10 @@ pub struct ConvertDbOpt {
 	output_engine: Engine,
 
 	#[structopt(flatten)]
-	output_open: OpenDbOpt,
+	db_open: OpenDbOpt,
 }
 
-/// Open database config overrides
+/// Overrides for database open operation
 #[derive(StructOpt, Debug, Default)]
 pub struct OpenDbOpt {
 	#[cfg(feature = "lmdb")]
@@ -35,11 +35,11 @@ pub struct OpenDbOpt {
 	lmdb: OpenLmdbOpt,
 }
 
-/// Output LMDB database config overrides
+/// Overrides for LMDB database open operation
 #[cfg(feature = "lmdb")]
 #[derive(StructOpt, Debug, Default)]
 pub struct OpenLmdbOpt {
-	/// Output LMDB map size override
+	/// LMDB map size override
 	/// (supported suffixes: B, KiB, MiB, GiB, TiB, PiB)
 	#[cfg(feature = "lmdb")]
 	#[structopt(long = "lmdb-map-size", name = "bytes", display_order = 1_000)]
@@ -51,8 +51,8 @@ pub(crate) fn do_conversion(args: ConvertDbOpt) -> Result<()> {
 		return Err(Error("input and output database engine must differ".into()));
 	}
 
-	let input = open_db(args.input_path, args.input_engine, &args.output_open)?;
-	let output = open_db(args.output_path, args.output_engine, &args.output_open)?;
+	let input = open_db(args.input_path, args.input_engine, &args.db_open)?;
+	let output = open_db(args.output_path, args.output_engine, &args.db_open)?;
 	output.import(&input)?;
 	Ok(())
 }
