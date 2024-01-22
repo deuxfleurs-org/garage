@@ -1,0 +1,10 @@
+*
+
+!*.txt
+!*.md
+!*.tex
+
+!talk.pdf
+!Makefile
+!.gitignore
+
