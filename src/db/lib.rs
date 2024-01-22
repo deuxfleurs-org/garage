@@ -172,30 +172,31 @@ impl Db {
 }
 
 /// List of supported database engine types
+///
+/// The `enum` holds list of *all* database engines that are are be supported by crate, no matter
+/// if relevant feature is enabled or not. It allows us to distinguish between invalid engine
+/// and valid engine, whose support is not enabled via feature flag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Engine {
-	#[cfg(feature = "lmdb")]
 	Lmdb,
-
-	#[cfg(feature = "sqlite")]
 	Sqlite,
-
-	#[cfg(feature = "sled")]
 	Sled,
+}
+
+impl Engine {
+	/// Return variant name as static `&str`
+	pub fn as_str(&self) -> &'static str {
+		match self {
+			Self::Lmdb => "lmdb",
+			Self::Sqlite => "sqlite",
+			Self::Sled => "sled",
+		}
+	}
 }
 
 impl std::fmt::Display for Engine {
 	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-		match self {
-			#[cfg(feature = "lmdb")]
-			Self::Lmdb => fmt.write_str("lmdb"),
-
-			#[cfg(feature = "sqlite")]
-			Self::Sqlite => fmt.write_str("sqlite"),
-
-			#[cfg(feature = "sled")]
-			Self::Sled => fmt.write_str("sled"),
-		}
+		self.as_str().fmt(fmt)
 	}
 }
 
@@ -204,15 +205,9 @@ impl std::str::FromStr for Engine {
 
 	fn from_str(text: &str) -> Result<Engine> {
 		match text {
-			#[cfg(feature = "lmdb")]
 			"lmdb" | "heed" => Ok(Self::Lmdb),
-
-			#[cfg(feature = "sqlite")]
 			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
-
-			#[cfg(feature = "sled")]
 			"sled" => Ok(Self::Sled),
-
 			kind => Err(Error(format!("Invalid DB engine: {}", kind).into())),
 		}
 	}

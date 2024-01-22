@@ -91,5 +91,13 @@ fn open_db(path: PathBuf, engine: Engine, open: &OpenDbOpt) -> Result<Db> {
 			let db = env_builder.open(&path)?;
 			Ok(lmdb_adapter::LmdbDb::init(db))
 		}
+
+		// Pattern is unreachable when all supported DB engines are compiled into binary. The allow
+		// attribute is added so that we won't have to change this match in case stop building
+		// support for one or more engines by default.
+		#[allow(unreachable_patterns)]
+		engine => Err(Error(
+			format!("Engine support not available in this build: {}", engine).into(),
+		)),
 	}
 }
