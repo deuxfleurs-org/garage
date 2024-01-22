@@ -2,16 +2,9 @@
 
 !*.txt
 !*.md
-
-!assets
-
-!.gitignore
-!*.svg
-!*.png
-!*.jpg
 !*.tex
-!Makefile
-!.gitignore
-!assets/*.drawio.pdf
 
 !talk.pdf
+!Makefile
+!.gitignore
+

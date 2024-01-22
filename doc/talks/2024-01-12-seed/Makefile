@@ -1,4 +1,4 @@
-ASSETS=assets/deuxfleurs.pdf
+ASSETS=../assets/deuxfleurs.pdf
 
 talk.pdf: talk.tex $(ASSETS)
 	pdflatex talk.tex
