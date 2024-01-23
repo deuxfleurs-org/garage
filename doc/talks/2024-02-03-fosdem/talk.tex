@@ -334,7 +334,7 @@
 	\begin{center}
 		\includegraphics[width=.6\linewidth]{../assets/perf/db_engine.png}
 	\end{center}
-	NB: Sqlite was slow due to synchronous journaling mode, now configurable
+	NB: Sqlite was slow due to synchronous mode, now configurable
 \end{frame}
 
 \begin{frame}
@@ -436,14 +436,12 @@
 		The index table is built centrally using an optimal algorithm,\\
 		then propagated to all nodes
 	}
-\end{frame}
 
-\begin{frame}
-	\frametitle{Optimal layout computation}
-	\begin{figure}
-		\center
-		\includegraphics[width=.6\linewidth]{../assets/geodistrib_paper.png}
-	\end{figure}
+	\vspace{1em}
+	\visible<3->{
+		\footnotesize
+		Oulamara, M., \& Auvolat, A. (2023). \emph{An algorithm for geo-distributed and redundant storage in Garage}.\\ arXiv preprint arXiv:2302.13798.
+	}
 \end{frame}
 
 
