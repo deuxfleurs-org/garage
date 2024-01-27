@@ -9,7 +9,7 @@ On a new version release, there is 2 possibilities:
   - protocols and data structures remained the same ➡️ this is a **minor upgrade**
   - protocols or data structures changed  ➡️  this is a **major upgrade**
 
-You can quickly now what type of update you will have to operate by looking at the version identifier:
+You can quickly know what type of update you will have to operate by looking at the version identifier:
 when we require our users to do a major upgrade, we will always bump the first nonzero component of the version identifier
 (e.g. from v0.7.2 to v0.8.0).
 Conversely, for versions that only require a minor upgrade, the first nonzero component will always stay the same (e.g. from v0.8.0 to v0.8.1).
