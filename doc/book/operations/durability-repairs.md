@@ -49,7 +49,7 @@ verifications. Of course, scrubbing the entire data store will also take longer.
 ## Block check and resync
 
 In some cases, nodes hold a reference to a block but do not actually have the block
-stored on disk. Conversely, they may also have on disk blocks that are not referenced
+stored on disk. Conversely, they may also have on-disk blocks that are not referenced
 any more. To fix both cases, a block repair may be run with `garage repair blocks`.
 This will scan the entire block reference counter table to check that the blocks
 exist on disk, and will scan the entire disk store to check that stored blocks
@@ -95,7 +95,7 @@ using the `garage block purge` command.
 
 In [multi-HDD setups](@/documentation/operations/multi-hdd.md), to ensure that
 data blocks are well balanced between storage locations, you may run a
-rebalance operation using `garage repair rebalance`. This is usefull when
+rebalance operation using `garage repair rebalance`. This is useful when
 adding storage locations or when capacities of the storage locations have been
 changed.  Once this is finished, Garage will know for each block of a single
 possible location where it can be, which can increase access speed.  This
