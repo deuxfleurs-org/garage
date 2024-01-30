@@ -1,5 +1,5 @@
 \nonstopmode
-\documentclass[aspectratio=169]{beamer}
+\documentclass[aspectratio=169,xcolor={svgnames}]{beamer}
 \usepackage[utf8]{inputenc}
 % \usepackage[frenchb]{babel}
 \usepackage{amsmath}
@@ -176,7 +176,12 @@
 
 \begin{frame}
 	\frametitle{CRDTs / weak consistency instead of consensus}
-	Consensus can be implemented reasonably well in practice, so why avoid it?
+
+	\underline{Internally, Garage uses only CRDTs} (conflict-free replicated data types)
+
+	\vspace{2em}
+	No Raft, ... Why?
+
 	\vspace{1em}
 	\begin{itemize}
 		\item<2-> \textbf{Software complexity}
@@ -191,8 +196,6 @@
 				\item<6-> \textbf{Takes time to reconverge} when disrupted (e.g. node going down)
 			\end{itemize}
 	\end{itemize}
-	\vspace{2em}
-	\visible<7->{\underline{Internally, Garage uses only CRDTs} (conflict-free replicated data types)}
 \end{frame}
 
 \begin{frame}
@@ -263,11 +266,9 @@
 			\vspace{1em}
 		\item Replication modes with 1 or 2 copies / weaker consistency
 			\vspace{1em}
-		\item Kubernetes integration
+		\item Kubernetes integration for node discovery
 			\vspace{1em}
 		\item Admin API (v0.7.2)
-			\vspace{1em}
-		\item Experimental K2V API (v0.7.2)
 	\end{itemize}
 \end{frame}
 
@@ -323,7 +324,8 @@
 	\end{itemize}
 
 	\vspace{2em}
-	\textbf{LMDB:} very stable, good performance, reasonably small files on disk
+	\textbf{LMDB:} very stable, good performance, file size is reasonable\\
+	\textbf{Sqlite} also available as a second choice
 
 	\vspace{1em}
 	Sled will be removed in Garage v1.0
@@ -417,15 +419,15 @@
 				\textbf{Partition} & \textbf{Node 1} & \textbf{Node 2} & \textbf{Node 3} \\
 				\hline
 				\hline
-				Partition 0 & Io (jupiter) & Drosera (atuin) & Courgette (neptune) \\
+				Partition 0 & df-ymk (bespin) & Abricot (scorpio) & Courgette (neptune) \\
 				\hline
-				Partition 1 & Datura (atuin) & Courgette (neptune) & Io (jupiter) \\
+				Partition 1 & Ananas (scorpio) & Courgette (neptune) & df-ykl (bespin) \\
 				\hline
-				Partition 2 & Io(jupiter) & Celeri (neptune) & Drosera (atuin) \\
+				Partition 2 & df-ymf (bespin) & Celeri (neptune) & Abricot (scorpio) \\
 				\hline
 				\hspace{1em}$\vdots$ & \hspace{1em}$\vdots$ & \hspace{1em}$\vdots$ & \hspace{1em}$\vdots$ \\
 				\hline
-				Partition 255 & Concombre (neptune) & Io (jupiter) & Drosera (atuin) \\
+				Partition 255 & Concombre (neptune) & df-ykl (bespin) & Abricot (scorpio) \\
 				\hline
 			\end{tabular}
 			\end{center}
@@ -484,9 +486,9 @@
 
 	\vspace{1em}
 	{\small
-		\textbf{Property:} If node $A$ did an operation $write(x)$ and received an OK response,\\
-			\hspace{2cm} and node $B$ starts an operation $read()$ after $A$ received OK,\\
-			\hspace{2cm} then $B$ will read a value $x' \sqsupseteq x$.
+		\textbf{Property:} If client 1 did an operation $write(x)$ and received an OK response,\\
+			\hspace{2cm} and client 2 starts an operation $read()$ after client 1 received OK,\\
+			\hspace{2cm} then client 2 will read a value $x' \sqsupseteq x$.
 	}
 
 	\vspace{1.5em}
@@ -539,10 +541,53 @@
 		\item We rely on quorums $k > n/2$ within each partition:\\
 			$$n=3,~~~~~~~k\ge 2$$
 		\item<2-> When rebalancing, the set of nodes responsible for a partition can change:\\
-			$$\{A, B, C\} \to \{A, D, E\}$$
-			\vspace{.01em}
-		\item<3-> During the rebalancing, $D$ and $E$ don't yet have the data,\\
-			~~~~~~~~~~~~~~~~~~~and $B$ and $C$ want to get rid of the data to free up space\\
+
+			\vspace{1em}
+			\begin{minipage}{.04\linewidth}~
+			\end{minipage}
+			\begin{minipage}{.40\linewidth}
+			{\tiny
+				\begin{tabular}{|l|l|l|l|}
+					\hline
+					\textbf{Partition} & \textbf{Node 1} & \textbf{Node 2} & \textbf{Node 3} \\
+					\hline
+					\hline
+					Partition 0 & \textcolor{Crimson}{df-ymk}  & Abricot  & \textcolor{Crimson}{Courgette} \\
+					\hline
+					Partition 1 & Ananas  & \textcolor{Crimson}{Courgette} & \textcolor{Crimson}{df-ykl}  \\
+					\hline
+					Partition 2 & \textcolor{Crimson}{df-ymf}  & \textcolor{Crimson}{Celeri} & Abricot  \\
+					\hline
+					\hspace{1em}$\dots$ & \hspace{1em}$\dots$ & \hspace{1em}$\dots$ & \hspace{1em}$\dots$ \\
+					\hline
+				\end{tabular}
+			}
+			\end{minipage}
+			\begin{minipage}{.04\linewidth}
+				$\to$
+			\end{minipage}
+			\begin{minipage}{.40\linewidth}
+			{\tiny
+				\begin{tabular}{|l|l|l|l|}
+					\hline
+					\textbf{Partition} & \textbf{Node 1} & \textbf{Node 2} & \textbf{Node 3} \\
+					\hline
+					\hline
+					Partition 0 & \textcolor{ForestGreen}{Dahlia}  & Abricot  & \textcolor{ForestGreen}{Eucalyptus} \\
+					\hline
+					Partition 1 & Ananas  & \textcolor{ForestGreen}{Euphorbe}  & \textcolor{ForestGreen}{Doradille} \\
+					\hline
+					Partition 2 & \textcolor{ForestGreen}{Dahlia}  & \textcolor{ForestGreen}{Echinops} & Abricot  \\
+					\hline
+					\hspace{1em}$\dots$ & \hspace{1em}$\dots$ & \hspace{1em}$\dots$ & \hspace{1em}$\dots$ \\
+					\hline
+				\end{tabular}
+			}
+			\end{minipage}
+
+			\vspace{2em}
+		\item<3-> During the rebalancing, new nodes don't yet have the data,\\
+			~~~~~~~~~~~~~~~~~~~and old nodes want to get rid of the data to free up space\\
 			\vspace{1.2em}
 			$\to$ risk of inconsistency, \textbf{how to coordinate?}
 	\end{itemize}
@@ -589,7 +634,7 @@
 \end{frame}
 
 \begin{frame}
-	\frametitle{Towards v1.0}
+	\frametitle{Towards v1.0...}
 	Focus on \underline{security \& stability}
 	\vspace{2em}
 	\begin{itemize}
@@ -601,6 +646,13 @@
 			\vspace{1em}
 		\item Fix bugs
 	\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{...and beyond!}
+	\begin{center}
+		\includegraphics[width=.6\linewidth]{../assets/survey_requested_features.png}
+	\end{center}
 \end{frame}
 
 % ======================================== OPERATING
@@ -684,7 +736,7 @@
 			\end{itemize}
 			\vspace{.5em}
 	\end{itemize}
-	Current deployments: $< 10$ TB, we don't have much experience with more
+	Our deployments: $< 10$ TB. Some people have done more!
 \end{frame}
 
 
