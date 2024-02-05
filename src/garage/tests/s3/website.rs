@@ -181,8 +181,18 @@ async fn test_website_s3_api() {
 		.unwrap();
 
 	let conf = WebsiteConfiguration::builder()
-		.index_document(IndexDocument::builder().suffix("home.html").build())
-		.error_document(ErrorDocument::builder().key("err/error.html").build())
+		.index_document(
+			IndexDocument::builder()
+				.suffix("home.html")
+				.build()
+				.unwrap(),
+		)
+		.error_document(
+			ErrorDocument::builder()
+				.key("err/error.html")
+				.build()
+				.unwrap(),
+		)
 		.build();
 
 	ctx.client
@@ -201,9 +211,11 @@ async fn test_website_s3_api() {
 				.allowed_methods("GET")
 				.allowed_methods("PUT")
 				.allowed_origins("*")
-				.build(),
+				.build()
+				.unwrap(),
 		)
-		.build();
+		.build()
+		.unwrap();
 
 	ctx.client
 		.put_bucket_cors()
@@ -222,19 +234,16 @@ async fn test_website_s3_api() {
 			.await
 			.unwrap();
 
-		let main_rule = cors_res.cors_rules().unwrap().iter().next().unwrap();
+		let main_rule = cors_res.cors_rules().iter().next().unwrap();
 
 		assert_eq!(main_rule.id.as_ref().unwrap(), "main-rule");
 		assert_eq!(
 			main_rule.allowed_headers.as_ref().unwrap(),
 			&vec!["*".to_string()]
 		);
+		assert_eq!(&main_rule.allowed_origins, &vec!["*".to_string()]);
 		assert_eq!(
-			main_rule.allowed_origins.as_ref().unwrap(),
-			&vec!["*".to_string()]
-		);
-		assert_eq!(
-			main_rule.allowed_methods.as_ref().unwrap(),
+			&main_rule.allowed_methods,
 			&vec!["GET".to_string(), "PUT".to_string()]
 		);
 	}

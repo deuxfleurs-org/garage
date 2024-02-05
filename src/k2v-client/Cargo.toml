@@ -15,6 +15,7 @@ hex.workspace = true
 http.workspace = true
 log.workspace = true
 aws-sigv4.workspace = true
+aws-sdk-config.workspace = true
 percent-encoding.workspace = true
 hyper = { workspace = true, default-features = false, features = ["client", "http1", "http2"] }
 hyper-rustls.workspace = true

@@ -27,7 +27,7 @@ pub enum Error {
 	#[error("deserialization error: {0}")]
 	Deserialization(#[from] serde_json::Error),
 	#[error("invalid signature parameters: {0}")]
-	SignParameters(#[from] aws_sigv4::signing_params::BuildError),
+	SignParameters(#[from] aws_sigv4::sign::v4::signing_params::BuildError),
 	#[error("could not sign request: {0}")]
 	SignRequest(#[from] aws_sigv4::http_request::SigningError),
 	#[error("request timed out")]

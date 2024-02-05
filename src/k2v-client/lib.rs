@@ -13,7 +13,9 @@ use hyper::{body::Bytes, Body};
 use hyper::{client::connect::HttpConnector, Client as HttpClient};
 use hyper_rustls::HttpsConnector;
 
-use aws_sigv4::http_request::{sign, SignableRequest, SigningParams, SigningSettings};
+use aws_sdk_config::config::Credentials;
+use aws_sigv4::http_request::{sign, SignableBody, SignableRequest, SigningSettings};
+use aws_sigv4::sign::v4::SigningParams;
 
 use serde::de::Error as DeError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -363,21 +365,37 @@ impl K2vClient {
 
 		// Sign request
 		let signing_settings = SigningSettings::default();
+		let identity = Credentials::new(
+			&self.config.aws_access_key_id,
+			&self.config.aws_secret_access_key,
+			None,
+			None,
+			"k2v-client",
+		)
+		.into();
 		let signing_params = SigningParams::builder()
-			.access_key(&self.config.aws_access_key_id)
-			.secret_key(&self.config.aws_secret_access_key)
+			.identity(&identity)
 			.region(&self.config.region)
-			.service_name(SERVICE)
+			.name(SERVICE)
 			.time(SystemTime::now())
 			.settings(signing_settings)
-			.build()?;
+			.build()?
+			.into();
 		// Convert the HTTP request into a signable request
-		let signable_request = SignableRequest::from(&req);
+		let signable_request = SignableRequest::new(
+			req.method().as_str(),
+			req.uri().to_string(),
+			// TODO: get rid of Unwrap
+			req.headers()
+				.iter()
+				.map(|(x, y)| (x.as_str(), y.to_str().unwrap())),
+			SignableBody::Bytes(req.body().as_ref()),
+		)?;
 
 		// Sign and then apply the signature to the request
 		let (signing_instructions, _signature) =
 			sign(signable_request, &signing_params)?.into_parts();
-		signing_instructions.apply_to_request(&mut req);
+		signing_instructions.apply_to_request_http0x(&mut req);
 
 		// Send and wait for timeout
 		let res = tokio::select! {
@@ -451,7 +469,11 @@ impl K2vClient {
 	}
 
 	fn build_url<V: AsRef<str>>(&self, partition_key: Option<&str>, query: &[(&str, V)]) -> String {
-		let mut url = format!("{}/{}", self.config.endpoint, self.config.bucket);
+		let mut url = format!(
+			"{}/{}",
+			self.config.endpoint.trim_end_matches('/'),
+			self.config.bucket
+		);
 		if let Some(pk) = partition_key {
 			url.push('/');
 			url.extend(utf8_percent_encode(pk, &PATH_ENCODE_SET));
