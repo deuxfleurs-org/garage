@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{Infallible, TryInto};
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -7,14 +7,17 @@ use std::task::{Context, Poll};
 use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
+use http_body_util::BodyStream;
 use hyper::header::{self, HeaderMap, HeaderName, HeaderValue};
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use multer::{Constraints, Multipart, SizeLimit};
 use serde::Deserialize;
 
 use garage_model::garage::Garage;
 
+use crate::helpers::*;
+use crate::s3::api_server::ResBody;
 use crate::s3::cors::*;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
@@ -23,9 +26,9 @@ use crate::signature::payload::{parse_date, verify_v4};
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
-	req: Request<Body>,
+	req: Request<IncomingBody>,
 	bucket_name: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let boundary = req
 		.headers()
 		.get(header::CONTENT_TYPE)
@@ -42,7 +45,10 @@ pub async fn handle_post_object(
 	);
 
 	let (head, body) = req.into_parts();
-	let mut multipart = Multipart::with_constraints(body, boundary, constraints);
+	let body_stream = BodyStream::new(body)
+		.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
+		.map_err(Error::from);
+	let mut multipart = Multipart::with_constraints(body_stream, boundary, constraints);
 
 	let mut params = HeaderMap::new();
 	let field = loop {
@@ -259,7 +265,7 @@ pub async fn handle_post_object(
 			.status(StatusCode::SEE_OTHER)
 			.header(header::LOCATION, target.clone())
 			.header(header::ETAG, etag)
-			.body(target.into())?
+			.body(string_body(target))?
 	} else {
 		let path = head
 			.uri
@@ -290,7 +296,7 @@ pub async fn handle_post_object(
 			.header(header::LOCATION, location.clone())
 			.header(header::ETAG, etag.clone());
 		match action {
-			"200" => builder.status(StatusCode::OK).body(Body::empty())?,
+			"200" => builder.status(StatusCode::OK).body(empty_body())?,
 			"201" => {
 				let xml = s3_xml::PostObject {
 					xmlns: (),
@@ -302,14 +308,16 @@ pub async fn handle_post_object(
 				let body = s3_xml::to_xml_with_header(&xml)?;
 				builder
 					.status(StatusCode::CREATED)
-					.body(Body::from(body.into_bytes()))?
+					.body(string_body(body))?
 			}
-			_ => builder.status(StatusCode::NO_CONTENT).body(Body::empty())?,
+			_ => builder.status(StatusCode::NO_CONTENT).body(empty_body())?,
 		}
 	};
 
-	let matching_cors_rule =
-		find_matching_cors_rule(&bucket, &Request::from_parts(head, Body::empty()))?;
+	let matching_cors_rule = find_matching_cors_rule(
+		&bucket,
+		&Request::from_parts(head, empty_body::<Infallible>()),
+	)?;
 	if let Some(rule) = matching_cors_rule {
 		add_cors_headers(&mut resp, rule)
 			.ok_or_internal_error("Invalid bucket CORS configuration")?;

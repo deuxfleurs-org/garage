@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use hmac::Mac;
-use hyper::{Body, Method, Request};
+use hyper::{body::Incoming as IncomingBody, Method, Request};
 use sha2::{Digest, Sha256};
 
 use garage_table::*;
@@ -20,7 +20,7 @@ use crate::signature::error::*;
 pub async fn check_payload_signature(
 	garage: &Garage,
 	service: &'static str,
-	request: &Request<Body>,
+	request: &Request<IncomingBody>,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let mut headers = HashMap::new();
 	for (key, val) in request.headers() {

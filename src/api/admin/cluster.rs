@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response};
+use hyper::{body::Incoming as IncomingBody, Request, Response};
 use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
@@ -11,10 +11,11 @@ use garage_rpc::layout;
 
 use garage_model::garage::Garage;
 
+use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
 use crate::helpers::{json_ok_response, parse_json_body};
 
-pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let res = GetClusterStatusResponse {
 		node: hex::encode(garage.system.id),
 		garage_version: garage_util::version::garage_version(),
@@ -39,7 +40,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 	Ok(json_ok_response(&res)?)
 }
 
-pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	use garage_rpc::system::ClusterHealthStatus;
 	let health = garage.system.health();
 	let health = ClusterHealth {
@@ -61,8 +62,8 @@ pub async fn handle_get_cluster_health(garage: &Arc<Garage>) -> Result<Response<
 
 pub async fn handle_connect_cluster_nodes(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let req = parse_json_body::<Vec<String>>(req).await?;
 
 	let res = futures::future::join_all(req.iter().map(|node| garage.system.connect(node)))
@@ -83,7 +84,7 @@ pub async fn handle_connect_cluster_nodes(
 	Ok(json_ok_response(&res)?)
 }
 
-pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let res = format_cluster_layout(&garage.system.get_cluster_layout());
 
 	Ok(json_ok_response(&res)?)
@@ -203,8 +204,8 @@ struct KnownNodeResp {
 
 pub async fn handle_update_cluster_layout(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let updates = parse_json_body::<UpdateClusterLayoutRequest>(req).await?;
 
 	let mut layout = garage.system.get_cluster_layout();
@@ -243,8 +244,8 @@ pub async fn handle_update_cluster_layout(
 
 pub async fn handle_apply_cluster_layout(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
 
 	let layout = garage.system.get_cluster_layout();
@@ -261,8 +262,8 @@ pub async fn handle_apply_cluster_layout(
 
 pub async fn handle_revert_cluster_layout(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
 
 	let layout = garage.system.get_cluster_layout();

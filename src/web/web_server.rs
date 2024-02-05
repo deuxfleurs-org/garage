@@ -4,16 +4,17 @@ use std::{convert::Infallible, sync::Arc};
 
 use futures::future::Future;
 
+use hyper::server::conn::http1;
 use hyper::{
+	body::Incoming as IncomingBody,
 	header::{HeaderValue, HOST},
-	server::conn::AddrStream,
-	service::{make_service_fn, service_fn},
-	Body, Method, Request, Response, Server, StatusCode,
+	service::service_fn,
+	Method, Request, Response, StatusCode,
 };
+use hyper_util::rt::TokioIo;
 
-use hyperlocal::UnixServerExt;
-
-use tokio::net::UnixStream;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::{TcpListener, UnixListener};
 
 use opentelemetry::{
 	global,
@@ -24,7 +25,7 @@ use opentelemetry::{
 
 use crate::error::*;
 
-use garage_api::helpers::{authority_to_host, host_to_bucket};
+use garage_api::helpers::*;
 use garage_api::s3::cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
 use garage_api::s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
@@ -76,7 +77,7 @@ impl WebServer {
 	/// Run a web server
 	pub async fn run(
 		garage: Arc<Garage>,
-		addr: UnixOrTCPSocketAddress,
+		bind_addr: UnixOrTCPSocketAddress,
 		root_domain: String,
 		shutdown_signal: impl Future<Output = ()>,
 	) -> Result<(), GarageError> {
@@ -87,65 +88,73 @@ impl WebServer {
 			root_domain,
 		});
 
-		let tcp_service = make_service_fn(|conn: &AddrStream| {
-			let web_server = web_server.clone();
+		info!("Web server listening on {}", bind_addr);
 
-			let client_addr = conn.remote_addr();
-			async move {
-				Ok::<_, Error>(service_fn(move |req: Request<Body>| {
-					let web_server = web_server.clone();
+		tokio::pin!(shutdown_signal);
 
-					web_server.handle_request(req, client_addr.to_string())
-				}))
-			}
-		});
-
-		let unix_service = make_service_fn(|_: &UnixStream| {
-			let web_server = web_server.clone();
-
-			let path = addr.to_string();
-			async move {
-				Ok::<_, Error>(service_fn(move |req: Request<Body>| {
-					let web_server = web_server.clone();
-
-					web_server.handle_request(req, path.clone())
-				}))
-			}
-		});
-
-		info!("Web server listening on {}", addr);
-
-		match addr {
+		match bind_addr {
 			UnixOrTCPSocketAddress::TCPSocket(addr) => {
-				Server::bind(&addr)
-					.serve(tcp_service)
-					.with_graceful_shutdown(shutdown_signal)
-					.await?
+				let listener = TcpListener::bind(addr).await?;
+
+				loop {
+					let (stream, client_addr) = tokio::select! {
+						acc = listener.accept() => acc?,
+						_ = &mut shutdown_signal => break,
+					};
+
+					web_server.launch_handler(stream, client_addr.to_string());
+				}
 			}
 			UnixOrTCPSocketAddress::UnixSocket(ref path) => {
 				if path.exists() {
 					fs::remove_file(path)?
 				}
 
-				let bound = Server::bind_unix(path)?;
+				let listener = UnixListener::bind(path)?;
 
 				fs::set_permissions(path, Permissions::from_mode(0o222))?;
 
-				bound
-					.serve(unix_service)
-					.with_graceful_shutdown(shutdown_signal)
-					.await?;
+				loop {
+					let (stream, _) = tokio::select! {
+						acc = listener.accept() => acc?,
+						_ = &mut shutdown_signal => break,
+					};
+
+					web_server.launch_handler(stream, path.display().to_string());
+				}
 			}
 		};
 
 		Ok(())
 	}
 
+	fn launch_handler<S>(self: &Arc<Self>, stream: S, client_addr: String)
+	where
+		S: AsyncRead + AsyncWrite + Send + Sync + 'static,
+	{
+		let this = self.clone();
+		let io = TokioIo::new(stream);
+
+		let serve = move |req: Request<IncomingBody>| {
+			this.clone().handle_request(req, client_addr.to_string())
+		};
+
+		tokio::task::spawn(async move {
+			let io = Box::pin(io);
+			if let Err(e) = http1::Builder::new()
+				.serve_connection(io, service_fn(serve))
+				.await
+			{
+				debug!("Error handling HTTP connection: {}", e);
+			}
+		});
+	}
+
 	async fn handle_request(
 		self: Arc<Self>,
-		req: Request<Body>,
+		req: Request<IncomingBody>,
 		addr: String,
-	) -> Result<Response<Body>, Infallible> {
+	) -> Result<Response<BoxBody<Error>>, Infallible> {
 		if let Ok(forwarded_for_ip_addr) =
 			forwarded_headers::handle_forwarded_for_headers(req.headers())
 		{
@@ -187,7 +196,8 @@ impl WebServer {
 		match res {
 			Ok(res) => {
 				debug!("{} {} {}", req.method(), res.status(), req.uri());
-				Ok(res)
+				Ok(res
+					.map(|body| BoxBody::new(http_body_util::BodyExt::map_err(body, Error::from))))
 			}
 			Err(error) => {
 				info!(
@@ -220,7 +230,10 @@ impl WebServer {
 		Ok(exists)
 	}
 
-	async fn serve_file(self: &Arc<Self>, req: &Request<Body>) -> Result<Response<Body>, Error> {
+	async fn serve_file(
+		self: &Arc<Self>,
+		req: &Request<IncomingBody>,
+	) -> Result<Response<BoxBody<ApiError>>, Error> {
 		// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 		let authority = req
 			.headers()
@@ -268,8 +281,8 @@ impl WebServer {
 
 		let ret_doc = match *req.method() {
 			Method::OPTIONS => handle_options_for_bucket(req, &bucket),
-			Method::HEAD => handle_head(self.garage.clone(), req, bucket_id, &key, None).await,
-			Method::GET => handle_get(self.garage.clone(), req, bucket_id, &key, None).await,
+			Method::HEAD => handle_head(self.garage.clone(), &req, bucket_id, &key, None).await,
+			Method::GET => handle_get(self.garage.clone(), &req, bucket_id, &key, None).await,
 			_ => Err(ApiError::bad_request("HTTP method not supported")),
 		};
 
@@ -281,7 +294,7 @@ impl WebServer {
 				Ok(Response::builder()
 					.status(StatusCode::FOUND)
 					.header("Location", url)
-					.body(Body::empty())
+					.body(empty_body())
 					.unwrap())
 			}
 			_ => ret_doc,
@@ -310,7 +323,7 @@ impl WebServer {
 				// Create a fake HTTP request with path = the error document
 				let req2 = Request::builder()
 					.uri(format!("http://{}/{}", host, &error_document))
-					.body(Body::empty())
+					.body(empty_body::<Infallible>())
 					.unwrap();
 
 				match handle_get(self.garage.clone(), &req2, bucket_id, &error_document, None).await
@@ -358,7 +371,7 @@ impl WebServer {
 	}
 }
 
-fn error_to_res(e: Error) -> Response<Body> {
+fn error_to_res(e: Error) -> Response<BoxBody<Error>> {
 	// If we are here, it is either that:
 	// - there was an error before trying to get the requested URL
 	//   from the bucket (e.g. bucket not found)
@@ -366,7 +379,7 @@ fn error_to_res(e: Error) -> Response<Body> {
 	//   was a HEAD request or we couldn't get the error document)
 	// We do NOT enter this code path when returning the bucket's
 	// error document (this is handled in serve_file)
-	let body = Body::from(format!("{}\n", e));
+	let body = string_body(format!("{}\n", e));
 	let mut http_error = Response::new(body);
 	*http_error.status_mut() = e.http_status_code();
 	e.add_headers(http_error.headers_mut());

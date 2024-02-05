@@ -8,7 +8,7 @@ use http::header::{
 	ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, IF_MODIFIED_SINCE,
 	IF_NONE_MATCH, LAST_MODIFIED, RANGE,
 };
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Body, Request, Response, StatusCode};
 use tokio::sync::mpsc;
 
 use garage_rpc::rpc_helper::{netapp::stream::ByteStream, OrderTag};
@@ -20,6 +20,8 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use crate::helpers::*;
+use crate::s3::api_server::ResBody;
 use crate::s3::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
@@ -52,8 +54,8 @@ fn object_headers(
 fn try_answer_cached(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
-	req: &Request<Body>,
-) -> Option<Response<Body>> {
+	req: &Request<impl Body>,
+) -> Option<Response<ResBody>> {
 	// <trinity> It is possible, and is even usually the case, [that both If-None-Match and
 	// If-Modified-Since] are present in a request. In this situation If-None-Match takes
 	// precedence and If-Modified-Since is ignored (as per 6.Precedence from rfc7232). The rational
@@ -80,7 +82,7 @@ fn try_answer_cached(
 		Some(
 			Response::builder()
 				.status(StatusCode::NOT_MODIFIED)
-				.body(Body::empty())
+				.body(empty_body())
 				.unwrap(),
 		)
 	} else {
@@ -91,11 +93,11 @@ fn try_answer_cached(
 /// Handle HEAD request
 pub async fn handle_head(
 	garage: Arc<Garage>,
-	req: &Request<Body>,
+	req: &Request<impl Body>,
 	bucket_id: Uuid,
 	key: &str,
 	part_number: Option<u64>,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let object = garage
 		.object_table
 		.get(&bucket_id, &key.to_string())
@@ -138,7 +140,7 @@ pub async fn handle_head(
 					)
 					.header(X_AMZ_MP_PARTS_COUNT, "1")
 					.status(StatusCode::PARTIAL_CONTENT)
-					.body(Body::empty())?)
+					.body(empty_body())?)
 			}
 			ObjectVersionData::FirstBlock(_, _) => {
 				let version = garage
@@ -163,7 +165,7 @@ pub async fn handle_head(
 					)
 					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
 					.status(StatusCode::PARTIAL_CONTENT)
-					.body(Body::empty())?)
+					.body(empty_body())?)
 			}
 			_ => unreachable!(),
 		}
@@ -171,18 +173,18 @@ pub async fn handle_head(
 		Ok(object_headers(object_version, version_meta)
 			.header(CONTENT_LENGTH, format!("{}", version_meta.size))
 			.status(StatusCode::OK)
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 }
 
 /// Handle GET request
 pub async fn handle_get(
 	garage: Arc<Garage>,
-	req: &Request<Body>,
+	req: &Request<impl Body>,
 	bucket_id: Uuid,
 	key: &str,
 	part_number: Option<u64>,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let object = garage
 		.object_table
 		.get(&bucket_id, &key.to_string())
@@ -240,8 +242,7 @@ pub async fn handle_get(
 	match &last_v_data {
 		ObjectVersionData::DeleteMarker => unreachable!(),
 		ObjectVersionData::Inline(_, bytes) => {
-			let body: Body = Body::from(bytes.to_vec());
-			Ok(resp_builder.body(body)?)
+			Ok(resp_builder.body(bytes_body(bytes.to_vec().into()))?)
 		}
 		ObjectVersionData::FirstBlock(_, first_block_hash) => {
 			let (tx, rx) = mpsc::channel(2);
@@ -293,10 +294,14 @@ pub async fn handle_get(
 				}
 			});
 
-			let body_stream = tokio_stream::wrappers::ReceiverStream::new(rx).flatten();
-
-			let body = hyper::body::Body::wrap_stream(body_stream);
-			Ok(resp_builder.body(body)?)
+			let body_stream = tokio_stream::wrappers::ReceiverStream::new(rx)
+				.flatten()
+				.map(|x| {
+					x.map(hyper::body::Frame::data)
+						.map_err(|e| Error::from(garage_util::error::Error::from(e)))
+				});
+			let body = http_body_util::StreamBody::new(body_stream);
+			Ok(resp_builder.body(ResBody::new(body))?)
 		}
 	}
 }
@@ -308,7 +313,7 @@ async fn handle_get_range(
 	version_meta: &ObjectVersionMeta,
 	begin: u64,
 	end: u64,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let resp_builder = object_headers(version, version_meta)
 		.header(CONTENT_LENGTH, format!("{}", end - begin))
 		.header(
@@ -321,7 +326,7 @@ async fn handle_get_range(
 		ObjectVersionData::DeleteMarker => unreachable!(),
 		ObjectVersionData::Inline(_meta, bytes) => {
 			if end as usize <= bytes.len() {
-				let body: Body = Body::from(bytes[begin as usize..end as usize].to_vec());
+				let body = bytes_body(bytes[begin as usize..end as usize].to_vec().into());
 				Ok(resp_builder.body(body)?)
 			} else {
 				Err(Error::internal_error(
@@ -348,7 +353,7 @@ async fn handle_get_part(
 	version_data: &ObjectVersionData,
 	version_meta: &ObjectVersionMeta,
 	part_number: u64,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let resp_builder =
 		object_headers(object_version, version_meta).status(StatusCode::PARTIAL_CONTENT);
 
@@ -364,7 +369,7 @@ async fn handle_get_part(
 					format!("bytes {}-{}/{}", 0, bytes.len() - 1, bytes.len()),
 				)
 				.header(X_AMZ_MP_PARTS_COUNT, "1")
-				.body(Body::from(bytes.to_vec()))?)
+				.body(bytes_body(bytes.to_vec().into()))?)
 		}
 		ObjectVersionData::FirstBlock(_, _) => {
 			let version = garage
@@ -392,7 +397,7 @@ async fn handle_get_part(
 }
 
 fn parse_range_header(
-	req: &Request<Body>,
+	req: &Request<impl Body>,
 	total_size: u64,
 ) -> Result<Option<http_range::HttpRange>, Error> {
 	let range = match req.headers().get(RANGE) {
@@ -434,7 +439,7 @@ fn body_from_blocks_range(
 	all_blocks: &[(VersionBlockKey, VersionBlock)],
 	begin: u64,
 	end: u64,
-) -> Body {
+) -> ResBody {
 	// We will store here the list of blocks that have an intersection with the requested
 	// range, as well as their "true offset", which is their actual offset in the complete
 	// file (whereas block.offset designates the offset of the block WITHIN THE PART
@@ -456,59 +461,74 @@ fn body_from_blocks_range(
 	}
 
 	let order_stream = OrderTag::stream();
-	let body_stream = futures::stream::iter(blocks)
-		.enumerate()
-		.map(move |(i, (block, block_offset))| {
-			let garage = garage.clone();
-			async move {
-				garage
-					.block_manager
-					.rpc_get_block_streaming(&block.hash, Some(order_stream.order(i as u64)))
-					.await
-					.unwrap_or_else(|e| error_stream(i, e))
-					.scan(block_offset, move |chunk_offset, chunk| {
-						let r = match chunk {
-							Ok(chunk_bytes) => {
-								let chunk_len = chunk_bytes.len() as u64;
-								let r = if *chunk_offset >= end {
-									// The current chunk is after the part we want to read.
-									// Returning None here will stop the scan, the rest of the
-									// stream will be ignored
-									None
-								} else if *chunk_offset + chunk_len <= begin {
-									// The current chunk is before the part we want to read.
-									// We return a None that will be removed by the filter_map
-									// below.
-									Some(None)
-								} else {
-									// The chunk has an intersection with the requested range
-									let start_in_chunk = if *chunk_offset > begin {
-										0
+	let mut body_stream =
+		futures::stream::iter(blocks)
+			.enumerate()
+			.map(move |(i, (block, block_offset))| {
+				let garage = garage.clone();
+				async move {
+					garage
+						.block_manager
+						.rpc_get_block_streaming(&block.hash, Some(order_stream.order(i as u64)))
+						.await
+						.unwrap_or_else(|e| error_stream(i, e))
+						.scan(block_offset, move |chunk_offset, chunk| {
+							let r = match chunk {
+								Ok(chunk_bytes) => {
+									let chunk_len = chunk_bytes.len() as u64;
+									let r = if *chunk_offset >= end {
+										// The current chunk is after the part we want to read.
+										// Returning None here will stop the scan, the rest of the
+										// stream will be ignored
+										None
+									} else if *chunk_offset + chunk_len <= begin {
+										// The current chunk is before the part we want to read.
+										// We return a None that will be removed by the filter_map
+										// below.
+										Some(None)
 									} else {
-										begin - *chunk_offset
+										// The chunk has an intersection with the requested range
+										let start_in_chunk = if *chunk_offset > begin {
+											0
+										} else {
+											begin - *chunk_offset
+										};
+										let end_in_chunk = if *chunk_offset + chunk_len < end {
+											chunk_len
+										} else {
+											end - *chunk_offset
+										};
+										Some(Some(Ok(chunk_bytes.slice(
+											start_in_chunk as usize..end_in_chunk as usize,
+										))))
 									};
-									let end_in_chunk = if *chunk_offset + chunk_len < end {
-										chunk_len
-									} else {
-										end - *chunk_offset
-									};
-									Some(Some(Ok(chunk_bytes
-										.slice(start_in_chunk as usize..end_in_chunk as usize))))
-								};
-								*chunk_offset += chunk_bytes.len() as u64;
-								r
-							}
-							Err(e) => Some(Some(Err(e))),
-						};
-						futures::future::ready(r)
-					})
-					.filter_map(futures::future::ready)
-			}
-		})
-		.buffered(2)
-		.flatten();
+									*chunk_offset += chunk_bytes.len() as u64;
+									r
+								}
+								Err(e) => Some(Some(Err(e))),
+							};
+							futures::future::ready(r)
+						})
+						.filter_map(futures::future::ready)
+				}
+			});
 
-	hyper::body::Body::wrap_stream(body_stream)
+	let (tx, rx) = mpsc::channel(2);
+	tokio::spawn(async move {
+		while let Some(item) = body_stream.next().await {
+			if tx.send(item.await).await.is_err() {
+				break; // connection closed by client
+			}
+		}
+	});
+
+	let body_stream = tokio_stream::wrappers::ReceiverStream::new(rx)
+		.flatten()
+		.map(|x| {
+			x.map(hyper::body::Frame::data)
+				.map_err(|e| Error::from(garage_util::error::Error::from(e)))
+		});
+	ResBody::new(http_body_util::StreamBody::new(body_stream))
 }
 
 fn error_stream(i: usize, e: garage_util::error::Error) -> ByteStream {

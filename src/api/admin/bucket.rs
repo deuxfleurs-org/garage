@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
@@ -17,12 +17,13 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
+use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
 use crate::admin::key::ApiBucketKeyPerm;
 use crate::common_error::CommonError;
-use crate::helpers::{json_ok_response, parse_json_body};
+use crate::helpers::*;
 
-pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let buckets = garage
 		.bucket_table
 		.get_range(
@@ -90,7 +91,7 @@ pub async fn handle_get_bucket_info(
 	garage: &Arc<Garage>,
 	id: Option<String>,
 	global_alias: Option<String>,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket_id = match (id, global_alias) {
 		(Some(id), None) => parse_bucket_id(&id)?,
 		(None, Some(ga)) => garage
@@ -111,7 +112,7 @@ pub async fn handle_get_bucket_info(
 async fn bucket_info_results(
 	garage: &Arc<Garage>,
 	bucket_id: Uuid,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket = garage
 		.bucket_helper()
 		.get_existing_bucket(bucket_id)
@@ -268,8 +269,8 @@ struct GetBucketInfoKey {
 
 pub async fn handle_create_bucket(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let req = parse_json_body::<CreateBucketRequest>(req).await?;
 
 	if let Some(ga) = &req.global_alias {
@@ -360,7 +361,7 @@ struct CreateBucketLocalAlias {
 pub async fn handle_delete_bucket(
 	garage: &Arc<Garage>,
 	id: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let helper = garage.bucket_helper();
 
 	let bucket_id = parse_bucket_id(&id)?;
@@ -403,14 +404,14 @@ pub async fn handle_delete_bucket(
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 pub async fn handle_update_bucket(
 	garage: &Arc<Garage>,
 	id: String,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
 	let req = parse_json_body::<UpdateBucketRequest>(req).await?;
 	let bucket_id = parse_bucket_id(&id)?;
 
@@ -470,9 +471,9 @@ struct UpdateBucketWebsiteAccess {
 
 pub async fn handle_bucket_change_key_perm(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
+	req: Request<IncomingBody>,
 	new_perm_flag: bool,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let req = parse_json_body::<BucketKeyPermChangeRequest>(req).await?;
 
 	let bucket_id = parse_bucket_id(&req.bucket_id)?;
@@ -526,7 +527,7 @@ pub async fn handle_global_alias_bucket(
 	garage: &Arc<Garage>,
 	bucket_id: String,
 	alias: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket_id = parse_bucket_id(&bucket_id)?;
 
 	garage
@@ -541,7 +542,7 @@ pub async fn handle_global_unalias_bucket(
 	garage: &Arc<Garage>,
 	bucket_id: String,
 	alias: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket_id = parse_bucket_id(&bucket_id)?;
 
 	garage
@@ -557,7 +558,7 @@ pub async fn handle_local_alias_bucket(
 	bucket_id: String,
 	access_key_id: String,
 	alias: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket_id = parse_bucket_id(&bucket_id)?;
 
 	garage
@@ -573,7 +574,7 @@ pub async fn handle_local_unalias_bucket(
 	bucket_id: String,
 	access_key_id: String,
 	alias: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let bucket_id = parse_bucket_id(&bucket_id)?;
 
 	garage

@@ -5,10 +5,17 @@ use http::header::{
 	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
 	ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD,
 };
-use hyper::{body::HttpBody, header::HeaderName, Body, Method, Request, Response, StatusCode};
+use hyper::{
+	body::Body, body::Incoming as IncomingBody, header::HeaderName, Method, Request, Response,
+	StatusCode,
+};
+
+use http_body_util::BodyExt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
@@ -17,7 +24,7 @@ use garage_model::bucket_table::{Bucket, CorsRule as GarageCorsRule};
 use garage_model::garage::Garage;
 use garage_util::data::*;
 
-pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<Body>, Error> {
+pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<ResBody>, Error> {
 	let param = bucket
 		.params()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
@@ -34,18 +41,18 @@ pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<Body>, Error> {
 		Ok(Response::builder()
 			.status(StatusCode::OK)
 			.header(http::header::CONTENT_TYPE, "application/xml")
-			.body(Body::from(xml))?)
+			.body(string_body(xml))?)
 	} else {
 		Ok(Response::builder()
 			.status(StatusCode::NO_CONTENT)
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 }
 
 pub async fn handle_delete_cors(
 	garage: Arc<Garage>,
 	mut bucket: Bucket,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let param = bucket
 		.params_mut()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
@@ -55,16 +62,16 @@ pub async fn handle_delete_cors(
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 pub async fn handle_put_cors(
 	garage: Arc<Garage>,
 	mut bucket: Bucket,
-	req: Request<Body>,
+	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
-	let body = req.into_body().collect().await?.to_bytes();
+) -> Result<Response<ResBody>, Error> {
+	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
@@ -84,14 +91,14 @@ pub async fn handle_put_cors(
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 pub async fn handle_options_s3api(
 	garage: Arc<Garage>,
-	req: &Request<Body>,
+	req: &Request<IncomingBody>,
 	bucket_name: Option<String>,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	// FIXME: CORS rules of buckets with local aliases are
 	// not taken into account.
 
@@ -121,7 +128,7 @@ pub async fn handle_options_s3api(
 				.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 				.header(ACCESS_CONTROL_ALLOW_METHODS, "*")
 				.status(StatusCode::OK)
-				.body(Body::empty())?)
+				.body(empty_body())?)
 		}
 	} else {
 		// If there is no bucket name in the request,
@@ -131,14 +138,14 @@ pub async fn handle_options_s3api(
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "GET")
 			.status(StatusCode::OK)
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 }
 
 pub fn handle_options_for_bucket(
-	req: &Request<Body>,
+	req: &Request<IncomingBody>,
 	bucket: &Bucket,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let origin = req
 		.headers()
 		.get("Origin")
@@ -161,7 +168,7 @@ pub fn handle_options_for_bucket(
 		if let Some(rule) = matching_rule {
 			let mut resp = Response::builder()
 				.status(StatusCode::OK)
-				.body(Body::empty())?;
+				.body(empty_body())?;
 			add_cors_headers(&mut resp, rule).ok_or_internal_error("Invalid CORS configuration")?;
 			return Ok(resp);
 		}
@@ -172,7 +179,7 @@ pub fn handle_options_for_bucket(
 
 pub fn find_matching_cors_rule<'a>(
 	bucket: &'a Bucket,
-	req: &Request<Body>,
+	req: &Request<impl Body>,
 ) -> Result<Option<&'a GarageCorsRule>, Error> {
 	if let Some(cors_config) = bucket.params().unwrap().cors_config.get() {
 		if let Some(origin) = req.headers().get("Origin") {
@@ -209,7 +216,7 @@ where
 }
 
 pub fn add_cors_headers(
-	resp: &mut Response<Body>,
+	resp: &mut Response<ResBody>,
 	rule: &GarageCorsRule,
 ) -> Result<(), http::header::InvalidHeaderValue> {
 	let h = resp.headers_mut();

@@ -1,4 +1,5 @@
-use hyper::{body::HttpBody, Body, Request, Response};
+use http_body_util::{BodyExt, Full as FullBody};
+use hyper::{body::Incoming as IncomingBody, Request, Response};
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
@@ -138,18 +139,36 @@ pub fn key_after_prefix(pfx: &str) -> Option<String> {
 	None
 }
 
-pub async fn parse_json_body<T: for<'de> Deserialize<'de>>(req: Request<Body>) -> Result<T, Error> {
+// =============== body helpers =================
+
+pub type BytesBody = FullBody<bytes::Bytes>;
+pub type BoxBody<E> = http_body_util::combinators::BoxBody<bytes::Bytes, E>;
+
+pub fn string_body<E>(s: String) -> BoxBody<E> {
+	bytes_body(bytes::Bytes::from(s.into_bytes()))
+}
+pub fn bytes_body<E>(b: bytes::Bytes) -> BoxBody<E> {
+	BoxBody::new(FullBody::new(b).map_err(|_| unreachable!()))
+}
+pub fn empty_body<E>() -> BoxBody<E> {
+	BoxBody::new(http_body_util::Empty::new().map_err(|_| unreachable!()))
+}
+
+pub async fn parse_json_body<T>(req: Request<IncomingBody>) -> Result<T, Error>
+where
+	T: for<'de> Deserialize<'de>,
+{
 	let body = req.into_body().collect().await?.to_bytes();
 	let resp: T = serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
 	Ok(resp)
 }
 
-pub fn json_ok_response<T: Serialize>(res: &T) -> Result<Response<Body>, Error> {
+pub fn json_ok_response<E, T: Serialize>(res: &T) -> Result<Response<BoxBody<E>>, Error> {
 	let resp_json = serde_json::to_string_pretty(res).map_err(garage_util::error::Error::from)?;
 	Ok(Response::builder()
 		.status(hyper::StatusCode::OK)
 		.header(http::header::CONTENT_TYPE, "application/json")
-		.body(Body::from(resp_json))?)
+		.body(string_body(resp_json))?)
 }
 
 pub fn is_default<T: Default + PartialEq>(v: &T) -> bool {

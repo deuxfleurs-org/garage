@@ -1,13 +1,13 @@
 use err_derive::Error;
 use hyper::header::HeaderValue;
-use hyper::{Body, HeaderMap, StatusCode};
+use hyper::{HeaderMap, StatusCode};
 
 pub use garage_model::helper::error::Error as HelperError;
 
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
-use crate::helpers::CustomApiErrorBody;
+use crate::helpers::{BytesBody, CustomApiErrorBody};
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -77,14 +77,14 @@ impl ApiError for Error {
 		header_map.append(header::CONTENT_TYPE, "application/json".parse().unwrap());
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody {
 		let error = CustomApiErrorBody {
 			code: self.code().to_string(),
 			message: format!("{}", self),
 			path: path.to_string(),
 			region: garage_region.to_string(),
 		};
-		Body::from(serde_json::to_string_pretty(&error).unwrap_or_else(|_| {
+		let error_str = serde_json::to_string_pretty(&error).unwrap_or_else(|_| {
 			r#"
 {
 	"code": "InternalError",
@@ -92,6 +92,7 @@ impl ApiError for Error {
 }
 			"#
 			.into()
-		}))
+		});
+		BytesBody::from(bytes::Bytes::from(error_str.into_bytes()))
 	}
 }

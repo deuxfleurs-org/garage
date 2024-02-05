@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Request, Response, StatusCode};
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::Bucket;
@@ -14,11 +15,13 @@ use garage_util::data::*;
 use garage_util::time::*;
 
 use crate::common_error::CommonError;
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 
-pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<Body>, Error> {
+pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let loc = s3_xml::LocationConstraint {
 		xmlns: (),
 		region: garage.config.s3_api.s3_region.to_string(),
@@ -27,10 +30,10 @@ pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<Body>,
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(string_body(xml))?)
 }
 
-pub fn handle_get_bucket_versioning() -> Result<Response<Body>, Error> {
+pub fn handle_get_bucket_versioning() -> Result<Response<ResBody>, Error> {
 	let versioning = s3_xml::VersioningConfiguration {
 		xmlns: (),
 		status: None,
@@ -40,10 +43,13 @@ pub fn handle_get_bucket_versioning() -> Result<Response<Body>, Error> {
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(string_body(xml))?)
 }
 
-pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Response<Body>, Error> {
+pub async fn handle_list_buckets(
+	garage: &Garage,
+	api_key: &Key,
+) -> Result<Response<ResBody>, Error> {
 	let key_p = api_key.params().ok_or_internal_error(
 		"Key should not be in deleted state at this point (in handle_list_buckets)",
 	)?;
@@ -109,17 +115,17 @@ pub async fn handle_list_buckets(garage: &Garage, api_key: &Key) -> Result<Respo
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml))?)
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_create_bucket(
 	garage: &Garage,
-	req: Request<Body>,
+	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
 	api_key: Key,
 	bucket_name: String,
-) -> Result<Response<Body>, Error> {
-	let body = req.into_body().collect().await?.to_bytes();
+) -> Result<Response<ResBody>, Error> {
+	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
@@ -194,7 +200,7 @@ pub async fn handle_create_bucket(
 
 	Ok(Response::builder()
 		.header("Location", format!("/{}", bucket_name))
-		.body(Body::empty())
+		.body(empty_body())
 		.unwrap())
 }
 
@@ -203,7 +209,7 @@ pub async fn handle_delete_bucket(
 	bucket_id: Uuid,
 	bucket_name: String,
 	api_key: Key,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let key_params = api_key
 		.params()
 		.ok_or_internal_error("Key should not be deleted at this point")?;
@@ -282,7 +288,7 @@ pub async fn handle_delete_bucket(
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {

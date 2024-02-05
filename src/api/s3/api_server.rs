@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use futures::future::Future;
 use hyper::header;
-use hyper::{Body, Request, Response};
+use hyper::{body::Incoming as IncomingBody, Request, Response};
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -34,6 +34,9 @@ use crate::s3::put::*;
 use crate::s3::router::Endpoint;
 use crate::s3::website::*;
 
+pub use crate::signature::streaming::ReqBody;
+pub type ResBody = BoxBody<Error>;
+
 pub struct S3ApiServer {
 	garage: Arc<Garage>,
 }
@@ -57,10 +60,10 @@ impl S3ApiServer {
 
 	async fn handle_request_without_bucket(
 		&self,
-		_req: Request<Body>,
+		_req: Request<ReqBody>,
 		api_key: Key,
 		endpoint: Endpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		match endpoint {
 			Endpoint::ListBuckets => handle_list_buckets(&self.garage, &api_key).await,
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
@@ -76,7 +79,7 @@ impl ApiHandler for S3ApiServer {
 	type Endpoint = S3ApiEndpoint;
 	type Error = Error;
 
-	fn parse_endpoint(&self, req: &Request<Body>) -> Result<S3ApiEndpoint, Error> {
+	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<S3ApiEndpoint, Error> {
 		let authority = req
 			.headers()
 			.get(header::HOST)
@@ -104,9 +107,9 @@ impl ApiHandler for S3ApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<Body>,
+		req: Request<IncomingBody>,
 		endpoint: S3ApiEndpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		let S3ApiEndpoint {
 			bucket_name,
 			endpoint,
@@ -235,8 +238,7 @@ impl ApiHandler for S3ApiServer {
 			}
 			Endpoint::CreateBucket {} => unreachable!(),
 			Endpoint::HeadBucket {} => {
-				let empty_body: Body = Body::from(vec![]);
-				let response = Response::builder().body(empty_body).unwrap();
+				let response = Response::builder().body(empty_body()).unwrap();
 				Ok(response)
 			}
 			Endpoint::DeleteBucket {} => {

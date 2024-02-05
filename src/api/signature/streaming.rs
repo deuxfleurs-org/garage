@@ -5,22 +5,26 @@ use futures::prelude::*;
 use futures::task;
 use garage_model::key_table::Key;
 use hmac::Mac;
-use hyper::body::Bytes;
-use hyper::{Body, Request};
+use http_body_util::{BodyStream, StreamBody};
+use hyper::body::{Bytes, Incoming as IncomingBody};
+use hyper::Request;
 
 use garage_util::data::Hash;
 
 use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
 
+use crate::helpers::*;
 use crate::signature::error::*;
+
+pub type ReqBody = BoxBody<Error>;
 
 pub fn parse_streaming_body(
 	api_key: &Key,
-	req: Request<Body>,
+	req: Request<IncomingBody>,
 	content_sha256: &mut Option<Hash>,
 	region: &str,
 	service: &str,
-) -> Result<Request<Body>, Error> {
+) -> Result<Request<ReqBody>, Error> {
 	match req.headers().get("x-amz-content-sha256") {
 		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
 			let signature = content_sha256
@@ -47,19 +51,17 @@ pub fn parse_streaming_body(
 				.ok_or_internal_error("Unable to build signing HMAC")?;
 
 			Ok(req.map(move |body| {
-				Body::wrap_stream(
-					SignedPayloadStream::new(
-						body.map_err(Error::from),
-						signing_hmac,
-						date,
-						&scope,
-						signature,
-					)
-					.map_err(Error::from),
-				)
+				let body_stream = BodyStream::new(body)
+					.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
+					.map_err(Error::from);
+				let signed_payload_stream =
+					SignedPayloadStream::new(body_stream, signing_hmac, date, &scope, signature)
+						.map(|x| x.map(hyper::body::Frame::data))
+						.map_err(Error::from);
+				ReqBody::new(StreamBody::new(signed_payload_stream))
 			}))
 		}
-		_ => Ok(req),
+		_ => Ok(req.map(|body| ReqBody::new(http_body_util::BodyExt::map_err(body, Error::from)))),
 	}
 }
 

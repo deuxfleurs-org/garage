@@ -2,13 +2,14 @@ use std::convert::TryInto;
 
 use err_derive::Error;
 use hyper::header::HeaderValue;
-use hyper::{Body, HeaderMap, StatusCode};
+use hyper::{HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
 
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
+use crate::helpers::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::error::Error as SignatureError;
 
@@ -189,22 +190,23 @@ impl ApiError for Error {
 		}
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody {
 		let error = s3_xml::Error {
 			code: s3_xml::Value(self.aws_code().to_string()),
 			message: s3_xml::Value(format!("{}", self)),
 			resource: Some(s3_xml::Value(path.to_string())),
 			region: Some(s3_xml::Value(garage_region.to_string())),
 		};
-		Body::from(s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
+		let error_str = s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
 			r#"
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
-	<Code>InternalError</Code>
-	<Message>XML encoding of error failed</Message>
+    <Code>InternalError</Code>
+    <Message>XML encoding of error failed</Message>
 </Error>
-			"#
+            "#
 			.into()
-		}))
+		});
+		BytesBody::from(bytes::Bytes::from(error_str.into_bytes()))
 	}
 }

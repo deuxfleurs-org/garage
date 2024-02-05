@@ -93,11 +93,12 @@ schemars = "0.8"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-manual-roots", "json"] }
 
 form_urlencoded = "1.0.0"
-http = "0.2"
+http = "1.0"
 httpdate = "1.0"
 http-range = "0.1"
-hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream", "backports", "deprecated"] }
-hyperlocal = { version = "0.8.0", default-features = false, features = ["server"] }
+http-body-util = "0.1"
+hyper = { version = "1.0", features = ["server", "http1"] }
+hyper-util = { verion = "0.1", features = [ "full" ]}
 multer = "3.0"
 percent-encoding = "2.2"
 roxmltree = "0.19"
