@@ -5,7 +5,7 @@ use http::header::{
 	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
 	ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_REQUEST_HEADERS, ACCESS_CONTROL_REQUEST_METHOD,
 };
-use hyper::{header::HeaderName, Body, Method, Request, Response, StatusCode};
+use hyper::{body::HttpBody, header::HeaderName, Body, Method, Request, Response, StatusCode};
 
 use serde::{Deserialize, Serialize};
 
@@ -64,7 +64,7 @@ pub async fn handle_put_cors(
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;

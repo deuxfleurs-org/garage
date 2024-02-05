@@ -3,7 +3,7 @@ use std::sync::Arc;
 use base64::prelude::*;
 use http::header;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 
 use garage_util::data::*;
 
@@ -137,7 +137,8 @@ pub async fn handle_insert_item(
 		.map(CausalContext::parse_helper)
 		.transpose()?;
 
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
+
 	let value = DvvsValue::Value(body.to_vec());
 
 	garage

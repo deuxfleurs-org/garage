@@ -9,7 +9,7 @@ use aws_sdk_s3::{
 };
 use http::{Request, StatusCode};
 use hyper::{
-	body::{to_bytes, Body},
+	body::{Body, HttpBody},
 	Client,
 };
 use serde_json::json;
@@ -49,7 +49,7 @@ async fn test_website() {
 
 	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		resp.into_body().collect().await.unwrap().to_bytes(),
 		BODY.as_ref()
 	); /* check that we do not leak body */
 
@@ -87,7 +87,7 @@ async fn test_website() {
 	resp = client.request(req()).await.unwrap();
 	assert_eq!(resp.status(), StatusCode::OK);
 	assert_eq!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		resp.into_body().collect().await.unwrap().to_bytes(),
 		BODY.as_ref()
 	);
 
@@ -107,10 +107,10 @@ async fn test_website() {
 				.unwrap()
 		};
 
-		let mut admin_resp = client.request(admin_req()).await.unwrap();
+		let admin_resp = client.request(admin_req()).await.unwrap();
 		assert_eq!(admin_resp.status(), StatusCode::OK);
 		assert_eq!(
-			to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
+			admin_resp.into_body().collect().await.unwrap().to_bytes(),
 			format!("Domain '{bname}' is managed by Garage").as_bytes()
 		);
 	}
@@ -124,7 +124,7 @@ async fn test_website() {
 	resp = client.request(req()).await.unwrap();
 	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		resp.into_body().collect().await.unwrap().to_bytes(),
 		BODY.as_ref()
 	); /* check that we do not leak body */
 
@@ -260,7 +260,7 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
@@ -268,7 +268,7 @@ async fn test_website_s3_api() {
 			"*"
 		);
 		assert_eq!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -285,11 +285,11 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 		assert_eq!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY_ERR.as_ref()
 		);
 	}
@@ -305,7 +305,7 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
@@ -313,7 +313,7 @@ async fn test_website_s3_api() {
 			"*"
 		);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -329,11 +329,11 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -370,11 +370,11 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -396,17 +396,12 @@ async fn test_website_s3_api() {
 			.body(Body::empty())
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
-			BODY_ERR.as_ref()
-		);
-		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
-			BODY.as_ref()
-		);
+		let resp_bytes = resp.into_body().collect().await.unwrap().to_bytes();
+		assert_ne!(resp_bytes, BODY_ERR.as_ref());
+		assert_ne!(resp_bytes, BODY.as_ref());
 	}
 }
 

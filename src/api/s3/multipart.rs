@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures::prelude::*;
+use futures::{prelude::*, TryStreamExt};
 use hyper::body::Body;
-use hyper::{Request, Response};
+use hyper::{body::HttpBody, Request, Response};
 use md5::{Digest as Md5Digest, Md5};
 
 use garage_table::*;
@@ -87,7 +87,7 @@ pub async fn handle_put_part(
 	// Read first chuck, and at the same time try to get object to see if it exists
 	let key = key.to_string();
 
-	let body = req.into_body().map_err(Error::from);
+	let body = TryStreamExt::map_err(req.into_body(), Error::from);
 	let mut chunker = StreamChunker::new(body, garage.config.block_size);
 
 	let ((_, _, mut mpu), first_block) = futures::try_join!(
@@ -217,7 +217,7 @@ pub async fn handle_complete_multipart_upload(
 	upload_id: &str,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = HttpBody::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;

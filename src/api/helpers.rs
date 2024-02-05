@@ -1,4 +1,4 @@
-use hyper::{Body, Request, Response};
+use hyper::{body::HttpBody, Body, Request, Response};
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
@@ -139,7 +139,7 @@ pub fn key_after_prefix(pfx: &str) -> Option<String> {
 }
 
 pub async fn parse_json_body<T: for<'de> Deserialize<'de>>(req: Request<Body>) -> Result<T, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
 	let resp: T = serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
 	Ok(resp)
 }

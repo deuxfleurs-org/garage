@@ -11,15 +11,10 @@ mod k2v;
 #[cfg(feature = "k2v")]
 mod k2v_client;
 
-use hyper::{Body, Response};
+use hyper::{body::HttpBody, Body, Response};
 
 pub async fn json_body(res: Response<Body>) -> serde_json::Value {
-	let res_body: serde_json::Value = serde_json::from_slice(
-		&hyper::body::to_bytes(res.into_body())
-			.await
-			.unwrap()
-			.to_vec()[..],
-	)
-	.unwrap();
+	let body = res.into_body().collect().await.unwrap().to_bytes();
+	let res_body: serde_json::Value = serde_json::from_slice(&body).unwrap();
 	res_body
 }

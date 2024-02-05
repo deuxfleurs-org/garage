@@ -1,7 +1,7 @@
 use quick_xml::de::from_reader;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use crate::s3::error::*;
@@ -63,7 +63,7 @@ pub async fn handle_put_website(
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;

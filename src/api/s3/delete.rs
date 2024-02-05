@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 
 use garage_util::data::*;
 
@@ -75,7 +75,7 @@ pub async fn handle_delete_objects(
 	req: Request<Body>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;

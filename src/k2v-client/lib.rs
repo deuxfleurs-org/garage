@@ -9,7 +9,7 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use http::header::{ACCEPT, CONTENT_TYPE};
 use http::status::StatusCode;
 use http::{HeaderName, HeaderValue, Request};
-use hyper::{body::Bytes, Body};
+use hyper::{body::Bytes, body::HttpBody, Body};
 use hyper::{client::connect::HttpConnector, Client as HttpClient};
 use hyper_rustls::HttpsConnector;
 
@@ -416,12 +416,16 @@ impl K2vClient {
 		};
 
 		let body = match res.status {
-			StatusCode::OK => hyper::body::to_bytes(body).await?,
+			StatusCode::OK => body.collect().await?.to_bytes(),
 			StatusCode::NO_CONTENT => Bytes::new(),
 			StatusCode::NOT_FOUND => return Err(Error::NotFound),
 			StatusCode::NOT_MODIFIED => Bytes::new(),
 			s => {
-				let err_body = hyper::body::to_bytes(body).await.unwrap_or_default();
+				let err_body = body
+					.collect()
+					.await
+					.map(|x| x.to_bytes())
+					.unwrap_or_default();
 				let err_body_str = std::str::from_utf8(&err_body)
 					.map(String::from)
 					.unwrap_or_else(|_| BASE64_STANDARD.encode(&err_body));

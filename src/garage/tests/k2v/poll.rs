@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use hyper::{Method, StatusCode};
+use hyper::{body::HttpBody, Method, StatusCode};
 use std::time::Duration;
 
 use assert_json_diff::assert_json_eq;
@@ -47,11 +47,8 @@ async fn test_poll_item() {
 		.unwrap()
 		.to_string();
 
-	let res2_body = hyper::body::to_bytes(res2.into_body())
-		.await
-		.unwrap()
-		.to_vec();
-	assert_eq!(res2_body, b"Initial value");
+	let res2_body = res2.into_body().collect().await.unwrap().to_bytes();
+	assert_eq!(res2_body, b"Initial value"[..]);
 
 	// Start poll operation
 	let poll = {
@@ -95,11 +92,8 @@ async fn test_poll_item() {
 
 	assert_eq!(poll_res.status(), StatusCode::OK);
 
-	let poll_res_body = hyper::body::to_bytes(poll_res.into_body())
-		.await
-		.unwrap()
-		.to_vec();
-	assert_eq!(poll_res_body, b"New value");
+	let poll_res_body = poll_res.into_body().collect().await.unwrap().to_bytes();
+	assert_eq!(poll_res_body, b"New value"[..]);
 }
 
 #[tokio::test]

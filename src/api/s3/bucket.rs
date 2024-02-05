@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::HttpBody, Body, Request, Response, StatusCode};
 
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::Bucket;
@@ -119,7 +119,7 @@ pub async fn handle_create_bucket(
 	api_key: Key,
 	bucket_name: String,
 ) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+	let body = req.into_body().collect().await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
