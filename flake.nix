@@ -49,6 +49,8 @@
           cargo2nixOverlay = cargo2nix.overlays.default;
           release = false;
         }).workspaceShell { packages = with pkgs; [
+          cargo-audit
+          cargo-outdated
           rustfmt
           clang
           mold

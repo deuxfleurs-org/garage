@@ -9,25 +9,25 @@ repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 readme = "../../README.md"
 
 [dependencies]
-base64 = "0.21"
-sha2 = "0.10"
-hex = "0.4"
-http = "0.2"
-log = "0.4"
-aws-sigv4 = "0.55"
-percent-encoding = "2.2"
-hyper = { version = "0.14", default-features = false, features = ["client", "http1", "http2"] }
-hyper-rustls = { version = "0.24", features = ["http2"] }
-serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
-thiserror = "1.0"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+base64.workspace = true
+sha2.workspace = true
+hex.workspace = true
+http.workspace = true
+log.workspace = true
+aws-sigv4.workspace = true
+percent-encoding.workspace = true
+hyper = { workspace = true, default-features = false, features = ["client", "http1", "http2"] }
+hyper-rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
 
 # cli deps
-clap = { version = "4.1", optional = true, features = ["derive", "env"] }
+clap = { workspace = true, optional = true }
 format_table = { workspace = true, optional = true }
-tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", optional = true, features = ["env-filter"] }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
 
 
 [features]
