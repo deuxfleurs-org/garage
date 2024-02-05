@@ -271,7 +271,7 @@ pub async fn handle_create_bucket(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<CreateBucketRequest>(req).await?;
+	let req = parse_json_body::<CreateBucketRequest, _, Error>(req).await?;
 
 	if let Some(ga) = &req.global_alias {
 		if !is_valid_bucket_name(ga) {
@@ -412,7 +412,7 @@ pub async fn handle_update_bucket(
 	id: String,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<UpdateBucketRequest>(req).await?;
+	let req = parse_json_body::<UpdateBucketRequest, _, Error>(req).await?;
 	let bucket_id = parse_bucket_id(&id)?;
 
 	let mut bucket = garage
@@ -474,7 +474,7 @@ pub async fn handle_bucket_change_key_perm(
 	req: Request<IncomingBody>,
 	new_perm_flag: bool,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<BucketKeyPermChangeRequest>(req).await?;
+	let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
 
 	let bucket_id = parse_bucket_id(&req.bucket_id)?;
 

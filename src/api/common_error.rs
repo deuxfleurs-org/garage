@@ -3,6 +3,8 @@ use hyper::StatusCode;
 
 use garage_util::error::Error as GarageError;
 
+use garage_model::helper::error::Error as HelperError;
+
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum CommonError {
@@ -27,6 +29,10 @@ pub enum CommonError {
 	/// Generic bad request response with custom message
 	#[error(display = "Bad request: {}", _0)]
 	BadRequest(String),
+
+	/// The client sent a header with invalid value
+	#[error(display = "Invalid header value: {}", _0)]
+	InvalidHeader(#[error(source)] hyper::header::ToStrError),
 
 	// ---- SPECIFIC ERROR CONDITIONS ----
 	// These have to be error codes referenced in the S3 spec here:
@@ -64,7 +70,9 @@ impl CommonError {
 			CommonError::Forbidden(_) => StatusCode::FORBIDDEN,
 			CommonError::NoSuchBucket(_) => StatusCode::NOT_FOUND,
 			CommonError::BucketNotEmpty | CommonError::BucketAlreadyExists => StatusCode::CONFLICT,
-			CommonError::InvalidBucketName(_) => StatusCode::BAD_REQUEST,
+			CommonError::InvalidBucketName(_) | CommonError::InvalidHeader(_) => {
+				StatusCode::BAD_REQUEST
+			}
 		}
 	}
 
@@ -84,11 +92,24 @@ impl CommonError {
 			CommonError::BucketAlreadyExists => "BucketAlreadyExists",
 			CommonError::BucketNotEmpty => "BucketNotEmpty",
 			CommonError::InvalidBucketName(_) => "InvalidBucketName",
+			CommonError::InvalidHeader(_) => "InvalidHeaderValue",
 		}
 	}
 
 	pub fn bad_request<M: ToString>(msg: M) -> Self {
 		CommonError::BadRequest(msg.to_string())
+	}
+}
+
+impl From<HelperError> for CommonError {
+	fn from(err: HelperError) -> Self {
+		match err {
+			HelperError::Internal(i) => Self::InternalError(i),
+			HelperError::BadRequest(b) => Self::BadRequest(b),
+			HelperError::InvalidBucketName(n) => Self::InvalidBucketName(n),
+			HelperError::NoSuchBucket(n) => Self::NoSuchBucket(n),
+			e => Self::bad_request(format!("{}", e)),
+		}
 	}
 }
 

@@ -65,7 +65,7 @@ pub async fn handle_create_key(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<CreateKeyRequest>(req).await?;
+	let req = parse_json_body::<CreateKeyRequest, _, Error>(req).await?;
 
 	let key = Key::new(req.name.as_deref().unwrap_or("Unnamed key"));
 	garage.key_table.insert(&key).await?;
@@ -83,7 +83,7 @@ pub async fn handle_import_key(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<ImportKeyRequest>(req).await?;
+	let req = parse_json_body::<ImportKeyRequest, _, Error>(req).await?;
 
 	let prev_key = garage.key_table.get(&EmptyKey, &req.access_key_id).await?;
 	if prev_key.is_some() {
@@ -114,7 +114,7 @@ pub async fn handle_update_key(
 	id: String,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<UpdateKeyRequest>(req).await?;
+	let req = parse_json_body::<UpdateKeyRequest, _, Error>(req).await?;
 
 	let mut key = garage.key_helper().get_existing_key(&id).await?;
 

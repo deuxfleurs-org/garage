@@ -14,6 +14,7 @@ use http_body_util::BodyExt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::common_error::CommonError;
 use crate::helpers::*;
 use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
@@ -94,11 +95,11 @@ pub async fn handle_put_cors(
 		.body(empty_body())?)
 }
 
-pub async fn handle_options_s3api(
+pub async fn handle_options_api(
 	garage: Arc<Garage>,
 	req: &Request<IncomingBody>,
 	bucket_name: Option<String>,
-) -> Result<Response<ResBody>, Error> {
+) -> Result<Response<EmptyBody>, CommonError> {
 	// FIXME: CORS rules of buckets with local aliases are
 	// not taken into account.
 
@@ -128,7 +129,7 @@ pub async fn handle_options_s3api(
 				.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 				.header(ACCESS_CONTROL_ALLOW_METHODS, "*")
 				.status(StatusCode::OK)
-				.body(empty_body())?)
+				.body(EmptyBody::new())?)
 		}
 	} else {
 		// If there is no bucket name in the request,
@@ -138,14 +139,14 @@ pub async fn handle_options_s3api(
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "GET")
 			.status(StatusCode::OK)
-			.body(empty_body())?)
+			.body(EmptyBody::new())?)
 	}
 }
 
 pub fn handle_options_for_bucket(
 	req: &Request<IncomingBody>,
 	bucket: &Bucket,
-) -> Result<Response<ResBody>, Error> {
+) -> Result<Response<EmptyBody>, CommonError> {
 	let origin = req
 		.headers()
 		.get("Origin")
@@ -168,13 +169,15 @@ pub fn handle_options_for_bucket(
 		if let Some(rule) = matching_rule {
 			let mut resp = Response::builder()
 				.status(StatusCode::OK)
-				.body(empty_body())?;
+				.body(EmptyBody::new())?;
 			add_cors_headers(&mut resp, rule).ok_or_internal_error("Invalid CORS configuration")?;
 			return Ok(resp);
 		}
 	}
 
-	Err(Error::forbidden("This CORS request is not allowed."))
+	Err(CommonError::Forbidden(
+		"This CORS request is not allowed.".into(),
+	))
 }
 
 pub fn find_matching_cors_rule<'a>(
@@ -216,7 +219,7 @@ where
 }
 
 pub fn add_cors_headers(
-	resp: &mut Response<ResBody>,
+	resp: &mut Response<impl Body>,
 	rule: &GarageCorsRule,
 ) -> Result<(), http::header::InvalidHeaderValue> {
 	let h = resp.headers_mut();

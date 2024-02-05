@@ -4,8 +4,6 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use garage_model::helper::error::Error as HelperError;
-
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
@@ -63,10 +61,6 @@ pub enum Error {
 	#[error(display = "Invalid XML: {}", _0)]
 	InvalidXml(String),
 
-	/// The client sent a header with invalid value
-	#[error(display = "Invalid header value: {}", _0)]
-	InvalidHeader(#[error(source)] hyper::header::ToStrError),
-
 	/// The client sent a range header with invalid value
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
 	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
@@ -86,18 +80,6 @@ where
 }
 
 impl CommonErrorDerivative for Error {}
-
-impl From<HelperError> for Error {
-	fn from(err: HelperError) -> Self {
-		match err {
-			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(n) => Self::Common(CommonError::InvalidBucketName(n)),
-			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
-			e => Self::bad_request(format!("{}", e)),
-		}
-	}
-}
 
 impl From<roxmltree::Error> for Error {
 	fn from(err: roxmltree::Error) -> Self {
@@ -119,7 +101,6 @@ impl From<SignatureError> for Error {
 				Self::AuthorizationHeaderMalformed(c)
 			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
-			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
 	}
 }
@@ -144,9 +125,7 @@ impl Error {
 			Error::NotImplemented(_) => "NotImplemented",
 			Error::InvalidXml(_) => "MalformedXML",
 			Error::InvalidRange(_) => "InvalidRange",
-			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) | Error::InvalidHeader(_) => {
-				"InvalidRequest"
-			}
+			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) => "InvalidRequest",
 		}
 	}
 }
@@ -166,8 +145,7 @@ impl ApiError for Error {
 			| Error::EntityTooSmall
 			| Error::InvalidXml(_)
 			| Error::InvalidUtf8Str(_)
-			| Error::InvalidUtf8String(_)
-			| Error::InvalidHeader(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidUtf8String(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 
@@ -207,6 +185,6 @@ impl ApiError for Error {
             "#
 			.into()
 		});
-		BytesBody::from(bytes::Bytes::from(error_str.into_bytes()))
+		string_bytes_body(error_str)
 	}
 }

@@ -280,7 +280,9 @@ impl WebServer {
 		);
 
 		let ret_doc = match *req.method() {
-			Method::OPTIONS => handle_options_for_bucket(req, &bucket),
+			Method::OPTIONS => handle_options_for_bucket(req, &bucket)
+				.map_err(ApiError::from)
+				.map(|res| res.map(|_empty_body: EmptyBody| empty_body())),
 			Method::HEAD => handle_head(self.garage.clone(), &req, bucket_id, &key, None).await,
 			Method::GET => handle_get(self.garage.clone(), &req, bucket_id, &key, None).await,
 			_ => Err(ApiError::bad_request("HTTP method not supported")),

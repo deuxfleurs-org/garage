@@ -40,18 +40,6 @@ where
 
 impl CommonErrorDerivative for Error {}
 
-impl From<HelperError> for Error {
-	fn from(err: HelperError) -> Self {
-		match err {
-			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(n) => Self::Common(CommonError::InvalidBucketName(n)),
-			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
-			HelperError::NoSuchAccessKey(n) => Self::NoSuchAccessKey(n),
-		}
-	}
-}
-
 impl Error {
 	fn code(&self) -> &'static str {
 		match self {

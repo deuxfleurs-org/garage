@@ -64,7 +64,7 @@ pub async fn handle_connect_cluster_nodes(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<Vec<String>>(req).await?;
+	let req = parse_json_body::<Vec<String>, _, Error>(req).await?;
 
 	let res = futures::future::join_all(req.iter().map(|node| garage.system.connect(node)))
 		.await
@@ -206,7 +206,7 @@ pub async fn handle_update_cluster_layout(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let updates = parse_json_body::<UpdateClusterLayoutRequest>(req).await?;
+	let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
 
 	let mut layout = garage.system.get_cluster_layout();
 
@@ -246,7 +246,7 @@ pub async fn handle_apply_cluster_layout(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+	let param = parse_json_body::<ApplyRevertLayoutRequest, _, Error>(req).await?;
 
 	let layout = garage.system.get_cluster_layout();
 	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
@@ -264,7 +264,7 @@ pub async fn handle_revert_cluster_layout(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let param = parse_json_body::<ApplyRevertLayoutRequest>(req).await?;
+	let param = parse_json_body::<ApplyRevertLayoutRequest, _, Error>(req).await?;
 
 	let layout = garage.system.get_cluster_layout();
 	let layout = layout.revert_staged_changes(Some(param.version))?;
