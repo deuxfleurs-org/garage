@@ -9,9 +9,11 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use http::header::{ACCEPT, CONTENT_TYPE};
 use http::status::StatusCode;
 use http::{HeaderName, HeaderValue, Request};
-use hyper::{body::Bytes, body::HttpBody, Body};
-use hyper::{client::connect::HttpConnector, Client as HttpClient};
+use http_body_util::{BodyExt, Full as FullBody};
+use hyper::{body::Body as BodyTrait, body::Bytes};
 use hyper_rustls::HttpsConnector;
+use hyper_util::client::legacy::{connect::HttpConnector, Client as HttpClient};
+use hyper_util::rt::TokioExecutor;
 
 use aws_sdk_config::config::Credentials;
 use aws_sigv4::http_request::{sign, SignableBody, SignableRequest, SigningSettings};
@@ -23,6 +25,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 mod error;
 
 pub use error::Error;
+
+pub type Body = FullBody<Bytes>;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 const DEFAULT_POLL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -55,19 +59,19 @@ pub struct K2vClientConfig {
 pub struct K2vClient {
 	config: K2vClientConfig,
 	user_agent: HeaderValue,
-	client: HttpClient<HttpsConnector<HttpConnector>>,
+	client: HttpClient<HttpsConnector<HttpConnector>, Body>,
 }
 
 impl K2vClient {
 	/// Create a new K2V client.
 	pub fn new(config: K2vClientConfig) -> Result<Self, Error> {
 		let connector = hyper_rustls::HttpsConnectorBuilder::new()
-			.with_native_roots()
+			.with_native_roots()?
 			.https_or_http()
 			.enable_http1()
 			.enable_http2()
 			.build();
-		let client = HttpClient::builder().build(connector);
+		let client = HttpClient::builder(TokioExecutor::new()).build(connector);
 		let user_agent: std::borrow::Cow<str> = match &config.user_agent {
 			Some(ua) => ua.into(),
 			None => format!("k2v/{}", env!("CARGO_PKG_VERSION")).into(),
@@ -395,7 +399,7 @@ impl K2vClient {
 		// Sign and then apply the signature to the request
 		let (signing_instructions, _signature) =
 			sign(signable_request, &signing_params)?.into_parts();
-		signing_instructions.apply_to_request_http0x(&mut req);
+		signing_instructions.apply_to_request_http1x(&mut req);
 
 		// Send and wait for timeout
 		let res = tokio::select! {
@@ -416,7 +420,7 @@ impl K2vClient {
 		};
 
 		let body = match res.status {
-			StatusCode::OK => body.collect().await?.to_bytes(),
+			StatusCode::OK => BodyExt::collect(body).await?.to_bytes(),
 			StatusCode::NO_CONTENT => Bytes::new(),
 			StatusCode::NOT_FOUND => return Err(Error::NotFound),
 			StatusCode::NOT_MODIFIED => Bytes::new(),

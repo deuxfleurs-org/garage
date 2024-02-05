@@ -13,11 +13,13 @@ base64.workspace = true
 sha2.workspace = true
 hex.workspace = true
 http.workspace = true
+http-body-util.workspace = true
 log.workspace = true
 aws-sigv4.workspace = true
 aws-sdk-config.workspace = true
 percent-encoding.workspace = true
-hyper = { workspace = true, default-features = false, features = ["client", "http1", "http2"] }
+hyper = { workspace = true, default-features = false, features = ["http1", "http2"] }
+hyper-util.workspace = true
 hyper-rustls.workspace = true
 serde.workspace = true
 serde_json.workspace = true

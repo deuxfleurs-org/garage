@@ -22,6 +22,8 @@ pub enum Error {
 	Http(#[from] http::Error),
 	#[error("hyper error: {0}")]
 	Hyper(#[from] hyper::Error),
+	#[error("hyper client error: {0}")]
+	HyperClient(#[from] hyper_util::client::legacy::Error),
 	#[error("invalid header: {0}")]
 	Header(#[from] hyper::header::ToStrError),
 	#[error("deserialization error: {0}")]

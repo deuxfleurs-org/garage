@@ -1,5 +1,6 @@
 use base64::prelude::*;
-use hyper::{body::HttpBody, Method, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Method, StatusCode};
 use std::time::Duration;
 
 use assert_json_diff::assert_json_eq;

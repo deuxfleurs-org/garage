@@ -116,8 +116,8 @@ opentelemetry-otlp = "0.10"
 prometheus = "0.13"
 
 # used by the k2v-client crate only
-aws-sigv4 = {version = "1.1", features = ["http0-compat"] }
-hyper-rustls = { version = "0.24", features = ["http2"] }
+aws-sigv4 = {version = "1.1" }
+hyper-rustls = { version = "0.26", features = ["http2"] }
 log = "0.4"
 thiserror = "1.0"
 

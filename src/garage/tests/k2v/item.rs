@@ -7,7 +7,8 @@ use base64::prelude::*;
 use serde_json::json;
 
 use crate::json_body;
-use hyper::{body::HttpBody, Method, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_items_and_indices() {

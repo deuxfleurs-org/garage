@@ -1,6 +1,7 @@
 use crate::common;
 
-use hyper::{body::HttpBody, Method, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Method, StatusCode};
 
 #[tokio::test]
 async fn test_simple() {
