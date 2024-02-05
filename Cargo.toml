@@ -50,8 +50,8 @@ git-version = "0.3.4"
 hex = "0.4"
 hexdump = "0.1"
 hmac = "0.12"
-idna = "0.4"
-itertools = "0.10"
+idna = "0.5"
+itertools = "0.12"
 lazy_static = "1.4"
 md-5 = "0.10"
 mktemp = "0.5"
@@ -59,7 +59,7 @@ nix = { version = "0.27", default-features = false, features = ["fs"] }
 nom = "7.1"
 parse_duration = "2.1"
 pin-project = "1.0.12"
-pnet_datalink = "0.33"
+pnet_datalink = "0.34"
 rand = "0.8"
 sha2 = "0.10"
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
@@ -73,11 +73,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"] }
-rusqlite = "0.29.0"
+rusqlite = "0.30.0"
 sled = "0.34"
 
 async-compression = { version = "0.4", features = ["tokio", "zstd"] }
-zstd = { version = "0.12", default-features = false }
+zstd = { version = "0.13", default-features = false }
 
 quick-xml = { version = "0.26", features = [ "serialize" ] }
 rmp-serde = "1.1.2"
@@ -98,9 +98,9 @@ httpdate = "1.0"
 http-range = "0.1"
 hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
 hyperlocal = { version = "0.8.0", default-features = false, features = ["server"] }
-multer = "2.0"
+multer = "3.0"
 percent-encoding = "2.2"
-roxmltree = "0.18"
+roxmltree = "0.19"
 url = "2.3"
 
 futures = "0.3"
