@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use http_body_util::{BodyExt, Full as FullBody};
 use hyper::{body::Body, Request, Response};
 use idna::domain_to_unicode;
@@ -151,10 +153,10 @@ pub fn string_body<E>(s: String) -> BoxBody<E> {
 	bytes_body(bytes::Bytes::from(s.into_bytes()))
 }
 pub fn bytes_body<E>(b: bytes::Bytes) -> BoxBody<E> {
-	BoxBody::new(FullBody::new(b).map_err(|_| unreachable!()))
+	BoxBody::new(FullBody::new(b).map_err(|_: Infallible| unreachable!()))
 }
 pub fn empty_body<E>() -> BoxBody<E> {
-	BoxBody::new(http_body_util::Empty::new().map_err(|_| unreachable!()))
+	BoxBody::new(http_body_util::Empty::new().map_err(|_: Infallible| unreachable!()))
 }
 pub fn error_body(s: String) -> ErrorBody {
 	ErrorBody::from(bytes::Bytes::from(s.into_bytes()))

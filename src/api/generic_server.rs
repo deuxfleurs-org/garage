@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fs::{self, Permissions};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
@@ -194,7 +195,8 @@ impl<A: ApiHandler> ApiServer<A> {
 				} else {
 					info!("Response: error {}, {}", e.http_status_code(), e);
 				}
-				Ok(http_error.map(|body| BoxBody::new(body.map_err(|_| unreachable!()))))
+				Ok(http_error
+					.map(|body| BoxBody::new(body.map_err(|_: Infallible| unreachable!()))))
 			}
 		}
 	}
