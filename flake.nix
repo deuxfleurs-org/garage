@@ -2,9 +2,9 @@
   description =
     "Garage, an S3-compatible distributed object store for self-hosted deployments";
 
-  # Nixpkgs unstable as of 2023-04-25, has rustc v1.68
+  # Nixpkgs 23.11 as of 2024-02-07, has rustc v1.73
   inputs.nixpkgs.url =
-    "github:NixOS/nixpkgs/94517a501434a627c5d9e72ac6e7f26174b978d3";
+    "github:NixOS/nixpkgs/9f2ee8c91ac42da3ae6c6a1d21555f283458247e";
 
   inputs.flake-compat.url = "github:nix-community/flake-compat";
 
@@ -17,9 +17,9 @@
     # - rustc v1.66
     # url = "github:cargo2nix/cargo2nix/8fb57a670f7993bfc24099c33eb9c5abb51f29a2";
 
-    # Rust overlay as of 2023-04-25
+    # Rust overlay as of 2024-02-07
     inputs.rust-overlay.url =
-      "github:oxalica/rust-overlay/74f1a64dd28faeeb85ef081f32cad2989850322c";
+      "github:oxalica/rust-overlay/7a94fe7690d2bdfe1aab475382a505e14dc114a6";
 
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.flake-compat.follows = "flake-compat";
