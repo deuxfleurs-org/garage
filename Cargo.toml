@@ -131,7 +131,10 @@ aws-sdk-config = "1.13"
 aws-sdk-s3 = "1.14"
 
 [profile.dev]
-lto = "off"
+lto = "thin"
 
 [profile.release]
-debug = true
+lto = true
+codegen-units = 1
+opt-level = "s"
+strip = true
