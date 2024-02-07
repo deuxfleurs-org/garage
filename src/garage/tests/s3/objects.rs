@@ -50,9 +50,9 @@ async fn test_putobject() {
 		// assert_eq!(o.version_id.unwrap(), _version);
 		assert_eq!(o.content_type.unwrap(), content_type);
 		assert!(o.last_modified.is_some());
-		assert_eq!(o.content_length, 0);
-		assert_eq!(o.parts_count, 0);
-		assert_eq!(o.tag_count, 0);
+		assert_eq!(o.content_length.unwrap(), 0);
+		assert_eq!(o.parts_count, None);
+		assert_eq!(o.tag_count, None);
 	}
 
 	{
@@ -86,9 +86,9 @@ async fn test_putobject() {
 		assert_bytes_eq!(o.body, b"hi");
 		assert_eq!(o.e_tag.unwrap(), etag);
 		assert!(o.last_modified.is_some());
-		assert_eq!(o.content_length, 2);
-		assert_eq!(o.parts_count, 0);
-		assert_eq!(o.tag_count, 0);
+		assert_eq!(o.content_length.unwrap(), 2);
+		assert_eq!(o.parts_count, None);
+		assert_eq!(o.tag_count, None);
 	}
 
 	{
@@ -119,9 +119,9 @@ async fn test_putobject() {
 		assert_bytes_eq!(o.body, b"");
 		assert_eq!(o.e_tag.unwrap(), etag);
 		assert!(o.last_modified.is_some());
-		assert_eq!(o.content_length, 0);
-		assert_eq!(o.parts_count, 0);
-		assert_eq!(o.tag_count, 0);
+		assert_eq!(o.content_length.unwrap(), 0);
+		assert_eq!(o.parts_count, None);
+		assert_eq!(o.tag_count, None);
 	}
 }
 
@@ -205,7 +205,7 @@ async fn test_deleteobject() {
 			.await
 			.unwrap();
 		if i > 0 {
-			to_del = to_del.objects(ObjectIdentifier::builder().key(k).build());
+			to_del = to_del.objects(ObjectIdentifier::builder().key(k).build().unwrap());
 		}
 	}
 
@@ -223,7 +223,7 @@ async fn test_deleteobject() {
 			.unwrap();
 
 		if i > 0 {
-			to_del = to_del.objects(ObjectIdentifier::builder().key(k).build());
+			to_del = to_del.objects(ObjectIdentifier::builder().key(k).build().unwrap());
 		}
 	}
 
@@ -247,7 +247,7 @@ async fn test_deleteobject() {
 		.client
 		.delete_objects()
 		.bucket(&bucket)
-		.delete(to_del.build())
+		.delete(to_del.build().unwrap())
 		.send()
 		.await
 		.unwrap();

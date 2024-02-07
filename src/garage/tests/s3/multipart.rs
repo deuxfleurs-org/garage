@@ -154,7 +154,7 @@ async fn test_multipart_upload() {
 			.await
 			.unwrap();
 
-		assert_eq!(r.content_length, (SZ_5MB * 3) as i64);
+		assert_eq!(r.content_length.unwrap(), (SZ_5MB * 3) as i64);
 	}
 
 	{
@@ -183,7 +183,7 @@ async fn test_multipart_upload() {
 				.unwrap();
 
 			eprintln!("get_object with part_number = {}", part_number);
-			assert_eq!(o.content_length, SZ_5MB as i64);
+			assert_eq!(o.content_length.unwrap(), SZ_5MB as i64);
 			assert_bytes_eq!(o.body, data);
 		}
 	}
@@ -249,14 +249,14 @@ async fn test_uploadlistpart() {
 
 		let ps = r.parts.unwrap();
 		assert_eq!(ps.len(), 1);
-		assert_eq!(ps[0].part_number, 2);
+		assert_eq!(ps[0].part_number.unwrap(), 2);
 		let fp = &ps[0];
 		assert!(fp.last_modified.is_some());
 		assert_eq!(
 			fp.e_tag.as_ref().unwrap(),
 			"\"3366bb9dcf710d6801b5926467d02e19\""
 		);
-		assert_eq!(fp.size, SZ_5MB as i64);
+		assert_eq!(fp.size.unwrap(), SZ_5MB as i64);
 	}
 
 	let p2 = ctx
@@ -286,23 +286,23 @@ async fn test_uploadlistpart() {
 		let ps = r.parts.unwrap();
 		assert_eq!(ps.len(), 2);
 
-		assert_eq!(ps[0].part_number, 1);
+		assert_eq!(ps[0].part_number.unwrap(), 1);
 		let fp = &ps[0];
 		assert!(fp.last_modified.is_some());
 		assert_eq!(
 			fp.e_tag.as_ref().unwrap(),
 			"\"3c484266f9315485694556e6c693bfa2\""
 		);
-		assert_eq!(fp.size, SZ_5MB as i64);
+		assert_eq!(fp.size.unwrap(), SZ_5MB as i64);
 
-		assert_eq!(ps[1].part_number, 2);
+		assert_eq!(ps[1].part_number.unwrap(), 2);
 		let sp = &ps[1];
 		assert!(sp.last_modified.is_some());
 		assert_eq!(
 			sp.e_tag.as_ref().unwrap(),
 			"\"3366bb9dcf710d6801b5926467d02e19\""
 		);
-		assert_eq!(sp.size, SZ_5MB as i64);
+		assert_eq!(sp.size.unwrap(), SZ_5MB as i64);
 	}
 
 	{
@@ -320,14 +320,14 @@ async fn test_uploadlistpart() {
 
 		assert!(r.part_number_marker.is_none());
 		assert_eq!(r.next_part_number_marker.as_deref(), Some("1"));
-		assert_eq!(r.max_parts, 1_i32);
-		assert!(r.is_truncated);
+		assert_eq!(r.max_parts.unwrap(), 1_i32);
+		assert!(r.is_truncated.unwrap());
 		assert_eq!(r.key.unwrap(), "a");
 		assert_eq!(r.upload_id.unwrap().as_str(), uid.as_str());
 		let parts = r.parts.unwrap();
 		assert_eq!(parts.len(), 1);
 		let fp = &parts[0];
-		assert_eq!(fp.part_number, 1);
+		assert_eq!(fp.part_number.unwrap(), 1);
 		assert_eq!(
 			fp.e_tag.as_ref().unwrap(),
 			"\"3c484266f9315485694556e6c693bfa2\""
@@ -349,19 +349,19 @@ async fn test_uploadlistpart() {
 			r2.part_number_marker.as_ref().unwrap(),
 			r.next_part_number_marker.as_ref().unwrap()
 		);
-		assert_eq!(r2.max_parts, 1_i32);
+		assert_eq!(r2.max_parts.unwrap(), 1_i32);
 		assert_eq!(r2.key.unwrap(), "a");
 		assert_eq!(r2.upload_id.unwrap().as_str(), uid.as_str());
 		let parts = r2.parts.unwrap();
 		assert_eq!(parts.len(), 1);
 		let fp = &parts[0];
-		assert_eq!(fp.part_number, 2);
+		assert_eq!(fp.part_number.unwrap(), 2);
 		assert_eq!(
 			fp.e_tag.as_ref().unwrap(),
 			"\"3366bb9dcf710d6801b5926467d02e19\""
 		);
 		//assert!(r2.is_truncated);   // WHY? (this was the test before)
-		assert!(!r2.is_truncated);
+		assert!(!r2.is_truncated.unwrap());
 	}
 
 	let cmp = CompletedMultipartUpload::builder()
@@ -411,7 +411,7 @@ async fn test_uploadlistpart() {
 			.await
 			.unwrap();
 
-		assert_eq!(r.content_length, (SZ_5MB * 2) as i64);
+		assert_eq!(r.content_length.unwrap(), (SZ_5MB * 2) as i64);
 	}
 }
 

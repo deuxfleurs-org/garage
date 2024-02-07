@@ -1,6 +1,16 @@
-use hyper::{Body, Request, Response};
+use std::convert::Infallible;
+
+use futures::{Stream, StreamExt, TryStreamExt};
+
+use http_body_util::{BodyExt, Full as FullBody};
+use hyper::{
+	body::{Body, Bytes},
+	Request, Response,
+};
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
+
+use garage_util::error::Error as GarageError;
 
 use crate::common_error::{CommonError as Error, *};
 
@@ -138,18 +148,64 @@ pub fn key_after_prefix(pfx: &str) -> Option<String> {
 	None
 }
 
-pub async fn parse_json_body<T: for<'de> Deserialize<'de>>(req: Request<Body>) -> Result<T, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+// =============== body helpers =================
+
+pub type EmptyBody = http_body_util::Empty<bytes::Bytes>;
+pub type ErrorBody = FullBody<bytes::Bytes>;
+pub type BoxBody<E> = http_body_util::combinators::BoxBody<bytes::Bytes, E>;
+
+pub fn string_body<E>(s: String) -> BoxBody<E> {
+	bytes_body(bytes::Bytes::from(s.into_bytes()))
+}
+pub fn bytes_body<E>(b: bytes::Bytes) -> BoxBody<E> {
+	BoxBody::new(FullBody::new(b).map_err(|_: Infallible| unreachable!()))
+}
+pub fn empty_body<E>() -> BoxBody<E> {
+	BoxBody::new(http_body_util::Empty::new().map_err(|_: Infallible| unreachable!()))
+}
+pub fn error_body(s: String) -> ErrorBody {
+	ErrorBody::from(bytes::Bytes::from(s.into_bytes()))
+}
+
+pub async fn parse_json_body<T, B, E>(req: Request<B>) -> Result<T, E>
+where
+	T: for<'de> Deserialize<'de>,
+	B: Body,
+	E: From<<B as Body>::Error> + From<Error>,
+{
+	let body = req.into_body().collect().await?.to_bytes();
 	let resp: T = serde_json::from_slice(&body).ok_or_bad_request("Invalid JSON")?;
 	Ok(resp)
 }
 
-pub fn json_ok_response<T: Serialize>(res: &T) -> Result<Response<Body>, Error> {
-	let resp_json = serde_json::to_string_pretty(res).map_err(garage_util::error::Error::from)?;
+pub fn json_ok_response<E, T: Serialize>(res: &T) -> Result<Response<BoxBody<E>>, E>
+where
+	E: From<Error>,
+{
+	let resp_json = serde_json::to_string_pretty(res)
+		.map_err(GarageError::from)
+		.map_err(Error::from)?;
 	Ok(Response::builder()
 		.status(hyper::StatusCode::OK)
 		.header(http::header::CONTENT_TYPE, "application/json")
-		.body(Body::from(resp_json))?)
+		.body(string_body(resp_json))
+		.unwrap())
+}
+
+pub fn body_stream<B, E>(body: B) -> impl Stream<Item = Result<Bytes, E>>
+where
+	B: Body<Data = Bytes>,
+	<B as Body>::Error: Into<E>,
+	E: From<Error>,
+{
+	let stream = http_body_util::BodyStream::new(body);
+	let stream = TryStreamExt::map_err(stream, Into::into);
+	stream.map(|x| {
+		x.and_then(|f| {
+			f.into_data()
+				.map_err(|_| E::from(Error::bad_request("non-data frame")))
+		})
+	})
 }
 
 pub fn is_default<T: Default + PartialEq>(v: &T) -> bool {

@@ -7,6 +7,7 @@ use base64::prelude::*;
 use serde_json::json;
 
 use crate::json_body;
+use http_body_util::BodyExt;
 use hyper::{Method, StatusCode};
 
 #[tokio::test]
@@ -77,10 +78,7 @@ async fn test_batch() {
 				.unwrap()
 				.to_string(),
 		);
-		let res_body = hyper::body::to_bytes(res.into_body())
-			.await
-			.unwrap()
-			.to_vec();
+		let res_body = res.into_body().collect().await.unwrap().to_bytes();
 		assert_eq!(res_body, values.get(sk).unwrap().as_bytes());
 	}
 

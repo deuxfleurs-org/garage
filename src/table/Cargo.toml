@@ -18,19 +18,19 @@ garage_db.workspace = true
 garage_rpc.workspace = true
 garage_util.workspace = true
 
-opentelemetry = "0.17"
+opentelemetry.workspace = true
 
-async-trait = "0.1.7"
-arc-swap = "1.0"
-bytes = "1.0"
-hex = "0.4"
-hexdump = "0.1"
-tracing = "0.1"
-rand = "0.8"
+async-trait.workspace = true
+arc-swap.workspace = true
+bytes.workspace = true
+hex.workspace = true
+hexdump.workspace = true
+tracing.workspace = true
+rand.workspace = true
 
-serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
-serde_bytes = "0.11"
+serde.workspace = true
+serde_bytes.workspace = true
 
-futures = "0.3"
-futures-util = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+futures.workspace = true
+futures-util.workspace = true
+tokio.workspace = true

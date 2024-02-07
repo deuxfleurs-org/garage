@@ -19,16 +19,17 @@ garage_model.workspace = true
 garage_util.workspace = true
 garage_table.workspace = true
 
-err-derive = "0.3"
-tracing = "0.1"
-percent-encoding = "2.1.0"
+err-derive.workspace = true
+tracing.workspace = true
+percent-encoding.workspace = true
 
-futures = "0.3"
+futures.workspace = true
 
-http = "0.2"
-hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
-hyperlocal = { version = "0.8.0", default-features = false, features = ["server"] }
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
 
-tokio = { version = "1.0", default-features = false, features = ["net"] }
+tokio.workspace = true
 
-opentelemetry = "0.17"
+opentelemetry.workspace = true

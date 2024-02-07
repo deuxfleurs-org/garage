@@ -2,13 +2,12 @@ use std::convert::TryInto;
 
 use err_derive::Error;
 use hyper::header::HeaderValue;
-use hyper::{Body, HeaderMap, StatusCode};
-
-use garage_model::helper::error::Error as HelperError;
+use hyper::{HeaderMap, StatusCode};
 
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
+use crate::helpers::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::error::Error as SignatureError;
 
@@ -62,10 +61,6 @@ pub enum Error {
 	#[error(display = "Invalid XML: {}", _0)]
 	InvalidXml(String),
 
-	/// The client sent a header with invalid value
-	#[error(display = "Invalid header value: {}", _0)]
-	InvalidHeader(#[error(source)] hyper::header::ToStrError),
-
 	/// The client sent a range header with invalid value
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
 	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
@@ -85,18 +80,6 @@ where
 }
 
 impl CommonErrorDerivative for Error {}
-
-impl From<HelperError> for Error {
-	fn from(err: HelperError) -> Self {
-		match err {
-			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(n) => Self::Common(CommonError::InvalidBucketName(n)),
-			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
-			e => Self::bad_request(format!("{}", e)),
-		}
-	}
-}
 
 impl From<roxmltree::Error> for Error {
 	fn from(err: roxmltree::Error) -> Self {
@@ -118,7 +101,6 @@ impl From<SignatureError> for Error {
 				Self::AuthorizationHeaderMalformed(c)
 			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
-			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
 	}
 }
@@ -143,9 +125,7 @@ impl Error {
 			Error::NotImplemented(_) => "NotImplemented",
 			Error::InvalidXml(_) => "MalformedXML",
 			Error::InvalidRange(_) => "InvalidRange",
-			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) | Error::InvalidHeader(_) => {
-				"InvalidRequest"
-			}
+			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) => "InvalidRequest",
 		}
 	}
 }
@@ -165,8 +145,7 @@ impl ApiError for Error {
 			| Error::EntityTooSmall
 			| Error::InvalidXml(_)
 			| Error::InvalidUtf8Str(_)
-			| Error::InvalidUtf8String(_)
-			| Error::InvalidHeader(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidUtf8String(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 
@@ -189,22 +168,23 @@ impl ApiError for Error {
 		}
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody {
 		let error = s3_xml::Error {
 			code: s3_xml::Value(self.aws_code().to_string()),
 			message: s3_xml::Value(format!("{}", self)),
 			resource: Some(s3_xml::Value(path.to_string())),
 			region: Some(s3_xml::Value(garage_region.to_string())),
 		};
-		Body::from(s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
+		let error_str = s3_xml::to_xml_with_header(&error).unwrap_or_else(|_| {
 			r#"
 <?xml version="1.0" encoding="UTF-8"?>
 <Error>
-	<Code>InternalError</Code>
-	<Message>XML encoding of error failed</Message>
+    <Code>InternalError</Code>
+    <Message>XML encoding of error failed</Message>
 </Error>
-			"#
+            "#
 			.into()
-		}))
+		});
+		error_body(error_str)
 	}
 }

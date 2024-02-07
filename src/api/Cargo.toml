@@ -20,44 +20,46 @@ garage_block.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
 
-async-trait = "0.1.7"
-base64 = "0.21"
-bytes = "1.0"
-chrono = "0.4"
-crypto-common = "0.1"
-err-derive = "0.3"
-hex = "0.4"
-hmac = "0.12"
-idna = "0.4"
-tracing = "0.1"
-md-5 = "0.10"
-nom = "7.1"
-sha2 = "0.10"
+async-trait.workspace = true
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+crypto-common.workspace = true
+err-derive.workspace = true
+hex.workspace = true
+hmac.workspace = true
+idna.workspace = true
+tracing.workspace = true
+md-5.workspace = true
+nom.workspace = true
+pin-project.workspace = true
+sha2.workspace = true
 
-futures = "0.3"
-futures-util = "0.3"
-pin-project = "1.0.12"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
-tokio-stream = "0.1"
+futures.workspace = true
+futures-util.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
 
-form_urlencoded = "1.0.0"
-http = "0.2"
-httpdate = "1.0"
-http-range = "0.1"
-hyper = { version = "0.14", features = ["server", "http1", "runtime", "tcp", "stream"] }
-hyperlocal = { version = "0.8.0", default-features = false, features = ["server"] }
-multer = "2.0"
-percent-encoding = "2.1.0"
-roxmltree = "0.18"
-serde = { version = "1.0", features = ["derive"] }
-serde_bytes = "0.11"
-serde_json = "1.0"
-quick-xml = { version = "0.26", features = [ "serialize" ] }
-url = "2.3"
+form_urlencoded.workspace = true
+http.workspace = true
+httpdate.workspace = true
+http-range.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+multer.workspace = true
+percent-encoding.workspace = true
+roxmltree.workspace = true
+url.workspace = true
 
-opentelemetry = "0.17"
-opentelemetry-prometheus = { version = "0.10", optional = true }
-prometheus = { version = "0.13", optional = true }
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json.workspace = true
+quick-xml.workspace = true
+
+opentelemetry.workspace = true
+opentelemetry-prometheus = { workspace = true, optional = true }
+prometheus = { workspace = true, optional = true }
 
 [features]
 k2v = [ "garage_util/k2v", "garage_model/k2v" ]

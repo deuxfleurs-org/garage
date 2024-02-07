@@ -1,5 +1,6 @@
 use crate::common;
 
+use http_body_util::BodyExt;
 use hyper::{Method, StatusCode};
 
 #[tokio::test]
@@ -32,9 +33,6 @@ async fn test_simple() {
 		.unwrap();
 	assert_eq!(res2.status(), StatusCode::OK);
 
-	let res2_body = hyper::body::to_bytes(res2.into_body())
-		.await
-		.unwrap()
-		.to_vec();
-	assert_eq!(res2_body, b"Hello, world!");
+	let res2_body = res2.into_body().collect().await.unwrap().to_bytes();
+	assert_eq!(res2_body, b"Hello, world!"[..]);
 }

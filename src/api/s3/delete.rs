@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Request, Response, StatusCode};
 
 use garage_util::data::*;
 
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 use crate::s3::put::next_timestamp;
 use crate::s3::xml as s3_xml;
@@ -59,11 +62,11 @@ pub async fn handle_delete(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
 	key: &str,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	match handle_delete_internal(&garage, bucket_id, key).await {
 		Ok(_) | Err(Error::NoSuchKey) => Ok(Response::builder()
 			.status(StatusCode::NO_CONTENT)
-			.body(Body::from(vec![]))
+			.body(empty_body())
 			.unwrap()),
 		Err(e) => Err(e),
 	}
@@ -72,10 +75,10 @@ pub async fn handle_delete(
 pub async fn handle_delete_objects(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
-	req: Request<Body>,
+	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+) -> Result<Response<ResBody>, Error> {
+	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
@@ -118,7 +121,7 @@ pub async fn handle_delete_objects(
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml))?)
+		.body(string_body(xml))?)
 }
 
 struct DeleteRequest {

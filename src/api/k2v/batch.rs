@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use base64::prelude::*;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
@@ -13,15 +13,16 @@ use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
 use crate::helpers::*;
+use crate::k2v::api_server::{ReqBody, ResBody};
 use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_insert_batch(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let items = parse_json_body::<Vec<InsertBatchItem>>(req).await?;
+	req: Request<ReqBody>,
+) -> Result<Response<ResBody>, Error> {
+	let items = parse_json_body::<Vec<InsertBatchItem>, _, Error>(req).await?;
 
 	let mut items2 = vec![];
 	for it in items {
@@ -41,15 +42,15 @@ pub async fn handle_insert_batch(
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 pub async fn handle_read_batch(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let queries = parse_json_body::<Vec<ReadBatchQuery>>(req).await?;
+	req: Request<ReqBody>,
+) -> Result<Response<ResBody>, Error> {
+	let queries = parse_json_body::<Vec<ReadBatchQuery>, _, Error>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -139,9 +140,9 @@ async fn handle_read_batch_query(
 pub async fn handle_delete_batch(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let queries = parse_json_body::<Vec<DeleteBatchQuery>>(req).await?;
+	req: Request<ReqBody>,
+) -> Result<Response<ResBody>, Error> {
+	let queries = parse_json_body::<Vec<DeleteBatchQuery>, _, Error>(req).await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -253,11 +254,11 @@ pub(crate) async fn handle_poll_range(
 	garage: Arc<Garage>,
 	bucket_id: Uuid,
 	partition_key: &str,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
+	req: Request<ReqBody>,
+) -> Result<Response<ResBody>, Error> {
 	use garage_model::k2v::sub::PollRange;
 
-	let query = parse_json_body::<PollRangeQuery>(req).await?;
+	let query = parse_json_body::<PollRangeQuery, _, Error>(req).await?;
 
 	let timeout_msec = query.timeout.unwrap_or(300).clamp(1, 600) * 1000;
 
@@ -292,7 +293,7 @@ pub(crate) async fn handle_poll_range(
 	} else {
 		Ok(Response::builder()
 			.status(StatusCode::NOT_MODIFIED)
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 }
 

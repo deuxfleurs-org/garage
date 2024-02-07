@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_table::*;
@@ -9,10 +9,11 @@ use garage_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
+use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
-use crate::helpers::{is_default, json_ok_response, parse_json_body};
+use crate::helpers::*;
 
-pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<Body>, Error> {
+pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let res = garage
 		.key_table
 		.get_range(
@@ -45,7 +46,7 @@ pub async fn handle_get_key_info(
 	id: Option<String>,
 	search: Option<String>,
 	show_secret_key: bool,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let key = if let Some(id) = id {
 		garage.key_helper().get_existing_key(&id).await?
 	} else if let Some(search) = search {
@@ -62,9 +63,9 @@ pub async fn handle_get_key_info(
 
 pub async fn handle_create_key(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let req = parse_json_body::<CreateKeyRequest>(req).await?;
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
+	let req = parse_json_body::<CreateKeyRequest, _, Error>(req).await?;
 
 	let key = Key::new(req.name.as_deref().unwrap_or("Unnamed key"));
 	garage.key_table.insert(&key).await?;
@@ -80,9 +81,9 @@ struct CreateKeyRequest {
 
 pub async fn handle_import_key(
 	garage: &Arc<Garage>,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let req = parse_json_body::<ImportKeyRequest>(req).await?;
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
+	let req = parse_json_body::<ImportKeyRequest, _, Error>(req).await?;
 
 	let prev_key = garage.key_table.get(&EmptyKey, &req.access_key_id).await?;
 	if prev_key.is_some() {
@@ -111,9 +112,9 @@ struct ImportKeyRequest {
 pub async fn handle_update_key(
 	garage: &Arc<Garage>,
 	id: String,
-	req: Request<Body>,
-) -> Result<Response<Body>, Error> {
-	let req = parse_json_body::<UpdateKeyRequest>(req).await?;
+	req: Request<IncomingBody>,
+) -> Result<Response<ResBody>, Error> {
+	let req = parse_json_body::<UpdateKeyRequest, _, Error>(req).await?;
 
 	let mut key = garage.key_helper().get_existing_key(&id).await?;
 
@@ -146,7 +147,10 @@ struct UpdateKeyRequest {
 	deny: Option<KeyPerm>,
 }
 
-pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Response<Body>, Error> {
+pub async fn handle_delete_key(
+	garage: &Arc<Garage>,
+	id: String,
+) -> Result<Response<ResBody>, Error> {
 	let mut key = garage.key_helper().get_existing_key(&id).await?;
 
 	key.state.as_option().unwrap();
@@ -155,14 +159,14 @@ pub async fn handle_delete_key(garage: &Arc<Garage>, id: String) -> Result<Respo
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 async fn key_info_results(
 	garage: &Arc<Garage>,
 	key: Key,
 	show_secret: bool,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let mut relevant_buckets = HashMap::new();
 
 	let key_state = key.state.as_option().unwrap();

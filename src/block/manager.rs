@@ -53,6 +53,9 @@ pub const INLINE_THRESHOLD: usize = 3072;
 // to delete the block locally.
 pub(crate) const BLOCK_GC_DELAY: Duration = Duration::from_secs(600);
 
+pub type BlockStream =
+	Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + Sync + 'static>>;
+
 /// RPC messages used to share blocks of data between nodes
 #[derive(Debug, Serialize, Deserialize)]
 pub enum BlockRpc {
@@ -324,10 +327,7 @@ impl BlockManager {
 		&self,
 		hash: &Hash,
 		order_tag: Option<OrderTag>,
-	) -> Result<
-		Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + Sync + 'static>>,
-		Error,
-	> {
+	) -> Result<BlockStream, Error> {
 		let (header, stream) = self.rpc_get_raw_block_streaming(hash, order_tag).await?;
 		match header {
 			DataBlockHeader::Plain => Ok(stream),

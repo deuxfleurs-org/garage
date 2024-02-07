@@ -1,13 +1,11 @@
 use err_derive::Error;
 use hyper::header::HeaderValue;
-use hyper::{Body, HeaderMap, StatusCode};
-
-use garage_model::helper::error::Error as HelperError;
+use hyper::{HeaderMap, StatusCode};
 
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
-use crate::helpers::CustomApiErrorBody;
+use crate::helpers::*;
 use crate::signature::error::Error as SignatureError;
 
 /// Errors of this crate
@@ -30,10 +28,6 @@ pub enum Error {
 	#[error(display = "Invalid base64: {}", _0)]
 	InvalidBase64(#[error(source)] base64::DecodeError),
 
-	/// The client sent a header with invalid value
-	#[error(display = "Invalid header value: {}", _0)]
-	InvalidHeader(#[error(source)] hyper::header::ToStrError),
-
 	/// The client asked for an invalid return format (invalid Accept header)
 	#[error(display = "Not acceptable: {}", _0)]
 	NotAcceptable(String),
@@ -54,18 +48,6 @@ where
 
 impl CommonErrorDerivative for Error {}
 
-impl From<HelperError> for Error {
-	fn from(err: HelperError) -> Self {
-		match err {
-			HelperError::Internal(i) => Self::Common(CommonError::InternalError(i)),
-			HelperError::BadRequest(b) => Self::Common(CommonError::BadRequest(b)),
-			HelperError::InvalidBucketName(n) => Self::Common(CommonError::InvalidBucketName(n)),
-			HelperError::NoSuchBucket(n) => Self::Common(CommonError::NoSuchBucket(n)),
-			e => Self::Common(CommonError::BadRequest(format!("{}", e))),
-		}
-	}
-}
-
 impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {
 		match err {
@@ -74,7 +56,6 @@ impl From<SignatureError> for Error {
 				Self::AuthorizationHeaderMalformed(c)
 			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
-			SignatureError::InvalidHeader(h) => Self::InvalidHeader(h),
 		}
 	}
 }
@@ -90,7 +71,6 @@ impl Error {
 			Error::NotAcceptable(_) => "NotAcceptable",
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::InvalidBase64(_) => "InvalidBase64",
-			Error::InvalidHeader(_) => "InvalidHeaderValue",
 			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
 		}
 	}
@@ -105,7 +85,6 @@ impl ApiError for Error {
 			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
 			Error::AuthorizationHeaderMalformed(_)
 			| Error::InvalidBase64(_)
-			| Error::InvalidHeader(_)
 			| Error::InvalidUtf8Str(_) => StatusCode::BAD_REQUEST,
 		}
 	}
@@ -115,14 +94,14 @@ impl ApiError for Error {
 		header_map.append(header::CONTENT_TYPE, "application/json".parse().unwrap());
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> Body {
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody {
 		let error = CustomApiErrorBody {
 			code: self.code().to_string(),
 			message: format!("{}", self),
 			path: path.to_string(),
 			region: garage_region.to_string(),
 		};
-		Body::from(serde_json::to_string_pretty(&error).unwrap_or_else(|_| {
+		let error_str = serde_json::to_string_pretty(&error).unwrap_or_else(|_| {
 			r#"
 {
 	"code": "InternalError",
@@ -130,6 +109,7 @@ impl ApiError for Error {
 }
 			"#
 			.into()
-		}))
+		});
+		error_body(error_str)
 	}
 }
