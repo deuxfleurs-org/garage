@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use hmac::Mac;
 use hyper::{body::Incoming as IncomingBody, Method, Request};
 use sha2::{Digest, Sha256};
@@ -316,7 +316,7 @@ fn canonical_query_string(uri: &hyper::Uri) -> String {
 pub fn parse_date(date: &str) -> Result<DateTime<Utc>, Error> {
 	let date: NaiveDateTime =
 		NaiveDateTime::parse_from_str(date, LONG_DATETIME).ok_or_bad_request("Invalid date")?;
-	Ok(DateTime::from_utc(date, Utc))
+	Ok(Utc.from_utc_datetime(&date))
 }
 
 pub async fn verify_v4(

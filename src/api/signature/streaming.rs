@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use futures::prelude::*;
 use futures::task;
 use garage_model::key_table::Key;
@@ -44,7 +44,7 @@ pub fn parse_streaming_body(
 				.to_str()?;
 			let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
 				.ok_or_bad_request("Invalid date")?;
-			let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+			let date: DateTime<Utc> = Utc.from_utc_datetime(&date);
 
 			let scope = compute_scope(&date, region, service);
 			let signing_hmac = crate::signature::signing_hmac(&date, secret_key, region, service)
