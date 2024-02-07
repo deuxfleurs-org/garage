@@ -33,27 +33,57 @@
       compile = import ./nix/compile.nix;
     in
     flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = nixpkgs.legacyPackages.${system};
-      in {
-        packages = {
-          default = (compile {
-            inherit system git_version;
-            pkgsSrc = nixpkgs;
-            cargo2nixOverlay = cargo2nix.overlays.default;
-            release = true;
-          }).workspace.garage { compileMode = "build"; };
-        };
-        devShell = (compile {
-          inherit system git_version;
-          pkgsSrc = nixpkgs;
-          cargo2nixOverlay = cargo2nix.overlays.default;
-          release = false;
-        }).workspaceShell { packages = with pkgs; [
-          cargo-audit
-          cargo-outdated
-          rustfmt
-          clang
-          mold
-        ]; };
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+      {
+        packages =
+          let
+            packageFor = target: (compile {
+              inherit system git_version target;
+              pkgsSrc = nixpkgs;
+              cargo2nixOverlay = cargo2nix.overlays.default;
+              release = true;
+            }).workspace.garage { compileMode = "build"; };
+          in
+          {
+            # default = native release build
+            default = packageFor null;
+            # other = cross-compiled, statically-linked builds
+            amd64 = packageFor "x86_64-unknown-linux-musl";
+            i386 = packageFor "i686-unknown-linux-musl";
+            arm64 = packageFor "aarch64-unknown-linux-musl";
+            arm = packageFor "armv6l-unknown-linux-musl";
+          };
+
+        # ---- developpment shell, for making native builds only ----
+        devShells =
+          let
+            shellWithPackages = (packages: (compile {
+              inherit system git_version;
+              pkgsSrc = nixpkgs;
+              cargo2nixOverlay = cargo2nix.overlays.default;
+            }).workspaceShell { inherit packages; });
+          in
+          {
+            default = shellWithPackages
+              (with pkgs; [
+                rustfmt
+                clang
+                mold
+              ]);
+
+            # import the full shell using `nix develop .#full`
+            full = shellWithPackages (with pkgs; [
+              rustfmt
+              clang
+              mold
+              # ---- extra packages for dev tasks ----
+              cargo-audit
+              cargo-outdated
+              cargo-machete
+              nixpkgs-fmt
+            ]);
+          };
       });
 }

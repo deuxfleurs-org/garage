@@ -9,7 +9,7 @@ steps:
   - name: check formatting
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr rust --run "cargo fmt -- --check"
+      - nix-shell --attr devShell --run "cargo fmt -- --check"
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -40,7 +40,7 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
 trigger:
   event:
@@ -63,17 +63,17 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr pkgs.amd64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: upgrade tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -84,7 +84,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
       TARGET: "x86_64-unknown-linux-musl"
     commands:
-      - nix-shell --attr release --run "to_s3"
+      - nix-shell --attr ci --run "to_s3"
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
@@ -98,7 +98,7 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr release --run "to_docker"
+      - nix-shell --attr ci --run "to_docker"
 
 
 trigger:
@@ -119,17 +119,17 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr pkgs.i386.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
 
   - name: upgrade tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 i686-unknown-linux-musl" || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run "./script/test-upgrade.sh v0.8.4 i686-unknown-linux-musl" || (cat /tmp/garage.log; false)
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -140,7 +140,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
       TARGET: "i686-unknown-linux-musl"
     commands:
-      - nix-shell --attr release --run "to_s3"
+      - nix-shell --attr ci --run "to_s3"
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
@@ -154,7 +154,7 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr release --run "to_docker"
+      - nix-shell --attr ci --run "to_docker"
 
 trigger:
   event:
@@ -174,7 +174,7 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr pkgs.arm64.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -185,7 +185,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
       TARGET: "aarch64-unknown-linux-musl"
     commands:
-      - nix-shell --attr release --run "to_s3"
+      - nix-shell --attr ci --run "to_s3"
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
@@ -199,7 +199,7 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr release --run "to_docker"
+      - nix-shell --attr ci --run "to_docker"
 
 trigger:
   event:
@@ -219,7 +219,7 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr pkgs.arm.release --argstr git_version ${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
@@ -230,7 +230,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
       TARGET: "armv6l-unknown-linux-musleabihf"
     commands:
-      - nix-shell --attr release --run "to_s3"
+      - nix-shell --attr ci --run "to_s3"
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05
@@ -244,7 +244,7 @@ steps:
       - mkdir -p /kaniko/.docker
       - echo $DOCKER_AUTH > /kaniko/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr release --run "to_docker"
+      - nix-shell --attr ci --run "to_docker"
 
 trigger:
   event:
@@ -270,7 +270,7 @@ steps:
       - mkdir -p /root/.docker
       - echo $DOCKER_AUTH > /root/.docker/config.json
       - export CONTAINER_TAG=${DRONE_TAG:-$DRONE_COMMIT}
-      - nix-shell --attr release --run "multiarch_docker"
+      - nix-shell --attr ci --run "multiarch_docker"
   - name: refresh-index
     image: nixpkgs/nix:nixos-22.05
     environment:
@@ -280,7 +280,7 @@ steps:
         from_secret: garagehq_aws_secret_access_key
     commands:
       - mkdir -p /etc/nix && cp nix/nix.conf /etc/nix/nix.conf
-      - nix-shell --attr release --run "refresh_index"
+      - nix-shell --attr ci --run "refresh_index"
 
 depends_on:
   - release-linux-amd64
@@ -295,6 +295,6 @@ trigger:
 
 ---
 kind: signature
-hmac: 0c4b57eb4b27b7c6a6ff21ab87f0767fe3eb90f5d95d5cbcdccf794e9d2a5d86
+hmac: 9ff9f2ad9387b12ee49a327991a5373f01e40d28e0aeef3a13d3b741d8eb3c53
 
 ...
