@@ -30,7 +30,7 @@ use garage_util::forwarded_headers;
 use garage_util::metrics::{gen_trace_id, RecordDuration};
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
-use crate::helpers::{BoxBody, BytesBody};
+use crate::helpers::{BoxBody, ErrorBody};
 
 pub(crate) trait ApiEndpoint: Send + Sync + 'static {
 	fn name(&self) -> &'static str;
@@ -40,7 +40,7 @@ pub(crate) trait ApiEndpoint: Send + Sync + 'static {
 pub trait ApiError: std::error::Error + Send + Sync + 'static {
 	fn http_status_code(&self) -> StatusCode;
 	fn add_http_headers(&self, header_map: &mut HeaderMap<HeaderValue>);
-	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody;
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody;
 }
 
 #[async_trait]

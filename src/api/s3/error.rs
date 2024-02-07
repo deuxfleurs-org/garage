@@ -168,7 +168,7 @@ impl ApiError for Error {
 		}
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody {
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody {
 		let error = s3_xml::Error {
 			code: s3_xml::Value(self.aws_code().to_string()),
 			message: s3_xml::Value(format!("{}", self)),
@@ -185,6 +185,6 @@ impl ApiError for Error {
             "#
 			.into()
 		});
-		string_bytes_body(error_str)
+		error_body(error_str)
 	}
 }

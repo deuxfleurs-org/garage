@@ -98,7 +98,7 @@ httpdate = "1.0"
 http-range = "0.1"
 http-body-util = "0.1"
 hyper = { version = "1.0", features = ["server", "http1"] }
-hyper-util = { verion = "0.1", features = [ "full" ]}
+hyper-util = { version = "0.1", features = [ "full" ] }
 multer = "3.0"
 percent-encoding = "2.2"
 roxmltree = "0.19"

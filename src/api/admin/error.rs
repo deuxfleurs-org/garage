@@ -7,7 +7,7 @@ pub use garage_model::helper::error::Error as HelperError;
 use crate::common_error::CommonError;
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
-use crate::helpers::{BytesBody, CustomApiErrorBody};
+use crate::helpers::*;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
@@ -65,7 +65,7 @@ impl ApiError for Error {
 		header_map.append(header::CONTENT_TYPE, "application/json".parse().unwrap());
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody {
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody {
 		let error = CustomApiErrorBody {
 			code: self.code().to_string(),
 			message: format!("{}", self),
@@ -81,6 +81,6 @@ impl ApiError for Error {
 			"#
 			.into()
 		});
-		BytesBody::from(bytes::Bytes::from(error_str.into_bytes()))
+		error_body(error_str)
 	}
 }

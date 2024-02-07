@@ -144,7 +144,7 @@ pub fn key_after_prefix(pfx: &str) -> Option<String> {
 // =============== body helpers =================
 
 pub type EmptyBody = http_body_util::Empty<bytes::Bytes>;
-pub type BytesBody = FullBody<bytes::Bytes>;
+pub type ErrorBody = FullBody<bytes::Bytes>;
 pub type BoxBody<E> = http_body_util::combinators::BoxBody<bytes::Bytes, E>;
 
 pub fn string_body<E>(s: String) -> BoxBody<E> {
@@ -156,8 +156,8 @@ pub fn bytes_body<E>(b: bytes::Bytes) -> BoxBody<E> {
 pub fn empty_body<E>() -> BoxBody<E> {
 	BoxBody::new(http_body_util::Empty::new().map_err(|_| unreachable!()))
 }
-pub fn string_bytes_body(s: String) -> BytesBody {
-	BytesBody::from(bytes::Bytes::from(s.into_bytes()))
+pub fn error_body(s: String) -> ErrorBody {
+	ErrorBody::from(bytes::Bytes::from(s.into_bytes()))
 }
 
 pub async fn parse_json_body<T, B, E>(req: Request<B>) -> Result<T, E>

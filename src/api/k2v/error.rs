@@ -94,7 +94,7 @@ impl ApiError for Error {
 		header_map.append(header::CONTENT_TYPE, "application/json".parse().unwrap());
 	}
 
-	fn http_body(&self, garage_region: &str, path: &str) -> BytesBody {
+	fn http_body(&self, garage_region: &str, path: &str) -> ErrorBody {
 		let error = CustomApiErrorBody {
 			code: self.code().to_string(),
 			message: format!("{}", self),
@@ -110,6 +110,6 @@ impl ApiError for Error {
 			"#
 			.into()
 		});
-		string_bytes_body(error_str)
+		error_body(error_str)
 	}
 }
