@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures::{prelude::*, TryStreamExt};
-use http_body_util::BodyStream;
+use futures::prelude::*;
 use hyper::{Request, Response};
 use md5::{Digest as Md5Digest, Md5};
 
@@ -89,10 +88,8 @@ pub async fn handle_put_part(
 	// Read first chuck, and at the same time try to get object to see if it exists
 	let key = key.to_string();
 
-	let body_stream = BodyStream::new(req.into_body())
-		.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
-		.map_err(Error::from);
-	let mut chunker = StreamChunker::new(body_stream, garage.config.block_size);
+	let stream = body_stream(req.into_body());
+	let mut chunker = StreamChunker::new(stream, garage.config.block_size);
 
 	let ((_, _, mut mpu), first_block) = futures::try_join!(
 		get_upload(&garage, &bucket_id, &key, &upload_id),

@@ -7,8 +7,7 @@ use std::task::{Context, Poll};
 use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
-use futures::{Stream, StreamExt, TryStreamExt};
-use http_body_util::BodyStream;
+use futures::{Stream, StreamExt};
 use hyper::header::{self, HeaderMap, HeaderName, HeaderValue};
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use multer::{Constraints, Multipart, SizeLimit};
@@ -45,10 +44,8 @@ pub async fn handle_post_object(
 	);
 
 	let (head, body) = req.into_parts();
-	let body_stream = BodyStream::new(body)
-		.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
-		.map_err(Error::from);
-	let mut multipart = Multipart::with_constraints(body_stream, boundary, constraints);
+	let stream = body_stream::<_, Error>(body);
+	let mut multipart = Multipart::with_constraints(stream, boundary, constraints);
 
 	let mut params = HeaderMap::new();
 	let field = loop {

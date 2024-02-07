@@ -4,12 +4,12 @@ use std::sync::Arc;
 use base64::prelude::*;
 use futures::prelude::*;
 use futures::try_join;
-use http_body_util::BodyStream;
-use hyper::body::Bytes;
-use hyper::header::{HeaderMap, HeaderValue};
-use hyper::{Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::Sha256;
+
+use hyper::body::{Body, Bytes};
+use hyper::header::{HeaderMap, HeaderValue};
+use hyper::{Request, Response};
 
 use opentelemetry::{
 	trace::{FutureExt as OtelFutureExt, TraceContextExt, Tracer},
@@ -51,14 +51,12 @@ pub async fn handle_put(
 		None => None,
 	};
 
-	let body_stream = BodyStream::new(req.into_body())
-		.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
-		.map_err(Error::from);
+	let stream = body_stream(req.into_body());
 
 	save_stream(
 		garage,
 		headers,
-		body_stream,
+		stream,
 		bucket,
 		key,
 		content_md5,

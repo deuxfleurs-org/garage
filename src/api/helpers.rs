@@ -1,7 +1,12 @@
 use std::convert::Infallible;
 
+use futures::{Stream, StreamExt, TryStreamExt};
+
 use http_body_util::{BodyExt, Full as FullBody};
-use hyper::{body::Body, Request, Response};
+use hyper::{
+	body::{Body, Bytes},
+	Request, Response,
+};
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
@@ -185,6 +190,22 @@ where
 		.header(http::header::CONTENT_TYPE, "application/json")
 		.body(string_body(resp_json))
 		.unwrap())
+}
+
+pub fn body_stream<B, E>(body: B) -> impl Stream<Item = Result<Bytes, E>>
+where
+	B: Body<Data = Bytes>,
+	<B as Body>::Error: Into<E>,
+	E: From<Error>,
+{
+	let stream = http_body_util::BodyStream::new(body);
+	let stream = TryStreamExt::map_err(stream, Into::into);
+	stream.map(|x| {
+		x.and_then(|f| {
+			f.into_data()
+				.map_err(|_| E::from(Error::bad_request("non-data frame")))
+		})
+	})
 }
 
 pub fn is_default<T: Default + PartialEq>(v: &T) -> bool {

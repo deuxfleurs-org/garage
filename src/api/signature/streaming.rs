@@ -5,7 +5,7 @@ use futures::prelude::*;
 use futures::task;
 use garage_model::key_table::Key;
 use hmac::Mac;
-use http_body_util::{BodyStream, StreamBody};
+use http_body_util::StreamBody;
 use hyper::body::{Bytes, Incoming as IncomingBody};
 use hyper::Request;
 
@@ -51,11 +51,9 @@ pub fn parse_streaming_body(
 				.ok_or_internal_error("Unable to build signing HMAC")?;
 
 			Ok(req.map(move |body| {
-				let body_stream = BodyStream::new(body)
-					.map(|x| x.map(|f| f.into_data().unwrap())) //TODO remove unwrap
-					.map_err(Error::from);
+				let stream = body_stream::<_, Error>(body);
 				let signed_payload_stream =
-					SignedPayloadStream::new(body_stream, signing_hmac, date, &scope, signature)
+					SignedPayloadStream::new(stream, signing_hmac, date, &scope, signature)
 						.map(|x| x.map(hyper::body::Frame::data))
 						.map_err(Error::from);
 				ReqBody::new(StreamBody::new(signed_payload_stream))
