@@ -38,8 +38,6 @@ steps:
     when:
       - matrix:
           ARCH: amd64
-      - matrix:
-          ARCH: i386
 
   - name: push static binary
     image: nixpkgs/nix:nixos-22.05
