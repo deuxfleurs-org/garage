@@ -19,17 +19,6 @@ let
       overlays = [ cargo2nixOverlay ];
     };
 
-  /* Cargo2nix is built for rustOverlay which installs Rust from Mozilla releases.
-     This is fine for 64-bit platforms, but for 32-bit platforms, we need our own Rust
-     to avoid incompatibilities with time_t between different versions of musl
-     (>= 1.2.0 shipped by NixOS, < 1.2.0 with which rustc was built), which lead to compilation breakage.
-     So we want a Rust release that is bound to our Nix repository to avoid these problems.
-     See here for more info: https://musl.libc.org/time64.html
-     Because Cargo2nix does not support the Rust environment shipped by NixOS,
-     we emulate the structure of the Rust object created by rustOverlay.
-     In practise, rustOverlay ships rustc+cargo in a single derivation while
-     NixOS ships them in separate ones. We reunite them with symlinkJoin.
-  */
   toolchainOptions = {
     rustVersion = "1.73.0";
     extraRustComponents = [ "clippy" ];
