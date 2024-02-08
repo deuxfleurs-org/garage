@@ -232,7 +232,7 @@ impl<T: CountedItem> IndexCounter<T> {
 
 		let now = now_msec();
 		for (s, inc) in counts.iter() {
-			let mut ent = entry.values.entry(s.to_string()).or_insert((0, 0));
+			let ent = entry.values.entry(s.to_string()).or_insert((0, 0));
 			ent.0 = std::cmp::max(ent.0 + 1, now);
 			ent.1 += *inc;
 		}
@@ -348,7 +348,7 @@ impl<T: CountedItem> IndexCounter<T> {
 					},
 				};
 				for (s, v) in counts.iter() {
-					let mut tv = local_counter.values.entry(s.to_string()).or_insert((0, 0));
+					let tv = local_counter.values.entry(s.to_string()).or_insert((0, 0));
 					tv.0 = std::cmp::max(tv.0 + 1, now);
 					tv.1 += v;
 				}

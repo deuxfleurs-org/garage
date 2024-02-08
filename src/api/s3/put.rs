@@ -7,7 +7,7 @@ use futures::try_join;
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::Sha256;
 
-use hyper::body::{Body, Bytes};
+use hyper::body::Bytes;
 use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Request, Response};
 
