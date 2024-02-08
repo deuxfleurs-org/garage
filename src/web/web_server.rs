@@ -2,15 +2,14 @@ use std::fs::{self, Permissions};
 use std::os::unix::prelude::PermissionsExt;
 use std::{convert::Infallible, sync::Arc};
 
-use futures::future::Future;
+use tokio::net::{TcpListener, UnixListener};
+use tokio::sync::watch;
 
 use hyper::{
 	body::Incoming as IncomingBody,
 	header::{HeaderValue, HOST},
 	Method, Request, Response, StatusCode,
 };
-
-use tokio::net::{TcpListener, UnixListener};
 
 use opentelemetry::{
 	global,
@@ -84,8 +83,9 @@ impl WebServer {
 	pub async fn run(
 		self: Arc<Self>,
 		bind_addr: UnixOrTCPSocketAddress,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
+		let server_name = "Web".into();
 		info!("Web server listening on {}", bind_addr);
 
 		match bind_addr {
@@ -94,7 +94,7 @@ impl WebServer {
 
 				let handler =
 					move |stream, socketaddr| self.clone().handle_request(stream, socketaddr);
-				server_loop(listener, handler, shutdown_signal).await
+				server_loop(server_name, listener, handler, must_exit).await
 			}
 			UnixOrTCPSocketAddress::UnixSocket(ref path) => {
 				if path.exists() {
@@ -108,7 +108,7 @@ impl WebServer {
 
 				let handler =
 					move |stream, socketaddr| self.clone().handle_request(stream, socketaddr);
-				server_loop(listener, handler, shutdown_signal).await
+				server_loop(server_name, listener, handler, must_exit).await
 			}
 		}
 	}

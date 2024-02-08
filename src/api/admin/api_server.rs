@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
 use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
+use tokio::sync::watch;
 
 use opentelemetry::trace::SpanRef;
 
@@ -65,11 +65,11 @@ impl AdminApiServer {
 	pub async fn run(
 		self,
 		bind_addr: UnixOrTCPSocketAddress,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		let region = self.garage.config.s3_api.s3_region.clone();
 		ApiServer::new(region, self)
-			.run_server(bind_addr, Some(0o220), shutdown_signal)
+			.run_server(bind_addr, Some(0o220), must_exit)
 			.await
 	}
 
