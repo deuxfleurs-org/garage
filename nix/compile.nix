@@ -32,7 +32,7 @@ let
   */
   toolchainOptions = if target == null || target == "x86_64-unknown-linux-musl"
   || target == "aarch64-unknown-linux-musl" then {
-    rustVersion = "1.68.0";
+    rustVersion = "1.73.0";
     extraRustComponents = [ "clippy" ];
   } else {
     rustToolchain = pkgs.symlinkJoin {
