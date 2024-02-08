@@ -30,19 +30,9 @@ let
      In practise, rustOverlay ships rustc+cargo in a single derivation while
      NixOS ships them in separate ones. We reunite them with symlinkJoin.
   */
-  toolchainOptions = if target == null || target == "x86_64-unknown-linux-musl"
-  || target == "aarch64-unknown-linux-musl" then {
+  toolchainOptions = {
     rustVersion = "1.73.0";
     extraRustComponents = [ "clippy" ];
-  } else {
-    rustToolchain = pkgs.symlinkJoin {
-      name = "rust-static-toolchain-${target}";
-      paths = [
-        pkgs.rustPlatform.rust.cargo
-        pkgs.rustPlatform.rust.rustc
-        # clippy not needed, it only runs on amd64
-      ];
-    };
   };
 
   buildEnv = (drv:
