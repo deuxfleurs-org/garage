@@ -45,7 +45,7 @@ else let
   inherit (rustLib) fetchCratesIo fetchCrateLocal fetchCrateGit fetchCrateAlternativeRegistry expandFeatures decideProfile genDrvsByProfile;
   profilesByName = {
     dev = builtins.fromTOML "lto = \"off\"\n";
-    release = builtins.fromTOML "debug = true\n";
+    release = builtins.fromTOML "codegen-units = 1\nlto = true\nopt-level = \"s\"\nstrip = true\n";
   };
   rootFeatures' = expandFeatures rootFeatures;
   overridableMkRustCrate = f:

@@ -131,7 +131,8 @@ aws-sdk-config = "1.13"
 aws-sdk-s3 = "1.14"
 
 [profile.dev]
-lto = "thin"
+#lto = "thin"	# disabled for now, adds 2-4 min to each CI build
+lto = "off"
 
 [profile.release]
 lto = true
