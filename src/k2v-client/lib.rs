@@ -10,7 +10,7 @@ use http::header::{ACCEPT, CONTENT_TYPE};
 use http::status::StatusCode;
 use http::{HeaderName, HeaderValue, Request};
 use http_body_util::{BodyExt, Full as FullBody};
-use hyper::{body::Body as BodyTrait, body::Bytes};
+use hyper::body::Bytes;
 use hyper_rustls::HttpsConnector;
 use hyper_util::client::legacy::{connect::HttpConnector, Client as HttpClient};
 use hyper_util::rt::TokioExecutor;

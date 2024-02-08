@@ -61,8 +61,7 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port,
-				BCKT_NAME.to_string()
+				ctx.garage.admin_port, BCKT_NAME
 			))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
@@ -136,8 +135,7 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port,
-				BCKT_NAME.to_string()
+				ctx.garage.admin_port, BCKT_NAME
 			))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
