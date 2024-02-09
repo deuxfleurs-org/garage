@@ -6,8 +6,6 @@ let
   pkgs = import pkgsSrc {
     inherit system;
   };
-  kaniko = (import ./nix/kaniko.nix) pkgs;
-  manifest-tool = (import ./nix/manifest-tool.nix) pkgs;
   winscp = (import ./nix/winscp.nix) pkgs;
 in
 {
@@ -18,10 +16,10 @@ in
   # The shell used for all CI jobs (along with devShell)
   ci = pkgs.mkShell {
     nativeBuildInputs = with pkgs; [
-      kaniko
-      manifest-tool
       winscp
 
+      kaniko
+      manifest-tool
       awscli2
       file
       s3cmd
@@ -123,15 +121,6 @@ in
   # A shell for refreshing caches
   cache = pkgs.mkShell {
     shellHook = ''
-      function refresh_toolchain {
-        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        nix copy -j8 \
-          --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
-          $(nix-store -qR \
-              $(nix-build -j8 --no-build-output --no-out-link nix/toolchain.nix))
-        rm /tmp/nix-signing-key.sec
-      }
-
       function refresh_cache {
         pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
         for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.release; do
@@ -140,17 +129,6 @@ in
             --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
             $(nix path-info ''${attr} --file default.nix --derivation --recursive | sed 's/\.drv$/.drv^*/')
 
-        done
-        rm /tmp/nix-signing-key.sec
-      }
-
-      function refresh_flake_cache {
-        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        for attr in packages.x86_64-linux.default devShells.x86_64-linux.default; do
-          echo "Updating cache for ''${attr}"
-          nix copy -j8 \
-            --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
-            ".#''${attr}"
         done
         rm /tmp/nix-signing-key.sec
       }
