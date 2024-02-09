@@ -1,12 +1,14 @@
 //! Function related to GET and HEAD requests
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
 use futures::future;
 use futures::stream::{self, StreamExt};
 use http::header::{
-	ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, IF_MODIFIED_SINCE,
-	IF_NONE_MATCH, LAST_MODIFIED, RANGE,
+	ACCEPT_RANGES, CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LANGUAGE,
+	CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH,
+	LAST_MODIFIED, RANGE,
 };
 use hyper::{body::Body, Request, Response, StatusCode};
 use tokio::sync::mpsc;
@@ -26,6 +28,16 @@ use crate::s3::api_server::ResBody;
 use crate::s3::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
+
+#[derive(Default)]
+pub struct GetObjectOverrides {
+	pub(crate) response_cache_control: Option<String>,
+	pub(crate) response_content_disposition: Option<String>,
+	pub(crate) response_content_encoding: Option<String>,
+	pub(crate) response_content_language: Option<String>,
+	pub(crate) response_content_type: Option<String>,
+	pub(crate) response_expires: Option<String>,
+}
 
 fn object_headers(
 	version: &ObjectVersion,
@@ -50,6 +62,32 @@ fn object_headers(
 	}
 
 	resp
+}
+
+/// Override headers according to specific query parameters, see
+/// section "Overriding response header values through the request" in
+/// https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
+fn getobject_override_headers(
+	overrides: GetObjectOverrides,
+	resp: &mut http::response::Builder,
+) -> Result<(), Error> {
+	// TODO: this only applies for signed requests, so when we support
+	// anonymous access in the future we will have to do a permission check here
+	let overrides = [
+		(CACHE_CONTROL, overrides.response_cache_control),
+		(CONTENT_DISPOSITION, overrides.response_content_disposition),
+		(CONTENT_ENCODING, overrides.response_content_encoding),
+		(CONTENT_LANGUAGE, overrides.response_content_language),
+		(CONTENT_TYPE, overrides.response_content_type),
+		(EXPIRES, overrides.response_expires),
+	];
+	for (hdr, val_opt) in overrides {
+		if let Some(val) = val_opt {
+			let val = val.try_into().ok_or_bad_request("invalid header value")?;
+			resp.headers_mut().unwrap().insert(hdr, val);
+		}
+	}
+	Ok(())
 }
 
 fn try_answer_cached(
@@ -185,6 +223,7 @@ pub async fn handle_get(
 	bucket_id: Uuid,
 	key: &str,
 	part_number: Option<u64>,
+	overrides: GetObjectOverrides,
 ) -> Result<Response<ResBody>, Error> {
 	let object = garage
 		.object_table
@@ -236,9 +275,10 @@ pub async fn handle_get(
 		(None, None) => (),
 	}
 
-	let resp_builder = object_headers(last_v, last_v_meta)
+	let mut resp_builder = object_headers(last_v, last_v_meta)
 		.header(CONTENT_LENGTH, format!("{}", last_v_meta.size))
 		.status(StatusCode::OK);
+	getobject_override_headers(overrides, &mut resp_builder)?;
 
 	match &last_v_data {
 		ObjectVersionData::DeleteMarker => unreachable!(),
@@ -303,6 +343,9 @@ async fn handle_get_range(
 	begin: u64,
 	end: u64,
 ) -> Result<Response<ResBody>, Error> {
+	// Here we do not use getobject_override_headers because we don't
+	// want to add any overridden headers (those should not be added
+	// when returning PARTIAL_CONTENT)
 	let resp_builder = object_headers(version, version_meta)
 		.header(CONTENT_LENGTH, format!("{}", end - begin))
 		.header(
@@ -343,6 +386,7 @@ async fn handle_get_part(
 	version_meta: &ObjectVersionMeta,
 	part_number: u64,
 ) -> Result<Response<ResBody>, Error> {
+	// Same as for get_range, no getobject_override_headers
 	let resp_builder =
 		object_headers(object_version, version_meta).status(StatusCode::PARTIAL_CONTENT);
 
