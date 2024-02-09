@@ -39,15 +39,6 @@ in
             --region garage \
           s3 cp \
             ./result-bin/bin/garage \
-            s3://garagehq.deuxfleurs.fr/_releases/''${DRONE_TAG:-$DRONE_COMMIT}/''${TARGET}/garage
-      }
-
-      function to_s3_woodpecker {
-        aws \
-            --endpoint-url https://garage.deuxfleurs.fr \
-            --region garage \
-          s3 cp \
-            ./result-bin/bin/garage \
             s3://garagehq.deuxfleurs.fr/_releases/''${CI_COMMIT_TAG:-$CI_COMMIT_SHA}/''${TARGET}/garage
       }
 

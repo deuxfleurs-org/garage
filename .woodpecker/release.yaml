@@ -54,7 +54,7 @@ steps:
       - source: garagehq_aws_secret_access_key
         target: AWS_SECRET_ACCESS_KEY
     commands:
-      - nix-shell --attr ci --run "to_s3_woodpecker"
+      - nix-shell --attr ci --run "to_s3"
 
   - name: docker build and publish
     image: nixpkgs/nix:nixos-22.05

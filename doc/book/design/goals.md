@@ -48,7 +48,5 @@ locations. They use Garage themselves for the following tasks:
 
 - As a backup target using `rclone` and `restic`
 
-- In the Drone continuous integration platform to store task logs
-
 The Deuxfleurs Garage cluster is a multi-site cluster currently composed of
 9 nodes in 3 physical locations.
