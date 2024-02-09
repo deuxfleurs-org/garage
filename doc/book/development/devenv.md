@@ -80,7 +80,7 @@ nix-build \
   --git_version $(git rev-parse HEAD)
 ```
 
-*The result is located in `result/bin`. You can pass arguments to cross compile: check `.drone.yml` for examples.*
+*The result is located in `result/bin`. You can pass arguments to cross compile: check `.woodpecker/release.yml` for examples.*
 
 If you modify a `Cargo.toml` or regenerate any `Cargo.lock`, you must run `cargo2nix`:
 

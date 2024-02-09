@@ -5,97 +5,35 @@ with import ./nix/common.nix;
 let
   pkgs = import pkgsSrc {
     inherit system;
-    overlays = [ cargo2nixOverlay ];
   };
-  kaniko = (import ./nix/kaniko.nix) pkgs;
-  manifest-tool = (import ./nix/manifest-tool.nix) pkgs;
   winscp = (import ./nix/winscp.nix) pkgs;
+in
+{
+  # --- Dev shell inherited from flake.nix ---
+  devShell = devShells.default;
 
-in {
-  # --- Rust Shell ---
-  # Use it to compile Garage
-  rust = pkgs.mkShell {
+  # --- Continuous integration shell ---
+  # The shell used for all CI jobs (along with devShell)
+  ci = pkgs.mkShell {
     nativeBuildInputs = with pkgs; [
-      #rustPlatform.rust.rustc
-      rustPlatform.rust.cargo
-      clang
-      mold
-      #clippy
-      rustfmt
-      #perl
-      #protobuf
-      #pkg-config
-      #openssl
-      file
-      #cargo2nix.packages.x86_64-linux.cargo2nix
-    ];
-  };
-
-  # --- Integration shell ---
-  # Use it to test Garage with common S3 clients
-  integration = pkgs.mkShell {
-    nativeBuildInputs = [
       winscp
-      pkgs.s3cmd
-      pkgs.awscli2
-      pkgs.minio-client
-      pkgs.rclone
-      pkgs.socat
-      pkgs.psmisc
-      pkgs.which
-      pkgs.openssl
-      pkgs.curl
-      pkgs.jq
+
+      kaniko
+      manifest-tool
+      awscli2
+      file
+      s3cmd
+      minio-client
+      rclone
+      socat
+      psmisc
+      which
+      openssl
+      curl
+      jq
     ];
-  };
-
-  # --- Release shell ---
-  # A shell built to make releasing easier
-  release = pkgs.mkShell {
     shellHook = ''
-      function refresh_toolchain {
-        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        nix copy \
-          --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
-          $(nix-store -qR \
-            $(nix-build --no-build-output --no-out-link nix/toolchain.nix))
-        rm /tmp/nix-signing-key.sec
-      }
-
-      function refresh_cache {
-        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.{debug,release}; do
-          echo "Updating cache for ''${attr}"
-          derivation=$(nix-instantiate --attr ''${attr})
-          nix copy -j8 \
-            --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
-            $(nix-store -qR ''${derivation%\!bin})
-        done
-        rm /tmp/nix-signing-key.sec
-      }
-
-      function refresh_flake_cache {
-        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        for attr in packages.x86_64-linux.default devShell.x86_64-linux; do
-          echo "Updating cache for ''${attr}"
-          derivation=$(nix path-info --derivation ".#''${attr}")
-          nix copy -j8 \
-            --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
-            $(nix-store -qR ''${derivation})
-        done
-        rm /tmp/nix-signing-key.sec
-      }
-
       function to_s3 {
-        aws \
-            --endpoint-url https://garage.deuxfleurs.fr \
-            --region garage \
-          s3 cp \
-            ./result-bin/bin/garage \
-            s3://garagehq.deuxfleurs.fr/_releases/''${DRONE_TAG:-$DRONE_COMMIT}/''${TARGET}/garage
-      }
-
-      function to_s3_woodpecker {
         aws \
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
@@ -107,8 +45,8 @@ in {
       function to_docker {
         executor  \
           --force \
-          --customPlatform="''${DOCKER_PLATFORM}" \
-          --destination "''${CONTAINER_NAME}:''${CONTAINER_TAG}" \
+          --customPlatform="$(echo "''${DOCKER_PLATFORM}" | sed 's/i386/386/')" \
+          --destination "$(echo "''${CONTAINER_NAME}" | sed 's/i386/386/'):''${CONTAINER_TAG}" \
           --context dir://`pwd` \
           --verbosity=debug
       }
@@ -167,7 +105,25 @@ in {
             s3://garagehq.deuxfleurs.fr/
       }
     '';
-    nativeBuildInputs = [ pkgs.awscli2 kaniko manifest-tool ];
+
+  };
+
+  # --- Cache shell ---
+  # A shell for refreshing caches
+  cache = pkgs.mkShell {
+    shellHook = ''
+      function refresh_cache {
+        pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
+        for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.release; do
+          echo "Updating cache for ''${attr}"
+          nix copy -j8 \
+            --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \
+            $(nix path-info ''${attr} --file default.nix --derivation --recursive | sed 's/\.drv$/.drv^*/')
+
+        done
+        rm /tmp/nix-signing-key.sec
+      }
+    '';
   };
 }
 

@@ -19,12 +19,17 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr pkgs.${ARCH}.release --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-      - nix-shell --attr rust --run "./script/not-dynamic.sh result-bin/bin/garage"
+
+  - name: check is static binary
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-build --no-build-output --attr pkgs.${ARCH}.release --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
     when:
       - matrix:
           ARCH: amd64
@@ -34,7 +39,7 @@ steps:
   - name: upgrade tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr integration --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
     when:
       - matrix:
           ARCH: amd64
@@ -49,19 +54,17 @@ steps:
       - source: garagehq_aws_secret_access_key
         target: AWS_SECRET_ACCESS_KEY
     commands:
-      - nix-shell --attr release --run "to_s3_woodpecker"
+      - nix-shell --attr ci --run "to_s3"
 
-#  - name: docker build and publish
-#    image: nixpkgs/nix:nixos-22.05
-#    environment:
-#      DOCKER_PLATFORM: "linux/${ARCH}"
-#      CONTAINER_NAME: "dxflrs/${ARCH}_garage"
-#      HOME: "/kaniko"
-#    secrets:
-#      - docker_auth
-#    commands:
-#      - mkdir -p /kaniko/.docker
-#      - echo $DOCKER_AUTH > /kaniko/.docker/config.json
-#      - sha512sum /kaniko/.docker/config.json
-#      - export CONTAINER_TAG=${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-#      - nix-shell --attr release --run "to_docker"
+  - name: docker build and publish
+    image: nixpkgs/nix:nixos-22.05
+    environment:
+      DOCKER_PLATFORM: "linux/${ARCH}"
+      CONTAINER_NAME: "dxflrs/${ARCH}_garage"
+    secrets:
+      - docker_auth
+    commands:
+      - mkdir -p /root/.docker
+      - echo $DOCKER_AUTH > /root/.docker/config.json
+      - export CONTAINER_TAG=${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-shell --attr ci --run "to_docker"

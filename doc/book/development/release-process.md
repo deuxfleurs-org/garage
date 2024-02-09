@@ -42,7 +42,7 @@ and the docker containers on Docker Hub.
 
 ## Automation
 
-We automated our release process with Nix and Drone to make it more reliable.
+We automated our release process with Nix and Woodpecker to make it more reliable.
 Here we describe how we have done in case you want to debug or improve it.
 
 ### Caching build steps
@@ -62,52 +62,31 @@ Sending to the cache is done through `nix copy`, for example:
 nix copy --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' result
 ```
 
-*Note that you need the signing key. In our case, it is stored as a secret in Drone.*
+*The signing key possessed by the Garage maintainers is required to update the Nix cache.*
 
-The previous command will only send the built packet and not its dependencies.
-To send its dependency, a tool named `nix-copy-closure` has been created but it is not compatible with the S3 protocol.
-
-Instead, you can use the following commands to list all the runtime dependencies:
-
-```bash
-nix copy \
-  --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-  $(nix-store -qR result/)
-```
-
-*We could also write this expression with xargs but this tool is not available in our container.*
-
-But in certain cases, we want to cache compile time dependencies also.
-For example, the Nix project does not provide binaries for cross compiling to i686 and thus we need to compile gcc on our own.
-We do not want to compile gcc each time, so even if it is a compile time dependency, we want to cache it.
-
-This time, the command is a bit more involved:
+The previous command will only send the built package and not its dependencies.
+In the case of our CI pipeline, we want to cache all intermediate build steps
+as well. This can be done using this quite involved command (here as an example
+for the `pkgs.amd64.relase` package):
 
 ```bash
-nix copy --to \
-  's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/signing-key.sec' \
-   $(nix-store -qR --include-outputs \
-     $(nix-instantiate))
+nix copy -j8 \
+    --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/etc/nix/nix-signing-key.sec' \
+    $(nix path-info pkgs.amd64.release --file default.nix --derivation --recursive | sed 's/\.drv$/.drv^*/')
 ```
 
-This is the command we use in our CI as we expect the final binary to change, so we mainly focus on
-caching our development dependencies.
+This command will simultaneously build all of the required Nix paths (using at
+most 8 parallel Nix builder jobs) and send the resulting objects to the cache.
 
-*Currently there is no automatic garbage collection of the cache: we should monitor its growth.
-Hopefully, we can erase it totally without breaking any build, the next build will only be slower.*
-
-In practise, we concluded that we do not want to cache all the compilation dependencies.
-Instead, we want to cache the toolchain we use to build Garage each time we change it.
-So we removed from Drone any automatic update of the cache and instead handle them manually with:
+This can be run for all the Garage packages we build using the following command:
 
 ```
 source ~/.awsrc
-nix-shell --run 'refresh_toolchain'
+nix-shell --attr cache --run 'refresh_cache'
 ```
 
-Internally, it will run `nix-build` on  `nix/toolchain.nix` and send the output plus its depedencies to the cache.
-
-To erase the cache:
+We don't automate this step at each CI build, as *there is currently no automatic garbage collection of the cache.*
+This means we should also monitor the cache's size; if it ever becomes too big we can erase it with:
 
 ```
 mc rm --recursive --force 'garage/nix/'
@@ -157,9 +136,9 @@ nix-shell --run refresh_index
 
 If you want to compile for different architectures, you will need to repeat all these commands for each architecture.
 
-**In practise, and except for debugging, you will never directly run these commands. Release is handled by drone**
+**In practice, and except for debugging, you will never directly run these commands. Release is handled by Woodpecker.**
 
-### Drone
+### Drone (obsolete)
 
 Our instance is available at [https://drone.deuxfleurs.fr](https://drone.deuxfleurs.fr).  
 You need an account on [https://git.deuxfleurs.fr](https://git.deuxfleurs.fr) to use it.
