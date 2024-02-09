@@ -170,7 +170,7 @@ pub enum Endpoint {
 	},
 	ListBuckets,
 	ListMultipartUploads {
-		delimiter: Option<char>,
+		delimiter: Option<String>,
 		encoding_type: Option<String>,
 		key_marker: Option<String>,
 		max_uploads: Option<usize>,
@@ -178,7 +178,7 @@ pub enum Endpoint {
 		upload_id_marker: Option<String>,
 	},
 	ListObjects {
-		delimiter: Option<char>,
+		delimiter: Option<String>,
 		encoding_type: Option<String>,
 		marker: Option<String>,
 		max_keys: Option<usize>,
@@ -188,7 +188,7 @@ pub enum Endpoint {
 		// This value should always be 2. It is not checked when constructing the struct
 		list_type: String,
 		continuation_token: Option<String>,
-		delimiter: Option<char>,
+		delimiter: Option<String>,
 		encoding_type: Option<String>,
 		fetch_owner: Option<bool>,
 		max_keys: Option<usize>,
@@ -196,7 +196,7 @@ pub enum Endpoint {
 		start_after: Option<String>,
 	},
 	ListObjectVersions {
-		delimiter: Option<char>,
+		delimiter: Option<String>,
 		encoding_type: Option<String>,
 		key_marker: Option<String>,
 		max_keys: Option<u64>,

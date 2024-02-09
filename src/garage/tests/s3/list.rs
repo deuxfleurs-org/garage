@@ -613,3 +613,63 @@ async fn test_listmultipart() {
 		assert!(r.common_prefixes.is_none());
 	}
 }
+
+#[tokio::test]
+async fn test_multichar_delimiter() {
+	// Test case from dpape from issue #692 with reference results from Amazon
+
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("multichardelim");
+
+	for k in [
+		"a/", "a/b/", "a/b/c/", "a/b/c/d", "a/c/", "a/c/b/", "a/c/b/e",
+	] {
+		ctx.client
+			.put_object()
+			.bucket(&bucket)
+			.key(k)
+			.send()
+			.await
+			.unwrap();
+	}
+
+	// With delimiter /
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.delimiter("/")
+			.send()
+			.await
+			.unwrap();
+
+		assert!(r.contents.is_none());
+
+		let common_prefixes = r.common_prefixes.unwrap();
+		assert_eq!(common_prefixes.len(), 1);
+		assert_eq!(common_prefixes[0].prefix.as_deref().unwrap(), "a/");
+	}
+
+	// With delimiter b/
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.delimiter("b/")
+			.send()
+			.await
+			.unwrap();
+
+		let contents = r.contents.unwrap();
+		assert_eq!(contents.len(), 2);
+		assert_eq!(contents[0].key.as_deref().unwrap(), "a/");
+		assert_eq!(contents[1].key.as_deref().unwrap(), "a/c/");
+
+		let common_prefixes = r.common_prefixes.unwrap();
+		assert_eq!(common_prefixes.len(), 2);
+		assert_eq!(common_prefixes[0].prefix.as_deref().unwrap(), "a/b/");
+		assert_eq!(common_prefixes[1].prefix.as_deref().unwrap(), "a/c/b/");
+	}
+}
