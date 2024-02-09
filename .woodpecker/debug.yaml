@@ -10,7 +10,7 @@ steps:
   - name: check formatting
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr rust --run "cargo fmt -- --check"
+      - nix-shell --attr devShell --run "cargo fmt -- --check"
 
   - name: build
     image: nixpkgs/nix:nixos-22.05
@@ -41,4 +41,4 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-      - nix-shell --attr integration --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
