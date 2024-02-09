@@ -260,7 +260,7 @@ impl ApiHandler for S3ApiServer {
 						common: ListQueryCommon {
 							bucket_name,
 							bucket_id,
-							delimiter: delimiter.map(|d| d.to_string()),
+							delimiter,
 							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
@@ -290,7 +290,7 @@ impl ApiHandler for S3ApiServer {
 							common: ListQueryCommon {
 								bucket_name,
 								bucket_id,
-								delimiter: delimiter.map(|d| d.to_string()),
+								delimiter,
 								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 								prefix: prefix.unwrap_or_default(),
@@ -323,7 +323,7 @@ impl ApiHandler for S3ApiServer {
 						common: ListQueryCommon {
 							bucket_name,
 							bucket_id,
-							delimiter: delimiter.map(|d| d.to_string()),
+							delimiter,
 							page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
