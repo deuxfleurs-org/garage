@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
 use hyper::header;
 use hyper::{body::Incoming as IncomingBody, Request, Response};
+use tokio::sync::watch;
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -51,10 +51,10 @@ impl S3ApiServer {
 		garage: Arc<Garage>,
 		addr: UnixOrTCPSocketAddress,
 		s3_region: String,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, S3ApiServer { garage })
-			.run_server(addr, None, shutdown_signal)
+			.run_server(addr, None, must_exit)
 			.await
 	}
 

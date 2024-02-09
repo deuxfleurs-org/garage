@@ -67,8 +67,8 @@ fn open_db(path: PathBuf, engine: Engine, open: &OpenDbOpt) -> Result<Db> {
 		#[cfg(feature = "sqlite")]
 		Engine::Sqlite => {
 			let db = sqlite_adapter::rusqlite::Connection::open(&path)?;
-			db.pragma_update(None, "journal_mode", &"WAL")?;
-			db.pragma_update(None, "synchronous", &"NORMAL")?;
+			db.pragma_update(None, "journal_mode", "WAL")?;
+			db.pragma_update(None, "synchronous", "NORMAL")?;
 			Ok(sqlite_adapter::SqliteDb::init(db))
 		}
 		#[cfg(feature = "lmdb")]

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
 use hyper::{body::Incoming as IncomingBody, Method, Request, Response};
+use tokio::sync::watch;
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -42,10 +42,10 @@ impl K2VApiServer {
 		garage: Arc<Garage>,
 		bind_addr: UnixOrTCPSocketAddress,
 		s3_region: String,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, K2VApiServer { garage })
-			.run_server(bind_addr, None, shutdown_signal)
+			.run_server(bind_addr, None, must_exit)
 			.await
 	}
 }

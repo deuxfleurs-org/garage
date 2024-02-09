@@ -213,10 +213,10 @@ mod tests {
 			};
 
 			use std::os::unix::fs::PermissionsExt;
-			let metadata = std::fs::metadata(&path_secret_path)?;
+			let metadata = std::fs::metadata(path_secret_path)?;
 			let mut perm = metadata.permissions();
 			perm.set_mode(0o660);
-			std::fs::set_permissions(&path_secret_path, perm)?;
+			std::fs::set_permissions(path_secret_path, perm)?;
 
 			// Config file that just specifies the path
 			let config = read_config(path_config.to_path_buf())?;

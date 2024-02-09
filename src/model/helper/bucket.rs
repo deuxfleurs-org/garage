@@ -126,7 +126,7 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		// Checks ok, add alias
-		let mut bucket_p = bucket.state.as_option_mut().unwrap();
+		let bucket_p = bucket.state.as_option_mut().unwrap();
 
 		let alias_ts = increment_logical_clock_2(
 			bucket_p.aliases.get_timestamp(alias_name),
@@ -163,7 +163,7 @@ impl<'a> BucketHelper<'a> {
 		alias_name: &String,
 	) -> Result<(), Error> {
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
-		let mut bucket_state = bucket.state.as_option_mut().unwrap();
+		let bucket_state = bucket.state.as_option_mut().unwrap();
 
 		let mut alias = self
 			.0
@@ -245,7 +245,7 @@ impl<'a> BucketHelper<'a> {
 			self.0.bucket_alias_table.insert(&alias).await?;
 		}
 
-		if let Some(mut bucket_state) = bucket.state.as_option_mut() {
+		if let Some(bucket_state) = bucket.state.as_option_mut() {
 			bucket_state.aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, false);
 			self.0.bucket_table.insert(&bucket).await?;
 		}
@@ -274,7 +274,7 @@ impl<'a> BucketHelper<'a> {
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
 		let mut key = key_helper.get_existing_key(key_id).await?;
 
-		let mut key_param = key.state.as_option_mut().unwrap();
+		let key_param = key.state.as_option_mut().unwrap();
 
 		if let Some(Some(existing_alias)) = key_param.local_aliases.get(alias_name) {
 			if *existing_alias != bucket_id {
@@ -283,7 +283,7 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		// Checks ok, add alias
-		let mut bucket_p = bucket.state.as_option_mut().unwrap();
+		let bucket_p = bucket.state.as_option_mut().unwrap();
 		let bucket_p_local_alias_key = (key.key_id.clone(), alias_name.clone());
 
 		// Calculate the timestamp to assign to this aliasing in the two local_aliases maps
@@ -326,7 +326,7 @@ impl<'a> BucketHelper<'a> {
 		let mut bucket = self.get_existing_bucket(bucket_id).await?;
 		let mut key = key_helper.get_existing_key(key_id).await?;
 
-		let mut bucket_p = bucket.state.as_option_mut().unwrap();
+		let bucket_p = bucket.state.as_option_mut().unwrap();
 
 		if key
 			.state
@@ -359,7 +359,7 @@ impl<'a> BucketHelper<'a> {
 		}
 
 		// Checks ok, remove alias
-		let mut key_param = key.state.as_option_mut().unwrap();
+		let key_param = key.state.as_option_mut().unwrap();
 		let bucket_p_local_alias_key = (key.key_id.clone(), alias_name.clone());
 
 		let alias_ts = increment_logical_clock_2(

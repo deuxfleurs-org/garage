@@ -205,8 +205,8 @@ impl<'a> RequestBuilder<'a> {
 		all_headers.insert("x-amz-content-sha256".to_owned(), body_sha.clone());
 
 		let mut signed_headers = all_headers
-			.iter()
-			.map(|(k, _)| k.as_ref())
+			.keys()
+			.map(|k| k.as_ref())
 			.collect::<Vec<&str>>();
 		signed_headers.sort();
 		let signed_headers = signed_headers.join(";");

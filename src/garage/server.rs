@@ -88,7 +88,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 				garage.clone(),
 				s3_bind_addr.clone(),
 				config.s3_api.s3_region.clone(),
-				wait_from(watch_cancel.clone()),
+				watch_cancel.clone(),
 			)),
 		));
 	}
@@ -103,7 +103,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 					garage.clone(),
 					config.k2v_api.as_ref().unwrap().api_bind_addr.clone(),
 					config.s3_api.s3_region.clone(),
-					wait_from(watch_cancel.clone()),
+					watch_cancel.clone(),
 				)),
 			));
 		}
@@ -116,10 +116,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 		let web_server = WebServer::new(garage.clone(), web_config.root_domain.clone());
 		servers.push((
 			"Web",
-			tokio::spawn(web_server.run(
-				web_config.bind_addr.clone(),
-				wait_from(watch_cancel.clone()),
-			)),
+			tokio::spawn(web_server.run(web_config.bind_addr.clone(), watch_cancel.clone())),
 		));
 	}
 
@@ -127,9 +124,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 		info!("Launching Admin API server...");
 		servers.push((
 			"Admin",
-			tokio::spawn(
-				admin_server.run(admin_bind_addr.clone(), wait_from(watch_cancel.clone())),
-			),
+			tokio::spawn(admin_server.run(admin_bind_addr.clone(), watch_cancel.clone())),
 		));
 	}
 
