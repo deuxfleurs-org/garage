@@ -247,7 +247,17 @@ impl WebServer {
 				.map_err(ApiError::from)
 				.map(|res| res.map(|_empty_body: EmptyBody| empty_body())),
 			Method::HEAD => handle_head(self.garage.clone(), &req, bucket_id, &key, None).await,
-			Method::GET => handle_get(self.garage.clone(), &req, bucket_id, &key, None).await,
+			Method::GET => {
+				handle_get(
+					self.garage.clone(),
+					&req,
+					bucket_id,
+					&key,
+					None,
+					Default::default(),
+				)
+				.await
+			}
 			_ => Err(ApiError::bad_request("HTTP method not supported")),
 		};
 
@@ -291,7 +301,15 @@ impl WebServer {
 					.body(empty_body::<Infallible>())
 					.unwrap();
 
-				match handle_get(self.garage.clone(), &req2, bucket_id, &error_document, None).await
+				match handle_get(
+					self.garage.clone(),
+					&req2,
+					bucket_id,
+					&error_document,
+					None,
+					Default::default(),
+				)
+				.await
 				{
 					Ok(mut error_doc) => {
 						// The error won't be logged back in handle_request,

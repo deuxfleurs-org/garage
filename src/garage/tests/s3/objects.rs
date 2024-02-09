@@ -185,6 +185,30 @@ async fn test_getobject() {
 		assert_eq!(o.content_range.unwrap().as_str(), "bytes 57-61/62");
 		assert_bytes_eq!(o.body, &BODY[57..]);
 	}
+	{
+		let exp = aws_sdk_s3::primitives::DateTime::from_secs(10000000000);
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.response_content_type("application/x-dummy-test")
+			.response_cache_control("ccdummy")
+			.response_content_disposition("cddummy")
+			.response_content_encoding("cedummy")
+			.response_content_language("cldummy")
+			.response_expires(exp)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.content_type.unwrap().as_str(), "application/x-dummy-test");
+		assert_eq!(o.cache_control.unwrap().as_str(), "ccdummy");
+		assert_eq!(o.content_disposition.unwrap().as_str(), "cddummy");
+		assert_eq!(o.content_encoding.unwrap().as_str(), "cedummy");
+		assert_eq!(o.content_language.unwrap().as_str(), "cldummy");
+		assert_eq!(o.expires.unwrap(), exp);
+		assert_bytes_eq!(o.body, &BODY[..]);
+	}
 }
 
 #[tokio::test]

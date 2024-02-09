@@ -178,8 +178,26 @@ impl ApiHandler for S3ApiServer {
 				key, part_number, ..
 			} => handle_head(garage, &req, bucket_id, &key, part_number).await,
 			Endpoint::GetObject {
-				key, part_number, ..
-			} => handle_get(garage, &req, bucket_id, &key, part_number).await,
+				key,
+				part_number,
+				response_cache_control,
+				response_content_disposition,
+				response_content_encoding,
+				response_content_language,
+				response_content_type,
+				response_expires,
+				..
+			} => {
+				let overrides = GetObjectOverrides {
+					response_cache_control,
+					response_content_disposition,
+					response_content_encoding,
+					response_content_language,
+					response_content_type,
+					response_expires,
+				};
+				handle_get(garage, &req, bucket_id, &key, part_number, overrides).await
+			}
 			Endpoint::UploadPart {
 				key,
 				part_number,
