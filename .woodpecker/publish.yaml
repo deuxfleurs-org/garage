@@ -18,15 +18,12 @@ steps:
       - mkdir -p /etc/nix && cp nix/nix.conf /etc/nix/nix.conf
       - nix-shell --attr ci --run "refresh_index"
 
-#  - name: multiarch-docker
-#    image: nixpkgs/nix:nixos-22.05
-#    environment:
-#      HOME: "/root"
-#    secrets:
-#      - docker_auth
-#    commands:
-#      - mkdir -p /root/.docker
-#      - echo $DOCKER_AUTH > /root/.docker/config.json
-#      - sha512sum /root/.docker/config.json
-#      - export CONTAINER_TAG=${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-#      - nix-shell --attr ci --run "multiarch_docker"
+  - name: multiarch-docker
+    image: nixpkgs/nix:nixos-22.05
+    secrets:
+      - docker_auth
+    commands:
+      - mkdir -p /root/.docker
+      - echo $DOCKER_AUTH > /root/.docker/config.json
+      - export CONTAINER_TAG=${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-shell --attr ci --run "multiarch_docker"
