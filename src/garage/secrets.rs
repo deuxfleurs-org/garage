@@ -83,7 +83,7 @@ pub fn fill_secrets(mut config: Config, secrets: Secrets) -> Result<Config, Erro
 	Ok(config)
 }
 
-fn fill_secret(
+pub(crate) fn fill_secret(
 	config_secret: &mut Option<String>,
 	config_secret_file: &Option<String>,
 	cli_secret: &Option<String>,
