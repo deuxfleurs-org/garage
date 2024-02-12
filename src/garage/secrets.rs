@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use structopt::StructOpt;
 
 use garage_util::config::Config;
@@ -23,7 +25,7 @@ pub struct Secrets {
 	/// RPC secret network key, used to replace rpc_secret in config.toml and rpc-secret
 	/// when running the daemon or doing admin operations
 	#[structopt(long = "rpc-secret-file", env = "GARAGE_RPC_SECRET_FILE")]
-	pub rpc_secret_file: Option<String>,
+	pub rpc_secret_file: Option<PathBuf>,
 
 	/// Admin API authentication token, replaces admin.admin_token in config.toml when
 	/// running the Garage daemon
@@ -33,7 +35,7 @@ pub struct Secrets {
 	/// Admin API authentication token file path, replaces admin.admin_token in config.toml
 	/// and admin-token when running the Garage daemon
 	#[structopt(long = "admin-token-file", env = "GARAGE_ADMIN_TOKEN_FILE")]
-	pub admin_token_file: Option<String>,
+	pub admin_token_file: Option<PathBuf>,
 
 	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
 	/// running the Garage daemon
@@ -43,7 +45,7 @@ pub struct Secrets {
 	/// Metrics API authentication token file path, replaces admin.metrics_token in config.toml
 	/// and metrics-token when running the Garage daemon
 	#[structopt(long = "metrics-token-file", env = "GARAGE_METRICS_TOKEN_FILE")]
-	pub metrics_token_file: Option<String>,
+	pub metrics_token_file: Option<PathBuf>,
 }
 
 /// Single function to fill all secrets in the Config struct from their correct source (value
@@ -85,9 +87,9 @@ pub fn fill_secrets(mut config: Config, secrets: Secrets) -> Result<Config, Erro
 
 pub(crate) fn fill_secret(
 	config_secret: &mut Option<String>,
-	config_secret_file: &Option<String>,
+	config_secret_file: &Option<PathBuf>,
 	cli_secret: &Option<String>,
-	cli_secret_file: &Option<String>,
+	cli_secret_file: &Option<PathBuf>,
 	name: &'static str,
 	allow_world_readable: bool,
 ) -> Result<(), Error> {
@@ -117,14 +119,14 @@ pub(crate) fn fill_secret(
 	Ok(())
 }
 
-fn read_secret_file(file_path: &String, allow_world_readable: bool) -> Result<String, Error> {
+fn read_secret_file(file_path: &PathBuf, allow_world_readable: bool) -> Result<String, Error> {
 	if !allow_world_readable {
 		#[cfg(unix)]
 		{
 			use std::os::unix::fs::MetadataExt;
 			let metadata = std::fs::metadata(file_path)?;
 			if metadata.mode() & 0o077 != 0 {
-				return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path, metadata.mode()).into());
+				return Err(format!("File {} is world-readable! (mode: 0{:o}, expected 0600)\nRefusing to start until this is fixed, or environment variable GARAGE_ALLOW_WORLD_READABLE_SECRETS is set to true.", file_path.display(), metadata.mode()).into());
 			}
 		}
 	}
@@ -260,7 +262,7 @@ mod tests {
 		let config = fill_secrets(
 			config,
 			Secrets {
-				rpc_secret_file: Some(path_secret2.display().to_string()),
+				rpc_secret_file: Some(path_secret2.clone()),
 				..Default::default()
 			},
 		)?;
@@ -271,7 +273,7 @@ mod tests {
 			config,
 			Secrets {
 				rpc_secret: Some("baz".into()),
-				rpc_secret_file: Some(path_secret2.display().to_string()),
+				rpc_secret_file: Some(path_secret2.clone()),
 				..Default::default()
 			}
 		)
