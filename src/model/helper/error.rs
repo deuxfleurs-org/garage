@@ -22,9 +22,9 @@ pub enum Error {
 	NoSuchBucket(String),
 }
 
-impl From<netapp::error::Error> for Error {
-	fn from(e: netapp::error::Error) -> Self {
-		Error::Internal(GarageError::Netapp(e))
+impl From<garage_net::error::Error> for Error {
+	fn from(e: garage_net::error::Error) -> Self {
+		Error::Internal(GarageError::Net(e))
 	}
 }
 

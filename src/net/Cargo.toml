@@ -1,0 +1,43 @@
+[package]
+name = "garage_net"
+version = "0.9.1"
+authors = ["Alex Auvolat <alex@adnab.me>"]
+edition = "2018"
+license-file = "AGPL-3.0"
+description = "Networking library for Garage RPC communication, forked from Netapp"
+repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
+readme = "../../README.md"
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = []
+telemetry = ["opentelemetry", "opentelemetry-contrib"]
+
+[dependencies]
+futures.workspace = true
+pin-project.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tokio-stream.workspace = true
+
+serde.workspace = true
+rmp-serde.workspace = true
+hex.workspace = true
+
+rand.workspace = true
+
+log.workspace = true
+arc-swap.workspace = true
+async-trait.workspace = true
+err-derive.workspace = true
+bytes.workspace = true
+cfg-if.workspace = true
+
+sodiumoxide.workspace = true
+kuska-handshake.workspace = true
+
+opentelemetry = { workspace = true, optional = true }
+opentelemetry-contrib = { workspace = true, optional = true }
+

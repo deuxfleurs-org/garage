@@ -14,13 +14,13 @@ use opentelemetry::{
 	Context,
 };
 
-pub use netapp::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
-pub use netapp::message::{
+pub use garage_net::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
+pub use garage_net::message::{
 	IntoReq, Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH,
 	PRIO_NORMAL, PRIO_SECONDARY,
 };
-use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-pub use netapp::{self, NetApp, NodeID};
+use garage_net::peering::fullmesh::FullMeshPeeringStrategy;
+pub use garage_net::{self, NetApp, NodeID};
 
 use garage_util::data::*;
 use garage_util::error::Error;
@@ -183,7 +183,7 @@ impl RpcHelper {
 		N: IntoReq<M>,
 		H: StreamingEndpointHandler<M>,
 	{
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 
 		let resps = join_all(
 			to.iter()
@@ -274,7 +274,7 @@ impl RpcHelper {
 		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
 	{
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 
 		// Build future for each request
 		// They are not started now: they are added below in a FuturesUnordered

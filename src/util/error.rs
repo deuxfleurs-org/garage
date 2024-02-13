@@ -24,8 +24,8 @@ pub enum Error {
 	#[error(display = "Invalid HTTP header value: {}", _0)]
 	HttpHeader(#[error(source)] http::header::ToStrError),
 
-	#[error(display = "Netapp error: {}", _0)]
-	Netapp(#[error(source)] netapp::error::Error),
+	#[error(display = "Network error: {}", _0)]
+	Net(#[error(source)] garage_net::error::Error),
 
 	#[error(display = "DB error: {}", _0)]
 	Db(#[error(source)] garage_db::Error),

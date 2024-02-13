@@ -16,11 +16,11 @@ use tokio::select;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 
-use netapp::endpoint::{Endpoint, EndpointHandler};
-use netapp::message::*;
-use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-use netapp::util::parse_and_resolve_peer_addr_async;
-use netapp::{NetApp, NetworkKey, NodeID, NodeKey};
+use garage_net::endpoint::{Endpoint, EndpointHandler};
+use garage_net::message::*;
+use garage_net::peering::fullmesh::FullMeshPeeringStrategy;
+use garage_net::util::parse_and_resolve_peer_addr_async;
+use garage_net::{NetApp, NetworkKey, NodeID, NodeKey};
 
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
@@ -985,7 +985,7 @@ async fn resolve_peers(peers: &[String]) -> Vec<(NodeID, SocketAddr)> {
 fn connect_error_message(
 	addr: SocketAddr,
 	pubkey: ed25519::PublicKey,
-	e: netapp::error::Error,
+	e: garage_net::error::Error,
 ) -> String {
 	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}", hex::encode(pubkey), addr, e)
 }

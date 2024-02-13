@@ -1270,6 +1270,7 @@ dependencies = [
  "garage_block",
  "garage_db",
  "garage_model",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1284,7 +1285,6 @@ dependencies = [
  "k2v-client",
  "kuska-sodiumoxide",
  "mktemp",
- "netapp",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
@@ -1319,6 +1319,7 @@ dependencies = [
  "futures-util",
  "garage_block",
  "garage_model",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1363,6 +1364,7 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1404,11 +1406,11 @@ dependencies = [
  "futures-util",
  "garage_block",
  "garage_db",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
  "hex",
- "netapp",
  "opentelemetry",
  "rand",
  "serde",
@@ -1416,6 +1418,31 @@ dependencies = [
  "tokio",
  "tracing",
  "zstd",
+]
+
+[[package]]
+name = "garage_net"
+version = "0.9.1"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "bytes",
+ "cfg-if",
+ "err-derive",
+ "futures",
+ "hex",
+ "kuska-handshake",
+ "kuska-sodiumoxide",
+ "log",
+ "opentelemetry",
+ "opentelemetry-contrib",
+ "pin-project",
+ "rand",
+ "rmp-serde",
+ "serde",
+ "tokio",
+ "tokio-stream",
+ "tokio-util 0.7.10",
 ]
 
 [[package]]
@@ -1431,6 +1458,7 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
+ "garage_net",
  "garage_util",
  "gethostname",
  "hex",
@@ -1438,7 +1466,6 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp",
  "nix",
  "opentelemetry",
  "pnet_datalink",
@@ -1489,13 +1516,13 @@ dependencies = [
  "err-derive",
  "futures",
  "garage_db",
+ "garage_net",
  "hex",
  "hexdump",
  "http 1.0.0",
  "hyper 1.1.0",
  "lazy_static",
  "mktemp",
- "netapp",
  "opentelemetry",
  "rand",
  "rmp-serde",
@@ -2426,33 +2453,6 @@ name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
-
-[[package]]
-name = "netapp"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a00b76cec93e3ae68c9ed5f08e27a1507424987ee23d5ec961ebd4da820a265"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes",
- "cfg-if",
- "err-derive",
- "futures",
- "hex",
- "kuska-handshake",
- "kuska-sodiumoxide",
- "log",
- "opentelemetry",
- "opentelemetry-contrib",
- "pin-project",
- "rand",
- "rmp-serde",
- "serde",
- "tokio",
- "tokio-stream",
- "tokio-util 0.7.10",
-]
 
 [[package]]
 name = "nix"
