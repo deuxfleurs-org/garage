@@ -7,6 +7,7 @@ use base64::prelude::*;
 use serde_json::json;
 
 use crate::json_body;
+use http_body_util::BodyExt;
 use hyper::{Method, StatusCode};
 
 #[tokio::test]
@@ -83,10 +84,7 @@ async fn test_items_and_indices() {
 			.to_str()
 			.unwrap()
 			.to_string();
-		let res_body = hyper::body::to_bytes(res.into_body())
-			.await
-			.unwrap()
-			.to_vec();
+		let res_body = res.into_body().collect().await.unwrap().to_bytes();
 		assert_eq!(res_body, content);
 
 		// ReadIndex -- now there should be some stuff
@@ -152,10 +150,7 @@ async fn test_items_and_indices() {
 			res.headers().get("content-type").unwrap().to_str().unwrap(),
 			"application/octet-stream"
 		);
-		let res_body = hyper::body::to_bytes(res.into_body())
-			.await
-			.unwrap()
-			.to_vec();
+		let res_body = res.into_body().collect().await.unwrap().to_bytes();
 		assert_eq!(res_body, content2);
 
 		// ReadIndex -- now there should be some stuff
@@ -394,10 +389,7 @@ async fn test_item_return_format() {
 		.to_str()
 		.unwrap()
 		.to_string();
-	let res_body = hyper::body::to_bytes(res.into_body())
-		.await
-		.unwrap()
-		.to_vec();
+	let res_body = res.into_body().collect().await.unwrap().to_bytes();
 	assert_eq!(res_body, single_value);
 
 	// f1: not specified
@@ -434,10 +426,7 @@ async fn test_item_return_format() {
 		res.headers().get("content-type").unwrap().to_str().unwrap(),
 		"application/octet-stream"
 	);
-	let res_body = hyper::body::to_bytes(res.into_body())
-		.await
-		.unwrap()
-		.to_vec();
+	let res_body = res.into_body().collect().await.unwrap().to_bytes();
 	assert_eq!(res_body, single_value);
 
 	// f3: json

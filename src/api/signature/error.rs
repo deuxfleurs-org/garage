@@ -18,10 +18,6 @@ pub enum Error {
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUtf8Str(#[error(source)] std::str::Utf8Error),
-
-	/// The client sent a header with invalid value
-	#[error(display = "Invalid header value: {}", _0)]
-	InvalidHeader(#[error(source)] hyper::header::ToStrError),
 }
 
 impl<T> From<T> for Error

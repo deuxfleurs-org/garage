@@ -2,9 +2,9 @@
   description =
     "Garage, an S3-compatible distributed object store for self-hosted deployments";
 
-  # Nixpkgs unstable as of 2023-04-25, has rustc v1.68
+  # Nixpkgs 23.11 as of 2024-02-07, has rustc v1.73
   inputs.nixpkgs.url =
-    "github:NixOS/nixpkgs/94517a501434a627c5d9e72ac6e7f26174b978d3";
+    "github:NixOS/nixpkgs/9f2ee8c91ac42da3ae6c6a1d21555f283458247e";
 
   inputs.flake-compat.url = "github:nix-community/flake-compat";
 
@@ -17,9 +17,9 @@
     # - rustc v1.66
     # url = "github:cargo2nix/cargo2nix/8fb57a670f7993bfc24099c33eb9c5abb51f29a2";
 
-    # Rust overlay as of 2023-04-25
+    # Rust overlay as of 2024-02-07
     inputs.rust-overlay.url =
-      "github:oxalica/rust-overlay/74f1a64dd28faeeb85ef081f32cad2989850322c";
+      "github:oxalica/rust-overlay/7a94fe7690d2bdfe1aab475382a505e14dc114a6";
 
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.flake-compat.follows = "flake-compat";
@@ -33,25 +33,57 @@
       compile = import ./nix/compile.nix;
     in
     flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = nixpkgs.legacyPackages.${system};
-      in {
-        packages = {
-          default = (compile {
-            inherit system git_version;
-            pkgsSrc = nixpkgs;
-            cargo2nixOverlay = cargo2nix.overlays.default;
-            release = true;
-          }).workspace.garage { compileMode = "build"; };
-        };
-        devShell = (compile {
-          inherit system git_version;
-          pkgsSrc = nixpkgs;
-          cargo2nixOverlay = cargo2nix.overlays.default;
-          release = false;
-        }).workspaceShell { packages = with pkgs; [
-          rustfmt
-          clang
-          mold
-        ]; };
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+      {
+        packages =
+          let
+            packageFor = target: (compile {
+              inherit system git_version target;
+              pkgsSrc = nixpkgs;
+              cargo2nixOverlay = cargo2nix.overlays.default;
+              release = true;
+            }).workspace.garage { compileMode = "build"; };
+          in
+          {
+            # default = native release build
+            default = packageFor null;
+            # other = cross-compiled, statically-linked builds
+            amd64 = packageFor "x86_64-unknown-linux-musl";
+            i386 = packageFor "i686-unknown-linux-musl";
+            arm64 = packageFor "aarch64-unknown-linux-musl";
+            arm = packageFor "armv6l-unknown-linux-musl";
+          };
+
+        # ---- developpment shell, for making native builds only ----
+        devShells =
+          let
+            shellWithPackages = (packages: (compile {
+              inherit system git_version;
+              pkgsSrc = nixpkgs;
+              cargo2nixOverlay = cargo2nix.overlays.default;
+            }).workspaceShell { inherit packages; });
+          in
+          {
+            default = shellWithPackages
+              (with pkgs; [
+                rustfmt
+                clang
+                mold
+              ]);
+
+            # import the full shell using `nix develop .#full`
+            full = shellWithPackages (with pkgs; [
+              rustfmt
+              clang
+              mold
+              # ---- extra packages for dev tasks ----
+              cargo-audit
+              cargo-outdated
+              cargo-machete
+              nixpkgs-fmt
+            ]);
+          };
       });
 }

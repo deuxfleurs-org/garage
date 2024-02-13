@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
 use hyper::header;
-use hyper::{Body, Request, Response};
+use hyper::{body::Incoming as IncomingBody, Request, Response};
+use tokio::sync::watch;
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -34,6 +34,9 @@ use crate::s3::put::*;
 use crate::s3::router::Endpoint;
 use crate::s3::website::*;
 
+pub use crate::signature::streaming::ReqBody;
+pub type ResBody = BoxBody<Error>;
+
 pub struct S3ApiServer {
 	garage: Arc<Garage>,
 }
@@ -48,19 +51,19 @@ impl S3ApiServer {
 		garage: Arc<Garage>,
 		addr: UnixOrTCPSocketAddress,
 		s3_region: String,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, S3ApiServer { garage })
-			.run_server(addr, None, shutdown_signal)
+			.run_server(addr, None, must_exit)
 			.await
 	}
 
 	async fn handle_request_without_bucket(
 		&self,
-		_req: Request<Body>,
+		_req: Request<ReqBody>,
 		api_key: Key,
 		endpoint: Endpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		match endpoint {
 			Endpoint::ListBuckets => handle_list_buckets(&self.garage, &api_key).await,
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
@@ -76,7 +79,7 @@ impl ApiHandler for S3ApiServer {
 	type Endpoint = S3ApiEndpoint;
 	type Error = Error;
 
-	fn parse_endpoint(&self, req: &Request<Body>) -> Result<S3ApiEndpoint, Error> {
+	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<S3ApiEndpoint, Error> {
 		let authority = req
 			.headers()
 			.get(header::HOST)
@@ -104,9 +107,9 @@ impl ApiHandler for S3ApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<Body>,
+		req: Request<IncomingBody>,
 		endpoint: S3ApiEndpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		let S3ApiEndpoint {
 			bucket_name,
 			endpoint,
@@ -118,7 +121,8 @@ impl ApiHandler for S3ApiServer {
 			return handle_post_object(garage, req, bucket_name.unwrap()).await;
 		}
 		if let Endpoint::Options = endpoint {
-			return handle_options_s3api(garage, &req, bucket_name).await;
+			let options_res = handle_options_api(garage, &req, bucket_name).await?;
+			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
 		let (api_key, mut content_sha256) = check_payload_signature(&garage, "s3", &req).await?;
@@ -174,8 +178,26 @@ impl ApiHandler for S3ApiServer {
 				key, part_number, ..
 			} => handle_head(garage, &req, bucket_id, &key, part_number).await,
 			Endpoint::GetObject {
-				key, part_number, ..
-			} => handle_get(garage, &req, bucket_id, &key, part_number).await,
+				key,
+				part_number,
+				response_cache_control,
+				response_content_disposition,
+				response_content_encoding,
+				response_content_language,
+				response_content_type,
+				response_expires,
+				..
+			} => {
+				let overrides = GetObjectOverrides {
+					response_cache_control,
+					response_content_disposition,
+					response_content_encoding,
+					response_content_language,
+					response_content_type,
+					response_expires,
+				};
+				handle_get(garage, &req, bucket_id, &key, part_number, overrides).await
+			}
 			Endpoint::UploadPart {
 				key,
 				part_number,
@@ -235,8 +257,7 @@ impl ApiHandler for S3ApiServer {
 			}
 			Endpoint::CreateBucket {} => unreachable!(),
 			Endpoint::HeadBucket {} => {
-				let empty_body: Body = Body::from(vec![]);
-				let response = Response::builder().body(empty_body).unwrap();
+				let response = Response::builder().body(empty_body()).unwrap();
 				Ok(response)
 			}
 			Endpoint::DeleteBucket {} => {
@@ -257,7 +278,7 @@ impl ApiHandler for S3ApiServer {
 						common: ListQueryCommon {
 							bucket_name,
 							bucket_id,
-							delimiter: delimiter.map(|d| d.to_string()),
+							delimiter,
 							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
@@ -287,7 +308,7 @@ impl ApiHandler for S3ApiServer {
 							common: ListQueryCommon {
 								bucket_name,
 								bucket_id,
-								delimiter: delimiter.map(|d| d.to_string()),
+								delimiter,
 								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
 								prefix: prefix.unwrap_or_default(),
@@ -320,7 +341,7 @@ impl ApiHandler for S3ApiServer {
 						common: ListQueryCommon {
 							bucket_name,
 							bucket_id,
-							delimiter: delimiter.map(|d| d.to_string()),
+							delimiter,
 							page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
 							prefix: prefix.unwrap_or_default(),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),

@@ -19,26 +19,26 @@ garage_rpc.workspace = true
 garage_util.workspace = true
 garage_table.workspace = true
 
-opentelemetry = "0.17"
+opentelemetry.workspace = true
 
-arc-swap = "1.5"
-async-trait = "0.1.7"
-bytes = "1.0"
-bytesize = "1.2"
-hex = "0.4"
-tracing = "0.1"
-rand = "0.8"
+arc-swap.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+bytesize.workspace = true
+hex.workspace = true
+tracing.workspace = true
+rand.workspace = true
 
-async-compression = { version = "0.4", features = ["tokio", "zstd"] }
-zstd = { version = "0.12", default-features = false }
+async-compression.workspace = true
+zstd.workspace = true
 
-serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
-serde_bytes = "0.11"
+serde.workspace = true
+serde_bytes.workspace = true
 
-futures = "0.3"
-futures-util = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
-tokio-util = { version = "0.7", features = ["io"] }
+futures.workspace = true
+futures-util.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
 
 [features]
 system-libs = [ "zstd/pkg-config" ]

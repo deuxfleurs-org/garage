@@ -8,14 +8,17 @@ use aws_sdk_s3::{
 	types::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
 };
 use http::{Request, StatusCode};
-use hyper::{
-	body::{to_bytes, Body},
-	Client,
-};
+use http_body_util::BodyExt;
+use http_body_util::Full as FullBody;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use serde_json::json;
 
 const BODY: &[u8; 16] = b"<h1>bonjour</h1>";
 const BODY_ERR: &[u8; 6] = b"erreur";
+
+pub type Body = FullBody<Bytes>;
 
 #[tokio::test]
 async fn test_website() {
@@ -34,14 +37,14 @@ async fn test_website() {
 		.await
 		.unwrap();
 
-	let client = Client::new();
+	let client = Client::builder(TokioExecutor::new()).build_http();
 
 	let req = || {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -49,7 +52,7 @@ async fn test_website() {
 
 	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		BodyExt::collect(resp.into_body()).await.unwrap().to_bytes(),
 		BODY.as_ref()
 	); /* check that we do not leak body */
 
@@ -58,10 +61,9 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port,
-				BCKT_NAME.to_string()
+				ctx.garage.admin_port, BCKT_NAME
 			))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -87,7 +89,7 @@ async fn test_website() {
 	resp = client.request(req()).await.unwrap();
 	assert_eq!(resp.status(), StatusCode::OK);
 	assert_eq!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		resp.into_body().collect().await.unwrap().to_bytes(),
 		BODY.as_ref()
 	);
 
@@ -103,14 +105,14 @@ async fn test_website() {
 					"http://127.0.0.1:{0}/check?domain={1}",
 					ctx.garage.admin_port, bname
 				))
-				.body(Body::empty())
+				.body(Body::new(Bytes::new()))
 				.unwrap()
 		};
 
-		let mut admin_resp = client.request(admin_req()).await.unwrap();
+		let admin_resp = client.request(admin_req()).await.unwrap();
 		assert_eq!(admin_resp.status(), StatusCode::OK);
 		assert_eq!(
-			to_bytes(admin_resp.body_mut()).await.unwrap().as_ref(),
+			admin_resp.into_body().collect().await.unwrap().to_bytes(),
 			format!("Domain '{bname}' is managed by Garage").as_bytes()
 		);
 	}
@@ -124,7 +126,7 @@ async fn test_website() {
 	resp = client.request(req()).await.unwrap();
 	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 	assert_ne!(
-		to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+		resp.into_body().collect().await.unwrap().to_bytes(),
 		BODY.as_ref()
 	); /* check that we do not leak body */
 
@@ -133,10 +135,9 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port,
-				BCKT_NAME.to_string()
+				ctx.garage.admin_port, BCKT_NAME
 			))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -181,8 +182,18 @@ async fn test_website_s3_api() {
 		.unwrap();
 
 	let conf = WebsiteConfiguration::builder()
-		.index_document(IndexDocument::builder().suffix("home.html").build())
-		.error_document(ErrorDocument::builder().key("err/error.html").build())
+		.index_document(
+			IndexDocument::builder()
+				.suffix("home.html")
+				.build()
+				.unwrap(),
+		)
+		.error_document(
+			ErrorDocument::builder()
+				.key("err/error.html")
+				.build()
+				.unwrap(),
+		)
 		.build();
 
 	ctx.client
@@ -201,9 +212,11 @@ async fn test_website_s3_api() {
 				.allowed_methods("GET")
 				.allowed_methods("PUT")
 				.allowed_origins("*")
-				.build(),
+				.build()
+				.unwrap(),
 		)
-		.build();
+		.build()
+		.unwrap();
 
 	ctx.client
 		.put_bucket_cors()
@@ -222,24 +235,21 @@ async fn test_website_s3_api() {
 			.await
 			.unwrap();
 
-		let main_rule = cors_res.cors_rules().unwrap().iter().next().unwrap();
+		let main_rule = cors_res.cors_rules().iter().next().unwrap();
 
 		assert_eq!(main_rule.id.as_ref().unwrap(), "main-rule");
 		assert_eq!(
 			main_rule.allowed_headers.as_ref().unwrap(),
 			&vec!["*".to_string()]
 		);
+		assert_eq!(&main_rule.allowed_origins, &vec!["*".to_string()]);
 		assert_eq!(
-			main_rule.allowed_origins.as_ref().unwrap(),
-			&vec!["*".to_string()]
-		);
-		assert_eq!(
-			main_rule.allowed_methods.as_ref().unwrap(),
+			&main_rule.allowed_methods,
 			&vec!["GET".to_string(), "PUT".to_string()]
 		);
 	}
 
-	let client = Client::new();
+	let client = Client::builder(TokioExecutor::new()).build_http();
 
 	// Test direct requests with CORS
 	{
@@ -248,10 +258,10 @@ async fn test_website_s3_api() {
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
 			.header("Origin", "https://example.com")
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
@@ -259,7 +269,7 @@ async fn test_website_s3_api() {
 			"*"
 		);
 		assert_eq!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -273,14 +283,14 @@ async fn test_website_s3_api() {
 				ctx.garage.web_port
 			))
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 		assert_eq!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY_ERR.as_ref()
 		);
 	}
@@ -293,10 +303,10 @@ async fn test_website_s3_api() {
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "PUT")
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::OK);
 		assert_eq!(
@@ -304,7 +314,7 @@ async fn test_website_s3_api() {
 			"*"
 		);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -317,14 +327,14 @@ async fn test_website_s3_api() {
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "DELETE")
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -358,14 +368,14 @@ async fn test_website_s3_api() {
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "PUT")
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
+			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY.as_ref()
 		);
 	}
@@ -384,20 +394,15 @@ async fn test_website_s3_api() {
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
 			.header("Host", format!("{}.web.garage", BCKT_NAME))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap();
 
-		let mut resp = client.request(req).await.unwrap();
+		let resp = client.request(req).await.unwrap();
 
 		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
-			BODY_ERR.as_ref()
-		);
-		assert_ne!(
-			to_bytes(resp.body_mut()).await.unwrap().as_ref(),
-			BODY.as_ref()
-		);
+		let resp_bytes = resp.into_body().collect().await.unwrap().to_bytes();
+		assert_ne!(resp_bytes, BODY_ERR.as_ref());
+		assert_ne!(resp_bytes, BODY.as_ref());
 	}
 }
 
@@ -405,13 +410,13 @@ async fn test_website_s3_api() {
 async fn test_website_check_domain() {
 	let ctx = common::context();
 
-	let client = Client::new();
+	let client = Client::builder(TokioExecutor::new()).build_http();
 
 	let admin_req = || {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/check", ctx.garage.admin_port))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -435,7 +440,7 @@ async fn test_website_check_domain() {
 				"http://127.0.0.1:{}/check?domain=",
 				ctx.garage.admin_port
 			))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -459,7 +464,7 @@ async fn test_website_check_domain() {
 				"http://127.0.0.1:{}/check?domain=foobar",
 				ctx.garage.admin_port
 			))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
@@ -483,7 +488,7 @@ async fn test_website_check_domain() {
 				"http://127.0.0.1:{}/check?domain=%E2%98%B9",
 				ctx.garage.admin_port
 			))
-			.body(Body::empty())
+			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 

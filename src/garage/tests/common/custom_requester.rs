@@ -5,11 +5,16 @@ use std::convert::TryFrom;
 
 use chrono::{offset::Utc, DateTime};
 use hmac::{Hmac, Mac};
-use hyper::client::HttpConnector;
-use hyper::{Body, Client, Method, Request, Response, Uri};
+use http_body_util::BodyExt;
+use http_body_util::Full as FullBody;
+use hyper::{Method, Request, Response, Uri};
+use hyper_util::client::legacy::{connect::HttpConnector, Client};
+use hyper_util::rt::TokioExecutor;
 
 use super::garage::{Instance, Key};
 use garage_api::signature;
+
+pub type Body = FullBody<hyper::body::Bytes>;
 
 /// You should ever only use this to send requests AWS sdk won't send,
 /// like to reproduce behavior of unusual implementations found to be
@@ -19,7 +24,7 @@ pub struct CustomRequester {
 	key: Key,
 	uri: Uri,
 	service: &'static str,
-	client: Client<HttpConnector>,
+	client: Client<HttpConnector, Body>,
 }
 
 impl CustomRequester {
@@ -28,7 +33,7 @@ impl CustomRequester {
 			key: key.clone(),
 			uri: instance.s3_uri(),
 			service: "s3",
-			client: Client::new(),
+			client: Client::builder(TokioExecutor::new()).build_http(),
 		}
 	}
 
@@ -37,7 +42,7 @@ impl CustomRequester {
 			key: key.clone(),
 			uri: instance.k2v_uri(),
 			service: "k2v",
-			client: Client::new(),
+			client: Client::builder(TokioExecutor::new()).build_http(),
 		}
 	}
 
@@ -139,7 +144,7 @@ impl<'a> RequestBuilder<'a> {
 		self
 	}
 
-	pub async fn send(&mut self) -> hyper::Result<Response<Body>> {
+	pub async fn send(&mut self) -> Result<Response<Body>, String> {
 		// TODO this is a bit incorrect in that path and query params should be url-encoded and
 		// aren't, but this is good enought for now.
 
@@ -200,8 +205,8 @@ impl<'a> RequestBuilder<'a> {
 		all_headers.insert("x-amz-content-sha256".to_owned(), body_sha.clone());
 
 		let mut signed_headers = all_headers
-			.iter()
-			.map(|(k, _)| k.as_ref())
+			.keys()
+			.map(|k| k.as_ref())
 			.collect::<Vec<&str>>();
 		signed_headers.sort();
 		let signed_headers = signed_headers.join(";");
@@ -242,7 +247,22 @@ impl<'a> RequestBuilder<'a> {
 			.method(self.method.clone())
 			.body(Body::from(body))
 			.unwrap();
-		self.requester.client.request(request).await
+
+		let result = self
+			.requester
+			.client
+			.request(request)
+			.await
+			.map_err(|err| format!("hyper client error: {}", err))?;
+
+		let (head, body) = result.into_parts();
+		let body = Body::new(
+			body.collect()
+				.await
+				.map_err(|err| format!("hyper client error in body.collect: {}", err))?
+				.to_bytes(),
+		);
+		Ok(Response::from_parts(head, body))
 	}
 }
 

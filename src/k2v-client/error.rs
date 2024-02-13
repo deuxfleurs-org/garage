@@ -22,12 +22,14 @@ pub enum Error {
 	Http(#[from] http::Error),
 	#[error("hyper error: {0}")]
 	Hyper(#[from] hyper::Error),
+	#[error("hyper client error: {0}")]
+	HyperClient(#[from] hyper_util::client::legacy::Error),
 	#[error("invalid header: {0}")]
 	Header(#[from] hyper::header::ToStrError),
 	#[error("deserialization error: {0}")]
 	Deserialization(#[from] serde_json::Error),
 	#[error("invalid signature parameters: {0}")]
-	SignParameters(#[from] aws_sigv4::signing_params::BuildError),
+	SignParameters(#[from] aws_sigv4::sign::v4::signing_params::BuildError),
 	#[error("could not sign request: {0}")]
 	SignRequest(#[from] aws_sigv4::http_request::SigningError),
 	#[error("request timed out")]

@@ -7,6 +7,7 @@ extern crate tracing;
 mod admin;
 mod cli;
 mod repair;
+mod secrets;
 mod server;
 #[cfg(feature = "telemetry-otlp")]
 mod tracing_setup;
@@ -28,7 +29,6 @@ use structopt::StructOpt;
 use netapp::util::parse_and_resolve_peer_addr;
 use netapp::NetworkKey;
 
-use garage_util::config::Config;
 use garage_util::error::*;
 
 use garage_rpc::system::*;
@@ -38,6 +38,7 @@ use garage_model::helper::error::Error as HelperError;
 
 use admin::*;
 use cli::*;
+use secrets::Secrets;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -45,8 +46,7 @@ use cli::*;
 	about = "S3-compatible object store for self-hosted geo-distributed deployments"
 )]
 struct Opt {
-	/// Host to connect to for admin operations, in the format:
-	/// <public-key>@<ip>:<port>
+	/// Host to connect to for admin operations, in the format: <full-node-id>@<ip>:<port>
 	#[structopt(short = "h", long = "rpc-host", env = "GARAGE_RPC_HOST")]
 	pub rpc_host: Option<String>,
 
@@ -64,24 +64,6 @@ struct Opt {
 
 	#[structopt(subcommand)]
 	cmd: Command,
-}
-
-#[derive(StructOpt, Debug)]
-pub struct Secrets {
-	/// RPC secret network key, used to replace rpc_secret in config.toml when running the
-	/// daemon or doing admin operations
-	#[structopt(short = "s", long = "rpc-secret", env = "GARAGE_RPC_SECRET")]
-	pub rpc_secret: Option<String>,
-
-	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
-	/// running the Garage daemon
-	#[structopt(long = "admin-token", env = "GARAGE_ADMIN_TOKEN")]
-	pub admin_token: Option<String>,
-
-	/// Metrics API authentication token, replaces admin.metrics_token in config.toml when
-	/// running the Garage daemon
-	#[structopt(long = "metrics-token", env = "GARAGE_METRICS_TOKEN")]
-	pub metrics_token: Option<String>,
 }
 
 #[tokio::main]
@@ -192,7 +174,9 @@ async fn main() {
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
-	let config = if opt.secrets.rpc_secret.is_none() || opt.rpc_host.is_none() {
+	let config = if (opt.secrets.rpc_secret.is_none() && opt.secrets.rpc_secret_file.is_none())
+		|| opt.rpc_host.is_none()
+	{
 		Some(garage_util::config::read_config(opt.config_file.clone())
 			.err_context(format!("Unable to read configuration file {}. Configuration file is needed because -h or -s is not provided on the command line.", opt.config_file.to_string_lossy()))?)
 	} else {
@@ -200,14 +184,19 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	};
 
 	// Find and parse network RPC secret
-	let net_key_hex_str = opt
-		.secrets
-		.rpc_secret
-		.as_ref()
-		.or_else(|| config.as_ref().and_then(|c| c.rpc_secret.as_ref()))
-		.ok_or("No RPC secret provided")?;
+	let mut rpc_secret = config.as_ref().and_then(|c| c.rpc_secret.clone());
+	secrets::fill_secret(
+		&mut rpc_secret,
+		&config.as_ref().and_then(|c| c.rpc_secret_file.clone()),
+		&opt.secrets.rpc_secret,
+		&opt.secrets.rpc_secret_file,
+		"rpc_secret",
+		true,
+	)?;
+
+	let net_key_hex_str = rpc_secret.ok_or("No RPC secret provided")?;
 	let network_key = NetworkKey::from_slice(
-		&hex::decode(net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
+		&hex::decode(&net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
 	)
 	.ok_or("Invalid RPC secret provided (wrong length)")?;
 
@@ -218,7 +207,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 
 	// Find and parse the address of the target host
 	let (id, addr, is_default_addr) = if let Some(h) = opt.rpc_host {
-		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <pubkey>@<IP or hostname>:<port>.", h))?;
+		let (id, addrs) = parse_and_resolve_peer_addr(&h).ok_or_else(|| format!("Invalid RPC remote node identifier: {}. Expected format is <full node id>@<IP or hostname>:<port>.", h))?;
 		(id, addrs[0], false)
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
@@ -248,7 +237,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 				addr
 			);
 		}
-		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct public key.")?;
+		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct full-length node ID (public key).")?;
 	}
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
@@ -260,17 +249,4 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 		Err(e) => Err(Error::Message(format!("{}", e))),
 		Ok(x) => Ok(x),
 	}
-}
-
-fn fill_secrets(mut config: Config, secrets: Secrets) -> Config {
-	if secrets.rpc_secret.is_some() {
-		config.rpc_secret = secrets.rpc_secret;
-	}
-	if secrets.admin_token.is_some() {
-		config.admin.admin_token = secrets.admin_token;
-	}
-	if secrets.metrics_token.is_some() {
-		config.admin.metrics_token = secrets.metrics_token;
-	}
-	config
 }

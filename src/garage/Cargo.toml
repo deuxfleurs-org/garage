@@ -31,48 +31,51 @@ garage_table.workspace = true
 garage_util.workspace = true
 garage_web.workspace = true
 
-backtrace = "0.3"
-bytes = "1.0"
-bytesize = "1.2"
-timeago = { version = "0.4", default-features = false }
-parse_duration = "2.1"
-hex = "0.4"
-tracing = { version = "0.1" }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-rand = "0.8"
-async-trait = "0.1.7"
-sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
-git-version = "0.3.4"
+backtrace.workspace = true
+bytes.workspace = true
+bytesize.workspace = true
+timeago.workspace = true
+parse_duration.workspace = true
+hex.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rand.workspace = true
+async-trait.workspace = true
+sodiumoxide.workspace = true
+structopt.workspace = true
+git-version.workspace = true
 
-serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
-serde_bytes = "0.11"
-structopt = { version = "0.3", default-features = false }
-toml = "0.6"
+serde.workspace = true
+serde_bytes.workspace = true
+toml.workspace = true
 
-futures = "0.3"
-futures-util = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+futures.workspace = true
+futures-util.workspace = true
+tokio.workspace = true
 
-netapp = "0.10"
+netapp.workspace = true
 
-opentelemetry = { version = "0.17", features = [ "rt-tokio" ] }
-opentelemetry-prometheus = { version = "0.10", optional = true }
-opentelemetry-otlp = { version = "0.10", optional = true }
-prometheus = { version = "0.13", optional = true }
+opentelemetry.workspace = true
+opentelemetry-prometheus = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
+prometheus = { workspace = true, optional = true }
 
 [dev-dependencies]
-aws-config = "0.55.2"
-aws-sdk-s3 = "0.28"
-chrono = "0.4"
-http = "0.2"
-hmac = "0.12"
-hyper = { version = "0.14", features = ["client", "http1", "runtime"] }
-sha2 = "0.10"
+aws-config.workspace = true
+aws-sdk-s3.workspace = true
+chrono.workspace = true
+http.workspace = true
+hmac.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+mktemp.workspace = true
+sha2.workspace = true
 
-static_init = "1.0"
-assert-json-diff = "2.0"
-serde_json = "1.0"
-base64 = "0.21"
+static_init.workspace = true
+assert-json-diff.workspace = true
+serde_json.workspace = true
+base64.workspace = true
 
 k2v-client.workspace = true
 

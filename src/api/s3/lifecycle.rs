@@ -1,10 +1,13 @@
 use quick_xml::de::from_reader;
 use std::sync::Arc;
 
-use hyper::{Body, Request, Response, StatusCode};
+use http_body_util::BodyExt;
+use hyper::{Request, Response, StatusCode};
 
 use serde::{Deserialize, Serialize};
 
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
@@ -16,7 +19,7 @@ use garage_model::bucket_table::{
 use garage_model::garage::Garage;
 use garage_util::data::*;
 
-pub async fn handle_get_lifecycle(bucket: &Bucket) -> Result<Response<Body>, Error> {
+pub async fn handle_get_lifecycle(bucket: &Bucket) -> Result<Response<ResBody>, Error> {
 	let param = bucket
 		.params()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
@@ -27,18 +30,18 @@ pub async fn handle_get_lifecycle(bucket: &Bucket) -> Result<Response<Body>, Err
 		Ok(Response::builder()
 			.status(StatusCode::OK)
 			.header(http::header::CONTENT_TYPE, "application/xml")
-			.body(Body::from(xml))?)
+			.body(string_body(xml))?)
 	} else {
 		Ok(Response::builder()
 			.status(StatusCode::NO_CONTENT)
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 }
 
 pub async fn handle_delete_lifecycle(
 	garage: Arc<Garage>,
 	mut bucket: Bucket,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let param = bucket
 		.params_mut()
 		.ok_or_internal_error("Bucket should not be deleted at this point")?;
@@ -48,16 +51,16 @@ pub async fn handle_delete_lifecycle(
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 pub async fn handle_put_lifecycle(
 	garage: Arc<Garage>,
 	mut bucket: Bucket,
-	req: Request<Body>,
+	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
-	let body = hyper::body::to_bytes(req.into_body()).await?;
+) -> Result<Response<ResBody>, Error> {
+	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
@@ -77,7 +80,7 @@ pub async fn handle_put_lifecycle(
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)
-		.body(Body::empty())?)
+		.body(empty_body())?)
 }
 
 // ---- SERIALIZATION AND DESERIALIZATION TO/FROM S3 XML ----

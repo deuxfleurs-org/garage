@@ -18,38 +18,38 @@ format_table.workspace = true
 garage_db.workspace = true
 garage_util.workspace = true
 
-arc-swap = "1.0"
-bytes = "1.0"
-bytesize = "1.1"
-gethostname = "0.4"
-hex = "0.4"
-tracing = "0.1"
-rand = "0.8"
-itertools="0.10"
-sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
-nix = { version = "0.27", default-features = false, features = ["fs"] }
+arc-swap.workspace = true
+bytes.workspace = true
+bytesize.workspace = true
+gethostname.workspace = true
+hex.workspace = true
+tracing.workspace = true
+rand.workspace = true
+itertools.workspace = true
+sodiumoxide.workspace = true
+nix.workspace = true
 
-async-trait = "0.1.7"
-serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
-serde_bytes = "0.11"
-serde_json = "1.0"
-err-derive = { version = "0.3", optional = true }
+async-trait.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_json.workspace = true
+err-derive = { workspace = true, optional = true }
 
 # newer version requires rust edition 2021
-kube = { version = "0.75", default-features = false, features = ["runtime", "derive", "client", "rustls-tls"], optional = true }
-k8s-openapi = { version = "0.16", features = ["v1_22"], optional = true }
-schemars = { version = "0.8", optional = true }
-reqwest = { version = "0.11", optional = true, default-features = false, features = ["rustls-tls-manual-roots", "json"] }
+kube = { workspace = true, optional = true }
+k8s-openapi = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 
-pnet_datalink = "0.33"
+pnet_datalink.workspace = true
 
-futures = "0.3"
-futures-util = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
-tokio-stream = { version = "0.1", features = ["net"] }
-opentelemetry = "0.17"
+futures.workspace = true
+futures-util.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+opentelemetry.workspace = true
 
-netapp = { version = "0.10", features = ["telemetry"] }
+netapp.workspace = true
 
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "schemars" ]

@@ -16,42 +16,42 @@ path = "lib.rs"
 [dependencies]
 garage_db.workspace = true
 
-arc-swap = "1.0"
-async-trait = "0.1"
-blake2 = "0.10"
-bytes = "1.0"
-bytesize = "1.2"
-digest = "0.10"
-err-derive = "0.3"
-hexdump = "0.1"
-xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
-hex = "0.4"
-lazy_static = "1.4"
-tracing = "0.1"
-rand = "0.8"
-sha2 = "0.10"
+arc-swap.workspace = true
+async-trait.workspace = true
+blake2.workspace = true
+bytes.workspace = true
+bytesize.workspace = true
+digest.workspace = true
+err-derive.workspace = true
+hexdump.workspace = true
+xxhash-rust.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+tracing.workspace = true
+rand.workspace = true
+sha2.workspace = true
 
-chrono = "0.4"
-rmp-serde = "1.1.2"
-serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
-serde_json = "1.0"
-toml = "0.6"
+chrono.workspace = true
+rmp-serde.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
 
-futures = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+futures.workspace = true
+tokio.workspace = true
 
-netapp = "0.10"
+netapp.workspace = true
 
-http = "0.2"
-hyper = "0.14"
+http.workspace = true
+hyper.workspace = true
 
-opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
+opentelemetry.workspace = true
 
 [build-dependencies]
-rustc_version = "0.4.0"
+rustc_version.workspace = true
 
 [dev-dependencies]
-mktemp = "0.5"
+mktemp.workspace = true
 
 [features]
 k2v = []

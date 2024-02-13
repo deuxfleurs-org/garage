@@ -14,4 +14,5 @@ rec {
   pkgsSrc = flake.defaultNix.inputs.nixpkgs;
   cargo2nix = flake.defaultNix.inputs.cargo2nix;
   cargo2nixOverlay = cargo2nix.overlays.default;
+  devShells = builtins.getAttr builtins.currentSystem flake.defaultNix.devShells;
 }

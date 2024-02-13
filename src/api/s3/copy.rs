@@ -6,7 +6,7 @@ use futures::{stream, stream::Stream, StreamExt};
 use md5::{Digest as Md5Digest, Md5};
 
 use bytes::Bytes;
-use hyper::{Body, Request, Response};
+use hyper::{Request, Response};
 use serde::Serialize;
 
 use garage_rpc::netapp::bytes_buf::BytesBuf;
@@ -22,7 +22,8 @@ use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::helpers::parse_bucket_key;
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 use crate::s3::multipart;
 use crate::s3::put::get_headers;
@@ -31,10 +32,10 @@ use crate::s3::xml::{self as s3_xml, xmlns_tag};
 pub async fn handle_copy(
 	garage: Arc<Garage>,
 	api_key: &Key,
-	req: &Request<Body>,
+	req: &Request<ReqBody>,
 	dest_bucket_id: Uuid,
 	dest_key: &str,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
 
 	let source_object = get_copy_source(&garage, api_key, req).await?;
@@ -176,18 +177,18 @@ pub async fn handle_copy(
 			"x-amz-copy-source-version-id",
 			hex::encode(source_version.uuid),
 		)
-		.body(Body::from(xml))?)
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_upload_part_copy(
 	garage: Arc<Garage>,
 	api_key: &Key,
-	req: &Request<Body>,
+	req: &Request<ReqBody>,
 	dest_bucket_id: Uuid,
 	dest_key: &str,
 	part_number: u64,
 	upload_id: &str,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
 
 	let dest_upload_id = multipart::decode_upload_id(upload_id)?;
@@ -432,13 +433,13 @@ pub async fn handle_upload_part_copy(
 			"x-amz-copy-source-version-id",
 			hex::encode(source_object_version.uuid),
 		)
-		.body(Body::from(resp_xml))?)
+		.body(string_body(resp_xml))?)
 }
 
 async fn get_copy_source(
 	garage: &Garage,
 	api_key: &Key,
-	req: &Request<Body>,
+	req: &Request<ReqBody>,
 ) -> Result<Object, Error> {
 	let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 	let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
@@ -501,7 +502,7 @@ struct CopyPreconditionHeaders {
 }
 
 impl CopyPreconditionHeaders {
-	fn parse(req: &Request<Body>) -> Result<Self, Error> {
+	fn parse(req: &Request<ReqBody>) -> Result<Self, Error> {
 		Ok(Self {
 			copy_source_if_match: req
 				.headers()

@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
 use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
+use tokio::sync::watch;
 
 use opentelemetry::trace::SpanRef;
 
@@ -27,7 +27,9 @@ use crate::admin::error::*;
 use crate::admin::key::*;
 use crate::admin::router_v0;
 use crate::admin::router_v1::{Authorization, Endpoint};
-use crate::helpers::host_to_bucket;
+use crate::helpers::*;
+
+pub type ResBody = BoxBody<Error>;
 
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
@@ -63,24 +65,27 @@ impl AdminApiServer {
 	pub async fn run(
 		self,
 		bind_addr: UnixOrTCPSocketAddress,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		let region = self.garage.config.s3_api.s3_region.clone();
 		ApiServer::new(region, self)
-			.run_server(bind_addr, Some(0o220), shutdown_signal)
+			.run_server(bind_addr, Some(0o220), must_exit)
 			.await
 	}
 
-	fn handle_options(&self, _req: &Request<Body>) -> Result<Response<Body>, Error> {
+	fn handle_options(&self, _req: &Request<IncomingBody>) -> Result<Response<ResBody>, Error> {
 		Ok(Response::builder()
 			.status(StatusCode::NO_CONTENT)
 			.header(ALLOW, "OPTIONS, GET, POST")
 			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, GET, POST")
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-			.body(Body::empty())?)
+			.body(empty_body())?)
 	}
 
-	async fn handle_check_domain(&self, req: Request<Body>) -> Result<Response<Body>, Error> {
+	async fn handle_check_domain(
+		&self,
+		req: Request<IncomingBody>,
+	) -> Result<Response<ResBody>, Error> {
 		let query_params: HashMap<String, String> = req
 			.uri()
 			.query()
@@ -104,7 +109,7 @@ impl AdminApiServer {
 		if self.check_domain(domain).await? {
 			Ok(Response::builder()
 				.status(StatusCode::OK)
-				.body(Body::from(format!(
+				.body(string_body(format!(
 					"Domain '{domain}' is managed by Garage"
 				)))?)
 		} else {
@@ -167,7 +172,7 @@ impl AdminApiServer {
 		}
 	}
 
-	fn handle_health(&self) -> Result<Response<Body>, Error> {
+	fn handle_health(&self) -> Result<Response<ResBody>, Error> {
 		let health = self.garage.system.health();
 
 		let (status, status_str) = match health.status {
@@ -189,10 +194,10 @@ impl AdminApiServer {
 		Ok(Response::builder()
 			.status(status)
 			.header(http::header::CONTENT_TYPE, "text/plain")
-			.body(Body::from(status_str))?)
+			.body(string_body(status_str))?)
 	}
 
-	fn handle_metrics(&self) -> Result<Response<Body>, Error> {
+	fn handle_metrics(&self) -> Result<Response<ResBody>, Error> {
 		#[cfg(feature = "metrics")]
 		{
 			use opentelemetry::trace::Tracer;
@@ -212,7 +217,7 @@ impl AdminApiServer {
 			Ok(Response::builder()
 				.status(StatusCode::OK)
 				.header(http::header::CONTENT_TYPE, encoder.format_type())
-				.body(Body::from(buffer))?)
+				.body(bytes_body(buffer.into()))?)
 		}
 		#[cfg(not(feature = "metrics"))]
 		Err(Error::bad_request(
@@ -229,7 +234,7 @@ impl ApiHandler for AdminApiServer {
 	type Endpoint = Endpoint;
 	type Error = Error;
 
-	fn parse_endpoint(&self, req: &Request<Body>) -> Result<Endpoint, Error> {
+	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<Endpoint, Error> {
 		if req.uri().path().starts_with("/v0/") {
 			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
 			Endpoint::from_v0(endpoint_v0)
@@ -240,9 +245,9 @@ impl ApiHandler for AdminApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<Body>,
+		req: Request<IncomingBody>,
 		endpoint: Endpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		let expected_auth_header =
 			match endpoint.authorization_type() {
 				Authorization::None => None,

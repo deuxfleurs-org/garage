@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use futures::future::Future;
-use hyper::{Body, Method, Request, Response};
+use hyper::{body::Incoming as IncomingBody, Method, Request, Response};
+use tokio::sync::watch;
 
 use opentelemetry::{trace::SpanRef, KeyValue};
 
@@ -25,6 +25,9 @@ use crate::k2v::item::*;
 use crate::k2v::router::Endpoint;
 use crate::s3::cors::*;
 
+pub use crate::signature::streaming::ReqBody;
+pub type ResBody = BoxBody<Error>;
+
 pub struct K2VApiServer {
 	garage: Arc<Garage>,
 }
@@ -39,10 +42,10 @@ impl K2VApiServer {
 		garage: Arc<Garage>,
 		bind_addr: UnixOrTCPSocketAddress,
 		s3_region: String,
-		shutdown_signal: impl Future<Output = ()>,
+		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
 		ApiServer::new(s3_region, K2VApiServer { garage })
-			.run_server(bind_addr, None, shutdown_signal)
+			.run_server(bind_addr, None, must_exit)
 			.await
 	}
 }
@@ -55,7 +58,7 @@ impl ApiHandler for K2VApiServer {
 	type Endpoint = K2VApiEndpoint;
 	type Error = Error;
 
-	fn parse_endpoint(&self, req: &Request<Body>) -> Result<K2VApiEndpoint, Error> {
+	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<K2VApiEndpoint, Error> {
 		let (endpoint, bucket_name) = Endpoint::from_request(req)?;
 
 		Ok(K2VApiEndpoint {
@@ -66,9 +69,9 @@ impl ApiHandler for K2VApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<Body>,
+		req: Request<IncomingBody>,
 		endpoint: K2VApiEndpoint,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<ResBody>, Error> {
 		let K2VApiEndpoint {
 			bucket_name,
 			endpoint,
@@ -77,9 +80,10 @@ impl ApiHandler for K2VApiServer {
 
 		// The OPTIONS method is procesed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
-			return Ok(handle_options_s3api(garage, &req, Some(bucket_name))
+			let options_res = handle_options_api(garage, &req, Some(bucket_name))
 				.await
-				.ok_or_bad_request("Error handling OPTIONS")?);
+				.ok_or_bad_request("Error handling OPTIONS")?;
+			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
 		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;

@@ -81,12 +81,9 @@ Our cache will be checked.
  - http://www.lpenz.org/articles/nixchannel/index.html
 
 
-## Drone
+## Woodpecker
 
-Do not try to set a build as trusted from the interface or the CLI tool,
-your request would be ignored. Instead, directly edit the database (table `repos`, column `repo_trusted`).
-
-Drone can do parallelism both at the step and the pipeline level. At the step level, parallelism is restricted to the same runner.
+Woodpecker can do parallelism both at the step and the pipeline level. At the step level, parallelism is restricted to the same runner.
 
 ## Building Docker containers
 
@@ -99,3 +96,4 @@ We were:
   - Unable to use the kaniko container provided by Google as we can't run arbitrary logic: we need to put our secret in .docker/config.json.
 
 Finally we chose to build kaniko through nix and use it in a `nix-shell`.
+We then switched to using kaniko from nixpkgs when it was packaged.

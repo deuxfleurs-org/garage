@@ -25,8 +25,7 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_block_info(&self, hash: &String) -> Result<AdminRpc, Error> {
-		let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
-		let hash = Hash::try_from(&hash).ok_or_bad_request("invalid hash")?;
+		let hash = self.find_block_hash_by_prefix(hash)?;
 		let refcount = self.garage.block_manager.get_block_rc(&hash)?;
 		let block_refs = self
 			.garage
@@ -188,5 +187,49 @@ impl AdminRpcHandler {
 		}
 
 		Ok(())
+	}
+
+	// ---- helper function ----
+	fn find_block_hash_by_prefix(&self, prefix: &str) -> Result<Hash, Error> {
+		if prefix.len() < 4 {
+			return Err(Error::BadRequest(
+				"Please specify at least 4 characters of the block hash".into(),
+			));
+		}
+
+		let prefix_bin =
+			hex::decode(&prefix[..prefix.len() & !1]).ok_or_bad_request("invalid hash")?;
+
+		let iter = self
+			.garage
+			.block_ref_table
+			.data
+			.store
+			.range(&prefix_bin[..]..)
+			.map_err(GarageError::from)?;
+		let mut found = None;
+		for item in iter {
+			let (k, _v) = item.map_err(GarageError::from)?;
+			let hash = Hash::try_from(&k[..32]).unwrap();
+			if &hash.as_slice()[..prefix_bin.len()] != prefix_bin {
+				break;
+			}
+			if hex::encode(hash.as_slice()).starts_with(prefix) {
+				match &found {
+					Some(x) if *x == hash => (),
+					Some(_) => {
+						return Err(Error::BadRequest(format!(
+							"Several blocks match prefix `{}`",
+							prefix
+						)));
+					}
+					None => {
+						found = Some(hash);
+					}
+				}
+			}
+		}
+
+		found.ok_or_else(|| Error::BadRequest("No matching block found".into()))
 	}
 }

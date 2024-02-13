@@ -64,7 +64,8 @@ pub enum Command {
 
 #[derive(StructOpt, Debug)]
 pub enum NodeOperation {
-	/// Print identifier (public key) of this Garage node
+	/// Print the full node ID (public key) of this Garage node, and its publicly reachable IP
+	/// address and port if they are specified in config file under `rpc_public_addr`
 	#[structopt(name = "id", version = garage_version())]
 	NodeId(NodeIdOpt),
 
@@ -82,8 +83,9 @@ pub struct NodeIdOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct ConnectNodeOpt {
-	/// Node public key and address, in the format:
-	/// `<public key hexadecimal>@<ip or hostname>:<port>`
+	/// Full node ID (public key) and IP address and port, in the format:
+	/// `<full node ID>@<ip or hostname>:<port>`.
+	/// You can retrieve this information on the target node using `garage node id`.
 	pub(crate) node: String,
 }
 

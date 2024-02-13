@@ -57,7 +57,7 @@ pub const SYSTEM_RPC_PATH: &str = "garage_rpc/system.rs/SystemRpc";
 pub enum SystemRpc {
 	/// Response to successfull advertisements
 	Ok,
-	/// Request to connect to a specific node (in <pubkey>@<host>:<port> format)
+	/// Request to connect to a specific node (in <pubkey>@<host>:<port> format, pubkey = full-length node ID)
 	Connect(String),
 	/// Advertise Garage status. Answered with another AdvertiseStatus.
 	/// Exchanged with every node on a regular basis.

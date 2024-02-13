@@ -13,7 +13,7 @@ In Garage, all of the data that can be stored in a given cluster is divided
 into slices which we call *partitions*. Each partition is stored by
 one or several nodes in the cluster
 (see [`replication_mode`](@/documentation/reference-manual/configuration.md#replication_mode)).
-The layout determines the correspondence between these partition,
+The layout determines the correspondence between these partitions,
 which exist on a logical level, and actual storage nodes.
 
 ## How cluster layouts work in Garage
@@ -94,10 +94,10 @@ follow the following recommendations:
 ## Understanding unexpected layout calculations
 
 When adding, removing or modifying nodes in a cluster layout, sometimes
-unexpected assigntations of partitions to node can occur. These assignations
-are in fact normal and logical, given the objectives of the algorihtm.  Indeed,
-**the layout algorithm prioritizes moving less data between nodes over the fact
-of achieving equal distribution of load. It also tries to use all links between
+unexpected assignations of partitions to node can occur. These assignations
+are in fact normal and logical, given the objectives of the algorithm.  Indeed,
+**the layout algorithm prioritizes moving less data between nodes over
+achieving equal distribution of load. It also tries to use all links between
 pairs of nodes in equal proportions when moving data.**  This section presents
 two examples and illustrates how one can control Garage's behavior to obtain
 the desired results.
@@ -270,5 +270,5 @@ that is moved to node1).
 This illustrates the second principle of the layout computation: **if there is
 a choice in moving data out of some nodes, then all links between pairs of
 nodes are used in equal proportions** (this is approximately true, there is
-randomness in the algorihtm to achieve this so there might be some small
+randomness in the algorithm to achieve this so there might be some small
 fluctuations, as we see above).

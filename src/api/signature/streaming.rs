@@ -1,26 +1,30 @@
 use std::pin::Pin;
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use futures::prelude::*;
 use futures::task;
 use garage_model::key_table::Key;
 use hmac::Mac;
-use hyper::body::Bytes;
-use hyper::{Body, Request};
+use http_body_util::StreamBody;
+use hyper::body::{Bytes, Incoming as IncomingBody};
+use hyper::Request;
 
 use garage_util::data::Hash;
 
 use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
 
+use crate::helpers::*;
 use crate::signature::error::*;
+
+pub type ReqBody = BoxBody<Error>;
 
 pub fn parse_streaming_body(
 	api_key: &Key,
-	req: Request<Body>,
+	req: Request<IncomingBody>,
 	content_sha256: &mut Option<Hash>,
 	region: &str,
 	service: &str,
-) -> Result<Request<Body>, Error> {
+) -> Result<Request<ReqBody>, Error> {
 	match req.headers().get("x-amz-content-sha256") {
 		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
 			let signature = content_sha256
@@ -40,26 +44,22 @@ pub fn parse_streaming_body(
 				.to_str()?;
 			let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
 				.ok_or_bad_request("Invalid date")?;
-			let date: DateTime<Utc> = DateTime::from_utc(date, Utc);
+			let date: DateTime<Utc> = Utc.from_utc_datetime(&date);
 
 			let scope = compute_scope(&date, region, service);
 			let signing_hmac = crate::signature::signing_hmac(&date, secret_key, region, service)
 				.ok_or_internal_error("Unable to build signing HMAC")?;
 
 			Ok(req.map(move |body| {
-				Body::wrap_stream(
-					SignedPayloadStream::new(
-						body.map_err(Error::from),
-						signing_hmac,
-						date,
-						&scope,
-						signature,
-					)
-					.map_err(Error::from),
-				)
+				let stream = body_stream::<_, Error>(body);
+				let signed_payload_stream =
+					SignedPayloadStream::new(stream, signing_hmac, date, &scope, signature)
+						.map(|x| x.map(hyper::body::Frame::data))
+						.map_err(Error::from);
+				ReqBody::new(StreamBody::new(signed_payload_stream))
 			}))
 		}
-		_ => Ok(req),
+		_ => Ok(req.map(|body| ReqBody::new(http_body_util::BodyExt::map_err(body, Error::from)))),
 	}
 }
 

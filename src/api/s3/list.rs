@@ -3,7 +3,7 @@ use std::iter::{Iterator, Peekable};
 use std::sync::Arc;
 
 use base64::prelude::*;
-use hyper::{Body, Response};
+use hyper::Response;
 
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
@@ -16,7 +16,8 @@ use garage_model::s3::object_table::*;
 use garage_table::EnumerationOrder;
 
 use crate::encoding::*;
-use crate::helpers::key_after_prefix;
+use crate::helpers::*;
+use crate::s3::api_server::ResBody;
 use crate::s3::error::*;
 use crate::s3::multipart as s3_multipart;
 use crate::s3::xml as s3_xml;
@@ -63,7 +64,7 @@ pub struct ListPartsQuery {
 pub async fn handle_list(
 	garage: Arc<Garage>,
 	query: &ListObjectsQuery,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
@@ -162,13 +163,13 @@ pub async fn handle_list(
 	let xml = s3_xml::to_xml_with_header(&result)?;
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_list_multipart_upload(
 	garage: Arc<Garage>,
 	query: &ListMultipartUploadsQuery,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
@@ -264,13 +265,13 @@ pub async fn handle_list_multipart_upload(
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_list_parts(
 	garage: Arc<Garage>,
 	query: &ListPartsQuery,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	debug!("ListParts {:?}", query);
 
 	let upload_id = s3_multipart::decode_upload_id(&query.upload_id)?;
@@ -319,7 +320,7 @@ pub async fn handle_list_parts(
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
-		.body(Body::from(xml.into_bytes()))?)
+		.body(string_body(xml))?)
 }
 
 /*

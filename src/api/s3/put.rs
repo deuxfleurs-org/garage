@@ -4,11 +4,12 @@ use std::sync::Arc;
 use base64::prelude::*;
 use futures::prelude::*;
 use futures::try_join;
-use hyper::body::{Body, Bytes};
-use hyper::header::{HeaderMap, HeaderValue};
-use hyper::{Request, Response};
 use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
 use sha2::Sha256;
+
+use hyper::body::Bytes;
+use hyper::header::{HeaderMap, HeaderValue};
+use hyper::{Request, Response};
 
 use opentelemetry::{
 	trace::{FutureExt as OtelFutureExt, TraceContextExt, Tracer},
@@ -30,15 +31,17 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use crate::helpers::*;
+use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
 
 pub async fn handle_put(
 	garage: Arc<Garage>,
-	req: Request<Body>,
+	req: Request<ReqBody>,
 	bucket: &Bucket,
 	key: &String,
 	content_sha256: Option<Hash>,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	// Retrieve interesting headers from request
 	let headers = get_headers(req.headers())?;
 	debug!("Object headers: {:?}", headers);
@@ -48,13 +51,12 @@ pub async fn handle_put(
 		None => None,
 	};
 
-	let (_head, body) = req.into_parts();
-	let body = body.map_err(Error::from);
+	let stream = body_stream(req.into_body());
 
 	save_stream(
 		garage,
 		headers,
-		body,
+		stream,
 		bucket,
 		key,
 		content_md5,
@@ -434,11 +436,11 @@ impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
 	}
 }
 
-pub fn put_response(version_uuid: Uuid, md5sum_hex: String) -> Response<Body> {
+pub fn put_response(version_uuid: Uuid, md5sum_hex: String) -> Response<ResBody> {
 	Response::builder()
 		.header("x-amz-version-id", hex::encode(version_uuid))
 		.header("ETag", format!("\"{}\"", md5sum_hex))
-		.body(Body::from(vec![]))
+		.body(empty_body())
 		.unwrap()
 }
 

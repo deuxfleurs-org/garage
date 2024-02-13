@@ -1,0 +1,44 @@
+when:
+  event:
+  - push
+  - tag
+  - pull_request
+  - deployment
+  - cron
+
+steps:
+  - name: check formatting
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr devShell --run "cargo fmt -- --check"
+
+  - name: build
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+
+  - name: unit + func tests
+    image: nixpkgs/nix:nixos-22.05
+    environment:
+      GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
+      GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
+    commands:
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build --no-build-output --attr test.amd64
+      - ./result/bin/garage_db-*
+      - ./result/bin/garage_api-*
+      - ./result/bin/garage_model-*
+      - ./result/bin/garage_rpc-*
+      - ./result/bin/garage_table-*
+      - ./result/bin/garage_util-*
+      - ./result/bin/garage_web-*
+      - ./result/bin/garage-*
+      - ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
+      - rm result
+      - rm -rv tmp-garage-integration
+
+  - name: integration tests
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)

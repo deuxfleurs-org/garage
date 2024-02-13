@@ -15,9 +15,9 @@ use garage_web::WebServer;
 use garage_api::k2v::api_server::K2VApiServer;
 
 use crate::admin::*;
+use crate::secrets::{fill_secrets, Secrets};
 #[cfg(feature = "telemetry-otlp")]
 use crate::tracing_setup::*;
-use crate::{fill_secrets, Secrets};
 
 async fn wait_from(mut chan: watch::Receiver<bool>) {
 	while !*chan.borrow() {
@@ -29,12 +29,19 @@ async fn wait_from(mut chan: watch::Receiver<bool>) {
 
 pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Error> {
 	info!("Loading configuration...");
-	let config = fill_secrets(read_config(config_file)?, secrets);
+	let config = fill_secrets(read_config(config_file)?, secrets)?;
 
 	// ---- Initialize Garage internals ----
 
 	#[cfg(feature = "metrics")]
-	let metrics_exporter = opentelemetry_prometheus::exporter().init();
+	let metrics_exporter = opentelemetry_prometheus::exporter()
+		.with_default_summary_quantiles(vec![0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
+		.with_default_histogram_boundaries(vec![
+			0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07, 0.1,
+			0.15, 0.2, 0.3, 0.5, 0.7, 1., 1.5, 2., 3., 5., 7., 10., 15., 20., 30., 40., 50., 60.,
+			70., 100.,
+		])
+		.init();
 
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone())?;
@@ -81,7 +88,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 				garage.clone(),
 				s3_bind_addr.clone(),
 				config.s3_api.s3_region.clone(),
-				wait_from(watch_cancel.clone()),
+				watch_cancel.clone(),
 			)),
 		));
 	}
@@ -96,7 +103,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 					garage.clone(),
 					config.k2v_api.as_ref().unwrap().api_bind_addr.clone(),
 					config.s3_api.s3_region.clone(),
-					wait_from(watch_cancel.clone()),
+					watch_cancel.clone(),
 				)),
 			));
 		}
@@ -106,14 +113,10 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 
 	if let Some(web_config) = &config.s3_web {
 		info!("Initializing web server...");
+		let web_server = WebServer::new(garage.clone(), web_config.root_domain.clone());
 		servers.push((
 			"Web",
-			tokio::spawn(WebServer::run(
-				garage.clone(),
-				web_config.bind_addr.clone(),
-				web_config.root_domain.clone(),
-				wait_from(watch_cancel.clone()),
-			)),
+			tokio::spawn(web_server.run(web_config.bind_addr.clone(), watch_cancel.clone())),
 		));
 	}
 
@@ -121,9 +124,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 		info!("Launching Admin API server...");
 		servers.push((
 			"Admin",
-			tokio::spawn(
-				admin_server.run(admin_bind_addr.clone(), wait_from(watch_cancel.clone())),
-			),
+			tokio::spawn(admin_server.run(admin_bind_addr.clone(), watch_cancel.clone())),
 		));
 	}
 

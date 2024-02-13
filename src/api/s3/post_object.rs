@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{Infallible, TryInto};
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -9,12 +9,15 @@ use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
 use futures::{Stream, StreamExt};
 use hyper::header::{self, HeaderMap, HeaderName, HeaderValue};
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use multer::{Constraints, Multipart, SizeLimit};
 use serde::Deserialize;
 
 use garage_model::garage::Garage;
 
+use crate::helpers::*;
+use crate::s3::api_server::ResBody;
+use crate::s3::cors::*;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
@@ -22,9 +25,9 @@ use crate::signature::payload::{parse_date, verify_v4};
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
-	req: Request<Body>,
+	req: Request<IncomingBody>,
 	bucket_name: String,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<ResBody>, Error> {
 	let boundary = req
 		.headers()
 		.get(header::CONTENT_TYPE)
@@ -41,7 +44,8 @@ pub async fn handle_post_object(
 	);
 
 	let (head, body) = req.into_parts();
-	let mut multipart = Multipart::with_constraints(body, boundary, constraints);
+	let stream = body_stream::<_, Error>(body);
+	let mut multipart = Multipart::with_constraints(stream, boundary, constraints);
 
 	let mut params = HeaderMap::new();
 	let field = loop {
@@ -242,7 +246,7 @@ pub async fn handle_post_object(
 
 	let etag = format!("\"{}\"", md5);
 
-	let resp = if let Some(mut target) = params
+	let mut resp = if let Some(mut target) = params
 		.get("success_action_redirect")
 		.and_then(|h| h.to_str().ok())
 		.and_then(|u| url::Url::parse(u).ok())
@@ -258,12 +262,11 @@ pub async fn handle_post_object(
 			.status(StatusCode::SEE_OTHER)
 			.header(header::LOCATION, target.clone())
 			.header(header::ETAG, etag)
-			.body(target.into())?
+			.body(string_body(target))?
 	} else {
 		let path = head
 			.uri
-			.into_parts()
-			.path_and_query
+			.path_and_query()
 			.map(|paq| paq.path().to_string())
 			.unwrap_or_else(|| "/".to_string());
 		let authority = head
@@ -290,7 +293,7 @@ pub async fn handle_post_object(
 			.header(header::LOCATION, location.clone())
 			.header(header::ETAG, etag.clone());
 		match action {
-			"200" => builder.status(StatusCode::OK).body(Body::empty())?,
+			"200" => builder.status(StatusCode::OK).body(empty_body())?,
 			"201" => {
 				let xml = s3_xml::PostObject {
 					xmlns: (),
@@ -302,11 +305,20 @@ pub async fn handle_post_object(
 				let body = s3_xml::to_xml_with_header(&xml)?;
 				builder
 					.status(StatusCode::CREATED)
-					.body(Body::from(body.into_bytes()))?
+					.body(string_body(body))?
 			}
-			_ => builder.status(StatusCode::NO_CONTENT).body(Body::empty())?,
+			_ => builder.status(StatusCode::NO_CONTENT).body(empty_body())?,
 		}
 	};
+
+	let matching_cors_rule = find_matching_cors_rule(
+		&bucket,
+		&Request::from_parts(head, empty_body::<Infallible>()),
+	)?;
+	if let Some(rule) = matching_cors_rule {
+		add_cors_headers(&mut resp, rule)
+			.ok_or_internal_error("Invalid bucket CORS configuration")?;
+	}
 
 	Ok(resp)
 }

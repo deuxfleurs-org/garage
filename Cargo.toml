@@ -17,6 +17,8 @@ members = [
 default-members = ["src/garage"]
 
 [workspace.dependencies]
+
+# Internal Garage crates
 format_table = { version = "0.1.1", path = "src/format-table" }
 garage_api = { version = "0.10.0", path = "src/api" }
 garage_block = { version = "0.10.0", path = "src/block" }
@@ -28,8 +30,112 @@ garage_util = { version = "0.10.0", path = "src/util" }
 garage_web = { version = "0.10.0", path = "src/web" }
 k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
+# Netapp is a special sister crate
+netapp = { version = "0.10", features = ["telemetry"] }
+
+# External crates from crates.io
+arc-swap = "1.0"
+async-trait = "0.1.7"
+backtrace = "0.3"
+base64 = "0.21"
+blake2 = "0.10"
+bytes = "1.0"
+bytesize = "1.1"
+chrono = "0.4"
+crypto-common = "0.1"
+digest = "0.10"
+err-derive = "0.3"
+gethostname = "0.4"
+git-version = "0.3.4"
+hex = "0.4"
+hexdump = "0.1"
+hmac = "0.12"
+idna = "0.5"
+itertools = "0.12"
+lazy_static = "1.4"
+md-5 = "0.10"
+mktemp = "0.5"
+nix = { version = "0.27", default-features = false, features = ["fs"] }
+nom = "7.1"
+parse_duration = "2.1"
+pin-project = "1.0.12"
+pnet_datalink = "0.34"
+rand = "0.8"
+sha2 = "0.10"
+sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
+timeago = { version = "0.4", default-features = false }
+xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
+
+clap = { version = "4.1", features = ["derive", "env"] }
+pretty_env_logger = "0.5"
+structopt = { version = "0.3", default-features = false }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+heed = { version = "0.11", default-features = false, features = ["lmdb"] }
+rusqlite = "0.30.0"
+sled = "0.34"
+
+async-compression = { version = "0.4", features = ["tokio", "zstd"] }
+zstd = { version = "0.13", default-features = false }
+
+quick-xml = { version = "0.26", features = [ "serialize" ] }
+rmp-serde = "1.1.2"
+serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
+serde_bytes = "0.11"
+serde_json = "1.0"
+toml = { versio = "0.8", default-features = false, features = ["parse"] }
+
+# newer version requires rust edition 2021
+k8s-openapi = { version = "0.21", features = ["v1_24"] }
+kube = { version = "0.88", default-features = false, features = ["runtime", "derive", "client", "rustls-tls"] }
+schemars = "0.8"
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-manual-roots", "json"] }
+
+form_urlencoded = "1.0.0"
+http = "1.0"
+httpdate = "1.0"
+http-range = "0.1"
+http-body-util = "0.1"
+hyper = { version = "1.0", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = [ "full" ] }
+multer = "3.0"
+percent-encoding = "2.2"
+roxmltree = "0.19"
+url = "2.3"
+
+futures = "0.3"
+futures-util = "0.3"
+tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+
+opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
+opentelemetry-prometheus = "0.10"
+opentelemetry-otlp = "0.10"
+prometheus = "0.13"
+
+# used by the k2v-client crate only
+aws-sigv4 = {version = "1.1" }
+hyper-rustls = { version = "0.26", features = ["http2"] }
+log = "0.4"
+thiserror = "1.0"
+
+# ---- used only as build / dev dependencies ----
+assert-json-diff = "2.0"
+rustc_version = "0.4.0"
+static_init = "1.0"
+
+aws-config = "1.1.4"
+aws-sdk-config = "1.13"
+aws-sdk-s3 = "1.14"
+
 [profile.dev]
+#lto = "thin"	# disabled for now, adds 2-4 min to each CI build
 lto = "off"
 
 [profile.release]
-debug = true
+lto = true
+codegen-units = 1
+opt-level = "s"
+strip = true

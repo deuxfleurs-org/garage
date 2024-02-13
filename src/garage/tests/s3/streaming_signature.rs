@@ -57,9 +57,9 @@ async fn test_putobject_streaming() {
 		// assert_eq!(o.version_id.unwrap(), _version);
 		assert_eq!(o.content_type.unwrap(), content_type);
 		assert!(o.last_modified.is_some());
-		assert_eq!(o.content_length, 0);
-		assert_eq!(o.parts_count, 0);
-		assert_eq!(o.tag_count, 0);
+		assert_eq!(o.content_length.unwrap(), 0);
+		assert_eq!(o.parts_count, None);
+		assert_eq!(o.tag_count, None);
 	}
 
 	{
@@ -95,9 +95,9 @@ async fn test_putobject_streaming() {
 		assert_bytes_eq!(o.body, BODY);
 		assert_eq!(o.e_tag.unwrap(), etag);
 		assert!(o.last_modified.is_some());
-		assert_eq!(o.content_length, 62);
-		assert_eq!(o.parts_count, 0);
-		assert_eq!(o.tag_count, 0);
+		assert_eq!(o.content_length.unwrap(), 62);
+		assert_eq!(o.parts_count, None);
+		assert_eq!(o.tag_count, None);
 	}
 }
 
@@ -187,7 +187,7 @@ async fn test_put_website_streaming() {
 			.await
 			.unwrap();
 
-		assert_eq!(o.index_document.unwrap().suffix.unwrap(), "home.html");
-		assert_eq!(o.error_document.unwrap().key.unwrap(), "err/error.html");
+		assert_eq!(o.index_document.unwrap().suffix, "home.html");
+		assert_eq!(o.error_document.unwrap().key, "err/error.html");
 	}
 }
