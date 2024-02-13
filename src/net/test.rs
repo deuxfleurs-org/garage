@@ -14,32 +14,32 @@ use crate::NodeID;
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_with_basic_scheduler() {
-	env_logger::init();
-	run_test().await
+	pretty_env_logger::init();
+	run_test(19980).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_with_threaded_scheduler() {
-	run_test().await
+	run_test(19990).await
 }
 
-async fn run_test() {
+async fn run_test(port_base: u16) {
 	select! {
-		_ = run_test_inner() => (),
+		_ = run_test_inner(port_base) => (),
 		_ = tokio::time::sleep(Duration::from_secs(20)) => panic!("timeout"),
 	}
 }
 
-async fn run_test_inner() {
+async fn run_test_inner(port_base: u16) {
 	let netid = auth::gen_key();
 
 	let (pk1, sk1) = ed25519::gen_keypair();
 	let (pk2, sk2) = ed25519::gen_keypair();
 	let (pk3, sk3) = ed25519::gen_keypair();
 
-	let addr1: SocketAddr = "127.0.0.1:19991".parse().unwrap();
-	let addr2: SocketAddr = "127.0.0.1:19992".parse().unwrap();
-	let addr3: SocketAddr = "127.0.0.1:19993".parse().unwrap();
+	let addr1: SocketAddr = SocketAddr::new("127.0.0.1".parse().unwrap(), port_base);
+	let addr2: SocketAddr = SocketAddr::new("127.0.0.1".parse().unwrap(), port_base + 1);
+	let addr3: SocketAddr = SocketAddr::new("127.0.0.1".parse().unwrap(), port_base + 2);
 
 	let (stop_tx, stop_rx) = watch::channel(false);
 
@@ -56,7 +56,7 @@ async fn run_test_inner() {
 		vec![(pk1, addr1)],
 		stop_rx.clone(),
 	);
-	tokio::time::sleep(Duration::from_secs(5)).await;
+	tokio::time::sleep(Duration::from_secs(3)).await;
 
 	let pl1 = peering1.get_peer_list();
 	println!("A pl1: {:?}", pl1);
@@ -69,7 +69,7 @@ async fn run_test_inner() {
 	// Connect third ndoe and check it peers with everyone
 	let (thread3, _netapp3, peering3) =
 		run_netapp(netid, pk3, sk3, addr3, vec![(pk2, addr2)], stop_rx.clone());
-	tokio::time::sleep(Duration::from_secs(5)).await;
+	tokio::time::sleep(Duration::from_secs(3)).await;
 
 	let pl1 = peering1.get_peer_list();
 	println!("B pl1: {:?}", pl1);
