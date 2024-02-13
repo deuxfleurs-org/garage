@@ -174,7 +174,9 @@ async fn main() {
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
-	let config = if opt.secrets.rpc_secret.is_none() || opt.rpc_host.is_none() {
+	let config = if (opt.secrets.rpc_secret.is_none() && opt.secrets.rpc_secret_file.is_none())
+		|| opt.rpc_host.is_none()
+	{
 		Some(garage_util::config::read_config(opt.config_file.clone())
 			.err_context(format!("Unable to read configuration file {}. Configuration file is needed because -h or -s is not provided on the command line.", opt.config_file.to_string_lossy()))?)
 	} else {
@@ -182,14 +184,19 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	};
 
 	// Find and parse network RPC secret
-	let net_key_hex_str = opt
-		.secrets
-		.rpc_secret
-		.as_ref()
-		.or_else(|| config.as_ref().and_then(|c| c.rpc_secret.as_ref()))
-		.ok_or("No RPC secret provided")?;
+	let mut rpc_secret = config.as_ref().and_then(|c| c.rpc_secret.clone());
+	secrets::fill_secret(
+		&mut rpc_secret,
+		&config.as_ref().and_then(|c| c.rpc_secret_file.clone()),
+		&opt.secrets.rpc_secret,
+		&opt.secrets.rpc_secret_file,
+		"rpc_secret",
+		true,
+	)?;
+
+	let net_key_hex_str = rpc_secret.ok_or("No RPC secret provided")?;
 	let network_key = NetworkKey::from_slice(
-		&hex::decode(net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
+		&hex::decode(&net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
 	)
 	.ok_or("Invalid RPC secret provided (wrong length)")?;
 

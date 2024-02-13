@@ -52,7 +52,7 @@ pub struct Config {
 	/// RPC secret key: 32 bytes hex encoded
 	pub rpc_secret: Option<String>,
 	/// Optional file where RPC secret key is read from
-	pub rpc_secret_file: Option<String>,
+	pub rpc_secret_file: Option<PathBuf>,
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
 	/// Public IP address of this node
@@ -166,12 +166,12 @@ pub struct AdminConfig {
 	/// Bearer token to use to scrape metrics
 	pub metrics_token: Option<String>,
 	/// File to read metrics token from
-	pub metrics_token_file: Option<String>,
+	pub metrics_token_file: Option<PathBuf>,
 
 	/// Bearer token to use to access Admin API endpoints
 	pub admin_token: Option<String>,
 	/// File to read admin token from
-	pub admin_token_file: Option<String>,
+	pub admin_token_file: Option<PathBuf>,
 
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
