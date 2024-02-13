@@ -110,10 +110,11 @@ garage -c path/to/garage.toml server
 
 If you have placed the `garage.toml` file in `/etc` (its default location), you can simply run `garage server`.
 
-You can tune Garage's verbosity as follows (from less verbose to more verbose):
+You can tune Garage's verbosity by setting the `RUST_LOG=` environment variable. \
+Available log levels are (from less verbose to more verbose): `error`, `warn`, `info` *(default)*, `debug` and `trace`.
 
-```
-RUST_LOG=garage=info garage server
+```bash
+RUST_LOG=garage=info garage server # default
 RUST_LOG=garage=debug garage server
 RUST_LOG=garage=trace garage server
 ```
