@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 
 use garage_net::endpoint::{Endpoint, EndpointHandler};
 use garage_net::message::*;
-use garage_net::peering::fullmesh::FullMeshPeeringStrategy;
+use garage_net::peering::PeeringManager;
 use garage_net::util::parse_and_resolve_peer_addr_async;
 use garage_net::{NetApp, NetworkKey, NodeID, NodeKey};
 
@@ -92,7 +92,7 @@ pub struct System {
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
 
 	pub netapp: Arc<NetApp>,
-	fullmesh: Arc<FullMeshPeeringStrategy>,
+	peering: Arc<PeeringManager>,
 	pub rpc: RpcHelper,
 
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
@@ -326,9 +326,9 @@ impl System {
 		}
 
 		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
-		let fullmesh = FullMeshPeeringStrategy::new(netapp.clone(), vec![], rpc_public_addr);
+		let peering = PeeringManager::new(netapp.clone(), vec![], rpc_public_addr);
 		if let Some(ping_timeout) = config.rpc_ping_timeout_msec {
-			fullmesh.set_ping_timeout_millis(ping_timeout);
+			peering.set_ping_timeout_millis(ping_timeout);
 		}
 
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
@@ -358,10 +358,10 @@ impl System {
 			local_status: ArcSwap::new(Arc::new(local_status)),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
-			fullmesh: fullmesh.clone(),
+			peering: peering.clone(),
 			rpc: RpcHelper::new(
 				netapp.id.into(),
-				fullmesh,
+				peering,
 				ring.clone(),
 				config.rpc_timeout_msec.map(Duration::from_millis),
 			),
@@ -393,7 +393,7 @@ impl System {
 			self.netapp
 				.clone()
 				.listen(self.rpc_listen_addr, None, must_exit.clone()),
-			self.fullmesh.clone().run(must_exit.clone()),
+			self.peering.clone().run(must_exit.clone()),
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
 		);
@@ -405,7 +405,7 @@ impl System {
 	pub fn get_known_nodes(&self) -> Vec<KnownNodeInfo> {
 		let node_status = self.node_status.read().unwrap();
 		let known_nodes = self
-			.fullmesh
+			.peering
 			.get_peer_list()
 			.iter()
 			.map(|n| KnownNodeInfo {
@@ -726,10 +726,10 @@ impl System {
 	async fn discovery_loop(self: &Arc<Self>, mut stop_signal: watch::Receiver<bool>) {
 		while !*stop_signal.borrow() {
 			let not_configured = self.ring.borrow().layout.check().is_err();
-			let no_peers = self.fullmesh.get_peer_list().len() < self.replication_factor;
+			let no_peers = self.peering.get_peer_list().len() < self.replication_factor;
 			let expected_n_nodes = self.ring.borrow().layout.num_nodes();
 			let bad_peers = self
-				.fullmesh
+				.peering
 				.get_peer_list()
 				.iter()
 				.filter(|p| p.is_up())
@@ -811,7 +811,7 @@ impl System {
 		// Prepare new peer list to save to file
 		// It is a vec of tuples (node ID as Uuid, node SocketAddr)
 		let mut peer_list = self
-			.fullmesh
+			.peering
 			.get_peer_list()
 			.iter()
 			.map(|n| (n.id.into(), n.addr))

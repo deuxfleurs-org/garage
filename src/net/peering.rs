@@ -177,7 +177,7 @@ impl KnownHosts {
 /// A "Full Mesh" peering strategy is a peering strategy that tries
 /// to establish and maintain a direct connection with all of the
 /// known nodes in the network.
-pub struct FullMeshPeeringStrategy {
+pub struct PeeringManager {
 	netapp: Arc<NetApp>,
 	known_hosts: RwLock<KnownHosts>,
 	public_peer_list: ArcSwap<Vec<PeerInfo>>,
@@ -189,7 +189,7 @@ pub struct FullMeshPeeringStrategy {
 	ping_timeout_millis: AtomicU64,
 }
 
-impl FullMeshPeeringStrategy {
+impl PeeringManager {
 	/// Create a new Full Mesh peering strategy.
 	/// The strategy will not be run until `.run()` is called and awaited.
 	/// Once that happens, the peering strategy will try to connect
@@ -216,6 +216,7 @@ impl FullMeshPeeringStrategy {
 			);
 		}
 
+		// TODO for v0.10 / v1.0 : rename the endpoint (it will break compatibility)
 		let strat = Arc::new(Self {
 			netapp: netapp.clone(),
 			known_hosts: RwLock::new(known_hosts),
@@ -588,7 +589,7 @@ impl FullMeshPeeringStrategy {
 }
 
 #[async_trait]
-impl EndpointHandler<PingMessage> for FullMeshPeeringStrategy {
+impl EndpointHandler<PingMessage> for PeeringManager {
 	async fn handle(self: &Arc<Self>, ping: &PingMessage, from: NodeID) -> PingMessage {
 		let ping_resp = PingMessage {
 			id: ping.id,
@@ -600,7 +601,7 @@ impl EndpointHandler<PingMessage> for FullMeshPeeringStrategy {
 }
 
 #[async_trait]
-impl EndpointHandler<PeerListMessage> for FullMeshPeeringStrategy {
+impl EndpointHandler<PeerListMessage> for PeeringManager {
 	async fn handle(
 		self: &Arc<Self>,
 		peer_list: &PeerListMessage,

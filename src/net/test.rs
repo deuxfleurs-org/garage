@@ -9,7 +9,7 @@ use sodiumoxide::crypto::auth;
 use sodiumoxide::crypto::sign::ed25519;
 
 use crate::netapp::*;
-use crate::peering::fullmesh::*;
+use crate::peering::*;
 use crate::NodeID;
 
 #[tokio::test(flavor = "current_thread")]
@@ -100,10 +100,10 @@ fn run_netapp(
 ) -> (
 	tokio::task::JoinHandle<()>,
 	Arc<NetApp>,
-	Arc<FullMeshPeeringStrategy>,
+	Arc<PeeringManager>,
 ) {
 	let netapp = NetApp::new(0u64, netid, sk);
-	let peering = FullMeshPeeringStrategy::new(netapp.clone(), bootstrap_peers, None);
+	let peering = PeeringManager::new(netapp.clone(), bootstrap_peers, None);
 
 	let peering2 = peering.clone();
 	let netapp2 = netapp.clone();

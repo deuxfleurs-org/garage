@@ -19,7 +19,7 @@ pub use garage_net::message::{
 	IntoReq, Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH,
 	PRIO_NORMAL, PRIO_SECONDARY,
 };
-use garage_net::peering::fullmesh::FullMeshPeeringStrategy;
+use garage_net::peering::PeeringManager;
 pub use garage_net::{self, NetApp, NodeID};
 
 use garage_util::data::*;
@@ -90,7 +90,7 @@ pub struct RpcHelper(Arc<RpcHelperInner>);
 
 struct RpcHelperInner {
 	our_node_id: Uuid,
-	fullmesh: Arc<FullMeshPeeringStrategy>,
+	peering: Arc<PeeringManager>,
 	ring: watch::Receiver<Arc<Ring>>,
 	metrics: RpcMetrics,
 	rpc_timeout: Duration,
@@ -99,7 +99,7 @@ struct RpcHelperInner {
 impl RpcHelper {
 	pub(crate) fn new(
 		our_node_id: Uuid,
-		fullmesh: Arc<FullMeshPeeringStrategy>,
+		peering: Arc<PeeringManager>,
 		ring: watch::Receiver<Arc<Ring>>,
 		rpc_timeout: Option<Duration>,
 	) -> Self {
@@ -107,7 +107,7 @@ impl RpcHelper {
 
 		Self(Arc::new(RpcHelperInner {
 			our_node_id,
-			fullmesh,
+			peering,
 			ring,
 			metrics,
 			rpc_timeout: rpc_timeout.unwrap_or(DEFAULT_TIMEOUT),
@@ -210,7 +210,7 @@ impl RpcHelper {
 	{
 		let to = self
 			.0
-			.fullmesh
+			.peering
 			.get_peer_list()
 			.iter()
 			.map(|p| p.id.into())
@@ -391,7 +391,7 @@ impl RpcHelper {
 
 	pub fn request_order(&self, nodes: &[Uuid]) -> Vec<Uuid> {
 		// Retrieve some status variables that we will use to sort requests
-		let peer_list = self.0.fullmesh.get_peer_list();
+		let peer_list = self.0.peering.get_peer_list();
 		let ring: Arc<Ring> = self.0.ring.borrow().clone();
 		let our_zone = match ring.layout.node_role(&self.0.our_node_id) {
 			Some(pc) => &pc.zone,
