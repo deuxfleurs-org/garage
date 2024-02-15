@@ -296,7 +296,7 @@ impl K2VRpcHandler {
 		};
 
 		// Send the request to all nodes, use FuturesUnordered to get the responses in any order
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 		let rs = RequestStrategy::with_priority(PRIO_NORMAL).without_timeout();
 		let mut requests = nodes
 			.iter()

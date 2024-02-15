@@ -17,6 +17,7 @@ path = "lib.rs"
 garage_model.workspace = true
 garage_table.workspace = true
 garage_block.workspace = true
+garage_net.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
 

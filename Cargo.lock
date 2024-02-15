@@ -1060,6 +1060,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
+dependencies = [
+ "humantime",
+ "is-terminal",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1270,6 +1283,7 @@ dependencies = [
  "garage_block",
  "garage_db",
  "garage_model",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1284,7 +1298,6 @@ dependencies = [
  "k2v-client",
  "kuska-sodiumoxide",
  "mktemp",
- "netapp",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
@@ -1319,6 +1332,7 @@ dependencies = [
  "futures-util",
  "garage_block",
  "garage_model",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1363,6 +1377,7 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
@@ -1404,11 +1419,11 @@ dependencies = [
  "futures-util",
  "garage_block",
  "garage_db",
+ "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
  "hex",
- "netapp",
  "opentelemetry",
  "rand",
  "serde",
@@ -1416,6 +1431,32 @@ dependencies = [
  "tokio",
  "tracing",
  "zstd",
+]
+
+[[package]]
+name = "garage_net"
+version = "0.9.1"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "bytes",
+ "cfg-if",
+ "err-derive",
+ "futures",
+ "hex",
+ "kuska-handshake",
+ "kuska-sodiumoxide",
+ "log",
+ "opentelemetry",
+ "opentelemetry-contrib",
+ "pin-project",
+ "pretty_env_logger",
+ "rand",
+ "rmp-serde",
+ "serde",
+ "tokio",
+ "tokio-stream",
+ "tokio-util 0.7.10",
 ]
 
 [[package]]
@@ -1431,6 +1472,7 @@ dependencies = [
  "futures",
  "futures-util",
  "garage_db",
+ "garage_net",
  "garage_util",
  "gethostname",
  "hex",
@@ -1438,7 +1480,6 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "kuska-sodiumoxide",
- "netapp",
  "nix",
  "opentelemetry",
  "pnet_datalink",
@@ -1489,13 +1530,13 @@ dependencies = [
  "err-derive",
  "futures",
  "garage_db",
+ "garage_net",
  "hex",
  "hexdump",
  "http 1.0.0",
  "hyper 1.1.0",
  "lazy_static",
  "mktemp",
- "netapp",
  "opentelemetry",
  "rand",
  "rmp-serde",
@@ -1834,6 +1875,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
 name = "hyper"
 version = "0.14.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2025,6 +2072,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "is-terminal"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
+dependencies = [
+ "hermit-abi",
+ "libc",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2426,33 +2484,6 @@ name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
-
-[[package]]
-name = "netapp"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a00b76cec93e3ae68c9ed5f08e27a1507424987ee23d5ec961ebd4da820a265"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes",
- "cfg-if",
- "err-derive",
- "futures",
- "hex",
- "kuska-handshake",
- "kuska-sodiumoxide",
- "log",
- "opentelemetry",
- "opentelemetry-contrib",
- "pin-project",
- "rand",
- "rmp-serde",
- "serde",
- "tokio",
- "tokio-stream",
- "tokio-util 0.7.10",
-]
 
 [[package]]
 name = "nix"
@@ -2936,6 +2967,16 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "pretty_env_logger"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "865724d4dbe39d9f3dd3b52b88d859d66bcb2d6a0acfd5ea68a65fb66d4bdc1c"
+dependencies = [
+ "env_logger",
+ "log",
+]
 
 [[package]]
 name = "proc-macro-error"
@@ -3863,6 +3904,15 @@ dependencies = [
  "redox_syscall 0.4.1",
  "rustix",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "termcolor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]

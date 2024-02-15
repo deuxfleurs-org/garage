@@ -10,7 +10,7 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomRe
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use netapp::NodeID;
+use garage_net::NodeID;
 
 use garage_util::config::KubernetesDiscoveryConfig;
 

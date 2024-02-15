@@ -19,6 +19,7 @@ garage_rpc.workspace = true
 garage_table.workspace = true
 garage_block.workspace = true
 garage_util.workspace = true
+garage_net.workspace = true
 
 async-trait.workspace = true
 arc-swap.workspace = true
@@ -38,8 +39,6 @@ futures.workspace = true
 futures-util.workspace = true
 tokio.workspace = true
 opentelemetry.workspace = true
-
-netapp.workspace = true
 
 [features]
 default = [ "sled", "lmdb", "sqlite" ]
