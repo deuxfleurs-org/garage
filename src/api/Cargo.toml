@@ -45,7 +45,7 @@ http.workspace = true
 httpdate.workspace = true
 http-range.workspace = true
 http-body-util.workspace = true
-hyper.workspace = true
+hyper = { workspace = true, default-features = false, features = ["server", "http1"] }
 hyper-util.workspace = true
 multer.workspace = true
 percent-encoding.workspace = true
