@@ -20,7 +20,7 @@ use opentelemetry::{
 	Context,
 };
 
-use garage_rpc::rpc_helper::netapp::stream::{stream_asyncread, ByteStream};
+use garage_net::stream::{stream_asyncread, ByteStream};
 
 use garage_db as db;
 

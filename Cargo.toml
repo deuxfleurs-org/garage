@@ -3,6 +3,7 @@ resolver = "2"
 members = [
 	"src/db",
 	"src/util",
+	"src/net",
 	"src/rpc",
 	"src/table",
 	"src/block",
@@ -24,14 +25,12 @@ garage_api = { version = "0.10.0", path = "src/api" }
 garage_block = { version = "0.10.0", path = "src/block" }
 garage_db = { version = "0.10.0", path = "src/db", default-features = false }
 garage_model = { version = "0.10.0", path = "src/model", default-features = false }
+garage_net = { version = "0.10.0", path = "src/net" }
 garage_rpc = { version = "0.10.0", path = "src/rpc" }
 garage_table = { version = "0.10.0", path = "src/table" }
 garage_util = { version = "0.10.0", path = "src/util" }
 garage_web = { version = "0.10.0", path = "src/web" }
 k2v-client = { version = "0.0.4", path = "src/k2v-client" }
-
-# Netapp is a special sister crate
-netapp = { version = "0.10", features = ["telemetry"] }
 
 # External crates from crates.io
 arc-swap = "1.0"
@@ -41,6 +40,7 @@ base64 = "0.21"
 blake2 = "0.10"
 bytes = "1.0"
 bytesize = "1.1"
+cfg-if = "1.0"
 chrono = "0.4"
 crypto-common = "0.1"
 digest = "0.10"
@@ -62,9 +62,11 @@ pin-project = "1.0.12"
 pnet_datalink = "0.34"
 rand = "0.8"
 sha2 = "0.10"
-sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 timeago = { version = "0.4", default-features = false }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
+
+sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
+kuska-handshake = { version = "0.2.0", features = ["default", "async_std"] }
 
 clap = { version = "4.1", features = ["derive", "env"] }
 pretty_env_logger = "0.5"
@@ -84,7 +86,7 @@ rmp-serde = "1.1.2"
 serde = { version = "1.0", default-features = false, features = ["derive", "rc"] }
 serde_bytes = "0.11"
 serde_json = "1.0"
-toml = { versio = "0.8", default-features = false, features = ["parse"] }
+toml = { version = "0.8", default-features = false, features = ["parse"] }
 
 # newer version requires rust edition 2021
 k8s-openapi = { version = "0.21", features = ["v1_24"] }
@@ -97,7 +99,7 @@ http = "1.0"
 httpdate = "1.0"
 http-range = "0.1"
 http-body-util = "0.1"
-hyper = { version = "1.0", features = ["server", "http1"] }
+hyper = { version = "1.0", default-features = false }
 hyper-util = { version = "0.1", features = [ "full" ] }
 multer = "3.0"
 percent-encoding = "2.2"
@@ -106,17 +108,18 @@ url = "2.3"
 
 futures = "0.3"
 futures-util = "0.3"
-tokio = { version = "1.0", default-features = false, features = ["rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
-tokio-util = { version = "0.7", features = ["io"] }
+tokio = { version = "1.0", default-features = false, features = ["net", "rt", "rt-multi-thread", "io-util", "net", "time", "macros", "sync", "signal", "fs"] }
+tokio-util = { version = "0.7", features = ["compat", "io"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 
 opentelemetry = { version = "0.17", features = [ "rt-tokio", "metrics", "trace" ] }
 opentelemetry-prometheus = "0.10"
 opentelemetry-otlp = "0.10"
+opentelemetry-contrib = "0.9"
 prometheus = "0.13"
 
 # used by the k2v-client crate only
-aws-sigv4 = {version = "1.1" }
+aws-sigv4 = { version = "1.1" }
 hyper-rustls = { version = "0.26", features = ["http2"] }
 log = "0.4"
 thiserror = "1.0"

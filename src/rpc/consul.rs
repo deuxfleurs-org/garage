@@ -6,7 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use err_derive::Error;
 use serde::{Deserialize, Serialize};
 
-use netapp::NodeID;
+use garage_net::NodeID;
 
 use garage_util::config::ConsulDiscoveryAPI;
 use garage_util::config::ConsulDiscoveryConfig;

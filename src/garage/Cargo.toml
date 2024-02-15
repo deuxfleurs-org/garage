@@ -26,6 +26,7 @@ garage_db.workspace = true
 garage_api.workspace = true
 garage_block.workspace = true
 garage_model.workspace = true
+garage_net.workspace = true
 garage_rpc.workspace = true
 garage_table.workspace = true
 garage_util.workspace = true
@@ -52,8 +53,6 @@ toml.workspace = true
 futures.workspace = true
 futures-util.workspace = true
 tokio.workspace = true
-
-netapp.workspace = true
 
 opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }

@@ -349,7 +349,7 @@ mod tests {
 			crate::signature::signing_hmac(&datetime, secret_key, region, "s3").unwrap();
 
 		let data: &[&[u8]] = &[b"1"];
-		let body = futures::stream::iter(data.iter().map(|block| Ok(block.as_ref().into())));
+		let body = futures::stream::iter(data.iter().map(|block| Ok(block.to_vec().into())));
 
 		let seed_signature = Hash::default();
 

@@ -16,7 +16,7 @@ use opentelemetry::{
 	Context,
 };
 
-use garage_rpc::netapp::bytes_buf::BytesBuf;
+use garage_net::bytes_buf::BytesBuf;
 use garage_table::*;
 use garage_util::async_hash::*;
 use garage_util::data::*;

@@ -26,8 +26,8 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use netapp::util::parse_and_resolve_peer_addr;
-use netapp::NetworkKey;
+use garage_net::util::parse_and_resolve_peer_addr;
+use garage_net::NetworkKey;
 
 use garage_util::error::*;
 

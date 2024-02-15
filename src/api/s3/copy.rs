@@ -9,7 +9,7 @@ use bytes::Bytes;
 use hyper::{Request, Response};
 use serde::Serialize;
 
-use garage_rpc::netapp::bytes_buf::BytesBuf;
+use garage_net::bytes_buf::BytesBuf;
 use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
 use garage_util::data::*;

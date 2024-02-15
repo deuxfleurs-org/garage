@@ -4,9 +4,9 @@ use std::time::Duration;
 
 use tokio::sync::Notify;
 
-use netapp::endpoint::Endpoint;
-use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-use netapp::NodeID;
+use garage_net::endpoint::Endpoint;
+use garage_net::peering::PeeringManager;
+use garage_net::NodeID;
 
 use garage_util::config::Config;
 use garage_util::data::*;
@@ -37,7 +37,7 @@ impl LayoutManager {
 		config: &Config,
 		node_id: NodeID,
 		system_endpoint: Arc<Endpoint<SystemRpc, System>>,
-		fullmesh: Arc<FullMeshPeeringStrategy>,
+		peering: Arc<PeeringManager>,
 		replication_mode: ReplicationMode,
 	) -> Result<Arc<Self>, Error> {
 		let replication_factor = replication_mode.replication_factor();
@@ -74,7 +74,7 @@ impl LayoutManager {
 
 		let rpc_helper = RpcHelper::new(
 			node_id.into(),
-			fullmesh,
+			peering,
 			layout.clone(),
 			config.rpc_timeout_msec.map(Duration::from_millis),
 		);

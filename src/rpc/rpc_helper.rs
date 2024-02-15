@@ -14,13 +14,13 @@ use opentelemetry::{
 	Context,
 };
 
-pub use netapp::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
-pub use netapp::message::{
+pub use garage_net::endpoint::{Endpoint, EndpointHandler, StreamingEndpointHandler};
+pub use garage_net::message::{
 	IntoReq, Message as Rpc, OrderTag, Req, RequestPriority, Resp, PRIO_BACKGROUND, PRIO_HIGH,
 	PRIO_NORMAL, PRIO_SECONDARY,
 };
-use netapp::peering::fullmesh::FullMeshPeeringStrategy;
-pub use netapp::{self, NetApp, NodeID};
+use garage_net::peering::PeeringManager;
+pub use garage_net::{self, NetApp, NodeID};
 
 use garage_util::data::*;
 use garage_util::error::Error;
@@ -89,7 +89,7 @@ pub struct RpcHelper(Arc<RpcHelperInner>);
 
 struct RpcHelperInner {
 	our_node_id: Uuid,
-	fullmesh: Arc<FullMeshPeeringStrategy>,
+	peering: Arc<PeeringManager>,
 	layout: Arc<RwLock<LayoutHelper>>,
 	metrics: RpcMetrics,
 	rpc_timeout: Duration,
@@ -98,7 +98,7 @@ struct RpcHelperInner {
 impl RpcHelper {
 	pub(crate) fn new(
 		our_node_id: Uuid,
-		fullmesh: Arc<FullMeshPeeringStrategy>,
+		peering: Arc<PeeringManager>,
 		layout: Arc<RwLock<LayoutHelper>>,
 		rpc_timeout: Option<Duration>,
 	) -> Self {
@@ -106,7 +106,7 @@ impl RpcHelper {
 
 		Self(Arc::new(RpcHelperInner {
 			our_node_id,
-			fullmesh,
+			peering,
 			layout,
 			metrics,
 			rpc_timeout: rpc_timeout.unwrap_or(DEFAULT_TIMEOUT),
@@ -193,7 +193,7 @@ impl RpcHelper {
 		let span_name = format!("RPC [{}] call_many {} nodes", endpoint.path(), to.len());
 		let span = tracer.start(span_name);
 
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 
 		let resps = join_all(
 			to.iter()
@@ -221,7 +221,7 @@ impl RpcHelper {
 	{
 		let to = self
 			.0
-			.fullmesh
+			.peering
 			.get_peer_list()
 			.iter()
 			.map(|p| p.id.into())
@@ -310,7 +310,7 @@ impl RpcHelper {
 		// Build future for each request
 		// They are not started now: they are added below in a FuturesUnordered
 		// object that will take care of polling them (see below)
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 		let mut requests = request_order.into_iter().map(|to| {
 			let self2 = self.clone();
 			let msg = msg.clone();
@@ -441,7 +441,7 @@ impl RpcHelper {
 		let mut result_tracker = QuorumSetResultTracker::new(to_sets, quorum);
 
 		// Send one request to each peer of the quorum sets
-		let msg = msg.into_req().map_err(netapp::error::Error::from)?;
+		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
 		let requests = result_tracker.nodes.keys().map(|peer| {
 			let self2 = self.clone();
 			let msg = msg.clone();
@@ -521,7 +521,7 @@ impl RpcHelper {
 		nodes: impl Iterator<Item = Uuid>,
 	) -> Vec<Uuid> {
 		// Retrieve some status variables that we will use to sort requests
-		let peer_list = self.0.fullmesh.get_peer_list();
+		let peer_list = self.0.peering.get_peer_list();
 		let our_zone = layout
 			.current()
 			.get_node_zone(&self.0.our_node_id)

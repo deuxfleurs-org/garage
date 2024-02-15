@@ -15,6 +15,7 @@ path = "lib.rs"
 
 [dependencies]
 garage_db.workspace = true
+garage_net.workspace = true
 garage_rpc.workspace = true
 garage_util.workspace = true
 garage_table.workspace = true

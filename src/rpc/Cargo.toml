@@ -17,6 +17,7 @@ path = "lib.rs"
 format_table.workspace = true
 garage_db.workspace = true
 garage_util.workspace = true
+garage_net.workspace = true
 
 arc-swap.workspace = true
 bytes.workspace = true
@@ -48,8 +49,6 @@ futures-util.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 opentelemetry.workspace = true
-
-netapp.workspace = true
 
 [features]
 kubernetes-discovery = [ "kube", "k8s-openapi", "schemars" ]

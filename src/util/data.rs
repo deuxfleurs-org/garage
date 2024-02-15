@@ -85,15 +85,15 @@ impl FixedBytes32 {
 	}
 }
 
-impl From<netapp::NodeID> for FixedBytes32 {
-	fn from(node_id: netapp::NodeID) -> FixedBytes32 {
+impl From<garage_net::NodeID> for FixedBytes32 {
+	fn from(node_id: garage_net::NodeID) -> FixedBytes32 {
 		FixedBytes32::try_from(node_id.as_ref()).unwrap()
 	}
 }
 
-impl From<FixedBytes32> for netapp::NodeID {
-	fn from(bytes: FixedBytes32) -> netapp::NodeID {
-		netapp::NodeID::from_slice(bytes.as_slice()).unwrap()
+impl From<FixedBytes32> for garage_net::NodeID {
+	fn from(bytes: FixedBytes32) -> garage_net::NodeID {
+		garage_net::NodeID::from_slice(bytes.as_slice()).unwrap()
 	}
 }
 

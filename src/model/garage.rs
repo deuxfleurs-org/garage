@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use netapp::NetworkKey;
+use garage_net::NetworkKey;
 
 use garage_db as db;
 
