@@ -725,15 +725,18 @@ impl System {
 
 	async fn discovery_loop(self: &Arc<Self>, mut stop_signal: watch::Receiver<bool>) {
 		while !*stop_signal.borrow() {
-			let not_configured = self.ring.borrow().layout.check().is_err();
-			let no_peers = self.peering.get_peer_list().len() < self.replication_factor;
-			let expected_n_nodes = self.ring.borrow().layout.num_nodes();
-			let bad_peers = self
+			let n_connected = self
 				.peering
 				.get_peer_list()
 				.iter()
 				.filter(|p| p.is_up())
-				.count() != expected_n_nodes;
+				.count();
+
+			let not_configured = self.ring.borrow().layout.check().is_err();
+			let no_peers = n_connected < self.replication_factor;
+
+			let expected_n_nodes = self.ring.borrow().layout.num_nodes();
+			let bad_peers = n_connected != expected_n_nodes;
 
 			if not_configured || no_peers || bad_peers {
 				info!("Doing a bootstrap/discovery step (not_configured: {}, no_peers: {}, bad_peers: {})", not_configured, no_peers, bad_peers);
@@ -778,6 +781,14 @@ impl System {
 							warn!("Could not retrieve node list from Kubernetes: {}", e);
 						}
 					}
+				}
+
+				if !not_configured && !no_peers {
+					// If the layout is configured, and we already have some connections
+					// to other nodes in the cluster, we can skip trying to connect to
+					// nodes that are not in the cluster layout.
+					let ring = self.ring.borrow();
+					ping_list.retain(|(id, _)| ring.layout.node_ids().contains(&(*id).into()));
 				}
 
 				for (node_id, node_addr) in ping_list {
