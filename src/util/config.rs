@@ -55,6 +55,9 @@ pub struct Config {
 	pub rpc_secret_file: Option<PathBuf>,
 	/// Address to bind for RPC
 	pub rpc_bind_addr: SocketAddr,
+	/// Bind outgoing sockets to rpc_bind_addr's IP address as well
+	#[serde(default)]
+	pub rpc_bind_outgoing: bool,
 	/// Public IP address of this node
 	pub rpc_public_addr: Option<String>,
 

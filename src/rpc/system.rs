@@ -324,7 +324,10 @@ impl System {
 			warn!("This Garage node does not know its publicly reachable RPC address, this might hamper intra-cluster communication.");
 		}
 
-		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
+		let bind_outgoing_to = Some(config)
+			.filter(|x| x.rpc_bind_outgoing)
+			.map(|x| x.rpc_bind_addr.ip());
+		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key, bind_outgoing_to);
 		let peering = PeeringManager::new(netapp.clone(), vec![], rpc_public_addr);
 		if let Some(ping_timeout) = config.rpc_ping_timeout_msec {
 			peering.set_ping_timeout_millis(ping_timeout);

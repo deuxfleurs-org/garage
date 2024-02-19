@@ -13,7 +13,7 @@ use sodiumoxide::crypto::sign::ed25519;
 
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
 
@@ -62,6 +62,7 @@ type OnDisconnectHandler = Box<dyn Fn(NodeID, bool) + Send + Sync>;
 /// If using it alone, you will want to set `on_connect` and `on_disconnect` events
 /// in order to manage information about the current peer list.
 pub struct NetApp {
+	bind_outgoing_to: Option<IpAddr>,
 	listen_params: ArcSwapOption<ListenParams>,
 
 	/// Version tag, 8 bytes for netapp version, 8 bytes for app version
@@ -94,13 +95,19 @@ impl NetApp {
 	/// using `.listen()`
 	///
 	/// Our Peer ID is the public key associated to the secret key given here.
-	pub fn new(app_version_tag: u64, netid: auth::Key, privkey: ed25519::SecretKey) -> Arc<Self> {
+	pub fn new(
+		app_version_tag: u64,
+		netid: auth::Key,
+		privkey: ed25519::SecretKey,
+		bind_outgoing_to: Option<IpAddr>,
+	) -> Arc<Self> {
 		let mut version_tag = [0u8; 16];
 		version_tag[0..8].copy_from_slice(&u64::to_be_bytes(NETAPP_VERSION_TAG)[..]);
 		version_tag[8..16].copy_from_slice(&u64::to_be_bytes(app_version_tag)[..]);
 
 		let id = privkey.public_key();
 		let netapp = Arc::new(Self {
+			bind_outgoing_to,
 			listen_params: ArcSwapOption::new(None),
 			version_tag,
 			netid,
@@ -300,9 +307,20 @@ impl NetApp {
 			return Ok(());
 		}
 
-		let socket = TcpStream::connect(ip).await?;
+		let stream = match self.bind_outgoing_to {
+			Some(addr) => {
+				let socket = if addr.is_ipv4() {
+					TcpSocket::new_v4()?
+				} else {
+					TcpSocket::new_v6()?
+				};
+				socket.bind(SocketAddr::new(addr, 0))?;
+				socket.connect(ip).await?
+			}
+			None => TcpStream::connect(ip).await?,
+		};
 		info!("Connected to {}, negotiating handshake...", ip);
-		ClientConn::init(self, socket, id).await?;
+		ClientConn::init(self, stream, id).await?;
 		Ok(())
 	}
 
