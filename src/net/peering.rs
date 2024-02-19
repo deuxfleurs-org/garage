@@ -80,6 +80,23 @@ impl PeerInfoInternal {
 			failed_pings: 0,
 		}
 	}
+	fn add_addr(&mut self, addr: SocketAddr) -> bool {
+		if !self.all_addrs.contains(&addr) {
+			self.all_addrs.push(addr);
+			// If we are learning a new address for this node,
+			// we want to retry connecting
+			self.state = match self.state {
+				PeerConnState::Trying(_) => PeerConnState::Trying(0),
+				PeerConnState::Waiting(_, _) | PeerConnState::Abandonned => {
+					PeerConnState::Waiting(0, Instant::now())
+				}
+				x @ (PeerConnState::Ourself | PeerConnState::Connected) => x,
+			};
+			true
+		} else {
+			false
+		}
+	}
 }
 
 /// Information that the full mesh peering strategy can return about the peers it knows of
@@ -147,23 +164,22 @@ struct KnownHosts {
 impl KnownHosts {
 	fn new() -> Self {
 		let list = HashMap::new();
-		let hash = Self::calculate_hash(&list);
+		let hash = Self::calculate_hash(vec![]);
 		Self { list, hash }
 	}
 	fn update_hash(&mut self) {
-		self.hash = Self::calculate_hash(&self.list);
+		self.hash = Self::calculate_hash(self.connected_peers_vec());
 	}
-	fn map_into_vec(input: &HashMap<NodeID, PeerInfoInternal>) -> Vec<(NodeID, SocketAddr)> {
-		let mut list = Vec::with_capacity(input.len());
-		for (id, peer) in input.iter() {
-			if peer.state == PeerConnState::Connected || peer.state == PeerConnState::Ourself {
+	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
+		let mut list = Vec::with_capacity(self.list.len());
+		for (id, peer) in self.list.iter() {
+			if peer.state.is_up() {
 				list.push((*id, peer.addr));
 			}
 		}
 		list
 	}
-	fn calculate_hash(input: &HashMap<NodeID, PeerInfoInternal>) -> hash::Digest {
-		let mut list = Self::map_into_vec(input);
+	fn calculate_hash(mut list: Vec<(NodeID, SocketAddr)>) -> hash::Digest {
 		list.sort();
 		let mut hash_state = hash::State::new();
 		for (id, addr) in list {
@@ -214,6 +230,7 @@ impl PeeringManager {
 				netapp.id,
 				PeerInfoInternal::new(addr, PeerConnState::Ourself),
 			);
+			known_hosts.update_hash();
 		}
 
 		// TODO for v0.10 / v1.0 : rename the endpoint (it will break compatibility)
@@ -234,13 +251,11 @@ impl PeeringManager {
 
 		let strat2 = strat.clone();
 		netapp.on_connected(move |id: NodeID, addr: SocketAddr, is_incoming: bool| {
-			let strat2 = strat2.clone();
 			strat2.on_connected(id, addr, is_incoming);
 		});
 
 		let strat2 = strat.clone();
 		netapp.on_disconnected(move |id: NodeID, is_incoming: bool| {
-			let strat2 = strat2.clone();
 			strat2.on_disconnected(id, is_incoming);
 		});
 
@@ -445,7 +460,7 @@ impl PeeringManager {
 	}
 
 	async fn exchange_peers(self: Arc<Self>, id: &NodeID) {
-		let peer_list = KnownHosts::map_into_vec(&self.known_hosts.read().unwrap().list);
+		let peer_list = self.known_hosts.read().unwrap().connected_peers_vec();
 		let pex_message = PeerListMessage { list: peer_list };
 		match self
 			.peer_list_endpoint
@@ -465,8 +480,7 @@ impl PeeringManager {
 		let mut changed = false;
 		for (id, addr) in list.iter() {
 			if let Some(kh) = known_hosts.list.get_mut(id) {
-				if !kh.all_addrs.contains(addr) {
-					kh.all_addrs.push(*addr);
+				if kh.add_addr(*addr) {
 					changed = true;
 				}
 			} else {
@@ -534,13 +548,11 @@ impl PeeringManager {
 		}
 	}
 
-	fn on_connected(self: Arc<Self>, id: NodeID, addr: SocketAddr, is_incoming: bool) {
+	fn on_connected(self: &Arc<Self>, id: NodeID, addr: SocketAddr, is_incoming: bool) {
 		let mut known_hosts = self.known_hosts.write().unwrap();
 		if is_incoming {
 			if let Some(host) = known_hosts.list.get_mut(&id) {
-				if !host.all_addrs.contains(&addr) {
-					host.all_addrs.push(addr);
-				}
+				host.add_addr(addr);
 			} else {
 				known_hosts.list.insert(id, self.new_peer(&id, addr));
 			}
@@ -553,9 +565,7 @@ impl PeeringManager {
 			if let Some(host) = known_hosts.list.get_mut(&id) {
 				host.state = PeerConnState::Connected;
 				host.addr = addr;
-				if !host.all_addrs.contains(&addr) {
-					host.all_addrs.push(addr);
-				}
+				host.add_addr(addr);
 			} else {
 				known_hosts
 					.list
@@ -566,7 +576,7 @@ impl PeeringManager {
 		self.update_public_peer_list(&known_hosts);
 	}
 
-	fn on_disconnected(self: Arc<Self>, id: NodeID, is_incoming: bool) {
+	fn on_disconnected(self: &Arc<Self>, id: NodeID, is_incoming: bool) {
 		if !is_incoming {
 			info!("Connection to {} was closed", hex::encode(&id[..8]));
 			let mut known_hosts = self.known_hosts.write().unwrap();
@@ -608,7 +618,7 @@ impl EndpointHandler<PeerListMessage> for PeeringManager {
 		_from: NodeID,
 	) -> PeerListMessage {
 		self.handle_peer_list(&peer_list.list[..]);
-		let peer_list = KnownHosts::map_into_vec(&self.known_hosts.read().unwrap().list);
+		let peer_list = self.known_hosts.read().unwrap().connected_peers_vec();
 		PeerListMessage { list: peer_list }
 	}
 }
