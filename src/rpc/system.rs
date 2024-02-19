@@ -98,7 +98,6 @@ pub struct System {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
-	#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<String>,
 
@@ -325,7 +324,10 @@ impl System {
 			warn!("This Garage node does not know its publicly reachable RPC address, this might hamper intra-cluster communication.");
 		}
 
-		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
+		let bind_outgoing_to = Some(config)
+			.filter(|x| x.rpc_bind_outgoing)
+			.map(|x| x.rpc_bind_addr.ip());
+		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key, bind_outgoing_to);
 		let peering = PeeringManager::new(netapp.clone(), vec![], rpc_public_addr);
 		if let Some(ping_timeout) = config.rpc_ping_timeout_msec {
 			peering.set_ping_timeout_millis(ping_timeout);
@@ -369,7 +371,6 @@ impl System {
 			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
-			#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
@@ -390,9 +391,11 @@ impl System {
 	/// Perform bootstraping, starting the ping loop
 	pub async fn run(self: Arc<Self>, must_exit: watch::Receiver<bool>) {
 		join!(
-			self.netapp
-				.clone()
-				.listen(self.rpc_listen_addr, None, must_exit.clone()),
+			self.netapp.clone().listen(
+				self.rpc_listen_addr,
+				self.rpc_public_addr,
+				must_exit.clone()
+			),
 			self.peering.clone().run(must_exit.clone()),
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
