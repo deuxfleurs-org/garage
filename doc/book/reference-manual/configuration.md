@@ -83,7 +83,7 @@ Top-level configuration options:
 [`block_size`](#block_size),
 [`bootstrap_peers`](#bootstrap_peers),
 [`compression_level`](#compression_level),
-[`data_dir`](#metadata_dir),
+[`data_dir`](#data_dir),
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
 [`lmdb_map_size`](#lmdb_map_size),
@@ -92,20 +92,19 @@ Top-level configuration options:
 [`replication_mode`](#replication_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
 [`rpc_public_addr`](#rpc_public_addr),
-[`rpc_secret`](#rpc_secret),
-[`rpc_secret_file`](#rpc_secret),
+[`rpc_secret`/`rpc_secret_file`](#rpc_secret),
 [`sled_cache_capacity`](#sled_cache_capacity),
 [`sled_flush_every_ms`](#sled_flush_every_ms).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
 [`ca_cert`](#consul_ca_cert),
-[`client_cert`](#consul_client_cert),
-[`client_key`](#consul_client_cert),
+[`client_cert`](#consul_client_cert_and_key),
+[`client_key`](#consul_client_cert_and_key),
 [`consul_http_addr`](#consul_http_addr),
-[`meta`](#consul_tags),
+[`meta`](#consul_tags_and_meta),
 [`service_name`](#consul_service_name),
-[`tags`](#consul_tags),
+[`tags`](#consul_tags_and_meta),
 [`tls_skip_verify`](#consul_tls_skip_verify),
 [`token`](#consul_token).
 
@@ -125,10 +124,8 @@ The `[s3_web]` section:
 
 The `[admin]` section:
 [`api_bind_addr`](#admin_api_bind_addr),
-[`metrics_token`](#admin_metrics_token),
-[`metrics_token_file`](#admin_metrics_token),
-[`admin_token`](#admin_token),
-[`admin_token_file`](#admin_token),
+[`metrics_token`/`metrics_token_file`](#admin_metrics_token),
+[`admin_token`/`admin_token_file`](#admin_token),
 [`trace_sink`](#admin_trace_sink),
 
 
@@ -474,7 +471,7 @@ the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are
 `service_name` should be set to the service name under which Garage's
 RPC ports are announced.
 
-#### `client_cert`, `client_key` {#consul_client_cert}
+#### `client_cert`, `client_key` {#consul_client_cert_and_key}
 
 TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
 Only available when `api = "catalog"`.
@@ -508,7 +505,7 @@ node_prefix "" {
 }
 ```
 
-#### `tags` and `meta` {#consul_tags}
+#### `tags` and `meta` {#consul_tags_and_meta}
 
 Additional list of tags and map of service meta to add during service registration.
 
