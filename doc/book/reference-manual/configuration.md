@@ -17,7 +17,7 @@ data_fsync = false
 
 db_engine = "lmdb"
 
-block_size = 1048576
+block_size = "1M"
 
 sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
@@ -31,7 +31,7 @@ rpc_public_addr = "[fc00:1::1]:3901"
 
 bootstrap_peers = [
     "563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901",
-    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332[fc00:1::2]:3901",
+    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332@[fc00:1::2]:3901",
     "681456ab91350f92242e80a531a3ec9392cb7c974f72640112f90a600d7921a4@[fc00:B::1]:3901",
     "212fd62eeaca72c122b45a7f4fa0f55e012aa5e24ac384a72a3016413fa724ff@[fc00:F::1]:3901",
 ]
