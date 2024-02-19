@@ -98,7 +98,6 @@ pub struct System {
 	system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
-	#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<String>,
 
@@ -369,7 +368,6 @@ impl System {
 			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
-			#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
@@ -390,9 +388,11 @@ impl System {
 	/// Perform bootstraping, starting the ping loop
 	pub async fn run(self: Arc<Self>, must_exit: watch::Receiver<bool>) {
 		join!(
-			self.netapp
-				.clone()
-				.listen(self.rpc_listen_addr, None, must_exit.clone()),
+			self.netapp.clone().listen(
+				self.rpc_listen_addr,
+				self.rpc_public_addr,
+				must_exit.clone()
+			),
 			self.peering.clone().run(must_exit.clone()),
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
