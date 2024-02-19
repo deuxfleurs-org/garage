@@ -27,6 +27,7 @@ compression_level = 1
 
 rpc_secret = "4425f5c26c5e11581d3223904324dcb5b5d5dfb14e5e7f35e38c595424f5f1e6"
 rpc_bind_addr = "[::]:3901"
+rpc_bind_outgoing = false
 rpc_public_addr = "[fc00:1::1]:3901"
 
 bootstrap_peers = [
@@ -91,6 +92,7 @@ Top-level configuration options:
 [`metadata_fsync`](#metadata_fsync),
 [`replication_mode`](#replication_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
+[`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
 [`rpc_secret`/`rpc_secret_file`](#rpc_secret),
 [`sled_cache_capacity`](#sled_cache_capacity),
@@ -414,6 +416,17 @@ The port specified here should be the same one that other nodes will used to con
 the node, even in the case of a NAT: the NAT should be configured to forward the external
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
+
+#### `rpc_bind_outgoing` {#rpc_bind_outgoing} (since v0.9.2)
+
+If enabled, pre-bind all sockets for outgoing connections to the same IP address
+used for listening (the IP address specified in `rpc_bind_addr`) before
+trying to connect to remote nodes.
+This can be necessary if a node has multiple IP addresses,
+but only one is allowed or able to reach the other nodes,
+for instance due to firewall rules or specific routing configuration.
+
+Disabled by default.
 
 #### `rpc_public_addr` {#rpc_public_addr}
 
