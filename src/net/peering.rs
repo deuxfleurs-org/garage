@@ -80,6 +80,23 @@ impl PeerInfoInternal {
 			failed_pings: 0,
 		}
 	}
+	fn add_addr(&mut self, addr: SocketAddr) -> bool {
+		if !self.all_addrs.contains(&addr) {
+			self.all_addrs.push(addr);
+			// If we are learning a new address for this node,
+			// we want to retry connecting
+			self.state = match self.state {
+				PeerConnState::Trying(_) => PeerConnState::Trying(0),
+				PeerConnState::Waiting(_, _) | PeerConnState::Abandonned => {
+					PeerConnState::Waiting(0, Instant::now())
+				}
+				x @ (PeerConnState::Ourself | PeerConnState::Connected) => x,
+			};
+			true
+		} else {
+			false
+		}
+	}
 }
 
 /// Information that the full mesh peering strategy can return about the peers it knows of
@@ -465,8 +482,7 @@ impl PeeringManager {
 		let mut changed = false;
 		for (id, addr) in list.iter() {
 			if let Some(kh) = known_hosts.list.get_mut(id) {
-				if !kh.all_addrs.contains(addr) {
-					kh.all_addrs.push(*addr);
+				if kh.add_addr(*addr) {
 					changed = true;
 				}
 			} else {
@@ -538,9 +554,7 @@ impl PeeringManager {
 		let mut known_hosts = self.known_hosts.write().unwrap();
 		if is_incoming {
 			if let Some(host) = known_hosts.list.get_mut(&id) {
-				if !host.all_addrs.contains(&addr) {
-					host.all_addrs.push(addr);
-				}
+				host.add_addr(addr);
 			} else {
 				known_hosts.list.insert(id, self.new_peer(&id, addr));
 			}
@@ -553,9 +567,7 @@ impl PeeringManager {
 			if let Some(host) = known_hosts.list.get_mut(&id) {
 				host.state = PeerConnState::Connected;
 				host.addr = addr;
-				if !host.all_addrs.contains(&addr) {
-					host.all_addrs.push(addr);
-				}
+				host.add_addr(addr);
 			} else {
 				known_hosts
 					.list
