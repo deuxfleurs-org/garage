@@ -104,7 +104,7 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
-	_metrics: SystemMetrics,
+	metrics: SystemMetrics,
 
 	replication_mode: ReplicationMode,
 	replication_factor: usize,
@@ -168,7 +168,7 @@ pub struct ClusterHealth {
 	pub partitions_all_ok: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClusterHealthStatus {
 	/// All nodes are available
 	Healthy,
@@ -376,7 +376,7 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
-			_metrics: metrics,
+			metrics,
 
 			ring,
 			update_ring: Mutex::new(update_ring),
@@ -698,7 +698,13 @@ impl System {
 		while !*stop_signal.borrow() {
 			let restart_at = Instant::now() + STATUS_EXCHANGE_INTERVAL;
 
+			// Update local node status that is exchanged.
+			// Status variables are exported into Prometheus in SystemMetrics,
+			// so we take the opportunity to also update here the health status
+			// that is reported in those metrics.
 			self.update_local_status();
+			*self.metrics.health.write().unwrap() = Some(self.health());
+
 			let local_status: NodeStatus = self.local_status.read().unwrap().clone();
 			let _ = self
 				.rpc
