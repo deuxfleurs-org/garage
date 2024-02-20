@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
-use arc_swap::ArcSwap;
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use futures::join;
 use serde::{Deserialize, Serialize};
@@ -88,7 +87,7 @@ pub struct System {
 	persist_cluster_layout: Persister<ClusterLayout>,
 	persist_peer_list: Persister<PeerList>,
 
-	local_status: ArcSwap<NodeStatus>,
+	pub(crate) local_status: RwLock<NodeStatus>,
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
 
 	pub netapp: Arc<NetApp>,
@@ -106,10 +105,10 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
-	metrics: SystemMetrics,
+	metrics: ArcSwapOption<SystemMetrics>,
 
 	replication_mode: ReplicationMode,
-	replication_factor: usize,
+	pub(crate) replication_factor: usize,
 
 	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
@@ -170,7 +169,7 @@ pub struct ClusterHealth {
 	pub partitions_all_ok: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClusterHealthStatus {
 	/// All nodes are available
 	Healthy,
@@ -280,10 +279,8 @@ impl System {
 			}
 		};
 
-		let metrics = SystemMetrics::new(replication_factor);
-
 		let mut local_status = NodeStatus::initial(replication_factor, &cluster_layout);
-		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir, &metrics);
+		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir);
 
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
@@ -357,7 +354,7 @@ impl System {
 			id: netapp.id.into(),
 			persist_cluster_layout,
 			persist_peer_list,
-			local_status: ArcSwap::new(Arc::new(local_status)),
+			local_status: RwLock::new(local_status),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
 			peering: peering.clone(),
@@ -377,14 +374,19 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
-			metrics,
+			metrics: ArcSwapOption::new(None),
 
 			ring,
 			update_ring: Mutex::new(update_ring),
 			metadata_dir: config.metadata_dir.clone(),
 			data_dir: config.data_dir.clone(),
 		});
+
 		sys.system_endpoint.set_handler(sys.clone());
+
+		let metrics = SystemMetrics::new(sys.clone());
+		sys.metrics.store(Some(Arc::new(metrics)));
+
 		Ok(sys)
 	}
 
@@ -400,6 +402,11 @@ impl System {
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
 		);
+	}
+
+	pub fn cleanup(&self) {
+		// Break reference cycle
+		self.metrics.store(None);
 	}
 
 	// ---- Administrative operations (directly available and
@@ -546,12 +553,9 @@ impl System {
 			}
 		};
 
+		let hostname = self.local_status.read().unwrap().hostname.clone();
 		if let Err(e) = c
-			.publish_consul_service(
-				self.netapp.id,
-				&self.local_status.load_full().hostname,
-				rpc_public_addr,
-			)
+			.publish_consul_service(self.netapp.id, &hostname, rpc_public_addr)
 			.await
 		{
 			error!("Error while publishing Consul service: {}", e);
@@ -573,13 +577,8 @@ impl System {
 			}
 		};
 
-		if let Err(e) = publish_kubernetes_node(
-			k,
-			self.netapp.id,
-			&self.local_status.load_full().hostname,
-			rpc_public_addr,
-		)
-		.await
+		let hostname = self.local_status.read().unwrap().hostname.clone();
+		if let Err(e) = publish_kubernetes_node(k, self.netapp.id, &hostname, rpc_public_addr).await
 		{
 			error!("Error while publishing node to Kubernetes: {}", e);
 		}
@@ -596,15 +595,13 @@ impl System {
 	}
 
 	fn update_local_status(&self) {
-		let mut new_si: NodeStatus = self.local_status.load().as_ref().clone();
+		let mut local_status = self.local_status.write().unwrap();
 
 		let ring = self.ring.borrow();
-		new_si.cluster_layout_version = ring.layout.version;
-		new_si.cluster_layout_staging_hash = ring.layout.staging_hash;
+		local_status.cluster_layout_version = ring.layout.version;
+		local_status.cluster_layout_staging_hash = ring.layout.staging_hash;
 
-		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
-
-		self.local_status.swap(Arc::new(new_si));
+		local_status.update_disk_usage(&self.metadata_dir, &self.data_dir);
 	}
 
 	// --- RPC HANDLERS ---
@@ -629,7 +626,7 @@ impl System {
 		from: Uuid,
 		info: &NodeStatus,
 	) -> Result<SystemRpc, Error> {
-		let local_info = self.local_status.load();
+		let local_info = self.local_status.read().unwrap();
 
 		if local_info.replication_factor < info.replication_factor {
 			error!("Some node have a higher replication factor ({}) than this one ({}). This is not supported and will lead to data corruption. Shutting down for safety.",
@@ -643,6 +640,8 @@ impl System {
 		{
 			tokio::spawn(self.clone().pull_cluster_layout(from));
 		}
+
+		drop(local_info);
 
 		self.node_status
 			.write()
@@ -707,8 +706,10 @@ impl System {
 		while !*stop_signal.borrow() {
 			let restart_at = Instant::now() + STATUS_EXCHANGE_INTERVAL;
 
+			// Update local node status that is exchanged.
 			self.update_local_status();
-			let local_status: NodeStatus = self.local_status.load().as_ref().clone();
+
+			let local_status: NodeStatus = self.local_status.read().unwrap().clone();
 			let _ = self
 				.rpc
 				.broadcast(
@@ -904,12 +905,7 @@ impl NodeStatus {
 		}
 	}
 
-	fn update_disk_usage(
-		&mut self,
-		meta_dir: &Path,
-		data_dir: &DataDirEnum,
-		metrics: &SystemMetrics,
-	) {
+	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &DataDirEnum) {
 		use nix::sys::statvfs::statvfs;
 		let mount_avail = |path: &Path| match statvfs(path) {
 			Ok(x) => {
@@ -945,27 +941,6 @@ impl NodeStatus {
 				)
 			})(),
 		};
-
-		if let Some((avail, total)) = self.meta_disk_avail {
-			metrics
-				.values
-				.meta_disk_avail
-				.store(avail, Ordering::Relaxed);
-			metrics
-				.values
-				.meta_disk_total
-				.store(total, Ordering::Relaxed);
-		}
-		if let Some((avail, total)) = self.data_disk_avail {
-			metrics
-				.values
-				.data_disk_avail
-				.store(avail, Ordering::Relaxed);
-			metrics
-				.values
-				.data_disk_total
-				.store(total, Ordering::Relaxed);
-		}
 	}
 }
 
