@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use futures::join;
 use serde::{Deserialize, Serialize};
@@ -86,7 +87,7 @@ pub struct System {
 	persist_cluster_layout: Persister<ClusterLayout>,
 	persist_peer_list: Persister<PeerList>,
 
-	local_status: Arc<RwLock<NodeStatus>>,
+	pub(crate) local_status: RwLock<NodeStatus>,
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
 
 	pub netapp: Arc<NetApp>,
@@ -104,10 +105,10 @@ pub struct System {
 	#[cfg(feature = "kubernetes-discovery")]
 	kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
-	metrics: SystemMetrics,
+	metrics: ArcSwapOption<SystemMetrics>,
 
 	replication_mode: ReplicationMode,
-	replication_factor: usize,
+	pub(crate) replication_factor: usize,
 
 	/// The ring
 	pub ring: watch::Receiver<Arc<Ring>>,
@@ -280,9 +281,6 @@ impl System {
 
 		let mut local_status = NodeStatus::initial(replication_factor, &cluster_layout);
 		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir);
-		let local_status = Arc::new(RwLock::new(local_status));
-
-		let metrics = SystemMetrics::new(replication_factor, local_status.clone());
 
 		let ring = Ring::new(cluster_layout, replication_factor);
 		let (update_ring, ring) = watch::channel(Arc::new(ring));
@@ -356,7 +354,7 @@ impl System {
 			id: netapp.id.into(),
 			persist_cluster_layout,
 			persist_peer_list,
-			local_status,
+			local_status: RwLock::new(local_status),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
 			peering: peering.clone(),
@@ -376,14 +374,19 @@ impl System {
 			consul_discovery,
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
-			metrics,
+			metrics: ArcSwapOption::new(None),
 
 			ring,
 			update_ring: Mutex::new(update_ring),
 			metadata_dir: config.metadata_dir.clone(),
 			data_dir: config.data_dir.clone(),
 		});
+
 		sys.system_endpoint.set_handler(sys.clone());
+
+		let metrics = SystemMetrics::new(sys.clone());
+		sys.metrics.store(Some(Arc::new(metrics)));
+
 		Ok(sys)
 	}
 
@@ -399,6 +402,11 @@ impl System {
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
 		);
+	}
+
+	pub fn cleanup(&self) {
+		// Break reference cycle
+		self.metrics.store(None);
 	}
 
 	// ---- Administrative operations (directly available and
@@ -699,11 +707,7 @@ impl System {
 			let restart_at = Instant::now() + STATUS_EXCHANGE_INTERVAL;
 
 			// Update local node status that is exchanged.
-			// Status variables are exported into Prometheus in SystemMetrics,
-			// so we take the opportunity to also update here the health status
-			// that is reported in those metrics.
 			self.update_local_status();
-			*self.metrics.health.write().unwrap() = Some(self.health());
 
 			let local_status: NodeStatus = self.local_status.read().unwrap().clone();
 			let _ = self

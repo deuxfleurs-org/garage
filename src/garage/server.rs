@@ -162,6 +162,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 	info!("Netapp exited");
 
 	// Drop all references so that stuff can terminate properly
+	garage.system.cleanup();
 	drop(garage);
 
 	// Await for all background tasks to end
