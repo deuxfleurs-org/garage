@@ -3,11 +3,10 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::{Duration, Instant};
 
-use arc_swap::ArcSwap;
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use futures::join;
 use serde::{Deserialize, Serialize};
@@ -92,7 +91,7 @@ pub struct System {
 
 	persist_peer_list: Persister<PeerList>,
 
-	local_status: ArcSwap<NodeStatus>,
+	pub(crate) local_status: RwLock<NodeStatus>,
 	node_status: RwLock<HashMap<Uuid, (u64, NodeStatus)>>,
 
 	pub netapp: Arc<NetApp>,
@@ -101,7 +100,6 @@ pub struct System {
 	pub(crate) system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 
 	rpc_listen_addr: SocketAddr,
-	#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 	rpc_public_addr: Option<SocketAddr>,
 	bootstrap_peers: Vec<String>,
 
@@ -112,10 +110,10 @@ pub struct System {
 
 	pub layout_manager: Arc<LayoutManager>,
 
-	metrics: SystemMetrics,
+	metrics: ArcSwapOption<SystemMetrics>,
 
 	replication_mode: ReplicationMode,
-	replication_factor: usize,
+	pub(crate) replication_factor: usize,
 
 	/// Path to metadata directory
 	pub metadata_dir: PathBuf,
@@ -171,7 +169,7 @@ pub struct ClusterHealth {
 	pub partitions_all_ok: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClusterHealthStatus {
 	/// All nodes are available
 	Healthy,
@@ -256,7 +254,10 @@ impl System {
 			hex::encode(&node_key.public_key()[..8])
 		);
 
-		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key);
+		let bind_outgoing_to = Some(config)
+			.filter(|x| x.rpc_bind_outgoing)
+			.map(|x| x.rpc_bind_addr.ip());
+		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key, bind_outgoing_to);
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
 
 		// ---- setup netapp public listener and full mesh peering strategy ----
@@ -283,11 +284,8 @@ impl System {
 			replication_mode,
 		)?;
 
-		// ---- set up metrics and status exchange ----
-		let metrics = SystemMetrics::new(replication_factor);
-
 		let mut local_status = NodeStatus::initial(replication_factor, &layout_manager);
-		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir, &metrics);
+		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir);
 
 		// ---- if enabled, set up additionnal peer discovery methods ----
 		#[cfg(feature = "consul-discovery")]
@@ -308,11 +306,11 @@ impl System {
 			warn!("Kubernetes discovery is not enabled in this build.");
 		}
 
-		// ---- done ----
+		// ---- almost done ----
 		let sys = Arc::new(System {
 			id: netapp.id.into(),
 			persist_peer_list,
-			local_status: ArcSwap::new(Arc::new(local_status)),
+			local_status: RwLock::new(local_status),
 			node_status: RwLock::new(HashMap::new()),
 			netapp: netapp.clone(),
 			peering: peering.clone(),
@@ -320,7 +318,6 @@ impl System {
 			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
-			#[cfg(any(feature = "consul-discovery", feature = "kubernetes-discovery"))]
 			rpc_public_addr,
 			bootstrap_peers: config.bootstrap_peers.clone(),
 			#[cfg(feature = "consul-discovery")]
@@ -328,25 +325,37 @@ impl System {
 			#[cfg(feature = "kubernetes-discovery")]
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
 			layout_manager,
-			metrics,
+			metrics: ArcSwapOption::new(None),
 
 			metadata_dir: config.metadata_dir.clone(),
 			data_dir: config.data_dir.clone(),
 		});
+
 		sys.system_endpoint.set_handler(sys.clone());
+
+		let metrics = SystemMetrics::new(sys.clone());
+		sys.metrics.store(Some(Arc::new(metrics)));
+
 		Ok(sys)
 	}
 
 	/// Perform bootstraping, starting the ping loop
 	pub async fn run(self: Arc<Self>, must_exit: watch::Receiver<bool>) {
 		join!(
-			self.netapp
-				.clone()
-				.listen(self.rpc_listen_addr, None, must_exit.clone()),
+			self.netapp.clone().listen(
+				self.rpc_listen_addr,
+				self.rpc_public_addr,
+				must_exit.clone()
+			),
 			self.peering.clone().run(must_exit.clone()),
 			self.discovery_loop(must_exit.clone()),
 			self.status_exchange_loop(must_exit.clone()),
 		);
+	}
+
+	pub fn cleanup(&self) {
+		// Break reference cycle
+		self.metrics.store(None);
 	}
 
 	// ---- Public utilities / accessors ----
@@ -511,12 +520,9 @@ impl System {
 			}
 		};
 
+		let hostname = self.local_status.read().unwrap().hostname.clone();
 		if let Err(e) = c
-			.publish_consul_service(
-				self.netapp.id,
-				&self.local_status.load_full().hostname.as_deref().unwrap(),
-				rpc_public_addr,
-			)
+			.publish_consul_service(self.netapp.id, &hostname, rpc_public_addr)
 			.await
 		{
 			error!("Error while publishing Consul service: {}", e);
@@ -538,26 +544,17 @@ impl System {
 			}
 		};
 
-		if let Err(e) = publish_kubernetes_node(
-			k,
-			self.netapp.id,
-			&self.local_status.load_full().hostname.as_deref().unwrap(),
-			rpc_public_addr,
-		)
-		.await
+		let hostname = self.local_status.read().unwrap().hostname.clone();
+		if let Err(e) = publish_kubernetes_node(k, self.netapp.id, &hostname, rpc_public_addr).await
 		{
 			error!("Error while publishing node to Kubernetes: {}", e);
 		}
 	}
 
 	fn update_local_status(&self) {
-		let mut new_si: NodeStatus = self.local_status.load().as_ref().clone();
-
-		new_si.layout_digest = self.layout_manager.layout().digest();
-
-		new_si.update_disk_usage(&self.metadata_dir, &self.data_dir, &self.metrics);
-
-		self.local_status.swap(Arc::new(new_si));
+		let mut local_status = self.local_status.write().unwrap();
+		local_status.layout_digest = self.layout_manager.layout().digest();
+		local_status.update_disk_usage(&self.metadata_dir, &self.data_dir);
 	}
 
 	// --- RPC HANDLERS ---
@@ -577,7 +574,7 @@ impl System {
 		from: Uuid,
 		info: &NodeStatus,
 	) -> Result<SystemRpc, Error> {
-		let local_info = self.local_status.load();
+		let local_info = self.local_status.read().unwrap();
 
 		if local_info.replication_factor < info.replication_factor {
 			error!("Some node have a higher replication factor ({}) than this one ({}). This is not supported and will lead to data corruption. Shutting down for safety.",
@@ -588,6 +585,8 @@ impl System {
 
 		self.layout_manager
 			.handle_advertise_status(from, &info.layout_digest);
+
+		drop(local_info);
 
 		self.node_status
 			.write()
@@ -601,8 +600,10 @@ impl System {
 		while !*stop_signal.borrow() {
 			let restart_at = Instant::now() + STATUS_EXCHANGE_INTERVAL;
 
+			// Update local node status that is exchanged.
 			self.update_local_status();
-			let local_status: NodeStatus = self.local_status.load().as_ref().clone();
+
+			let local_status: NodeStatus = self.local_status.read().unwrap().clone();
 			let _ = self
 				.rpc_helper()
 				.broadcast(
@@ -622,15 +623,17 @@ impl System {
 
 	async fn discovery_loop(self: &Arc<Self>, mut stop_signal: watch::Receiver<bool>) {
 		while !*stop_signal.borrow() {
-			let not_configured = self.cluster_layout().check().is_err();
-			let no_peers = self.peering.get_peer_list().len() < self.replication_factor;
-			let expected_n_nodes = self.cluster_layout().all_nodes().len();
-			let bad_peers = self
+			let n_connected = self
 				.peering
 				.get_peer_list()
 				.iter()
 				.filter(|p| p.is_up())
-				.count() != expected_n_nodes;
+				.count();
+
+			let not_configured = self.cluster_layout().check().is_err();
+			let no_peers = n_connected < self.replication_factor;
+			let expected_n_nodes = self.cluster_layout().all_nodes().len();
+			let bad_peers = n_connected != expected_n_nodes;
 
 			if not_configured || no_peers || bad_peers {
 				info!("Doing a bootstrap/discovery step (not_configured: {}, no_peers: {}, bad_peers: {})", not_configured, no_peers, bad_peers);
@@ -675,6 +678,14 @@ impl System {
 							warn!("Could not retrieve node list from Kubernetes: {}", e);
 						}
 					}
+				}
+
+				if !not_configured && !no_peers {
+					// If the layout is configured, and we already have some connections
+					// to other nodes in the cluster, we can skip trying to connect to
+					// nodes that are not in the cluster layout.
+					let layout = self.cluster_layout();
+					ping_list.retain(|(id, _)| layout.all_nodes().contains(&(*id).into()));
 				}
 
 				for (node_id, node_addr) in ping_list {
@@ -787,12 +798,7 @@ impl NodeStatus {
 		}
 	}
 
-	fn update_disk_usage(
-		&mut self,
-		meta_dir: &Path,
-		data_dir: &DataDirEnum,
-		metrics: &SystemMetrics,
-	) {
+	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &DataDirEnum) {
 		use nix::sys::statvfs::statvfs;
 		let mount_avail = |path: &Path| match statvfs(path) {
 			Ok(x) => {
@@ -828,27 +834,6 @@ impl NodeStatus {
 				)
 			})(),
 		};
-
-		if let Some((avail, total)) = self.meta_disk_avail {
-			metrics
-				.values
-				.meta_disk_avail
-				.store(avail, Ordering::Relaxed);
-			metrics
-				.values
-				.meta_disk_total
-				.store(total, Ordering::Relaxed);
-		}
-		if let Some((avail, total)) = self.data_disk_avail {
-			metrics
-				.values
-				.data_disk_avail
-				.store(avail, Ordering::Relaxed);
-			metrics
-				.values
-				.data_disk_total
-				.store(total, Ordering::Relaxed);
-		}
 	}
 }
 

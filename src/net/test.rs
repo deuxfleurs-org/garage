@@ -102,7 +102,7 @@ fn run_netapp(
 	Arc<NetApp>,
 	Arc<PeeringManager>,
 ) {
-	let netapp = NetApp::new(0u64, netid, sk);
+	let netapp = NetApp::new(0u64, netid, sk, None);
 	let peering = PeeringManager::new(netapp.clone(), bootstrap_peers, None);
 
 	let peering2 = peering.clone();

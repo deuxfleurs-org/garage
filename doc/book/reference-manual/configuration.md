@@ -17,7 +17,7 @@ data_fsync = false
 
 db_engine = "lmdb"
 
-block_size = 1048576
+block_size = "1M"
 
 sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
@@ -27,11 +27,12 @@ compression_level = 1
 
 rpc_secret = "4425f5c26c5e11581d3223904324dcb5b5d5dfb14e5e7f35e38c595424f5f1e6"
 rpc_bind_addr = "[::]:3901"
+rpc_bind_outgoing = false
 rpc_public_addr = "[fc00:1::1]:3901"
 
 bootstrap_peers = [
     "563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901",
-    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332[fc00:1::2]:3901",
+    "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332@[fc00:1::2]:3901",
     "681456ab91350f92242e80a531a3ec9392cb7c974f72640112f90a600d7921a4@[fc00:B::1]:3901",
     "212fd62eeaca72c122b45a7f4fa0f55e012aa5e24ac384a72a3016413fa724ff@[fc00:F::1]:3901",
 ]
@@ -83,7 +84,7 @@ Top-level configuration options:
 [`block_size`](#block_size),
 [`bootstrap_peers`](#bootstrap_peers),
 [`compression_level`](#compression_level),
-[`data_dir`](#metadata_dir),
+[`data_dir`](#data_dir),
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
 [`lmdb_map_size`](#lmdb_map_size),
@@ -91,21 +92,21 @@ Top-level configuration options:
 [`metadata_fsync`](#metadata_fsync),
 [`replication_mode`](#replication_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
+[`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
-[`rpc_secret`](#rpc_secret),
-[`rpc_secret_file`](#rpc_secret),
+[`rpc_secret`/`rpc_secret_file`](#rpc_secret),
 [`sled_cache_capacity`](#sled_cache_capacity),
 [`sled_flush_every_ms`](#sled_flush_every_ms).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
 [`ca_cert`](#consul_ca_cert),
-[`client_cert`](#consul_client_cert),
-[`client_key`](#consul_client_cert),
+[`client_cert`](#consul_client_cert_and_key),
+[`client_key`](#consul_client_cert_and_key),
 [`consul_http_addr`](#consul_http_addr),
-[`meta`](#consul_tags),
+[`meta`](#consul_tags_and_meta),
 [`service_name`](#consul_service_name),
-[`tags`](#consul_tags),
+[`tags`](#consul_tags_and_meta),
 [`tls_skip_verify`](#consul_tls_skip_verify),
 [`token`](#consul_token).
 
@@ -125,10 +126,8 @@ The `[s3_web]` section:
 
 The `[admin]` section:
 [`api_bind_addr`](#admin_api_bind_addr),
-[`metrics_token`](#admin_metrics_token),
-[`metrics_token_file`](#admin_metrics_token),
-[`admin_token`](#admin_token),
-[`admin_token_file`](#admin_token),
+[`metrics_token`/`metrics_token_file`](#admin_metrics_token),
+[`admin_token`/`admin_token_file`](#admin_token),
 [`trace_sink`](#admin_trace_sink),
 
 
@@ -418,6 +417,17 @@ the node, even in the case of a NAT: the NAT should be configured to forward the
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
 
+#### `rpc_bind_outgoing` {#rpc_bind_outgoing} (since v0.9.2)
+
+If enabled, pre-bind all sockets for outgoing connections to the same IP address
+used for listening (the IP address specified in `rpc_bind_addr`) before
+trying to connect to remote nodes.
+This can be necessary if a node has multiple IP addresses,
+but only one is allowed or able to reach the other nodes,
+for instance due to firewall rules or specific routing configuration.
+
+Disabled by default.
+
 #### `rpc_public_addr` {#rpc_public_addr}
 
 The address and port that other nodes need to use to contact this node for
@@ -474,7 +484,7 @@ the `/v1/catalog` endpoints, enabling mTLS if `client_cert` and `client_key` are
 `service_name` should be set to the service name under which Garage's
 RPC ports are announced.
 
-#### `client_cert`, `client_key` {#consul_client_cert}
+#### `client_cert`, `client_key` {#consul_client_cert_and_key}
 
 TLS client certificate and client key to use when communicating with Consul over TLS. Both are mandatory when doing so.
 Only available when `api = "catalog"`.
@@ -508,7 +518,7 @@ node_prefix "" {
 }
 ```
 
-#### `tags` and `meta` {#consul_tags}
+#### `tags` and `meta` {#consul_tags_and_meta}
 
 Additional list of tags and map of service meta to add during service registration.
 

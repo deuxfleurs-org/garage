@@ -13,7 +13,7 @@ use sodiumoxide::crypto::sign::ed25519;
 
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
 
@@ -38,6 +38,11 @@ pub(crate) type VersionTag = [u8; 16];
 /// Value of the Netapp version used in the version tag
 pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6e65746170700005; // netapp 0x0005
 
+/// HelloMessage is sent by the client on a Netapp connection to indicate
+/// that they are also a server and ready to recieve incoming connections
+/// at the specified address and port. If the client doesn't know their
+/// public address, they don't need to specify it and we look at the
+/// remote address of the socket is used instead.
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct HelloMessage {
 	pub server_addr: Option<IpAddr>,
@@ -56,10 +61,8 @@ type OnDisconnectHandler = Box<dyn Fn(NodeID, bool) + Send + Sync>;
 /// NetApp can be used in a stand-alone fashion or together with a peering strategy.
 /// If using it alone, you will want to set `on_connect` and `on_disconnect` events
 /// in order to manage information about the current peer list.
-///
-/// It is generally not necessary to use NetApp stand-alone, as the provided full mesh
-/// and RPS peering strategies take care of the most common use cases.
 pub struct NetApp {
+	bind_outgoing_to: Option<IpAddr>,
 	listen_params: ArcSwapOption<ListenParams>,
 
 	/// Version tag, 8 bytes for netapp version, 8 bytes for app version
@@ -83,7 +86,7 @@ pub struct NetApp {
 
 struct ListenParams {
 	listen_addr: SocketAddr,
-	public_addr: Option<IpAddr>,
+	public_addr: Option<SocketAddr>,
 }
 
 impl NetApp {
@@ -92,13 +95,19 @@ impl NetApp {
 	/// using `.listen()`
 	///
 	/// Our Peer ID is the public key associated to the secret key given here.
-	pub fn new(app_version_tag: u64, netid: auth::Key, privkey: ed25519::SecretKey) -> Arc<Self> {
+	pub fn new(
+		app_version_tag: u64,
+		netid: auth::Key,
+		privkey: ed25519::SecretKey,
+		bind_outgoing_to: Option<IpAddr>,
+	) -> Arc<Self> {
 		let mut version_tag = [0u8; 16];
 		version_tag[0..8].copy_from_slice(&u64::to_be_bytes(NETAPP_VERSION_TAG)[..]);
 		version_tag[8..16].copy_from_slice(&u64::to_be_bytes(app_version_tag)[..]);
 
 		let id = privkey.public_key();
 		let netapp = Arc::new(Self {
+			bind_outgoing_to,
 			listen_params: ArcSwapOption::new(None),
 			version_tag,
 			netid,
@@ -180,7 +189,7 @@ impl NetApp {
 	pub async fn listen(
 		self: Arc<Self>,
 		listen_addr: SocketAddr,
-		public_addr: Option<IpAddr>,
+		public_addr: Option<SocketAddr>,
 		mut must_exit: watch::Receiver<bool>,
 	) {
 		let listen_params = ListenParams {
@@ -298,9 +307,20 @@ impl NetApp {
 			return Ok(());
 		}
 
-		let socket = TcpStream::connect(ip).await?;
+		let stream = match self.bind_outgoing_to {
+			Some(addr) => {
+				let socket = if addr.is_ipv4() {
+					TcpSocket::new_v4()?
+				} else {
+					TcpSocket::new_v6()?
+				};
+				socket.bind(SocketAddr::new(addr, 0))?;
+				socket.connect(ip).await?
+			}
+			None => TcpStream::connect(ip).await?,
+		};
 		info!("Connected to {}, negotiating handshake...", ip);
-		ClientConn::init(self, socket, id).await?;
+		ClientConn::init(self, stream, id).await?;
 		Ok(())
 	}
 
@@ -396,8 +416,11 @@ impl NetApp {
 		}
 
 		if let Some(lp) = self.listen_params.load_full() {
-			let server_addr = lp.public_addr;
-			let server_port = lp.listen_addr.port();
+			let server_addr = lp.public_addr.map(|x| x.ip());
+			let server_port = lp
+				.public_addr
+				.map(|x| x.port())
+				.unwrap_or(lp.listen_addr.port());
 			let hello_endpoint = self.hello_endpoint.load_full().unwrap();
 			tokio::spawn(async move {
 				hello_endpoint

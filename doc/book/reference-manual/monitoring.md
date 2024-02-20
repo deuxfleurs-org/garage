@@ -27,6 +27,112 @@ Exposes the Garage replication factor configured on the node
 garage_replication_factor 3
 ```
 
+#### `garage_local_disk_avail` and `garage_local_disk_total` (gauge)
+
+Reports the available and total disk space on each node, for data and metadata separately.
+
+```
+garage_local_disk_avail{volume="data"} 540341960704
+garage_local_disk_avail{volume="metadata"} 540341960704
+garage_local_disk_total{volume="data"} 763063566336
+garage_local_disk_total{volume="metadata"} 763063566336
+```
+
+### Cluster health status metrics
+
+#### `cluster_healthy` (gauge)
+
+Whether all storage nodes are connected (0 or 1)
+
+```
+cluster_healthy 0
+```
+
+#### `cluster_available` (gauge)
+
+Whether all requests can be served, even if some storage nodes are disconnected
+
+```
+cluster_available 1
+```
+
+#### `cluster_connected_nodes` (gauge)
+
+Number of nodes currently connected
+
+```
+cluster_connected_nodes 3
+```
+
+#### `cluster_known_nodes` (gauge)
+
+Number of nodes already seen once in the cluster
+
+```
+cluster_known_nodes 3
+```
+
+#### `cluster_layout_node_connected` (gauge)
+
+Connection status for individual nodes of the cluster layout
+
+```
+cluster_layout_node_connected{id="62b218d848e86a64",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 1
+cluster_layout_node_connected{id="a11c7cf18af29737",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 0
+cluster_layout_node_connected{id="a235ac7695e0c54d",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 1
+cluster_layout_node_connected{id="b10c110e4e854e5a",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 1
+```
+
+#### `cluster_layout_node_disconnected_time` (gauge)
+
+Time (in seconds) since last connection to individual nodes of the cluster layout
+
+```
+cluster_layout_node_disconnected_time{id="62b218d848e86a64",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 0
+cluster_layout_node_disconnected_time{id="a235ac7695e0c54d",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 0
+cluster_layout_node_disconnected_time{id="b10c110e4e854e5a",role_capacity="1000000000",role_gateway="0",role_zone="dc1"} 0
+```
+
+#### `cluster_storage_nodes` (gauge)
+
+Number of storage nodes declared in the current layout
+
+```
+cluster_storage_nodes 4
+```
+
+#### `cluster_storage_nodes_ok` (gauge)
+
+Number of storage nodes currently connected
+
+```
+cluster_storage_nodes_ok 3
+```
+
+#### `cluster_partitions` (gauge)
+
+Number of partitions in the layout (this is always 256)
+
+```
+cluster_partitions 256
+```
+
+#### `cluster_partitions_all_ok` (gauge)
+
+Number of partitions for which all storage nodes are connected
+
+```
+cluster_partitions_all_ok 64
+```
+
+#### `cluster_partitions_quorum` (gauge)
+
+Number of partitions for which we have a quorum of connected nodes and all requests can be served
+
+```
+cluster_partitions_quorum 256
+```
+
 ### Metrics of the API endpoints
 
 #### `api_admin_request_counter` (counter)
