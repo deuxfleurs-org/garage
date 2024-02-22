@@ -56,6 +56,9 @@ pub struct Garage {
 	/// Table containing api keys
 	pub key_table: Arc<Table<KeyTable, TableFullReplication>>,
 
+	/// Lock to prevent concurrent modification of buckets and access keys
+	bucket_lock: tokio::sync::Mutex<()>,
+
 	/// Table containing S3 objects
 	pub object_table: Arc<Table<ObjectTable, TableShardedReplication>>,
 	/// Counting table containing object counters
@@ -343,6 +346,7 @@ impl Garage {
 			bucket_table,
 			bucket_alias_table,
 			key_table,
+			bucket_lock: tokio::sync::Mutex::new(()),
 			object_table,
 			object_counter_table,
 			mpu_table,
@@ -384,6 +388,11 @@ impl Garage {
 
 	pub fn key_helper(&self) -> helper::key::KeyHelper {
 		helper::key::KeyHelper(self)
+	}
+
+	pub async fn locked_helper(&self) -> helper::locked::LockedHelper {
+		let lock = self.bucket_lock.lock().await;
+		helper::locked::LockedHelper(self, lock)
 	}
 }
 

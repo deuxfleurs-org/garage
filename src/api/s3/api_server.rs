@@ -148,7 +148,14 @@ impl ApiHandler for S3ApiServer {
 
 		// Special code path for CreateBucket API endpoint
 		if let Endpoint::CreateBucket {} = endpoint {
-			return handle_create_bucket(&garage, req, content_sha256, api_key, bucket_name).await;
+			return handle_create_bucket(
+				&garage,
+				req,
+				content_sha256,
+				&api_key.key_id,
+				bucket_name,
+			)
+			.await;
 		}
 
 		let bucket_id = garage
@@ -261,7 +268,7 @@ impl ApiHandler for S3ApiServer {
 				Ok(response)
 			}
 			Endpoint::DeleteBucket {} => {
-				handle_delete_bucket(&garage, bucket_id, bucket_name, api_key).await
+				handle_delete_bucket(&garage, bucket_id, bucket_name, &api_key.key_id).await
 			}
 			Endpoint::GetBucketLocation {} => handle_get_bucket_location(garage),
 			Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),

@@ -122,7 +122,7 @@ pub async fn handle_create_bucket(
 	garage: &Garage,
 	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
-	api_key: Key,
+	api_key_id: &String,
 	bucket_name: String,
 ) -> Result<Response<ResBody>, Error> {
 	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
@@ -144,16 +144,18 @@ pub async fn handle_create_bucket(
 		}
 	}
 
-	let key_params = api_key
-		.params()
-		.ok_or_internal_error("Key should not be deleted at this point")?;
+	let helper = garage.locked_helper().await;
+
+	// refetch API key after taking lock to ensure up-to-date data
+	let api_key = helper.key().get_existing_key(api_key_id).await?;
+	let key_params = api_key.params().unwrap();
 
 	let existing_bucket = if let Some(Some(bucket_id)) = key_params.local_aliases.get(&bucket_name)
 	{
 		Some(*bucket_id)
 	} else {
-		garage
-			.bucket_helper()
+		helper
+			.bucket()
 			.resolve_global_bucket_name(&bucket_name)
 			.await?
 	};
@@ -187,13 +189,11 @@ pub async fn handle_create_bucket(
 		let bucket = Bucket::new();
 		garage.bucket_table.insert(&bucket).await?;
 
-		garage
-			.bucket_helper()
+		helper
 			.set_bucket_key_permissions(bucket.id, &api_key.key_id, BucketKeyPerm::ALL_PERMISSIONS)
 			.await?;
 
-		garage
-			.bucket_helper()
+		helper
 			.set_local_bucket_alias(bucket.id, &api_key.key_id, &bucket_name)
 			.await?;
 	}
@@ -208,18 +208,16 @@ pub async fn handle_delete_bucket(
 	garage: &Garage,
 	bucket_id: Uuid,
 	bucket_name: String,
-	api_key: Key,
+	api_key_id: &String,
 ) -> Result<Response<ResBody>, Error> {
-	let key_params = api_key
-		.params()
-		.ok_or_internal_error("Key should not be deleted at this point")?;
+	let helper = garage.locked_helper().await;
+
+	let api_key = helper.key().get_existing_key(api_key_id).await?;
+	let key_params = api_key.params().unwrap();
 
 	let is_local_alias = matches!(key_params.local_aliases.get(&bucket_name), Some(Some(_)));
 
-	let mut bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
+	let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
 	let bucket_state = bucket.state.as_option().unwrap();
 
 	// If the bucket has no other aliases, this is a true deletion.
@@ -243,28 +241,25 @@ pub async fn handle_delete_bucket(
 		// Delete bucket
 
 		// Check bucket is empty
-		if !garage.bucket_helper().is_bucket_empty(bucket_id).await? {
+		if !helper.bucket().is_bucket_empty(bucket_id).await? {
 			return Err(CommonError::BucketNotEmpty.into());
 		}
 
 		// --- done checking, now commit ---
 		// 1. delete bucket alias
 		if is_local_alias {
-			garage
-				.bucket_helper()
+			helper
 				.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
 				.await?;
 		} else {
-			garage
-				.bucket_helper()
+			helper
 				.unset_global_bucket_alias(bucket_id, &bucket_name)
 				.await?;
 		}
 
 		// 2. delete authorization from keys that had access
 		for (key_id, _) in bucket.authorized_keys() {
-			garage
-				.bucket_helper()
+			helper
 				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
 				.await?;
 		}
@@ -274,14 +269,12 @@ pub async fn handle_delete_bucket(
 		garage.bucket_table.insert(&bucket).await?;
 	} else if is_local_alias {
 		// Just unalias
-		garage
-			.bucket_helper()
+		helper
 			.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
 			.await?;
 	} else {
 		// Just unalias (but from global namespace)
-		garage
-			.bucket_helper()
+		helper
 			.unset_global_bucket_alias(bucket_id, &bucket_name)
 			.await?;
 	}
