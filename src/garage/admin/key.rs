@@ -76,9 +76,10 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_delete_key(&self, query: &KeyDeleteOpt) -> Result<AdminRpc, Error> {
-		let key_helper = self.garage.key_helper();
+		let helper = self.garage.locked_helper().await;
 
-		let mut key = key_helper
+		let mut key = helper
+			.key()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 
@@ -88,7 +89,7 @@ impl AdminRpcHandler {
 			));
 		}
 
-		key_helper.delete_key(&mut key).await?;
+		helper.delete_key(&mut key).await?;
 
 		Ok(AdminRpc::Ok(format!(
 			"Key {} was deleted successfully.",

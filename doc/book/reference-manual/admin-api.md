@@ -8,8 +8,8 @@ listen address is specified in the `[admin]` section of the configuration
 file (see [configuration file
 reference](@/documentation/reference-manual/configuration.md))
 
-**WARNING.** At this point, there is no comittement to stability of the APIs described in this document.
-We will bump the version numbers prefixed to each API endpoint at each time the syntax
+**WARNING.** At this point, there is no commitment to the stability of the APIs described in this document.
+We will bump the version numbers prefixed to each API endpoint each time the syntax
 or semantics change, meaning that code that relies on these endpoint will break
 when changes are introduced.
 
@@ -22,7 +22,7 @@ Versions:
 
 ## Access control
 
-The admin API uses two different tokens for acces control, that are specified in the config file's `[admin]` section:
+The admin API uses two different tokens for access control, that are specified in the config file's `[admin]` section:
 
 - `metrics_token`: the token for accessing the Metrics endpoint (if this token
   is not set in the config file, the Metrics endpoint can be accessed without
@@ -88,8 +88,8 @@ Consult the full health check API endpoint at /v0/health for more details
 
 ### On-demand TLS `GET /check`
 
-To prevent abuses for on-demand TLS, Caddy developpers have specified an endpoint that can be queried by the reverse proxy
-to know if a given domain is allowed to get a certificate. Garage implements this endpoints to tell if a given domain is handled by Garage or is garbage.
+To prevent abuse for on-demand TLS, Caddy developers have specified an endpoint that can be queried by the reverse proxy
+to know if a given domain is allowed to get a certificate. Garage implements these endpoints to tell if a given domain is handled by Garage or is garbage.
 
 Garage responds with the following logic:
  - If the domain matches the pattern `<bucket-name>.<s3_api.root_domain>`, returns 200 OK
@@ -102,7 +102,7 @@ You must manually declare the domain in your reverse-proxy. Idem for K2V.*
 
 *Note 2: buckets in a user's namespace are not supported yet by this endpoint. This is a limitation of this endpoint currently.*
 
-**Example:** Suppose a Garage instance configured with `s3_api.root_domain = .s3.garage.localhost` and `s3_web.root_domain = .web.garage.localhost`.
+**Example:** Suppose a Garage instance is configured with `s3_api.root_domain = .s3.garage.localhost` and `s3_web.root_domain = .web.garage.localhost`.
 
 With a private `media` bucket (name in the global namespace, website is disabled), the endpoint will feature the following behavior:
 

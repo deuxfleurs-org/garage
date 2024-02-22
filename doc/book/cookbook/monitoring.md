@@ -18,7 +18,7 @@ api_bind_addr = "0.0.0.0:3903"
 ```
 
 This will allow anyone to scrape Prometheus metrics by fetching
-`http://localhost:3093/metrics`. If you want to restrict access
+`http://localhost:3903/metrics`. If you want to restrict access
 to the exported metrics, set the `metrics_token` configuration value
 to a bearer token to be used when fetching the metrics endpoint.
 

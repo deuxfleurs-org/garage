@@ -134,6 +134,8 @@ impl AdminRpcHandler {
 			)));
 		}
 
+		let helper = self.garage.locked_helper().await;
+
 		if let Some(alias) = self.garage.bucket_alias_table.get(&EmptyKey, name).await? {
 			if alias.state.get().is_some() {
 				return Err(Error::BadRequest(format!("Bucket {} already exists", name)));
@@ -145,18 +147,16 @@ impl AdminRpcHandler {
 		let bucket = Bucket::new();
 		self.garage.bucket_table.insert(&bucket).await?;
 
-		self.garage
-			.bucket_helper()
-			.set_global_bucket_alias(bucket.id, name)
-			.await?;
+		helper.set_global_bucket_alias(bucket.id, name).await?;
 
 		Ok(AdminRpc::Ok(format!("Bucket {} was created.", name)))
 	}
 
 	async fn handle_delete_bucket(&self, query: &DeleteBucketOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
+		let helper = self.garage.locked_helper().await;
 
 		let bucket_id = helper
+			.bucket()
 			.resolve_global_bucket_name(&query.name)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
@@ -174,7 +174,7 @@ impl AdminRpcHandler {
 			.await?;
 
 		// Check bucket doesn't have other aliases
-		let mut bucket = helper.get_existing_bucket(bucket_id).await?;
+		let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
 		let bucket_state = bucket.state.as_option().unwrap();
 		if bucket_state
 			.aliases
@@ -195,7 +195,7 @@ impl AdminRpcHandler {
 		}
 
 		// Check bucket is empty
-		if !helper.is_bucket_empty(bucket_id).await? {
+		if !helper.bucket().is_bucket_empty(bucket_id).await? {
 			return Err(Error::BadRequest(format!(
 				"Bucket {} is not empty",
 				query.name
@@ -231,16 +231,16 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_alias_bucket(&self, query: &AliasBucketOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
-		let key_helper = self.garage.key_helper();
+		let helper = self.garage.locked_helper().await;
 
 		let bucket_id = helper
+			.bucket()
 			.resolve_global_bucket_name(&query.existing_bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
 
 		if let Some(key_pattern) = &query.local {
-			let key = key_helper.get_existing_matching_key(key_pattern).await?;
+			let key = helper.key().get_existing_matching_key(key_pattern).await?;
 
 			helper
 				.set_local_bucket_alias(bucket_id, &key.key_id, &query.new_name)
@@ -261,11 +261,10 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_unalias_bucket(&self, query: &UnaliasBucketOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
-		let key_helper = self.garage.key_helper();
+		let helper = self.garage.locked_helper().await;
 
 		if let Some(key_pattern) = &query.local {
-			let key = key_helper.get_existing_matching_key(key_pattern).await?;
+			let key = helper.key().get_existing_matching_key(key_pattern).await?;
 
 			let bucket_id = key
 				.state
@@ -287,6 +286,7 @@ impl AdminRpcHandler {
 			)))
 		} else {
 			let bucket_id = helper
+				.bucket()
 				.resolve_global_bucket_name(&query.name)
 				.await?
 				.ok_or_bad_request("Bucket not found")?;
@@ -303,14 +303,15 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_bucket_allow(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
-		let key_helper = self.garage.key_helper();
+		let helper = self.garage.locked_helper().await;
 
 		let bucket_id = helper
+			.bucket()
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = key_helper
+		let key = helper
+			.key()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 
@@ -338,14 +339,15 @@ impl AdminRpcHandler {
 	}
 
 	async fn handle_bucket_deny(&self, query: &PermBucketOpt) -> Result<AdminRpc, Error> {
-		let helper = self.garage.bucket_helper();
-		let key_helper = self.garage.key_helper();
+		let helper = self.garage.locked_helper().await;
 
 		let bucket_id = helper
+			.bucket()
 			.resolve_global_bucket_name(&query.bucket)
 			.await?
 			.ok_or_bad_request("Bucket not found")?;
-		let key = key_helper
+		let key = helper
+			.key()
 			.get_existing_matching_key(&query.key_pattern)
 			.await?;
 

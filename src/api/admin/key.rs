@@ -151,11 +151,11 @@ pub async fn handle_delete_key(
 	garage: &Arc<Garage>,
 	id: String,
 ) -> Result<Response<ResBody>, Error> {
-	let mut key = garage.key_helper().get_existing_key(&id).await?;
+	let helper = garage.locked_helper().await;
 
-	key.state.as_option().unwrap();
+	let mut key = helper.key().get_existing_key(&id).await?;
 
-	garage.key_helper().delete_key(&mut key).await?;
+	helper.delete_key(&mut key).await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
