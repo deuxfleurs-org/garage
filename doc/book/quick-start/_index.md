@@ -250,7 +250,7 @@ garage bucket info nextcloud-bucket
 ```
 
 
-## Uploading and downlading from Garage
+## Uploading and downloading from Garage
 
 To download and upload files on garage, we can use a third-party tool named `awscli`.
 
