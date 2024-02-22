@@ -520,7 +520,7 @@ impl System {
 			}
 		};
 
-		let hostname = self.local_status.read().unwrap().hostname.clone();
+		let hostname = self.local_status.read().unwrap().hostname.clone().unwrap();
 		if let Err(e) = c
 			.publish_consul_service(self.netapp.id, &hostname, rpc_public_addr)
 			.await
@@ -544,7 +544,7 @@ impl System {
 			}
 		};
 
-		let hostname = self.local_status.read().unwrap().hostname.clone();
+		let hostname = self.local_status.read().unwrap().hostname.clone().unwrap();
 		if let Err(e) = publish_kubernetes_node(k, self.netapp.id, &hostname, rpc_public_addr).await
 		{
 			error!("Error while publishing node to Kubernetes: {}", e);
