@@ -1,12 +1,9 @@
 use garage_table::util::*;
-use garage_util::crdt::*;
 use garage_util::error::OkOrMessage;
 
 use crate::garage::Garage;
-use crate::helper::bucket::BucketHelper;
 use crate::helper::error::*;
 use crate::key_table::{Key, KeyFilter};
-use crate::permission::BucketKeyPerm;
 
 pub struct KeyHelper<'a>(pub(crate) &'a Garage);
 
@@ -64,39 +61,5 @@ impl<'a> KeyHelper<'a> {
 		} else {
 			Ok(candidates.into_iter().next().unwrap())
 		}
-	}
-
-	/// Deletes an API access key
-	pub async fn delete_key(&self, key: &mut Key) -> Result<(), Error> {
-		let bucket_helper = BucketHelper(self.0);
-
-		let state = key.state.as_option_mut().unwrap();
-
-		// --- done checking, now commit ---
-		// (the step at unset_local_bucket_alias will fail if a bucket
-		// does not have another alias, the deletion will be
-		// interrupted in the middle if that happens)
-
-		// 1. Delete local aliases
-		for (alias, _, to) in state.local_aliases.items().iter() {
-			if let Some(bucket_id) = to {
-				bucket_helper
-					.unset_local_bucket_alias(*bucket_id, &key.key_id, alias)
-					.await?;
-			}
-		}
-
-		// 2. Remove permissions on all authorized buckets
-		for (ab_id, _auth) in state.authorized_buckets.items().iter() {
-			bucket_helper
-				.set_bucket_key_permissions(*ab_id, &key.key_id, BucketKeyPerm::NO_PERMISSIONS)
-				.await?;
-		}
-
-		// 3. Actually delete key
-		key.state = Deletable::delete();
-		self.0.key_table.insert(key).await?;
-
-		Ok(())
 	}
 }

@@ -67,6 +67,8 @@ impl Migrate {
 			None
 		};
 
+		let helper = self.garage.locked_helper().await;
+
 		self.garage
 			.bucket_table
 			.insert(&Bucket {
@@ -84,14 +86,10 @@ impl Migrate {
 			})
 			.await?;
 
-		self.garage
-			.bucket_helper()
-			.set_global_bucket_alias(bucket_id, &new_name)
-			.await?;
+		helper.set_global_bucket_alias(bucket_id, &new_name).await?;
 
 		for (k, ts, perm) in old_bucket_p.authorized_keys.items().iter() {
-			self.garage
-				.bucket_helper()
+			helper
 				.set_bucket_key_permissions(
 					bucket_id,
 					k,
