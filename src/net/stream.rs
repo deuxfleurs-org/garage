@@ -200,3 +200,14 @@ pub fn asyncread_stream<R: AsyncRead + Send + Sync + 'static>(reader: R) -> Byte
 pub fn stream_asyncread(stream: ByteStream) -> impl AsyncRead + Send + Sync + 'static {
 	tokio_util::io::StreamReader::new(stream)
 }
+
+/// Reads all of the content of a `ByteStream` into a BytesBuf
+/// that contains everything
+pub async fn read_stream_to_end(mut stream: ByteStream) -> Result<BytesBuf, std::io::Error> {
+	let mut buf = BytesBuf::new();
+	while let Some(part) = stream.next().await {
+		buf.extend(part?);
+	}
+
+	Ok(buf)
+}
