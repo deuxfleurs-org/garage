@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,7 +8,6 @@ use bytes::Bytes;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use futures::Stream;
 use futures_util::stream::StreamExt;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
@@ -52,9 +50,6 @@ pub const INLINE_THRESHOLD: usize = 3072;
 // drops to zero, and the moment where we allow ourselves
 // to delete the block locally.
 pub(crate) const BLOCK_GC_DELAY: Duration = Duration::from_secs(600);
-
-pub type BlockStream =
-	Pin<Box<dyn Stream<Item = Result<Bytes, std::io::Error>> + Send + Sync + 'static>>;
 
 /// RPC messages used to share blocks of data between nodes
 #[derive(Debug, Serialize, Deserialize)]
@@ -327,7 +322,7 @@ impl BlockManager {
 		&self,
 		hash: &Hash,
 		order_tag: Option<OrderTag>,
-	) -> Result<BlockStream, Error> {
+	) -> Result<ByteStream, Error> {
 		let (header, stream) = self.rpc_get_raw_block_streaming(hash, order_tag).await?;
 		match header {
 			DataBlockHeader::Plain => Ok(stream),
