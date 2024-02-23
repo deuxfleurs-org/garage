@@ -253,16 +253,12 @@ pub async fn handle_get(
 	}
 
 	match (part_number, parse_range_header(req, last_v_meta.size)?) {
-		(Some(_), Some(_)) => {
-			return Err(Error::bad_request(
-				"Cannot specify both partNumber and Range header",
-			));
-		}
-		(Some(pn), None) => {
-			return handle_get_part(garage, last_v, last_v_data, last_v_meta, pn).await;
-		}
+		(Some(_), Some(_)) => Err(Error::bad_request(
+			"Cannot specify both partNumber and Range header",
+		)),
+		(Some(pn), None) => handle_get_part(garage, last_v, last_v_data, last_v_meta, pn).await,
 		(None, Some(range)) => {
-			return handle_get_range(
+			handle_get_range(
 				garage,
 				last_v,
 				last_v_data,
@@ -270,17 +266,25 @@ pub async fn handle_get(
 				range.start,
 				range.start + range.length,
 			)
-			.await;
+			.await
 		}
-		(None, None) => (),
+		(None, None) => handle_get_full(garage, last_v, last_v_data, last_v_meta, overrides).await,
 	}
+}
 
-	let mut resp_builder = object_headers(last_v, last_v_meta)
-		.header(CONTENT_LENGTH, format!("{}", last_v_meta.size))
+async fn handle_get_full(
+	garage: Arc<Garage>,
+	version: &ObjectVersion,
+	version_data: &ObjectVersionData,
+	version_meta: &ObjectVersionMeta,
+	overrides: GetObjectOverrides,
+) -> Result<Response<ResBody>, Error> {
+	let mut resp_builder = object_headers(version, version_meta)
+		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
 		.status(StatusCode::OK);
 	getobject_override_headers(overrides, &mut resp_builder)?;
 
-	match &last_v_data {
+	match &version_data {
 		ObjectVersionData::DeleteMarker => unreachable!(),
 		ObjectVersionData::Inline(_, bytes) => {
 			Ok(resp_builder.body(bytes_body(bytes.to_vec().into()))?)
@@ -290,7 +294,7 @@ pub async fn handle_get(
 
 			let order_stream = OrderTag::stream();
 			let first_block_hash = *first_block_hash;
-			let version_uuid = last_v.uuid;
+			let version_uuid = version.uuid;
 
 			tokio::spawn(async move {
 				match async {
