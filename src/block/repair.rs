@@ -584,8 +584,8 @@ impl Worker for RebalanceWorker {
 			let prim_loc = self.manager.data_layout.load().primary_block_dir(&hash);
 			if path.ancestors().all(|x| x != prim_loc) {
 				let block_path = match path.extension() {
-					None => DataBlockPath::Plain(path.clone()),
-					Some(x) if x.to_str() == Some("zst") => DataBlockPath::Compressed(path.clone()),
+					None => DataBlockPath::plain(path.clone()),
+					Some(x) if x.to_str() == Some("zst") => DataBlockPath::compressed(path.clone()),
 					_ => {
 						warn!("not rebalancing file: {}", path.to_string_lossy());
 						return Ok(WorkerState::Busy);
