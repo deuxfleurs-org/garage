@@ -13,76 +13,98 @@ pub enum DataBlockHeader {
 	Compressed,
 }
 
-/// A possibly compressed block of data
-pub enum DataBlock {
-	/// Uncompressed data
-	Plain(Bytes),
-	/// Data compressed with zstd
-	Compressed(Bytes),
+#[derive(Debug)]
+pub struct DataBlockElem<T> {
+	header: DataBlockHeader,
+	elem: T,
 }
 
-#[derive(Debug)]
-pub enum DataBlockPath {
-	/// Uncompressed data fail
-	Plain(PathBuf),
-	/// Compressed data fail
-	Compressed(PathBuf),
+/// A possibly compressed block of data
+pub type DataBlock = DataBlockElem<Bytes>;
+
+/// A path to a possibly compressed block of data
+pub type DataBlockPath = DataBlockElem<PathBuf>;
+
+impl DataBlockHeader {
+	pub fn is_compressed(&self) -> bool {
+		matches!(self, DataBlockHeader::Compressed)
+	}
+}
+
+impl<T> DataBlockElem<T> {
+	pub fn from_parts(header: DataBlockHeader, elem: T) -> Self {
+		Self { header, elem }
+	}
+
+	pub fn plain(elem: T) -> Self {
+		Self {
+			header: DataBlockHeader::Plain,
+			elem,
+		}
+	}
+
+	pub fn compressed(elem: T) -> Self {
+		Self {
+			header: DataBlockHeader::Compressed,
+			elem,
+		}
+	}
+
+	pub fn into_parts(self) -> (DataBlockHeader, T) {
+		(self.header, self.elem)
+	}
+
+	pub fn as_parts_ref(&self) -> (DataBlockHeader, &T) {
+		(self.header, &self.elem)
+	}
+
+	/// Query whether this block is compressed
+	pub fn is_compressed(&self) -> bool {
+		self.header.is_compressed()
+	}
 }
 
 impl DataBlock {
-	/// Query whether this block is compressed
-	pub fn is_compressed(&self) -> bool {
-		matches!(self, DataBlock::Compressed(_))
-	}
-
 	/// Get the inner, possibly compressed buffer. You should probably use [`DataBlock::verify_get`]
 	/// instead
 	pub fn inner_buffer(&self) -> &[u8] {
-		use DataBlock::*;
-		let (Plain(ref res) | Compressed(ref res)) = self;
-		res
+		&self.elem
 	}
 
 	/// Verify data integrity. Does not return the buffer content.
 	pub fn verify(&self, hash: Hash) -> Result<(), Error> {
-		match self {
-			DataBlock::Plain(data) => {
-				if blake2sum(data) == hash {
+		match self.header {
+			DataBlockHeader::Plain => {
+				if blake2sum(&self.elem) == hash {
 					Ok(())
 				} else {
 					Err(Error::CorruptData(hash))
 				}
 			}
-			DataBlock::Compressed(data) => zstd::stream::copy_decode(&data[..], std::io::sink())
-				.map_err(|_| Error::CorruptData(hash)),
+			DataBlockHeader::Compressed => {
+				zstd::stream::copy_decode(&self.elem[..], std::io::sink())
+					.map_err(|_| Error::CorruptData(hash))
+			}
 		}
 	}
 
 	pub async fn from_buffer(data: Bytes, level: Option<i32>) -> DataBlock {
 		tokio::task::spawn_blocking(move || {
 			if let Some(level) = level {
-				if let Ok(data) = zstd_encode(&data[..], level) {
-					return DataBlock::Compressed(data.into());
+				if let Ok(data_compressed) = zstd_encode(&data[..], level) {
+					return DataBlock {
+						header: DataBlockHeader::Compressed,
+						elem: data_compressed.into(),
+					};
 				}
 			}
-			DataBlock::Plain(data)
+			DataBlock {
+				header: DataBlockHeader::Plain,
+				elem: data.into(),
+			}
 		})
 		.await
 		.unwrap()
-	}
-
-	pub fn into_parts(self) -> (DataBlockHeader, Bytes) {
-		match self {
-			DataBlock::Plain(data) => (DataBlockHeader::Plain, data),
-			DataBlock::Compressed(data) => (DataBlockHeader::Compressed, data),
-		}
-	}
-
-	pub fn from_parts(h: DataBlockHeader, bytes: Bytes) -> Self {
-		match h {
-			DataBlockHeader::Plain => DataBlock::Plain(bytes),
-			DataBlockHeader::Compressed => DataBlock::Compressed(bytes),
-		}
 	}
 }
 
