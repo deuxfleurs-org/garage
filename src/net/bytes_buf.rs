@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 
 use bytes::BytesMut;
 
+use crate::stream::ByteStream;
+
 pub use bytes::Bytes;
 
 /// A circular buffer of bytes, internally represented as a list of Bytes
@@ -118,6 +120,17 @@ impl BytesBuf {
 	/// Return the internal sequence of Bytes slices that make up the buffer
 	pub fn into_slices(self) -> VecDeque<Bytes> {
 		self.buf
+	}
+
+	/// Return the entire buffer concatenated into a single big Bytes
+	pub fn into_bytes(mut self) -> Bytes {
+		self.take_all()
+	}
+
+	/// Return the content as a stream of individual chunks
+	pub fn into_stream(self) -> ByteStream {
+		use futures::stream::StreamExt;
+		Box::pin(futures::stream::iter(self.buf).map(|x| Ok(x)))
 	}
 }
 
