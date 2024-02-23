@@ -690,8 +690,8 @@ impl BlockManagerLocked {
 		mgr: &BlockManager,
 		existing_path: Option<DataBlockPath>,
 	) -> Result<(), Error> {
-		let compressed = data.is_compressed();
-		let data = data.inner_buffer();
+		let (header, data) = data.as_parts_ref();
+		let compressed = header.is_compressed();
 
 		let directory = mgr.data_layout.load().primary_block_dir(hash);
 
@@ -805,7 +805,7 @@ impl BlockManagerLocked {
 		let data = mgr.read_block_from(hash, &wrong_path).await?;
 		self.write_block_inner(hash, &data, mgr, Some(wrong_path))
 			.await?;
-		Ok(data.inner_buffer().len())
+		Ok(data.as_parts_ref().1.len())
 	}
 }
 

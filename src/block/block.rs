@@ -62,20 +62,9 @@ impl<T> DataBlockElem<T> {
 	pub fn as_parts_ref(&self) -> (DataBlockHeader, &T) {
 		(self.header, &self.elem)
 	}
-
-	/// Query whether this block is compressed
-	pub fn is_compressed(&self) -> bool {
-		self.header.is_compressed()
-	}
 }
 
 impl DataBlock {
-	/// Get the inner, possibly compressed buffer. You should probably use [`DataBlock::verify_get`]
-	/// instead
-	pub fn inner_buffer(&self) -> &[u8] {
-		&self.elem
-	}
-
 	/// Verify data integrity. Does not return the buffer content.
 	pub fn verify(&self, hash: Hash) -> Result<(), Error> {
 		match self.header {
@@ -97,16 +86,10 @@ impl DataBlock {
 		tokio::task::spawn_blocking(move || {
 			if let Some(level) = level {
 				if let Ok(data_compressed) = zstd_encode(&data[..], level) {
-					return DataBlock {
-						header: DataBlockHeader::Compressed,
-						elem: data_compressed.into(),
-					};
+					return DataBlock::compressed(data_compressed.into());
 				}
 			}
-			DataBlock {
-				header: DataBlockHeader::Plain,
-				elem: data.into(),
-			}
+			DataBlock::plain(data.into())
 		})
 		.await
 		.unwrap()
