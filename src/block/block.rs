@@ -7,6 +7,8 @@ use zstd::stream::Encoder;
 use garage_util::data::*;
 use garage_util::error::*;
 
+use garage_net::stream::ByteStream;
+
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum DataBlockHeader {
 	Plain,
@@ -24,6 +26,9 @@ pub type DataBlock = DataBlockElem<Bytes>;
 
 /// A path to a possibly compressed block of data
 pub type DataBlockPath = DataBlockElem<PathBuf>;
+
+/// A stream of possibly compressed block data
+pub type DataBlockStream = DataBlockElem<ByteStream>;
 
 impl DataBlockHeader {
 	pub fn is_compressed(&self) -> bool {
