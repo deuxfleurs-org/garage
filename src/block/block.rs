@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use zstd::stream::{decode_all as zstd_decode, Encoder};
+use zstd::stream::Encoder;
 
 use garage_util::data::*;
 use garage_util::error::*;
@@ -43,26 +43,7 @@ impl DataBlock {
 		res
 	}
 
-	/// Get the buffer, possibly decompressing it, and verify it's integrity.
-	/// For Plain block, data is compared to hash, for Compressed block, zstd checksumming system
-	/// is used instead.
-	pub fn verify_get(self, hash: Hash) -> Result<Bytes, Error> {
-		match self {
-			DataBlock::Plain(data) => {
-				if blake2sum(&data) == hash {
-					Ok(data)
-				} else {
-					Err(Error::CorruptData(hash))
-				}
-			}
-			DataBlock::Compressed(data) => zstd_decode(&data[..])
-				.map_err(|_| Error::CorruptData(hash))
-				.map(Bytes::from),
-		}
-	}
-
-	/// Verify data integrity. Allocate less than [`DataBlock::verify_get`] and don't consume self, but
-	/// does not return the buffer content.
+	/// Verify data integrity. Does not return the buffer content.
 	pub fn verify(&self, hash: Hash) -> Result<(), Error> {
 		match self {
 			DataBlock::Plain(data) => {

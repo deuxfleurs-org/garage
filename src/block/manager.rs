@@ -342,9 +342,8 @@ impl BlockManager {
 		hash: &Hash,
 		order_tag: Option<OrderTag>,
 	) -> Result<Bytes, Error> {
-		self.rpc_get_raw_block(hash, order_tag)
-			.await?
-			.verify_get(*hash)
+		let stream = self.rpc_get_block_streaming(hash, order_tag).await?;
+		Ok(read_stream_to_end(stream).await?.into_bytes())
 	}
 
 	/// Send block to nodes that should have it
