@@ -337,26 +337,18 @@ impl BlockManager {
 		}
 	}
 
-	/// Ask nodes that might have a block for it, return it as one big Bytes
-	pub async fn rpc_get_block(
-		&self,
-		hash: &Hash,
-		order_tag: Option<OrderTag>,
-	) -> Result<Bytes, Error> {
-		let stream = self.rpc_get_block_streaming(hash, order_tag).await?;
-		Ok(read_stream_to_end(stream).await?.into_bytes())
-	}
-
 	/// Send block to nodes that should have it
 	pub async fn rpc_put_block(
 		&self,
 		hash: Hash,
 		data: Bytes,
+		prevent_compression: bool,
 		order_tag: Option<OrderTag>,
 	) -> Result<(), Error> {
 		let who = self.replication.write_sets(&hash);
 
-		let (header, bytes) = DataBlock::from_buffer(data, self.compression_level)
+		let compression_level = self.compression_level.filter(|_| !prevent_compression);
+		let (header, bytes) = DataBlock::from_buffer(data, compression_level)
 			.await
 			.into_parts();
 		let put_block_rpc =

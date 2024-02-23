@@ -944,9 +944,11 @@ mod tests {
 			timestamp: TS,
 			state: ObjectVersionState::Uploading {
 				multipart: true,
-				headers: ObjectVersionHeaders {
-					content_type: "text/plain".to_string(),
-					other: BTreeMap::<String, String>::new(),
+				encryption: ObjectVersionEncryption::Plaintext {
+					headers: ObjectVersionHeaders {
+						content_type: "text/plain".to_string(),
+						other: BTreeMap::<String, String>::new(),
+					},
 				},
 			},
 		}
