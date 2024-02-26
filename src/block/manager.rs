@@ -346,7 +346,12 @@ impl BlockManager {
 	}
 
 	/// Send block to nodes that should have it
-	pub async fn rpc_put_block(&self, hash: Hash, data: Bytes) -> Result<(), Error> {
+	pub async fn rpc_put_block(
+		&self,
+		hash: Hash,
+		data: Bytes,
+		order_tag: Option<OrderTag>,
+	) -> Result<(), Error> {
 		let who = self.replication.write_nodes(&hash);
 
 		let (header, bytes) = DataBlock::from_buffer(data, self.compression_level)
@@ -354,6 +359,11 @@ impl BlockManager {
 			.into_parts();
 		let put_block_rpc =
 			Req::new(BlockRpc::PutBlock { hash, header })?.with_stream_from_buffer(bytes);
+		let put_block_rpc = if let Some(tag) = order_tag {
+			put_block_rpc.with_order_tag(tag)
+		} else {
+			put_block_rpc
+		};
 
 		self.system
 			.rpc
