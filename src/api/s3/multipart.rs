@@ -6,7 +6,6 @@ use hyper::{Request, Response};
 use md5::{Digest as Md5Digest, Md5};
 
 use garage_table::*;
-use garage_util::async_hash::*;
 use garage_util::data::*;
 
 use garage_model::bucket_table::Bucket;
@@ -135,17 +134,8 @@ pub async fn handle_put_part(
 	garage.version_table.insert(&version).await?;
 
 	// Copy data to version
-	let first_block_hash = async_blake2sum(first_block.clone()).await;
-
-	let (total_size, data_md5sum, data_sha256sum) = read_and_put_blocks(
-		&garage,
-		&version,
-		part_number,
-		first_block,
-		first_block_hash,
-		&mut chunker,
-	)
-	.await?;
+	let (total_size, data_md5sum, data_sha256sum, _) =
+		read_and_put_blocks(&garage, &version, part_number, first_block, &mut chunker).await?;
 
 	// Verify that checksums map
 	ensure_checksum_matches(
