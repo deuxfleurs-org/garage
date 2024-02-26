@@ -20,6 +20,7 @@ use opentelemetry::{
 };
 
 use garage_net::bytes_buf::BytesBuf;
+use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
 use garage_util::async_hash::*;
 use garage_util::data::*;
@@ -380,6 +381,7 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 
 	let put_blocks = async {
 		// Structure for handling several concurrent writes to storage nodes
+		let order_stream = OrderTag::stream();
 		let mut write_futs = FuturesOrdered::new();
 		let mut written_bytes = 0u64;
 		loop {
@@ -421,6 +423,7 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 				offset,
 				hash,
 				block,
+				order_stream.order(written_bytes),
 			));
 		}
 		while let Some(res) = write_futs.next().await {
@@ -450,6 +453,7 @@ async fn put_block_and_meta(
 	offset: u64,
 	hash: Hash,
 	block: Bytes,
+	order_tag: OrderTag,
 ) -> Result<(), GarageError> {
 	let mut version = version.clone();
 	version.blocks.put(
@@ -470,7 +474,9 @@ async fn put_block_and_meta(
 	};
 
 	futures::try_join!(
-		garage.block_manager.rpc_put_block(hash, block),
+		garage
+			.block_manager
+			.rpc_put_block(hash, block, Some(order_tag)),
 		garage.version_table.insert(&version),
 		garage.block_ref_table.insert(&block_ref),
 	)?;
