@@ -472,3 +472,32 @@ https:// {
 
 More information on how this endpoint is implemented in Garage is available
 in the [Admin API Reference](@/documentation/reference-manual/admin-api.md) page.
+
+### Fileserver browser
+
+Caddy's built-in
+[file_server](https://caddyserver.com/docs/caddyfile/directives/file_server)
+browser functionality can be extended with the
+[caddy-fs-s3](https://github.com/sagikazarmark/caddy-fs-s3) module.
+
+This can be configured to use Garage as a backend with the following
+configuration:
+
+```caddy
+browse.garage.tld {
+    file_server {
+        fs s3 {
+            bucket test-bucket
+            region garage
+
+            endpoint https://s3.garage.tld
+            use_path_style
+        }
+
+        browse
+    }
+}
+```
+
+Caddy must also be configured with the required `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` environment variables to access the bucket.
