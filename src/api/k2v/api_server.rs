@@ -69,7 +69,7 @@ impl ApiHandler for K2VApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<IncomingBody>,
+		mut req: Request<IncomingBody>,
 		endpoint: K2VApiEndpoint,
 	) -> Result<Response<ResBody>, Error> {
 		let K2VApiEndpoint {
@@ -86,7 +86,8 @@ impl ApiHandler for K2VApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;
+		let (api_key, mut content_sha256) =
+			check_payload_signature(&garage, "k2v", &mut req).await?;
 		let api_key = api_key
 			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
 

@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use hmac::Mac;
-use hyper::header::{HeaderMap, HeaderName, AUTHORIZATION, CONTENT_TYPE, HOST};
+use hyper::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, HOST};
 use hyper::{body::Incoming as IncomingBody, Method, Request};
 use sha2::{Digest, Sha256};
 
@@ -36,7 +36,7 @@ pub type QueryMap = HashMap<String, String>;
 pub async fn check_payload_signature(
 	garage: &Garage,
 	service: &'static str,
-	request: &Request<IncomingBody>,
+	request: &mut Request<IncomingBody>,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let query = parse_query_map(request.uri())?;
 
@@ -96,7 +96,7 @@ async fn check_standard_signature(
 		request.uri().path(),
 		&query,
 		request.headers(),
-		signed_headers,
+		&signed_headers,
 		&authorization.content_sha256,
 	)?;
 	let string_to_sign = string_to_sign(
@@ -127,7 +127,7 @@ async fn check_standard_signature(
 async fn check_presigned_signature(
 	garage: &Garage,
 	service: &'static str,
-	request: &Request<IncomingBody>,
+	request: &mut Request<IncomingBody>,
 	mut query: QueryMap,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let algorithm = query.get(X_AMZ_ALGORITHM.as_str()).unwrap();
@@ -163,7 +163,7 @@ async fn check_presigned_signature(
 		request.uri().path(),
 		&query,
 		request.headers(),
-		signed_headers,
+		&signed_headers,
 		&authorization.content_sha256,
 	)?;
 	let string_to_sign = string_to_sign(
@@ -176,6 +176,35 @@ async fn check_presigned_signature(
 	trace!("string to sign:\n{}", string_to_sign);
 
 	let key = verify_v4(garage, service, &authorization, string_to_sign.as_bytes()).await?;
+
+	// AWS specifies that if a signed query parameter and a signed header of the same name
+	// have different values, then an InvalidRequest error is raised.
+	let headers_mut = request.headers_mut();
+	for (name, value) in query.iter() {
+		let name =
+			HeaderName::from_bytes(name.as_bytes()).ok_or_bad_request("Invalid header name")?;
+		if let Some(existing) = headers_mut.get(&name) {
+			if signed_headers.contains(&name) && existing.as_bytes() != value.as_bytes() {
+				return Err(Error::bad_request(format!(
+					"Conflicting values for `{}` in query parameters and request headers",
+					name
+				)));
+			}
+		}
+		if name.as_str().starts_with("x-amz-") {
+			// Query parameters that start by x-amz- are actually intended to stand in for
+			// headers that can't be added at the time the request is made.
+			// What we do is just add them to the Request object as regular headers,
+			// that will be handled downstream as if they were included like in a normal request.
+			// (Here we allow such query parameters to override headers with the same name
+			// if they are not signed, however there is not much reason that this would happen)
+			headers_mut.insert(
+				name,
+				HeaderValue::from_bytes(value.as_bytes())
+					.ok_or_bad_request("invalid query parameter value")?,
+			);
+		}
+	}
 
 	Ok((Some(key), None))
 }
@@ -197,12 +226,13 @@ pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
 }
 
 fn split_signed_headers(authorization: &Authorization) -> Result<Vec<HeaderName>, Error> {
-	let signed_headers = authorization
+	let mut signed_headers = authorization
 		.signed_headers
 		.split(';')
 		.map(HeaderName::try_from)
 		.collect::<Result<Vec<HeaderName>, _>>()
 		.ok_or_bad_request("invalid header name")?;
+	signed_headers.sort_by(|h1, h2| h1.as_str().cmp(h2.as_str()));
 	Ok(signed_headers)
 }
 
@@ -224,7 +254,7 @@ pub fn canonical_request(
 	canonical_uri: &str,
 	query: &QueryMap,
 	headers: &HeaderMap,
-	mut signed_headers: Vec<HeaderName>,
+	signed_headers: &[HeaderName],
 	content_sha256: &str,
 ) -> Result<String, Error> {
 	// There seems to be evidence that in AWSv4 signatures, the path component is url-encoded
@@ -273,7 +303,6 @@ pub fn canonical_request(
 	};
 
 	// Canonical header string calculated from signed headers
-	signed_headers.sort_by(|h1, h2| h1.as_str().cmp(h2.as_str()));
 	let canonical_header_string = signed_headers
 		.iter()
 		.map(|name| {

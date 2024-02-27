@@ -107,7 +107,7 @@ impl ApiHandler for S3ApiServer {
 
 	async fn handle(
 		&self,
-		req: Request<IncomingBody>,
+		mut req: Request<IncomingBody>,
 		endpoint: S3ApiEndpoint,
 	) -> Result<Response<ResBody>, Error> {
 		let S3ApiEndpoint {
@@ -125,7 +125,8 @@ impl ApiHandler for S3ApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (api_key, mut content_sha256) = check_payload_signature(&garage, "s3", &req).await?;
+		let (api_key, mut content_sha256) =
+			check_payload_signature(&garage, "s3", &mut req).await?;
 		let api_key = api_key
 			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
 

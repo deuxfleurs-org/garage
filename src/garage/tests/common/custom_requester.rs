@@ -251,7 +251,7 @@ impl<'a> RequestBuilder<'a> {
 			uri.path(),
 			&query,
 			&all_headers,
-			signed_headers,
+			&signed_headers,
 			&body_sha,
 		)
 		.unwrap();
