@@ -40,17 +40,26 @@ pub async fn check_payload_signature(
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let query = parse_query_map(request.uri())?;
 
-	let res = if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
+	if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
 		check_presigned_signature(garage, service, request, query).await
-	} else {
+	} else if request.headers().contains_key(AUTHORIZATION) {
 		check_standard_signature(garage, service, request, query).await
-	};
-
-	if let Err(e) = &res {
-		error!("ERROR IN SIGNATURE\n{:?}\n{}", request, e);
+	} else {
+		// Unsigned (anonymous) request
+		let content_sha256 = request
+			.headers()
+			.get("x-amz-content-sha256")
+			.filter(|c| c.as_bytes() != UNSIGNED_PAYLOAD.as_bytes());
+		if let Some(content_sha256) = content_sha256 {
+			let sha256 = hex::decode(content_sha256)
+				.ok()
+				.and_then(|bytes| Hash::try_from(&bytes))
+				.ok_or_bad_request("Invalid content sha256 hash")?;
+			Ok((None, Some(sha256)))
+		} else {
+			Ok((None, None))
+		}
 	}
-
-	res
 }
 
 async fn check_standard_signature(
@@ -63,8 +72,11 @@ async fn check_standard_signature(
 
 	// Verify that all necessary request headers are signed
 	let signed_headers = split_signed_headers(&authorization)?;
+	if !signed_headers.contains(&HOST) {
+		return Err(Error::bad_request("Header `Host` should be signed"));
+	}
 	for (name, _) in request.headers().iter() {
-		if name.as_str().starts_with("x-amz-") || name == CONTENT_TYPE {
+		if name == CONTENT_TYPE || name.as_str().starts_with("x-amz-") {
 			if !signed_headers.contains(name) {
 				return Err(Error::bad_request(format!(
 					"Header `{}` should be signed",
@@ -72,9 +84,6 @@ async fn check_standard_signature(
 				)));
 			}
 		}
-	}
-	if !signed_headers.contains(&HOST) {
-		return Err(Error::bad_request("Header `Host` should be signed"));
 	}
 
 	let canonical_request = canonical_request(
@@ -122,6 +131,9 @@ async fn check_presigned_signature(
 
 	// Check that all mandatory signed headers are included
 	let signed_headers = split_signed_headers(&authorization)?;
+	if !signed_headers.contains(&HOST) {
+		return Err(Error::bad_request("Header `Host` should be signed"));
+	}
 	for (name, _) in request.headers().iter() {
 		if name.as_str().starts_with("x-amz-") {
 			if !signed_headers.contains(name) {
@@ -131,9 +143,6 @@ async fn check_presigned_signature(
 				)));
 			}
 		}
-	}
-	if !signed_headers.contains(&HOST) {
-		return Err(Error::bad_request("Header `Host` should be signed"));
 	}
 
 	query.remove(X_AMZ_SIGNATURE.as_str());
@@ -254,21 +263,17 @@ pub fn canonical_request(
 
 	// Canonical header string calculated from signed headers
 	signed_headers.sort_by(|h1, h2| h1.as_str().cmp(h2.as_str()));
-	let canonical_header_string = {
-		let mut items = Vec::with_capacity(signed_headers.len());
-		for name in signed_headers.iter() {
+	let canonical_header_string = signed_headers
+		.iter()
+		.map(|name| {
 			let value = headers
 				.get(name)
 				.ok_or_bad_request(format!("signed header `{}` is not present", name))?
 				.to_str()?;
-			items.push((name, value));
-		}
-		items
-			.iter()
-			.map(|(key, value)| format!("{}:{}", key.as_str(), value.trim()))
-			.collect::<Vec<_>>()
-			.join("\n")
-	};
+			Ok(format!("{}:{}", name.as_str(), value.trim()))
+		})
+		.collect::<Result<Vec<String>, Error>>()?
+		.join("\n");
 	let signed_headers = signed_headers.join(";");
 
 	let list = [

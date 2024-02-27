@@ -15,6 +15,11 @@ use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
 
 use crate::helpers::*;
 use crate::signature::error::*;
+use crate::signature::payload::{
+	STREAMING_AWS4_HMAC_SHA256_PAYLOAD, X_AMZ_CONTENT_SH256, X_AMZ_DATE,
+};
+
+pub const AWS4_HMAC_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
 pub type ReqBody = BoxBody<Error>;
 
@@ -25,8 +30,8 @@ pub fn parse_streaming_body(
 	region: &str,
 	service: &str,
 ) -> Result<Request<ReqBody>, Error> {
-	match req.headers().get("x-amz-content-sha256") {
-		Some(header) if header == "STREAMING-AWS4-HMAC-SHA256-PAYLOAD" => {
+	match req.headers().get(X_AMZ_CONTENT_SH256) {
+		Some(header) if header == STREAMING_AWS4_HMAC_SHA256_PAYLOAD => {
 			let signature = content_sha256
 				.take()
 				.ok_or_bad_request("No signature provided")?;
@@ -39,7 +44,7 @@ pub fn parse_streaming_body(
 
 			let date = req
 				.headers()
-				.get("x-amz-date")
+				.get(X_AMZ_DATE)
 				.ok_or_bad_request("Missing X-Amz-Date field")?
 				.to_str()?;
 			let date: NaiveDateTime = NaiveDateTime::parse_from_str(date, LONG_DATETIME)
@@ -75,7 +80,7 @@ fn compute_streaming_payload_signature(
 	content_sha256: Hash,
 ) -> Result<Hash, Error> {
 	let string_to_sign = [
-		"AWS4-HMAC-SHA256-PAYLOAD",
+		AWS4_HMAC_SHA256_PAYLOAD,
 		&date.format(LONG_DATETIME).to_string(),
 		scope,
 		&hex::encode(previous_signature),
