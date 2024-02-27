@@ -449,6 +449,16 @@ impl Authorization {
 	}
 
 	pub(crate) fn parse_form(params: &HeaderMap) -> Result<Self, Error> {
+		let algorithm = params
+			.get(X_AMZ_ALGORITHM)
+			.ok_or_bad_request("Missing X-Amz-Algorithm header")?
+			.to_str()?;
+		if algorithm != AWS4_HMAC_SHA256 {
+			return Err(Error::bad_request(
+				"Unsupported authorization method".to_string(),
+			));
+		}
+
 		let credential = params
 			.get(X_AMZ_CREDENTIAL)
 			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?
