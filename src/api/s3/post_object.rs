@@ -21,7 +21,7 @@ use crate::s3::cors::*;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
-use crate::signature::payload::{parse_date, verify_v4};
+use crate::signature::payload::{verify_v4, Authorization};
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
@@ -88,22 +88,11 @@ pub async fn handle_post_object(
 		.get("key")
 		.ok_or_bad_request("No key was provided")?
 		.to_str()?;
-	let credential = params
-		.get("x-amz-credential")
-		.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?
-		.to_str()?;
 	let policy = params
 		.get("policy")
 		.ok_or_bad_request("No policy was provided")?
 		.to_str()?;
-	let signature = params
-		.get("x-amz-signature")
-		.ok_or_bad_request("No signature was provided")?
-		.to_str()?;
-	let date = params
-		.get("x-amz-date")
-		.ok_or_bad_request("No date was provided")?
-		.to_str()?;
+	let authorization = Authorization::parse_form(&params)?;
 
 	let key = if key.contains("${filename}") {
 		// if no filename is provided, don't replace. This matches the behavior of AWS.
@@ -116,16 +105,7 @@ pub async fn handle_post_object(
 		key.to_owned()
 	};
 
-	let date = parse_date(date)?;
-	let api_key = verify_v4(
-		&garage,
-		"s3",
-		credential,
-		&date,
-		signature,
-		policy.as_bytes(),
-	)
-	.await?;
+	let api_key = verify_v4(&garage, "s3", &authorization, policy.as_bytes()).await?;
 
 	let bucket_id = garage
 		.bucket_helper()

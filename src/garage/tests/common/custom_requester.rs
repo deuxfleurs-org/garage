@@ -1,12 +1,15 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use chrono::{offset::Utc, DateTime};
 use hmac::{Hmac, Mac};
 use http_body_util::BodyExt;
 use http_body_util::Full as FullBody;
+use hyper::header::{
+	HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_ENCODING, CONTENT_LENGTH, HOST,
+};
 use hyper::{Method, Request, Response, Uri};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
@@ -173,54 +176,85 @@ impl<'a> RequestBuilder<'a> {
 		.unwrap();
 		let streaming_signer = signer.clone();
 
-		let mut all_headers = self.signed_headers.clone();
+		let mut all_headers = self
+			.signed_headers
+			.iter()
+			.map(|(k, v)| {
+				(
+					HeaderName::try_from(k).expect("invalid header name"),
+					HeaderValue::try_from(v).expect("invalid header value"),
+				)
+			})
+			.collect::<HeaderMap>();
 
 		let date = now.format(signature::LONG_DATETIME).to_string();
-		all_headers.insert("x-amz-date".to_owned(), date);
-		all_headers.insert("host".to_owned(), host);
+		all_headers.insert(
+			signature::payload::X_AMZ_DATE,
+			HeaderValue::from_str(&date).unwrap(),
+		);
+		all_headers.insert(HOST, HeaderValue::from_str(&host).unwrap());
 
 		let body_sha = match self.body_signature {
 			BodySignature::Unsigned => "UNSIGNED-PAYLOAD".to_owned(),
 			BodySignature::Classic => hex::encode(garage_util::data::sha256sum(&self.body)),
 			BodySignature::Streaming(size) => {
-				all_headers.insert("content-encoding".to_owned(), "aws-chunked".to_owned());
 				all_headers.insert(
-					"x-amz-decoded-content-length".to_owned(),
-					self.body.len().to_string(),
+					CONTENT_ENCODING,
+					HeaderValue::from_str("aws-chunked").unwrap(),
+				);
+				all_headers.insert(
+					HeaderName::from_static("x-amz-decoded-content-length"),
+					HeaderValue::from_str(&self.body.len().to_string()).unwrap(),
 				);
 				// Get lenght of body by doing the conversion to a streaming body with an
 				// invalid signature (we don't know the seed) just to get its length. This
 				// is a pretty lazy and inefficient way to do it, but it's enought for test
 				// code.
 				all_headers.insert(
-					"content-length".to_owned(),
+					CONTENT_LENGTH,
 					to_streaming_body(&self.body, size, String::new(), signer.clone(), now, "")
 						.len()
-						.to_string(),
+						.to_string()
+						.try_into()
+						.unwrap(),
 				);
 
 				"STREAMING-AWS4-HMAC-SHA256-PAYLOAD".to_owned()
 			}
 		};
-		all_headers.insert("x-amz-content-sha256".to_owned(), body_sha.clone());
+		all_headers.insert(
+			signature::payload::X_AMZ_CONTENT_SH256,
+			HeaderValue::from_str(&body_sha).unwrap(),
+		);
 
-		let mut signed_headers = all_headers
-			.keys()
-			.map(|k| k.as_ref())
-			.collect::<Vec<&str>>();
-		signed_headers.sort();
-		let signed_headers = signed_headers.join(";");
+		let mut signed_headers = all_headers.keys().cloned().collect::<Vec<_>>();
+		signed_headers.sort_by(|h1, h2| h1.as_str().cmp(h2.as_str()));
+		let signed_headers_str = signed_headers
+			.iter()
+			.map(ToString::to_string)
+			.collect::<Vec<_>>()
+			.join(";");
 
-		all_headers.extend(self.unsigned_headers.clone());
+		all_headers.extend(self.unsigned_headers.iter().map(|(k, v)| {
+			(
+				HeaderName::try_from(k).expect("invalid header name"),
+				HeaderValue::try_from(v).expect("invalid header value"),
+			)
+		}));
+
+		let uri = Uri::try_from(&uri).unwrap();
+		let query = signature::payload::parse_query_map(&uri).unwrap();
 
 		let canonical_request = signature::payload::canonical_request(
 			self.service,
 			&self.method,
-			&Uri::try_from(&uri).unwrap(),
+			uri.path(),
+			&query,
 			&all_headers,
-			&signed_headers,
+			signed_headers,
 			&body_sha,
-		);
+		)
+		.unwrap();
 
 		let string_to_sign = signature::payload::string_to_sign(&now, &scope, &canonical_request);
 
@@ -228,14 +262,15 @@ impl<'a> RequestBuilder<'a> {
 		let signature = hex::encode(signer.finalize().into_bytes());
 		let authorization = format!(
 			"AWS4-HMAC-SHA256 Credential={}/{},SignedHeaders={},Signature={}",
-			self.requester.key.id, scope, signed_headers, signature
+			self.requester.key.id, scope, signed_headers_str, signature
 		);
-		all_headers.insert("authorization".to_owned(), authorization);
+		all_headers.insert(
+			AUTHORIZATION,
+			HeaderValue::from_str(&authorization).unwrap(),
+		);
 
 		let mut request = Request::builder();
-		for (k, v) in all_headers {
-			request = request.header(k, v);
-		}
+		*request.headers_mut().unwrap() = all_headers;
 
 		let body = if let BodySignature::Streaming(size) = self.body_signature {
 			to_streaming_body(&self.body, size, signature, streaming_signer, now, &scope)
