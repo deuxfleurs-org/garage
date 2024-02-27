@@ -40,10 +40,10 @@ pub async fn check_payload_signature(
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let query = parse_query_map(request.uri())?;
 
-	if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
-		check_presigned_signature(garage, service, request, query).await
-	} else if request.headers().contains_key(AUTHORIZATION) {
+	if request.headers().contains_key(AUTHORIZATION) {
 		check_standard_signature(garage, service, request, query).await
+	} else if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
+		check_presigned_signature(garage, service, request, query).await
 	} else {
 		// Unsigned (anonymous) request
 		let content_sha256 = request
@@ -70,7 +70,11 @@ async fn check_standard_signature(
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let authorization = Authorization::parse(request.headers())?;
 
-	// Verify that all necessary request headers are signed
+	// Verify that all necessary request headers are included in signed_headers
+	// For standard AWSv4 signatures, the following must be incldued:
+	// - the Host header (in all cases)
+	// - the Content-Type header, if it is used in the request
+	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
 	if !signed_headers.contains(&HOST) {
 		return Err(Error::bad_request("Header `Host` should be signed"));
@@ -129,7 +133,10 @@ async fn check_presigned_signature(
 	let algorithm = query.get(X_AMZ_ALGORITHM.as_str()).unwrap();
 	let authorization = Authorization::parse_presigned(algorithm, &query)?;
 
-	// Check that all mandatory signed headers are included
+	// Verify that all necessary request headers are included in signed_headers
+	// For AWSv4 pre-signed URLs, the following must be incldued:
+	// - the Host header (in all cases)
+	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
 	if !signed_headers.contains(&HOST) {
 		return Err(Error::bad_request("Header `Host` should be signed"));
@@ -145,6 +152,10 @@ async fn check_presigned_signature(
 		}
 	}
 
+	// The X-Amz-Signature value is passed as a query parameter,
+	// but the signature cannot be computed from a string that contains itself.
+	// AWS specifies that all query params except X-Amz-Signature are included
+	// in the canonical request.
 	query.remove(X_AMZ_SIGNATURE.as_str());
 	let canonical_request = canonical_request(
 		service,
