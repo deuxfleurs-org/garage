@@ -5,6 +5,7 @@ when:
   - pull_request
   - deployment
   - cron
+  - manual
 
 steps:
   - name: check formatting
