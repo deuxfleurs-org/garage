@@ -82,6 +82,19 @@ if [ -z "$SKIP_AWS" ]; then
     exit 1
   fi
   aws s3api delete-object --bucket eprouvette --key upload
+
+  echo "🛠️ Test SSE-C with awscli (aws s3)"
+  SSEC_KEY="u8zCfnEyt5Imo/krN+sxA1DQXxLWtPJavU6T6gOVj1Y="
+  SSEC_KEY_MD5="jMGbs3GyZkYjJUP6q5jA7g=="
+  echo "$SSEC_KEY" |  base64 -d  > /tmp/garage.ssec-key
+  for idx in {1,2}.rnd; do
+    aws s3 cp --sse-c AES256 --sse-c-key fileb:///tmp/garage.ssec-key \
+      "/tmp/garage.$idx" "s3://eprouvette/garage.$idx.aws.sse-c"
+    aws s3 cp --sse-c AES256 --sse-c-key fileb:///tmp/garage.ssec-key \
+      "s3://eprouvette/garage.$idx.aws.sse-c" "/tmp/garage.$idx.dl.sse-c"
+    diff "/tmp/garage.$idx" "/tmp/garage.$idx.dl.sse-c"
+    aws s3api delete-object --bucket eprouvette --key "garage.$idx.aws.sse-c"
+  done
 fi
 
 # S3CMD
