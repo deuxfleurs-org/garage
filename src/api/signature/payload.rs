@@ -35,15 +35,18 @@ pub type QueryMap = HashMap<String, String>;
 
 pub async fn check_payload_signature(
 	garage: &Garage,
-	service: &'static str,
 	request: &mut Request<IncomingBody>,
+	service: &'static str,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let query = parse_query_map(request.uri())?;
 
-	if request.headers().contains_key(AUTHORIZATION) {
-		check_standard_signature(garage, service, request, query).await
-	} else if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
+	if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
+		// We check for presigned-URL-style authentification first, because
+		// the browser or someting else could inject an Authorization header
+		// that is totally unrelated to AWS signatures.
 		check_presigned_signature(garage, service, request, query).await
+	} else if request.headers().contains_key(AUTHORIZATION) {
+		check_standard_signature(garage, service, request, query).await
 	} else {
 		// Unsigned (anonymous) request
 		let content_sha256 = request
@@ -68,27 +71,15 @@ async fn check_standard_signature(
 	request: &Request<IncomingBody>,
 	query: QueryMap,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
-	let authorization = Authorization::parse(request.headers())?;
+	let authorization = Authorization::parse_header(request.headers())?;
 
 	// Verify that all necessary request headers are included in signed_headers
-	// For standard AWSv4 signatures, the following must be incldued:
-	// - the Host header (in all cases)
+	// For standard AWSv4 signatures, the following must be included:
+	// - the Host header (mandatory)
 	// - the Content-Type header, if it is used in the request
 	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
-	if !signed_headers.contains(&HOST) {
-		return Err(Error::bad_request("Header `Host` should be signed"));
-	}
-	for (name, _) in request.headers().iter() {
-		if name == CONTENT_TYPE || name.as_str().starts_with("x-amz-") {
-			if !signed_headers.contains(name) {
-				return Err(Error::bad_request(format!(
-					"Header `{}` should be signed",
-					name
-				)));
-			}
-		}
-	}
+	verify_signed_headers(request.headers(), &signed_headers, &[CONTENT_TYPE])?;
 
 	let canonical_request = canonical_request(
 		service,
@@ -135,22 +126,10 @@ async fn check_presigned_signature(
 
 	// Verify that all necessary request headers are included in signed_headers
 	// For AWSv4 pre-signed URLs, the following must be incldued:
-	// - the Host header (in all cases)
+	// - the Host header (mandatory)
 	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
-	if !signed_headers.contains(&HOST) {
-		return Err(Error::bad_request("Header `Host` should be signed"));
-	}
-	for (name, _) in request.headers().iter() {
-		if name.as_str().starts_with("x-amz-") {
-			if !signed_headers.contains(name) {
-				return Err(Error::bad_request(format!(
-					"Header `{}` should be signed",
-					name
-				)));
-			}
-		}
-	}
+	verify_signed_headers(request.headers(), &signed_headers, &[])?;
 
 	// The X-Amz-Signature value is passed as a query parameter,
 	// but the signature cannot be computed from a string that contains itself.
@@ -172,13 +151,14 @@ async fn check_presigned_signature(
 		&canonical_request,
 	);
 
-	trace!("canonical request:\n{}", canonical_request);
-	trace!("string to sign:\n{}", string_to_sign);
+	trace!("canonical request (presigned url):\n{}", canonical_request);
+	trace!("string to sign (presigned url):\n{}", string_to_sign);
 
 	let key = verify_v4(garage, service, &authorization, string_to_sign.as_bytes()).await?;
 
-	// AWS specifies that if a signed query parameter and a signed header of the same name
-	// have different values, then an InvalidRequest error is raised.
+	// In the page on presigned URLs, AWS specifies that if a signed query
+	// parameter and a signed header of the same name have different values,
+	// then an InvalidRequest error is raised.
 	let headers_mut = request.headers_mut();
 	for (name, value) in query.iter() {
 		let name =
@@ -197,7 +177,7 @@ async fn check_presigned_signature(
 			// What we do is just add them to the Request object as regular headers,
 			// that will be handled downstream as if they were included like in a normal request.
 			// (Here we allow such query parameters to override headers with the same name
-			// if they are not signed, however there is not much reason that this would happen)
+			// that are not signed, however there is not much reason that this would happen)
 			headers_mut.insert(
 				name,
 				HeaderValue::from_bytes(value.as_bytes())
@@ -206,6 +186,8 @@ async fn check_presigned_signature(
 		}
 	}
 
+	// Presigned URLs always use UNSIGNED-PAYLOAD,
+	// so there is no sha256 hash to return.
 	Ok((Some(key), None))
 }
 
@@ -225,6 +207,17 @@ pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
 	Ok(query)
 }
 
+fn parse_credential(cred: &str) -> Result<(String, String), Error> {
+	let first_slash = cred
+		.find('/')
+		.ok_or_bad_request("Credentials does not contain '/' in authorization field")?;
+	let (key_id, scope) = cred.split_at(first_slash);
+	Ok((
+		key_id.to_string(),
+		scope.trim_start_matches('/').to_string(),
+	))
+}
+
 fn split_signed_headers(authorization: &Authorization) -> Result<Vec<HeaderName>, Error> {
 	let mut signed_headers = authorization
 		.signed_headers
@@ -234,6 +227,27 @@ fn split_signed_headers(authorization: &Authorization) -> Result<Vec<HeaderName>
 		.ok_or_bad_request("invalid header name")?;
 	signed_headers.sort_by(|h1, h2| h1.as_str().cmp(h2.as_str()));
 	Ok(signed_headers)
+}
+
+fn verify_signed_headers(
+	headers: &HeaderMap,
+	signed_headers: &[HeaderName],
+	extra_headers: &[HeaderName],
+) -> Result<(), Error> {
+	if !signed_headers.contains(&HOST) {
+		return Err(Error::bad_request("Header `Host` should be signed"));
+	}
+	for (name, _) in headers.iter() {
+		if name.as_str().starts_with("x-amz-") || extra_headers.contains(name) {
+			if !signed_headers.contains(name) {
+				return Err(Error::bad_request(format!(
+					"Header `{}` should be signed",
+					name
+				)));
+			}
+		}
+	}
+	Ok(())
 }
 
 pub fn string_to_sign(datetime: &DateTime<Utc>, scope_string: &str, canonical_req: &str) -> String {
@@ -381,7 +395,7 @@ pub struct Authorization {
 }
 
 impl Authorization {
-	fn parse(headers: &HeaderMap) -> Result<Self, Error> {
+	fn parse_header(headers: &HeaderMap) -> Result<Self, Error> {
 		let authorization = headers
 			.get(AUTHORIZATION)
 			.ok_or_bad_request("Missing authorization header")?
@@ -534,15 +548,4 @@ impl Authorization {
 		};
 		Ok(auth)
 	}
-}
-
-fn parse_credential(cred: &str) -> Result<(String, String), Error> {
-	let first_slash = cred
-		.find('/')
-		.ok_or_bad_request("Credentials does not contain '/' in authorization field")?;
-	let (key_id, scope) = cred.split_at(first_slash);
-	Ok((
-		key_id.to_string(),
-		scope.trim_start_matches('/').to_string(),
-	))
 }

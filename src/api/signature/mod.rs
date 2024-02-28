@@ -2,18 +2,43 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+use hyper::{body::Incoming as IncomingBody, Request};
+
+use garage_model::garage::Garage;
+use garage_model::key_table::Key;
 use garage_util::data::{sha256sum, Hash};
+
+use error::*;
 
 pub mod error;
 pub mod payload;
 pub mod streaming;
 
-use error::*;
-
 pub const SHORT_DATE: &str = "%Y%m%d";
 pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 
 type HmacSha256 = Hmac<Sha256>;
+
+pub async fn verify_request(
+	garage: &Garage,
+	mut req: Request<IncomingBody>,
+	service: &'static str,
+) -> Result<(Request<streaming::ReqBody>, Key, Option<Hash>), Error> {
+	let (api_key, mut content_sha256) =
+		payload::check_payload_signature(&garage, &mut req, service).await?;
+	let api_key =
+		api_key.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
+
+	let req = streaming::parse_streaming_body(
+		&api_key,
+		req,
+		&mut content_sha256,
+		&garage.config.s3_api.s3_region,
+		service,
+	)?;
+
+	Ok((req, api_key, content_sha256))
+}
 
 pub fn verify_signed_content(expected_sha256: Hash, body: &[u8]) -> Result<(), Error> {
 	if expected_sha256 != sha256sum(body) {
