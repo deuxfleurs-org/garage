@@ -37,17 +37,6 @@ A Garage cluster can very easily evolve over time, as storage nodes are added or
 Garage will automatically rebalance data between nodes as needed to ensure the desired number of copies.
 Read about cluster layout management [here](@/documentation/operations/layout.md).
 
-### No RAFT slowing you down
-
-It might seem strange to tout the absence of something as a desirable feature,
-but this is in fact a very important point! Garage does not use RAFT or another
-consensus algorithm internally to order incoming requests: this means that all requests
-directed to a Garage cluster can be handled independently of one another instead
-of going through a central bottleneck (the leader node).
-As a consequence, requests can be handled much faster, even in cases where latency
-between cluster nodes is important (see our [benchmarks](@/documentation/design/benchmarks/index.md) for data on this).
-This is particularly usefull when nodes are far from one another and talk to one other through standard Internet connections.
-
 ### Several replication modes
 
 Garage supports a variety of replication modes, with 1 copy, 2 copies or 3 copies of your data,
@@ -62,6 +51,17 @@ Zstd.  Objects uploaded to Garage are chunked in blocks of constant sizes (see
 [`block_size`](@/documentation/reference-manual/configuration.md#block_size)),
 and the hashes of individual blocks are used to dispatch them to storage nodes
 and to deduplicate them.
+
+### No RAFT slowing you down
+
+It might seem strange to tout the absence of something as a desirable feature,
+but this is in fact a very important point! Garage does not use RAFT or another
+consensus algorithm internally to order incoming requests: this means that all requests
+directed to a Garage cluster can be handled independently of one another instead
+of going through a central bottleneck (the leader node).
+As a consequence, requests can be handled much faster, even in cases where latency
+between cluster nodes is important (see our [benchmarks](@/documentation/design/benchmarks/index.md) for data on this).
+This is particularly usefull when nodes are far from one another and talk to one other through standard Internet connections.
 
 ### Web server for static websites
 
