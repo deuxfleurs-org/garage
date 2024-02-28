@@ -17,8 +17,7 @@ use garage_model::key_table::Key;
 use crate::generic_server::*;
 use crate::s3::error::*;
 
-use crate::signature::payload::check_payload_signature;
-use crate::signature::streaming::*;
+use crate::signature::verify_request;
 
 use crate::helpers::*;
 use crate::s3::bucket::*;
@@ -125,17 +124,7 @@ impl ApiHandler for S3ApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (api_key, mut content_sha256) = check_payload_signature(&garage, "s3", &req).await?;
-		let api_key = api_key
-			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
-
-		let req = parse_streaming_body(
-			&api_key,
-			req,
-			&mut content_sha256,
-			&garage.config.s3_api.s3_region,
-			"s3",
-		)?;
+		let (req, api_key, content_sha256) = verify_request(&garage, req, "s3").await?;
 
 		let bucket_name = match bucket_name {
 			None => {
