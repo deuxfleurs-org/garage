@@ -55,6 +55,14 @@ and with various levels of consistency, in order to adapt to a variety of usage 
 Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication_mode)
 to select the replication mode best suited to your use case (hint: in most cases, `replication_mode = "3"` is what you want).
 
+### Compression and deduplication
+
+All data stored in Garage is deduplicated, and optionnally compressed using
+Zstd.  Objects uploaded to Garage are chunked in blocks of constant sizes (see
+[`block_size`](@/documentation/reference-manual/configuration.md#block_size)),
+and the hashes of individual blocks are used to dispatch them to storage nodes
+and to deduplicate them.
+
 ### Web server for static websites
 
 A storage bucket can easily be configured to be served directly by Garage as a static web site.
