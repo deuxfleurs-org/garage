@@ -417,7 +417,7 @@ the node, even in the case of a NAT: the NAT should be configured to forward the
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
 
-#### `rpc_bind_outgoing` {#rpc_bind_outgoing} (since v0.9.2)
+#### `rpc_bind_outgoing`(since v0.9.2) {#rpc_bind_outgoing}
 
 If enabled, pre-bind all sockets for outgoing connections to the same IP address
 used for listening (the IP address specified in `rpc_bind_addr`) before
