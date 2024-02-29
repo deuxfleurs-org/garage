@@ -34,6 +34,7 @@ k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
 # External crates from crates.io
 arc-swap = "1.0"
+argon2 = "0.5"
 async-trait = "0.1.7"
 backtrace = "0.3"
 base64 = "0.21"
