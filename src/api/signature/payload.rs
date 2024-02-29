@@ -375,9 +375,10 @@ pub async fn verify_v4(
 	)
 	.ok_or_internal_error("Unable to build signing HMAC")?;
 	hmac.update(payload);
-	let our_signature = hex::encode(hmac.finalize().into_bytes());
-	if auth.signature != our_signature {
-		return Err(Error::forbidden("Invalid signature".to_string()));
+	let signature =
+		hex::decode(&auth.signature).map_err(|_| Error::forbidden("Invalid signature"))?;
+	if hmac.verify_slice(&signature).is_err() {
+		return Err(Error::forbidden("Invalid signature"));
 	}
 
 	Ok(key)
