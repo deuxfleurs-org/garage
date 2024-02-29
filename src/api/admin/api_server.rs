@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use argon2::password_hash::PasswordHash;
 use async_trait::async_trait;
 
 use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
@@ -45,14 +46,8 @@ impl AdminApiServer {
 		#[cfg(feature = "metrics")] exporter: PrometheusExporter,
 	) -> Self {
 		let cfg = &garage.config.admin;
-		let metrics_token = cfg
-			.metrics_token
-			.as_ref()
-			.map(|tok| format!("Bearer {}", tok));
-		let admin_token = cfg
-			.admin_token
-			.as_ref()
-			.map(|tok| format!("Bearer {}", tok));
+		let metrics_token = cfg.metrics_token.as_deref().map(hash_bearer_token);
+		let admin_token = cfg.admin_token.as_deref().map(hash_bearer_token);
 		Self {
 			garage,
 			#[cfg(feature = "metrics")]
@@ -248,11 +243,11 @@ impl ApiHandler for AdminApiServer {
 		req: Request<IncomingBody>,
 		endpoint: Endpoint,
 	) -> Result<Response<ResBody>, Error> {
-		let expected_auth_header =
+		let required_auth_hash =
 			match endpoint.authorization_type() {
 				Authorization::None => None,
-				Authorization::MetricsToken => self.metrics_token.as_ref(),
-				Authorization::AdminToken => match &self.admin_token {
+				Authorization::MetricsToken => self.metrics_token.as_deref(),
+				Authorization::AdminToken => match self.admin_token.as_deref() {
 					None => return Err(Error::forbidden(
 						"Admin token isn't configured, admin API access is disabled for security.",
 					)),
@@ -260,14 +255,11 @@ impl ApiHandler for AdminApiServer {
 				},
 			};
 
-		if let Some(h) = expected_auth_header {
+		if let Some(password_hash) = required_auth_hash {
 			match req.headers().get("Authorization") {
 				None => return Err(Error::forbidden("Authorization token must be provided")),
-				Some(v) => {
-					let authorized = v.to_str().map(|hv| hv.trim() == h).unwrap_or(false);
-					if !authorized {
-						return Err(Error::forbidden("Invalid authorization token provided"));
-					}
+				Some(authorization) => {
+					verify_bearer_token(&authorization, password_hash)?;
 				}
 			}
 		}
@@ -341,4 +333,36 @@ impl ApiEndpoint for Endpoint {
 	}
 
 	fn add_span_attributes(&self, _span: SpanRef<'_>) {}
+}
+
+fn hash_bearer_token(token: &str) -> String {
+	use argon2::{
+		password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+		Argon2,
+	};
+
+	let salt = SaltString::generate(&mut OsRng);
+	let argon2 = Argon2::default();
+	argon2
+		.hash_password(token.trim().as_bytes(), &salt)
+		.expect("could not hash API token")
+		.to_string()
+}
+
+fn verify_bearer_token(token: &hyper::http::HeaderValue, password_hash: &str) -> Result<(), Error> {
+	use argon2::{password_hash::PasswordVerifier, Argon2};
+
+	let parsed_hash = PasswordHash::new(&password_hash).unwrap();
+
+	token
+		.to_str()?
+		.strip_prefix("Bearer ")
+		.and_then(|token| {
+			Argon2::default()
+				.verify_password(token.trim().as_bytes(), &parsed_hash)
+				.ok()
+		})
+		.ok_or_else(|| Error::forbidden("Invalid authorization token"))?;
+
+	Ok(())
 }
