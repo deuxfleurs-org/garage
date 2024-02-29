@@ -20,6 +20,7 @@ garage_block.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
 
+argon2 = "0.5"
 async-trait = "0.1.7"
 base64 = "0.21"
 bytes = "1.0"
