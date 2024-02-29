@@ -69,8 +69,8 @@ root_domain = ".web.garage"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
-metrics_token = "cacce0b2de4bc2d9f5b5fdff551e01ac1496055aed248202d415398987e35f81"
-admin_token = "ae8cb40ea7368bbdbb6430af11cca7da833d3458a5f52086f4e805a570fb5c2a"
+metrics_token = "BCAdFjoa9G0KJR0WXnHHm7fs1ZAbfpI8iIZ+Z/a2NgI="
+admin_token = "UkLeGWEvHnXBqnueR3ISEMWpOnm40jH2tM2HnnL/0F4="
 trace_sink = "http://localhost:4317"
 ```
 
@@ -612,7 +612,7 @@ the socket will have 0220 mode. Make sure to set user and group permissions acco
 The token for accessing the Metrics endpoint. If this token is not set, the
 Metrics endpoint can be accessed without access control.
 
-You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
+You can use any random string for this value. We recommend generating a random token with `openssl rand -base64 32`.
 
 `metrics_token` was introduced in Garage `v0.7.2`.
 `metrics_token_file` and the `GARAGE_METRICS_TOKEN` environment variable are supported since Garage `v0.8.2`.
@@ -624,7 +624,7 @@ You can use any random string for this value. We recommend generating a random t
 The token for accessing all of the other administration endpoints.  If this
 token is not set, access to these endpoints is disabled entirely.
 
-You can use any random string for this value. We recommend generating a random token with `openssl rand -hex 32`.
+You can use any random string for this value. We recommend generating a random token with `openssl rand -base64 32`.
 
 `admin_token` was introduced in Garage `v0.7.2`.
 `admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.

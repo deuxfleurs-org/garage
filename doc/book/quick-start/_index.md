@@ -79,8 +79,9 @@ index = "index.html"
 api_bind_addr = "[::]:3904"
 
 [admin]
-api_bind_addr = "0.0.0.0:3903"
+api_bind_addr = "[::]:3903"
 admin_token = "$(openssl rand -base64 32)"
+metrics_token = "$(openssl rand -base64 32)"
 EOF
 ```
 
