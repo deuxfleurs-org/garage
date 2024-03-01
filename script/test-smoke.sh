@@ -81,10 +81,8 @@ if [ -z "$SKIP_AWS" ]; then
     echo "Invalid multipart upload"
     exit 1
   fi
+  aws s3api delete-object --bucket eprouvette --key upload
 fi
-
-echo "OK!!"
-exit 0
 
 # S3CMD
 if [ -z "$SKIP_S3CMD" ]; then
