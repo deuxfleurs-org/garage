@@ -15,8 +15,7 @@ use garage_model::garage::Garage;
 use crate::generic_server::*;
 use crate::k2v::error::*;
 
-use crate::signature::payload::check_payload_signature;
-use crate::signature::streaming::*;
+use crate::signature::verify_request;
 
 use crate::helpers::*;
 use crate::k2v::batch::*;
@@ -82,17 +81,7 @@ impl ApiHandler for K2VApiServer {
 				.ok_or_bad_request("Error handling OPTIONS")?);
 		}
 
-		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;
-		let api_key = api_key
-			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
-
-		let req = parse_streaming_body(
-			&api_key,
-			req,
-			&mut content_sha256,
-			&garage.config.s3_api.s3_region,
-			"k2v",
-		)?;
+		let (req, api_key, _content_shaa256) = verify_request(&garage, req, "k2v").await?;
 
 		let bucket_id = garage
 			.bucket_helper()

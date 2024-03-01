@@ -26,7 +26,7 @@ async fn test_putobject_streaming() {
 			.builder(bucket.clone())
 			.method(Method::PUT)
 			.path(STD_KEY.to_owned())
-			.unsigned_headers(headers)
+			.signed_headers(headers)
 			.vhost_style(true)
 			.body(vec![])
 			.body_signature(BodySignature::Streaming(10))
