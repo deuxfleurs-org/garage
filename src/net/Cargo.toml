@@ -1,9 +1,9 @@
 [package]
 name = "garage_net"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
-license-file = "AGPL-3.0"
+license = "AGPL-3.0"
 description = "Networking library for Garage RPC communication, forked from Netapp"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 readme = "../../README.md"
