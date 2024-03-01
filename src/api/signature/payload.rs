@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use hmac::Mac;
-use hyper::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, HOST};
+use hyper::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, HOST};
 use hyper::{body::Incoming as IncomingBody, Method, Request};
 use sha2::{Digest, Sha256};
 
@@ -74,12 +74,13 @@ async fn check_standard_signature(
 	let authorization = Authorization::parse_header(request.headers())?;
 
 	// Verify that all necessary request headers are included in signed_headers
-	// For standard AWSv4 signatures, the following must be included:
+	// The following must be included for all signatures:
 	// - the Host header (mandatory)
-	// - the Content-Type header, if it is used in the request
 	// - all x-amz-* headers used in the request
+	// AWS also indicates that the Content-Type header should be signed if
+	// it is used, but Minio client doesn't sign it so we don't check it for compatibility.
 	let signed_headers = split_signed_headers(&authorization)?;
-	verify_signed_headers(request.headers(), &signed_headers, &[CONTENT_TYPE])?;
+	verify_signed_headers(request.headers(), &signed_headers)?;
 
 	let canonical_request = canonical_request(
 		service,
@@ -129,7 +130,7 @@ async fn check_presigned_signature(
 	// - the Host header (mandatory)
 	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
-	verify_signed_headers(request.headers(), &signed_headers, &[])?;
+	verify_signed_headers(request.headers(), &signed_headers)?;
 
 	// The X-Amz-Signature value is passed as a query parameter,
 	// but the signature cannot be computed from a string that contains itself.
@@ -229,16 +230,12 @@ fn split_signed_headers(authorization: &Authorization) -> Result<Vec<HeaderName>
 	Ok(signed_headers)
 }
 
-fn verify_signed_headers(
-	headers: &HeaderMap,
-	signed_headers: &[HeaderName],
-	extra_headers: &[HeaderName],
-) -> Result<(), Error> {
+fn verify_signed_headers(headers: &HeaderMap, signed_headers: &[HeaderName]) -> Result<(), Error> {
 	if !signed_headers.contains(&HOST) {
 		return Err(Error::bad_request("Header `Host` should be signed"));
 	}
 	for (name, _) in headers.iter() {
-		if name.as_str().starts_with("x-amz-") || extra_headers.contains(name) {
+		if name.as_str().starts_with("x-amz-") {
 			if !signed_headers.contains(name) {
 				return Err(Error::bad_request(format!(
 					"Header `{}` should be signed",
