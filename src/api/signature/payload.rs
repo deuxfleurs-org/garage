@@ -197,7 +197,7 @@ pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
 	if let Some(query_str) = uri.query() {
 		let query_pairs = url::form_urlencoded::parse(query_str.as_bytes());
 		for (key, val) in query_pairs {
-			if query.insert(key.to_string(), val.into_owned()).is_some() {
+			if query.insert(key.to_lowercase().to_string(), val.into_owned()).is_some() {
 				return Err(Error::bad_request(format!(
 					"duplicate query parameter: `{}`",
 					key
