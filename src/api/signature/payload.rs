@@ -31,7 +31,12 @@ pub const AWS4_HMAC_SHA256: &str = "AWS4-HMAC-SHA256";
 pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 pub const STREAMING_AWS4_HMAC_SHA256_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 
-pub type QueryMap = HashMap<String, String>;
+pub type QueryMap = HashMap<String, QueryValue>;
+
+pub struct QueryValue {
+    key: String,
+    value: String,
+}
 
 pub async fn check_payload_signature(
 	garage: &Garage,
@@ -123,7 +128,7 @@ async fn check_presigned_signature(
 	mut query: QueryMap,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let algorithm = query.get(X_AMZ_ALGORITHM.as_str()).unwrap();
-	let authorization = Authorization::parse_presigned(algorithm, &query)?;
+	let authorization = Authorization::parse_presigned(&algorithm.value, &query)?;
 
 	// Verify that all necessary request headers are included in signed_headers
 	// For AWSv4 pre-signed URLs, the following must be incldued:
@@ -165,7 +170,7 @@ async fn check_presigned_signature(
 		let name =
 			HeaderName::from_bytes(name.as_bytes()).ok_or_bad_request("Invalid header name")?;
 		if let Some(existing) = headers_mut.get(&name) {
-			if signed_headers.contains(&name) && existing.as_bytes() != value.as_bytes() {
+			if signed_headers.contains(&name) && existing.as_bytes() != value.value.as_bytes() {
 				return Err(Error::bad_request(format!(
 					"Conflicting values for `{}` in query parameters and request headers",
 					name
@@ -181,7 +186,7 @@ async fn check_presigned_signature(
 			// that are not signed, however there is not much reason that this would happen)
 			headers_mut.insert(
 				name,
-				HeaderValue::from_bytes(value.as_bytes())
+				HeaderValue::from_bytes(value.value.as_bytes())
 					.ok_or_bad_request("invalid query parameter value")?,
 			);
 		}
@@ -197,7 +202,14 @@ pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
 	if let Some(query_str) = uri.query() {
 		let query_pairs = url::form_urlencoded::parse(query_str.as_bytes());
 		for (key, val) in query_pairs {
-			if query.insert(key.to_lowercase().to_string(), val.into_owned()).is_some() {
+            let key = key.into_owned();
+
+            let value = QueryValue {
+                key: key.clone(),
+                value: val.into_owned(),
+            };
+
+			if query.insert(key.to_lowercase(), value).is_some() {
 				return Err(Error::bad_request(format!(
 					"duplicate query parameter: `{}`",
 					key
@@ -306,7 +318,7 @@ pub fn canonical_request(
 	// Canonical query string from passed HeaderMap
 	let canonical_query_string = {
 		let mut items = Vec::with_capacity(query.len());
-		for (key, value) in query.iter() {
+		for (_, QueryValue { key, value }) in query.iter() {
 			items.push(uri_encode(&key, true) + "=" + &uri_encode(&value, true));
 		}
 		items.sort();
@@ -476,6 +488,7 @@ impl Authorization {
 		let duration = query
 			.get(X_AMZ_EXPIRES.as_str())
 			.ok_or_bad_request("X-Amz-Expires not found in query parameters")?
+            .value
 			.parse()
 			.map_err(|_| Error::bad_request("X-Amz-Expires is not a number".to_string()))?;
 
@@ -488,18 +501,18 @@ impl Authorization {
 		let date = query
 			.get(X_AMZ_DATE.as_str())
 			.ok_or_bad_request("Missing X-Amz-Date field")?;
-		let date = parse_date(date)?;
+		let date = parse_date(&date.value)?;
 
 		if Utc::now() - date > Duration::seconds(duration) {
 			return Err(Error::bad_request("Date is too old".to_string()));
 		}
 
-		let (key_id, scope) = parse_credential(cred)?;
+		let (key_id, scope) = parse_credential(&cred.value)?;
 		Ok(Authorization {
 			key_id,
 			scope,
-			signed_headers: signed_headers.to_string(),
-			signature: signature.to_string(),
+			signed_headers: signed_headers.value.clone(),
+			signature: signature.value.clone(),
 			content_sha256: UNSIGNED_PAYLOAD.to_string(),
 			date,
 		})
