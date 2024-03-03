@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::{Iterator, Peekable};
-use std::sync::Arc;
 
 use base64::prelude::*;
 use hyper::Response;
@@ -9,7 +8,6 @@ use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
 
-use garage_model::garage::Garage;
 use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 
@@ -62,9 +60,10 @@ pub struct ListPartsQuery {
 }
 
 pub async fn handle_list(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	query: &ListObjectsQuery,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx { garage, .. } = &ctx;
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
@@ -167,9 +166,11 @@ pub async fn handle_list(
 }
 
 pub async fn handle_list_multipart_upload(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	query: &ListMultipartUploadsQuery,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx { garage, .. } = &ctx;
+
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
@@ -269,15 +270,14 @@ pub async fn handle_list_multipart_upload(
 }
 
 pub async fn handle_list_parts(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	query: &ListPartsQuery,
 ) -> Result<Response<ResBody>, Error> {
 	debug!("ListParts {:?}", query);
 
 	let upload_id = s3_multipart::decode_upload_id(&query.upload_id)?;
 
-	let (_, _, mpu) =
-		s3_multipart::get_upload(&garage, &query.bucket_id, &query.key, &upload_id).await?;
+	let (_, _, mpu) = s3_multipart::get_upload(&ctx, &query.key, &upload_id).await?;
 
 	let (info, next) = fetch_part_info(query, &mpu)?;
 

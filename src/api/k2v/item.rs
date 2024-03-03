@@ -1,13 +1,8 @@
-use std::sync::Arc;
-
 use base64::prelude::*;
 use http::header;
 
 use hyper::{Request, Response, StatusCode};
 
-use garage_util::data::*;
-
-use garage_model::garage::Garage;
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
@@ -100,12 +95,15 @@ impl ReturnFormat {
 /// Handle ReadItem request
 #[allow(clippy::ptr_arg)]
 pub async fn handle_read_item(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	bucket_id: Uuid,
 	partition_key: &str,
 	sort_key: &String,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = &ctx;
+
 	let format = ReturnFormat::from(req)?;
 
 	let item = garage
@@ -113,7 +111,7 @@ pub async fn handle_read_item(
 		.item_table
 		.get(
 			&K2VItemPartition {
-				bucket_id,
+				bucket_id: *bucket_id,
 				partition_key: partition_key.to_string(),
 			},
 			sort_key,
@@ -125,12 +123,14 @@ pub async fn handle_read_item(
 }
 
 pub async fn handle_insert_item(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	req: Request<ReqBody>,
-	bucket_id: Uuid,
 	partition_key: &str,
 	sort_key: &str,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = &ctx;
 	let causal_context = req
 		.headers()
 		.get(X_GARAGE_CAUSALITY_TOKEN)
@@ -149,7 +149,7 @@ pub async fn handle_insert_item(
 		.k2v
 		.rpc
 		.insert(
-			bucket_id,
+			*bucket_id,
 			partition_key.to_string(),
 			sort_key.to_string(),
 			causal_context,
@@ -163,12 +163,14 @@ pub async fn handle_insert_item(
 }
 
 pub async fn handle_delete_item(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	req: Request<ReqBody>,
-	bucket_id: Uuid,
 	partition_key: &str,
 	sort_key: &str,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = &ctx;
 	let causal_context = req
 		.headers()
 		.get(X_GARAGE_CAUSALITY_TOKEN)
@@ -183,7 +185,7 @@ pub async fn handle_delete_item(
 		.k2v
 		.rpc
 		.insert(
-			bucket_id,
+			*bucket_id,
 			partition_key.to_string(),
 			sort_key.to_string(),
 			causal_context,
@@ -199,14 +201,16 @@ pub async fn handle_delete_item(
 /// Handle ReadItem request
 #[allow(clippy::ptr_arg)]
 pub async fn handle_poll_item(
-	garage: Arc<Garage>,
+	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	bucket_id: Uuid,
 	partition_key: String,
 	sort_key: String,
 	causality_token: String,
 	timeout_secs: Option<u64>,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = &ctx;
 	let format = ReturnFormat::from(req)?;
 
 	let causal_context =
@@ -218,7 +222,7 @@ pub async fn handle_poll_item(
 		.k2v
 		.rpc
 		.poll_item(
-			bucket_id,
+			*bucket_id,
 			partition_key,
 			sort_key,
 			causal_context,

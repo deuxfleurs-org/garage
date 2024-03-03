@@ -1,5 +1,4 @@
 use std::pin::Pin;
-use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::{stream, stream::Stream, StreamExt};
@@ -15,8 +14,6 @@ use garage_table::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use garage_model::garage::Garage;
-use garage_model::key_table::Key;
 use garage_model::s3::block_ref_table::*;
 use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
@@ -30,15 +27,19 @@ use crate::s3::put::get_headers;
 use crate::s3::xml::{self as s3_xml, xmlns_tag};
 
 pub async fn handle_copy(
-	garage: Arc<Garage>,
-	api_key: &Key,
+	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	dest_bucket_id: Uuid,
 	dest_key: &str,
 ) -> Result<Response<ResBody>, Error> {
 	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
 
-	let source_object = get_copy_source(&garage, api_key, req).await?;
+	let source_object = get_copy_source(&ctx, req).await?;
+
+	let ReqCtx {
+		garage,
+		bucket_id: dest_bucket_id,
+		..
+	} = ctx;
 
 	let (source_version, source_version_data, source_version_meta) =
 		extract_source_info(&source_object)?;
@@ -181,10 +182,8 @@ pub async fn handle_copy(
 }
 
 pub async fn handle_upload_part_copy(
-	garage: Arc<Garage>,
-	api_key: &Key,
+	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	dest_bucket_id: Uuid,
 	dest_key: &str,
 	part_number: u64,
 	upload_id: &str,
@@ -195,9 +194,11 @@ pub async fn handle_upload_part_copy(
 
 	let dest_key = dest_key.to_string();
 	let (source_object, (_, _, mut dest_mpu)) = futures::try_join!(
-		get_copy_source(&garage, api_key, req),
-		multipart::get_upload(&garage, &dest_bucket_id, &dest_key, &dest_upload_id)
+		get_copy_source(&ctx, req),
+		multipart::get_upload(&ctx, &dest_key, &dest_upload_id)
 	)?;
+
+	let ReqCtx { garage, .. } = ctx;
 
 	let (source_object_version, source_version_data, source_version_meta) =
 		extract_source_info(&source_object)?;
@@ -439,11 +440,11 @@ pub async fn handle_upload_part_copy(
 		.body(string_body(resp_xml))?)
 }
 
-async fn get_copy_source(
-	garage: &Garage,
-	api_key: &Key,
-	req: &Request<ReqBody>,
-) -> Result<Object, Error> {
+async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object, Error> {
+	let ReqCtx {
+		garage, api_key, ..
+	} = ctx;
+
 	let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
 	let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 

@@ -1,5 +1,4 @@
 use quick_xml::de::from_reader;
-use std::sync::Arc;
 
 use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
@@ -12,15 +11,11 @@ use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
 use garage_model::bucket_table::*;
-use garage_model::garage::Garage;
 use garage_util::data::*;
 
-pub async fn handle_get_website(bucket: &Bucket) -> Result<Response<ResBody>, Error> {
-	let param = bucket
-		.params()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
-	if let Some(website) = param.website_config.get() {
+pub async fn handle_get_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx { bucket_params, .. } = ctx;
+	if let Some(website) = bucket_params.website_config.get() {
 		let wc = WebsiteConfiguration {
 			xmlns: (),
 			error_document: website.error_document.as_ref().map(|v| Key {
@@ -44,16 +39,18 @@ pub async fn handle_get_website(bucket: &Bucket) -> Result<Response<ResBody>, Er
 	}
 }
 
-pub async fn handle_delete_website(
-	garage: Arc<Garage>,
-	mut bucket: Bucket,
-) -> Result<Response<ResBody>, Error> {
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
-	param.website_config.update(None);
-	garage.bucket_table.insert(&bucket).await?;
+pub async fn handle_delete_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage,
+		bucket_id,
+		mut bucket_params,
+		..
+	} = ctx;
+	bucket_params.website_config.update(None);
+	garage
+		.bucket_table
+		.insert(&Bucket::present(bucket_id, bucket_params))
+		.await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
@@ -61,28 +58,33 @@ pub async fn handle_delete_website(
 }
 
 pub async fn handle_put_website(
-	garage: Arc<Garage>,
-	mut bucket: Bucket,
+	ctx: ReqCtx,
 	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage,
+		bucket_id,
+		mut bucket_params,
+		..
+	} = ctx;
+
 	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
 	}
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
 
-	param
+	bucket_params
 		.website_config
 		.update(Some(conf.into_garage_website_config()?));
-	garage.bucket_table.insert(&bucket).await?;
+	garage
+		.bucket_table
+		.insert(&Bucket::present(bucket_id, bucket_params))
+		.await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)

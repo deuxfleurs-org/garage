@@ -191,6 +191,13 @@ impl Bucket {
 		}
 	}
 
+	pub fn present(id: Uuid, params: BucketParams) -> Self {
+		Bucket {
+			id,
+			state: crdt::Deletable::present(params),
+		}
+	}
+
 	/// Returns true if this represents a deleted bucket
 	pub fn is_deleted(&self) -> bool {
 		self.state.is_deleted()

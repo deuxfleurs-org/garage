@@ -26,7 +26,7 @@ use garage_api::s3::cors::{add_cors_headers, find_matching_cors_rule, handle_opt
 use garage_api::s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
 };
-use garage_api::s3::get::{handle_get, handle_head};
+use garage_api::s3::get::{handle_get_without_ctx, handle_head_without_ctx};
 
 use garage_model::garage::Garage;
 
@@ -219,14 +219,13 @@ impl WebServer {
 		// Check bucket isn't deleted and has website access enabled
 		let bucket = self
 			.garage
-			.bucket_table
-			.get(&EmptyKey, &bucket_id)
-			.await?
-			.ok_or(Error::NotFound)?;
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await
+			.map_err(|_| Error::NotFound)?;
+		let bucket_params = bucket.state.into_option().unwrap();
 
-		let website_config = bucket
-			.params()
-			.ok_or(Error::NotFound)?
+		let website_config = bucket_params
 			.website_config
 			.get()
 			.as_ref()
@@ -243,14 +242,16 @@ impl WebServer {
 		);
 
 		let ret_doc = match *req.method() {
-			Method::OPTIONS => handle_options_for_bucket(req, &bucket)
+			Method::OPTIONS => handle_options_for_bucket(req, &bucket_params)
 				.map_err(ApiError::from)
 				.map(|res| res.map(|_empty_body: EmptyBody| empty_body())),
-			Method::HEAD => handle_head(self.garage.clone(), &req, bucket_id, &key, None).await,
+			Method::HEAD => {
+				handle_head_without_ctx(self.garage.clone(), req, bucket_id, &key, None).await
+			}
 			Method::GET => {
-				handle_get(
+				handle_get_without_ctx(
 					self.garage.clone(),
-					&req,
+					req,
 					bucket_id,
 					&key,
 					None,
@@ -301,7 +302,7 @@ impl WebServer {
 					.body(empty_body::<Infallible>())
 					.unwrap();
 
-				match handle_get(
+				match handle_get_without_ctx(
 					self.garage.clone(),
 					&req2,
 					bucket_id,
@@ -344,7 +345,7 @@ impl WebServer {
 			}
 			Ok(mut resp) => {
 				// Maybe add CORS headers
-				if let Some(rule) = find_matching_cors_rule(&bucket, req)? {
+				if let Some(rule) = find_matching_cors_rule(&bucket_params, req)? {
 					add_cors_headers(&mut resp, rule)
 						.ok_or_internal_error("Invalid bucket CORS configuration")?;
 				}
