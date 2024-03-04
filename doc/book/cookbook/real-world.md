@@ -116,7 +116,7 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 db_engine = "lmdb"
 
-replication_mode = "3"
+replication_factor = 3
 
 compression_level = 2
 
