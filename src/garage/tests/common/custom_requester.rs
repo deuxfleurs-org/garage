@@ -64,6 +64,10 @@ impl CustomRequester {
 			vhost_style: false,
 		}
 	}
+
+	pub fn client(&self) -> &Client<HttpConnector, Body> {
+		&self.client
+	}
 }
 
 pub struct RequestBuilder<'a> {
