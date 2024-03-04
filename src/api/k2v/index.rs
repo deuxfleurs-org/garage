@@ -1,13 +1,8 @@
-use std::sync::Arc;
-
 use hyper::Response;
 use serde::Serialize;
 
-use garage_util::data::*;
-
 use garage_table::util::*;
 
-use garage_model::garage::Garage;
 use garage_model::k2v::item_table::{BYTES, CONFLICTS, ENTRIES, VALUES};
 
 use crate::helpers::*;
@@ -16,14 +11,17 @@ use crate::k2v::error::*;
 use crate::k2v::range::read_range;
 
 pub async fn handle_read_index(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
+	ctx: ReqCtx,
 	prefix: Option<String>,
 	start: Option<String>,
 	end: Option<String>,
 	limit: Option<u64>,
 	reverse: Option<bool>,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = &ctx;
+
 	let reverse = reverse.unwrap_or(false);
 
 	let node_id_vec = garage

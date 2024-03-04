@@ -55,8 +55,8 @@ Create your key and bucket:
 
 ```bash
 garage key create my-key
-garage bucket create backup
-garage bucket allow backup --read --write --key my-key
+garage bucket create backups
+garage bucket allow backups --read --write --key my-key
 ```
 
 Then register your Key ID and Secret key in your environment:

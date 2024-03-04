@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
@@ -21,7 +20,8 @@ use crate::s3::error::*;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 
-pub fn handle_get_bucket_location(garage: Arc<Garage>) -> Result<Response<ResBody>, Error> {
+pub fn handle_get_bucket_location(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx { garage, .. } = ctx;
 	let loc = s3_xml::LocationConstraint {
 		xmlns: (),
 		region: garage.config.s3_api.s3_region.to_string(),
@@ -204,21 +204,20 @@ pub async fn handle_create_bucket(
 		.unwrap())
 }
 
-pub async fn handle_delete_bucket(
-	garage: &Garage,
-	bucket_id: Uuid,
-	bucket_name: String,
-	api_key_id: &String,
-) -> Result<Response<ResBody>, Error> {
+pub async fn handle_delete_bucket(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage,
+		bucket_id,
+		bucket_name,
+		bucket_params: bucket_state,
+		api_key,
+		..
+	} = &ctx;
 	let helper = garage.locked_helper().await;
 
-	let api_key = helper.key().get_existing_key(api_key_id).await?;
 	let key_params = api_key.params().unwrap();
 
-	let is_local_alias = matches!(key_params.local_aliases.get(&bucket_name), Some(Some(_)));
-
-	let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
-	let bucket_state = bucket.state.as_option().unwrap();
+	let is_local_alias = matches!(key_params.local_aliases.get(bucket_name), Some(Some(_)));
 
 	// If the bucket has no other aliases, this is a true deletion.
 	// Otherwise, it is just an alias removal.
@@ -228,20 +227,20 @@ pub async fn handle_delete_bucket(
 		.items()
 		.iter()
 		.filter(|(_, _, active)| *active)
-		.any(|(n, _, _)| is_local_alias || (*n != bucket_name));
+		.any(|(n, _, _)| is_local_alias || (*n != *bucket_name));
 
 	let has_other_local_aliases = bucket_state
 		.local_aliases
 		.items()
 		.iter()
 		.filter(|(_, _, active)| *active)
-		.any(|((k, n), _, _)| !is_local_alias || *n != bucket_name || *k != api_key.key_id);
+		.any(|((k, n), _, _)| !is_local_alias || *n != *bucket_name || *k != api_key.key_id);
 
 	if !has_other_global_aliases && !has_other_local_aliases {
 		// Delete bucket
 
 		// Check bucket is empty
-		if !helper.bucket().is_bucket_empty(bucket_id).await? {
+		if !helper.bucket().is_bucket_empty(*bucket_id).await? {
 			return Err(CommonError::BucketNotEmpty.into());
 		}
 
@@ -249,33 +248,36 @@ pub async fn handle_delete_bucket(
 		// 1. delete bucket alias
 		if is_local_alias {
 			helper
-				.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
+				.unset_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
 				.await?;
 		} else {
 			helper
-				.unset_global_bucket_alias(bucket_id, &bucket_name)
+				.unset_global_bucket_alias(*bucket_id, bucket_name)
 				.await?;
 		}
 
 		// 2. delete authorization from keys that had access
-		for (key_id, _) in bucket.authorized_keys() {
+		for (key_id, _) in bucket_state.authorized_keys.items() {
 			helper
-				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
+				.set_bucket_key_permissions(*bucket_id, key_id, BucketKeyPerm::NO_PERMISSIONS)
 				.await?;
 		}
 
+		let bucket = Bucket {
+			id: *bucket_id,
+			state: Deletable::delete(),
+		};
 		// 3. delete bucket
-		bucket.state = Deletable::delete();
 		garage.bucket_table.insert(&bucket).await?;
 	} else if is_local_alias {
 		// Just unalias
 		helper
-			.unset_local_bucket_alias(bucket_id, &api_key.key_id, &bucket_name)
+			.unset_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
 			.await?;
 	} else {
 		// Just unalias (but from global namespace)
 		helper
-			.unset_global_bucket_alias(bucket_id, &bucket_name)
+			.unset_global_bucket_alias(*bucket_id, bucket_name)
 			.await?;
 	}
 

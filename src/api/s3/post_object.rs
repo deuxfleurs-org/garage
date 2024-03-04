@@ -21,7 +21,7 @@ use crate::s3::cors::*;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
-use crate::signature::payload::{parse_date, verify_v4};
+use crate::signature::payload::{verify_v4, Authorization};
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
@@ -88,22 +88,11 @@ pub async fn handle_post_object(
 		.get("key")
 		.ok_or_bad_request("No key was provided")?
 		.to_str()?;
-	let credential = params
-		.get("x-amz-credential")
-		.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?
-		.to_str()?;
 	let policy = params
 		.get("policy")
 		.ok_or_bad_request("No policy was provided")?
 		.to_str()?;
-	let signature = params
-		.get("x-amz-signature")
-		.ok_or_bad_request("No signature was provided")?
-		.to_str()?;
-	let date = params
-		.get("x-amz-date")
-		.ok_or_bad_request("No date was provided")?
-		.to_str()?;
+	let authorization = Authorization::parse_form(&params)?;
 
 	let key = if key.contains("${filename}") {
 		// if no filename is provided, don't replace. This matches the behavior of AWS.
@@ -116,16 +105,7 @@ pub async fn handle_post_object(
 		key.to_owned()
 	};
 
-	let date = parse_date(date)?;
-	let api_key = verify_v4(
-		&garage,
-		"s3",
-		credential,
-		&date,
-		signature,
-		policy.as_bytes(),
-	)
-	.await?;
+	let api_key = verify_v4(&garage, "s3", &authorization, policy.as_bytes()).await?;
 
 	let bucket_id = garage
 		.bucket_helper()
@@ -140,6 +120,12 @@ pub async fn handle_post_object(
 		.bucket_helper()
 		.get_existing_bucket(bucket_id)
 		.await?;
+	let bucket_params = bucket.state.into_option().unwrap();
+	let matching_cors_rule = find_matching_cors_rule(
+		&bucket_params,
+		&Request::from_parts(head.clone(), empty_body::<Infallible>()),
+	)?
+	.cloned();
 
 	let decoded_policy = BASE64_STANDARD
 		.decode(policy)
@@ -233,11 +219,19 @@ pub async fn handle_post_object(
 	let headers = get_headers(&params)?;
 
 	let stream = field.map(|r| r.map_err(Into::into));
-	let (_, md5) = save_stream(
+
+	let ctx = ReqCtx {
 		garage,
+		bucket_id,
+		bucket_name,
+		bucket_params,
+		api_key,
+	};
+
+	let (_, md5) = save_stream(
+		&ctx,
 		headers,
 		StreamLimiter::new(stream, conditions.content_length),
-		&bucket,
 		&key,
 		None,
 		None,
@@ -254,7 +248,7 @@ pub async fn handle_post_object(
 	{
 		target
 			.query_pairs_mut()
-			.append_pair("bucket", &bucket_name)
+			.append_pair("bucket", &ctx.bucket_name)
 			.append_pair("key", &key)
 			.append_pair("etag", &etag);
 		let target = target.to_string();
@@ -298,7 +292,7 @@ pub async fn handle_post_object(
 				let xml = s3_xml::PostObject {
 					xmlns: (),
 					location: s3_xml::Value(location),
-					bucket: s3_xml::Value(bucket_name),
+					bucket: s3_xml::Value(ctx.bucket_name),
 					key: s3_xml::Value(key),
 					etag: s3_xml::Value(etag),
 				};
@@ -311,12 +305,8 @@ pub async fn handle_post_object(
 		}
 	};
 
-	let matching_cors_rule = find_matching_cors_rule(
-		&bucket,
-		&Request::from_parts(head, empty_body::<Infallible>()),
-	)?;
 	if let Some(rule) = matching_cors_rule {
-		add_cors_headers(&mut resp, rule)
+		add_cors_headers(&mut resp, &rule)
 			.ok_or_internal_error("Invalid bucket CORS configuration")?;
 	}
 

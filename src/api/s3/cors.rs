@@ -21,16 +21,13 @@ use crate::s3::error::*;
 use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 use crate::signature::verify_signed_content;
 
-use garage_model::bucket_table::{Bucket, CorsRule as GarageCorsRule};
+use garage_model::bucket_table::{Bucket, BucketParams, CorsRule as GarageCorsRule};
 use garage_model::garage::Garage;
 use garage_util::data::*;
 
-pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<ResBody>, Error> {
-	let param = bucket
-		.params()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
-	if let Some(cors) = param.cors_config.get() {
+pub async fn handle_get_cors(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx { bucket_params, .. } = ctx;
+	if let Some(cors) = bucket_params.cors_config.get() {
 		let wc = CorsConfiguration {
 			xmlns: (),
 			cors_rules: cors
@@ -50,16 +47,18 @@ pub async fn handle_get_cors(bucket: &Bucket) -> Result<Response<ResBody>, Error
 	}
 }
 
-pub async fn handle_delete_cors(
-	garage: Arc<Garage>,
-	mut bucket: Bucket,
-) -> Result<Response<ResBody>, Error> {
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
-	param.cors_config.update(None);
-	garage.bucket_table.insert(&bucket).await?;
+pub async fn handle_delete_cors(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage,
+		bucket_id,
+		mut bucket_params,
+		..
+	} = ctx;
+	bucket_params.cors_config.update(None);
+	garage
+		.bucket_table
+		.insert(&Bucket::present(bucket_id, bucket_params))
+		.await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::NO_CONTENT)
@@ -67,28 +66,33 @@ pub async fn handle_delete_cors(
 }
 
 pub async fn handle_put_cors(
-	garage: Arc<Garage>,
-	mut bucket: Bucket,
+	ctx: ReqCtx,
 	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		garage,
+		bucket_id,
+		mut bucket_params,
+		..
+	} = ctx;
+
 	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
 
 	if let Some(content_sha256) = content_sha256 {
 		verify_signed_content(content_sha256, &body[..])?;
 	}
 
-	let param = bucket
-		.params_mut()
-		.ok_or_internal_error("Bucket should not be deleted at this point")?;
-
 	let conf: CorsConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;
 
-	param
+	bucket_params
 		.cors_config
 		.update(Some(conf.into_garage_cors_config()?));
-	garage.bucket_table.insert(&bucket).await?;
+	garage
+		.bucket_table
+		.insert(&Bucket::present(bucket_id, bucket_params))
+		.await?;
 
 	Ok(Response::builder()
 		.status(StatusCode::OK)
@@ -115,7 +119,8 @@ pub async fn handle_options_api(
 		let bucket_id = helper.resolve_global_bucket_name(&bn).await?;
 		if let Some(id) = bucket_id {
 			let bucket = garage.bucket_helper().get_existing_bucket(id).await?;
-			handle_options_for_bucket(req, &bucket)
+			let bucket_params = bucket.state.into_option().unwrap();
+			handle_options_for_bucket(req, &bucket_params)
 		} else {
 			// If there is a bucket name in the request, but that name
 			// does not correspond to a global alias for a bucket,
@@ -145,7 +150,7 @@ pub async fn handle_options_api(
 
 pub fn handle_options_for_bucket(
 	req: &Request<IncomingBody>,
-	bucket: &Bucket,
+	bucket_params: &BucketParams,
 ) -> Result<Response<EmptyBody>, CommonError> {
 	let origin = req
 		.headers()
@@ -162,7 +167,7 @@ pub fn handle_options_for_bucket(
 		None => vec![],
 	};
 
-	if let Some(cors_config) = bucket.params().unwrap().cors_config.get() {
+	if let Some(cors_config) = bucket_params.cors_config.get() {
 		let matching_rule = cors_config
 			.iter()
 			.find(|rule| cors_rule_matches(rule, origin, request_method, request_headers.iter()));
@@ -181,10 +186,10 @@ pub fn handle_options_for_bucket(
 }
 
 pub fn find_matching_cors_rule<'a>(
-	bucket: &'a Bucket,
+	bucket_params: &'a BucketParams,
 	req: &Request<impl Body>,
 ) -> Result<Option<&'a GarageCorsRule>, Error> {
-	if let Some(cors_config) = bucket.params().unwrap().cors_config.get() {
+	if let Some(cors_config) = bucket_params.cors_config.get() {
 		if let Some(origin) = req.headers().get("Origin") {
 			let origin = origin.to_str()?;
 			let request_headers = match req.headers().get(ACCESS_CONTROL_REQUEST_HEADERS) {

@@ -15,8 +15,7 @@ use garage_model::garage::Garage;
 use crate::generic_server::*;
 use crate::k2v::error::*;
 
-use crate::signature::payload::check_payload_signature;
-use crate::signature::streaming::*;
+use crate::signature::verify_request;
 
 use crate::helpers::*;
 use crate::k2v::batch::*;
@@ -86,17 +85,7 @@ impl ApiHandler for K2VApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (api_key, mut content_sha256) = check_payload_signature(&garage, "k2v", &req).await?;
-		let api_key = api_key
-			.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
-
-		let req = parse_streaming_body(
-			&api_key,
-			req,
-			&mut content_sha256,
-			&garage.config.s3_api.s3_region,
-			"k2v",
-		)?;
+		let (req, api_key, _content_sha256) = verify_request(&garage, req, "k2v").await?;
 
 		let bucket_id = garage
 			.bucket_helper()
@@ -106,6 +95,7 @@ impl ApiHandler for K2VApiServer {
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)
 			.await?;
+		let bucket_params = bucket.state.into_option().unwrap();
 
 		let allowed = match endpoint.authorization_type() {
 			Authorization::Read => api_key.allow_read(&bucket_id),
@@ -123,40 +113,42 @@ impl ApiHandler for K2VApiServer {
 		// are always preflighted, i.e. the browser should make
 		// an OPTIONS call before to check it is allowed
 		let matching_cors_rule = match *req.method() {
-			Method::GET | Method::HEAD | Method::POST => find_matching_cors_rule(&bucket, &req)
-				.ok_or_internal_error("Error looking up CORS rule")?,
+			Method::GET | Method::HEAD | Method::POST => {
+				find_matching_cors_rule(&bucket_params, &req)
+					.ok_or_internal_error("Error looking up CORS rule")?
+					.cloned()
+			}
 			_ => None,
+		};
+
+		let ctx = ReqCtx {
+			garage,
+			bucket_id,
+			bucket_name,
+			bucket_params,
+			api_key,
 		};
 
 		let resp = match endpoint {
 			Endpoint::DeleteItem {
 				partition_key,
 				sort_key,
-			} => handle_delete_item(garage, req, bucket_id, &partition_key, &sort_key).await,
+			} => handle_delete_item(ctx, req, &partition_key, &sort_key).await,
 			Endpoint::InsertItem {
 				partition_key,
 				sort_key,
-			} => handle_insert_item(garage, req, bucket_id, &partition_key, &sort_key).await,
+			} => handle_insert_item(ctx, req, &partition_key, &sort_key).await,
 			Endpoint::ReadItem {
 				partition_key,
 				sort_key,
-			} => handle_read_item(garage, &req, bucket_id, &partition_key, &sort_key).await,
+			} => handle_read_item(ctx, &req, &partition_key, &sort_key).await,
 			Endpoint::PollItem {
 				partition_key,
 				sort_key,
 				causality_token,
 				timeout,
 			} => {
-				handle_poll_item(
-					garage,
-					&req,
-					bucket_id,
-					partition_key,
-					sort_key,
-					causality_token,
-					timeout,
-				)
-				.await
+				handle_poll_item(ctx, &req, partition_key, sort_key, causality_token, timeout).await
 			}
 			Endpoint::ReadIndex {
 				prefix,
@@ -164,12 +156,12 @@ impl ApiHandler for K2VApiServer {
 				end,
 				limit,
 				reverse,
-			} => handle_read_index(garage, bucket_id, prefix, start, end, limit, reverse).await,
-			Endpoint::InsertBatch {} => handle_insert_batch(garage, bucket_id, req).await,
-			Endpoint::ReadBatch {} => handle_read_batch(garage, bucket_id, req).await,
-			Endpoint::DeleteBatch {} => handle_delete_batch(garage, bucket_id, req).await,
+			} => handle_read_index(ctx, prefix, start, end, limit, reverse).await,
+			Endpoint::InsertBatch {} => handle_insert_batch(ctx, req).await,
+			Endpoint::ReadBatch {} => handle_read_batch(ctx, req).await,
+			Endpoint::DeleteBatch {} => handle_delete_batch(ctx, req).await,
 			Endpoint::PollRange { partition_key } => {
-				handle_poll_range(garage, bucket_id, &partition_key, req).await
+				handle_poll_range(ctx, &partition_key, req).await
 			}
 			Endpoint::Options => unreachable!(),
 		};
@@ -178,7 +170,7 @@ impl ApiHandler for K2VApiServer {
 		// add the corresponding CORS headers to the response
 		let mut resp_ok = resp?;
 		if let Some(rule) = matching_cors_rule {
-			add_cors_headers(&mut resp_ok, rule)
+			add_cors_headers(&mut resp_ok, &rule)
 				.ok_or_internal_error("Invalid bucket CORS configuration")?;
 		}
 
