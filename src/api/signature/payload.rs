@@ -31,11 +31,12 @@ pub const AWS4_HMAC_SHA256: &str = "AWS4-HMAC-SHA256";
 pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
 pub const STREAMING_AWS4_HMAC_SHA256_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 
-pub type QueryMap = HashMap<String, QueryValue>;
-
+pub type QueryMap = HeaderMap<QueryValue>;
 pub struct QueryValue {
-    key: String,
-    value: String,
+	/// Original key with potential uppercase characters,
+	/// for use in signature calculation
+	key: String,
+	value: String,
 }
 
 pub async fn check_payload_signature(
@@ -45,7 +46,7 @@ pub async fn check_payload_signature(
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
 	let query = parse_query_map(request.uri())?;
 
-	if query.contains_key(X_AMZ_ALGORITHM.as_str()) {
+	if query.contains_key(&X_AMZ_ALGORITHM) {
 		// We check for presigned-URL-style authentification first, because
 		// the browser or someting else could inject an Authorization header
 		// that is totally unrelated to AWS signatures.
@@ -126,7 +127,7 @@ async fn check_presigned_signature(
 	request: &mut Request<Body>,
 	mut query: QueryMap,
 ) -> Result<(Option<Key>, Option<Hash>), Error> {
-	let algorithm = query.get(X_AMZ_ALGORITHM.as_str()).unwrap();
+	let algorithm = query.get(&X_AMZ_ALGORITHM).unwrap();
 	let authorization = Authorization::parse_presigned(&algorithm.value, &query)?;
 
 	// Verify that all necessary request headers are included in signed_headers
@@ -140,7 +141,7 @@ async fn check_presigned_signature(
 	// but the signature cannot be computed from a string that contains itself.
 	// AWS specifies that all query params except X-Amz-Signature are included
 	// in the canonical request.
-	query.remove(X_AMZ_SIGNATURE.as_str());
+	query.remove(&X_AMZ_SIGNATURE);
 	let canonical_request = canonical_request(
 		service,
 		request.method(),
@@ -166,9 +167,7 @@ async fn check_presigned_signature(
 	// then an InvalidRequest error is raised.
 	let headers_mut = request.headers_mut();
 	for (name, value) in query.iter() {
-		let name =
-			HeaderName::from_bytes(name.as_bytes()).ok_or_bad_request("Invalid header name")?;
-		if let Some(existing) = headers_mut.get(&name) {
+		if let Some(existing) = headers_mut.get(name) {
 			if signed_headers.contains(&name) && existing.as_bytes() != value.value.as_bytes() {
 				return Err(Error::bad_request(format!(
 					"Conflicting values for `{}` in query parameters and request headers",
@@ -197,18 +196,19 @@ async fn check_presigned_signature(
 }
 
 pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
-	let mut query = QueryMap::new();
+	let mut query = QueryMap::with_capacity(0);
 	if let Some(query_str) = uri.query() {
 		let query_pairs = url::form_urlencoded::parse(query_str.as_bytes());
 		for (key, val) in query_pairs {
-            let key = key.into_owned();
+			let name =
+				HeaderName::from_bytes(key.as_bytes()).ok_or_bad_request("Invalid header name")?;
 
-            let value = QueryValue {
-                key: key.clone(),
-                value: val.into_owned(),
-            };
+			let value = QueryValue {
+				key: key.to_string(),
+				value: val.into_owned(),
+			};
 
-			if query.insert(key.to_lowercase(), value).is_some() {
+			if query.insert(name, value).is_some() {
 				return Err(Error::bad_request(format!(
 					"duplicate query parameter: `{}`",
 					key
@@ -475,19 +475,19 @@ impl Authorization {
 		}
 
 		let cred = query
-			.get(X_AMZ_CREDENTIAL.as_str())
+			.get(&X_AMZ_CREDENTIAL)
 			.ok_or_bad_request("X-Amz-Credential not found in query parameters")?;
 		let signed_headers = query
-			.get(X_AMZ_SIGNEDHEADERS.as_str())
+			.get(&X_AMZ_SIGNEDHEADERS)
 			.ok_or_bad_request("X-Amz-SignedHeaders not found in query parameters")?;
 		let signature = query
-			.get(X_AMZ_SIGNATURE.as_str())
+			.get(&X_AMZ_SIGNATURE)
 			.ok_or_bad_request("X-Amz-Signature not found in query parameters")?;
 
 		let duration = query
-			.get(X_AMZ_EXPIRES.as_str())
+			.get(&X_AMZ_EXPIRES)
 			.ok_or_bad_request("X-Amz-Expires not found in query parameters")?
-            .value
+			.value
 			.parse()
 			.map_err(|_| Error::bad_request("X-Amz-Expires is not a number".to_string()))?;
 
@@ -498,7 +498,7 @@ impl Authorization {
 		}
 
 		let date = query
-			.get(X_AMZ_DATE.as_str())
+			.get(&X_AMZ_DATE)
 			.ok_or_bad_request("Missing X-Amz-Date field")?;
 		let date = parse_date(&date.value)?;
 
