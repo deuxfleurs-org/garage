@@ -44,9 +44,6 @@ impl TableReplication for TableShardedReplication {
 	fn write_quorum(&self) -> usize {
 		self.write_quorum
 	}
-	fn max_write_errors(&self) -> usize {
-		self.replication_factor - self.write_quorum
-	}
 
 	fn partition_of(&self, hash: &Hash) -> Partition {
 		self.system.cluster_layout().current().partition_of(hash)

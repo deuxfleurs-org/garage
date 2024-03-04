@@ -21,13 +21,6 @@ impl ReplicationMode {
 		}
 	}
 
-	pub fn control_write_max_faults(&self) -> usize {
-		match self {
-			Self::None => 0,
-			_ => 1,
-		}
-	}
-
 	pub fn replication_factor(&self) -> usize {
 		match self {
 			Self::None => 1,

@@ -247,7 +247,6 @@ impl Garage {
 
 		let control_rep_param = TableFullReplication {
 			system: system.clone(),
-			max_faults: replication_mode.control_write_max_faults(),
 		};
 
 		info!("Initialize block manager...");
