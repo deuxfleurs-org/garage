@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use std::sync::Arc;
 
 use futures::{Stream, StreamExt, TryStreamExt};
 
@@ -10,6 +11,10 @@ use hyper::{
 use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
+use garage_model::bucket_table::BucketParams;
+use garage_model::garage::Garage;
+use garage_model::key_table::Key;
+use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 
 use crate::common_error::{CommonError as Error, *};
@@ -25,6 +30,15 @@ pub enum Authorization {
 	Write,
 	/// Having Owner permission on bucket
 	Owner,
+}
+
+/// The values which are known for each request related to a bucket
+pub struct ReqCtx {
+	pub garage: Arc<Garage>,
+	pub bucket_id: Uuid,
+	pub bucket_name: String,
+	pub bucket_params: BucketParams,
+	pub api_key: Key,
 }
 
 /// Host to bucket

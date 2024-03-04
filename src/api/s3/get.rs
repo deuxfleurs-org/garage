@@ -131,6 +131,16 @@ fn try_answer_cached(
 
 /// Handle HEAD request
 pub async fn handle_head(
+	ctx: ReqCtx,
+	req: &Request<impl Body>,
+	key: &str,
+	part_number: Option<u64>,
+) -> Result<Response<ResBody>, Error> {
+	handle_head_without_ctx(ctx.garage, req, ctx.bucket_id, key, part_number).await
+}
+
+/// Handle HEAD request for website
+pub async fn handle_head_without_ctx(
 	garage: Arc<Garage>,
 	req: &Request<impl Body>,
 	bucket_id: Uuid,
@@ -218,6 +228,17 @@ pub async fn handle_head(
 
 /// Handle GET request
 pub async fn handle_get(
+	ctx: ReqCtx,
+	req: &Request<impl Body>,
+	key: &str,
+	part_number: Option<u64>,
+	overrides: GetObjectOverrides,
+) -> Result<Response<ResBody>, Error> {
+	handle_get_without_ctx(ctx.garage, req, ctx.bucket_id, key, part_number, overrides).await
+}
+
+/// Handle GET request
+pub async fn handle_get_without_ctx(
 	garage: Arc<Garage>,
 	req: &Request<impl Body>,
 	bucket_id: Uuid,

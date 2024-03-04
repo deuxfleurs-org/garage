@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
 
 use garage_util::data::*;
 
-use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 
 use crate::helpers::*;
@@ -15,14 +12,13 @@ use crate::s3::put::next_timestamp;
 use crate::s3::xml as s3_xml;
 use crate::signature::verify_signed_content;
 
-async fn handle_delete_internal(
-	garage: &Garage,
-	bucket_id: Uuid,
-	key: &str,
-) -> Result<(Uuid, Uuid), Error> {
+async fn handle_delete_internal(ctx: &ReqCtx, key: &str) -> Result<(Uuid, Uuid), Error> {
+	let ReqCtx {
+		garage, bucket_id, ..
+	} = ctx;
 	let object = garage
 		.object_table
-		.get(&bucket_id, &key.to_string())
+		.get(bucket_id, &key.to_string())
 		.await?
 		.ok_or(Error::NoSuchKey)?; // No need to delete
 
@@ -44,7 +40,7 @@ async fn handle_delete_internal(
 	};
 
 	let object = Object::new(
-		bucket_id,
+		*bucket_id,
 		key.into(),
 		vec![ObjectVersion {
 			uuid: del_uuid,
@@ -58,12 +54,8 @@ async fn handle_delete_internal(
 	Ok((deleted_version, del_uuid))
 }
 
-pub async fn handle_delete(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
-	key: &str,
-) -> Result<Response<ResBody>, Error> {
-	match handle_delete_internal(&garage, bucket_id, key).await {
+pub async fn handle_delete(ctx: ReqCtx, key: &str) -> Result<Response<ResBody>, Error> {
+	match handle_delete_internal(&ctx, key).await {
 		Ok(_) | Err(Error::NoSuchKey) => Ok(Response::builder()
 			.status(StatusCode::NO_CONTENT)
 			.body(empty_body())
@@ -73,8 +65,7 @@ pub async fn handle_delete(
 }
 
 pub async fn handle_delete_objects(
-	garage: Arc<Garage>,
-	bucket_id: Uuid,
+	ctx: ReqCtx,
 	req: Request<ReqBody>,
 	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
@@ -91,7 +82,7 @@ pub async fn handle_delete_objects(
 	let mut ret_errors = Vec::new();
 
 	for obj in cmd.objects.iter() {
-		match handle_delete_internal(&garage, bucket_id, &obj.key).await {
+		match handle_delete_internal(&ctx, &obj.key).await {
 			Ok((deleted_version, delete_marker_version)) => {
 				if cmd.quiet {
 					continue;
