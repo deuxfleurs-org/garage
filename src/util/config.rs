@@ -30,12 +30,20 @@ pub struct Config {
 	)]
 	pub block_size: usize,
 
-	/// Replication mode. Supported values:
-	/// - none, 1 -> no replication
-	/// - 2 -> 2-way replication
-	/// - 3 -> 3-way replication
-	// (we can add more aliases for this later)
-	pub replication_mode: String,
+	/// Number of replicas. Can be any positive integer, but uneven numbers are more favorable.
+	/// - 1 for single-node clusters, or to disable replication
+	/// - 3 is the recommended and supported setting.
+	#[serde(default)]
+	pub replication_factor: Option<usize>,
+
+	/// Consistency mode for all for requests through this node
+	/// - Degraded -> Disable read quorum
+	/// - Dangerous -> Disable read and write quorum
+	#[serde(default = "default_consistency_mode")]
+	pub consistency_mode: String,
+
+	/// Legacy option
+	pub replication_mode: Option<String>,
 
 	/// Zstd compression level used on data blocks
 	#[serde(
@@ -244,8 +252,13 @@ fn default_sled_cache_capacity() -> usize {
 fn default_sled_flush_every_ms() -> u64 {
 	2000
 }
+
 fn default_block_size() -> usize {
 	1048576
+}
+
+fn default_consistency_mode() -> String {
+	"consistent".into()
 }
 
 fn default_compression() -> Option<i32> {
@@ -359,7 +372,7 @@ mod tests {
 			r#"
 			metadata_dir = "/tmp/garage/meta"
 			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
+			replication_factor = 3
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret = "foo"
 

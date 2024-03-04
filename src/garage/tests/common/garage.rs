@@ -54,7 +54,7 @@ metadata_dir = "{path}/meta"
 data_dir = "{path}/data"
 db_engine = "lmdb"
 
-replication_mode = "1"
+replication_factor = 1
 
 rpc_bind_addr = "127.0.0.1:{rpc_port}"
 rpc_public_addr = "127.0.0.1:{rpc_port}"

@@ -112,8 +112,7 @@ pub struct System {
 
 	metrics: ArcSwapOption<SystemMetrics>,
 
-	replication_mode: ReplicationMode,
-	pub(crate) replication_factor: usize,
+	pub(crate) replication_factor: ReplicationFactor,
 
 	/// Path to metadata directory
 	pub metadata_dir: PathBuf,
@@ -243,7 +242,8 @@ impl System {
 	/// Create this node's membership manager
 	pub fn new(
 		network_key: NetworkKey,
-		replication_mode: ReplicationMode,
+		replication_factor: ReplicationFactor,
+		consistency_mode: ConsistencyMode,
 		config: &Config,
 	) -> Result<Arc<Self>, Error> {
 		// ---- setup netapp RPC protocol ----
@@ -274,14 +274,13 @@ impl System {
 		let persist_peer_list = Persister::new(&config.metadata_dir, "peer_list");
 
 		// ---- setup cluster layout and layout manager ----
-		let replication_factor = replication_mode.replication_factor();
-
 		let layout_manager = LayoutManager::new(
 			config,
 			netapp.id,
 			system_endpoint.clone(),
 			peering.clone(),
-			replication_mode,
+			replication_factor,
+			consistency_mode,
 		)?;
 
 		let mut local_status = NodeStatus::initial(replication_factor, &layout_manager);
@@ -315,7 +314,6 @@ impl System {
 			netapp: netapp.clone(),
 			peering: peering.clone(),
 			system_endpoint,
-			replication_mode,
 			replication_factor,
 			rpc_listen_addr: config.rpc_bind_addr,
 			rpc_public_addr,
@@ -427,7 +425,9 @@ impl System {
 	}
 
 	pub fn health(&self) -> ClusterHealth {
-		let quorum = self.replication_mode.write_quorum();
+		let quorum = self
+			.replication_factor
+			.write_quorum(ConsistencyMode::Consistent);
 
 		// Gather information about running nodes.
 		// Technically, `nodes` contains currently running nodes, as well
@@ -631,7 +631,7 @@ impl System {
 				.count();
 
 			let not_configured = self.cluster_layout().check().is_err();
-			let no_peers = n_connected < self.replication_factor;
+			let no_peers = n_connected < self.replication_factor.into();
 			let expected_n_nodes = self.cluster_layout().all_nodes().len();
 			let bad_peers = n_connected != expected_n_nodes;
 
@@ -774,14 +774,14 @@ impl EndpointHandler<SystemRpc> for System {
 }
 
 impl NodeStatus {
-	fn initial(replication_factor: usize, layout_manager: &LayoutManager) -> Self {
+	fn initial(replication_factor: ReplicationFactor, layout_manager: &LayoutManager) -> Self {
 		NodeStatus {
 			hostname: Some(
 				gethostname::gethostname()
 					.into_string()
 					.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 			),
-			replication_factor,
+			replication_factor: replication_factor.into(),
 			layout_digest: layout_manager.layout().digest(),
 			meta_disk_avail: None,
 			data_disk_avail: None,

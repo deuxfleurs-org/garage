@@ -14,13 +14,13 @@ use garage_util::error::*;
 use garage_util::persister::Persister;
 
 use super::*;
-use crate::replication_mode::ReplicationMode;
+use crate::replication_mode::*;
 use crate::rpc_helper::*;
 use crate::system::*;
 
 pub struct LayoutManager {
 	node_id: Uuid,
-	replication_mode: ReplicationMode,
+	replication_factor: ReplicationFactor,
 	persist_cluster_layout: Persister<LayoutHistory>,
 
 	layout: Arc<RwLock<LayoutHelper>>,
@@ -38,20 +38,19 @@ impl LayoutManager {
 		node_id: NodeID,
 		system_endpoint: Arc<Endpoint<SystemRpc, System>>,
 		peering: Arc<PeeringManager>,
-		replication_mode: ReplicationMode,
+		replication_factor: ReplicationFactor,
+		consistency_mode: ConsistencyMode,
 	) -> Result<Arc<Self>, Error> {
-		let replication_factor = replication_mode.replication_factor();
-
 		let persist_cluster_layout: Persister<LayoutHistory> =
 			Persister::new(&config.metadata_dir, "cluster_layout");
 
 		let cluster_layout = match persist_cluster_layout.load() {
 			Ok(x) => {
-				if x.current().replication_factor != replication_mode.replication_factor() {
+				if x.current().replication_factor != replication_factor.replication_factor() {
 					return Err(Error::Message(format!(
 						"Prevous cluster layout has replication factor {}, which is different than the one specified in the config file ({}). The previous cluster layout can be purged, if you know what you are doing, simply by deleting the `cluster_layout` file in your metadata directory.",
 						x.current().replication_factor,
-						replication_factor
+						replication_factor.replication_factor()
 					)));
 				}
 				x
@@ -65,8 +64,12 @@ impl LayoutManager {
 			}
 		};
 
-		let mut cluster_layout =
-			LayoutHelper::new(replication_mode, cluster_layout, Default::default());
+		let mut cluster_layout = LayoutHelper::new(
+			replication_factor,
+			consistency_mode,
+			cluster_layout,
+			Default::default(),
+		);
 		cluster_layout.update_trackers(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
@@ -81,7 +84,7 @@ impl LayoutManager {
 
 		Ok(Arc::new(Self {
 			node_id: node_id.into(),
-			replication_mode,
+			replication_factor,
 			persist_cluster_layout,
 			layout,
 			change_notify,
@@ -295,11 +298,11 @@ impl LayoutManager {
 			adv.update_trackers
 		);
 
-		if adv.current().replication_factor != self.replication_mode.replication_factor() {
+		if adv.current().replication_factor != self.replication_factor.replication_factor() {
 			let msg = format!(
 				"Received a cluster layout from another node with replication factor {}, which is different from what we have in our configuration ({}). Discarding the cluster layout we received.",
 				adv.current().replication_factor,
-				self.replication_mode.replication_factor()
+				self.replication_factor.replication_factor()
 			);
 			error!("{}", msg);
 			return Err(Error::Message(msg));

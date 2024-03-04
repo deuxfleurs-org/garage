@@ -9,7 +9,7 @@ use garage_util::config::*;
 use garage_util::error::*;
 use garage_util::persister::PersisterShared;
 
-use garage_rpc::replication_mode::ReplicationMode;
+use garage_rpc::replication_mode::*;
 use garage_rpc::system::System;
 
 use garage_block::manager::*;
@@ -39,8 +39,8 @@ pub struct Garage {
 	/// The set of background variables that can be viewed/modified at runtime
 	pub bg_vars: vars::BgVars,
 
-	/// The replication mode of this cluster
-	pub replication_mode: ReplicationMode,
+	/// The replication factor of this cluster
+	pub replication_factor: ReplicationFactor,
 
 	/// The local database
 	pub db: db::Db,
@@ -222,27 +222,26 @@ impl Garage {
 		.and_then(|x| NetworkKey::from_slice(&x))
 		.ok_or_message("Invalid RPC secret key")?;
 
-		let replication_mode = ReplicationMode::parse(&config.replication_mode)
-			.ok_or_message("Invalid replication_mode in config file.")?;
+		let (replication_factor, consistency_mode) = parse_replication_mode(&config)?;
 
 		info!("Initialize background variable system...");
 		let mut bg_vars = vars::BgVars::new();
 
 		info!("Initialize membership management system...");
-		let system = System::new(network_key, replication_mode, &config)?;
+		let system = System::new(network_key, replication_factor, consistency_mode, &config)?;
 
 		let data_rep_param = TableShardedReplication {
 			system: system.clone(),
-			replication_factor: replication_mode.replication_factor(),
-			write_quorum: replication_mode.write_quorum(),
+			replication_factor: replication_factor.into(),
+			write_quorum: replication_factor.write_quorum(consistency_mode),
 			read_quorum: 1,
 		};
 
 		let meta_rep_param = TableShardedReplication {
 			system: system.clone(),
-			replication_factor: replication_mode.replication_factor(),
-			write_quorum: replication_mode.write_quorum(),
-			read_quorum: replication_mode.read_quorum(),
+			replication_factor: replication_factor.into(),
+			write_quorum: replication_factor.write_quorum(consistency_mode),
+			read_quorum: replication_factor.read_quorum(consistency_mode),
 		};
 
 		let control_rep_param = TableFullReplication {
@@ -338,7 +337,7 @@ impl Garage {
 		Ok(Arc::new(Self {
 			config,
 			bg_vars,
-			replication_mode,
+			replication_factor,
 			db,
 			system,
 			block_manager,

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use garage_util::data::*;
 
 use super::*;
-use crate::replication_mode::ReplicationMode;
+use crate::replication_mode::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct RpcLayoutDigest {
@@ -29,7 +29,8 @@ pub struct SyncLayoutDigest {
 }
 
 pub struct LayoutHelper {
-	replication_mode: ReplicationMode,
+	replication_factor: ReplicationFactor,
+	consistency_mode: ConsistencyMode,
 	layout: Option<LayoutHistory>,
 
 	// cached values
@@ -57,7 +58,8 @@ impl Deref for LayoutHelper {
 
 impl LayoutHelper {
 	pub fn new(
-		replication_mode: ReplicationMode,
+		replication_factor: ReplicationFactor,
+		consistency_mode: ConsistencyMode,
 		mut layout: LayoutHistory,
 		mut ack_lock: HashMap<u64, AtomicUsize>,
 	) -> Self {
@@ -66,7 +68,7 @@ impl LayoutHelper {
 		// correct and we have rapid access to important values such as
 		// the layout versions to use when reading to ensure consistency.
 
-		if !replication_mode.is_read_after_write_consistent() {
+		if consistency_mode != ConsistencyMode::Consistent {
 			// Fast path for when no consistency is required.
 			// In this case we only need to keep the last version of the layout,
 			// we don't care about coordinating stuff in the cluster.
@@ -103,7 +105,7 @@ impl LayoutHelper {
 		// This value is calculated using quorums to allow progress even
 		// if not all nodes have successfully completed a sync.
 		let sync_map_min =
-			layout.calculate_sync_map_min_with_quorum(replication_mode, &all_nongateway_nodes);
+			layout.calculate_sync_map_min_with_quorum(replication_factor, &all_nongateway_nodes);
 
 		let trackers_hash = layout.calculate_trackers_hash();
 		let staging_hash = layout.calculate_staging_hash();
@@ -114,7 +116,8 @@ impl LayoutHelper {
 			.or_insert(AtomicUsize::new(0));
 
 		LayoutHelper {
-			replication_mode,
+			replication_factor,
+			consistency_mode,
 			layout: Some(layout),
 			ack_map_min,
 			sync_map_min,
@@ -139,7 +142,8 @@ impl LayoutHelper {
 		let changed = f(self.layout.as_mut().unwrap());
 		if changed {
 			*self = Self::new(
-				self.replication_mode,
+				self.replication_factor,
+				self.consistency_mode,
 				self.layout.take().unwrap(),
 				std::mem::take(&mut self.ack_lock),
 			);
