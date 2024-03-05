@@ -20,7 +20,6 @@ pub trait TableReplication: Send + Sync + 'static {
 	fn write_sets(&self, hash: &Hash) -> Self::WriteSets;
 	/// Responses needed to consider a write succesfull in each set
 	fn write_quorum(&self) -> usize;
-	fn max_write_errors(&self) -> usize;
 
 	// Accessing partitions, for Merkle tree & sync
 	/// Get partition for data with given hash

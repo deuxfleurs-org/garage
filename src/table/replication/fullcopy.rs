@@ -21,8 +21,6 @@ use crate::replication::*;
 pub struct TableFullReplication {
 	/// The membership manager of this node
 	pub system: Arc<System>,
-	/// Max number of faults allowed while replicating a record
-	pub max_faults: usize,
 }
 
 impl TableReplication for TableFullReplication {
@@ -45,14 +43,14 @@ impl TableReplication for TableFullReplication {
 	}
 	fn write_quorum(&self) -> usize {
 		let nmembers = self.system.cluster_layout().current().all_nodes().len();
-		if nmembers > self.max_faults {
-			nmembers - self.max_faults
+
+		let max_faults = if nmembers > 1 { 1 } else { 0 };
+
+		if nmembers > max_faults {
+			nmembers - max_faults
 		} else {
 			1
 		}
-	}
-	fn max_write_errors(&self) -> usize {
-		self.max_faults
 	}
 
 	fn partition_of(&self, _hash: &Hash) -> Partition {
