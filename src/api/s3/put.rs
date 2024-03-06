@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use base64::prelude::*;
@@ -609,57 +609,35 @@ impl Drop for InterruptedCleanup {
 
 // ============ helpers ============
 
-pub(crate) fn get_mime_type(headers: &HeaderMap<HeaderValue>) -> Result<String, Error> {
-	Ok(headers
-		.get(hyper::header::CONTENT_TYPE)
-		.map(|x| x.to_str())
-		.unwrap_or(Ok("blob"))?
-		.to_string())
-}
-
 pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVersionHeaders, Error> {
-	let content_type = get_mime_type(headers)?;
-	let mut other = BTreeMap::new();
+	let mut ret = Vec::new();
 
 	// Preserve standard headers
 	let standard_header = vec![
+		hyper::header::CONTENT_TYPE,
 		hyper::header::CACHE_CONTROL,
 		hyper::header::CONTENT_DISPOSITION,
 		hyper::header::CONTENT_ENCODING,
 		hyper::header::CONTENT_LANGUAGE,
 		hyper::header::EXPIRES,
 	];
-	for h in standard_header.iter() {
-		if let Some(v) = headers.get(h) {
-			match v.to_str() {
-				Ok(v_str) => {
-					other.insert(h.to_string(), v_str.to_string());
-				}
-				Err(e) => {
-					warn!("Discarding header {}, error in .to_str(): {}", h, e);
-				}
-			}
+	for name in standard_header.iter() {
+		if let Some(value) = headers.get(name) {
+			ret.push((name.to_string(), value.to_str()?.to_string()));
 		}
 	}
 
 	// Preserve x-amz-meta- headers
-	for (k, v) in headers.iter() {
-		if k.as_str().starts_with("x-amz-meta-") {
-			match std::str::from_utf8(v.as_bytes()) {
-				Ok(v_str) => {
-					other.insert(k.to_string(), v_str.to_string());
-				}
-				Err(e) => {
-					warn!("Discarding header {}, error in .to_str(): {}", k, e);
-				}
-			}
+	for (name, value) in headers.iter() {
+		if name.as_str().starts_with("x-amz-meta-") {
+			ret.push((
+				name.to_string(),
+				std::str::from_utf8(value.as_bytes())?.to_string(),
+			));
 		}
 	}
 
-	Ok(ObjectVersionHeaders {
-		content_type,
-		other,
-	})
+	Ok(ObjectVersionHeaders(ret))
 }
 
 pub(crate) fn next_timestamp(existing_object: Option<&Object>) -> u64 {

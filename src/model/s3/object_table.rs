@@ -216,8 +216,6 @@ mod v010 {
 
 	use super::v09;
 
-	pub use v09::ObjectVersionHeaders;
-
 	/// An object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Object {
@@ -303,6 +301,10 @@ mod v010 {
 		},
 	}
 
+	/// Vector of headers, as tuples of the format (header name, header value)
+	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	pub struct ObjectVersionHeaders(pub Vec<(String, String)>);
+
 	impl garage_util::migrate::Migrate for Object {
 		const VERSION_MARKER: &'static [u8] = b"G010s3ob";
 
@@ -357,7 +359,19 @@ mod v010 {
 	}
 
 	fn migrate_headers(old: v09::ObjectVersionHeaders) -> ObjectVersionEncryption {
-		ObjectVersionEncryption::Plaintext { headers: old }
+		use http::header::CONTENT_TYPE;
+
+		let mut new_headers = Vec::with_capacity(old.other.len() + 1);
+		if old.content_type != "blob" {
+			new_headers.push((CONTENT_TYPE.as_str().to_string(), old.content_type));
+		}
+		for (name, value) in old.other.into_iter() {
+			new_headers.push((name, value));
+		}
+
+		ObjectVersionEncryption::Plaintext {
+			headers: ObjectVersionHeaders(new_headers),
+		}
 	}
 
 	// Since ObjectVersionHeaders can now be serialized independently, for the

@@ -945,10 +945,7 @@ mod tests {
 			state: ObjectVersionState::Uploading {
 				multipart: true,
 				encryption: ObjectVersionEncryption::Plaintext {
-					headers: ObjectVersionHeaders {
-						content_type: "text/plain".to_string(),
-						other: BTreeMap::<String, String>::new(),
-					},
+					headers: ObjectVersionHeaders(vec![]),
 				},
 			},
 		}

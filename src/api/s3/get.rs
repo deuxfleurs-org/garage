@@ -1,4 +1,5 @@
 //! Function related to GET and HEAD requests
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
@@ -53,7 +54,6 @@ fn object_headers(
 	let date_str = httpdate::fmt_http_date(date);
 
 	let mut resp = Response::builder()
-		.header(CONTENT_TYPE, headers.content_type.to_string())
 		.header(LAST_MODIFIED, date_str)
 		.header(ACCEPT_RANGES, "bytes".to_string());
 
@@ -61,8 +61,23 @@ fn object_headers(
 		resp = resp.header(ETAG, format!("\"{}\"", version_meta.etag));
 	}
 
-	for (k, v) in headers.other.iter() {
-		resp = resp.header(k, v.to_string());
+	// When metadata is retrieved through the REST API, Amazon S3 combines headers that
+	// have the same name (ignoring case) into a comma-delimited list.
+	// See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
+	let mut headers_by_name = BTreeMap::new();
+	for (name, value) in headers.0.iter() {
+		match headers_by_name.get_mut(name) {
+			None => {
+				headers_by_name.insert(name, vec![value.as_str()]);
+			}
+			Some(headers) => {
+				headers.push(value.as_str());
+			}
+		}
+	}
+
+	for (name, values) in headers_by_name {
+		resp = resp.header(name, values.join(","));
 	}
 
 	encryption.add_response_headers(&mut resp);

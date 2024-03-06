@@ -1495,6 +1495,7 @@ dependencies = [
  "garage_table",
  "garage_util",
  "hex",
+ "http 1.0.0",
  "opentelemetry",
  "rand",
  "serde",
