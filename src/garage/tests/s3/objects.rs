@@ -185,8 +185,51 @@ async fn test_getobject() {
 		assert_eq!(o.content_range.unwrap().as_str(), "bytes 57-61/62");
 		assert_bytes_eq!(o.body, &BODY[57..]);
 	}
+}
+
+#[tokio::test]
+async fn test_metadata() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("testmetadata");
+
+	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
+	let exp = aws_sdk_s3::primitives::DateTime::from_secs(10000000000);
+	let exp2 = aws_sdk_s3::primitives::DateTime::from_secs(10000500000);
+
 	{
-		let exp = aws_sdk_s3::primitives::DateTime::from_secs(10000000000);
+		// Note. The AWS client SDK adds a Content-Type header
+		// with value application/octet-stream if it is not given,
+		// so here we force it to a known different value.
+		let data = ByteStream::from_static(BODY);
+		let r = ctx
+			.client
+			.put_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.body(data)
+			.content_type("application/test")
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(r.e_tag.unwrap().as_str(), etag);
+
+		let o = ctx
+			.client
+			.head_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.unwrap().as_str(), etag);
+		assert_eq!(o.content_type.unwrap().as_str(), "application/test");
+		assert_eq!(o.cache_control, None);
+		assert_eq!(o.content_disposition, None);
+		assert_eq!(o.content_encoding, None);
+		assert_eq!(o.content_language, None);
+		assert_eq!(o.expires, None);
+		assert_eq!(o.metadata.unwrap_or_default().len(), 0);
+
 		let o = ctx
 			.client
 			.get_object()
@@ -201,13 +244,77 @@ async fn test_getobject() {
 			.send()
 			.await
 			.unwrap();
+		assert_eq!(o.e_tag.unwrap().as_str(), etag);
 		assert_eq!(o.content_type.unwrap().as_str(), "application/x-dummy-test");
 		assert_eq!(o.cache_control.unwrap().as_str(), "ccdummy");
 		assert_eq!(o.content_disposition.unwrap().as_str(), "cddummy");
 		assert_eq!(o.content_encoding.unwrap().as_str(), "cedummy");
 		assert_eq!(o.content_language.unwrap().as_str(), "cldummy");
 		assert_eq!(o.expires.unwrap(), exp);
-		assert_bytes_eq!(o.body, &BODY[..]);
+	}
+
+	{
+		let data = ByteStream::from_static(BODY);
+		let r = ctx
+			.client
+			.put_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.body(data)
+			.content_type("application/test")
+			.cache_control("cctest")
+			.content_disposition("cdtest")
+			.content_encoding("cetest")
+			.content_language("cltest")
+			.expires(exp2)
+			.metadata("testmeta", "hello people")
+			.metadata("nice-unicode-meta", "宅配便")
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(r.e_tag.unwrap().as_str(), etag);
+
+		let o = ctx
+			.client
+			.head_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.unwrap().as_str(), etag);
+		assert_eq!(o.content_type.unwrap().as_str(), "application/test");
+		assert_eq!(o.cache_control.unwrap().as_str(), "cctest");
+		assert_eq!(o.content_disposition.unwrap().as_str(), "cdtest");
+		assert_eq!(o.content_encoding.unwrap().as_str(), "cetest");
+		assert_eq!(o.content_language.unwrap().as_str(), "cltest");
+		assert_eq!(o.expires.unwrap(), exp2);
+		let mut meta = o.metadata.unwrap();
+		assert_eq!(meta.remove("testmeta").unwrap(), "hello people");
+		assert_eq!(meta.remove("nice-unicode-meta").unwrap(), "宅配便");
+		assert_eq!(meta.len(), 0);
+
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.response_content_type("application/x-dummy-test")
+			.response_cache_control("ccdummy")
+			.response_content_disposition("cddummy")
+			.response_content_encoding("cedummy")
+			.response_content_language("cldummy")
+			.response_expires(exp)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.unwrap().as_str(), etag);
+		assert_eq!(o.content_type.unwrap().as_str(), "application/x-dummy-test");
+		assert_eq!(o.cache_control.unwrap().as_str(), "ccdummy");
+		assert_eq!(o.content_disposition.unwrap().as_str(), "cddummy");
+		assert_eq!(o.content_encoding.unwrap().as_str(), "cedummy");
+		assert_eq!(o.content_language.unwrap().as_str(), "cldummy");
+		assert_eq!(o.expires.unwrap(), exp);
 	}
 }
 
