@@ -6,11 +6,11 @@ use garage_util::encode::nonversioned_encode;
 use garage_util::error::*;
 
 use super::*;
-use crate::replication_mode::ReplicationMode;
+use crate::replication_mode::*;
 
 impl LayoutHistory {
-	pub fn new(replication_factor: usize) -> Self {
-		let version = LayoutVersion::new(replication_factor);
+	pub fn new(replication_factor: ReplicationFactor) -> Self {
+		let version = LayoutVersion::new(replication_factor.into());
 
 		let staging = LayoutStaging {
 			parameters: Lww::<LayoutParameters>::new(version.parameters),
@@ -119,7 +119,7 @@ impl LayoutHistory {
 
 	pub(crate) fn calculate_sync_map_min_with_quorum(
 		&self,
-		replication_mode: ReplicationMode,
+		replication_factor: ReplicationFactor,
 		all_nongateway_nodes: &[Uuid],
 	) -> u64 {
 		// This function calculates the minimum layout version from which
@@ -133,7 +133,7 @@ impl LayoutHistory {
 			return self.current().version;
 		}
 
-		let quorum = replication_mode.write_quorum();
+		let quorum = replication_factor.write_quorum(ConsistencyMode::Consistent);
 
 		let min_version = self.min_stored();
 		let global_min = self

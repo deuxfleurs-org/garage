@@ -163,7 +163,7 @@ mod tests {
 			r#"
 			metadata_dir = "/tmp/garage/meta"
 			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
+			replication_factor = 3
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret_file = "{}"
 
@@ -185,7 +185,7 @@ mod tests {
 			r#"
 			metadata_dir = "/tmp/garage/meta"
 			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
+			replication_factor = 3
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret_file = "{}"
 			allow_world_readable_secrets = true
@@ -296,7 +296,7 @@ mod tests {
 			r#"
 			metadata_dir = "/tmp/garage/meta"
 			data_dir = "/tmp/garage/data"
-			replication_mode = "3"
+			replication_factor = 3
 			rpc_bind_addr = "[::]:3901"
 			rpc_secret= "dummy"
 			rpc_secret_file = "dummy"

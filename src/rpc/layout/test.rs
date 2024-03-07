@@ -5,6 +5,7 @@ use garage_util::crdt::Crdt;
 use garage_util::error::*;
 
 use crate::layout::*;
+use crate::replication_mode::ReplicationFactor;
 
 // This function checks that the partition size S computed is at least better than the
 // one given by a very naive algorithm. To do so, we try to run the naive algorithm
@@ -120,7 +121,7 @@ fn test_assignment() {
 	let mut node_capacity_vec = vec![4000, 1000, 2000];
 	let mut node_zone_vec = vec!["A", "B", "C"];
 
-	let mut cl = LayoutHistory::new(3);
+	let mut cl = LayoutHistory::new(ReplicationFactor::new(3).unwrap());
 	update_layout(&mut cl, &node_capacity_vec, &node_zone_vec, 3);
 	let v = cl.current().version;
 	let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();

@@ -12,7 +12,7 @@ An introduction to building cluster layouts can be found in the [production depl
 In Garage, all of the data that can be stored in a given cluster is divided
 into slices which we call *partitions*. Each partition is stored by
 one or several nodes in the cluster
-(see [`replication_mode`](@/documentation/reference-manual/configuration.md#replication_mode)).
+(see [`replication_factor`](@/documentation/reference-manual/configuration.md#replication_factor)).
 The layout determines the correspondence between these partitions,
 which exist on a logical level, and actual storage nodes.
 
