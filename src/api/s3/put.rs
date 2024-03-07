@@ -595,7 +595,7 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVers
 	// Preserve x-amz-meta- headers
 	for (k, v) in headers.iter() {
 		if k.as_str().starts_with("x-amz-meta-") {
-			match v.to_str() {
+			match std::str::from_utf8(v.as_bytes()) {
 				Ok(v_str) => {
 					other.insert(k.to_string(), v_str.to_string());
 				}

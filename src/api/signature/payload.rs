@@ -331,8 +331,8 @@ pub fn canonical_request(
 		.map(|name| {
 			let value = headers
 				.get(name)
-				.ok_or_bad_request(format!("signed header `{}` is not present", name))?
-				.to_str()?;
+				.ok_or_bad_request(format!("signed header `{}` is not present", name))?;
+			let value = std::str::from_utf8(value.as_bytes())?;
 			Ok(format!("{}:{}", name.as_str(), value.trim()))
 		})
 		.collect::<Result<Vec<String>, Error>>()?
