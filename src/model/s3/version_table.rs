@@ -44,7 +44,8 @@ mod v05 {
 	pub struct VersionBlockKey {
 		/// Number of the part
 		pub part_number: u64,
-		/// Offset of this sub-segment in its part
+		/// Offset of this sub-segment in its part as sent by the client
+		/// (before any kind of compression or encryption)
 		pub offset: u64,
 	}
 
@@ -53,7 +54,7 @@ mod v05 {
 	pub struct VersionBlock {
 		/// Blake2 sum of the block
 		pub hash: Hash,
-		/// Size of the block
+		/// Size of the block, before any kind of compression or encryption
 		pub size: u64,
 	}
 

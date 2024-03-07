@@ -65,6 +65,10 @@ pub enum Error {
 	#[error(display = "Invalid HTTP range: {:?}", _0)]
 	InvalidRange(#[error(from)] (http_range::HttpRangeParseError, u64)),
 
+	/// The client sent a range header with invalid value
+	#[error(display = "Invalid encryption algorithm: {:?}, should be AES256", _0)]
+	InvalidEncryptionAlgorithm(String),
+
 	/// The client sent a request for an action not supported by garage
 	#[error(display = "Unimplemented action: {}", _0)]
 	NotImplemented(String),
@@ -126,6 +130,7 @@ impl Error {
 			Error::InvalidXml(_) => "MalformedXML",
 			Error::InvalidRange(_) => "InvalidRange",
 			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) => "InvalidRequest",
+			Error::InvalidEncryptionAlgorithm(_) => "InvalidEncryptionAlgorithmError",
 		}
 	}
 }
@@ -143,6 +148,7 @@ impl ApiError for Error {
 			| Error::InvalidPart
 			| Error::InvalidPartOrder
 			| Error::EntityTooSmall
+			| Error::InvalidEncryptionAlgorithm(_)
 			| Error::InvalidXml(_)
 			| Error::InvalidUtf8Str(_)
 			| Error::InvalidUtf8String(_) => StatusCode::BAD_REQUEST,

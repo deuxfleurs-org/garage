@@ -21,7 +21,9 @@ garage_net.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
 
+aes-gcm.workspace = true
 argon2.workspace = true
+async-compression.workspace = true
 async-trait.workspace = true
 base64.workspace = true
 bytes.workspace = true
@@ -41,6 +43,7 @@ futures.workspace = true
 futures-util.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
+tokio-util.workspace = true
 
 form_urlencoded.workspace = true
 http.workspace = true

@@ -96,7 +96,7 @@ impl DataBlock {
 	}
 }
 
-fn zstd_encode<R: std::io::Read>(mut source: R, level: i32) -> std::io::Result<Vec<u8>> {
+pub fn zstd_encode<R: std::io::Read>(mut source: R, level: i32) -> std::io::Result<Vec<u8>> {
 	let mut result = Vec::<u8>::new();
 	let mut encoder = Encoder::new(&mut result, level)?;
 	encoder.include_checksum(true)?;

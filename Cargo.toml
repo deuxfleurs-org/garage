@@ -66,6 +66,7 @@ sha2 = "0.10"
 timeago = { version = "0.4", default-features = false }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 
+aes-gcm = { version = "0.10", features = ["aes", "stream"] }
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 kuska-handshake = { version = "0.2.0", features = ["default", "async_std"] }
 

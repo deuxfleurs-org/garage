@@ -80,6 +80,53 @@ To test your new configuration, just reload your Nextcloud webpage and start sen
 
 *External link:* [Nextcloud Documentation > Primary Storage](https://docs.nextcloud.com/server/latest/admin_manual/configuration_files/primary_storage.html)
 
+#### SSE-C encryption (since Garage v1.0)
+
+Since version 1.0, Garage supports server-side encryption with customer keys
+(SSE-C).  In this mode, Garage is responsible for encrypting and decrypting
+objects, but it does not store the encryption key itself. The encryption key
+should be provided by Nextcloud upon each request.  This mode of operation is
+supported by Nextcloud and it has successfully been tested together with
+Garage.
+
+To enable SSE-C encryption:
+
+1. Make sure your Garage server is accessible via SSL through a reverse proxy
+   such as Nginx, and that it is using a valid public certificate (Nextcloud
+   might be able to connect to an S3 server that is using a self-signed
+   certificate, but you will lose many hours while trying, so don't).
+   Configure values for `use_ssl` and `port` accordingly in your `config.php`
+   file.
+
+2. Generate an encryption key using the following command:
+
+    ```
+    openssl rand -base64 32
+    ```
+
+    Make sure to keep this key **secret**!
+
+3. Add the encryption key in your `config.php` file as follows:
+
+
+    ```php
+    <?php
+    $CONFIG = array(
+    'objectstore' => [
+        'class' => '\\OC\\Files\\ObjectStore\\S3',
+        'arguments' => [
+            ...
+            'sse_c_key' => 'exampleencryptionkeyLbU+5fKYQcVoqnn+RaIOXgo=',
+            ...
+        ],
+    ],
+    ```
+
+Nextcloud will now make Garage encrypt files at rest in the storage bucket.
+These files will not be readable by an S3 client that has credentials to the
+bucket but doesn't also know the secret encryption key.
+
+
 ### External Storage
 
 **From the GUI.** Activate the "External storage support" app from the "Applications" page (click on your account icon on the top right corner of your screen to display the menu). Go to your parameters page (also located below your account icon). Click on external storage (or the corresponding translation in your language).

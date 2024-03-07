@@ -18,6 +18,7 @@ use garage_model::garage::Garage;
 use crate::helpers::*;
 use crate::s3::api_server::ResBody;
 use crate::s3::cors::*;
+use crate::s3::encryption::EncryptionParams;
 use crate::s3::error::*;
 use crate::s3::put::{get_headers, save_stream};
 use crate::s3::xml as s3_xml;
@@ -48,13 +49,17 @@ pub async fn handle_post_object(
 	let mut multipart = Multipart::with_constraints(stream, boundary, constraints);
 
 	let mut params = HeaderMap::new();
-	let field = loop {
+	let file_field = loop {
 		let field = if let Some(field) = multipart.next_field().await? {
 			field
 		} else {
 			return Err(Error::bad_request("Request did not contain a file"));
 		};
-		let name: HeaderName = if let Some(Ok(name)) = field.name().map(TryInto::try_into) {
+		let name: HeaderName = if let Some(Ok(name)) = field
+			.name()
+			.map(str::to_ascii_lowercase)
+			.map(TryInto::try_into)
+		{
 			name
 		} else {
 			continue;
@@ -93,10 +98,14 @@ pub async fn handle_post_object(
 		.ok_or_bad_request("No policy was provided")?
 		.to_str()?;
 	let authorization = Authorization::parse_form(&params)?;
+	let content_md5 = params
+		.get("content-md5")
+		.map(HeaderValue::to_str)
+		.transpose()?;
 
 	let key = if key.contains("${filename}") {
 		// if no filename is provided, don't replace. This matches the behavior of AWS.
-		if let Some(filename) = field.file_name() {
+		if let Some(filename) = file_field.file_name() {
 			key.replace("${filename}", filename)
 		} else {
 			key.to_owned()
@@ -143,9 +152,8 @@ pub async fn handle_post_object(
 	let mut conditions = decoded_policy.into_conditions()?;
 
 	for (param_key, value) in params.iter() {
-		let mut param_key = param_key.to_string();
-		param_key.make_ascii_lowercase();
-		match param_key.as_str() {
+		let param_key = param_key.as_str();
+		match param_key {
 			"policy" | "x-amz-signature" => (), // this is always accepted, as it's required to validate other fields
 			"content-type" => {
 				let conds = conditions.params.remove("content-type").ok_or_else(|| {
@@ -190,7 +198,7 @@ pub async fn handle_post_object(
 					// how aws seems to behave.
 					continue;
 				}
-				let conds = conditions.params.remove(&param_key).ok_or_else(|| {
+				let conds = conditions.params.remove(param_key).ok_or_else(|| {
 					Error::bad_request(format!("Key '{}' is not allowed in policy", param_key))
 				})?;
 				for cond in conds {
@@ -218,8 +226,9 @@ pub async fn handle_post_object(
 
 	let headers = get_headers(&params)?;
 
-	let stream = field.map(|r| r.map_err(Into::into));
+	let encryption = EncryptionParams::new_from_headers(&garage, &params)?;
 
+	let stream = file_field.map(|r| r.map_err(Into::into));
 	let ctx = ReqCtx {
 		garage,
 		bucket_id,
@@ -228,17 +237,18 @@ pub async fn handle_post_object(
 		api_key,
 	};
 
-	let (_, md5) = save_stream(
+	let res = save_stream(
 		&ctx,
 		headers,
+		encryption,
 		StreamLimiter::new(stream, conditions.content_length),
 		&key,
-		None,
+		content_md5.map(str::to_string),
 		None,
 	)
 	.await?;
 
-	let etag = format!("\"{}\"", md5);
+	let etag = format!("\"{}\"", res.etag);
 
 	let mut resp = if let Some(mut target) = params
 		.get("success_action_redirect")
@@ -252,11 +262,12 @@ pub async fn handle_post_object(
 			.append_pair("key", &key)
 			.append_pair("etag", &etag);
 		let target = target.to_string();
-		Response::builder()
+		let mut resp = Response::builder()
 			.status(StatusCode::SEE_OTHER)
 			.header(header::LOCATION, target.clone())
-			.header(header::ETAG, etag)
-			.body(string_body(target))?
+			.header(header::ETAG, etag);
+		encryption.add_response_headers(&mut resp);
+		resp.body(string_body(target))?
 	} else {
 		let path = head
 			.uri
@@ -283,9 +294,10 @@ pub async fn handle_post_object(
 			.get("success_action_status")
 			.and_then(|h| h.to_str().ok())
 			.unwrap_or("204");
-		let builder = Response::builder()
+		let mut builder = Response::builder()
 			.header(header::LOCATION, location.clone())
 			.header(header::ETAG, etag.clone());
+		encryption.add_response_headers(&mut builder);
 		match action {
 			"200" => builder.status(StatusCode::OK).body(empty_body())?,
 			"201" => {
