@@ -261,32 +261,42 @@ impl<'a> ITx for LmdbTx<'a> {
 		Ok(())
 	}
 
-	fn iter(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(tree.iter(&self.tx)?.map(tx_iter_item)))
 	}
-	fn iter_rev(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(tree.rev_iter(&self.tx)?.map(tx_iter_item)))
 	}
 
 	fn range<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(
+			tree.range(&self.tx, &(low, high))?.map(tx_iter_item),
+		))
 	}
 	fn range_rev<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(
+			tree.rev_range(&self.tx, &(low, high))?.map(tx_iter_item),
+		))
 	}
 }
 
-// ----
+// ---- iterators outside transactions ----
+// complicated, they must hold the transaction object
+// therefore a bit of unsafe code (it is a self-referential struct)
 
 type IteratorItem<'a> = heed::Result<(
 	<ByteSlice as BytesDecode<'a>>::DItem,
@@ -323,6 +333,7 @@ where
 	I: Iterator<Item = IteratorItem<'a>> + 'a,
 {
 	fn drop(&mut self) {
+		// ensure the iterator is dropped before the RoTxn it references
 		drop(self.iter.take());
 	}
 }
@@ -342,7 +353,16 @@ where
 	}
 }
 
-// ----
+// ---- iterators within transactions ----
+
+fn tx_iter_item<'a>(
+	item: std::result::Result<(&'a [u8], &'a [u8]), heed::Error>,
+) -> TxOpResult<(Vec<u8>, Vec<u8>)> {
+	item.map(|(k, v)| (k.to_vec(), v.to_vec()))
+		.map_err(|e| TxOpError(Error::from(e)))
+}
+
+// ---- utility ----
 
 #[cfg(target_pointer_width = "64")]
 pub fn recommended_map_size() -> usize {

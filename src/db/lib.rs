@@ -51,6 +51,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct TxOpError(pub(crate) Error);
 pub type TxOpResult<T> = std::result::Result<T, TxOpError>;
 
+#[derive(Debug)]
 pub enum TxError<E> {
 	Abort(E),
 	Db(Error),

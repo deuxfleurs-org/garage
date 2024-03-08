@@ -369,32 +369,58 @@ impl<'a> ITx for SqliteTx<'a> {
 		Ok(())
 	}
 
-	fn iter(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!();
+	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = self.get_tree(tree)?;
+		let sql = format!("SELECT k, v FROM {} ORDER BY k ASC", tree);
+		TxValueIterator::make(self, &sql, [])
 	}
-	fn iter_rev(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!();
+	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = self.get_tree(tree)?;
+		let sql = format!("SELECT k, v FROM {} ORDER BY k DESC", tree);
+		TxValueIterator::make(self, &sql, [])
 	}
 
 	fn range<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!();
+		let tree = self.get_tree(tree)?;
+
+		let (bounds_sql, params) = bounds_sql(low, high);
+		let sql = format!("SELECT k, v FROM {} {} ORDER BY k ASC", tree, bounds_sql);
+
+		let params = params
+			.iter()
+			.map(|x| x as &dyn rusqlite::ToSql)
+			.collect::<Vec<_>>();
+
+		TxValueIterator::make::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
 	}
 	fn range_rev<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!();
+		let tree = self.get_tree(tree)?;
+
+		let (bounds_sql, params) = bounds_sql(low, high);
+		let sql = format!("SELECT k, v FROM {} {} ORDER BY k DESC", tree, bounds_sql);
+
+		let params = params
+			.iter()
+			.map(|x| x as &dyn rusqlite::ToSql)
+			.collect::<Vec<_>>();
+
+		TxValueIterator::make::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
 	}
 }
 
-// ----
+// ---- iterators outside transactions ----
+// complicated, they must hold the Statement and Row objects
+// therefore quite some unsafe code (it is a self-referential struct)
 
 struct DbValueIterator<'a> {
 	db: MutexGuard<'a, SqliteDbInner>,
@@ -471,7 +497,78 @@ impl<'a> Iterator for DbValueIteratorPin<'a> {
 	}
 }
 
-// ----
+// ---- iterators within transactions ----
+// it's the same except we don't hold a mutex guard,
+// only a Statement and a Rows object
+
+struct TxValueIterator<'a> {
+	stmt: Statement<'a>,
+	iter: Option<Rows<'a>>,
+	_pin: PhantomPinned,
+}
+
+impl<'a> TxValueIterator<'a> {
+	fn make<P: rusqlite::Params>(
+		tx: &'a SqliteTx<'a>,
+		sql: &str,
+		args: P,
+	) -> TxOpResult<TxValueIter<'a>> {
+		let stmt = tx.tx.prepare(sql)?;
+		let res = TxValueIterator {
+			stmt,
+			iter: None,
+			_pin: PhantomPinned,
+		};
+		let mut boxed = Box::pin(res);
+		trace!("make iterator with sql: {}", sql);
+
+		unsafe {
+			let mut stmt = NonNull::from(&boxed.stmt);
+			let iter = stmt.as_mut().query(args)?;
+
+			let mut_ref: Pin<&mut TxValueIterator<'a>> = Pin::as_mut(&mut boxed);
+			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
+		}
+
+		Ok(Box::new(TxValueIteratorPin(boxed)))
+	}
+}
+
+impl<'a> Drop for TxValueIterator<'a> {
+	fn drop(&mut self) {
+		trace!("drop iter");
+		drop(self.iter.take());
+	}
+}
+
+struct TxValueIteratorPin<'a>(Pin<Box<TxValueIterator<'a>>>);
+
+impl<'a> Iterator for TxValueIteratorPin<'a> {
+	type Item = TxOpResult<(Value, Value)>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let next = unsafe {
+			let mut_ref: Pin<&mut TxValueIterator<'a>> = Pin::as_mut(&mut self.0);
+			Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next()
+		};
+		let row = match next {
+			Err(e) => return Some(Err(e.into())),
+			Ok(None) => return None,
+			Ok(Some(r)) => r,
+		};
+		let k = match row.get::<_, Vec<u8>>(0) {
+			Err(e) => return Some(Err(e.into())),
+			Ok(x) => x,
+		};
+		let v = match row.get::<_, Vec<u8>>(1) {
+			Err(e) => return Some(Err(e.into())),
+			Ok(y) => y,
+		};
+		Some(Ok((k, v)))
+	}
+}
+
+// ---- utility ----
 
 fn bounds_sql<'r>(low: Bound<&'r [u8]>, high: Bound<&'r [u8]>) -> (String, Vec<Vec<u8>>) {
 	let mut sql = String::new();

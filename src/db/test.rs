@@ -10,8 +10,13 @@ fn test_suite(db: Db) {
 	let vb: &[u8] = &b"plip"[..];
 	let vc: &[u8] = &b"plup"[..];
 
+	// ---- test simple insert/delete ----
+
 	assert!(tree.insert(ka, va).unwrap().is_none());
 	assert_eq!(tree.get(ka).unwrap().unwrap(), va);
+	assert_eq!(tree.len().unwrap(), 1);
+
+	// ---- test transaction logic ----
 
 	let res = db.transaction::<_, (), _>(|tx| {
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), va);
@@ -36,6 +41,8 @@ fn test_suite(db: Db) {
 	});
 	assert!(matches!(res, Err(TxError::Abort(42))));
 	assert_eq!(tree.get(ka).unwrap().unwrap(), vb);
+
+	// ---- test iteration outside of transactions ----
 
 	let mut iter = tree.iter().unwrap();
 	let next = iter.next().unwrap().unwrap();
@@ -73,6 +80,48 @@ fn test_suite(db: Db) {
 	assert_eq!((next.0.as_ref(), next.1.as_ref()), (ka, vb));
 	assert!(iter.next().is_none());
 	drop(iter);
+
+	// ---- test iteration within transactions ----
+
+	db.transaction::<_, (), _>(|tx| {
+		let mut iter = tx.iter(&tree).unwrap();
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (ka, vb));
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (kb, vc));
+		assert!(iter.next().is_none());
+		Ok(())
+	})
+	.unwrap();
+
+	db.transaction::<_, (), _>(|tx| {
+		let mut iter = tx.range(&tree, kint..).unwrap();
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (kb, vc));
+		assert!(iter.next().is_none());
+		Ok(())
+	})
+	.unwrap();
+
+	db.transaction::<_, (), _>(|tx| {
+		let mut iter = tx.range_rev(&tree, ..kint).unwrap();
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (ka, vb));
+		assert!(iter.next().is_none());
+		Ok(())
+	})
+	.unwrap();
+
+	db.transaction::<_, (), _>(|tx| {
+		let mut iter = tx.iter_rev(&tree).unwrap();
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (kb, vc));
+		let next = iter.next().unwrap().unwrap();
+		assert_eq!((next.0.as_ref(), next.1.as_ref()), (ka, vb));
+		assert!(iter.next().is_none());
+		Ok(())
+	})
+	.unwrap();
 }
 
 #[test]
