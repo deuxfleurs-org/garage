@@ -238,8 +238,9 @@ impl<'a> ITx for LmdbTx<'a> {
 			None => Ok(None),
 		}
 	}
-	fn len(&self, _tree: usize) -> TxOpResult<usize> {
-		unimplemented!(".len() in transaction not supported with LMDB backend")
+	fn len(&self, tree: usize) -> TxOpResult<usize> {
+		let tree = self.get_tree(tree)?;
+		Ok(tree.len(&self.tx)? as usize)
 	}
 
 	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>> {
@@ -253,6 +254,11 @@ impl<'a> ITx for LmdbTx<'a> {
 		let old_val = tree.get(&self.tx, key)?.map(Vec::from);
 		tree.delete(&mut self.tx, key)?;
 		Ok(old_val)
+	}
+	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
+		let tree = *self.get_tree(tree)?;
+		tree.clear(&mut self.tx)?;
+		Ok(())
 	}
 
 	fn iter(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {

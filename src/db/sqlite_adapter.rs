@@ -363,6 +363,11 @@ impl<'a> ITx for SqliteTx<'a> {
 
 		Ok(old_val)
 	}
+	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
+		let tree = self.get_tree(tree)?;
+		self.tx.execute(&format!("DELETE FROM {}", tree), [])?;
+		Ok(())
+	}
 
 	fn iter(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
 		unimplemented!();
