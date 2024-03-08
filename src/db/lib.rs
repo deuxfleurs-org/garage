@@ -1,5 +1,4 @@
 #[macro_use]
-#[cfg(feature = "sqlite")]
 extern crate tracing;
 
 #[cfg(feature = "lmdb")]
@@ -11,6 +10,8 @@ pub mod sqlite_adapter;
 
 pub mod counted_tree_hack;
 
+pub mod open;
+
 #[cfg(test)]
 pub mod test;
 
@@ -21,6 +22,8 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use err_derive::Error;
+
+pub use open::*;
 
 pub(crate) type OnCommit = Vec<Box<dyn FnOnce()>>;
 
@@ -168,48 +171,6 @@ impl Db {
 			println!("{}: finished importing, {} items", name, total);
 		}
 		Ok(())
-	}
-}
-
-/// List of supported database engine types
-///
-/// The `enum` holds list of *all* database engines that are are be supported by crate, no matter
-/// if relevant feature is enabled or not. It allows us to distinguish between invalid engine
-/// and valid engine, whose support is not enabled via feature flag.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Engine {
-	Lmdb,
-	Sqlite,
-	Sled,
-}
-
-impl Engine {
-	/// Return variant name as static `&str`
-	pub fn as_str(&self) -> &'static str {
-		match self {
-			Self::Lmdb => "lmdb",
-			Self::Sqlite => "sqlite",
-			Self::Sled => "sled",
-		}
-	}
-}
-
-impl std::fmt::Display for Engine {
-	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-		self.as_str().fmt(fmt)
-	}
-}
-
-impl std::str::FromStr for Engine {
-	type Err = Error;
-
-	fn from_str(text: &str) -> Result<Engine> {
-		match text {
-			"lmdb" | "heed" => Ok(Self::Lmdb),
-			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
-			"sled" => Ok(Self::Sled),
-			kind => Err(Error(format!("Invalid DB engine: {}", kind).into())),
-		}
 	}
 }
 

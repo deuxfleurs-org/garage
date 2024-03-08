@@ -51,53 +51,13 @@ pub(crate) fn do_conversion(args: ConvertDbOpt) -> Result<()> {
 		return Err(Error("input and output database engine must differ".into()));
 	}
 
-	let input = open_db(args.input_path, args.input_engine, &args.db_open)?;
-	let output = open_db(args.output_path, args.output_engine, &args.db_open)?;
+	let opt = OpenOpt {
+		lmdb_map_size: args.db_open.lmdb.map_size.map(|x| x.as_u64() as usize),
+		..Default::default()
+	};
+
+	let input = open_db(&args.input_path, args.input_engine, &opt)?;
+	let output = open_db(&args.output_path, args.output_engine, &opt)?;
 	output.import(&input)?;
 	Ok(())
-}
-
-fn open_db(path: PathBuf, engine: Engine, open: &OpenDbOpt) -> Result<Db> {
-	match engine {
-		#[cfg(feature = "sled")]
-		Engine::Sled => {
-			let db = sled_adapter::sled::Config::default().path(&path).open()?;
-			Ok(sled_adapter::SledDb::init(db))
-		}
-		#[cfg(feature = "sqlite")]
-		Engine::Sqlite => {
-			let db = sqlite_adapter::rusqlite::Connection::open(&path)?;
-			db.pragma_update(None, "journal_mode", "WAL")?;
-			db.pragma_update(None, "synchronous", "NORMAL")?;
-			Ok(sqlite_adapter::SqliteDb::init(db))
-		}
-		#[cfg(feature = "lmdb")]
-		Engine::Lmdb => {
-			std::fs::create_dir_all(&path).map_err(|e| {
-				Error(format!("Unable to create LMDB data directory: {}", e).into())
-			})?;
-
-			let map_size = match open.lmdb.map_size {
-				Some(c) => c.as_u64() as usize,
-				None => lmdb_adapter::recommended_map_size(),
-			};
-
-			let mut env_builder = lmdb_adapter::heed::EnvOpenOptions::new();
-			env_builder.max_dbs(100);
-			env_builder.map_size(map_size);
-			unsafe {
-				env_builder.flag(lmdb_adapter::heed::flags::Flags::MdbNoMetaSync);
-			}
-			let db = env_builder.open(&path)?;
-			Ok(lmdb_adapter::LmdbDb::init(db))
-		}
-
-		// Pattern is unreachable when all supported DB engines are compiled into binary. The allow
-		// attribute is added so that we won't have to change this match in case stop building
-		// support for one or more engines by default.
-		#[allow(unreachable_patterns)]
-		engine => Err(Error(
-			format!("Engine support not available in this build: {}", engine).into(),
-		)),
-	}
 }
