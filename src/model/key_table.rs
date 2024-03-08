@@ -7,48 +7,7 @@ use garage_table::{DeletedFilter, EmptyKey, Entry, TableSchema};
 
 use crate::permission::BucketKeyPerm;
 
-pub(crate) mod v05 {
-	use garage_util::crdt;
-	use serde::{Deserialize, Serialize};
-
-	/// An api key
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct Key {
-		/// The id of the key (immutable), used as partition key
-		pub key_id: String,
-
-		/// The secret_key associated
-		pub secret_key: String,
-
-		/// Name for the key
-		pub name: crdt::Lww<String>,
-
-		/// Is the key deleted
-		pub deleted: crdt::Bool,
-
-		/// Buckets in which the key is authorized. Empty if `Key` is deleted
-		// CRDT interaction: deleted implies authorized_buckets is empty
-		pub authorized_buckets: crdt::LwwMap<String, PermissionSet>,
-	}
-
-	/// Permission given to a key in a bucket
-	#[derive(PartialOrd, Ord, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct PermissionSet {
-		/// The key can be used to read the bucket
-		pub allow_read: bool,
-		/// The key can be used to write in the bucket
-		pub allow_write: bool,
-	}
-
-	impl crdt::AutoCrdt for PermissionSet {
-		const WARN_IF_DIFFERENT: bool = true;
-	}
-
-	impl garage_util::migrate::InitialFormat for Key {}
-}
-
 mod v08 {
-	use super::v05;
 	use crate::permission::BucketKeyPerm;
 	use garage_util::crdt;
 	use garage_util::data::Uuid;
@@ -86,32 +45,7 @@ mod v08 {
 		pub local_aliases: crdt::LwwMap<String, Option<Uuid>>,
 	}
 
-	impl garage_util::migrate::Migrate for Key {
-		type Previous = v05::Key;
-
-		fn migrate(old_k: v05::Key) -> Key {
-			let name = crdt::Lww::raw(old_k.name.timestamp(), old_k.name.get().clone());
-
-			let state = if old_k.deleted.get() {
-				crdt::Deletable::Deleted
-			} else {
-				// Authorized buckets is ignored here,
-				// migration is performed in specific migration code in
-				// garage/migrate.rs
-				crdt::Deletable::Present(KeyParams {
-					secret_key: old_k.secret_key,
-					name,
-					allow_create_bucket: crdt::Lww::new(false),
-					authorized_buckets: crdt::Map::new(),
-					local_aliases: crdt::LwwMap::new(),
-				})
-			};
-			Key {
-				key_id: old_k.key_id,
-				state,
-			}
-		}
-	}
+	impl garage_util::migrate::InitialFormat for Key {}
 }
 
 pub use v08::*;
