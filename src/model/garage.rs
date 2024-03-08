@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Arc;
 
 use garage_net::NetworkKey;
@@ -113,108 +114,33 @@ impl Garage {
 		}
 
 		info!("Opening database...");
+		let db_engine = db::Engine::from_str(&config.db_engine)
+			.ok_or_message("Invalid `db_engine` value in configuration file")?;
 		let mut db_path = config.metadata_dir.clone();
-		let db = match config.db_engine.as_str() {
-			// ---- Sled DB ----
-			#[cfg(feature = "sled")]
-			"sled" => {
-				if config.metadata_fsync {
-					return Err(Error::Message(format!(
-						"`metadata_fsync = true` is not supported with the Sled database engine"
-					)));
-				}
+		match db_engine {
+			db::Engine::Sled => {
 				db_path.push("db");
-				info!("Opening Sled database at: {}", db_path.display());
-				let db = db::sled_adapter::sled::Config::default()
-					.path(&db_path)
-					.cache_capacity(config.sled_cache_capacity as u64)
-					.flush_every_ms(Some(config.sled_flush_every_ms))
-					.open()
-					.ok_or_message("Unable to open sled DB")?;
-				db::sled_adapter::SledDb::init(db)
 			}
-			#[cfg(not(feature = "sled"))]
-			"sled" => return Err(Error::Message("sled db not available in this build".into())),
-			// ---- Sqlite DB ----
-			#[cfg(feature = "sqlite")]
-			"sqlite" | "sqlite3" | "rusqlite" => {
+			db::Engine::Sqlite => {
 				db_path.push("db.sqlite");
-				info!("Opening Sqlite database at: {}", db_path.display());
-				let db = db::sqlite_adapter::rusqlite::Connection::open(db_path)
-					.and_then(|db| {
-						db.pragma_update(None, "journal_mode", &"WAL")?;
-						if config.metadata_fsync {
-							db.pragma_update(None, "synchronous", &"NORMAL")?;
-						} else {
-							db.pragma_update(None, "synchronous", &"OFF")?;
-						}
-						Ok(db)
-					})
-					.ok_or_message("Unable to open sqlite DB")?;
-				db::sqlite_adapter::SqliteDb::init(db)
 			}
-			#[cfg(not(feature = "sqlite"))]
-			"sqlite" | "sqlite3" | "rusqlite" => {
-				return Err(Error::Message(
-					"sqlite db not available in this build".into(),
-				))
-			}
-			// ---- LMDB DB ----
-			#[cfg(feature = "lmdb")]
-			"lmdb" | "heed" => {
+			db::Engine::Lmdb => {
 				db_path.push("db.lmdb");
-				info!("Opening LMDB database at: {}", db_path.display());
-				std::fs::create_dir_all(&db_path)
-					.ok_or_message("Unable to create LMDB data directory")?;
-				let map_size = match config.lmdb_map_size {
-					v if v == usize::default() => garage_db::lmdb_adapter::recommended_map_size(),
-					v => v - (v % 4096),
-				};
-
-				use db::lmdb_adapter::heed;
-				let mut env_builder = heed::EnvOpenOptions::new();
-				env_builder.max_dbs(100);
-				env_builder.max_readers(500);
-				env_builder.map_size(map_size);
-				unsafe {
-					env_builder.flag(heed::flags::Flags::MdbNoMetaSync);
-					if !config.metadata_fsync {
-						env_builder.flag(heed::flags::Flags::MdbNoSync);
-					}
-				}
-				let db = match env_builder.open(&db_path) {
-					Err(heed::Error::Io(e)) if e.kind() == std::io::ErrorKind::OutOfMemory => {
-						return Err(Error::Message(
-							"OutOfMemory error while trying to open LMDB database. This can happen \
-							if your operating system is not allowing you to use sufficient virtual \
-							memory address space. Please check that no limit is set (ulimit -v). \
-							You may also try to set a smaller `lmdb_map_size` configuration parameter. \
-							On 32-bit machines, you should probably switch to another database engine.".into()))
-					}
-					x => x.ok_or_message("Unable to open LMDB DB")?,
-				};
-				db::lmdb_adapter::LmdbDb::init(db)
 			}
-			#[cfg(not(feature = "lmdb"))]
-			"lmdb" | "heed" => return Err(Error::Message("lmdb db not available in this build".into())),
-			// ---- Unavailable DB engine ----
-			e => {
-				return Err(Error::Message(format!(
-					"Unsupported DB engine: {} (options: {})",
-					e,
-					vec![
-						#[cfg(feature = "sled")]
-						"sled",
-						#[cfg(feature = "sqlite")]
-						"sqlite",
-						#[cfg(feature = "lmdb")]
-						"lmdb",
-					]
-					.join(", ")
-				)));
-			}
+		}
+		let db_opt = db::OpenOpt {
+			fsync: config.metadata_fsync,
+			lmdb_map_size: match config.lmdb_map_size {
+				v if v == usize::default() => None,
+				v => Some(v),
+			},
+			sled_cache_capacity: config.sled_cache_capacity,
+			sled_flush_every_ms: config.sled_flush_every_ms,
 		};
+		let db = db::open_db(&db_path, db_engine, &db_opt)
+			.ok_or_message("Unable to open metadata db")?;
 
+		info!("Initializing RPC...");
 		let network_key = hex::decode(config.rpc_secret.as_ref().ok_or_message(
 			"rpc_secret value is missing, not present in config file or in environment",
 		)?)
