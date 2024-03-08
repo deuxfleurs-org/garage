@@ -33,9 +33,6 @@ pub async fn cli_command_dispatch(
 		Command::Key(ko) => {
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::KeyOperation(ko)).await
 		}
-		Command::Migrate(mo) => {
-			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::Migrate(mo)).await
-		}
 		Command::Repair(ro) => {
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::LaunchRepair(ro)).await
 		}

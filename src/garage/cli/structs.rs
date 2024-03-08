@@ -31,11 +31,6 @@ pub enum Command {
 	#[structopt(name = "key", version = garage_version())]
 	Key(KeyOperation),
 
-	/// Run migrations from previous Garage version
-	/// (DO NOT USE WITHOUT READING FULL DOCUMENTATION)
-	#[structopt(name = "migrate", version = garage_version())]
-	Migrate(MigrateOpt),
-
 	/// Start repair of node data on remote node
 	#[structopt(name = "repair", version = garage_version())]
 	Repair(RepairOpt),
@@ -443,23 +438,6 @@ pub struct KeyImportOpt {
 	/// Confirm key import
 	#[structopt(long = "yes")]
 	pub yes: bool,
-}
-
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
-pub struct MigrateOpt {
-	/// Confirm the launch of the migrate operation
-	#[structopt(long = "yes")]
-	pub yes: bool,
-
-	#[structopt(subcommand)]
-	pub what: MigrateWhat,
-}
-
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
-pub enum MigrateWhat {
-	/// Migrate buckets and permissions from v0.5.0
-	#[structopt(name = "buckets050", version = garage_version())]
-	Buckets050,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]

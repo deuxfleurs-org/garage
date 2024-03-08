@@ -17,7 +17,7 @@ pub const OBJECTS: &str = "objects";
 pub const UNFINISHED_UPLOADS: &str = "unfinished_uploads";
 pub const BYTES: &str = "bytes";
 
-mod v05 {
+mod v08 {
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
 	use std::collections::BTreeMap;
@@ -26,7 +26,7 @@ mod v05 {
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Object {
 		/// The bucket in which the object is stored, used as partition key
-		pub bucket: String,
+		pub bucket_id: Uuid,
 
 		/// The key at which the object is stored in its bucket, used as sorting key
 		pub key: String,
@@ -90,45 +90,6 @@ mod v05 {
 	}
 
 	impl garage_util::migrate::InitialFormat for Object {}
-}
-
-mod v08 {
-	use garage_util::data::Uuid;
-	use serde::{Deserialize, Serialize};
-
-	use super::v05;
-
-	pub use v05::{
-		ObjectVersion, ObjectVersionData, ObjectVersionHeaders, ObjectVersionMeta,
-		ObjectVersionState,
-	};
-
-	/// An object
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct Object {
-		/// The bucket in which the object is stored, used as partition key
-		pub bucket_id: Uuid,
-
-		/// The key at which the object is stored in its bucket, used as sorting key
-		pub key: String,
-
-		/// The list of currenty stored versions of the object
-		pub(super) versions: Vec<ObjectVersion>,
-	}
-
-	impl garage_util::migrate::Migrate for Object {
-		type Previous = v05::Object;
-
-		fn migrate(old: v05::Object) -> Object {
-			use garage_util::data::blake2sum;
-
-			Object {
-				bucket_id: blake2sum(old.bucket.as_bytes()),
-				key: old.key,
-				versions: old.versions,
-			}
-		}
-	}
 }
 
 mod v09 {
