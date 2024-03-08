@@ -1,11 +1,9 @@
 use core::ops::Bound;
 
 use std::borrow::BorrowMut;
-use std::marker::PhantomPinned;
-use std::pin::Pin;
-use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use ouroboros::self_referencing;
 use rusqlite::{params, Connection, Rows, Statement, Transaction};
 
 use crate::{
@@ -197,7 +195,7 @@ impl IDb for SqliteDb {
 
 		let tree = this.get_tree(tree)?;
 		let sql = format!("SELECT k, v FROM {} ORDER BY k ASC", tree);
-		DbValueIterator::make(this, &sql, [])
+		make_iterator(this, &sql, [])
 	}
 
 	fn iter_rev(&self, tree: usize) -> Result<ValueIter<'_>> {
@@ -207,7 +205,7 @@ impl IDb for SqliteDb {
 
 		let tree = this.get_tree(tree)?;
 		let sql = format!("SELECT k, v FROM {} ORDER BY k DESC", tree);
-		DbValueIterator::make(this, &sql, [])
+		make_iterator(this, &sql, [])
 	}
 
 	fn range<'r>(
@@ -230,7 +228,7 @@ impl IDb for SqliteDb {
 			.map(|x| x as &dyn rusqlite::ToSql)
 			.collect::<Vec<_>>();
 
-		DbValueIterator::make::<&[&dyn rusqlite::ToSql]>(this, &sql, params.as_ref())
+		make_iterator::<&[&dyn rusqlite::ToSql]>(this, &sql, params.as_ref())
 	}
 	fn range_rev<'r>(
 		&self,
@@ -252,7 +250,7 @@ impl IDb for SqliteDb {
 			.map(|x| x as &dyn rusqlite::ToSql)
 			.collect::<Vec<_>>();
 
-		DbValueIterator::make::<&[&dyn rusqlite::ToSql]>(this, &sql, params.as_ref())
+		make_iterator::<&[&dyn rusqlite::ToSql]>(this, &sql, params.as_ref())
 	}
 
 	// ----
@@ -372,12 +370,12 @@ impl<'a> ITx for SqliteTx<'a> {
 	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
 		let tree = self.get_tree(tree)?;
 		let sql = format!("SELECT k, v FROM {} ORDER BY k ASC", tree);
-		TxValueIterator::make(self, &sql, [])
+		make_tx_iterator(self, &sql, [])
 	}
 	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
 		let tree = self.get_tree(tree)?;
 		let sql = format!("SELECT k, v FROM {} ORDER BY k DESC", tree);
-		TxValueIterator::make(self, &sql, [])
+		make_tx_iterator(self, &sql, [])
 	}
 
 	fn range<'r>(
@@ -396,7 +394,7 @@ impl<'a> ITx for SqliteTx<'a> {
 			.map(|x| x as &dyn rusqlite::ToSql)
 			.collect::<Vec<_>>();
 
-		TxValueIterator::make::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
+		make_tx_iterator::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
 	}
 	fn range_rev<'r>(
 		&self,
@@ -414,77 +412,47 @@ impl<'a> ITx for SqliteTx<'a> {
 			.map(|x| x as &dyn rusqlite::ToSql)
 			.collect::<Vec<_>>();
 
-		TxValueIterator::make::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
+		make_tx_iterator::<&[&dyn rusqlite::ToSql]>(self, &sql, params.as_ref())
 	}
 }
 
 // ---- iterators outside transactions ----
 // complicated, they must hold the Statement and Row objects
-// therefore quite some unsafe code (it is a self-referential struct)
+// so we need a self_referencing struct
 
-struct DbValueIterator<'a> {
+// need to split in two because sequential mutable borrows are broken,
+// see https://github.com/someguynamedjosh/ouroboros/issues/100
+#[self_referencing]
+struct DbValueIterator1<'a> {
 	db: MutexGuard<'a, SqliteDbInner>,
-	stmt: Option<Statement<'a>>,
-	iter: Option<Rows<'a>>,
-	_pin: PhantomPinned,
+	#[borrows(mut db)]
+	#[covariant]
+	stmt: Statement<'this>,
 }
 
-impl<'a> DbValueIterator<'a> {
-	fn make<P: rusqlite::Params>(
-		db: MutexGuard<'a, SqliteDbInner>,
-		sql: &str,
-		args: P,
-	) -> Result<ValueIter<'a>> {
-		let res = DbValueIterator {
-			db,
-			stmt: None,
-			iter: None,
-			_pin: PhantomPinned,
-		};
-		let mut boxed = Box::pin(res);
-		trace!("make iterator with sql: {}", sql);
-
-		// This unsafe allows us to bypass lifetime checks
-		let db = unsafe { NonNull::from(&boxed.db).as_ref() };
-		let stmt = db.db.prepare(sql)?;
-
-		let mut_ref = Pin::as_mut(&mut boxed);
-		// This unsafe allows us to write in a field of the pinned struct
-		unsafe {
-			Pin::get_unchecked_mut(mut_ref).stmt = Some(stmt);
-		}
-
-		// This unsafe allows us to bypass lifetime checks
-		let stmt = unsafe { NonNull::from(&boxed.stmt).as_mut() };
-		let iter = stmt.as_mut().unwrap().query(args)?;
-
-		let mut_ref = Pin::as_mut(&mut boxed);
-		// This unsafe allows us to write in a field of the pinned struct
-		unsafe {
-			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
-		}
-
-		Ok(Box::new(DbValueIteratorPin(boxed)))
-	}
+#[self_referencing]
+struct DbValueIterator<'a> {
+	aux: DbValueIterator1<'a>,
+	#[borrows(mut aux)]
+	#[covariant]
+	iter: Rows<'this>,
 }
 
-impl<'a> Drop for DbValueIterator<'a> {
-	fn drop(&mut self) {
-		trace!("drop iter");
-		drop(self.iter.take());
-		drop(self.stmt.take());
-	}
+fn make_iterator<'a, P: rusqlite::Params>(
+	db: MutexGuard<'a, SqliteDbInner>,
+	sql: &str,
+	args: P,
+) -> Result<ValueIter<'a>> {
+	let aux = DbValueIterator1::try_new(db, |db| db.db.prepare(sql))?;
+	let res = DbValueIterator::try_new(aux, |aux| aux.with_stmt_mut(|stmt| stmt.query(args)))?;
+	Ok(Box::new(res))
 }
 
-struct DbValueIteratorPin<'a>(Pin<Box<DbValueIterator<'a>>>);
-
-impl<'a> Iterator for DbValueIteratorPin<'a> {
+impl<'a> Iterator for DbValueIterator<'a> {
 	type Item = Result<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let mut_ref = Pin::as_mut(&mut self.0);
-		// This unsafe allows us to mutably access the iterator field
-		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
+		let next = self.with_iter_mut(|iter| iter.next());
 		iter_next_row(next)
 	}
 }
@@ -493,57 +461,29 @@ impl<'a> Iterator for DbValueIteratorPin<'a> {
 // it's the same except we don't hold a mutex guard,
 // only a Statement and a Rows object
 
+#[self_referencing]
 struct TxValueIterator<'a> {
 	stmt: Statement<'a>,
-	iter: Option<Rows<'a>>,
-	_pin: PhantomPinned,
+	#[borrows(mut stmt)]
+	#[covariant]
+	iter: Rows<'this>,
 }
 
-impl<'a> TxValueIterator<'a> {
-	fn make<P: rusqlite::Params>(
-		tx: &'a SqliteTx<'a>,
-		sql: &str,
-		args: P,
-	) -> TxOpResult<TxValueIter<'a>> {
-		let stmt = tx.tx.prepare(sql)?;
-		let res = TxValueIterator {
-			stmt,
-			iter: None,
-			_pin: PhantomPinned,
-		};
-		let mut boxed = Box::pin(res);
-		trace!("make iterator with sql: {}", sql);
-
-		// This unsafe allows us to bypass lifetime checks
-		let stmt = unsafe { NonNull::from(&boxed.stmt).as_mut() };
-		let iter = stmt.query(args)?;
-
-		let mut_ref = Pin::as_mut(&mut boxed);
-		// This unsafe allows us to write in a field of the pinned struct
-		unsafe {
-			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
-		}
-
-		Ok(Box::new(TxValueIteratorPin(boxed)))
-	}
+fn make_tx_iterator<'a, P: rusqlite::Params>(
+	tx: &'a SqliteTx<'a>,
+	sql: &str,
+	args: P,
+) -> TxOpResult<TxValueIter<'a>> {
+	let stmt = tx.tx.prepare(sql)?;
+	let res = TxValueIterator::try_new(stmt, |stmt| stmt.query(args))?;
+	Ok(Box::new(res))
 }
 
-impl<'a> Drop for TxValueIterator<'a> {
-	fn drop(&mut self) {
-		trace!("drop iter");
-		drop(self.iter.take());
-	}
-}
-
-struct TxValueIteratorPin<'a>(Pin<Box<TxValueIterator<'a>>>);
-
-impl<'a> Iterator for TxValueIteratorPin<'a> {
+impl<'a> Iterator for TxValueIterator<'a> {
 	type Item = TxOpResult<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let mut_ref = Pin::as_mut(&mut self.0);
-		// This unsafe allows us to mutably access the iterator field
-		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
+		let next = self.with_iter_mut(|iter| iter.next());
 		iter_next_row(next)
 	}
 }

@@ -58,6 +58,7 @@ md-5 = "0.10"
 mktemp = "0.5"
 nix = { version = "0.27", default-features = false, features = ["fs"] }
 nom = "7.1"
+ouroboros = "0.18"
 parse_duration = "2.1"
 pin-project = "1.0.12"
 pnet_datalink = "0.34"
