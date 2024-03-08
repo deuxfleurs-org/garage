@@ -3,6 +3,7 @@ use core::ptr::NonNull;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
 use heed::types::ByteSlice;
@@ -319,12 +320,20 @@ where
 	where
 		F: FnOnce(&'a RoTxn<'a>) -> Result<I>,
 	{
-		let mut res = TxAndIterator { tx, iter: None };
+		let res = TxAndIterator { tx, iter: None };
+		let mut boxed = Box::pin(res);
 
-		let tx = unsafe { NonNull::from(&res.tx).as_ref() };
-		res.iter = Some(iterfun(tx)?);
+		// This unsafe allows us to bypass lifetime checks
+		let tx = unsafe { NonNull::from(&boxed.tx).as_ref() };
+		let iter = iterfun(tx)?;
 
-		Ok(Box::new(res))
+		let mut_ref = Pin::as_mut(&mut boxed);
+		// This unsafe allows us to write in a field of the pinned struct
+		unsafe {
+			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
+		}
+
+		Ok(Box::new(TxAndIteratorPin(boxed)))
 	}
 }
 
@@ -338,14 +347,21 @@ where
 	}
 }
 
-impl<'a, I> Iterator for TxAndIterator<'a, I>
+struct TxAndIteratorPin<'a, I>(Pin<Box<TxAndIterator<'a, I>>>)
+where
+	I: Iterator<Item = IteratorItem<'a>> + 'a;
+
+impl<'a, I> Iterator for TxAndIteratorPin<'a, I>
 where
 	I: Iterator<Item = IteratorItem<'a>> + 'a,
 {
 	type Item = Result<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		match self.iter.as_mut().unwrap().next() {
+		let mut_ref = Pin::as_mut(&mut self.0);
+		// This unsafe allows us to mutably access the iterator field
+		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
+		match next {
 			None => None,
 			Some(Err(e)) => Some(Err(e.into())),
 			Some(Ok((k, v))) => Some(Ok((k.to_vec(), v.to_vec()))),

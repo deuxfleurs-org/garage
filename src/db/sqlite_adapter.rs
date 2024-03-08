@@ -444,17 +444,23 @@ impl<'a> DbValueIterator<'a> {
 		let mut boxed = Box::pin(res);
 		trace!("make iterator with sql: {}", sql);
 
+		// This unsafe allows us to bypass lifetime checks
+		let db = unsafe { NonNull::from(&boxed.db).as_ref() };
+		let stmt = db.db.prepare(sql)?;
+
+		let mut_ref = Pin::as_mut(&mut boxed);
+		// This unsafe allows us to write in a field of the pinned struct
 		unsafe {
-			let db = NonNull::from(&boxed.db);
-			let stmt = db.as_ref().db.prepare(sql)?;
-
-			let mut_ref: Pin<&mut DbValueIterator<'a>> = Pin::as_mut(&mut boxed);
 			Pin::get_unchecked_mut(mut_ref).stmt = Some(stmt);
+		}
 
-			let mut stmt = NonNull::from(&boxed.stmt);
-			let iter = stmt.as_mut().as_mut().unwrap().query(args)?;
+		// This unsafe allows us to bypass lifetime checks
+		let stmt = unsafe { NonNull::from(&boxed.stmt).as_mut() };
+		let iter = stmt.as_mut().unwrap().query(args)?;
 
-			let mut_ref: Pin<&mut DbValueIterator<'a>> = Pin::as_mut(&mut boxed);
+		let mut_ref = Pin::as_mut(&mut boxed);
+		// This unsafe allows us to write in a field of the pinned struct
+		unsafe {
 			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
 		}
 
@@ -476,10 +482,9 @@ impl<'a> Iterator for DbValueIteratorPin<'a> {
 	type Item = Result<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let next = unsafe {
-			let mut_ref: Pin<&mut DbValueIterator<'a>> = Pin::as_mut(&mut self.0);
-			Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next()
-		};
+		let mut_ref = Pin::as_mut(&mut self.0);
+		// This unsafe allows us to mutably access the iterator field
+		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
 		let row = match next {
 			Err(e) => return Some(Err(e.into())),
 			Ok(None) => return None,
@@ -522,11 +527,13 @@ impl<'a> TxValueIterator<'a> {
 		let mut boxed = Box::pin(res);
 		trace!("make iterator with sql: {}", sql);
 
-		unsafe {
-			let mut stmt = NonNull::from(&boxed.stmt);
-			let iter = stmt.as_mut().query(args)?;
+		// This unsafe allows us to bypass lifetime checks
+		let stmt = unsafe { NonNull::from(&boxed.stmt).as_mut() };
+		let iter = stmt.query(args)?;
 
-			let mut_ref: Pin<&mut TxValueIterator<'a>> = Pin::as_mut(&mut boxed);
+		let mut_ref = Pin::as_mut(&mut boxed);
+		// This unsafe allows us to write in a field of the pinned struct
+		unsafe {
 			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
 		}
 
@@ -547,10 +554,9 @@ impl<'a> Iterator for TxValueIteratorPin<'a> {
 	type Item = TxOpResult<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let next = unsafe {
-			let mut_ref: Pin<&mut TxValueIterator<'a>> = Pin::as_mut(&mut self.0);
-			Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next()
-		};
+		let mut_ref = Pin::as_mut(&mut self.0);
+		// This unsafe allows us to mutably access the iterator field
+		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
 		let row = match next {
 			Err(e) => return Some(Err(e.into())),
 			Ok(None) => return None,
