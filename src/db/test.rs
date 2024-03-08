@@ -91,17 +91,6 @@ fn test_lmdb_db() {
 }
 
 #[test]
-#[cfg(feature = "sled")]
-fn test_sled_db() {
-	use crate::sled_adapter::SledDb;
-
-	let path = mktemp::Temp::new_dir().unwrap();
-	let db = SledDb::init(sled::open(path.to_path_buf()).unwrap());
-	test_suite(db);
-	drop(path);
-}
-
-#[test]
 #[cfg(feature = "sqlite")]
 fn test_sqlite_db() {
 	use crate::sqlite_adapter::SqliteDb;

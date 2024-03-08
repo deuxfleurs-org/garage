@@ -292,7 +292,7 @@ with average object size ranging from 50 KB to 150 KB.
 As such, your Garage cluster should be configured appropriately for good performance:
 
 - use Garage v0.8.0 or higher with the [LMDB database engine](@documentation/reference-manual/configuration.md#db-engine-since-v0-8-0).
-  With the default Sled database engine, your database could quickly end up taking tens of GB of disk space.
+  Older versions of Garage used the Sled database engine which had issues, such as databases quickly ending up taking tens of GB of disk space.
 - the Garage database should be stored on a SSD
 
 ### Creating your bucket

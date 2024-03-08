@@ -334,9 +334,9 @@ impl<F: TableSchema, R: TableReplication> Worker for GcWorker<F, R> {
 	}
 }
 
-/// An entry stored in the gc_todo Sled tree associated with the table
+/// An entry stored in the gc_todo db tree associated with the table
 /// Contains helper function for parsing, saving, and removing
-/// such entry in Sled
+/// such entry in the db
 ///
 /// Format of an entry:
 /// - key =    8 bytes: timestamp of tombstone
@@ -353,7 +353,7 @@ pub(crate) struct GcTodoEntry {
 }
 
 impl GcTodoEntry {
-	/// Creates a new GcTodoEntry (not saved in Sled) from its components:
+	/// Creates a new GcTodoEntry (not saved in the db) from its components:
 	/// the key of an entry in the table, and the hash of the associated
 	/// serialized value
 	pub(crate) fn new(key: Vec<u8>, value_hash: Hash) -> Self {

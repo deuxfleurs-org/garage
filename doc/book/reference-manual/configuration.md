@@ -20,8 +20,6 @@ db_engine = "lmdb"
 
 block_size = "1M"
 
-sled_cache_capacity = "128MiB"
-sled_flush_every_ms = 2000
 lmdb_map_size = "1T"
 
 compression_level = 1
@@ -96,9 +94,7 @@ Top-level configuration options:
 [`rpc_bind_addr`](#rpc_bind_addr),
 [`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
-[`rpc_secret`/`rpc_secret_file`](#rpc_secret),
-[`sled_cache_capacity`](#sled_cache_capacity),
-[`sled_flush_every_ms`](#sled_flush_every_ms).
+[`rpc_secret`/`rpc_secret_file`](#rpc_secret).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
@@ -271,19 +267,15 @@ Since `v0.8.0`, Garage can use alternative storage backends as follows:
 
 | DB engine | `db_engine` value | Database path |
 | --------- | ----------------- | ------------- |
-| [LMDB](https://www.lmdb.tech) (default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
-| [Sled](https://sled.rs) (default up to `v0.8.0`) | `"sled"` | `<metadata_dir>/db/` |
-| [Sqlite](https://sqlite.org) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+| [LMDB](https://www.lmdb.tech) (since `v0.8.0`, default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [Sqlite](https://sqlite.org) (since `v0.8.0`) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+| [Sled](https://sled.rs) (old default, removed since `v1.0`) | `"sled"` | `<metadata_dir>/db/` |
 
-Sled was the only database engine up to Garage v0.7.0. Performance issues and
-API limitations of Sled prompted the addition of alternative engines in v0.8.0.
-Since v0.9.0, LMDB is the default engine instead of Sled, and Sled is
-deprecated. We plan to remove Sled in Garage v1.0.
+Sled was supported until Garage v0.9.x, and was removed in Garage v1.0.
+You can still use an older binary of Garage (e.g. v0.9.3) to migrate
+old Sled metadata databases to another engine.
 
 Performance characteristics of the different DB engines are as follows:
-
-- Sled: tends to produce large data files and also has performance issues,
-  especially when the metadata folder is on a traditional HDD and not on SSD.
 
 - LMDB: the recommended database engine on 64-bit systems, much more
   space-efficient and slightly faster. Note that the data format of LMDB is not
@@ -333,7 +325,6 @@ Here is how this option impacts the different database engines:
 
 | Database | `metadata_fsync = false` (default) | `metadata_fsync = true`       |
 |----------|------------------------------------|-------------------------------|
-| Sled     | default options                    | *unsupported*                 |
 | Sqlite   | `PRAGMA synchronous = OFF`         | `PRAGMA synchronous = NORMAL` |
 | LMDB     | `MDB_NOMETASYNC` + `MDB_NOSYNC`    | `MDB_NOMETASYNC`              |
 
@@ -366,21 +357,6 @@ installation, only files newly uploaded will be affected. Previously uploaded
 files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
-
-#### `sled_cache_capacity` {#sled_cache_capacity}
-
-This parameter can be used to tune the capacity of the cache used by
-[sled](https://sled.rs), the database Garage uses internally to store metadata.
-Tune this to fit the RAM you wish to make available to your Garage instance.
-This value has a conservative default (128MB) so that Garage doesn't use too much
-RAM by default, but feel free to increase this for higher performance.
-
-#### `sled_flush_every_ms` {#sled_flush_every_ms}
-
-This parameters can be used to tune the flushing interval of sled.
-Increase this if sled is thrashing your SSD, at the risk of losing more data in case
-of a power outage (though this should not matter much as data is replicated on other
-nodes). The default value, 2000ms, should be appropriate for most use cases.
 
 #### `lmdb_map_size` {#lmdb_map_size}
 

@@ -118,9 +118,6 @@ impl Garage {
 			.ok_or_message("Invalid `db_engine` value in configuration file")?;
 		let mut db_path = config.metadata_dir.clone();
 		match db_engine {
-			db::Engine::Sled => {
-				db_path.push("db");
-			}
 			db::Engine::Sqlite => {
 				db_path.push("db.sqlite");
 			}
@@ -134,8 +131,6 @@ impl Garage {
 				v if v == usize::default() => None,
 				v => Some(v),
 			},
-			sled_cache_capacity: config.sled_cache_capacity,
-			sled_flush_every_ms: config.sled_flush_every_ms,
 		};
 		let db = db::open_db(&db_path, db_engine, &db_opt)
 			.ok_or_message("Unable to open metadata db")?;

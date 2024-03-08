@@ -31,14 +31,14 @@ pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 	// - value = the hash of the full serialized item, if present,
 	//			 or an empty vec if item is absent (deleted)
 	// Fields in data:
-	//		pub(crate) merkle_todo: sled::Tree,
+	//		pub(crate) merkle_todo: db::Tree,
 	//		pub(crate) merkle_todo_notify: Notify,
 
 	// Content of the merkle tree: items where
 	// - key = .bytes() for MerkleNodeKey
 	// - value = serialization of a MerkleNode, assumed to be MerkleNode::empty if not found
 	// Field in data:
-	//		pub(crate) merkle_tree: sled::Tree,
+	//		pub(crate) merkle_tree: db::Tree,
 	empty_node_hash: Hash,
 }
 

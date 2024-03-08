@@ -97,7 +97,7 @@ delete a tombstone, the following condition has to be met:
   superseeded by the tombstone. This ensures that deleting the tombstone is
   safe and that no deleted value will come back in the system.
 
-Garage makes use of Sled's atomic operations (such as compare-and-swap and
+Garage uses atomic database operations (such as compare-and-swap and
 transactions) to ensure that only tombstones that have been correctly
 propagated to other nodes are ever deleted from the local entry tree.
 

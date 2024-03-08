@@ -180,7 +180,7 @@ impl BlockResyncManager {
 	// deleted once the garbage collection delay has passed.
 	//
 	// Here are some explanations on how the resync queue works.
-	// There are two Sled trees that are used to have information
+	// There are two db trees that are used to have information
 	// about the status of blocks that need to be resynchronized:
 	//
 	// - resync.queue: a tree that is ordered first by a timestamp
@@ -541,9 +541,9 @@ impl Worker for ResyncWorker {
 				Ok(WorkerState::Idle)
 			}
 			Err(e) => {
-				// The errors that we have here are only Sled errors
+				// The errors that we have here are only db errors
 				// We don't really know how to handle them so just ¯\_(ツ)_/¯
-				// (there is kind of an assumption that Sled won't error on us,
+				// (there is kind of an assumption that the db won't error on us,
 				// if it does there is not much we can do -- TODO should we just panic?)
 				// Here we just give the error to the worker manager,
 				// it will print it to the logs and increment a counter

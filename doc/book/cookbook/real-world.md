@@ -70,9 +70,8 @@ to store 2 TB of data in total.
 
 - If you only have an HDD and no SSD, it's fine to put your metadata alongside the data
   on the same drive. Having lots of RAM for your kernel to cache the metadata will
-  help a lot with performance.  Make sure to use the LMDB database engine,
-  instead of Sled, which suffers from quite bad performance degradation on HDDs.
-  Sled is still the default for legacy reasons, but is not recommended anymore.
+  help a lot with performance.  The default LMDB database engine is the most tested
+  and has good performance.
 
 - For the metadata storage, Garage does not do checksumming and integrity
   verification on its own. If you are afraid of bitrot/data corruption,

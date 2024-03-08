@@ -73,7 +73,6 @@ Example response body:
   "garageVersion": "v0.10.0",
   "garageFeatures": [
     "k2v",
-    "sled",
     "lmdb",
     "sqlite",
     "metrics",

@@ -40,7 +40,6 @@ in {
       features = [
         "garage/bundled-libs"
         "garage/k2v"
-        "garage/sled"
         "garage/lmdb"
         "garage/sqlite"
       ];
