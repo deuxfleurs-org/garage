@@ -553,10 +553,6 @@ pub struct StatsOpt {
 	#[structopt(short = "a", long = "all-nodes")]
 	pub all_nodes: bool,
 
-	/// Gather detailed statistics (this can be long)
-	#[structopt(short = "d", long = "detailed")]
-	pub detailed: bool,
-
 	/// Don't show global cluster stats (internal use in RPC)
 	#[structopt(skip)]
 	#[serde(default)]

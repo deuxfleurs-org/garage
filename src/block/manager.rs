@@ -378,11 +378,6 @@ impl BlockManager {
 		Ok(self.rc.rc.len()?)
 	}
 
-	/// Get number of items in the refcount table
-	pub fn rc_fast_len(&self) -> Result<Option<usize>, Error> {
-		Ok(self.rc.rc.fast_len()?)
-	}
-
 	/// Send command to start/stop/manager scrub worker
 	pub async fn send_scrub_command(&self, cmd: ScrubWorkerCommand) -> Result<(), Error> {
 		let tx = self.tx_scrub_command.load();
@@ -398,7 +393,7 @@ impl BlockManager {
 
 	/// List all resync errors
 	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
-		let mut blocks = Vec::with_capacity(self.resync.errors.len());
+		let mut blocks = Vec::with_capacity(self.resync.errors.len()?);
 		for ent in self.resync.errors.iter()? {
 			let (hash, cnt) = ent?;
 			let cnt = ErrorCounter::decode(&cnt);

@@ -121,10 +121,6 @@ impl IDb for LmdbDb {
 		Ok(tree.len(&tx)?.try_into().unwrap())
 	}
 
-	fn fast_len(&self, tree: usize) -> Result<Option<usize>> {
-		Ok(Some(self.len(tree)?))
-	}
-
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>> {
 		let tree = self.get_tree(tree)?;
 		let mut tx = self.db.write_txn()?;
