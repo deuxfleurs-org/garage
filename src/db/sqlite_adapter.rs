@@ -485,20 +485,7 @@ impl<'a> Iterator for DbValueIteratorPin<'a> {
 		let mut_ref = Pin::as_mut(&mut self.0);
 		// This unsafe allows us to mutably access the iterator field
 		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
-		let row = match next {
-			Err(e) => return Some(Err(e.into())),
-			Ok(None) => return None,
-			Ok(Some(r)) => r,
-		};
-		let k = match row.get::<_, Vec<u8>>(0) {
-			Err(e) => return Some(Err(e.into())),
-			Ok(x) => x,
-		};
-		let v = match row.get::<_, Vec<u8>>(1) {
-			Err(e) => return Some(Err(e.into())),
-			Ok(y) => y,
-		};
-		Some(Ok((k, v)))
+		iter_next_row(next)
 	}
 }
 
@@ -557,20 +544,7 @@ impl<'a> Iterator for TxValueIteratorPin<'a> {
 		let mut_ref = Pin::as_mut(&mut self.0);
 		// This unsafe allows us to mutably access the iterator field
 		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
-		let row = match next {
-			Err(e) => return Some(Err(e.into())),
-			Ok(None) => return None,
-			Ok(Some(r)) => r,
-		};
-		let k = match row.get::<_, Vec<u8>>(0) {
-			Err(e) => return Some(Err(e.into())),
-			Ok(x) => x,
-		};
-		let v = match row.get::<_, Vec<u8>>(1) {
-			Err(e) => return Some(Err(e.into())),
-			Ok(y) => y,
-		};
-		Some(Ok((k, v)))
+		iter_next_row(next)
 	}
 }
 
@@ -613,4 +587,26 @@ fn bounds_sql<'r>(low: Bound<&'r [u8]>, high: Bound<&'r [u8]>) -> (String, Vec<V
 	}
 
 	(sql, params)
+}
+
+fn iter_next_row<E>(
+	next_row: rusqlite::Result<Option<&rusqlite::Row>>,
+) -> Option<std::result::Result<(Value, Value), E>>
+where
+	E: From<rusqlite::Error>,
+{
+	let row = match next_row {
+		Err(e) => return Some(Err(e.into())),
+		Ok(None) => return None,
+		Ok(Some(r)) => r,
+	};
+	let k = match row.get::<_, Vec<u8>>(0) {
+		Err(e) => return Some(Err(e.into())),
+		Ok(x) => x,
+	};
+	let v = match row.get::<_, Vec<u8>>(1) {
+		Err(e) => return Some(Err(e.into())),
+		Ok(y) => y,
+	};
+	Some(Ok((k, v)))
 }
