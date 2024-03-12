@@ -11,7 +11,7 @@ pub struct ConvertDbOpt {
 	/// https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db-engine-since-v0-8-0)
 	#[structopt(short = "i")]
 	input_path: PathBuf,
-	/// Input database engine (sled, lmdb or sqlite; limited by db engines
+	/// Input database engine (lmdb or sqlite; limited by db engines
 	/// enabled in this build)
 	#[structopt(short = "a")]
 	input_engine: Engine,

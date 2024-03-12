@@ -42,8 +42,7 @@ tokio.workspace = true
 opentelemetry.workspace = true
 
 [features]
-default = [ "sled", "lmdb", "sqlite" ]
+default = [ "lmdb", "sqlite" ]
 k2v = [ "garage_util/k2v" ]
 lmdb = [ "garage_db/lmdb" ]
-sled = [ "garage_db/sled" ]
 sqlite = [ "garage_db/sqlite" ]

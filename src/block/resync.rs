@@ -15,7 +15,6 @@ use opentelemetry::{
 };
 
 use garage_db as db;
-use garage_db::counted_tree_hack::CountedTree;
 
 use garage_util::background::*;
 use garage_util::data::*;
@@ -47,9 +46,9 @@ pub(crate) const MAX_RESYNC_WORKERS: usize = 8;
 const INITIAL_RESYNC_TRANQUILITY: u32 = 2;
 
 pub struct BlockResyncManager {
-	pub(crate) queue: CountedTree,
+	pub(crate) queue: db::Tree,
 	pub(crate) notify: Arc<Notify>,
-	pub(crate) errors: CountedTree,
+	pub(crate) errors: db::Tree,
 
 	busy_set: BusySet,
 
@@ -90,12 +89,10 @@ impl BlockResyncManager {
 		let queue = db
 			.open_tree("block_local_resync_queue")
 			.expect("Unable to open block_local_resync_queue tree");
-		let queue = CountedTree::new(queue).expect("Could not count block_local_resync_queue");
 
 		let errors = db
 			.open_tree("block_local_resync_errors")
 			.expect("Unable to open block_local_resync_errors tree");
-		let errors = CountedTree::new(errors).expect("Could not count block_local_resync_errors");
 
 		let persister = PersisterShared::new(&system.metadata_dir, "resync_cfg");
 
@@ -110,16 +107,12 @@ impl BlockResyncManager {
 
 	/// Get lenght of resync queue
 	pub fn queue_len(&self) -> Result<usize, Error> {
-		// This currently can't return an error because the CountedTree hack
-		// doesn't error on .len(), but this will change when we remove the hack
-		// (hopefully someday!)
-		Ok(self.queue.len())
+		Ok(self.queue.len()?)
 	}
 
 	/// Get number of blocks that have an error
 	pub fn errors_len(&self) -> Result<usize, Error> {
-		// (see queue_len comment)
-		Ok(self.errors.len())
+		Ok(self.errors.len()?)
 	}
 
 	/// Clear the error counter for a block and put it in queue immediately
@@ -180,7 +173,7 @@ impl BlockResyncManager {
 	// deleted once the garbage collection delay has passed.
 	//
 	// Here are some explanations on how the resync queue works.
-	// There are two Sled trees that are used to have information
+	// There are two db trees that are used to have information
 	// about the status of blocks that need to be resynchronized:
 	//
 	// - resync.queue: a tree that is ordered first by a timestamp
@@ -541,9 +534,9 @@ impl Worker for ResyncWorker {
 				Ok(WorkerState::Idle)
 			}
 			Err(e) => {
-				// The errors that we have here are only Sled errors
+				// The errors that we have here are only db errors
 				// We don't really know how to handle them so just ¯\_(ツ)_/¯
-				// (there is kind of an assumption that Sled won't error on us,
+				// (there is kind of an assumption that the db won't error on us,
 				// if it does there is not much we can do -- TODO should we just panic?)
 				// Here we just give the error to the worker manager,
 				// it will print it to the logs and increment a counter

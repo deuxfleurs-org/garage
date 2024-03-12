@@ -18,13 +18,12 @@ tracing.workspace = true
 
 heed = { workspace = true, optional = true }
 rusqlite = { workspace = true, optional = true }
-sled = { workspace = true, optional = true }
 
 [dev-dependencies]
 mktemp.workspace = true
 
 [features]
-default = [ "sled", "lmdb", "sqlite" ]
+default = [ "lmdb", "sqlite" ]
 bundled-libs = [ "rusqlite?/bundled" ]
 lmdb = [ "heed" ]
 sqlite = [ "rusqlite" ]

@@ -80,12 +80,11 @@ k2v-client.workspace = true
 
 
 [features]
-default = [ "bundled-libs", "metrics", "sled", "lmdb", "sqlite", "k2v" ]
+default = [ "bundled-libs", "metrics", "lmdb", "sqlite", "k2v" ]
 
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
 
-# Database engines, Sled is still our default even though we don't like it
-sled = [ "garage_model/sled" ]
+# Database engines
 lmdb = [ "garage_model/lmdb" ]
 sqlite = [ "garage_model/sqlite" ]
 

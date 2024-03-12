@@ -121,13 +121,7 @@ impl Worker for LifecycleWorker {
 				mpu_aborted,
 				..
 			} => {
-				let n_objects = self
-					.garage
-					.object_table
-					.data
-					.store
-					.fast_len()
-					.unwrap_or(None);
+				let n_objects = self.garage.object_table.data.store.len().ok();
 				let progress = match n_objects {
 					None => "...".to_string(),
 					Some(total) => format!(

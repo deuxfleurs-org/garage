@@ -197,11 +197,11 @@ impl AdminRpcHandler {
 
 		// Gather table statistics
 		let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tGcTodo".into()];
-		table.push(self.gather_table_stats(&self.garage.bucket_table, opt.detailed)?);
-		table.push(self.gather_table_stats(&self.garage.key_table, opt.detailed)?);
-		table.push(self.gather_table_stats(&self.garage.object_table, opt.detailed)?);
-		table.push(self.gather_table_stats(&self.garage.version_table, opt.detailed)?);
-		table.push(self.gather_table_stats(&self.garage.block_ref_table, opt.detailed)?);
+		table.push(self.gather_table_stats(&self.garage.bucket_table)?);
+		table.push(self.gather_table_stats(&self.garage.key_table)?);
+		table.push(self.gather_table_stats(&self.garage.object_table)?);
+		table.push(self.gather_table_stats(&self.garage.version_table)?);
+		table.push(self.gather_table_stats(&self.garage.block_ref_table)?);
 		write!(
 			&mut ret,
 			"\nTable stats:\n{}",
@@ -211,15 +211,7 @@ impl AdminRpcHandler {
 
 		// Gather block manager statistics
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
-		let rc_len = if opt.detailed {
-			self.garage.block_manager.rc_len()?.to_string()
-		} else {
-			self.garage
-				.block_manager
-				.rc_fast_len()?
-				.map(|x| x.to_string())
-				.unwrap_or_else(|| "NC".into())
-		};
+		let rc_len = self.garage.block_manager.rc_len()?.to_string();
 
 		writeln!(
 			&mut ret,
@@ -239,10 +231,6 @@ impl AdminRpcHandler {
 			self.garage.block_manager.resync.errors_len()?
 		)
 		.unwrap();
-
-		if !opt.detailed {
-			writeln!(&mut ret, "\nIf values are missing above (marked as NC), consider adding the --detailed flag (this will be slow).").unwrap();
-		}
 
 		if !opt.skip_global {
 			write!(&mut ret, "\n{}", self.gather_cluster_stats()).unwrap();
@@ -345,34 +333,13 @@ impl AdminRpcHandler {
 		ret
 	}
 
-	fn gather_table_stats<F, R>(
-		&self,
-		t: &Arc<Table<F, R>>,
-		detailed: bool,
-	) -> Result<String, Error>
+	fn gather_table_stats<F, R>(&self, t: &Arc<Table<F, R>>) -> Result<String, Error>
 	where
 		F: TableSchema + 'static,
 		R: TableReplication + 'static,
 	{
-		let (data_len, mkl_len) = if detailed {
-			(
-				t.data.store.len().map_err(GarageError::from)?.to_string(),
-				t.merkle_updater.merkle_tree_len()?.to_string(),
-			)
-		} else {
-			(
-				t.data
-					.store
-					.fast_len()
-					.map_err(GarageError::from)?
-					.map(|x| x.to_string())
-					.unwrap_or_else(|| "NC".into()),
-				t.merkle_updater
-					.merkle_tree_fast_len()?
-					.map(|x| x.to_string())
-					.unwrap_or_else(|| "NC".into()),
-			)
-		};
+		let data_len = t.data.store.len().map_err(GarageError::from)?.to_string();
+		let mkl_len = t.merkle_updater.merkle_tree_len()?.to_string();
 
 		Ok(format!(
 			"  {}\t{}\t{}\t{}\t{}",

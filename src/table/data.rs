@@ -6,7 +6,6 @@ use serde_bytes::ByteBuf;
 use tokio::sync::Notify;
 
 use garage_db as db;
-use garage_db::counted_tree_hack::CountedTree;
 
 use garage_util::data::*;
 use garage_util::error::*;
@@ -36,7 +35,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) insert_queue: db::Tree,
 	pub(crate) insert_queue_notify: Arc<Notify>,
 
-	pub(crate) gc_todo: CountedTree,
+	pub(crate) gc_todo: db::Tree,
 
 	pub(crate) metrics: TableMetrics,
 }
@@ -61,7 +60,6 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let gc_todo = db
 			.open_tree(format!("{}:gc_todo_v2", F::TABLE_NAME))
 			.expect("Unable to open GC DB tree");
-		let gc_todo = CountedTree::new(gc_todo).expect("Cannot count gc_todo_v2");
 
 		let metrics = TableMetrics::new(
 			F::TABLE_NAME,
@@ -370,6 +368,6 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	}
 
 	pub fn gc_todo_len(&self) -> Result<usize, Error> {
-		Ok(self.gc_todo.len())
+		Ok(self.gc_todo.len()?)
 	}
 }

@@ -87,19 +87,9 @@ pub struct Config {
 	pub kubernetes_discovery: Option<KubernetesDiscoveryConfig>,
 
 	// -- DB
-	/// Database engine to use for metadata (options: sled, sqlite, lmdb)
+	/// Database engine to use for metadata (options: sqlite, lmdb)
 	#[serde(default = "default_db_engine")]
 	pub db_engine: String,
-
-	/// Sled cache size, in bytes
-	#[serde(
-		deserialize_with = "deserialize_capacity",
-		default = "default_sled_cache_capacity"
-	)]
-	pub sled_cache_capacity: usize,
-	/// Sled flush interval in milliseconds
-	#[serde(default = "default_sled_flush_every_ms")]
-	pub sled_flush_every_ms: u64,
 
 	/// LMDB map size
 	#[serde(deserialize_with = "deserialize_capacity", default)]
@@ -244,13 +234,6 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 
 fn default_db_engine() -> String {
 	"lmdb".into()
-}
-
-fn default_sled_cache_capacity() -> usize {
-	128 * 1024 * 1024
-}
-fn default_sled_flush_every_ms() -> u64 {
-	2000
 }
 
 fn default_block_size() -> usize {

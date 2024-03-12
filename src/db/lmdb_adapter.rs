@@ -3,6 +3,7 @@ use core::ptr::NonNull;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
 use heed::types::ByteSlice;
@@ -119,10 +120,6 @@ impl IDb for LmdbDb {
 		let tree = self.get_tree(tree)?;
 		let tx = self.db.read_txn()?;
 		Ok(tree.len(&tx)?.try_into().unwrap())
-	}
-
-	fn fast_len(&self, tree: usize) -> Result<Option<usize>> {
-		Ok(Some(self.len(tree)?))
 	}
 
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>> {
@@ -242,8 +239,9 @@ impl<'a> ITx for LmdbTx<'a> {
 			None => Ok(None),
 		}
 	}
-	fn len(&self, _tree: usize) -> TxOpResult<usize> {
-		unimplemented!(".len() in transaction not supported with LMDB backend")
+	fn len(&self, tree: usize) -> TxOpResult<usize> {
+		let tree = self.get_tree(tree)?;
+		Ok(tree.len(&self.tx)? as usize)
 	}
 
 	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>> {
@@ -258,33 +256,48 @@ impl<'a> ITx for LmdbTx<'a> {
 		tree.delete(&mut self.tx, key)?;
 		Ok(old_val)
 	}
-
-	fn iter(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
+		let tree = *self.get_tree(tree)?;
+		tree.clear(&mut self.tx)?;
+		Ok(())
 	}
-	fn iter_rev(&self, _tree: usize) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+
+	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(tree.iter(&self.tx)?.map(tx_iter_item)))
+	}
+	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(tree.rev_iter(&self.tx)?.map(tx_iter_item)))
 	}
 
 	fn range<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(
+			tree.range(&self.tx, &(low, high))?.map(tx_iter_item),
+		))
 	}
 	fn range_rev<'r>(
 		&self,
-		_tree: usize,
-		_low: Bound<&'r [u8]>,
-		_high: Bound<&'r [u8]>,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
 	) -> TxOpResult<TxValueIter<'_>> {
-		unimplemented!("Iterators in transactions not supported with LMDB backend");
+		let tree = *self.get_tree(tree)?;
+		Ok(Box::new(
+			tree.rev_range(&self.tx, &(low, high))?.map(tx_iter_item),
+		))
 	}
 }
 
-// ----
+// ---- iterators outside transactions ----
+// complicated, they must hold the transaction object
+// therefore a bit of unsafe code (it is a self-referential struct)
 
 type IteratorItem<'a> = heed::Result<(
 	<ByteSlice as BytesDecode<'a>>::DItem,
@@ -307,12 +320,20 @@ where
 	where
 		F: FnOnce(&'a RoTxn<'a>) -> Result<I>,
 	{
-		let mut res = TxAndIterator { tx, iter: None };
+		let res = TxAndIterator { tx, iter: None };
+		let mut boxed = Box::pin(res);
 
-		let tx = unsafe { NonNull::from(&res.tx).as_ref() };
-		res.iter = Some(iterfun(tx)?);
+		// This unsafe allows us to bypass lifetime checks
+		let tx = unsafe { NonNull::from(&boxed.tx).as_ref() };
+		let iter = iterfun(tx)?;
 
-		Ok(Box::new(res))
+		let mut_ref = Pin::as_mut(&mut boxed);
+		// This unsafe allows us to write in a field of the pinned struct
+		unsafe {
+			Pin::get_unchecked_mut(mut_ref).iter = Some(iter);
+		}
+
+		Ok(Box::new(TxAndIteratorPin(boxed)))
 	}
 }
 
@@ -321,18 +342,26 @@ where
 	I: Iterator<Item = IteratorItem<'a>> + 'a,
 {
 	fn drop(&mut self) {
+		// ensure the iterator is dropped before the RoTxn it references
 		drop(self.iter.take());
 	}
 }
 
-impl<'a, I> Iterator for TxAndIterator<'a, I>
+struct TxAndIteratorPin<'a, I>(Pin<Box<TxAndIterator<'a, I>>>)
+where
+	I: Iterator<Item = IteratorItem<'a>> + 'a;
+
+impl<'a, I> Iterator for TxAndIteratorPin<'a, I>
 where
 	I: Iterator<Item = IteratorItem<'a>> + 'a,
 {
 	type Item = Result<(Value, Value)>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		match self.iter.as_mut().unwrap().next() {
+		let mut_ref = Pin::as_mut(&mut self.0);
+		// This unsafe allows us to mutably access the iterator field
+		let next = unsafe { Pin::get_unchecked_mut(mut_ref).iter.as_mut()?.next() };
+		match next {
 			None => None,
 			Some(Err(e)) => Some(Err(e.into())),
 			Some(Ok((k, v))) => Some(Ok((k.to_vec(), v.to_vec()))),
@@ -340,7 +369,16 @@ where
 	}
 }
 
-// ----
+// ---- iterators within transactions ----
+
+fn tx_iter_item<'a>(
+	item: std::result::Result<(&'a [u8], &'a [u8]), heed::Error>,
+) -> TxOpResult<(Vec<u8>, Vec<u8>)> {
+	item.map(|(k, v)| (k.to_vec(), v.to_vec()))
+		.map_err(|e| TxOpError(Error::from(e)))
+}
+
+// ---- utility ----
 
 #[cfg(target_pointer_width = "64")]
 pub fn recommended_map_size() -> usize {
