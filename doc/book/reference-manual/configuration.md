@@ -264,18 +264,31 @@ Performance characteristics of the different DB engines are as follows:
 - Sled: tends to produce large data files and also has performance issues,
   especially when the metadata folder is on a traditional HDD and not on SSD.
 
-- LMDB: the recommended database engine on 64-bit systems, much more
-  space-efficient and slightly faster. Note that the data format of LMDB is not
-  portable between architectures, so for instance the Garage database of an
-  x86-64 node cannot be moved to an ARM64 node. Also note that, while LMDB can
-  technically be used on 32-bit systems, this will limit your node to very
-  small database sizes due to how LMDB works; it is therefore not recommended.
+- LMDB: the recommended database engine for high-performance distributed
+  clusters, much more space-efficient and significantly faster. LMDB works very
+  well, but is known to have the following limitations:
+
+  - The data format of LMDB is not portable between architectures, so for
+    instance the Garage database of an x86-64 node cannot be moved to an ARM64
+    node.
+
+  - While LMDB can technically be used on 32-bit systems, this will limit your
+    node to very small database sizes due to how LMDB works; it is therefore
+    not recommended.
+
+  - Several users have reported corrupted LMDB database files after an unclean
+    shutdown (e.g. a power outage). This situation can generally be recovered
+    from if your cluster is geo-replicated (by rebuilding your metadata db from
+    other nodes), or if you have saved regular snapshots at the filesystem
+    level.
 
 - Sqlite: Garage supports Sqlite as an alternative storage backend for
-  metadata, and although it has not been tested as much, it is expected to work
-  satisfactorily.  Since Garage v0.9.0, performance issues have largely been
-  fixed by allowing for a no-fsync mode (see `metadata_fsync`). Sqlite does not
-  have the database size limitation of LMDB on 32-bit systems.
+  metadata, which does not have the issues listed above for LMDB.
+  On versions 0.8.x and earlier, Sqlite should be avoided due to abysmal
+  performance, which was fixed with the addition of `metadata_fsync`.
+  Sqlite is still probably slower than LMDB due to the way we use it,
+  so it is not the best choice for high-performance storage clusters,
+  but it should work fine in many cases.
 
 It is possible to convert Garage's metadata directory from one format to another
 using the `garage convert-db` command, which should be used as follows:
@@ -302,7 +315,7 @@ Using this option reduces the risk of simultaneous metadata corruption on severa
 cluster nodes, which could lead to data loss.
 
 If multi-site replication is used, this option is most likely not necessary, as
-it is extremely unlikely that two nodes in different locations will have a 
+it is extremely unlikely that two nodes in different locations will have a
 power failure at the exact same time.
 
 (Metadata corruption on a single node is not an issue, the corrupted data file
