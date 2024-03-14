@@ -177,14 +177,7 @@ impl Garage {
 		};
 
 		info!("Initialize block manager...");
-		let block_manager = BlockManager::new(
-			&db,
-			config.data_dir.clone(),
-			config.data_fsync,
-			config.compression_level,
-			data_rep_param,
-			system.clone(),
-		)?;
+		let block_manager = BlockManager::new(&db, &config, data_rep_param, system.clone())?;
 		block_manager.register_bg_vars(&mut bg_vars);
 
 		// ---- admin tables ----
