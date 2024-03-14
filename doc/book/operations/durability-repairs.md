@@ -19,7 +19,7 @@ connecting to. To run on all nodes, add the `-a` flag as follows:
 
 # Data block operations
 
-## Data store scrub
+## Data store scrub {#scrub}
 
 Scrubbing the data store means examining each individual data block to check that
 their content is correct, by verifying their hash. Any block found to be corrupted

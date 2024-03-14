@@ -14,6 +14,7 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 metadata_fsync = true
 data_fsync = false
+disable_scrub = false
 
 db_engine = "lmdb"
 
@@ -87,6 +88,7 @@ Top-level configuration options:
 [`data_dir`](#data_dir),
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
+[`disable_scrub`](#disable_scrub),
 [`lmdb_map_size`](#lmdb_map_size),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
@@ -343,6 +345,22 @@ at the cost of a moderate drop in write performance.
 
 Similarly to `metatada_fsync`, this is likely not necessary
 if geographical replication is used.
+
+#### `disable_scrub` {#disable_scrub}
+
+By default, Garage runs a scrub of the data directory approximately once per
+month, with a random delay to avoid all nodes running at the same time.  When
+it scrubs the data directory, Garage will read all of the data files stored on
+disk to check their integrity, and will rebuild any data files that it finds
+corrupted, using the remaining valid copies stored on other nodes.
+See [this page](@/documentation/operations/durability-repair.md#scrub) for details.
+
+Set the `disable_scrub` configuration value to `true` if you don't need Garage
+to scrub the data directory, for instance if you are already scrubbing at the
+filesystem level. Note that in this case, if you find a corrupted data file,
+you should delete it from the data directory and then call `garage repair
+blocks` on the node to ensure that it re-obtains a copy from another node on
+the network.
 
 #### `block_size` {#block_size}
 
