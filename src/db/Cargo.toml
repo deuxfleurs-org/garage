@@ -17,7 +17,7 @@ hexdump.workspace = true
 tracing.workspace = true
 
 heed = { workspace = true, optional = true }
-rusqlite = { workspace = true, optional = true }
+rusqlite = { workspace = true, optional = true, features = ["backup"] }
 sled = { workspace = true, optional = true }
 
 [dev-dependencies]

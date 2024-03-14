@@ -2,6 +2,7 @@ use core::ops::Bound;
 
 use std::borrow::BorrowMut;
 use std::marker::PhantomPinned;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -117,6 +118,17 @@ impl IDb for SqliteDb {
 			trees.push(name);
 		}
 		Ok(trees)
+	}
+
+	fn snapshot(&self, to: &PathBuf) -> Result<()> {
+		fn progress(p: rusqlite::backup::Progress) {
+			let percent = (p.pagecount - p.remaining) * 100 / p.pagecount;
+			info!("Sqlite snapshot progres: {}%", percent);
+		}
+		let this = self.0.lock().unwrap();
+		this.db
+			.backup(rusqlite::DatabaseName::Main, to, Some(progress))?;
+		Ok(())
 	}
 
 	// ----
