@@ -57,6 +57,10 @@ pub enum Command {
 	#[structopt(name = "block", version = garage_version())]
 	Block(BlockOperation),
 
+	/// Operations on the metadata db
+	#[structopt(name = "meta", version = garage_version())]
+	Meta(MetaOperation),
+
 	/// Convert metadata db between database engine formats
 	#[structopt(name = "convert-db", version = garage_version())]
 	ConvertDb(convert_db::ConvertDbOpt),
@@ -615,5 +619,16 @@ pub enum BlockOperation {
 		/// Hashes of the block to purge
 		#[structopt(required = true)]
 		blocks: Vec<String>,
+	},
+}
+
+#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
+pub enum MetaOperation {
+	/// Save a snapshot of the metadata db file
+	#[structopt(name = "snapshot", version = garage_version())]
+	Snapshot {
+		/// Run on all nodes instead of only local node
+		#[structopt(long = "all")]
+		all: bool,
 	},
 }

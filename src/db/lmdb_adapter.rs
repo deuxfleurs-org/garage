@@ -3,6 +3,7 @@ use core::ptr::NonNull;
 
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use heed::types::ByteSlice;
@@ -100,6 +101,15 @@ impl IDb for LmdbDb {
 		}
 
 		Ok(ret2)
+	}
+
+	fn snapshot(&self, to: &PathBuf) -> Result<()> {
+		std::fs::create_dir_all(to)?;
+		let mut path = to.clone();
+		path.push("data.mdb");
+		self.db
+			.copy_to_path(path, heed::CompactionOption::Disabled)?;
+		Ok(())
 	}
 
 	// ----

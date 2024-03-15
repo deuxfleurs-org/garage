@@ -15,6 +15,7 @@ data_dir = "/var/lib/garage/data"
 metadata_fsync = true
 data_fsync = false
 disable_scrub = false
+metadata_auto_snapshot_interval = "6h"
 
 db_engine = "lmdb"
 
@@ -90,6 +91,7 @@ Top-level configuration options:
 [`db_engine`](#db_engine),
 [`disable_scrub`](#disable_scrub),
 [`lmdb_map_size`](#lmdb_map_size),
+[`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
 [`replication_mode`](#replication_mode),
@@ -345,6 +347,25 @@ at the cost of a moderate drop in write performance.
 
 Similarly to `metatada_fsync`, this is likely not necessary
 if geographical replication is used.
+
+#### `metadata_auto_snapshot_interval` (since Garage v0.9.4) {#metadata_auto_snapshot_interval}
+
+If this value is set, Garage will automatically take a snapshot of the metadata
+DB file at a regular interval and save it in the metadata directory.
+This can allow to recover from situations where the metadata DB file is corrupted,
+for instance after an unclean shutdown.
+See [this page](@/documentation/operations/recovering.md#corrupted_meta) for details.
+
+Garage keeps only the two most recent snapshots of the metadata DB and deletes
+older ones automatically.
+
+Note that taking a metadata snapshot is a relatively intensive operation as the
+entire data file is copied. A snapshot being taken might have performance
+impacts on the Garage node while it is running. If the cluster is under heavy
+write load when a snapshot operation is running, this might also cause the
+database file to grow in size significantly as pages cannot be recycled easily.
+For this reason, it might be better to use filesystem-level snapshots instead
+if possible.
 
 #### `disable_scrub` {#disable_scrub}
 

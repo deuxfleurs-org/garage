@@ -44,6 +44,9 @@ pub async fn cli_command_dispatch(
 		Command::Block(bo) => {
 			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::BlockOperation(bo)).await
 		}
+		Command::Meta(mo) => {
+			cmd_admin(admin_rpc_endpoint, rpc_host, AdminRpc::MetaOperation(mo)).await
+		}
 		_ => unreachable!(),
 	}
 }

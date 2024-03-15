@@ -2,6 +2,7 @@ use core::ops::Bound;
 
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use sled::transaction::{
@@ -94,6 +95,13 @@ impl IDb for SledDb {
 			}
 		}
 		Ok(trees)
+	}
+
+	fn snapshot(&self, to: &PathBuf) -> Result<()> {
+		let to_db = sled::open(to)?;
+		let export = self.db.export();
+		to_db.import(export);
+		Ok(())
 	}
 
 	// ----

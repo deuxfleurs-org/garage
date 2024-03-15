@@ -278,7 +278,7 @@ impl Garage {
 		}))
 	}
 
-	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
+	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) -> Result<(), Error> {
 		self.block_manager.spawn_workers(bg);
 
 		self.bucket_table.spawn_workers(bg);
@@ -299,6 +299,23 @@ impl Garage {
 
 		#[cfg(feature = "k2v")]
 		self.k2v.spawn_workers(bg);
+
+		if let Some(itv) = self.config.metadata_auto_snapshot_interval.as_deref() {
+			let interval = parse_duration::parse(itv)
+				.ok_or_message("Invalid `metadata_auto_snapshot_interval`")?;
+			if interval < std::time::Duration::from_secs(600) {
+				return Err(Error::Message(
+					"metadata_auto_snapshot_interval too small or negative".into(),
+				));
+			}
+
+			bg.spawn_worker(crate::snapshot::AutoSnapshotWorker::new(
+				self.clone(),
+				interval,
+			));
+		}
+
+		Ok(())
 	}
 
 	pub fn bucket_helper(&self) -> helper::bucket::BucketHelper {
