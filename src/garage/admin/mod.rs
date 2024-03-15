@@ -46,6 +46,7 @@ pub enum AdminRpc {
 	Stats(StatsOpt),
 	Worker(WorkerOperation),
 	BlockOperation(BlockOperation),
+	MetaOperation(MetaOperation),
 
 	// Replies
 	Ok(String),
@@ -518,6 +519,44 @@ impl AdminRpcHandler {
 			)]))
 		}
 	}
+
+	// ================ META DB COMMANDS ====================
+
+	async fn handle_meta_cmd(self: &Arc<Self>, mo: &MetaOperation) -> Result<AdminRpc, Error> {
+		match mo {
+			MetaOperation::Snapshot { all: true } => {
+				let ring = self.garage.system.ring.borrow().clone();
+				let to = ring.layout.node_ids().to_vec();
+
+				let resps = futures::future::join_all(to.iter().map(|to| async move {
+					let to = (*to).into();
+					self.endpoint
+						.call(
+							&to,
+							AdminRpc::MetaOperation(MetaOperation::Snapshot { all: false }),
+							PRIO_NORMAL,
+						)
+						.await
+				}))
+				.await;
+
+				let mut ret = vec![];
+				for (to, resp) in to.iter().zip(resps.iter()) {
+					let res_str = match resp {
+						Ok(_) => "ok".to_string(),
+						Err(e) => format!("error: {}", e),
+					};
+					ret.push(format!("{:?}\t{}", to, res_str));
+				}
+
+				Ok(AdminRpc::Ok(format_table_to_string(ret)))
+			}
+			MetaOperation::Snapshot { all: false } => {
+				garage_model::snapshot::async_snapshot_metadata(&self.garage).await?;
+				Ok(AdminRpc::Ok("Snapshot has been saved.".into()))
+			}
+		}
+	}
 }
 
 #[async_trait]
@@ -535,6 +574,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
 			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
+			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}
