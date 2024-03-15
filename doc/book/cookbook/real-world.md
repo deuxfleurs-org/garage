@@ -72,13 +72,14 @@ to store 2 TB of data in total.
   to RAID, see [our dedicated documentation page](@/documentation/operations/multi-hdd.md).
 
 - For the metadata storage, Garage does not do checksumming and integrity
-  verification on its own. Users have reported that when using the LMDB
-  database engine (the default), database files have a tendency of becoming
-  corrupted after an unclean shutdown (e.g. a power outage), so you should use
-  a robust filesystem such as BTRFS or ZFS for the metadata partition, and take
-  regular snapshots so that you can restore to a recent known-good state in
-  case of an incident.  If you cannot do so, you might want to switch to Sqlite
-  which is more robust.
+  verification on its own, so it is better to use a robust filesystem such as
+  BTRFS or ZFS. Users have reported that when using the LMDB database engine
+  (the default), database files have a tendency of becoming corrupted after an
+  unclean shutdown (e.g. a power outage), so you should take regular snapshots
+  to be able to recover from such a situation.  This can be done using Garage's
+  built-in automatic snapshotting (since v0.9.4), or by using filesystem level
+  snapshots. If you cannot do so, you might want to switch to Sqlite which is
+  more robust.
 
 - LMDB is the fastest and most tested database engine, but it has the following
   weaknesses: 1/ data files are not architecture-independent, you cannot simply
@@ -124,6 +125,7 @@ A valid `/etc/garage.toml` for our cluster would look as follows:
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 db_engine = "lmdb"
+metadata_auto_snapshot_interval = "6h"
 
 replication_mode = "3"
 

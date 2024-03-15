@@ -73,6 +73,18 @@ The entire procedure would look something like this:
   You can do all of the nodes in a single zone at once as that won't impact global cluster availability.
   Do not try to make a backup of the metadata folder of a running node.
 
+  **Since Garage v0.9.4,** you can use the `garage meta snapshot --all` command
+  to take a simultaneous snapshot of the metadata database files of all your
+  nodes.  This avoids the tedious process of having to take them down one by
+  one before upgrading. Be careful that if automatic snapshotting is enabled,
+  Garage only keeps the last two snapshots and deletes older ones, so you might
+  want to disable automatic snapshotting in your upgraded configuration file
+  until you have confirmed that the upgrade ran successfully.  In addition to
+  snapshotting the metadata databases of your nodes, you should back-up at
+  least the `cluster_layout` file of one of your Garage instances (this file
+  should be the same on all nodes and you can copy it safely while Garage is
+  running).
+
 3. Prepare your binaries and configuration files for the new Garage version
 
 4. Restart all nodes simultaneously in the new version
