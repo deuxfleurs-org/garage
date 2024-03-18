@@ -76,7 +76,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"] }
-rusqlite = "0.30.0"
+rusqlite = "0.31.0"
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
 sled = "0.34"
 
 async-compression = { version = "0.4", features = ["tokio", "zstd"] }

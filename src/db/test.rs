@@ -106,6 +106,7 @@ fn test_sled_db() {
 fn test_sqlite_db() {
 	use crate::sqlite_adapter::SqliteDb;
 
-	let db = SqliteDb::init(rusqlite::Connection::open_in_memory().unwrap());
+	let manager = r2d2_sqlite::SqliteConnectionManager::memory();
+	let db = SqliteDb::new(manager, false).unwrap();
 	test_suite(db);
 }
