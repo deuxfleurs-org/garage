@@ -42,6 +42,10 @@ impl Instance {
 			.ok()
 			.unwrap_or_else(|| env::temp_dir().join(format!("garage-integ-test-{}", port)));
 
+		let db_engine = env::var("GARAGE_TEST_INTEGRATION_DB_ENGINE")
+			.ok()
+			.unwrap_or_else(|| "lmdb".into());
+
 		// Clean test runtime directory
 		if path.exists() {
 			fs::remove_dir_all(&path).expect("Could not clean test runtime directory");
@@ -52,7 +56,7 @@ impl Instance {
 			r#"
 metadata_dir = "{path}/meta"
 data_dir = "{path}/data"
-db_engine = "lmdb"
+db_engine = "{db_engine}"
 
 replication_factor = 1
 

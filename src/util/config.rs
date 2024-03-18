@@ -23,6 +23,14 @@ pub struct Config {
 	#[serde(default)]
 	pub data_fsync: bool,
 
+	/// Disable automatic scrubbing of the data directory
+	#[serde(default)]
+	pub disable_scrub: bool,
+
+	/// Automatic snapshot interval for metadata
+	#[serde(default)]
+	pub metadata_auto_snapshot_interval: Option<String>,
+
 	/// Size of data blocks to save to disk
 	#[serde(
 		deserialize_with = "deserialize_capacity",

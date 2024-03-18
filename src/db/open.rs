@@ -68,14 +68,8 @@ pub fn open_db(path: &PathBuf, engine: Engine, opt: &OpenOpt) -> Result<Db> {
 		#[cfg(feature = "sqlite")]
 		Engine::Sqlite => {
 			info!("Opening Sqlite database at: {}", path.display());
-			let db = crate::sqlite_adapter::rusqlite::Connection::open(&path)?;
-			db.pragma_update(None, "journal_mode", "WAL")?;
-			if opt.fsync {
-				db.pragma_update(None, "synchronous", "NORMAL")?;
-			} else {
-				db.pragma_update(None, "synchronous", "OFF")?;
-			}
-			Ok(crate::sqlite_adapter::SqliteDb::init(db))
+			let manager = r2d2_sqlite::SqliteConnectionManager::file(path);
+			Ok(crate::sqlite_adapter::SqliteDb::new(manager, opt.fsync)?)
 		}
 
 		// ---- LMDB DB ----

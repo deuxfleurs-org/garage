@@ -19,7 +19,7 @@ connecting to. To run on all nodes, add the `-a` flag as follows:
 
 # Data block operations
 
-## Data store scrub
+## Data store scrub {#scrub}
 
 Scrubbing the data store means examining each individual data block to check that
 their content is correct, by verifying their hash. Any block found to be corrupted
@@ -103,6 +103,24 @@ operation will also move out all data from locations marked as read-only.
 
 
 # Metadata operations
+
+## Metadata snapshotting
+
+It is good practice to setup automatic snapshotting of your metadata database
+file, to recover from situations where it becomes corrupted on disk. This can
+be done at the filesystem level if you are using ZFS or BTRFS.
+
+Since Garage v0.9.4, Garage is able to take snapshots of the metadata database
+itself. This basically amounts to copying the database file, except that it can
+be run live while Garage is running without the risk of corruption or
+inconsistencies.  This can be setup to run automatically on a schedule using
+[`metadata_auto_snapshot_interval`](@/documentation/reference-manual/configuration.md#metadata_auto_snapshot_interval).
+A snapshot can also be triggered manually using the `garage meta snapshot`
+command. Note that taking a snapshot using this method is very intensive as it
+requires making a full copy of the database file, so you might prefer using
+filesystem-level snapshots if possible. To recover a corrupted node from such a
+snapshot, read the instructions
+[here](@/documentation/operations/recovering.md#corrupted_meta).
 
 ## Metadata table resync
 

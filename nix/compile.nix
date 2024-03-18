@@ -168,13 +168,11 @@ let
   rootFeatures = if features != null then
     features
   else
-    ([ "garage/bundled-libs" "garage/lmdb" "garage/k2v" ] ++ (if release then [
+    ([ "garage/bundled-libs" "garage/lmdb" "garage/sqlite" "garage/k2v" ] ++ (if release then [
       "garage/consul-discovery"
       "garage/kubernetes-discovery"
       "garage/metrics"
       "garage/telemetry-otlp"
-      "garage/lmdb"
-      "garage/sqlite"
     ] else
       [ ]));
 

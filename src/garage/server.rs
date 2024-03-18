@@ -51,7 +51,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 	let (background, await_background_done) = BackgroundRunner::new(watch_cancel.clone());
 
 	info!("Spawning Garage workers...");
-	garage.spawn_workers(&background);
+	garage.spawn_workers(&background)?;
 
 	if config.admin.trace_sink.is_some() {
 		info!("Initialize tracing...");

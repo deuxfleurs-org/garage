@@ -34,7 +34,8 @@ steps:
       - ./result/bin/garage_util-*
       - ./result/bin/garage_web-*
       - ./result/bin/garage-*
-      - ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
+      - GARAGE_TEST_INTEGRATION_DB_ENGINE=lmdb ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
+      - GARAGE_TEST_INTEGRATION_DB_ENGINE=sqlite ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
       - rm result
       - rm -rv tmp-garage-integration
 

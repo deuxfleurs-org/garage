@@ -15,6 +15,8 @@ metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
 metadata_fsync = true
 data_fsync = false
+disable_scrub = false
+metadata_auto_snapshot_interval = "6h"
 
 db_engine = "lmdb"
 
@@ -86,7 +88,9 @@ Top-level configuration options:
 [`data_dir`](#data_dir),
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
+[`disable_scrub`](#disable_scrub),
 [`lmdb_map_size`](#lmdb_map_size),
+[`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
 [`replication_factor`](#replication_factor),
@@ -277,18 +281,33 @@ old Sled metadata databases to another engine.
 
 Performance characteristics of the different DB engines are as follows:
 
-- LMDB: the recommended database engine on 64-bit systems, much more
-  space-efficient and slightly faster. Note that the data format of LMDB is not
-  portable between architectures, so for instance the Garage database of an
-  x86-64 node cannot be moved to an ARM64 node. Also note that, while LMDB can
-  technically be used on 32-bit systems, this will limit your node to very
-  small database sizes due to how LMDB works; it is therefore not recommended.
+- LMDB: the recommended database engine for high-performance distributed clusters.
+LMDB works very well, but is known to have the following limitations:
+
+  - The data format of LMDB is not portable between architectures, so for
+    instance the Garage database of an x86-64 node cannot be moved to an ARM64
+    node.
+
+  - While LMDB can technically be used on 32-bit systems, this will limit your
+    node to very small database sizes due to how LMDB works; it is therefore
+    not recommended.
+
+  - Several users have reported corrupted LMDB database files after an unclean
+    shutdown (e.g. a power outage). This situation can generally be recovered
+    from if your cluster is geo-replicated (by rebuilding your metadata db from
+    other nodes), or if you have saved regular snapshots at the filesystem
+    level.
+
+  - Keys in LMDB are limited to 511 bytes. This limit translates to limits on
+    object keys in S3 and sort keys in K2V that are limted to 479 bytes.
 
 - Sqlite: Garage supports Sqlite as an alternative storage backend for
-  metadata, and although it has not been tested as much, it is expected to work
-  satisfactorily.  Since Garage v0.9.0, performance issues have largely been
-  fixed by allowing for a no-fsync mode (see `metadata_fsync`). Sqlite does not
-  have the database size limitation of LMDB on 32-bit systems.
+  metadata, which does not have the issues listed above for LMDB.
+  On versions 0.8.x and earlier, Sqlite should be avoided due to abysmal
+  performance, which was fixed with the addition of `metadata_fsync`.
+  Sqlite is still probably slower than LMDB due to the way we use it,
+  so it is not the best choice for high-performance storage clusters,
+  but it should work fine in many cases.
 
 It is possible to convert Garage's metadata directory from one format to another
 using the `garage convert-db` command, which should be used as follows:
@@ -315,7 +334,7 @@ Using this option reduces the risk of simultaneous metadata corruption on severa
 cluster nodes, which could lead to data loss.
 
 If multi-site replication is used, this option is most likely not necessary, as
-it is extremely unlikely that two nodes in different locations will have a 
+it is extremely unlikely that two nodes in different locations will have a
 power failure at the exact same time.
 
 (Metadata corruption on a single node is not an issue, the corrupted data file
@@ -342,6 +361,41 @@ at the cost of a moderate drop in write performance.
 
 Similarly to `metatada_fsync`, this is likely not necessary
 if geographical replication is used.
+
+#### `metadata_auto_snapshot_interval` (since Garage v0.9.4) {#metadata_auto_snapshot_interval}
+
+If this value is set, Garage will automatically take a snapshot of the metadata
+DB file at a regular interval and save it in the metadata directory.
+This can allow to recover from situations where the metadata DB file is corrupted,
+for instance after an unclean shutdown.
+See [this page](@/documentation/operations/recovering.md#corrupted_meta) for details.
+
+Garage keeps only the two most recent snapshots of the metadata DB and deletes
+older ones automatically.
+
+Note that taking a metadata snapshot is a relatively intensive operation as the
+entire data file is copied. A snapshot being taken might have performance
+impacts on the Garage node while it is running. If the cluster is under heavy
+write load when a snapshot operation is running, this might also cause the
+database file to grow in size significantly as pages cannot be recycled easily.
+For this reason, it might be better to use filesystem-level snapshots instead
+if possible.
+
+#### `disable_scrub` {#disable_scrub}
+
+By default, Garage runs a scrub of the data directory approximately once per
+month, with a random delay to avoid all nodes running at the same time.  When
+it scrubs the data directory, Garage will read all of the data files stored on
+disk to check their integrity, and will rebuild any data files that it finds
+corrupted, using the remaining valid copies stored on other nodes.
+See [this page](@/documentation/operations/durability-repair.md#scrub) for details.
+
+Set the `disable_scrub` configuration value to `true` if you don't need Garage
+to scrub the data directory, for instance if you are already scrubbing at the
+filesystem level. Note that in this case, if you find a corrupted data file,
+you should delete it from the data directory and then call `garage repair
+blocks` on the node to ensure that it re-obtains a copy from another node on
+the network.
 
 #### `block_size` {#block_size}
 

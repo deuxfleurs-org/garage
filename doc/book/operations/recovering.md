@@ -108,3 +108,57 @@ garage layout apply   # once satisfied, apply the changes
 
 Garage will then start synchronizing all required data on the new node.
 This process can be monitored using the `garage stats -a` command.
+
+## Replacement scenario 3: corrupted metadata {#corrupted_meta}
+
+In some cases, your metadata DB file might become corrupted, for instance if
+your node suffered a power outage and did not shut down properly. In this case,
+you can recover without having to change the node ID and rebuilding a cluster
+layout. This means that data blocks will not need to be shuffled around, you
+must simply find a way to repair the metadata file. The best way is generally
+to discard the corrupted file and recover it from another source.
+
+First of all, start by locating the database file in your metadata directory,
+which [depends on your `db_engine`
+choice](@/documentation/reference-manual/configuration.md#db_engine).  Then,
+your recovery options are as follows:
+
+- **Option 1: resyncing from other nodes.** In case your cluster is replicated
+  with two or three copies, you can simply delete the database file, and Garage
+  will resync from other nodes. To do so, stop Garage, delete the database file
+  or directory, and restart Garage. Then, do a full table repair by calling
+  `garage repair -a --yes tables`.  This will take a bit of time to complete as
+  the new node will need to receive copies of the metadata tables from the
+  network.
+
+- **Option 2: restoring a snapshot taken by Garage.** Since v0.9.4, Garage can
+  [automatically take regular
+  snapshots](@/documentation/reference-manual/configuration.md#metadata_auto_snapshot_interval)
+  of your metadata DB file. This file or directory should be located under
+  `<metadata_dir>/snapshots`, and is named according to the UTC time at which it
+  was taken. Stop Garage, discard the database file/directory and replace it by the
+  snapshot you want to use. For instance, in the case of LMDB:
+
+  ```bash
+  cd $METADATA_DIR
+  mv db.lmdb db.lmdb.bak
+  cp -r snapshots/2024-03-15T12:13:52Z db.lmdb
+  ```
+
+  And for Sqlite:
+
+  ```bash
+  cd $METADATA_DIR
+  mv db.sqlite db.sqlite.bak
+  cp snapshots/2024-03-15T12:13:52Z db.sqlite
+  ```
+
+  Then, restart Garage and run a full table repair by calling `garage repair -a
+  --yes tables`.  This should run relatively fast as only the changes that
+  occurred since the snapshot was taken will need to be resynchronized. Of
+  course, if your cluster is not replicated, you will lose all changes that
+  occurred since the snapshot was taken.
+
+- **Option 3: restoring a filesystem-level snapshot.** If you are using ZFS or
+  BTRFS to snapshot your metadata partition, refer to their specific
+  documentation on rolling back or copying files from an old snapshot.

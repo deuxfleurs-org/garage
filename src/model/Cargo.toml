@@ -29,6 +29,7 @@ err-derive.workspace = true
 hex.workspace = true
 http.workspace = true
 base64.workspace = true
+parse_duration.workspace = true
 tracing.workspace = true
 rand.workspace = true
 zstd.workspace = true

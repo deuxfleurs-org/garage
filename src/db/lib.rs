@@ -15,6 +15,7 @@ use core::ops::{Bound, RangeBounds};
 
 use std::borrow::Cow;
 use std::cell::Cell;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use err_derive::Error;
@@ -43,6 +44,12 @@ pub type TxValueIter<'a> = Box<dyn std::iter::Iterator<Item = TxOpResult<(Value,
 #[derive(Debug, Error)]
 #[error(display = "{}", _0)]
 pub struct Error(pub Cow<'static, str>);
+
+impl From<std::io::Error> for Error {
+	fn from(e: std::io::Error) -> Error {
+		Error(format!("IO: {}", e).into())
+	}
+}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -124,6 +131,10 @@ impl Db {
 				_ => unreachable!(),
 			},
 		}
+	}
+
+	pub fn snapshot(&self, path: &PathBuf) -> Result<()> {
+		self.0.snapshot(path)
 	}
 
 	pub fn import(&self, other: &Db) -> Result<()> {
@@ -323,6 +334,7 @@ pub(crate) trait IDb: Send + Sync {
 	fn engine(&self) -> String;
 	fn open_tree(&self, name: &str) -> Result<usize>;
 	fn list_trees(&self) -> Result<Vec<String>>;
+	fn snapshot(&self, path: &PathBuf) -> Result<()>;
 
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
 	fn len(&self, tree: usize) -> Result<usize>;

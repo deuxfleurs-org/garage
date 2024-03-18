@@ -57,7 +57,7 @@ to generate unique and private secrets for security reasons:
 cat > garage.toml <<EOF
 metadata_dir = "/tmp/meta"
 data_dir = "/tmp/data"
-db_engine = "lmdb"
+db_engine = "sqlite"
 
 replication_factor = 1
 
