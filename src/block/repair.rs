@@ -107,7 +107,7 @@ impl Worker for RepairWorker {
 				for entry in self
 					.manager
 					.rc
-					.rc
+					.rc_table
 					.range::<&[u8], _>((start_bound, Bound::Unbounded))?
 				{
 					let (hash, _) = entry?;

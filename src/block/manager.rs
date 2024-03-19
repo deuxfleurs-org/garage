@@ -156,7 +156,7 @@ impl BlockManager {
 
 		let metrics = BlockManagerMetrics::new(
 			config.compression_level,
-			rc.rc.clone(),
+			rc.rc_table.clone(),
 			resync.queue.clone(),
 			resync.errors.clone(),
 		);
@@ -387,7 +387,7 @@ impl BlockManager {
 
 	/// Get number of items in the refcount table
 	pub fn rc_len(&self) -> Result<usize, Error> {
-		Ok(self.rc.rc.len()?)
+		Ok(self.rc.rc_table.len()?)
 	}
 
 	/// Send command to start/stop/manager scrub worker

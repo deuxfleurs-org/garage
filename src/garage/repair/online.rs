@@ -337,7 +337,7 @@ impl Worker for BlockRcRepair {
 			let next1 = self
 				.block_manager
 				.rc
-				.rc
+				.rc_table
 				.range(self.cursor.as_slice()..)?
 				.next()
 				.transpose()?
