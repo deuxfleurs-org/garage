@@ -88,7 +88,7 @@ pub struct BlockManager {
 
 	mutation_lock: Vec<Mutex<BlockManagerLocked>>,
 
-	pub(crate) rc: BlockRc,
+	pub rc: BlockRc,
 	pub resync: BlockResyncManager,
 
 	pub(crate) system: Arc<System>,
@@ -229,6 +229,12 @@ impl BlockManager {
 		}
 	}
 
+	/// Initialization: set how block references are recalculated
+	/// for repair operations
+	pub fn set_recalc_rc(&self, recalc: Vec<CalculateRefcount>) {
+		self.rc.recalc_rc.store(Some(Arc::new(recalc)));
+	}
+
 	/// Ask nodes that might have a (possibly compressed) block for it
 	/// Return it as a stream with a header
 	async fn rpc_get_raw_block_streaming(
@@ -316,9 +322,9 @@ impl BlockManager {
 			};
 		}
 
-		let msg = format!("Get block {:?}: no node returned a valid block", hash);
-		debug!("{}", msg);
-		Err(Error::Message(msg))
+		let err = Error::MissingBlock(*hash);
+		debug!("{}", err);
+		Err(err)
 	}
 
 	// ---- Public interface ----

@@ -4,6 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tokio::sync::watch;
 
+use garage_block::manager::BlockManager;
 use garage_block::repair::ScrubWorkerCommand;
 
 use garage_model::garage::Garage;
@@ -16,10 +17,13 @@ use garage_table::replication::*;
 use garage_table::*;
 
 use garage_util::background::*;
+use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::migrate::Migrate;
 
 use crate::*;
+
+const RC_REPAIR_ITER_COUNT: usize = 64;
 
 pub async fn launch_online_repair(
 	garage: &Arc<Garage>,
@@ -46,6 +50,13 @@ pub async fn launch_online_repair(
 		RepairWhat::BlockRefs => {
 			info!("Repairing the block refs table");
 			bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairBlockRefs));
+		}
+		RepairWhat::BlockRc => {
+			info!("Repairing the block reference counters");
+			bg.spawn_worker(BlockRcRepair::new(
+				garage.block_manager.clone(),
+				garage.block_ref_table.clone(),
+			));
 		}
 		RepairWhat::Blocks => {
 			info!("Repairing the stored blocks");
@@ -280,5 +291,100 @@ impl TableRepair for RepairMpu {
 		}
 
 		Ok(false)
+	}
+}
+
+// ===== block reference counter repair =====
+
+pub struct BlockRcRepair {
+	block_manager: Arc<BlockManager>,
+	block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
+	cursor: Hash,
+	counter: u64,
+	repairs: u64,
+}
+
+impl BlockRcRepair {
+	fn new(
+		block_manager: Arc<BlockManager>,
+		block_ref_table: Arc<Table<BlockRefTable, TableShardedReplication>>,
+	) -> Self {
+		Self {
+			block_manager,
+			block_ref_table,
+			cursor: [0u8; 32].into(),
+			counter: 0,
+			repairs: 0,
+		}
+	}
+}
+
+#[async_trait]
+impl Worker for BlockRcRepair {
+	fn name(&self) -> String {
+		format!("Block refcount repair worker")
+	}
+
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			progress: Some(format!("{} ({})", self.counter, self.repairs)),
+			..Default::default()
+		}
+	}
+
+	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+		for _i in 0..RC_REPAIR_ITER_COUNT {
+			let next1 = self
+				.block_manager
+				.rc
+				.rc
+				.range(self.cursor.as_slice()..)?
+				.next()
+				.transpose()?
+				.map(|(k, _)| Hash::try_from(k.as_slice()).unwrap());
+			let next2 = self
+				.block_ref_table
+				.data
+				.store
+				.range(self.cursor.as_slice()..)?
+				.next()
+				.transpose()?
+				.map(|(k, _)| Hash::try_from(&k[..32]).unwrap());
+			let next = match (next1, next2) {
+				(Some(k1), Some(k2)) => std::cmp::min(k1, k2),
+				(Some(k), None) | (None, Some(k)) => k,
+				(None, None) => {
+					info!(
+						"{}: finished, done {}, fixed {}",
+						self.name(),
+						self.counter,
+						self.repairs
+					);
+					return Ok(WorkerState::Done);
+				}
+			};
+
+			if self.block_manager.rc.recalculate_rc(&next)?.1 {
+				self.repairs += 1;
+			}
+			self.counter += 1;
+			if let Some(next_incr) = next.increment() {
+				self.cursor = next_incr;
+			} else {
+				info!(
+					"{}: finished, done {}, fixed {}",
+					self.name(),
+					self.counter,
+					self.repairs
+				);
+				return Ok(WorkerState::Done);
+			}
+		}
+
+		Ok(WorkerState::Busy)
+	}
+
+	async fn wait_for_work(&mut self) -> WorkerState {
+		unreachable!()
 	}
 }

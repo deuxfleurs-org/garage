@@ -83,6 +83,19 @@ impl FixedBytes32 {
 		ret.copy_from_slice(by);
 		Some(Self(ret))
 	}
+	/// Return the next hash
+	pub fn increment(&self) -> Option<Self> {
+		let mut ret = *self;
+		for byte in ret.0.iter_mut().rev() {
+			if *byte == u8::MAX {
+				*byte = 0;
+			} else {
+				*byte = *byte + 1;
+				return Some(ret);
+			}
+		}
+		return None;
+	}
 }
 
 impl From<garage_net::NodeID> for FixedBytes32 {
@@ -139,4 +152,26 @@ pub fn fasthash(data: &[u8]) -> FastHash {
 /// Generate a random 32 bytes UUID
 pub fn gen_uuid() -> Uuid {
 	rand::thread_rng().gen::<[u8; 32]>().into()
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn test_increment() {
+		let zero: FixedBytes32 = [0u8; 32].into();
+		let mut one: FixedBytes32 = [0u8; 32].into();
+		one.0[31] = 1;
+		let max: FixedBytes32 = [0xFFu8; 32].into();
+		assert_eq!(zero.increment(), Some(one));
+		assert_eq!(max.increment(), None);
+
+		let mut test: FixedBytes32 = [0u8; 32].into();
+		let i = 0x198DF97209F8FFFFu64;
+		test.0[24..32].copy_from_slice(&u64::to_be_bytes(i));
+		let mut test2: FixedBytes32 = [0u8; 32].into();
+		test2.0[24..32].copy_from_slice(&u64::to_be_bytes(i + 1));
+		assert_eq!(test.increment(), Some(test2));
+	}
 }
