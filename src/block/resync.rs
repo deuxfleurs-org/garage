@@ -367,6 +367,13 @@ impl BlockResyncManager {
 		}
 
 		if exists && rc.is_deletable() {
+			if manager.rc.recalculate_rc(hash)?.0 > 0 {
+				return Err(Error::Message(format!(
+					"Refcount for block {:?} was inconsistent, retrying later",
+					hash
+				)));
+			}
+
 			info!("Resync block {:?}: offloading and deleting", hash);
 			let existing_path = existing_path.unwrap();
 
@@ -453,7 +460,15 @@ impl BlockResyncManager {
 				hash
 			);
 
-			let block_data = manager.rpc_get_raw_block(hash, None).await?;
+			let block_data = manager.rpc_get_raw_block(hash, None).await;
+			if matches!(block_data, Err(Error::MissingBlock(_))) {
+				warn!(
+					"Could not fetch needed block {:?}, no node returned valid data. Checking that refcount is correct.",
+					hash
+				);
+				manager.rc.recalculate_rc(hash)?;
+			}
+			let block_data = block_data?;
 
 			manager.metrics.resync_recv_counter.add(1);
 

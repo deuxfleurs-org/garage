@@ -70,6 +70,9 @@ pub enum Error {
 	#[error(display = "Corrupt data: does not match hash {:?}", _0)]
 	CorruptData(Hash),
 
+	#[error(display = "Missing block {:?}: no node returned a valid block", _0)]
+	MissingBlock(Hash),
+
 	#[error(display = "{}", _0)]
 	Message(String),
 }

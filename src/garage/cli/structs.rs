@@ -473,8 +473,11 @@ pub enum RepairWhat {
 	#[structopt(name = "mpu", version = garage_version())]
 	MultipartUploads,
 	/// Repropagate version deletions to the block ref table
-	#[structopt(name = "block_refs", version = garage_version())]
+	#[structopt(name = "block-refs", version = garage_version())]
 	BlockRefs,
+	/// Recalculate block reference counters
+	#[structopt(name = "block-rc", version = garage_version())]
+	BlockRc,
 	/// Verify integrity of all blocks on disc
 	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {

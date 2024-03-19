@@ -247,6 +247,14 @@ impl Garage {
 		#[cfg(feature = "k2v")]
 		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
 
+		// ---- setup block refcount recalculation ----
+		// this function can be used to fix inconsistencies in the RC table
+		block_manager.set_recalc_rc(vec![
+			block_ref_recount_fn(&block_ref_table),
+			// other functions could be added here if we had other tables
+			// that hold references to data blocks
+		]);
+
 		// -- done --
 		Ok(Arc::new(Self {
 			config,

@@ -141,4 +141,7 @@ blocks may still be held by Garage. If you suspect that such corruption has occu
 in your cluster, you can run one of the following repair procedures:
 
 - `garage repair versions`: checks that all versions belong to a non-deleted object, and purges any orphan version
-- `garage repair block_refs`: checks that all block references belong to a non-deleted object version, and purges any orphan block reference (this will then allow the blocks to be garbage-collected)
+
+- `garage repair block-refs`: checks that all block references belong to a non-deleted object version, and purges any orphan block reference (this will then allow the blocks to be garbage-collected)
+
+- `garage repair block-rc`: checks that the reference counters for blocks are in sync with the actual number of non-deleted entries in the block reference table

@@ -88,7 +88,7 @@ pub struct BlockManager {
 
 	mutation_lock: Vec<Mutex<BlockManagerLocked>>,
 
-	pub(crate) rc: BlockRc,
+	pub rc: BlockRc,
 	pub resync: BlockResyncManager,
 
 	pub(crate) system: Arc<System>,
@@ -156,7 +156,7 @@ impl BlockManager {
 
 		let metrics = BlockManagerMetrics::new(
 			config.compression_level,
-			rc.rc.clone(),
+			rc.rc_table.clone(),
 			resync.queue.clone(),
 			resync.errors.clone(),
 		);
@@ -227,6 +227,12 @@ impl BlockManager {
 				p.get_with(|x| x.corruptions_detected)
 			});
 		}
+	}
+
+	/// Initialization: set how block references are recalculated
+	/// for repair operations
+	pub fn set_recalc_rc(&self, recalc: Vec<CalculateRefcount>) {
+		self.rc.recalc_rc.store(Some(Arc::new(recalc)));
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it
@@ -316,9 +322,9 @@ impl BlockManager {
 			};
 		}
 
-		let msg = format!("Get block {:?}: no node returned a valid block", hash);
-		debug!("{}", msg);
-		Err(Error::Message(msg))
+		let err = Error::MissingBlock(*hash);
+		debug!("{}", err);
+		Err(err)
 	}
 
 	// ---- Public interface ----
@@ -381,7 +387,7 @@ impl BlockManager {
 
 	/// Get number of items in the refcount table
 	pub fn rc_len(&self) -> Result<usize, Error> {
-		Ok(self.rc.rc.len()?)
+		Ok(self.rc.rc_table.len()?)
 	}
 
 	/// Send command to start/stop/manager scrub worker
