@@ -67,6 +67,49 @@ impl<'a> BucketHelper<'a> {
 		}
 	}
 
+	/// Find a bucket by its global alias or a prefix of its uuid
+	pub async fn admin_get_existing_matching_bucket(
+		&self,
+		pattern: &String,
+	) -> Result<Uuid, Error> {
+		if let Some(uuid) = self.resolve_global_bucket_name(pattern).await? {
+			return Ok(uuid);
+		} else if pattern.len() >= 2 {
+			let hexdec = pattern
+				.get(..pattern.len() & !1)
+				.and_then(|x| hex::decode(x).ok());
+			if let Some(hex) = hexdec {
+				let mut start = [0u8; 32];
+				start
+					.as_mut_slice()
+					.get_mut(..hex.len())
+					.ok_or_bad_request("invalid length")?
+					.copy_from_slice(&hex);
+				let mut candidates = self
+					.0
+					.bucket_table
+					.get_range(
+						&EmptyKey,
+						Some(start.into()),
+						Some(DeletedFilter::NotDeleted),
+						10,
+						EnumerationOrder::Forward,
+					)
+					.await?
+					.into_iter()
+					.collect::<Vec<_>>();
+				candidates.retain(|x| hex::encode(x.id).starts_with(pattern));
+				if candidates.len() == 1 {
+					return Ok(candidates.into_iter().next().unwrap().id);
+				}
+			}
+		}
+		Err(Error::BadRequest(format!(
+			"Bucket not found / several matching buckets: {}",
+			pattern
+		)))
+	}
+
 	/// Returns a Bucket if it is present in bucket table,
 	/// even if it is in deleted state. Querying a non-existing
 	/// bucket ID returns an internal error.
