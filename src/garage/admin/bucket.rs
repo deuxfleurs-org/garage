@@ -54,9 +54,8 @@ impl AdminRpcHandler {
 		let bucket_id = self
 			.garage
 			.bucket_helper()
-			.resolve_global_bucket_name(&query.name)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.name)
+			.await?;
 
 		let bucket = self
 			.garage
@@ -157,9 +156,8 @@ impl AdminRpcHandler {
 
 		let bucket_id = helper
 			.bucket()
-			.resolve_global_bucket_name(&query.name)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.name)
+			.await?;
 
 		// Get the alias, but keep in minde here the bucket name
 		// given in parameter can also be directly the bucket's ID.
@@ -235,9 +233,8 @@ impl AdminRpcHandler {
 
 		let bucket_id = helper
 			.bucket()
-			.resolve_global_bucket_name(&query.existing_bucket)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.existing_bucket)
+			.await?;
 
 		if let Some(key_pattern) = &query.local {
 			let key = helper.key().get_existing_matching_key(key_pattern).await?;
@@ -307,9 +304,8 @@ impl AdminRpcHandler {
 
 		let bucket_id = helper
 			.bucket()
-			.resolve_global_bucket_name(&query.bucket)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.bucket)
+			.await?;
 		let key = helper
 			.key()
 			.get_existing_matching_key(&query.key_pattern)
@@ -343,9 +339,8 @@ impl AdminRpcHandler {
 
 		let bucket_id = helper
 			.bucket()
-			.resolve_global_bucket_name(&query.bucket)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.bucket)
+			.await?;
 		let key = helper
 			.key()
 			.get_existing_matching_key(&query.key_pattern)
@@ -378,9 +373,8 @@ impl AdminRpcHandler {
 		let bucket_id = self
 			.garage
 			.bucket_helper()
-			.resolve_global_bucket_name(&query.bucket)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.bucket)
+			.await?;
 
 		let mut bucket = self
 			.garage
@@ -420,9 +414,8 @@ impl AdminRpcHandler {
 		let bucket_id = self
 			.garage
 			.bucket_helper()
-			.resolve_global_bucket_name(&query.bucket)
-			.await?
-			.ok_or_bad_request("Bucket not found")?;
+			.admin_get_existing_matching_bucket(&query.bucket)
+			.await?;
 
 		let mut bucket = self
 			.garage
@@ -479,9 +472,8 @@ impl AdminRpcHandler {
 			bucket_ids.push(
 				self.garage
 					.bucket_helper()
-					.resolve_global_bucket_name(b)
-					.await?
-					.ok_or_bad_request(format!("Bucket not found: {}", b))?,
+					.admin_get_existing_matching_bucket(b)
+					.await?,
 			);
 		}
 
