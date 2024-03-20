@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -13,9 +14,12 @@ const DRIVE_NPART: usize = 1024;
 
 const HASH_DRIVE_BYTES: (usize, usize) = (2, 3);
 
+const MARKER_FILE_NAME: &str = "garage-marker";
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct DataLayout {
 	pub(crate) data_dirs: Vec<DataDir>,
+	markers: HashMap<PathBuf, String>,
 
 	/// Primary storage location (index in data_dirs) for each partition
 	/// = the location where the data is supposed to be, blocks are always
@@ -75,16 +79,17 @@ impl DataLayout {
 
 		Ok(Self {
 			data_dirs,
+			markers: HashMap::new(),
 			part_prim,
 			part_sec,
 		})
 	}
 
-	pub(crate) fn update(&mut self, dirs: &DataDirEnum) -> Result<(), Error> {
+	pub(crate) fn update(self, dirs: &DataDirEnum) -> Result<Self, Error> {
 		// Make list of new data directories, exit if nothing changed
 		let data_dirs = make_data_dirs(dirs)?;
 		if data_dirs == self.data_dirs {
-			return Ok(());
+			return Ok(self);
 		}
 
 		let total_cap = data_dirs.iter().filter_map(|x| x.capacity()).sum::<u64>();
@@ -214,11 +219,43 @@ impl DataLayout {
 		}
 
 		// Apply newly generated config
-		*self = Self {
+		Ok(Self {
 			data_dirs,
+			markers: self.markers,
 			part_prim,
 			part_sec,
-		};
+		})
+	}
+
+	pub(crate) fn check_markers(&mut self) -> Result<(), Error> {
+		let data_dirs = &self.data_dirs;
+		self.markers
+			.retain(|k, _| data_dirs.iter().any(|x| x.path == *k));
+
+		for dir in self.data_dirs.iter() {
+			let mut marker_path = dir.path.clone();
+			marker_path.push(MARKER_FILE_NAME);
+			let existing_marker = std::fs::read_to_string(&marker_path).ok();
+			match (existing_marker, self.markers.get(&dir.path)) {
+				(Some(m1), Some(m2)) => {
+					if m1 != *m2 {
+						return Err(Error::Message(format!("Mismatched content for marker file `{}` in data directory `{}`. If you moved data directories or changed their mountpoints, you should remove the `data_layout` file in Garage's metadata directory and restart Garage.", MARKER_FILE_NAME, dir.path.display())));
+					}
+				}
+				(None, Some(_)) => {
+					return Err(Error::Message(format!("Could not find expected marker file `{}` in data directory `{}`, make sure this data directory is mounted correctly.", MARKER_FILE_NAME, dir.path.display())));
+				}
+				(Some(mkr), None) => {
+					self.markers.insert(dir.path.clone(), mkr);
+				}
+				(None, None) => {
+					let mkr = hex::encode(garage_util::data::gen_uuid().as_slice());
+					std::fs::write(&marker_path, &mkr)?;
+					self.markers.insert(dir.path.clone(), mkr);
+				}
+			}
+		}
+
 		Ok(())
 	}
 
@@ -255,6 +292,7 @@ impl DataLayout {
 	pub(crate) fn without_secondary_locations(&self) -> Self {
 		Self {
 			data_dirs: self.data_dirs.clone(),
+			markers: self.markers.clone(),
 			part_prim: self.part_prim.clone(),
 			part_sec: self.part_sec.iter().map(|_| vec![]).collect::<Vec<_>>(),
 		}
@@ -322,14 +360,12 @@ fn make_data_dirs(dirs: &DataDirEnum) -> Result<Vec<DataDir>, Error> {
 fn dir_not_empty(path: &PathBuf) -> Result<bool, Error> {
 	for entry in std::fs::read_dir(&path)? {
 		let dir = entry?;
-		if dir.file_type()?.is_dir()
-			&& dir
-				.file_name()
-				.into_string()
-				.ok()
-				.and_then(|hex| hex::decode(&hex).ok())
-				.is_some()
-		{
+		let ft = dir.file_type()?;
+		let name = dir.file_name().into_string().ok();
+		if ft.is_file() && name.as_deref() == Some(MARKER_FILE_NAME) {
+			return Ok(true);
+		}
+		if ft.is_dir() && name.and_then(|hex| hex::decode(&hex).ok()).is_some() {
 			return Ok(true);
 		}
 	}
