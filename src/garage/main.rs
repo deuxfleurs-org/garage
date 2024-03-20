@@ -175,32 +175,39 @@ fn init_logging(opt: &Opt) {
 
 	let env_filter = tracing_subscriber::filter::EnvFilter::from_default_env();
 
-	#[cfg(feature = "syslog")]
 	if std::env::var("GARAGE_LOG_TO_SYSLOG")
 		.map(|x| x == "1" || x == "true")
 		.unwrap_or(false)
 	{
-		use std::ffi::CStr;
-		use syslog_tracing::{Facility, Options, Syslog};
+		#[cfg(feature = "syslog")]
+		{
+			use std::ffi::CStr;
+			use syslog_tracing::{Facility, Options, Syslog};
 
-		let syslog = Syslog::new(
-			CStr::from_bytes_with_nul(b"garage\0").unwrap(),
-			Options::LOG_PID | Options::LOG_PERROR,
-			Facility::Daemon,
-		)
-		.expect("Unable to init syslog");
+			let syslog = Syslog::new(
+				CStr::from_bytes_with_nul(b"garage\0").unwrap(),
+				Options::LOG_PID | Options::LOG_PERROR,
+				Facility::Daemon,
+			)
+			.expect("Unable to init syslog");
 
-		tracing_subscriber::fmt()
-			.with_writer(syslog)
-			.with_env_filter(env_filter)
-			.with_ansi(false) // disable ANSI escape sequences (colours)
-			.with_file(false)
-			.with_level(false)
-			.without_time()
-			.compact()
-			.init();
+			tracing_subscriber::fmt()
+				.with_writer(syslog)
+				.with_env_filter(env_filter)
+				.with_ansi(false) // disable ANSI escape sequences (colours)
+				.with_file(false)
+				.with_level(false)
+				.without_time()
+				.compact()
+				.init();
 
-		return;
+			return;
+		}
+		#[cfg(not(feature = "syslog"))]
+		{
+			eprintln!("Syslog support is not enabled in this build.");
+			std::process::exit(1);
+		}
 	}
 
 	tracing_subscriber::fmt()
