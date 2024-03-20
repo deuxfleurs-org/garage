@@ -173,6 +173,7 @@ let
       "garage/kubernetes-discovery"
       "garage/metrics"
       "garage/telemetry-otlp"
+      "garage/syslog"
     ] else
       [ ]));
 
