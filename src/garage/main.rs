@@ -140,17 +140,8 @@ async fn main() {
 	let opt = Opt::from_clap(&Opt::clap().version(version.as_str()).get_matches());
 
 	// Initialize logging as well as other libraries used in Garage
-	if std::env::var("RUST_LOG").is_err() {
-		let default_log = match &opt.cmd {
-			Command::Server => "netapp=info,garage=info",
-			_ => "netapp=warn,garage=warn",
-		};
-		std::env::set_var("RUST_LOG", default_log)
-	}
-	tracing_subscriber::fmt()
-		.with_writer(std::io::stderr)
-		.with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
-		.init();
+	init_logging(&opt);
+
 	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
 	let res = match opt.cmd {
@@ -171,6 +162,51 @@ async fn main() {
 		eprintln!("Error: {}", e);
 		std::process::exit(1);
 	}
+}
+
+fn init_logging(opt: &Opt) {
+	if std::env::var("RUST_LOG").is_err() {
+		let default_log = match &opt.cmd {
+			Command::Server => "netapp=info,garage=info",
+			_ => "netapp=warn,garage=warn",
+		};
+		std::env::set_var("RUST_LOG", default_log)
+	}
+
+	let env_filter = tracing_subscriber::filter::EnvFilter::from_default_env();
+
+	#[cfg(feature = "syslog")]
+	if std::env::var("GARAGE_LOG_TO_SYSLOG")
+		.map(|x| x == "1" || x == "true")
+		.unwrap_or(false)
+	{
+		use std::ffi::CStr;
+		use syslog_tracing::{Facility, Options, Syslog};
+
+		let syslog = Syslog::new(
+			CStr::from_bytes_with_nul(b"garage\0").unwrap(),
+			Options::LOG_PID | Options::LOG_PERROR,
+			Facility::Daemon,
+		)
+		.expect("Unable to init syslog");
+
+		tracing_subscriber::fmt()
+			.with_writer(syslog)
+			.with_env_filter(env_filter)
+			.with_ansi(false) // disable ANSI escape sequences (colours)
+			.with_file(false)
+			.with_level(false)
+			.without_time()
+			.compact()
+			.init();
+
+		return;
+	}
+
+	tracing_subscriber::fmt()
+		.with_writer(std::io::stderr)
+		.with_env_filter(env_filter)
+		.init();
 }
 
 async fn cli_command(opt: Opt) -> Result<(), Error> {
