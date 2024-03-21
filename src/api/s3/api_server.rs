@@ -325,7 +325,7 @@ impl ApiHandler for S3ApiServer {
 					part_number_marker: part_number_marker.map(|p| p.min(10000)),
 					max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
 				};
-				handle_list_parts(ctx, &query).await
+				handle_list_parts(ctx, req, &query).await
 			}
 			Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req, content_sha256).await,
 			Endpoint::GetBucketWebsite {} => handle_get_website(ctx).await,

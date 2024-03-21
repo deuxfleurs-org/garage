@@ -28,6 +28,8 @@ async-trait.workspace = true
 base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
+crc32fast.workspace = true
+crc32c.workspace = true
 crypto-common.workspace = true
 err-derive.workspace = true
 hex.workspace = true
@@ -37,6 +39,7 @@ tracing.workspace = true
 md-5.workspace = true
 nom.workspace = true
 pin-project.workspace = true
+sha1.workspace = true
 sha2.workspace = true
 
 futures.workspace = true

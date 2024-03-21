@@ -208,6 +208,8 @@ mod v010 {
 		Uploading {
 			/// Indicates whether this is a multipart upload
 			multipart: bool,
+			/// Checksum algorithm to use
+			checksum_algorithm: Option<ChecksumAlgorithm>,
 			/// Encryption params + headers to be included in the final object
 			encryption: ObjectVersionEncryption,
 		},
@@ -247,10 +249,10 @@ mod v010 {
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
 	pub enum ObjectVersionEncryption {
 		SseC {
-			/// Encrypted serialized ObjectVersionHeaders struct.
+			/// Encrypted serialized ObjectVersionInner struct.
 			/// This is never compressed, just encrypted using AES256-GCM.
 			#[serde(with = "serde_bytes")]
-			headers: Vec<u8>,
+			inner: Vec<u8>,
 			/// Whether data blocks are compressed in addition to being encrypted
 			/// (compression happens before encryption, whereas for non-encrypted
 			/// objects, compression is handled at the level of the block manager)
@@ -258,13 +260,35 @@ mod v010 {
 		},
 		Plaintext {
 			/// Plain-text headers
-			headers: ObjectVersionHeaders,
+			inner: ObjectVersionMetaInner,
 		},
 	}
 
 	/// Vector of headers, as tuples of the format (header name, header value)
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
-	pub struct ObjectVersionHeaders(pub Vec<(String, String)>);
+	pub struct ObjectVersionMetaInner {
+		pub headers: HeaderList,
+		pub checksum: Option<ChecksumValue>,
+	}
+
+	pub type HeaderList = Vec<(String, String)>;
+
+	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
+	pub enum ChecksumAlgorithm {
+		Crc32,
+		Crc32c,
+		Sha1,
+		Sha256,
+	}
+
+	/// Checksum value for x-amz-checksum-algorithm
+	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
+	pub enum ChecksumValue {
+		Crc32(#[serde(with = "serde_bytes")] [u8; 4]),
+		Crc32c(#[serde(with = "serde_bytes")] [u8; 4]),
+		Sha1(#[serde(with = "serde_bytes")] [u8; 20]),
+		Sha256(#[serde(with = "serde_bytes")] [u8; 32]),
+	}
 
 	impl garage_util::migrate::Migrate for Object {
 		const VERSION_MARKER: &'static [u8] = b"G010s3ob";
@@ -288,6 +312,7 @@ mod v010 {
 				v09::ObjectVersionState::Uploading { multipart, headers } => {
 					ObjectVersionState::Uploading {
 						multipart,
+						checksum_algorithm: None,
 						encryption: migrate_headers(headers),
 					}
 				}
@@ -331,15 +356,18 @@ mod v010 {
 		}
 
 		ObjectVersionEncryption::Plaintext {
-			headers: ObjectVersionHeaders(new_headers),
+			inner: ObjectVersionMetaInner {
+				headers: new_headers,
+				checksum: None,
+			},
 		}
 	}
 
 	// Since ObjectVersionHeaders can now be serialized independently, for the
 	// purpose of being encrypted, we need it to support migrations on its own
 	// as well.
-	impl garage_util::migrate::InitialFormat for ObjectVersionHeaders {
-		const VERSION_MARKER: &'static [u8] = b"G010s3oh";
+	impl garage_util::migrate::InitialFormat for ObjectVersionMetaInner {
+		const VERSION_MARKER: &'static [u8] = b"G010s3om";
 	}
 }
 
@@ -451,6 +479,17 @@ impl Entry<Uuid, String> for Object {
 		self.versions.len() == 1
 			&& self.versions[0].state
 				== ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+	}
+}
+
+impl ChecksumValue {
+	pub fn algorithm(&self) -> ChecksumAlgorithm {
+		match self {
+			ChecksumValue::Crc32(_) => ChecksumAlgorithm::Crc32,
+			ChecksumValue::Crc32c(_) => ChecksumAlgorithm::Crc32c,
+			ChecksumValue::Sha1(_) => ChecksumAlgorithm::Sha1,
+			ChecksumValue::Sha256(_) => ChecksumAlgorithm::Sha256,
+		}
 	}
 }
 
