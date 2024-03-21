@@ -27,7 +27,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 				i.id,
 				NodeResp {
 					id: hex::encode(i.id),
-					addr: Some(i.addr),
+					addr: i.addr,
 					hostname: i.status.hostname,
 					is_up: i.is_up,
 					last_seen_secs_ago: i.last_seen_secs_ago,

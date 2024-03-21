@@ -57,6 +57,10 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
 	for adv in status.iter().filter(|adv| adv.is_up) {
 		let host = adv.status.hostname.as_deref().unwrap_or("?");
+		let addr = match adv.addr {
+			Some(addr) => addr.to_string(),
+			None => "N/A".to_string(),
+		};
 		if let Some(NodeRoleV(Some(cfg))) = layout.current().roles.get(&adv.id) {
 			let data_avail = match &adv.status.data_disk_avail {
 				_ if cfg.capacity.is_none() => "N/A".into(),
@@ -71,7 +75,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
 				id = adv.id,
 				host = host,
-				addr = adv.addr,
+				addr = addr,
 				tags = cfg.tags.join(","),
 				zone = cfg.zone,
 				capacity = cfg.capacity_string(),
@@ -91,7 +95,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
 					id = adv.id,
 					host = host,
-					addr = adv.addr,
+					addr = addr,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
 				));
@@ -104,7 +108,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 					"{id:?}\t{h}\t{addr}\t\t\t{new_role}",
 					id = adv.id,
 					h = host,
-					addr = adv.addr,
+					addr = addr,
 					new_role = new_role,
 				));
 			}
@@ -120,8 +124,7 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 
 	let tf = timeago::Formatter::new();
 	let mut drain_msg = false;
-	let mut failed_nodes =
-		vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tLast seen".to_string()];
+	let mut failed_nodes = vec!["ID\tHostname\tTags\tZone\tCapacity\tLast seen".to_string()];
 	let mut listed = HashSet::new();
 	for ver in layout.versions.iter().rev() {
 		for (node, _, role) in ver.roles.items().iter() {
@@ -142,15 +145,14 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 
 			// Node is in a layout version, is not a gateway node, and is not up:
 			// it is in a failed state, add proper line to the output
-			let (host, addr, last_seen) = match adv {
+			let (host, last_seen) = match adv {
 				Some(adv) => (
 					adv.status.hostname.as_deref().unwrap_or("?"),
-					adv.addr.to_string(),
 					adv.last_seen_secs_ago
 						.map(|s| tf.convert(Duration::from_secs(s)))
 						.unwrap_or_else(|| "never seen".into()),
 				),
-				None => ("??", "??".into(), "never seen".into()),
+				None => ("??", "never seen".into()),
 			};
 			let capacity = if ver.version == layout.current().version {
 				cfg.capacity_string()
@@ -159,10 +161,9 @@ pub async fn cmd_status(rpc_cli: &Endpoint<SystemRpc, ()>, rpc_host: NodeID) -> 
 				"draining metadata...".to_string()
 			};
 			failed_nodes.push(format!(
-				"{id:?}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
+				"{id:?}\t{host}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
 				id = node,
 				host = host,
-				addr = addr,
 				tags = cfg.tags.join(","),
 				zone = cfg.zone,
 				capacity = capacity,
