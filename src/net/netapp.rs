@@ -292,13 +292,7 @@ impl NetApp {
 	/// the other node with `Netapp::request`
 	pub async fn try_connect(self: Arc<Self>, ip: SocketAddr, id: NodeID) -> Result<(), Error> {
 		// Don't connect to ourself, we don't care
-		// but pretend we did
 		if id == self.id {
-			tokio::spawn(async move {
-				if let Some(h) = self.on_connected_handler.load().as_ref() {
-					h(id, ip, false);
-				}
-			});
 			return Ok(());
 		}
 
@@ -327,31 +321,32 @@ impl NetApp {
 	/// Close the outgoing connection we have to a node specified by its public key,
 	/// if such a connection is currently open.
 	pub fn disconnect(self: &Arc<Self>, id: &NodeID) {
+		let conn = self.client_conns.write().unwrap().remove(id);
+
 		// If id is ourself, we're not supposed to have a connection open
-		if *id != self.id {
-			let conn = self.client_conns.write().unwrap().remove(id);
-			if let Some(c) = conn {
-				debug!(
-					"Closing connection to {} ({})",
-					hex::encode(&c.peer_id[..8]),
-					c.remote_addr
-				);
-				c.close();
-			} else {
-				return;
-			}
+		if *id == self.id {
+			// sanity check
+			assert!(conn.is_none(), "had a connection to local node");
+			return;
 		}
 
-		// call on_disconnected_handler immediately, since the connection
-		// was removed
-		// (if id == self.id, we pretend we disconnected)
-		let id = *id;
-		let self2 = self.clone();
-		tokio::spawn(async move {
-			if let Some(h) = self2.on_disconnected_handler.load().as_ref() {
-				h(id, false);
-			}
-		});
+		if let Some(c) = conn {
+			debug!(
+				"Closing connection to {} ({})",
+				hex::encode(&c.peer_id[..8]),
+				c.remote_addr
+			);
+			c.close();
+
+			// call on_disconnected_handler immediately, since the connection was removed
+			let id = *id;
+			let self2 = self.clone();
+			tokio::spawn(async move {
+				if let Some(h) = self2.on_disconnected_handler.load().as_ref() {
+					h(id, false);
+				}
+			});
+		}
 	}
 
 	// Called from conn.rs when an incoming connection is successfully established

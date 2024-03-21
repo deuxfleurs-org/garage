@@ -16,7 +16,7 @@ use tokio::sync::{watch, Notify};
 
 use garage_net::endpoint::{Endpoint, EndpointHandler};
 use garage_net::message::*;
-use garage_net::peering::PeeringManager;
+use garage_net::peering::{PeerConnState, PeeringManager};
 use garage_net::util::parse_and_resolve_peer_addr_async;
 use garage_net::{NetApp, NetworkKey, NodeID, NodeKey};
 
@@ -142,7 +142,7 @@ pub struct NodeStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KnownNodeInfo {
 	pub id: Uuid,
-	pub addr: SocketAddr,
+	pub addr: Option<SocketAddr>,
 	pub is_up: bool,
 	pub last_seen_secs_ago: Option<u64>,
 	pub status: NodeStatus,
@@ -381,7 +381,11 @@ impl System {
 			.iter()
 			.map(|n| KnownNodeInfo {
 				id: n.id.into(),
-				addr: n.addr,
+				addr: match n.state {
+					PeerConnState::Ourself => self.rpc_public_addr,
+					PeerConnState::Connected { addr } => Some(addr),
+					_ => None,
+				},
 				is_up: n.is_up(),
 				last_seen_secs_ago: n
 					.last_seen
@@ -722,7 +726,10 @@ impl System {
 			.peering
 			.get_peer_list()
 			.iter()
-			.map(|n| (n.id.into(), n.addr))
+			.filter_map(|n| match n.state {
+				PeerConnState::Connected { addr } => Some((n.id.into(), addr)),
+				_ => None,
+			})
 			.collect::<Vec<_>>();
 
 		// Before doing it, we read the current peer list file (if it exists)
