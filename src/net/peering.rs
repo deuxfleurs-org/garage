@@ -164,29 +164,40 @@ struct KnownHosts {
 impl KnownHosts {
 	fn new() -> Self {
 		let list = HashMap::new();
-		let hash = Self::calculate_hash(vec![]);
-		Self { list, hash }
+		let mut ret = Self {
+			list,
+			hash: hash::Digest::from_slice(&[0u8; 64][..]).unwrap(),
+		};
+		ret.update_hash();
+		ret
 	}
 	fn update_hash(&mut self) {
-		self.hash = Self::calculate_hash(self.connected_peers_vec());
-	}
-	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
-		let mut list = Vec::with_capacity(self.list.len());
-		for (id, peer) in self.list.iter() {
-			if peer.state.is_up() {
-				list.push((*id, peer.addr));
-			}
-		}
-		list
-	}
-	fn calculate_hash(mut list: Vec<(NodeID, SocketAddr)>) -> hash::Digest {
+		// The hash is a value that is exchanged between nodes when they ping one
+		// another.  Nodes compare their known hosts hash to know if they are connected
+		// to the same set of nodes. If the hashes differ, they are connected to
+		// different nodes and they trigger an exchange of the full list of active
+		// connections.  The hash value only represents the set of node IDs and not
+		// their actual socket addresses, because nodes can be connected via different
+		// addresses and that shouldn't necessarily trigger a full peer exchange.
+		let mut list = self
+			.list
+			.iter()
+			.filter(|(_, peer)| peer.state.is_up())
+			.map(|(id, _)| *id)
+			.collect::<Vec<_>>();
 		list.sort();
 		let mut hash_state = hash::State::new();
-		for (id, addr) in list {
+		for id in list {
 			hash_state.update(&id[..]);
-			hash_state.update(&format!("{}\n", addr).into_bytes()[..]);
 		}
-		hash_state.finalize()
+		self.hash = hash_state.finalize();
+	}
+	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
+		self.list
+			.iter()
+			.filter(|(_, peer)| peer.state.is_up())
+			.map(|(id, peer)| (*id, peer.addr))
+			.collect::<Vec<_>>()
 	}
 }
 
