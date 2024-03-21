@@ -43,7 +43,7 @@ impl Message for PingMessage {
 
 #[derive(Serialize, Deserialize)]
 struct PeerListMessage {
-	pub list: Vec<(NodeID, Vec<SocketAddr>)>,
+	pub list: Vec<(NodeID, SocketAddr)>,
 }
 
 impl Message for PeerListMessage {
@@ -185,11 +185,13 @@ impl KnownHosts {
 		}
 		self.hash = hash_state.finalize();
 	}
-	fn connected_peers_vec(&self) -> Vec<(NodeID, Vec<SocketAddr>)> {
+	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
 		self.list
 			.iter()
-			.filter(|(_, peer)| peer.state.is_up())
-			.map(|(id, peer)| (*id, peer.known_addrs.clone()))
+			.filter_map(|(id, peer)| match peer.state {
+				PeerConnState::Connected { addr } => Some((*id, addr)),
+				_ => None,
+			})
 			.collect::<Vec<_>>()
 	}
 }
@@ -468,20 +470,18 @@ impl PeeringManager {
 		}
 	}
 
-	fn handle_peer_list(&self, list: &[(NodeID, Vec<SocketAddr>)]) {
+	fn handle_peer_list(&self, list: &[(NodeID, SocketAddr)]) {
 		let mut known_hosts = self.known_hosts.write().unwrap();
 
 		let mut changed = false;
-		for (id, addrs) in list.iter() {
-			for addr in addrs.iter() {
-				if let Some(kh) = known_hosts.list.get_mut(id) {
-					if kh.add_addr(*addr) {
-						changed = true;
-					}
-				} else {
-					known_hosts.list.insert(*id, self.new_peer(id, *addr));
+		for (id, addr) in list.iter() {
+			if let Some(kh) = known_hosts.list.get_mut(id) {
+				if kh.add_addr(*addr) {
 					changed = true;
 				}
+			} else {
+				known_hosts.list.insert(*id, self.new_peer(id, *addr));
+				changed = true;
 			}
 		}
 
