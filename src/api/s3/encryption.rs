@@ -26,9 +26,10 @@ use garage_util::error::Error as GarageError;
 use garage_util::migrate::Migrate;
 
 use garage_model::garage::Garage;
-use garage_model::s3::object_table::{ObjectVersionEncryption, ObjectVersionHeaders};
+use garage_model::s3::object_table::{ObjectVersionEncryption, ObjectVersionMetaInner};
 
 use crate::common_error::*;
+use crate::s3::checksum::Md5Checksum;
 use crate::s3::error::Error;
 
 const X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM: HeaderName =
@@ -124,7 +125,7 @@ impl EncryptionParams {
 		garage: &Garage,
 		headers: &HeaderMap,
 		obj_enc: &'a ObjectVersionEncryption,
-	) -> Result<(Self, Cow<'a, ObjectVersionHeaders>), Error> {
+	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		let key = parse_request_headers(
 			headers,
 			&X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM,
@@ -138,7 +139,7 @@ impl EncryptionParams {
 		garage: &Garage,
 		headers: &HeaderMap,
 		obj_enc: &'a ObjectVersionEncryption,
-	) -> Result<(Self, Cow<'a, ObjectVersionHeaders>), Error> {
+	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		let key = parse_request_headers(
 			headers,
 			&X_AMZ_COPY_SOURCE_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM,
@@ -152,14 +153,11 @@ impl EncryptionParams {
 		garage: &Garage,
 		key: Option<(Key<Aes256Gcm>, Md5Output)>,
 		obj_enc: &'a ObjectVersionEncryption,
-	) -> Result<(Self, Cow<'a, ObjectVersionHeaders>), Error> {
+	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		match (key, &obj_enc) {
 			(
 				Some((client_key, client_key_md5)),
-				ObjectVersionEncryption::SseC {
-					headers,
-					compressed,
-				},
+				ObjectVersionEncryption::SseC { inner, compressed },
 			) => {
 				let enc = Self::SseC {
 					client_key,
@@ -170,13 +168,13 @@ impl EncryptionParams {
 						None
 					},
 				};
-				let plaintext = enc.decrypt_blob(&headers)?;
-				let headers = ObjectVersionHeaders::decode(&plaintext)
-					.ok_or_internal_error("Could not decode encrypted headers")?;
-				Ok((enc, Cow::Owned(headers)))
+				let plaintext = enc.decrypt_blob(&inner)?;
+				let inner = ObjectVersionMetaInner::decode(&plaintext)
+					.ok_or_internal_error("Could not decode encrypted metadata")?;
+				Ok((enc, Cow::Owned(inner)))
 			}
-			(None, ObjectVersionEncryption::Plaintext { headers }) => {
-				Ok((Self::Plaintext, Cow::Borrowed(headers)))
+			(None, ObjectVersionEncryption::Plaintext { inner }) => {
+				Ok((Self::Plaintext, Cow::Borrowed(inner)))
 			}
 			(_, ObjectVersionEncryption::SseC { .. }) => {
 				Err(Error::bad_request("Object is encrypted"))
@@ -188,29 +186,31 @@ impl EncryptionParams {
 		}
 	}
 
-	pub fn encrypt_headers(
+	pub fn encrypt_meta(
 		&self,
-		h: ObjectVersionHeaders,
+		meta: ObjectVersionMetaInner,
 	) -> Result<ObjectVersionEncryption, Error> {
 		match self {
 			Self::SseC {
 				compression_level, ..
 			} => {
-				let plaintext = h.encode().map_err(GarageError::from)?;
+				let plaintext = meta.encode().map_err(GarageError::from)?;
 				let ciphertext = self.encrypt_blob(&plaintext)?;
 				Ok(ObjectVersionEncryption::SseC {
-					headers: ciphertext.into_owned(),
+					inner: ciphertext.into_owned(),
 					compressed: compression_level.is_some(),
 				})
 			}
-			Self::Plaintext => Ok(ObjectVersionEncryption::Plaintext { headers: h }),
+			Self::Plaintext => Ok(ObjectVersionEncryption::Plaintext { inner: meta }),
 		}
 	}
 
 	// ---- generating object Etag values ----
-	pub fn etag_from_md5(&self, md5sum: &[u8]) -> String {
+	pub fn etag_from_md5(&self, md5sum: &Option<Md5Checksum>) -> String {
 		match self {
-			Self::Plaintext => hex::encode(md5sum),
+			Self::Plaintext => md5sum
+				.map(|x| hex::encode(&x[..]))
+				.expect("md5 digest should have been computed"),
 			Self::SseC { .. } => {
 				// AWS specifies that for encrypted objects, the Etag is not
 				// the md5sum of the data, but doesn't say what it is.
@@ -224,7 +224,7 @@ impl EncryptionParams {
 
 	// ---- generic function for encrypting / decrypting blobs ----
 	// Prepends a randomly-generated nonce to the encrypted value.
-	// This is used for encrypting object headers and inlined data for small objects.
+	// This is used for encrypting object metadata and inlined data for small objects.
 	// This does not compress anything.
 
 	pub fn encrypt_blob<'a>(&self, blob: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {

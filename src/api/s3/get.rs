@@ -27,6 +27,7 @@ use garage_model::s3::version_table::*;
 
 use crate::helpers::*;
 use crate::s3::api_server::ResBody;
+use crate::s3::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
 use crate::s3::encryption::EncryptionParams;
 use crate::s3::error::*;
 
@@ -45,8 +46,9 @@ pub struct GetObjectOverrides {
 fn object_headers(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
-	headers: &ObjectVersionHeaders,
+	meta_inner: &ObjectVersionMetaInner,
 	encryption: EncryptionParams,
+	checksum_mode: ChecksumMode,
 ) -> http::response::Builder {
 	debug!("Version meta: {:?}", version_meta);
 
@@ -65,7 +67,7 @@ fn object_headers(
 	// have the same name (ignoring case) into a comma-delimited list.
 	// See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
 	let mut headers_by_name = BTreeMap::new();
-	for (name, value) in headers.0.iter() {
+	for (name, value) in meta_inner.headers.iter() {
 		match headers_by_name.get_mut(name) {
 			None => {
 				headers_by_name.insert(name, vec![value.as_str()]);
@@ -78,6 +80,10 @@ fn object_headers(
 
 	for (name, values) in headers_by_name {
 		resp = resp.header(name, values.join(","));
+	}
+
+	if checksum_mode.enabled {
+		resp = add_checksum_response_headers(&meta_inner.checksum, resp);
 	}
 
 	encryption.add_response_headers(&mut resp);
@@ -199,6 +205,8 @@ pub async fn handle_head_without_ctx(
 	let (encryption, headers) =
 		EncryptionParams::check_decrypt(&garage, req.headers(), &version_meta.encryption)?;
 
+	let checksum_mode = checksum_mode(&req);
+
 	if let Some(pn) = part_number {
 		match version_data {
 			ObjectVersionData::Inline(_, _) => {
@@ -206,17 +214,21 @@ pub async fn handle_head_without_ctx(
 					return Err(Error::InvalidPart);
 				}
 				let bytes_len = version_meta.size;
-				Ok(
-					object_headers(object_version, version_meta, &headers, encryption)
-						.header(CONTENT_LENGTH, format!("{}", bytes_len))
-						.header(
-							CONTENT_RANGE,
-							format!("bytes 0-{}/{}", bytes_len - 1, bytes_len),
-						)
-						.header(X_AMZ_MP_PARTS_COUNT, "1")
-						.status(StatusCode::PARTIAL_CONTENT)
-						.body(empty_body())?,
+				Ok(object_headers(
+					object_version,
+					version_meta,
+					&headers,
+					encryption,
+					checksum_mode,
 				)
+				.header(CONTENT_LENGTH, format!("{}", bytes_len))
+				.header(
+					CONTENT_RANGE,
+					format!("bytes 0-{}/{}", bytes_len - 1, bytes_len),
+				)
+				.header(X_AMZ_MP_PARTS_COUNT, "1")
+				.status(StatusCode::PARTIAL_CONTENT)
+				.body(empty_body())?)
 			}
 			ObjectVersionData::FirstBlock(_, _) => {
 				let version = garage
@@ -228,32 +240,40 @@ pub async fn handle_head_without_ctx(
 				let (part_offset, part_end) =
 					calculate_part_bounds(&version, pn).ok_or(Error::InvalidPart)?;
 
-				Ok(
-					object_headers(object_version, version_meta, &headers, encryption)
-						.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
-						.header(
-							CONTENT_RANGE,
-							format!(
-								"bytes {}-{}/{}",
-								part_offset,
-								part_end - 1,
-								version_meta.size
-							),
-						)
-						.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
-						.status(StatusCode::PARTIAL_CONTENT)
-						.body(empty_body())?,
+				Ok(object_headers(
+					object_version,
+					version_meta,
+					&headers,
+					encryption,
+					checksum_mode,
 				)
+				.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
+				.header(
+					CONTENT_RANGE,
+					format!(
+						"bytes {}-{}/{}",
+						part_offset,
+						part_end - 1,
+						version_meta.size
+					),
+				)
+				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
+				.status(StatusCode::PARTIAL_CONTENT)
+				.body(empty_body())?)
 			}
 			_ => unreachable!(),
 		}
 	} else {
-		Ok(
-			object_headers(object_version, version_meta, &headers, encryption)
-				.header(CONTENT_LENGTH, format!("{}", version_meta.size))
-				.status(StatusCode::OK)
-				.body(empty_body())?,
+		Ok(object_headers(
+			object_version,
+			version_meta,
+			&headers,
+			encryption,
+			checksum_mode,
 		)
+		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
+		.status(StatusCode::OK)
+		.body(empty_body())?)
 	}
 }
 
@@ -307,12 +327,24 @@ pub async fn handle_get_without_ctx(
 	let (enc, headers) =
 		EncryptionParams::check_decrypt(&garage, req.headers(), &last_v_meta.encryption)?;
 
+	let checksum_mode = checksum_mode(&req);
+
 	match (part_number, parse_range_header(req, last_v_meta.size)?) {
 		(Some(_), Some(_)) => Err(Error::bad_request(
 			"Cannot specify both partNumber and Range header",
 		)),
 		(Some(pn), None) => {
-			handle_get_part(garage, last_v, last_v_data, last_v_meta, enc, &headers, pn).await
+			handle_get_part(
+				garage,
+				last_v,
+				last_v_data,
+				last_v_meta,
+				enc,
+				&headers,
+				pn,
+				checksum_mode,
+			)
+			.await
 		}
 		(None, Some(range)) => {
 			handle_get_range(
@@ -324,6 +356,7 @@ pub async fn handle_get_without_ctx(
 				&headers,
 				range.start,
 				range.start + range.length,
+				checksum_mode,
 			)
 			.await
 		}
@@ -336,6 +369,7 @@ pub async fn handle_get_without_ctx(
 				enc,
 				&headers,
 				overrides,
+				checksum_mode,
 			)
 			.await
 		}
@@ -348,12 +382,19 @@ async fn handle_get_full(
 	version_data: &ObjectVersionData,
 	version_meta: &ObjectVersionMeta,
 	encryption: EncryptionParams,
-	headers: &ObjectVersionHeaders,
+	meta_inner: &ObjectVersionMetaInner,
 	overrides: GetObjectOverrides,
+	checksum_mode: ChecksumMode,
 ) -> Result<Response<ResBody>, Error> {
-	let mut resp_builder = object_headers(version, version_meta, &headers, encryption)
-		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
-		.status(StatusCode::OK);
+	let mut resp_builder = object_headers(
+		version,
+		version_meta,
+		&meta_inner,
+		encryption,
+		checksum_mode,
+	)
+	.header(CONTENT_LENGTH, format!("{}", version_meta.size))
+	.status(StatusCode::OK);
 	getobject_override_headers(overrides, &mut resp_builder)?;
 
 	let stream = full_object_byte_stream(garage, version, version_data, encryption);
@@ -432,14 +473,15 @@ async fn handle_get_range(
 	version_data: &ObjectVersionData,
 	version_meta: &ObjectVersionMeta,
 	encryption: EncryptionParams,
-	headers: &ObjectVersionHeaders,
+	meta_inner: &ObjectVersionMetaInner,
 	begin: u64,
 	end: u64,
+	checksum_mode: ChecksumMode,
 ) -> Result<Response<ResBody>, Error> {
 	// Here we do not use getobject_override_headers because we don't
 	// want to add any overridden headers (those should not be added
 	// when returning PARTIAL_CONTENT)
-	let resp_builder = object_headers(version, version_meta, headers, encryption)
+	let resp_builder = object_headers(version, version_meta, meta_inner, encryption, checksum_mode)
 		.header(CONTENT_LENGTH, format!("{}", end - begin))
 		.header(
 			CONTENT_RANGE,
@@ -480,12 +522,19 @@ async fn handle_get_part(
 	version_data: &ObjectVersionData,
 	version_meta: &ObjectVersionMeta,
 	encryption: EncryptionParams,
-	headers: &ObjectVersionHeaders,
+	meta_inner: &ObjectVersionMetaInner,
 	part_number: u64,
+	checksum_mode: ChecksumMode,
 ) -> Result<Response<ResBody>, Error> {
 	// Same as for get_range, no getobject_override_headers
-	let resp_builder = object_headers(object_version, version_meta, headers, encryption)
-		.status(StatusCode::PARTIAL_CONTENT);
+	let resp_builder = object_headers(
+		object_version,
+		version_meta,
+		meta_inner,
+		encryption,
+		checksum_mode,
+	)
+	.status(StatusCode::PARTIAL_CONTENT);
 
 	match version_data {
 		ObjectVersionData::Inline(_, bytes) => {
@@ -565,6 +614,20 @@ fn calculate_part_bounds(v: &Version, part_number: u64) -> Option<(u64, u64)> {
 		offset += bv.size;
 	}
 	None
+}
+
+struct ChecksumMode {
+	enabled: bool,
+}
+
+fn checksum_mode(req: &Request<impl Body>) -> ChecksumMode {
+	ChecksumMode {
+		enabled: req
+			.headers()
+			.get(X_AMZ_CHECKSUM_MODE)
+			.map(|x| x == "ENABLED")
+			.unwrap_or(false),
+	}
 }
 
 fn body_from_blocks_range(

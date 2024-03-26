@@ -69,6 +69,10 @@ pub enum Error {
 	#[error(display = "Invalid encryption algorithm: {:?}, should be AES256", _0)]
 	InvalidEncryptionAlgorithm(String),
 
+	/// The client sent invalid XML data
+	#[error(display = "Invalid digest: {}", _0)]
+	InvalidDigest(String),
+
 	/// The client sent a request for an action not supported by garage
 	#[error(display = "Unimplemented action: {}", _0)]
 	NotImplemented(String),
@@ -129,6 +133,7 @@ impl Error {
 			Error::NotImplemented(_) => "NotImplemented",
 			Error::InvalidXml(_) => "MalformedXML",
 			Error::InvalidRange(_) => "InvalidRange",
+			Error::InvalidDigest(_) => "InvalidDigest",
 			Error::InvalidUtf8Str(_) | Error::InvalidUtf8String(_) => "InvalidRequest",
 			Error::InvalidEncryptionAlgorithm(_) => "InvalidEncryptionAlgorithmError",
 		}
@@ -148,6 +153,7 @@ impl ApiError for Error {
 			| Error::InvalidPart
 			| Error::InvalidPartOrder
 			| Error::EntityTooSmall
+			| Error::InvalidDigest(_)
 			| Error::InvalidEncryptionAlgorithm(_)
 			| Error::InvalidXml(_)
 			| Error::InvalidUtf8Str(_)

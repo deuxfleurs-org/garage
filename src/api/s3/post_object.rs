@@ -14,13 +14,15 @@ use multer::{Constraints, Multipart, SizeLimit};
 use serde::Deserialize;
 
 use garage_model::garage::Garage;
+use garage_model::s3::object_table::*;
 
 use crate::helpers::*;
 use crate::s3::api_server::ResBody;
+use crate::s3::checksum::*;
 use crate::s3::cors::*;
 use crate::s3::encryption::EncryptionParams;
 use crate::s3::error::*;
-use crate::s3::put::{get_headers, save_stream};
+use crate::s3::put::{get_headers, save_stream, ChecksumMode};
 use crate::s3::xml as s3_xml;
 use crate::signature::payload::{verify_v4, Authorization};
 
@@ -98,10 +100,6 @@ pub async fn handle_post_object(
 		.ok_or_bad_request("No policy was provided")?
 		.to_str()?;
 	let authorization = Authorization::parse_form(&params)?;
-	let content_md5 = params
-		.get("content-md5")
-		.map(HeaderValue::to_str)
-		.transpose()?;
 
 	let key = if key.contains("${filename}") {
 		// if no filename is provided, don't replace. This matches the behavior of AWS.
@@ -226,6 +224,21 @@ pub async fn handle_post_object(
 
 	let headers = get_headers(&params)?;
 
+	let expected_checksums = ExpectedChecksums {
+		md5: params
+			.get("content-md5")
+			.map(HeaderValue::to_str)
+			.transpose()?
+			.map(str::to_string),
+		sha256: None,
+		extra: request_checksum_algorithm_value(&params)?,
+	};
+
+	let meta = ObjectVersionMetaInner {
+		headers,
+		checksum: expected_checksums.extra,
+	};
+
 	let encryption = EncryptionParams::new_from_headers(&garage, &params)?;
 
 	let stream = file_field.map(|r| r.map_err(Into::into));
@@ -239,12 +252,11 @@ pub async fn handle_post_object(
 
 	let res = save_stream(
 		&ctx,
-		headers,
+		meta,
 		encryption,
 		StreamLimiter::new(stream, conditions.content_length),
 		&key,
-		content_md5.map(str::to_string),
-		None,
+		ChecksumMode::Verify(&expected_checksums),
 	)
 	.await?;
 

@@ -3,7 +3,6 @@
 #[macro_use]
 extern crate tracing;
 
-pub mod async_hash;
 pub mod background;
 pub mod config;
 pub mod crdt;

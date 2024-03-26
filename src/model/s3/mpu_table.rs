@@ -17,6 +17,7 @@ pub const PARTS: &str = "parts";
 pub const BYTES: &str = "bytes";
 
 mod v09 {
+	use crate::s3::object_table::ChecksumValue;
 	use garage_util::crdt;
 	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
@@ -61,6 +62,9 @@ mod v09 {
 		pub version: Uuid,
 		/// ETag of the content of this part (known only once done uploading)
 		pub etag: Option<String>,
+		/// Checksum requested by x-amz-checksum-algorithm
+		#[serde(default)]
+		pub checksum: Option<ChecksumValue>,
 		/// Size of this part (known only once done uploading)
 		pub size: Option<u64>,
 	}
@@ -153,6 +157,11 @@ impl Crdt for MpuPart {
 		self.size = match (self.size, other.size) {
 			(None, Some(_)) => other.size,
 			(Some(x), Some(y)) if x < y => other.size,
+			(x, _) => x,
+		};
+		self.checksum = match (self.checksum.take(), &other.checksum) {
+			(None, Some(_)) => other.checksum.clone(),
+			(Some(x), Some(y)) if x < *y => other.checksum.clone(),
 			(x, _) => x,
 		};
 	}

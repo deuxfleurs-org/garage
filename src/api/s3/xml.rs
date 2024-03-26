@@ -131,6 +131,14 @@ pub struct CompleteMultipartUploadResult {
 	pub key: Value,
 	#[serde(rename = "ETag")]
 	pub etag: Value,
+	#[serde(rename = "ChecksumCRC32")]
+	pub checksum_crc32: Option<Value>,
+	#[serde(rename = "ChecksumCRC32C")]
+	pub checksum_crc32c: Option<Value>,
+	#[serde(rename = "ChecksumSHA1")]
+	pub checksum_sha1: Option<Value>,
+	#[serde(rename = "ChecksumSHA256")]
+	pub checksum_sha256: Option<Value>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -197,6 +205,14 @@ pub struct PartItem {
 	pub part_number: IntValue,
 	#[serde(rename = "Size")]
 	pub size: IntValue,
+	#[serde(rename = "ChecksumCRC32")]
+	pub checksum_crc32: Option<Value>,
+	#[serde(rename = "ChecksumCRC32C")]
+	pub checksum_crc32c: Option<Value>,
+	#[serde(rename = "ChecksumSHA1")]
+	pub checksum_sha1: Option<Value>,
+	#[serde(rename = "ChecksumSHA256")]
+	pub checksum_sha256: Option<Value>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -500,6 +516,10 @@ mod tests {
 			bucket: Value("mybucket".to_string()),
 			key: Value("a/plop".to_string()),
 			etag: Value("\"3858f62230ac3c915f300c664312c11f-9\"".to_string()),
+			checksum_crc32: None,
+			checksum_crc32c: None,
+			checksum_sha1: Some(Value("ZJAnHyG8PeKz9tI8UTcHrJos39A=".into())),
+			checksum_sha256: None,
 		};
 		assert_eq!(
 			to_xml_with_header(&result)?,
@@ -509,6 +529,7 @@ mod tests {
 	<Bucket>mybucket</Bucket>\
 	<Key>a/plop</Key>\
 	<ETag>&quot;3858f62230ac3c915f300c664312c11f-9&quot;</ETag>\
+    <ChecksumSHA1>ZJAnHyG8PeKz9tI8UTcHrJos39A=</ChecksumSHA1>\
 </CompleteMultipartUploadResult>"
 		);
 		Ok(())
@@ -780,12 +801,22 @@ mod tests {
 					last_modified: Value("2010-11-10T20:48:34.000Z".to_string()),
 					part_number: IntValue(2),
 					size: IntValue(10485760),
+					checksum_crc32: None,
+					checksum_crc32c: None,
+					checksum_sha256: Some(Value(
+						"5RQ3A5uk0w7ojNjvegohch4JRBBGN/cLhsNrPzfv/hA=".into(),
+					)),
+					checksum_sha1: None,
 				},
 				PartItem {
 					etag: Value("\"aaaa18db4cc2f85cedef654fccc4a4x8\"".to_string()),
 					last_modified: Value("2010-11-10T20:48:33.000Z".to_string()),
 					part_number: IntValue(3),
 					size: IntValue(10485760),
+					checksum_sha256: None,
+					checksum_crc32c: None,
+					checksum_crc32: Some(Value("ZJAnHyG8=".into())),
+					checksum_sha1: None,
 				},
 			],
 			initiator: Initiator {
@@ -820,12 +851,14 @@ mod tests {
     <LastModified>2010-11-10T20:48:34.000Z</LastModified>\
     <PartNumber>2</PartNumber>\
     <Size>10485760</Size>\
+    <ChecksumSHA256>5RQ3A5uk0w7ojNjvegohch4JRBBGN/cLhsNrPzfv/hA=</ChecksumSHA256>\
   </Part>\
   <Part>\
     <ETag>&quot;aaaa18db4cc2f85cedef654fccc4a4x8&quot;</ETag>\
     <LastModified>2010-11-10T20:48:33.000Z</LastModified>\
     <PartNumber>3</PartNumber>\
     <Size>10485760</Size>\
+    <ChecksumCRC32>ZJAnHyG8=</ChecksumCRC32>\
   </Part>\
   <Initiator>\
       <DisplayName>umat-user-11116a31-17b5-4fb7-9df5-b288870f11xx</DisplayName>\

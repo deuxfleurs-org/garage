@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::{Iterator, Peekable};
 
 use base64::prelude::*;
-use hyper::Response;
+use hyper::{Request, Response};
 
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
@@ -15,7 +15,8 @@ use garage_table::EnumerationOrder;
 
 use crate::encoding::*;
 use crate::helpers::*;
-use crate::s3::api_server::ResBody;
+use crate::s3::api_server::{ReqBody, ResBody};
+use crate::s3::encryption::EncryptionParams;
 use crate::s3::error::*;
 use crate::s3::multipart as s3_multipart;
 use crate::s3::xml as s3_xml;
@@ -271,13 +272,21 @@ pub async fn handle_list_multipart_upload(
 
 pub async fn handle_list_parts(
 	ctx: ReqCtx,
+	req: Request<ReqBody>,
 	query: &ListPartsQuery,
 ) -> Result<Response<ResBody>, Error> {
 	debug!("ListParts {:?}", query);
 
 	let upload_id = s3_multipart::decode_upload_id(&query.upload_id)?;
 
-	let (_, _, mpu) = s3_multipart::get_upload(&ctx, &query.key, &upload_id).await?;
+	let (_, object_version, mpu) = s3_multipart::get_upload(&ctx, &query.key, &upload_id).await?;
+
+	let object_encryption = match object_version.state {
+		ObjectVersionState::Uploading { encryption, .. } => encryption,
+		_ => unreachable!(),
+	};
+	let encryption_res =
+		EncryptionParams::check_decrypt(&ctx.garage, req.headers(), &object_encryption);
 
 	let (info, next) = fetch_part_info(query, &mpu)?;
 
@@ -296,11 +305,40 @@ pub async fn handle_list_parts(
 		is_truncated: s3_xml::Value(format!("{}", next.is_some())),
 		parts: info
 			.iter()
-			.map(|part| s3_xml::PartItem {
-				etag: s3_xml::Value(format!("\"{}\"", part.etag)),
-				last_modified: s3_xml::Value(msec_to_rfc3339(part.timestamp)),
-				part_number: s3_xml::IntValue(part.part_number as i64),
-				size: s3_xml::IntValue(part.size as i64),
+			.map(|part| {
+				// hide checksum if object is encrypted and the decryption
+				// keys are not provided
+				let checksum = part.checksum.filter(|_| encryption_res.is_ok());
+				s3_xml::PartItem {
+					etag: s3_xml::Value(format!("\"{}\"", part.etag)),
+					last_modified: s3_xml::Value(msec_to_rfc3339(part.timestamp)),
+					part_number: s3_xml::IntValue(part.part_number as i64),
+					size: s3_xml::IntValue(part.size as i64),
+					checksum_crc32: match &checksum {
+						Some(ChecksumValue::Crc32(x)) => {
+							Some(s3_xml::Value(BASE64_STANDARD.encode(&x)))
+						}
+						_ => None,
+					},
+					checksum_crc32c: match &checksum {
+						Some(ChecksumValue::Crc32c(x)) => {
+							Some(s3_xml::Value(BASE64_STANDARD.encode(&x)))
+						}
+						_ => None,
+					},
+					checksum_sha1: match &checksum {
+						Some(ChecksumValue::Sha1(x)) => {
+							Some(s3_xml::Value(BASE64_STANDARD.encode(&x)))
+						}
+						_ => None,
+					},
+					checksum_sha256: match &checksum {
+						Some(ChecksumValue::Sha256(x)) => {
+							Some(s3_xml::Value(BASE64_STANDARD.encode(&x)))
+						}
+						_ => None,
+					},
+				}
 			})
 			.collect(),
 
@@ -346,6 +384,7 @@ struct PartInfo<'a> {
 	timestamp: u64,
 	part_number: u64,
 	size: u64,
+	checksum: Option<ChecksumValue>,
 }
 
 enum ExtractionResult {
@@ -486,6 +525,7 @@ fn fetch_part_info<'a>(
 				timestamp: pk.timestamp,
 				etag,
 				size,
+				checksum: p.checksum,
 			};
 			match parts.last_mut() {
 				Some(lastpart) if lastpart.part_number == pk.part_number => {
@@ -945,8 +985,12 @@ mod tests {
 			state: ObjectVersionState::Uploading {
 				multipart: true,
 				encryption: ObjectVersionEncryption::Plaintext {
-					headers: ObjectVersionHeaders(vec![]),
+					inner: ObjectVersionMetaInner {
+						headers: vec![],
+						checksum: None,
+					},
 				},
+				checksum_algorithm: None,
 			},
 		}
 	}
@@ -1135,6 +1179,7 @@ mod tests {
 					version: uuid,
 					size: Some(3),
 					etag: Some("etag1".into()),
+					checksum: None,
 				},
 			),
 			(
@@ -1146,6 +1191,7 @@ mod tests {
 					version: uuid,
 					size: None,
 					etag: None,
+					checksum: None,
 				},
 			),
 			(
@@ -1157,6 +1203,7 @@ mod tests {
 					version: uuid,
 					size: Some(10),
 					etag: Some("etag2".into()),
+					checksum: None,
 				},
 			),
 			(
@@ -1168,6 +1215,7 @@ mod tests {
 					version: uuid,
 					size: Some(7),
 					etag: Some("etag3".into()),
+					checksum: None,
 				},
 			),
 			(
@@ -1179,6 +1227,7 @@ mod tests {
 					version: uuid,
 					size: Some(5),
 					etag: Some("etag4".into()),
+					checksum: None,
 				},
 			),
 		];
@@ -1217,12 +1266,14 @@ mod tests {
 					etag: "etag1",
 					timestamp: TS,
 					part_number: 1,
-					size: 3
+					size: 3,
+					checksum: None,
 				},
 				PartInfo {
 					etag: "etag2",
 					timestamp: TS,
 					part_number: 3,
+					checksum: None,
 					size: 10
 				},
 			]
@@ -1238,12 +1289,14 @@ mod tests {
 				PartInfo {
 					etag: "etag3",
 					timestamp: TS,
+					checksum: None,
 					part_number: 5,
 					size: 7
 				},
 				PartInfo {
 					etag: "etag4",
 					timestamp: TS,
+					checksum: None,
 					part_number: 8,
 					size: 5
 				},
@@ -1267,24 +1320,28 @@ mod tests {
 				PartInfo {
 					etag: "etag1",
 					timestamp: TS,
+					checksum: None,
 					part_number: 1,
 					size: 3
 				},
 				PartInfo {
 					etag: "etag2",
 					timestamp: TS,
+					checksum: None,
 					part_number: 3,
 					size: 10
 				},
 				PartInfo {
 					etag: "etag3",
 					timestamp: TS,
+					checksum: None,
 					part_number: 5,
 					size: 7
 				},
 				PartInfo {
 					etag: "etag4",
 					timestamp: TS,
+					checksum: None,
 					part_number: 8,
 					size: 5
 				},
