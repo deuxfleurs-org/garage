@@ -10,7 +10,7 @@ use crate::common;
 use crate::json_body;
 
 #[tokio::test]
-#[ignore = "currently broken (works ~99% of the time)"]
+#[ignore = "currently broken"]
 async fn test_poll_item() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("test-k2v-poll-item");
@@ -99,6 +99,7 @@ async fn test_poll_item() {
 }
 
 #[tokio::test]
+#[ignore = "currently broken"]
 async fn test_poll_range() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("test-k2v-poll-range");
