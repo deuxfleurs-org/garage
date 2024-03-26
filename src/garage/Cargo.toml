@@ -59,6 +59,7 @@ opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }
 opentelemetry-otlp = { workspace = true, optional = true }
 prometheus = { workspace = true, optional = true }
+syslog-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
 aws-config.workspace = true
@@ -97,6 +98,8 @@ kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 metrics = [ "garage_api/metrics", "opentelemetry-prometheus", "prometheus" ]
 # Exporter for the OpenTelemetry Collector.
 telemetry-otlp = [ "opentelemetry-otlp" ]
+# Logging to syslog
+syslog = [ "syslog-tracing" ]
 
 # NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
 # exactly one of them should be enabled.

@@ -31,6 +31,8 @@ rpc_bind_addr = "[::]:3901"
 rpc_bind_outgoing = false
 rpc_public_addr = "[fc00:1::1]:3901"
 
+allow_world_readable_secrets = false
+
 bootstrap_peers = [
     "563e1ac825ee3323aa441e72c26d1030d6d4414aeb3dd25287c531e7fc2bc95d@[fc00:1::1]:3901",
     "86f0f26ae4afbd59aaf9cfb059eefac844951efd5b8caeec0d53f4ed6c85f332@[fc00:1::2]:3901",
@@ -81,7 +83,10 @@ The following gives details about each available configuration option.
 
 ### Index
 
+[Environment variables](#env_variables).
+
 Top-level configuration options:
+[`allow_world_readable_secrets`](#allow_world_readable_secrets),
 [`block_size`](#block_size),
 [`bootstrap_peers`](#bootstrap_peers),
 [`compression_level`](#compression_level),
@@ -131,6 +136,23 @@ The `[admin]` section:
 [`metrics_token`/`metrics_token_file`](#admin_metrics_token),
 [`admin_token`/`admin_token_file`](#admin_token),
 [`trace_sink`](#admin_trace_sink),
+
+### Environment variables {#env_variables}
+
+The following configuration parameter must be specified as an environment
+variable, it does not exist in the configuration file:
+
+- `GARAGE_LOG_TO_SYSLOG` (since v0.9.4): set this to `1` or `true` to make the
+  Garage daemon send its logs to `syslog` (using the libc `syslog` function)
+  instead of printing to stderr.
+
+The following environment variables can be used to override the corresponding
+values in the configuration file:
+
+- [`GARAGE_ALLOW_WORLD_READABLE_SECRETS`](#allow_world_readable_secrets)
+- [`GARAGE_RPC_SECRET` and `GARAGE_RPC_SECRET_FILE`](#rpc_secret)
+- [`GARAGE_ADMIN_TOKEN` and `GARAGE_ADMIN_TOKEN_FILE`](#admin_token)
+- [`GARAGE_METRICS_TOKEN` and `GARAGE_METRICS_TOKEN`](#admin_metrics_token)
 
 
 ### Top-level configuration options
@@ -502,7 +524,7 @@ be obtained by running `garage node id` and then included directly in the
 key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
-### `allow_world_readable_secrets`
+### `allow_world_readable_secrets` or `GARAGE_ALLOW_WORLD_READABLE_SECRETS` (env) {#allow_world_readable_secrets}
 
 Garage checks the permissions of your secret files to make sure they're not
 world-readable. In some cases, the check might fail and consider your files as

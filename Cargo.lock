@@ -1350,6 +1350,7 @@ dependencies = [
  "sha2",
  "static_init",
  "structopt",
+ "syslog-tracing",
  "timeago",
  "tokio",
  "toml",
@@ -3983,6 +3984,17 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "unicode-xid",
+]
+
+[[package]]
+name = "syslog-tracing"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "340b1540dcdb6b066bc2966e7974f977ab1a38f21b2be189014ffb0cc2405768"
+dependencies = [
+ "libc",
+ "tracing-core",
+ "tracing-subscriber",
 ]
 
 [[package]]

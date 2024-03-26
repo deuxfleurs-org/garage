@@ -127,17 +127,15 @@ impl BlockManager {
 		// Load or compute layout, i.e. assignment of data blocks to the different data directories
 		let data_layout_persister: Persister<DataLayout> =
 			Persister::new(&system.metadata_dir, "data_layout");
-		let data_layout = match data_layout_persister.load() {
-			Ok(mut layout) => {
-				layout
-					.update(&config.data_dir)
-					.ok_or_message("invalid data_dir config")?;
-				layout
-			}
+		let mut data_layout = match data_layout_persister.load() {
+			Ok(layout) => layout
+				.update(&config.data_dir)
+				.ok_or_message("invalid data_dir config")?,
 			Err(_) => {
 				DataLayout::initialize(&config.data_dir).ok_or_message("invalid data_dir config")?
 			}
 		};
+		data_layout.check_markers()?;
 		data_layout_persister
 			.save(&data_layout)
 			.expect("cannot save data_layout");

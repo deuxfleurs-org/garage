@@ -90,5 +90,6 @@ The following feature flags are available in v0.8.0:
 | `kubernetes-discovery` | optional | Enable automatic registration and discovery<br>of cluster nodes through the Kubernetes API |
 | `metrics` | *by default* | Enable collection of metrics in Prometheus format on the admin API |
 | `telemetry-otlp` | optional | Enable collection of execution traces using OpenTelemetry |
+| `syslog` | optional | Enable logging to Syslog |
 | `lmdb` | *by default* | Enable using LMDB to store Garage's metadata |
 | `sqlite` | *by default* | Enable using Sqlite3 to store Garage's metadata |

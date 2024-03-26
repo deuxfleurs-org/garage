@@ -34,7 +34,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "a49da9d5ef560672a34c1e004c0122e706a74fac512300f20858f136cd00582e";
+  nixifiedLockHash = "1ef5e578c148e63bdc6491d497aba66b38dcf011779d417228906ce7b19d55f4";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1927,6 +1927,8 @@ in
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/metrics" || rootFeatures' ? "garage/opentelemetry-prometheus") "opentelemetry-prometheus")
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/metrics" || rootFeatures' ? "garage/prometheus") "prometheus")
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/sqlite") "sqlite")
+      (lib.optional (rootFeatures' ? "garage/syslog") "syslog")
+      (lib.optional (rootFeatures' ? "garage/syslog" || rootFeatures' ? "garage/syslog-tracing") "syslog-tracing")
       (lib.optional (rootFeatures' ? "garage/system-libs") "system-libs")
       (lib.optional (rootFeatures' ? "garage/telemetry-otlp") "telemetry-otlp")
     ];
@@ -1960,6 +1962,7 @@ in
       serde_bytes = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_bytes."0.11.14" { inherit profileName; }).out;
       sha1 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".sha1."0.10.6" { inherit profileName; }).out;
       structopt = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".structopt."0.3.26" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "garage/syslog" || rootFeatures' ? "garage/syslog-tracing" then "syslog_tracing" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".syslog-tracing."0.3.0" { inherit profileName; }).out;
       timeago = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".timeago."0.4.2" { inherit profileName; }).out;
       tokio = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.36.0" { inherit profileName; }).out;
       toml = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".toml."0.8.10" { inherit profileName; }).out;
@@ -5672,6 +5675,18 @@ in
       quote = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".quote."1.0.35" { inherit profileName; }).out;
       syn = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".syn."1.0.109" { inherit profileName; }).out;
       unicode_xid = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".unicode-xid."0.2.4" { inherit profileName; }).out;
+    };
+  });
+  
+  "registry+https://github.com/rust-lang/crates.io-index".syslog-tracing."0.3.0" = overridableMkRustCrate (profileName: rec {
+    name = "syslog-tracing";
+    version = "0.3.0";
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo { inherit name version; sha256 = "340b1540dcdb6b066bc2966e7974f977ab1a38f21b2be189014ffb0cc2405768"; };
+    dependencies = {
+      ${ if rootFeatures' ? "garage/syslog" || rootFeatures' ? "garage/syslog-tracing" then "libc" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.153" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "garage/syslog" || rootFeatures' ? "garage/syslog-tracing" then "tracing_core" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-core."0.1.32" { inherit profileName; }).out;
+      ${ if rootFeatures' ? "garage/syslog" || rootFeatures' ? "garage/syslog-tracing" then "tracing_subscriber" else null } = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-subscriber."0.3.18" { inherit profileName; }).out;
     };
   });
   
