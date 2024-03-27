@@ -219,12 +219,11 @@ impl K2VRpcHandler {
 			},
 			sort_key,
 		};
-		// TODO figure this out with write sets, is it still appropriate???
 		let nodes = self
 			.item_table
 			.data
 			.replication
-			.read_nodes(&poll_key.partition.hash());
+			.storage_nodes(&poll_key.partition.hash());
 
 		let rpc = self.system.rpc_helper().try_call_many(
 			&self.endpoint,
@@ -239,8 +238,7 @@ impl K2VRpcHandler {
 				.send_all_at_once(true)
 				.without_timeout(),
 		);
-		let timeout_duration =
-			Duration::from_millis(timeout_msec) + self.system.rpc_helper().rpc_timeout();
+		let timeout_duration = Duration::from_millis(timeout_msec);
 		let resps = select! {
 			r = rpc => r?,
 			_ = tokio::time::sleep(timeout_duration) => return Ok(None),
@@ -282,12 +280,11 @@ impl K2VRpcHandler {
 		seen.restrict(&range);
 
 		// Prepare PollRange RPC to send to the storage nodes responsible for the parititon
-		// TODO figure this out with write sets, does it still work????
 		let nodes = self
 			.item_table
 			.data
 			.replication
-			.read_nodes(&range.partition.hash());
+			.storage_nodes(&range.partition.hash());
 		let quorum = self.item_table.data.replication.read_quorum();
 		let msg = K2VRpc::PollRange {
 			range,
@@ -320,9 +317,7 @@ impl K2VRpcHandler {
 		// kind: all items produced by that node until time ts have been returned, so we can
 		// bump the entry in the global vector clock and possibly remove some item-specific
 		// vector clocks)
-		let mut deadline = Instant::now()
-			+ Duration::from_millis(timeout_msec)
-			+ self.system.rpc_helper().rpc_timeout();
+		let mut deadline = Instant::now() + Duration::from_millis(timeout_msec);
 		let mut resps = vec![];
 		let mut errors = vec![];
 		loop {

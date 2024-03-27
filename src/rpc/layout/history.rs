@@ -27,14 +27,18 @@ impl LayoutHistory {
 
 	// ------------------ who stores what now? ---------------
 
+	/// Returns the layout version with the highest number
 	pub fn current(&self) -> &LayoutVersion {
 		self.versions.last().as_ref().unwrap()
 	}
 
+	/// Returns the version number of the oldest layout version still active
 	pub fn min_stored(&self) -> u64 {
 		self.versions.first().as_ref().unwrap().version
 	}
 
+	/// Calculate the set of all nodes that have a role (gateway or storage)
+	/// in one of the currently active layout versions
 	pub fn get_all_nodes(&self) -> Vec<Uuid> {
 		if self.versions.len() == 1 {
 			self.versions[0].all_nodes().to_vec()
@@ -48,6 +52,8 @@ impl LayoutHistory {
 		}
 	}
 
+	/// Calculate the set of all nodes that are configured to store data
+	/// in one of the currently active layout versions
 	pub(crate) fn get_all_nongateway_nodes(&self) -> Vec<Uuid> {
 		if self.versions.len() == 1 {
 			self.versions[0].nongateway_nodes().to_vec()

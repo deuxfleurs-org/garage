@@ -153,10 +153,14 @@ impl LayoutHelper {
 
 	// ------------------ read helpers ---------------
 
+	/// Return all nodes that have a role (gateway or storage)
+	/// in one of the currently active layout versions
 	pub fn all_nodes(&self) -> &[Uuid] {
 		&self.all_nodes
 	}
 
+	/// Return all nodes that are configured to store data
+	/// in one of the currently active layout versions
 	pub fn all_nongateway_nodes(&self) -> &[Uuid] {
 		&self.all_nongateway_nodes
 	}

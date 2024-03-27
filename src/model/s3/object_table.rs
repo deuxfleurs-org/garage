@@ -363,7 +363,7 @@ mod v010 {
 		}
 	}
 
-	// Since ObjectVersionHeaders can now be serialized independently, for the
+	// Since ObjectVersionMetaInner can now be serialized independently, for the
 	// purpose of being encrypted, we need it to support migrations on its own
 	// as well.
 	impl garage_util::migrate::InitialFormat for ObjectVersionMetaInner {
