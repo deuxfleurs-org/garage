@@ -68,11 +68,6 @@ to store 2 TB of data in total.
   EXT4 is not recommended as it has more strict limitations on the number of inodes,
   which might cause issues with Garage when large numbers of objects are stored.
 
-- If you only have an HDD and no SSD, it's fine to put your metadata alongside the data
-  on the same drive. Having lots of RAM for your kernel to cache the metadata will
-  help a lot with performance.  The default LMDB database engine is the most tested
-  and has good performance.
-
 - Servers with multiple HDDs are supported natively by Garage without resorting
   to RAID, see [our dedicated documentation page](@/documentation/operations/multi-hdd.md).
 
@@ -91,6 +86,12 @@ to store 2 TB of data in total.
   move a Garage metadata directory between nodes running different architectures,
   and 2/ LMDB is not suited for 32-bit platforms. Sqlite is a viable alternative
   if any of these are of concern.
+
+- If you only have an HDD and no SSD, it's fine to put your metadata alongside
+  the data on the same drive, but then consider your filesystem choice wisely
+  (see above). Having lots of RAM for your kernel to cache the metadata will
+  help a lot with performance.  The default LMDB database engine is the most
+  tested and has good performance.
 
 ## Get a Docker image
 
