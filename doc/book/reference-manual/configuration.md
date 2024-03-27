@@ -20,6 +20,7 @@ metadata_auto_snapshot_interval = "6h"
 db_engine = "lmdb"
 
 block_size = "1M"
+block_ram_buffer_max = "256MiB"
 
 sled_cache_capacity = "128MiB"
 sled_flush_every_ms = 2000
@@ -88,6 +89,7 @@ The following gives details about each available configuration option.
 
 Top-level configuration options:
 [`allow_world_readable_secrets`](#allow_world_readable_secrets),
+[`block_ram_buffer_max`](#block_ram_buffer_max),
 [`block_size`](#block_size),
 [`bootstrap_peers`](#bootstrap_peers),
 [`compression_level`](#compression_level),
@@ -419,6 +421,37 @@ installation, only files newly uploaded will be affected. Previously uploaded
 files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
+
+#### `block_ram_buffer_max` (since v0.9.4) {#block_ram_buffer_max}
+
+A limit on the total size of data blocks kept in RAM by S3 API nodes awaiting
+to be sent to storage nodes asynchronously.
+
+Explanation: since Garage wants to tolerate node failures, it uses quorum
+writes to send data blocks to storage nodes: try to write the block to three
+nodes, and return ok as soon as two writes complete. So even if all three nodes
+are online, the third write always completes asynchronously.  In general, there
+are not many writes to a cluster, and the third asynchronous write can
+terminate early enough so as to not cause unbounded RAM growth.  However, if
+the S3 API node is continuously receiving large quantities of data and the
+third node is never able to catch up, many data blocks will be kept buffered in
+RAM as they are awaiting transfer to the third node.
+
+The `block_ram_buffer_max` sets a limit to the size of buffers that can be kept
+in RAM in this process.  When the limit is reached, backpressure is applied
+back to the S3 client.
+
+Note that this only counts buffers that have arrived to a certain stage of
+processing (received from the client + encrypted and/or compressed as
+necessary) and are ready to send to the storage nodes. Many other buffers will
+not be counted and this is not a hard limit on RAM consumption.  In particular,
+if many clients send requests simultaneously with large objects, the RAM
+consumption will always grow linearly with the number of concurrent requests,
+as each request will use a few buffers of size `block_size` for receiving and
+intermediate processing before even trying to send the data to the storage
+node.
+
+The default value is 256MiB.
 
 #### `sled_cache_capacity` {#sled_cache_capacity}
 

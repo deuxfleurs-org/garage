@@ -300,7 +300,11 @@ impl K2VRpcHandler {
 		let rs = RequestStrategy::with_priority(PRIO_NORMAL).without_timeout();
 		let mut requests = nodes
 			.iter()
-			.map(|node| self.system.rpc.call(&self.endpoint, *node, msg.clone(), rs))
+			.map(|node| {
+				self.system
+					.rpc
+					.call(&self.endpoint, *node, msg.clone(), rs.clone())
+			})
 			.collect::<FuturesUnordered<_>>();
 
 		// Fetch responses. This procedure stops fetching responses when any of the following

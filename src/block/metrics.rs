@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use tokio::sync::Semaphore;
+
 use opentelemetry::{global, metrics::*};
 
 use garage_db as db;
@@ -9,6 +13,7 @@ pub struct BlockManagerMetrics {
 	pub(crate) _rc_size: ValueObserver<u64>,
 	pub(crate) _resync_queue_len: ValueObserver<u64>,
 	pub(crate) _resync_errored_blocks: ValueObserver<u64>,
+	pub(crate) _buffer_free_kb: ValueObserver<u64>,
 
 	pub(crate) resync_counter: BoundCounter<u64>,
 	pub(crate) resync_error_counter: BoundCounter<u64>,
@@ -31,6 +36,7 @@ impl BlockManagerMetrics {
 		rc_tree: db::Tree,
 		resync_queue: CountedTree,
 		resync_errors: CountedTree,
+		buffer_semaphore: Arc<Semaphore>,
 	) -> Self {
 		let meter = global::meter("garage_model/block");
 		Self {
@@ -64,6 +70,15 @@ impl BlockManagerMetrics {
 					observer.observe(resync_errors.len() as u64, &[])
 				})
 				.with_description("Number of block hashes whose last resync resulted in an error")
+				.init(),
+
+			_buffer_free_kb: meter
+				.u64_value_observer("block.ram_buffer_free_kb", move |observer| {
+					observer.observe(buffer_semaphore.available_permits() as u64, &[])
+				})
+				.with_description(
+					"Available RAM in KiB to use for buffering data blocks to be written to remote nodes",
+				)
 				.init(),
 
 			resync_counter: meter
