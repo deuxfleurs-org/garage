@@ -634,7 +634,7 @@ impl System {
 				.filter(|p| p.is_up())
 				.count();
 
-			let not_configured = self.cluster_layout().inner().check().is_err();
+			let not_configured = !self.cluster_layout().is_check_ok();
 			let no_peers = n_connected < self.replication_factor.into();
 			let expected_n_nodes = self.cluster_layout().all_nodes().len();
 			let bad_peers = n_connected != expected_n_nodes;

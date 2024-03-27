@@ -41,6 +41,7 @@ pub struct LayoutHelper {
 
 	trackers_hash: Hash,
 	staging_hash: Hash,
+	is_check_ok: bool,
 
 	// ack lock: counts in-progress write operations for each
 	// layout version ; we don't increase the ack update tracker
@@ -107,6 +108,8 @@ impl LayoutHelper {
 			.entry(layout.current().version)
 			.or_insert(AtomicUsize::new(0));
 
+		let is_check_ok = layout.check().is_ok();
+
 		LayoutHelper {
 			replication_factor,
 			consistency_mode,
@@ -118,6 +121,7 @@ impl LayoutHelper {
 			trackers_hash,
 			staging_hash,
 			ack_lock,
+			is_check_ok,
 		}
 	}
 
@@ -151,6 +155,10 @@ impl LayoutHelper {
 
 	pub fn versions(&self) -> &[LayoutVersion] {
 		&self.inner().versions
+	}
+
+	pub fn is_check_ok(&self) -> bool {
+		self.is_check_ok
 	}
 
 	/// Return all nodes that have a role (gateway or storage)

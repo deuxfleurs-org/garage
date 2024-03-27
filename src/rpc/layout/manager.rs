@@ -160,12 +160,12 @@ impl LayoutManager {
 	fn merge_layout(&self, adv: &LayoutHistory) -> Option<LayoutHistory> {
 		let mut layout = self.layout.write().unwrap();
 		let prev_digest = layout.digest();
-		let prev_layout_check = layout.inner().check().is_ok();
+		let prev_layout_check = layout.is_check_ok();
 
 		if !prev_layout_check || adv.check().is_ok() {
 			if layout.update(|l| l.merge(adv)) {
 				layout.update_trackers(self.node_id);
-				if prev_layout_check && layout.inner().check().is_err() {
+				if prev_layout_check && !layout.is_check_ok() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
 				assert!(layout.digest() != prev_digest);
