@@ -70,7 +70,7 @@ impl LayoutManager {
 			cluster_layout,
 			Default::default(),
 		);
-		cluster_layout.update_trackers(node_id.into());
+		cluster_layout.update_update_trackers(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
 		let change_notify = Arc::new(Notify::new());
@@ -134,7 +134,7 @@ impl LayoutManager {
 
 	fn ack_new_version(self: &Arc<Self>) {
 		let mut layout = self.layout.write().unwrap();
-		if layout.ack_max_free(self.node_id) {
+		if layout.update_ack_to_max_free(self.node_id) {
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(
 				layout.inner().update_trackers.clone(),
 			));
@@ -164,7 +164,7 @@ impl LayoutManager {
 
 		if !prev_layout_check || adv.check().is_ok() {
 			if layout.update(|l| l.merge(adv)) {
-				layout.update_trackers(self.node_id);
+				layout.update_update_trackers(self.node_id);
 				if prev_layout_check && !layout.is_check_ok() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
@@ -182,7 +182,7 @@ impl LayoutManager {
 
 		if layout.inner().update_trackers != *adv {
 			if layout.update(|l| l.update_trackers.merge(adv)) {
-				layout.update_trackers(self.node_id);
+				layout.update_update_trackers(self.node_id);
 				assert!(layout.digest() != prev_digest);
 				return Some(layout.inner().update_trackers.clone());
 			}
