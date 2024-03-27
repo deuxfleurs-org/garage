@@ -70,9 +70,7 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 					);
 				}
 				Some(n) => {
-					if n.role.is_none() {
-						n.role = Some(role);
-					}
+					n.role = Some(role);
 				}
 			}
 		}
@@ -81,15 +79,21 @@ pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<
 	for ver in layout.versions().iter().rev().skip(1) {
 		for (id, _, role) in ver.roles.items().iter() {
 			if let layout::NodeRoleV(Some(r)) = role {
-				if !nodes.contains_key(id) && r.capacity.is_some() {
-					nodes.insert(
-						*id,
-						NodeResp {
-							id: hex::encode(id),
-							draining: true,
-							..Default::default()
-						},
-					);
+				if r.capacity.is_some() {
+					if let Some(n) = nodes.get_mut(id) {
+						if n.role.is_none() {
+							n.draining = true;
+						}
+					} else {
+						nodes.insert(
+							*id,
+							NodeResp {
+								id: hex::encode(id),
+								draining: true,
+								..Default::default()
+							},
+						);
+					}
 				}
 			}
 		}
