@@ -451,7 +451,7 @@ impl System {
 		// Obtain information about nodes that have a role as storage nodes
 		// in one of the active layout versions
 		let mut storage_nodes = HashSet::<Uuid>::with_capacity(16);
-		for ver in layout.versions.iter() {
+		for ver in layout.versions().iter() {
 			storage_nodes.extend(
 				ver.roles
 					.items()
@@ -470,7 +470,7 @@ impl System {
 		let mut partitions_all_ok = 0;
 		for (_, hash) in partitions.iter() {
 			let mut write_sets = layout
-				.versions
+				.versions()
 				.iter()
 				.map(|x| x.nodes_of(hash, x.replication_factor));
 			let has_quorum = write_sets
@@ -634,7 +634,7 @@ impl System {
 				.filter(|p| p.is_up())
 				.count();
 
-			let not_configured = self.cluster_layout().check().is_err();
+			let not_configured = self.cluster_layout().inner().check().is_err();
 			let no_peers = n_connected < self.replication_factor.into();
 			let expected_n_nodes = self.cluster_layout().all_nodes().len();
 			let bad_peers = n_connected != expected_n_nodes;

@@ -109,7 +109,7 @@ impl LayoutManager {
 	}
 
 	pub fn add_table(&self, table_name: &'static str) {
-		let first_version = self.layout().versions.first().unwrap().version;
+		let first_version = self.layout().versions().first().unwrap().version;
 
 		self.table_sync_version
 			.lock()
@@ -127,7 +127,7 @@ impl LayoutManager {
 		if layout.update(|l| l.update_trackers.sync_map.set_max(self.node_id, sync_until)) {
 			info!("sync_until updated to {}", sync_until);
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(
-				layout.update_trackers.clone(),
+				layout.inner().update_trackers.clone(),
 			));
 		}
 	}
@@ -136,7 +136,7 @@ impl LayoutManager {
 		let mut layout = self.layout.write().unwrap();
 		if layout.ack_max_free(self.node_id) {
 			self.broadcast_update(SystemRpc::AdvertiseClusterLayoutTrackers(
-				layout.update_trackers.clone(),
+				layout.inner().update_trackers.clone(),
 			));
 		}
 	}
@@ -160,16 +160,16 @@ impl LayoutManager {
 	fn merge_layout(&self, adv: &LayoutHistory) -> Option<LayoutHistory> {
 		let mut layout = self.layout.write().unwrap();
 		let prev_digest = layout.digest();
-		let prev_layout_check = layout.check().is_ok();
+		let prev_layout_check = layout.inner().check().is_ok();
 
 		if !prev_layout_check || adv.check().is_ok() {
 			if layout.update(|l| l.merge(adv)) {
 				layout.update_trackers(self.node_id);
-				if prev_layout_check && layout.check().is_err() {
+				if prev_layout_check && layout.inner().check().is_err() {
 					panic!("Merged two correct layouts and got an incorrect layout.");
 				}
 				assert!(layout.digest() != prev_digest);
-				return Some(layout.clone());
+				return Some(layout.inner().clone());
 			}
 		}
 
@@ -180,11 +180,11 @@ impl LayoutManager {
 		let mut layout = self.layout.write().unwrap();
 		let prev_digest = layout.digest();
 
-		if layout.update_trackers != *adv {
+		if layout.inner().update_trackers != *adv {
 			if layout.update(|l| l.update_trackers.merge(adv)) {
 				layout.update_trackers(self.node_id);
 				assert!(layout.digest() != prev_digest);
-				return Some(layout.update_trackers.clone());
+				return Some(layout.inner().update_trackers.clone());
 			}
 		}
 
@@ -230,7 +230,7 @@ impl LayoutManager {
 
 	/// Save cluster layout data to disk
 	async fn save_cluster_layout(&self) -> Result<(), Error> {
-		let layout = self.layout.read().unwrap().clone();
+		let layout = self.layout.read().unwrap().inner().clone();
 		self.persist_cluster_layout
 			.save_async(&layout)
 			.await
@@ -278,13 +278,13 @@ impl LayoutManager {
 	}
 
 	pub(crate) fn handle_pull_cluster_layout(&self) -> SystemRpc {
-		let layout = self.layout.read().unwrap().clone();
+		let layout = self.layout.read().unwrap().inner().clone();
 		SystemRpc::AdvertiseClusterLayout(layout)
 	}
 
 	pub(crate) fn handle_pull_cluster_layout_trackers(&self) -> SystemRpc {
 		let layout = self.layout.read().unwrap();
-		SystemRpc::AdvertiseClusterLayoutTrackers(layout.update_trackers.clone())
+		SystemRpc::AdvertiseClusterLayoutTrackers(layout.inner().update_trackers.clone())
 	}
 
 	pub(crate) async fn handle_advertise_cluster_layout(

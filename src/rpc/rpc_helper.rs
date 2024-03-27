@@ -26,7 +26,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
 
-use crate::layout::{LayoutHelper, LayoutHistory};
+use crate::layout::{LayoutHelper, LayoutVersion};
 use crate::metrics::RpcMetrics;
 
 // Default RPC timeout = 5 minutes
@@ -304,7 +304,8 @@ impl RpcHelper {
 		// preemptively send an additional request to any remaining nodes.
 
 		// Reorder requests to priorize closeness / low latency
-		let request_order = self.request_order(&self.0.layout.read().unwrap(), to.iter().copied());
+		let request_order =
+			self.request_order(&self.0.layout.read().unwrap().current(), to.iter().copied());
 		let send_all_at_once = strategy.rs_send_all_at_once.unwrap_or(false);
 
 		// Build future for each request
@@ -497,16 +498,16 @@ impl RpcHelper {
 
 		let mut ret = Vec::with_capacity(12);
 		let ver_iter = layout
-			.versions
+			.versions()
 			.iter()
 			.rev()
-			.chain(layout.old_versions.iter().rev());
+			.chain(layout.inner().old_versions.iter().rev());
 		for ver in ver_iter {
 			if ver.version > layout.sync_map_min() {
 				continue;
 			}
 			let nodes = ver.nodes_of(position, ver.replication_factor);
-			for node in rpc_helper.request_order(&layout, nodes) {
+			for node in rpc_helper.request_order(layout.current(), nodes) {
 				if !ret.contains(&node) {
 					ret.push(node);
 				}
@@ -517,15 +518,12 @@ impl RpcHelper {
 
 	fn request_order(
 		&self,
-		layout: &LayoutHistory,
+		layout: &LayoutVersion,
 		nodes: impl Iterator<Item = Uuid>,
 	) -> Vec<Uuid> {
 		// Retrieve some status variables that we will use to sort requests
 		let peer_list = self.0.peering.get_peer_list();
-		let our_zone = layout
-			.current()
-			.get_node_zone(&self.0.our_node_id)
-			.unwrap_or("");
+		let our_zone = layout.get_node_zone(&self.0.our_node_id).unwrap_or("");
 
 		// Augment requests with some information used to sort them.
 		// The tuples are as follows:
@@ -535,7 +533,7 @@ impl RpcHelper {
 		// and within a same zone we priorize nodes with the lowest latency.
 		let mut nodes = nodes
 			.map(|to| {
-				let peer_zone = layout.current().get_node_zone(&to).unwrap_or("");
+				let peer_zone = layout.get_node_zone(&to).unwrap_or("");
 				let peer_avg_ping = peer_list
 					.iter()
 					.find(|x| x.id.as_ref() == to.as_slice())
