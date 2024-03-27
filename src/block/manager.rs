@@ -238,10 +238,16 @@ impl BlockManager {
 	async fn rpc_get_raw_block_streaming(
 		&self,
 		hash: &Hash,
+		priority: RequestPriority,
 		order_tag: Option<OrderTag>,
 	) -> Result<DataBlockStream, Error> {
-		self.rpc_get_raw_block_internal(hash, order_tag, |stream| async move { Ok(stream) })
-			.await
+		self.rpc_get_raw_block_internal(
+			hash,
+			priority,
+			order_tag,
+			|stream| async move { Ok(stream) },
+		)
+		.await
 	}
 
 	/// Ask nodes that might have a (possibly compressed) block for it
@@ -249,9 +255,10 @@ impl BlockManager {
 	pub(crate) async fn rpc_get_raw_block(
 		&self,
 		hash: &Hash,
+		priority: RequestPriority,
 		order_tag: Option<OrderTag>,
 	) -> Result<DataBlock, Error> {
-		self.rpc_get_raw_block_internal(hash, order_tag, |block_stream| async move {
+		self.rpc_get_raw_block_internal(hash, priority, order_tag, |block_stream| async move {
 			let (header, stream) = block_stream.into_parts();
 			read_stream_to_end(stream)
 				.await
@@ -264,6 +271,7 @@ impl BlockManager {
 	async fn rpc_get_raw_block_internal<F, Fut, T>(
 		&self,
 		hash: &Hash,
+		priority: RequestPriority,
 		order_tag: Option<OrderTag>,
 		f: F,
 	) -> Result<T, Error>
@@ -279,7 +287,7 @@ impl BlockManager {
 			let rpc = self.endpoint.call_streaming(
 				&node_id,
 				BlockRpc::GetBlock(*hash, order_tag),
-				PRIO_NORMAL | PRIO_SECONDARY,
+				priority,
 			);
 			tokio::select! {
 				res = rpc => {
@@ -331,7 +339,9 @@ impl BlockManager {
 		hash: &Hash,
 		order_tag: Option<OrderTag>,
 	) -> Result<ByteStream, Error> {
-		let block_stream = self.rpc_get_raw_block_streaming(hash, order_tag).await?;
+		let block_stream = self
+			.rpc_get_raw_block_streaming(hash, PRIO_NORMAL | PRIO_SECONDARY, order_tag)
+			.await?;
 		let (header, stream) = block_stream.into_parts();
 		match header {
 			DataBlockHeader::Plain => Ok(stream),
