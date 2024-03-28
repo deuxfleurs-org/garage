@@ -237,14 +237,13 @@ impl PeeringManager {
 		);
 		known_hosts.update_hash();
 
-		// TODO for v0.10 / v1.0 : rename the endpoint (it will break compatibility)
 		let strat = Arc::new(Self {
 			netapp: netapp.clone(),
 			known_hosts: RwLock::new(known_hosts),
 			public_peer_list: ArcSwap::new(Arc::new(Vec::new())),
 			next_ping_id: AtomicU64::new(42),
-			ping_endpoint: netapp.endpoint("__netapp/peering/fullmesh.rs/Ping".into()),
-			peer_list_endpoint: netapp.endpoint("__netapp/peering/fullmesh.rs/PeerList".into()),
+			ping_endpoint: netapp.endpoint("garage_net/peering.rs/Ping".into()),
+			peer_list_endpoint: netapp.endpoint("garage_net/peering.rs/PeerList".into()),
 			ping_timeout_millis: DEFAULT_PING_TIMEOUT_MILLIS.into(),
 		});
 

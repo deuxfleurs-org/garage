@@ -1304,7 +1304,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1360,7 +1360,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -1415,7 +1415,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-compression",
@@ -1442,7 +1442,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "err-derive",
  "heed",
@@ -1456,7 +1456,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "garage_net"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1512,7 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1547,7 +1547,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1569,7 +1569,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1603,7 +1603,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "err-derive",
  "futures",

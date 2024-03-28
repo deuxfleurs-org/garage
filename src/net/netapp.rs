@@ -35,8 +35,10 @@ pub type NetworkKey = sodiumoxide::crypto::auth::Key;
 /// composed of 8 bytes for Netapp version and 8 bytes for client version
 pub(crate) type VersionTag = [u8; 16];
 
-/// Value of the Netapp version used in the version tag
-pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6e65746170700005; // netapp 0x0005
+/// Value of garage_net version used in the version tag
+/// We are no longer using prefix `netapp` as garage_net is forked from the netapp crate.
+/// Since Garage v1.0, we have replaced the prefix by `grgnet` (shorthand for garage_net).
+pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6772676e65740010; // grgnet 0x0010 (1.0)
 
 /// HelloMessage is sent by the client on a Netapp connection to indicate
 /// that they are also a server and ready to recieve incoming connections
@@ -123,7 +125,7 @@ impl NetApp {
 
 		netapp
 			.hello_endpoint
-			.swap(Some(netapp.endpoint("__netapp/netapp.rs/Hello".into())));
+			.swap(Some(netapp.endpoint("garage_net/netapp.rs/Hello".into())));
 		netapp
 			.hello_endpoint
 			.load_full()
