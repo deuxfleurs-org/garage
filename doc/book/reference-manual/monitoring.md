@@ -225,6 +225,17 @@ block_bytes_read 120586322022
 block_bytes_written 3386618077
 ```
 
+#### `block_ram_buffer_free_kb` (gauge)
+
+Kibibytes available for buffering blocks that have to be sent to remote nodes.
+When clients send too much data to this node and a storage node is not receiving
+data fast enough due to slower network conditions, this will decrease down to
+zero and backpressure will be applied.
+
+```
+block_ram_buffer_free_kb 219829
+```
+
 #### `block_compression_level` (counter)
 
 Exposes the block compression level configured for the Garage node.

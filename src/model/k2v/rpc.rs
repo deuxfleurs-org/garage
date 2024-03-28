@@ -300,7 +300,7 @@ impl K2VRpcHandler {
 			.map(|node| {
 				self.system
 					.rpc_helper()
-					.call(&self.endpoint, *node, msg.clone(), rs)
+					.call(&self.endpoint, *node, msg.clone(), rs.clone())
 			})
 			.collect::<FuturesUnordered<_>>();
 

@@ -436,7 +436,7 @@ impl BlockResyncManager {
 						&manager.endpoint,
 						&need_nodes,
 						put_block_message,
-						RequestStrategy::with_priority(PRIO_BACKGROUND)
+						RequestStrategy::with_priority(PRIO_BACKGROUND | PRIO_SECONDARY)
 							.with_quorum(need_nodes.len()),
 					)
 					.await
@@ -460,7 +460,9 @@ impl BlockResyncManager {
 				hash
 			);
 
-			let block_data = manager.rpc_get_raw_block(hash, None).await;
+			let block_data = manager
+				.rpc_get_raw_block(hash, PRIO_BACKGROUND | PRIO_SECONDARY, None)
+				.await;
 			if matches!(block_data, Err(Error::MissingBlock(_))) {
 				warn!(
 					"Could not fetch needed block {:?}, no node returned valid data. Checking that refcount is correct.",

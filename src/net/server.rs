@@ -190,7 +190,7 @@ impl RecvLoop for ServerConn {
 
 			let (prio, resp_enc_result) = match ReqEnc::decode(stream).await {
 				Ok(req_enc) => (req_enc.prio, self2.recv_handler_aux(req_enc).await),
-				Err(e) => (PRIO_HIGH, Err(e)),
+				Err(e) => (PRIO_NORMAL, Err(e)),
 			};
 
 			debug!("server: sending response to {}", id);
