@@ -34,7 +34,9 @@ steps:
       - ./result/bin/garage_web-*
       - ./result/bin/garage-*
       - GARAGE_TEST_INTEGRATION_DB_ENGINE=sled ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
+      - nix-shell --attr ci --run "killall -9 garage" || true
       - GARAGE_TEST_INTEGRATION_DB_ENGINE=lmdb ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
+      - nix-shell --attr ci --run "killall -9 garage" || true
       - GARAGE_TEST_INTEGRATION_DB_ENGINE=sqlite ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
       - rm result
       - rm -rv tmp-garage-integration
