@@ -52,6 +52,14 @@ pub struct Config {
 	)]
 	pub compression_level: Option<i32>,
 
+	/// Maximum amount of block data to buffer in RAM for sending to
+	/// remote nodes when these nodes are on slower links
+	#[serde(
+		deserialize_with = "deserialize_capacity",
+		default = "default_block_ram_buffer_max"
+	)]
+	pub block_ram_buffer_max: usize,
+
 	/// Skip the permission check of secret files. Useful when
 	/// POSIX ACLs (or more complex chmods) are used.
 	#[serde(default)]
@@ -254,6 +262,9 @@ fn default_sled_flush_every_ms() -> u64 {
 }
 fn default_block_size() -> usize {
 	1048576
+}
+fn default_block_ram_buffer_max() -> usize {
+	256 * 1024 * 1024
 }
 
 fn default_compression() -> Option<i32> {

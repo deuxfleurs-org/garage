@@ -33,8 +33,7 @@ use crate::ring::Ring;
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Strategy to apply when making RPC
-#[derive(Copy, Clone)]
-pub struct RequestStrategy {
+pub struct RequestStrategy<T> {
 	/// Min number of response to consider the request successful
 	pub rs_quorum: Option<usize>,
 	/// Should requests be dropped after enough response are received
@@ -43,6 +42,8 @@ pub struct RequestStrategy {
 	pub rs_priority: RequestPriority,
 	/// Custom timeout for this request
 	rs_timeout: Timeout,
+	/// Data to drop when everything completes
+	rs_drop_on_complete: T,
 }
 
 #[derive(Copy, Clone)]
@@ -52,7 +53,19 @@ enum Timeout {
 	Custom(Duration),
 }
 
-impl RequestStrategy {
+impl Clone for RequestStrategy<()> {
+	fn clone(&self) -> Self {
+		RequestStrategy {
+			rs_quorum: self.rs_quorum,
+			rs_interrupt_after_quorum: self.rs_interrupt_after_quorum,
+			rs_priority: self.rs_priority,
+			rs_timeout: self.rs_timeout,
+			rs_drop_on_complete: (),
+		}
+	}
+}
+
+impl RequestStrategy<()> {
 	/// Create a RequestStrategy with default timeout and not interrupting when quorum reached
 	pub fn with_priority(prio: RequestPriority) -> Self {
 		RequestStrategy {
@@ -60,8 +73,22 @@ impl RequestStrategy {
 			rs_interrupt_after_quorum: false,
 			rs_priority: prio,
 			rs_timeout: Timeout::Default,
+			rs_drop_on_complete: (),
 		}
 	}
+	/// Add an item to be dropped on completion
+	pub fn with_drop_on_completion<T>(self, drop_on_complete: T) -> RequestStrategy<T> {
+		RequestStrategy {
+			rs_quorum: self.rs_quorum,
+			rs_interrupt_after_quorum: self.rs_interrupt_after_quorum,
+			rs_priority: self.rs_priority,
+			rs_timeout: self.rs_timeout,
+			rs_drop_on_complete: drop_on_complete,
+		}
+	}
+}
+
+impl<T> RequestStrategy<T> {
 	/// Set quorum to be reached for request
 	pub fn with_quorum(mut self, quorum: usize) -> Self {
 		self.rs_quorum = Some(quorum);
@@ -82,6 +109,19 @@ impl RequestStrategy {
 	pub fn with_custom_timeout(mut self, timeout: Duration) -> Self {
 		self.rs_timeout = Timeout::Custom(timeout);
 		self
+	}
+	/// Extract drop_on_complete item
+	fn extract_drop_on_complete(self) -> (RequestStrategy<()>, T) {
+		(
+			RequestStrategy {
+				rs_quorum: self.rs_quorum,
+				rs_interrupt_after_quorum: self.rs_interrupt_after_quorum,
+				rs_priority: self.rs_priority,
+				rs_timeout: self.rs_timeout,
+				rs_drop_on_complete: (),
+			},
+			self.rs_drop_on_complete,
+		)
 	}
 }
 
@@ -123,7 +163,7 @@ impl RpcHelper {
 		endpoint: &Endpoint<M, H>,
 		to: Uuid,
 		msg: N,
-		strat: RequestStrategy,
+		strat: RequestStrategy<()>,
 	) -> Result<S, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
@@ -176,7 +216,7 @@ impl RpcHelper {
 		endpoint: &Endpoint<M, H>,
 		to: &[Uuid],
 		msg: N,
-		strat: RequestStrategy,
+		strat: RequestStrategy<()>,
 	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
@@ -187,7 +227,7 @@ impl RpcHelper {
 
 		let resps = join_all(
 			to.iter()
-				.map(|to| self.call(endpoint, *to, msg.clone(), strat)),
+				.map(|to| self.call(endpoint, *to, msg.clone(), strat.clone())),
 		)
 		.await;
 		Ok(to
@@ -201,7 +241,7 @@ impl RpcHelper {
 		&self,
 		endpoint: &Endpoint<M, H>,
 		msg: N,
-		strat: RequestStrategy,
+		strat: RequestStrategy<()>,
 	) -> Result<Vec<(Uuid, Result<S, Error>)>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>>,
@@ -220,18 +260,19 @@ impl RpcHelper {
 
 	/// Make a RPC call to multiple servers, returning either a Vec of responses,
 	/// or an error if quorum could not be reached due to too many errors
-	pub async fn try_call_many<M, N, H, S>(
+	pub async fn try_call_many<M, N, H, S, T>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
 		msg: N,
-		strategy: RequestStrategy,
+		strategy: RequestStrategy<T>,
 	) -> Result<Vec<S>, Error>
 	where
 		M: Rpc<Response = Result<S, Error>> + 'static,
 		N: IntoReq<M>,
 		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
+		T: Send + 'static,
 	{
 		let quorum = strategy.rs_quorum.unwrap_or(to.len());
 
@@ -260,12 +301,12 @@ impl RpcHelper {
 			.await
 	}
 
-	async fn try_call_many_internal<M, N, H, S>(
+	async fn try_call_many_internal<M, N, H, S, T>(
 		&self,
 		endpoint: &Arc<Endpoint<M, H>>,
 		to: &[Uuid],
 		msg: N,
-		strategy: RequestStrategy,
+		strategy: RequestStrategy<T>,
 		quorum: usize,
 	) -> Result<Vec<S>, Error>
 	where
@@ -273,8 +314,11 @@ impl RpcHelper {
 		N: IntoReq<M>,
 		H: StreamingEndpointHandler<M> + 'static,
 		S: Send + 'static,
+		T: Send + 'static,
 	{
 		let msg = msg.into_req().map_err(garage_net::error::Error::from)?;
+
+		let (strategy, drop_on_complete) = strategy.extract_drop_on_complete();
 
 		// Build future for each request
 		// They are not started now: they are added below in a FuturesUnordered
@@ -283,6 +327,7 @@ impl RpcHelper {
 			let self2 = self.clone();
 			let msg = msg.clone();
 			let endpoint2 = endpoint.clone();
+			let strategy = strategy.clone();
 			(to, async move {
 				self2.call(&endpoint2, to, msg, strategy).await
 			})
@@ -377,6 +422,7 @@ impl RpcHelper {
 				// they have to be put in a proper queue that is persisted to disk.
 				tokio::spawn(async move {
 					resp_stream.collect::<Vec<Result<_, _>>>().await;
+					drop(drop_on_complete);
 				});
 			}
 		}

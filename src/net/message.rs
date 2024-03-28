@@ -28,12 +28,30 @@ use crate::util::*;
 /// The same priority value is given to a request and to its associated response.
 pub type RequestPriority = u8;
 
+// Usage of priority levels in Garage:
+//
+// PRIO_HIGH
+//      for liveness check events such as pings and important
+//      reconfiguration events such as layout changes
+//
+// PRIO_NORMAL
+//      for standard interactive requests to exchange metadata
+//
+// PRIO_NORMAL | PRIO_SECONDARY
+//      for standard interactive requests to exchange block data
+//
+// PRIO_BACKGROUND
+//      for background resync requests to exchange metadata
+// PRIO_BACKGROUND | PRIO_SECONDARY
+//      for background resync requests to exchange block data
+
 /// Priority class: high
 pub const PRIO_HIGH: RequestPriority = 0x20;
 /// Priority class: normal
 pub const PRIO_NORMAL: RequestPriority = 0x40;
 /// Priority class: background
 pub const PRIO_BACKGROUND: RequestPriority = 0x80;
+
 /// Priority: primary among given class
 pub const PRIO_PRIMARY: RequestPriority = 0x00;
 /// Priority: secondary among given class (ex: `PRIO_HIGH | PRIO_SECONDARY`)
