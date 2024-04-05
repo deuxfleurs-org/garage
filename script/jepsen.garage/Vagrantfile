@@ -30,11 +30,11 @@ Vagrant.configure("2") do |config|
   config.vm.define "n6" do |config| vm(config, "n6", "192.168.56.26") end
   config.vm.define "n7" do |config| vm(config, "n7", "192.168.56.27") end
 
-  config.vm.define "n8" do |config| vm(config, "n8", "192.168.56.28") end
-  config.vm.define "n9" do |config| vm(config, "n9", "192.168.56.29") end
-  config.vm.define "n10" do |config| vm(config, "n10", "192.168.56.30") end
-  config.vm.define "n11" do |config| vm(config, "n11", "192.168.56.31") end
-  config.vm.define "n12" do |config| vm(config, "n12", "192.168.56.32") end
-  config.vm.define "n13" do |config| vm(config, "n13", "192.168.56.33") end
-  config.vm.define "n14" do |config| vm(config, "n14", "192.168.56.34") end
+  #config.vm.define "n8" do |config| vm(config, "n8", "192.168.56.28") end
+  #config.vm.define "n9" do |config| vm(config, "n9", "192.168.56.29") end
+  #config.vm.define "n10" do |config| vm(config, "n10", "192.168.56.30") end
+  #config.vm.define "n11" do |config| vm(config, "n11", "192.168.56.31") end
+  #config.vm.define "n12" do |config| vm(config, "n12", "192.168.56.32") end
+  #config.vm.define "n13" do |config| vm(config, "n13", "192.168.56.33") end
+  #config.vm.define "n14" do |config| vm(config, "n14", "192.168.56.34") end
 end
