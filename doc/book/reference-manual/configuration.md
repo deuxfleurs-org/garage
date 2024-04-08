@@ -400,7 +400,7 @@ month, with a random delay to avoid all nodes running at the same time.  When
 it scrubs the data directory, Garage will read all of the data files stored on
 disk to check their integrity, and will rebuild any data files that it finds
 corrupted, using the remaining valid copies stored on other nodes.
-See [this page](@/documentation/operations/durability-repair.md#scrub) for details.
+See [this page](@/documentation/operations/durability-repairs.md#scrub) for details.
 
 Set the `disable_scrub` configuration value to `true` if you don't need Garage
 to scrub the data directory, for instance if you are already scrubbing at the
