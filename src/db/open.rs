@@ -36,7 +36,7 @@ impl std::str::FromStr for Engine {
 		match text {
 			"lmdb" | "heed" => Ok(Self::Lmdb),
 			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
-			"sled" => Err(Error("Sled is no longer supported as a database engine. Converting your old metadata db can be done using an older Garage binary (e.g. v0.9.3).".into())),
+			"sled" => Err(Error("Sled is no longer supported as a database engine. Converting your old metadata db can be done using an older Garage binary (e.g. v0.9.4).".into())),
 			kind => Err(Error(
 				format!(
 					"Invalid DB engine: {} (options are: lmdb, sqlite)",

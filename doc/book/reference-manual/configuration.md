@@ -300,7 +300,7 @@ Since `v0.8.0`, Garage can use alternative storage backends as follows:
 | [Sled](https://sled.rs) (old default, removed since `v1.0`) | `"sled"` | `<metadata_dir>/db/` |
 
 Sled was supported until Garage v0.9.x, and was removed in Garage v1.0.
-You can still use an older binary of Garage (e.g. v0.9.3) to migrate
+You can still use an older binary of Garage (e.g. v0.9.4) to migrate
 old Sled metadata databases to another engine.
 
 Performance characteristics of the different DB engines are as follows:

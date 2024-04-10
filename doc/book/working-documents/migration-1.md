@@ -44,7 +44,7 @@ The migration steps are as follows:
    all data seems to be synced correctly between nodes. If you have time, do
    additional `garage repair` procedures (`blocks`, `versions`, `block_refs`,
    etc.)
-    
+
 2. Ensure you have a snapshot of your Garage installation that you can restore
    to in case the upgrade goes wrong:
 
