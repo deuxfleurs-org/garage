@@ -19,15 +19,15 @@ The following are **breaking changes** in Garage v1.0 that require your attentio
 - The Sled metadata db engine has been **removed**. If your cluster was still
   using Sled, you will need to **use a Garage v0.9.x binary** to convert the
   database using the `garage convert-db` subcommand. See
-  [here](@/documentation/reference-manual/configuration/#db_engine) for the
+  [here](@/documentation/reference-manual/configuration.md#db_engine) for the
   details of the procedure.
 
 The following syntax changes have been made to the configuration file:
 
 - The `replication_mode` parameter has been split into two parameters:
-  [`replication_factor`](@/documentation/reference-manual/configuration/#replication_factor)
+  [`replication_factor`](@/documentation/reference-manual/configuration.md#replication_factor)
   and
-  [`consistency_mode`](@/documentation/reference-manual/configuration/#consistency_mode).
+  [`consistency_mode`](@/documentation/reference-manual/configuration.md#consistency_mode).
   The old syntax using `replication_mode` is still supported for legacy
   reasons and can still be used.
 
