@@ -1,6 +1,6 @@
 [package]
 name = "garage"
-version = "0.9.4"
+version = "1.0.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -42,6 +42,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 rand.workspace = true
 async-trait.workspace = true
+sha1.workspace = true
 sodiumoxide.workspace = true
 structopt.workspace = true
 git-version.workspace = true
@@ -81,12 +82,11 @@ k2v-client.workspace = true
 
 
 [features]
-default = [ "bundled-libs", "metrics", "sled", "lmdb", "sqlite", "k2v" ]
+default = [ "bundled-libs", "metrics", "lmdb", "sqlite", "k2v" ]
 
 k2v = [ "garage_util/k2v", "garage_api/k2v" ]
 
-# Database engines, Sled is still our default even though we don't like it
-sled = [ "garage_model/sled" ]
+# Database engines
 lmdb = [ "garage_model/lmdb" ]
 sqlite = [ "garage_model/sqlite" ]
 

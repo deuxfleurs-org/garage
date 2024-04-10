@@ -31,11 +31,6 @@ pub enum Command {
 	#[structopt(name = "key", version = garage_version())]
 	Key(KeyOperation),
 
-	/// Run migrations from previous Garage version
-	/// (DO NOT USE WITHOUT READING FULL DOCUMENTATION)
-	#[structopt(name = "migrate", version = garage_version())]
-	Migrate(MigrateOpt),
-
 	/// Start repair of node data on remote node
 	#[structopt(name = "repair", version = garage_version())]
 	Repair(RepairOpt),
@@ -118,6 +113,14 @@ pub enum LayoutOperation {
 	/// Revert staged changes to cluster layout
 	#[structopt(name = "revert", version = garage_version())]
 	Revert(RevertLayoutOpt),
+
+	/// View the history of layouts in the cluster
+	#[structopt(name = "history", version = garage_version())]
+	History,
+
+	/// Skip dead nodes when awaiting for a new layout version to be synchronized
+	#[structopt(name = "skip-dead-nodes", version = garage_version())]
+	SkipDeadNodes(SkipDeadNodesOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -170,9 +173,21 @@ pub struct ApplyLayoutOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct RevertLayoutOpt {
-	/// Version number of old configuration to which to revert
+	/// The revert operation will not be ran unless this flag is added
+	#[structopt(long = "yes")]
+	pub(crate) yes: bool,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct SkipDeadNodesOpt {
+	/// Version number of the layout to assume is currently up-to-date.
+	/// This will generally be the current layout version.
 	#[structopt(long = "version")]
-	pub(crate) version: Option<u64>,
+	pub(crate) version: u64,
+	/// Allow the skip even if a quorum of ndoes could not be found for
+	/// the data among the remaining nodes
+	#[structopt(long = "allow-missing-data")]
+	pub(crate) allow_missing_data: bool,
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug)]
@@ -430,23 +445,6 @@ pub struct KeyImportOpt {
 }
 
 #[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
-pub struct MigrateOpt {
-	/// Confirm the launch of the migrate operation
-	#[structopt(long = "yes")]
-	pub yes: bool,
-
-	#[structopt(subcommand)]
-	pub what: MigrateWhat,
-}
-
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
-pub enum MigrateWhat {
-	/// Migrate buckets and permissions from v0.5.0
-	#[structopt(name = "buckets050", version = garage_version())]
-	Buckets050,
-}
-
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
 pub struct RepairOpt {
 	/// Launch repair operation on all nodes
 	#[structopt(short = "a", long = "all-nodes")]
@@ -475,8 +473,11 @@ pub enum RepairWhat {
 	#[structopt(name = "mpu", version = garage_version())]
 	MultipartUploads,
 	/// Repropagate version deletions to the block ref table
-	#[structopt(name = "block_refs", version = garage_version())]
+	#[structopt(name = "block-refs", version = garage_version())]
 	BlockRefs,
+	/// Recalculate block reference counters
+	#[structopt(name = "block-rc", version = garage_version())]
+	BlockRc,
 	/// Verify integrity of all blocks on disc
 	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {
@@ -536,10 +537,6 @@ pub struct StatsOpt {
 	/// Gather statistics from all nodes
 	#[structopt(short = "a", long = "all-nodes")]
 	pub all_nodes: bool,
-
-	/// Gather detailed statistics (this can be long)
-	#[structopt(short = "d", long = "detailed")]
-	pub detailed: bool,
 
 	/// Don't show global cluster stats (internal use in RPC)
 	#[structopt(skip)]

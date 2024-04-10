@@ -1,12 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use base64::prelude::*;
 use futures::prelude::*;
 use futures::stream::FuturesOrdered;
 use futures::try_join;
-use md5::{digest::generic_array::*, Digest as Md5Digest, Md5};
-use sha2::Sha256;
 
 use tokio::sync::mpsc;
 
@@ -22,7 +19,6 @@ use opentelemetry::{
 use garage_net::bytes_buf::BytesBuf;
 use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
-use garage_util::async_hash::*;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
@@ -36,9 +32,23 @@ use garage_model::s3::version_table::*;
 
 use crate::helpers::*;
 use crate::s3::api_server::{ReqBody, ResBody};
+use crate::s3::checksum::*;
+use crate::s3::encryption::EncryptionParams;
 use crate::s3::error::*;
 
 const PUT_BLOCKS_MAX_PARALLEL: usize = 3;
+
+pub(crate) struct SaveStreamResult {
+	pub(crate) version_uuid: Uuid,
+	pub(crate) version_timestamp: u64,
+	/// Etag WITHOUT THE QUOTES (just the hex value)
+	pub(crate) etag: String,
+}
+
+pub(crate) enum ChecksumMode<'a> {
+	Verify(&'a ExpectedChecksums),
+	Calculate(Option<ChecksumAlgorithm>),
+}
 
 pub async fn handle_put(
 	ctx: ReqCtx,
@@ -50,26 +60,51 @@ pub async fn handle_put(
 	let headers = get_headers(req.headers())?;
 	debug!("Object headers: {:?}", headers);
 
-	let content_md5 = match req.headers().get("content-md5") {
-		Some(x) => Some(x.to_str()?.to_string()),
-		None => None,
+	let expected_checksums = ExpectedChecksums {
+		md5: match req.headers().get("content-md5") {
+			Some(x) => Some(x.to_str()?.to_string()),
+			None => None,
+		},
+		sha256: content_sha256,
+		extra: request_checksum_value(req.headers())?,
 	};
+
+	let meta = ObjectVersionMetaInner {
+		headers,
+		checksum: expected_checksums.extra,
+	};
+
+	// Determine whether object should be encrypted, and if so the key
+	let encryption = EncryptionParams::new_from_headers(&ctx.garage, req.headers())?;
 
 	let stream = body_stream(req.into_body());
 
-	save_stream(&ctx, headers, stream, key, content_md5, content_sha256)
-		.await
-		.map(|(uuid, md5)| put_response(uuid, md5))
+	let res = save_stream(
+		&ctx,
+		meta,
+		encryption,
+		stream,
+		key,
+		ChecksumMode::Verify(&expected_checksums),
+	)
+	.await?;
+
+	let mut resp = Response::builder()
+		.header("x-amz-version-id", hex::encode(res.version_uuid))
+		.header("ETag", format!("\"{}\"", res.etag));
+	encryption.add_response_headers(&mut resp);
+	let resp = add_checksum_response_headers(&expected_checksums.extra, resp);
+	Ok(resp.body(empty_body())?)
 }
 
 pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	ctx: &ReqCtx,
-	headers: ObjectVersionHeaders,
+	mut meta: ObjectVersionMetaInner,
+	encryption: EncryptionParams,
 	body: S,
 	key: &String,
-	content_md5: Option<String>,
-	content_sha256: Option<FixedBytes32>,
-) -> Result<(Uuid, String), Error> {
+	checksum_mode: ChecksumMode<'_>,
+) -> Result<SaveStreamResult, Error> {
 	let ReqCtx {
 		garage, bucket_id, ..
 	} = ctx;
@@ -86,43 +121,55 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	let version_uuid = gen_uuid();
 	let version_timestamp = next_timestamp(existing_object.as_ref());
 
+	let mut checksummer = match checksum_mode {
+		ChecksumMode::Verify(expected) => Checksummer::init(expected, !encryption.is_encrypted()),
+		ChecksumMode::Calculate(algo) => {
+			Checksummer::init(&Default::default(), !encryption.is_encrypted()).add(algo)
+		}
+	};
+
 	// If body is small enough, store it directly in the object table
 	// as "inline data". We can then return immediately.
 	if first_block.len() < INLINE_THRESHOLD {
-		let mut md5sum = Md5::new();
-		md5sum.update(&first_block[..]);
-		let data_md5sum = md5sum.finalize();
-		let data_md5sum_hex = hex::encode(data_md5sum);
+		checksummer.update(&first_block);
+		let checksums = checksummer.finalize();
 
-		let data_sha256sum = sha256sum(&first_block[..]);
+		match checksum_mode {
+			ChecksumMode::Verify(expected) => {
+				checksums.verify(&expected)?;
+			}
+			ChecksumMode::Calculate(algo) => {
+				meta.checksum = checksums.extract(algo);
+			}
+		};
+
 		let size = first_block.len() as u64;
-
-		ensure_checksum_matches(
-			data_md5sum.as_slice(),
-			data_sha256sum,
-			content_md5.as_deref(),
-			content_sha256,
-		)?;
-
 		check_quotas(ctx, size, existing_object.as_ref()).await?;
+
+		let etag = encryption.etag_from_md5(&checksums.md5);
+		let inline_data = encryption.encrypt_blob(&first_block)?.to_vec();
 
 		let object_version = ObjectVersion {
 			uuid: version_uuid,
 			timestamp: version_timestamp,
 			state: ObjectVersionState::Complete(ObjectVersionData::Inline(
 				ObjectVersionMeta {
-					headers,
+					encryption: encryption.encrypt_meta(meta)?,
 					size,
-					etag: data_md5sum_hex.clone(),
+					etag: etag.clone(),
 				},
-				first_block.to_vec(),
+				inline_data,
 			)),
 		};
 
 		let object = Object::new(*bucket_id, key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
 
-		return Ok((version_uuid, data_md5sum_hex));
+		return Ok(SaveStreamResult {
+			version_uuid,
+			version_timestamp,
+			etag,
+		});
 	}
 
 	// The following consists in many steps that can each fail.
@@ -142,7 +189,8 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		uuid: version_uuid,
 		timestamp: version_timestamp,
 		state: ObjectVersionState::Uploading {
-			headers: headers.clone(),
+			encryption: encryption.encrypt_meta(meta.clone())?,
+			checksum_algorithm: None, // don't care; overwritten later
 			multipart: false,
 		},
 	};
@@ -163,26 +211,39 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	);
 	garage.version_table.insert(&version).await?;
 
-	// Transfer data and verify checksum
-	let (total_size, data_md5sum, data_sha256sum, first_block_hash) =
-		read_and_put_blocks(ctx, &version, 1, first_block, &mut chunker).await?;
+	// Transfer data
+	let (total_size, checksums, first_block_hash) = read_and_put_blocks(
+		ctx,
+		&version,
+		encryption,
+		1,
+		first_block,
+		&mut chunker,
+		checksummer,
+	)
+	.await?;
 
-	ensure_checksum_matches(
-		data_md5sum.as_slice(),
-		data_sha256sum,
-		content_md5.as_deref(),
-		content_sha256,
-	)?;
+	// Verify checksums are ok / add calculated checksum to metadata
+	match checksum_mode {
+		ChecksumMode::Verify(expected) => {
+			checksums.verify(&expected)?;
+		}
+		ChecksumMode::Calculate(algo) => {
+			meta.checksum = checksums.extract(algo);
+		}
+	};
 
+	// Verify quotas are respsected
 	check_quotas(ctx, total_size, existing_object.as_ref()).await?;
 
 	// Save final object state, marked as Complete
-	let md5sum_hex = hex::encode(data_md5sum);
+	let etag = encryption.etag_from_md5(&checksums.md5);
+
 	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
 		ObjectVersionMeta {
-			headers,
+			encryption: encryption.encrypt_meta(meta)?,
 			size: total_size,
-			etag: md5sum_hex.clone(),
+			etag: etag.clone(),
 		},
 		first_block_hash,
 	));
@@ -193,34 +254,11 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	// We won't have to clean up on drop.
 	interrupted_cleanup.cancel();
 
-	Ok((version_uuid, md5sum_hex))
-}
-
-/// Validate MD5 sum against content-md5 header
-/// and sha256sum against signed content-sha256
-pub(crate) fn ensure_checksum_matches(
-	data_md5sum: &[u8],
-	data_sha256sum: garage_util::data::FixedBytes32,
-	content_md5: Option<&str>,
-	content_sha256: Option<garage_util::data::FixedBytes32>,
-) -> Result<(), Error> {
-	if let Some(expected_sha256) = content_sha256 {
-		if expected_sha256 != data_sha256sum {
-			return Err(Error::bad_request(
-				"Unable to validate x-amz-content-sha256",
-			));
-		} else {
-			trace!("Successfully validated x-amz-content-sha256");
-		}
-	}
-	if let Some(expected_md5) = content_md5 {
-		if expected_md5.trim_matches('"') != BASE64_STANDARD.encode(data_md5sum) {
-			return Err(Error::bad_request("Unable to validate content-md5"));
-		} else {
-			trace!("Successfully validated content-md5");
-		}
-	}
-	Ok(())
+	Ok(SaveStreamResult {
+		version_uuid,
+		version_timestamp,
+		etag,
+	})
 }
 
 /// Check that inserting this object with this size doesn't exceed bucket quotas
@@ -248,7 +286,7 @@ pub(crate) async fn check_quotas(
 		.await?;
 
 	let counters = counters
-		.map(|x| x.filtered_values(&garage.system.ring.borrow()))
+		.map(|x| x.filtered_values(&garage.system.cluster_layout()))
 		.unwrap_or_default();
 
 	let (prev_cnt_obj, prev_cnt_size) = match prev_object {
@@ -290,10 +328,12 @@ pub(crate) async fn check_quotas(
 pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	ctx: &ReqCtx,
 	version: &Version,
+	encryption: EncryptionParams,
 	part_number: u64,
 	first_block: Bytes,
 	chunker: &mut StreamChunker<S>,
-) -> Result<(u64, GenericArray<u8, typenum::U16>, Hash, Hash), Error> {
+	checksummer: Checksummer,
+) -> Result<(u64, Checksums, Hash), Error> {
 	let tracer = opentelemetry::global::tracer("garage");
 
 	let (block_tx, mut block_rx) = mpsc::channel::<Result<Bytes, Error>>(2);
@@ -321,20 +361,20 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 
 	let (block_tx2, mut block_rx2) = mpsc::channel::<Result<Bytes, Error>>(1);
 	let hash_stream = async {
-		let md5hasher = AsyncHasher::<Md5>::new();
-		let sha256hasher = AsyncHasher::<Sha256>::new();
+		let mut checksummer = checksummer;
 		while let Some(next) = block_rx.recv().await {
 			match next {
 				Ok(block) => {
 					block_tx2.send(Ok(block.clone())).await?;
-					futures::future::join(
-						md5hasher.update(block.clone()),
-						sha256hasher.update(block.clone()),
-					)
+					checksummer = tokio::task::spawn_blocking(move || {
+						checksummer.update(&block);
+						checksummer
+					})
 					.with_context(Context::current_with_span(
 						tracer.start("Hash block (md5, sha256)"),
 					))
-					.await;
+					.await
+					.unwrap()
 				}
 				Err(e) => {
 					block_tx2.send(Err(e)).await?;
@@ -343,27 +383,38 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 			}
 		}
 		drop(block_tx2);
-		Ok::<_, mpsc::error::SendError<_>>(futures::join!(
-			md5hasher.finalize(),
-			sha256hasher.finalize()
-		))
+		Ok::<_, mpsc::error::SendError<_>>(checksummer)
 	};
 
-	let (block_tx3, mut block_rx3) = mpsc::channel::<Result<(Bytes, Hash), Error>>(1);
-	let hash_blocks = async {
+	let (block_tx3, mut block_rx3) = mpsc::channel::<Result<(Bytes, u64, Hash), Error>>(1);
+	let encrypt_hash_blocks = async {
 		let mut first_block_hash = None;
 		while let Some(next) = block_rx2.recv().await {
 			match next {
 				Ok(block) => {
-					let hash = async_blake2sum(block.clone())
-						.with_context(Context::current_with_span(
-							tracer.start("Hash block (blake2)"),
-						))
-						.await;
-					if first_block_hash.is_none() {
-						first_block_hash = Some(hash);
+					let unencrypted_len = block.len() as u64;
+					let res = tokio::task::spawn_blocking(move || {
+						let block = encryption.encrypt_block(block)?;
+						let hash = blake2sum(&block);
+						Ok((block, hash))
+					})
+					.with_context(Context::current_with_span(
+						tracer.start("Encrypt and hash (blake2) block"),
+					))
+					.await
+					.unwrap();
+					match res {
+						Ok((block, hash)) => {
+							if first_block_hash.is_none() {
+								first_block_hash = Some(hash);
+							}
+							block_tx3.send(Ok((block, unencrypted_len, hash))).await?;
+						}
+						Err(e) => {
+							block_tx3.send(Err(e)).await?;
+							break;
+						}
 					}
-					block_tx3.send(Ok((block, hash))).await?;
 				}
 				Err(e) => {
 					block_tx3.send(Err(e)).await?;
@@ -398,7 +449,7 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 					block_rx3.recv().await
 				}
 			};
-			let (block, hash) = tokio::select! {
+			let (block, unencrypted_len, hash) = tokio::select! {
 				result = write_futs_next => {
 					result?;
 					continue;
@@ -410,17 +461,18 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 			};
 
 			// For next block to be written: count its size and spawn future to write it
-			let offset = written_bytes;
-			written_bytes += block.len() as u64;
 			write_futs.push_back(put_block_and_meta(
 				ctx,
 				version,
 				part_number,
-				offset,
+				written_bytes,
 				hash,
 				block,
+				unencrypted_len,
+				encryption.is_encrypted(),
 				order_stream.order(written_bytes),
 			));
+			written_bytes += unencrypted_len;
 		}
 		while let Some(res) = write_futs.next().await {
 			res?;
@@ -429,17 +481,15 @@ pub(crate) async fn read_and_put_blocks<S: Stream<Item = Result<Bytes, Error>> +
 	};
 
 	let (_, stream_hash_result, block_hash_result, final_result) =
-		futures::join!(read_blocks, hash_stream, hash_blocks, put_blocks);
+		futures::join!(read_blocks, hash_stream, encrypt_hash_blocks, put_blocks);
 
 	let total_size = final_result?;
 	// unwrap here is ok, because if hasher failed, it is because something failed
 	// later in the pipeline which already caused a return at the ? on previous line
-	let (data_md5sum, data_sha256sum) = stream_hash_result.unwrap();
 	let first_block_hash = block_hash_result.unwrap();
+	let checksums = stream_hash_result.unwrap().finalize();
 
-	let data_sha256sum = Hash::try_from(&data_sha256sum[..]).unwrap();
-
-	Ok((total_size, data_md5sum, data_sha256sum, first_block_hash))
+	Ok((total_size, checksums, first_block_hash))
 }
 
 async fn put_block_and_meta(
@@ -449,6 +499,8 @@ async fn put_block_and_meta(
 	offset: u64,
 	hash: Hash,
 	block: Bytes,
+	size: u64,
+	is_encrypted: bool,
 	order_tag: OrderTag,
 ) -> Result<(), GarageError> {
 	let ReqCtx { garage, .. } = ctx;
@@ -459,10 +511,7 @@ async fn put_block_and_meta(
 			part_number,
 			offset,
 		},
-		VersionBlock {
-			hash,
-			size: block.len() as u64,
-		},
+		VersionBlock { hash, size },
 	);
 
 	let block_ref = BlockRef {
@@ -474,7 +523,7 @@ async fn put_block_and_meta(
 	futures::try_join!(
 		garage
 			.block_manager
-			.rpc_put_block(hash, block, Some(order_tag)),
+			.rpc_put_block(hash, block, is_encrypted, Some(order_tag)),
 		garage.version_table.insert(&version),
 		garage.block_ref_table.insert(&block_ref),
 	)?;
@@ -517,14 +566,6 @@ impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
 	}
 }
 
-pub fn put_response(version_uuid: Uuid, md5sum_hex: String) -> Response<ResBody> {
-	Response::builder()
-		.header("x-amz-version-id", hex::encode(version_uuid))
-		.header("ETag", format!("\"{}\"", md5sum_hex))
-		.body(empty_body())
-		.unwrap()
-}
-
 struct InterruptedCleanup(Option<InterruptedCleanupInner>);
 struct InterruptedCleanupInner {
 	garage: Arc<Garage>,
@@ -559,57 +600,35 @@ impl Drop for InterruptedCleanup {
 
 // ============ helpers ============
 
-pub(crate) fn get_mime_type(headers: &HeaderMap<HeaderValue>) -> Result<String, Error> {
-	Ok(headers
-		.get(hyper::header::CONTENT_TYPE)
-		.map(|x| x.to_str())
-		.unwrap_or(Ok("blob"))?
-		.to_string())
-}
-
-pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<ObjectVersionHeaders, Error> {
-	let content_type = get_mime_type(headers)?;
-	let mut other = BTreeMap::new();
+pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<HeaderList, Error> {
+	let mut ret = Vec::new();
 
 	// Preserve standard headers
 	let standard_header = vec![
+		hyper::header::CONTENT_TYPE,
 		hyper::header::CACHE_CONTROL,
 		hyper::header::CONTENT_DISPOSITION,
 		hyper::header::CONTENT_ENCODING,
 		hyper::header::CONTENT_LANGUAGE,
 		hyper::header::EXPIRES,
 	];
-	for h in standard_header.iter() {
-		if let Some(v) = headers.get(h) {
-			match v.to_str() {
-				Ok(v_str) => {
-					other.insert(h.to_string(), v_str.to_string());
-				}
-				Err(e) => {
-					warn!("Discarding header {}, error in .to_str(): {}", h, e);
-				}
-			}
+	for name in standard_header.iter() {
+		if let Some(value) = headers.get(name) {
+			ret.push((name.to_string(), value.to_str()?.to_string()));
 		}
 	}
 
 	// Preserve x-amz-meta- headers
-	for (k, v) in headers.iter() {
-		if k.as_str().starts_with("x-amz-meta-") {
-			match std::str::from_utf8(v.as_bytes()) {
-				Ok(v_str) => {
-					other.insert(k.to_string(), v_str.to_string());
-				}
-				Err(e) => {
-					warn!("Discarding header {}, error in .to_str(): {}", k, e);
-				}
-			}
+	for (name, value) in headers.iter() {
+		if name.as_str().starts_with("x-amz-meta-") {
+			ret.push((
+				name.to_string(),
+				std::str::from_utf8(value.as_bytes())?.to_string(),
+			));
 		}
 	}
 
-	Ok(ObjectVersionHeaders {
-		content_type,
-		other,
-	})
+	Ok(ret)
 }
 
 pub(crate) fn next_timestamp(existing_object: Option<&Object>) -> u64 {

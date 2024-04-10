@@ -8,7 +8,8 @@ weight = 20
 Here is an example `garage.toml` configuration file that illustrates all of the possible options:
 
 ```toml
-replication_mode = "3"
+replication_factor = 3
+consistency_mode = "consistent"
 
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
@@ -22,8 +23,6 @@ db_engine = "lmdb"
 block_size = "1M"
 block_ram_buffer_max = "256MiB"
 
-sled_cache_capacity = "128MiB"
-sled_flush_every_ms = 2000
 lmdb_map_size = "1T"
 
 compression_level = 1
@@ -101,13 +100,12 @@ Top-level configuration options:
 [`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
-[`replication_mode`](#replication_mode),
+[`replication_factor`](#replication_factor),
+[`consistency_mode`](#consistency_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
 [`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
-[`rpc_secret`/`rpc_secret_file`](#rpc_secret),
-[`sled_cache_capacity`](#sled_cache_capacity),
-[`sled_flush_every_ms`](#sled_flush_every_ms).
+[`rpc_secret`/`rpc_secret_file`](#rpc_secret).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
@@ -161,11 +159,12 @@ values in the configuration file:
 
 ### Top-level configuration options
 
-#### `replication_mode` {#replication_mode}
+#### `replication_factor` {#replication_factor}
 
-Garage supports the following replication modes:
+The replication factor can be any positive integer smaller or equal the node count in your cluster.
+The chosen replication factor has a big impact on the cluster's failure tolerancy and performance characteristics.
 
-- `none` or `1`: data stored on Garage is stored on a single node. There is no
+- `1`: data stored on Garage is stored on a single node. There is no
   redundancy, and data will be unavailable as soon as one node fails or its
   network is disconnected.  Do not use this for anything else than test
   deployments.
@@ -176,17 +175,6 @@ Garage supports the following replication modes:
   before losing data. Data remains available in read-only mode when one node is
   down, but write operations will fail.
 
-  - `2-dangerous`: a variant of mode `2`, where written objects are written to
-    the second replica asynchronously. This means that Garage will return `200
-    OK` to a PutObject request before the second copy is fully written (or even
-    before it even starts being written).  This means that data can more easily
-    be lost if the node crashes before a second copy can be completed.  This
-    also means that written objects might not be visible immediately in read
-    operations.  In other words, this mode severely breaks the consistency and
-    durability guarantees of standard Garage cluster operation.  Benefits of
-    this mode: you can still write to your cluster when one node is
-    unavailable.
-
 - `3`: data stored on Garage will be stored on three different nodes, if
   possible each in a different zones.  Garage tolerates two node failure, or
   several node failures but in no more than two zones (in a deployment with at
@@ -194,55 +182,84 @@ Garage supports the following replication modes:
   or node failures are only in a single zone, reading and writing data to
   Garage can continue normally.
 
-  - `3-degraded`: a variant of replication mode `3`, that lowers the read
-    quorum to `1`, to allow you to read data from your cluster when several
-    nodes (or nodes in several zones) are unavailable.  In this mode, Garage
-    does not provide read-after-write consistency anymore.  The write quorum is
-    still 2, ensuring that data successfully written to Garage is stored on at
-    least two nodes.
-
-  - `3-dangerous`: a variant of replication mode `3` that lowers both the read
-    and write quorums to `1`, to allow you to both read and write to your
-    cluster when several nodes (or nodes in several zones) are unavailable.  It
-    is the least consistent mode of operation proposed by Garage, and also one
-    that should probably never be used.
+- `5`, `7`, ...: When setting the replication factor above 3, it is most useful to
+  choose an uneven value, since for every two copies added, one more node can fail
+  before losing the ability to write and read to the cluster.
 
 Note that in modes `2` and `3`,
 if at least the same number of zones are available, an arbitrary number of failures in
 any given zone is tolerated as copies of data will be spread over several zones.
 
-**Make sure `replication_mode` is the same in the configuration files of all nodes.
+**Make sure `replication_factor` is the same in the configuration files of all nodes.
 Never run a Garage cluster where that is not the case.**
+
+It is technically possible to change the replication factor although it's a
+dangerous operation that is not officially supported.  This requires you to
+delete the existing cluster layout and create a new layout from scratch,
+meaning that a full rebalancing of your cluster's data will be needed.  To do
+it, shut down your cluster entirely, delete the `custer_layout` files in the
+meta directories of all your nodes, update all your configuration files with
+the new `replication_factor` parameter, restart your cluster, and then create a
+new layout with all the nodes you want to keep.  Rebalancing data will take
+some time, and data might temporarily appear unavailable to your users.
+It is recommended to shut down public access to the cluster while rebalancing
+is in progress.  In theory, no data should be lost as rebalancing is a
+routine operation for Garage, although we cannot guarantee you that everything
+ will go right in such an extreme scenario.
+
+#### `consistency_mode` {#consistency_mode}
+
+The consistency mode setting determines the read and write behaviour of your cluster.
+
+  - `consistent`: The default setting. This is what the paragraph above describes.
+    The read and write quorum will be determined so that read-after-write consistency
+    is guaranteed.
+  - `degraded`: Lowers the read
+    quorum to `1`, to allow you to read data from your cluster when several
+    nodes (or nodes in several zones) are unavailable.  In this mode, Garage
+    does not provide read-after-write consistency anymore.
+    The write quorum stays the same as in the `consistent` mode, ensuring that
+    data successfully written to Garage is stored on multiple nodes (depending
+    the replication factor).
+  - `dangerous`: This mode lowers both the read
+    and write quorums to `1`, to allow you to both read and write to your
+    cluster when several nodes (or nodes in several zones) are unavailable.  It
+    is the least consistent mode of operation proposed by Garage, and also one
+    that should probably never be used.
+
+Changing the `consistency_mode` between modes while leaving the `replication_factor` untouched
+(e.g. setting your node's `consistency_mode` to `degraded` when it was previously unset, or from
+`dangerous` to `consistent`), can be done easily by just changing the `consistency_mode`
+parameter in your config files and restarting all your Garage nodes.
+
+The consistency mode can be used together with various replication factors, to achieve
+a wide range of read and write characteristics. Some examples:
+
+  - Replication factor `2`, consistency mode `degraded`: While this mode
+    technically exists, its properties are the same as with consistency mode `consistent`,
+    since the read quorum with replication factor `2`, consistency mode `consistent` is already 1.
+
+  - Replication factor `2`, consistency mode `dangerous`: written objects are written to
+    the second replica asynchronously. This means that Garage will return `200
+    OK` to a PutObject request before the second copy is fully written (or even
+    before it even starts being written).  This means that data can more easily
+    be lost if the node crashes before a second copy can be completed.  This
+    also means that written objects might not be visible immediately in read
+    operations.  In other words, this configuration severely breaks the consistency and
+    durability guarantees of standard Garage cluster operation.  Benefits of
+    this configuration: you can still write to your cluster when one node is
+    unavailable.
 
 The quorums associated with each replication mode are described below:
 
-| `replication_mode` | Number of replicas | Write quorum | Read quorum | Read-after-write consistency? |
-| ------------------ | ------------------ | ------------ | ----------- | ----------------------------- |
-| `none` or `1`      | 1                  | 1            | 1           | yes                           |
-| `2`                | 2                  | 2            | 1           | yes                           |
-| `2-dangerous`      | 2                  | 1            | 1           | NO                            |
-| `3`                | 3                  | 2            | 2           | yes                           |
-| `3-degraded`       | 3                  | 2            | 1           | NO                            |
-| `3-dangerous`      | 3                  | 1            | 1           | NO                            |
-
-Changing the `replication_mode` between modes with the same number of replicas
-(e.g. from `3` to `3-degraded`, or from `2-dangerous` to `2`), can be done easily by
-just changing the `replication_mode` parameter in your config files and restarting all your
-Garage nodes.
-
-It is also technically possible to change the replication mode to a mode with a
-different numbers of replicas, although it's a dangerous operation that is not
-officially supported.  This requires you to delete the existing cluster layout
-and create a new layout from scratch, meaning that a full rebalancing of your
-cluster's data will be needed.  To do it, shut down your cluster entirely,
-delete the `custer_layout` files in the meta directories of all your nodes,
-update all your configuration files with the new `replication_mode` parameter,
-restart your cluster, and then create a new layout with all the nodes you want
-to keep.  Rebalancing data will take some time, and data might temporarily
-appear unavailable to your users.  It is recommended to shut down public access
-to the cluster while rebalancing is in progress.  In theory, no data should be
-lost as rebalancing is a routine operation for Garage, although we cannot
-guarantee you that everything will go right in such an extreme scenario.
+| `consistency_mode` | `replication_factor` | Write quorum | Read quorum | Read-after-write consistency? |
+| ------------------ | -------------------- | ------------ | ----------- | ----------------------------- |
+| `consistent`       | 1                    | 1            | 1           | yes                           |
+| `consistent`       | 2                    | 2            | 1           | yes                           |
+| `dangerous`        | 2                    | 1            | 1           | NO                            |
+| `consistent`       | 3                    | 2            | 2           | yes                           |
+| `degraded`         | 3                    | 2            | 1           | NO                            |
+| `dangerous`        | 3                    | 1            | 1           | NO                            |
 
 #### `metadata_dir` {#metadata_dir}
 
@@ -278,23 +295,18 @@ Since `v0.8.0`, Garage can use alternative storage backends as follows:
 
 | DB engine | `db_engine` value | Database path |
 | --------- | ----------------- | ------------- |
-| [LMDB](https://www.lmdb.tech) (default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
-| [Sled](https://sled.rs) (default up to `v0.8.0`) | `"sled"` | `<metadata_dir>/db/` |
-| [Sqlite](https://sqlite.org) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+| [LMDB](https://www.lmdb.tech) (since `v0.8.0`, default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [Sqlite](https://sqlite.org) (since `v0.8.0`) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
+| [Sled](https://sled.rs) (old default, removed since `v1.0`) | `"sled"` | `<metadata_dir>/db/` |
 
-Sled was the only database engine up to Garage v0.7.0. Performance issues and
-API limitations of Sled prompted the addition of alternative engines in v0.8.0.
-Since v0.9.0, LMDB is the default engine instead of Sled, and Sled is
-deprecated. We plan to remove Sled in Garage v1.0.
+Sled was supported until Garage v0.9.x, and was removed in Garage v1.0.
+You can still use an older binary of Garage (e.g. v0.9.4) to migrate
+old Sled metadata databases to another engine.
 
 Performance characteristics of the different DB engines are as follows:
 
-- Sled: tends to produce large data files and also has performance issues,
-  especially when the metadata folder is on a traditional HDD and not on SSD.
-
-- LMDB: the recommended database engine for high-performance distributed
-  clusters, much more space-efficient and significantly faster. LMDB works very
-  well, but is known to have the following limitations:
+- LMDB: the recommended database engine for high-performance distributed clusters.
+LMDB works very well, but is known to have the following limitations:
 
   - The data format of LMDB is not portable between architectures, so for
     instance the Garage database of an x86-64 node cannot be moved to an ARM64
@@ -309,6 +321,9 @@ Performance characteristics of the different DB engines are as follows:
     from if your cluster is geo-replicated (by rebuilding your metadata db from
     other nodes), or if you have saved regular snapshots at the filesystem
     level.
+
+  - Keys in LMDB are limited to 511 bytes. This limit translates to limits on
+    object keys in S3 and sort keys in K2V that are limted to 479 bytes.
 
 - Sqlite: Garage supports Sqlite as an alternative storage backend for
   metadata, which does not have the issues listed above for LMDB.
@@ -353,7 +368,6 @@ Here is how this option impacts the different database engines:
 
 | Database | `metadata_fsync = false` (default) | `metadata_fsync = true`       |
 |----------|------------------------------------|-------------------------------|
-| Sled     | default options                    | *unsupported*                 |
 | Sqlite   | `PRAGMA synchronous = OFF`         | `PRAGMA synchronous = NORMAL` |
 | LMDB     | `MDB_NOMETASYNC` + `MDB_NOSYNC`    | `MDB_NOMETASYNC`              |
 
@@ -454,21 +468,6 @@ intermediate processing before even trying to send the data to the storage
 node.
 
 The default value is 256MiB.
-
-#### `sled_cache_capacity` {#sled_cache_capacity}
-
-This parameter can be used to tune the capacity of the cache used by
-[sled](https://sled.rs), the database Garage uses internally to store metadata.
-Tune this to fit the RAM you wish to make available to your Garage instance.
-This value has a conservative default (128MB) so that Garage doesn't use too much
-RAM by default, but feel free to increase this for higher performance.
-
-#### `sled_flush_every_ms` {#sled_flush_every_ms}
-
-This parameters can be used to tune the flushing interval of sled.
-Increase this if sled is thrashing your SSD, at the risk of losing more data in case
-of a power outage (though this should not matter much as data is replicated on other
-nodes). The default value, 2000ms, should be appropriate for most use cases.
 
 #### `lmdb_map_size` {#lmdb_map_size}
 

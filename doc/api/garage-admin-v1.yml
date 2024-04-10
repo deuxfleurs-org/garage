@@ -98,7 +98,6 @@ paths:
                       type: string
                     example:
                       - "k2v"
-                      - "sled"
                       - "lmdb"
                       - "sqlite"
                       - "consul-discovery"

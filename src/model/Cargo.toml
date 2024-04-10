@@ -1,6 +1,6 @@
 [package]
 name = "garage_model"
-version = "0.9.4"
+version = "1.0.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -27,6 +27,7 @@ blake2.workspace = true
 chrono.workspace = true
 err-derive.workspace = true
 hex.workspace = true
+http.workspace = true
 base64.workspace = true
 parse_duration.workspace = true
 tracing.workspace = true
@@ -42,8 +43,7 @@ tokio.workspace = true
 opentelemetry.workspace = true
 
 [features]
-default = [ "sled", "lmdb", "sqlite" ]
+default = [ "lmdb", "sqlite" ]
 k2v = [ "garage_util/k2v" ]
 lmdb = [ "garage_db/lmdb" ]
-sled = [ "garage_db/sled" ]
 sqlite = [ "garage_db/sqlite" ]

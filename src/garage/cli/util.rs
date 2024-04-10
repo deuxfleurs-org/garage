@@ -450,6 +450,8 @@ pub fn print_block_info(
 
 	if refcount != nondeleted_count {
 		println!();
-		println!("Warning: refcount does not match number of non-deleted versions");
+		println!(
+			"Warning: refcount does not match number of non-deleted versions, you should try `garage repair block-rc`."
+		);
 	}
 }

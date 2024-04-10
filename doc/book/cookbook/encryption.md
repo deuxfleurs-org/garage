@@ -53,20 +53,43 @@ and that's also why your nodes have super long identifiers.
 
 Adding TLS support built into Garage is not currently planned.
 
-## Garage stores data in plain text on the filesystem
+## Garage stores data in plain text on the filesystem or encrypted using customer keys (SSE-C)
 
-Garage does not handle data encryption at rest by itself, and instead delegates
-to the user to add encryption, either at the storage layer (LUKS, etc) or on
-the client side (or both). There are no current plans to add data encryption
-directly in Garage.
+For standard S3 API requests, Garage does not encrypt data at rest by itself.
+For the most generic at rest encryption of data, we recommend setting up your
+storage partitions on encrypted LUKS devices.
 
-Implementing data encryption directly in Garage might make things simpler for
-end users, but also raises many more questions, especially around key
-management: for encryption of data, where could Garage get the encryption keys
-from ? If we encrypt data but keep the keys in a plaintext file next to them,
-it's useless. We probably don't want to have to manage secrets in garage as it
-would be very hard to do in a secure way. Maybe integrate with an external
-system such as Hashicorp Vault?
+If you are developping your own client software that makes use of S3 storage,
+we recommend implementing data encryption directly on the client side and never
+transmitting plaintext data to Garage. This makes it easy to use an external
+untrusted storage provider if necessary.
+
+Garage does support [SSE-C
+encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html),
+an encryption mode of Amazon S3 where data is encrypted at rest using
+encryption keys given by the client.  The encryption keys are passed to the
+server in a header in each request, to encrypt or decrypt data at the moment of
+reading or writing. The server discards the key as soon as it has finished
+using it for the request.  This mode allows the data to be encrypted at rest by
+Garage itself, but it requires support in the client software. It is also not
+adapted to a model where the server is not trusted or assumed to be
+compromised, as the server can easily know the encryption keys.  Note however
+that when using SSE-C encryption, the only Garage node that knows the
+encryption key passed in a given request is the node to which the request is
+directed (which can be a gateway node), so it is easy to have untrusted nodes
+in the cluster as long as S3 API requests containing SSE-C encryption keys are
+not directed to them.
+
+Implementing automatic data encryption directly in Garage without client-side
+management of keys (something like
+[SSE-S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html))
+could make things simpler for end users that don't want to setup LUKS, but also
+raises many more questions, especially around key management: for encryption of
+data, where could Garage get the encryption keys from? If we encrypt data but
+keep the keys in a plaintext file next to them, it's useless. We probably don't
+want to have to manage secrets in Garage as it would be very hard to do in a
+secure way. At the time of speaking, there are no plans to implement this in
+Garage.
 
 
 # Adding data encryption using external tools

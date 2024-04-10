@@ -21,15 +21,15 @@ default-members = ["src/garage"]
 
 # Internal Garage crates
 format_table = { version = "0.1.1", path = "src/format-table" }
-garage_api = { version = "0.9.4", path = "src/api" }
-garage_block = { version = "0.9.4", path = "src/block" }
-garage_db = { version = "0.9.4", path = "src/db", default-features = false }
-garage_model = { version = "0.9.4", path = "src/model", default-features = false }
-garage_net = { version = "0.9.4", path = "src/net" }
-garage_rpc = { version = "0.9.4", path = "src/rpc" }
-garage_table = { version = "0.9.4", path = "src/table" }
-garage_util = { version = "0.9.4", path = "src/util" }
-garage_web = { version = "0.9.4", path = "src/web" }
+garage_api = { version = "1.0.0", path = "src/api" }
+garage_block = { version = "1.0.0", path = "src/block" }
+garage_db = { version = "1.0.0", path = "src/db", default-features = false }
+garage_model = { version = "1.0.0", path = "src/model", default-features = false }
+garage_net = { version = "1.0.0", path = "src/net" }
+garage_rpc = { version = "1.0.0", path = "src/rpc" }
+garage_table = { version = "1.0.0", path = "src/table" }
+garage_util = { version = "1.0.0", path = "src/util" }
+garage_web = { version = "1.0.0", path = "src/web" }
 k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
 # External crates from crates.io
@@ -43,6 +43,8 @@ bytes = "1.0"
 bytesize = "1.1"
 cfg-if = "1.0"
 chrono = "0.4"
+crc32fast = "1.4"
+crc32c = "0.6"
 crypto-common = "0.1"
 digest = "0.10"
 err-derive = "0.3"
@@ -62,10 +64,12 @@ parse_duration = "2.1"
 pin-project = "1.0.12"
 pnet_datalink = "0.34"
 rand = "0.8"
+sha1 = "0.10"
 sha2 = "0.10"
 timeago = { version = "0.4", default-features = false }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 
+aes-gcm = { version = "0.10", features = ["aes", "stream"] }
 sodiumoxide = { version = "0.2.5-0", package = "kuska-sodiumoxide" }
 kuska-handshake = { version = "0.2.0", features = ["default", "async_std"] }
 
@@ -80,7 +84,6 @@ heed = { version = "0.11", default-features = false, features = ["lmdb"] }
 rusqlite = "0.31.0"
 r2d2 = "0.8"
 r2d2_sqlite = "0.24"
-sled = "0.34"
 
 async-compression = { version = "0.4", features = ["tokio", "zstd"] }
 zstd = { version = "0.13", default-features = false }

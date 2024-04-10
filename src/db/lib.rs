@@ -3,12 +3,8 @@ extern crate tracing;
 
 #[cfg(feature = "lmdb")]
 pub mod lmdb_adapter;
-#[cfg(feature = "sled")]
-pub mod sled_adapter;
 #[cfg(feature = "sqlite")]
 pub mod sqlite_adapter;
-
-pub mod counted_tree_hack;
 
 pub mod open;
 
@@ -62,6 +58,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct TxOpError(pub(crate) Error);
 pub type TxOpResult<T> = std::result::Result<T, TxOpError>;
 
+#[derive(Debug)]
 pub enum TxError<E> {
 	Abort(E),
 	Db(Error),
@@ -200,10 +197,6 @@ impl Tree {
 	pub fn len(&self) -> Result<usize> {
 		self.0.len(self.1)
 	}
-	#[inline]
-	pub fn fast_len(&self) -> Result<Option<usize>> {
-		self.0.fast_len(self.1)
-	}
 
 	#[inline]
 	pub fn first(&self) -> Result<Option<(Value, Value)>> {
@@ -293,6 +286,11 @@ impl<'a> Transaction<'a> {
 	pub fn remove<T: AsRef<[u8]>>(&mut self, tree: &Tree, key: T) -> TxOpResult<Option<Value>> {
 		self.tx.remove(tree.1, key.as_ref())
 	}
+	/// Clears all values in a tree
+	#[inline]
+	pub fn clear(&mut self, tree: &Tree) -> TxOpResult<()> {
+		self.tx.clear(tree.1)
+	}
 
 	#[inline]
 	pub fn iter(&self, tree: &Tree) -> TxOpResult<TxValueIter<'_>> {
@@ -340,9 +338,6 @@ pub(crate) trait IDb: Send + Sync {
 
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
 	fn len(&self, tree: usize) -> Result<usize>;
-	fn fast_len(&self, _tree: usize) -> Result<Option<usize>> {
-		Ok(None)
-	}
 
 	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>>;
 	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
@@ -373,6 +368,7 @@ pub(crate) trait ITx {
 
 	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>>;
 	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>>;
+	fn clear(&mut self, tree: usize) -> TxOpResult<()>;
 
 	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>>;
 	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>>;

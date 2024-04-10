@@ -89,20 +89,21 @@ to store 2 TB of data in total.
 
 - If you only have an HDD and no SSD, it's fine to put your metadata alongside
   the data on the same drive, but then consider your filesystem choice wisely
-  (see above).  Having lots of RAM for your kernel to cache the metadata will
-  help a lot with performance.
+  (see above). Having lots of RAM for your kernel to cache the metadata will
+  help a lot with performance.  The default LMDB database engine is the most
+  tested and has good performance.
 
 ## Get a Docker image
 
 Our docker image is currently named `dxflrs/garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
-We encourage you to use a fixed tag (eg. `v0.9.4`) and not the `latest` tag.
-For this example, we will use the latest published version at the time of the writing which is `v0.9.4` but it's up to you
+We encourage you to use a fixed tag (eg. `v1.0.0`) and not the `latest` tag.
+For this example, we will use the latest published version at the time of the writing which is `v1.0.0` but it's up to you
 to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull dxflrs/garage:v0.9.4
+sudo docker pull dxflrs/garage:v1.0.0
 ```
 
 ## Deploying and configuring Garage
@@ -127,7 +128,7 @@ data_dir = "/var/lib/garage/data"
 db_engine = "lmdb"
 metadata_auto_snapshot_interval = "6h"
 
-replication_mode = "3"
+replication_factor = 3
 
 compression_level = 2
 
@@ -168,7 +169,7 @@ docker run \
   -v /etc/garage.toml:/etc/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
-  dxflrs/garage:v0.9.4
+  dxflrs/garage:v1.0.0
 ```
 
 With this command line, Garage should be started automatically at each boot.
@@ -182,7 +183,7 @@ If you want to use `docker-compose`, you may use the following `docker-compose.y
 version: "3"
 services:
   garage:
-    image: dxflrs/garage:v0.9.4
+    image: dxflrs/garage:v1.0.0
     network_mode: "host"
     restart: unless-stopped
     volumes:

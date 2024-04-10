@@ -58,7 +58,7 @@ metadata_dir = "{path}/meta"
 data_dir = "{path}/data"
 db_engine = "{db_engine}"
 
-replication_mode = "1"
+replication_factor = 1
 
 rpc_bind_addr = "127.0.0.1:{rpc_port}"
 rpc_public_addr = "127.0.0.1:{rpc_port}"
@@ -100,7 +100,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			.arg("server")
 			.stdout(stdout)
 			.stderr(stderr)
-			.env("RUST_LOG", "garage=info,garage_api=trace")
+			.env("RUST_LOG", "garage=debug,garage_api=trace")
 			.spawn()
 			.expect("Could not start garage");
 

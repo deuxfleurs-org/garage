@@ -3,8 +3,12 @@ use std::sync::Arc;
 use garage_db as db;
 
 use garage_util::data::*;
+use garage_util::error::*;
+use garage_util::migrate::Migrate;
 
+use garage_block::CalculateRefcount;
 use garage_table::crdt::Crdt;
+use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
 use garage_block::manager::*;
@@ -83,4 +87,39 @@ impl TableSchema for BlockRefTable {
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.deleted.get())
 	}
+}
+
+pub fn block_ref_recount_fn(
+	block_ref_table: &Arc<Table<BlockRefTable, TableShardedReplication>>,
+) -> CalculateRefcount {
+	let table = Arc::downgrade(block_ref_table);
+	Box::new(move |tx: &db::Transaction, block: &Hash| {
+		let table = table
+			.upgrade()
+			.ok_or_message("cannot upgrade weak ptr to block_ref_table")
+			.map_err(db::TxError::Abort)?;
+		Ok(calculate_refcount(&table, tx, block)?)
+	})
+}
+
+fn calculate_refcount(
+	block_ref_table: &Table<BlockRefTable, TableShardedReplication>,
+	tx: &db::Transaction,
+	block: &Hash,
+) -> db::TxResult<usize, Error> {
+	let mut result = 0;
+	for entry in tx.range(&block_ref_table.data.store, block.as_slice()..)? {
+		let (key, value) = entry?;
+		if &key[..32] != block.as_slice() {
+			break;
+		}
+		let value = BlockRef::decode(&value)
+			.ok_or_message("could not decode block_ref")
+			.map_err(db::TxError::Abort)?;
+		assert_eq!(value.block, *block);
+		if !value.deleted.get() {
+			result += 1;
+		}
+	}
+	Ok(result)
 }

@@ -33,6 +33,7 @@ Feel free to open a PR to suggest fixes this table. Minio is missing because the
 | [URL path-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access) (eg. `host.tld/bucket/key`) |  ✅ Implemented | ✅ |  ✅ | ❓| ✅ |
 | [URL vhost-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#virtual-hosted-style-access) URL (eg. `bucket.host.tld/key`) |  ✅ Implemented | ❌| ✅| ✅ | ✅ |
 | [Presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html) |  ✅ Implemented | ❌|  ✅ | ✅ |  ✅(❓) |
+| [SSE-C encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html) |  ✅ Implemented | ❓ |  ✅ | ❌ |  ✅ |
 
 *Note:* OpenIO does not says if it supports presigned URLs. Because it is part
 of signature v4 and they claim they support it without additional precisions,

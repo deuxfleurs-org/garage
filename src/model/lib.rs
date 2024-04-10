@@ -1,9 +1,6 @@
 #[macro_use]
 extern crate tracing;
 
-// For migration from previous versions
-pub(crate) mod prev;
-
 pub mod permission;
 
 pub mod index_counter;
@@ -18,5 +15,4 @@ pub mod s3;
 
 pub mod garage;
 pub mod helper;
-pub mod migrate;
 pub mod snapshot;

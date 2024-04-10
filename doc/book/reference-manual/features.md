@@ -39,10 +39,10 @@ Read about cluster layout management [here](@/documentation/operations/layout.md
 
 ### Several replication modes
 
-Garage supports a variety of replication modes, with 1 copy, 2 copies or 3 copies of your data,
+Garage supports a variety of replication modes, with configurable replica count,
 and with various levels of consistency, in order to adapt to a variety of usage scenarios.
-Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication_mode)
-to select the replication mode best suited to your use case (hint: in most cases, `replication_mode = "3"` is what you want).
+Read our reference page on [supported replication modes](@/documentation/reference-manual/configuration.md#replication_factor)
+to select the replication mode best suited to your use case (hint: in most cases, `replication_factor = 3` is what you want).
 
 ### Compression and deduplication
 

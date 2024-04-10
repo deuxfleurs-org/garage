@@ -6,17 +6,12 @@
 garage:
   # Can be changed for better performance on certain systems
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db-engine-since-v0-8-0
-  dbEngine: "sled"
+  dbEngine: "lmdb"
 
   # Defaults is 1MB
   # An increase can result in better performance in certain scenarios
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block-size
   blockSize: "1048576"
-
-  # Tuning parameters for the sled DB engine
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#sled-cache-capacity
-  sledCacheCapacity: "134217728"
-  sledFlushEveryMs: "2000"
 
   # Default to 3 replicas, see the replication_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication-mode
@@ -49,11 +44,6 @@ garage:
     db_engine = "{{ .Values.garage.dbEngine }}"
 
     block_size = {{ .Values.garage.blockSize }}
-
-    {{- if eq .Values.garage.dbEngine "sled"}}
-    sled_cache_capacity = {{ .Values.garage.sledCacheCapacity }}
-    sled_flush_every_ms = {{ .Values.garage.sledFlushEveryMs }}
-    {{- end }}
 
     replication_mode = "{{ .Values.garage.replicationMode }}"
 

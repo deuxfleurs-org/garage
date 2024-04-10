@@ -11,7 +11,6 @@ use crate::{Db, Error, Result};
 pub enum Engine {
 	Lmdb,
 	Sqlite,
-	Sled,
 }
 
 impl Engine {
@@ -20,7 +19,6 @@ impl Engine {
 		match self {
 			Self::Lmdb => "lmdb",
 			Self::Sqlite => "sqlite",
-			Self::Sled => "sled",
 		}
 	}
 }
@@ -38,10 +36,10 @@ impl std::str::FromStr for Engine {
 		match text {
 			"lmdb" | "heed" => Ok(Self::Lmdb),
 			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
-			"sled" => Ok(Self::Sled),
+			"sled" => Err(Error("Sled is no longer supported as a database engine. Converting your old metadata db can be done using an older Garage binary (e.g. v0.9.4).".into())),
 			kind => Err(Error(
 				format!(
-					"Invalid DB engine: {} (options are: lmdb, sled, sqlite)",
+					"Invalid DB engine: {} (options are: lmdb, sqlite)",
 					kind
 				)
 				.into(),
@@ -53,8 +51,6 @@ impl std::str::FromStr for Engine {
 pub struct OpenOpt {
 	pub fsync: bool,
 	pub lmdb_map_size: Option<usize>,
-	pub sled_cache_capacity: usize,
-	pub sled_flush_every_ms: u64,
 }
 
 impl Default for OpenOpt {
@@ -62,31 +58,12 @@ impl Default for OpenOpt {
 		Self {
 			fsync: false,
 			lmdb_map_size: None,
-			sled_cache_capacity: 1024 * 1024 * 1024,
-			sled_flush_every_ms: 2000,
 		}
 	}
 }
 
 pub fn open_db(path: &PathBuf, engine: Engine, opt: &OpenOpt) -> Result<Db> {
 	match engine {
-		// ---- Sled DB ----
-		#[cfg(feature = "sled")]
-		Engine::Sled => {
-			if opt.fsync {
-				return Err(Error(
-					"`metadata_fsync = true` is not supported with the Sled database engine".into(),
-				));
-			}
-			info!("Opening Sled database at: {}", path.display());
-			let db = crate::sled_adapter::sled::Config::default()
-				.path(&path)
-				.cache_capacity(opt.sled_cache_capacity as u64)
-				.flush_every_ms(Some(opt.sled_flush_every_ms))
-				.open()?;
-			Ok(crate::sled_adapter::SledDb::init(db))
-		}
-
 		// ---- Sqlite DB ----
 		#[cfg(feature = "sqlite")]
 		Engine::Sqlite => {

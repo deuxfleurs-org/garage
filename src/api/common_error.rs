@@ -59,9 +59,7 @@ impl CommonError {
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {
 			CommonError::InternalError(
-				GarageError::Timeout
-				| GarageError::RemoteError(_)
-				| GarageError::Quorum(_, _, _, _),
+				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(..),
 			) => StatusCode::SERVICE_UNAVAILABLE,
 			CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_) => {
 				StatusCode::INTERNAL_SERVER_ERROR
@@ -80,9 +78,7 @@ impl CommonError {
 		match self {
 			CommonError::Forbidden(_) => "AccessDenied",
 			CommonError::InternalError(
-				GarageError::Timeout
-				| GarageError::RemoteError(_)
-				| GarageError::Quorum(_, _, _, _),
+				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(..),
 			) => "ServiceUnavailable",
 			CommonError::InternalError(_) | CommonError::Hyper(_) | CommonError::Http(_) => {
 				"InternalError"

@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use hyper::Response;
 use serde::Serialize;
 
-use garage_rpc::ring::Ring;
 use garage_table::util::*;
 
 use garage_model::k2v::item_table::{BYTES, CONFLICTS, ENTRIES, VALUES};
@@ -27,7 +24,11 @@ pub async fn handle_read_index(
 
 	let reverse = reverse.unwrap_or(false);
 
-	let ring: Arc<Ring> = garage.system.ring.borrow().clone();
+	let node_id_vec = garage
+		.system
+		.cluster_layout()
+		.all_nongateway_nodes()
+		.to_vec();
 
 	let (partition_keys, more, next_start) = read_range(
 		&garage.k2v.counter_table.table,
@@ -36,7 +37,7 @@ pub async fn handle_read_index(
 		&start,
 		&end,
 		limit,
-		Some((DeletedFilter::NotDeleted, ring.layout.node_id_vec.clone())),
+		Some((DeletedFilter::NotDeleted, node_id_vec)),
 		EnumerationOrder::from_reverse(reverse),
 	)
 	.await?;
@@ -55,7 +56,7 @@ pub async fn handle_read_index(
 		partition_keys: partition_keys
 			.into_iter()
 			.map(|part| {
-				let vals = part.filtered_values(&ring);
+				let vals = part.filtered_values(&garage.system.cluster_layout());
 				ReadIndexResponseEntry {
 					pk: part.sk,
 					entries: *vals.get(&s_entries).unwrap_or(&0),

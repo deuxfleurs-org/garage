@@ -9,3 +9,6 @@ mod block;
 mod layout;
 mod metrics;
 mod rc;
+
+pub use block::zstd_encode;
+pub use rc::CalculateRefcount;

@@ -11,63 +11,10 @@ use garage_table::*;
 
 use crate::s3::block_ref_table::*;
 
-mod v05 {
+mod v08 {
 	use garage_util::crdt;
 	use garage_util::data::{Hash, Uuid};
 	use serde::{Deserialize, Serialize};
-
-	/// A version of an object
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct Version {
-		/// UUID of the version, used as partition key
-		pub uuid: Uuid,
-
-		// Actual data: the blocks for this version
-		// In the case of a multipart upload, also store the etags
-		// of individual parts and check them when doing CompleteMultipartUpload
-		/// Is this version deleted
-		pub deleted: crdt::Bool,
-		/// list of blocks of data composing the version
-		pub blocks: crdt::Map<VersionBlockKey, VersionBlock>,
-		/// Etag of each part in case of a multipart upload, empty otherwise
-		pub parts_etags: crdt::Map<u64, String>,
-
-		// Back link to bucket+key so that we can figure if
-		// this was deleted later on
-		/// Bucket in which the related object is stored
-		pub bucket: String,
-		/// Key in which the related object is stored
-		pub key: String,
-	}
-
-	#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
-	pub struct VersionBlockKey {
-		/// Number of the part
-		pub part_number: u64,
-		/// Offset of this sub-segment in its part
-		pub offset: u64,
-	}
-
-	/// Informations about a single block
-	#[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Debug, Serialize, Deserialize)]
-	pub struct VersionBlock {
-		/// Blake2 sum of the block
-		pub hash: Hash,
-		/// Size of the block
-		pub size: u64,
-	}
-
-	impl garage_util::migrate::InitialFormat for Version {}
-}
-
-mod v08 {
-	use garage_util::crdt;
-	use garage_util::data::Uuid;
-	use serde::{Deserialize, Serialize};
-
-	use super::v05;
-
-	pub use v05::{VersionBlock, VersionBlockKey};
 
 	/// A version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -93,22 +40,25 @@ mod v08 {
 		pub key: String,
 	}
 
-	impl garage_util::migrate::Migrate for Version {
-		type Previous = v05::Version;
-
-		fn migrate(old: v05::Version) -> Version {
-			use garage_util::data::blake2sum;
-
-			Version {
-				uuid: old.uuid,
-				deleted: old.deleted,
-				blocks: old.blocks,
-				parts_etags: old.parts_etags,
-				bucket_id: blake2sum(old.bucket.as_bytes()),
-				key: old.key,
-			}
-		}
+	#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+	pub struct VersionBlockKey {
+		/// Number of the part
+		pub part_number: u64,
+		/// Offset of this sub-segment in its part as sent by the client
+		/// (before any kind of compression or encryption)
+		pub offset: u64,
 	}
+
+	/// Informations about a single block
+	#[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Debug, Serialize, Deserialize)]
+	pub struct VersionBlock {
+		/// Blake2 sum of the block
+		pub hash: Hash,
+		/// Size of the block, before any kind of compression or encryption
+		pub size: u64,
+	}
+
+	impl garage_util::migrate::InitialFormat for Version {}
 }
 
 pub(crate) mod v09 {

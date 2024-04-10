@@ -14,42 +14,20 @@ impl CommandExt for process::Command {
 	}
 
 	fn expect_success_status(&mut self, msg: &str) -> process::ExitStatus {
-		let status = self.status().expect(msg);
-		status.expect_success(msg);
-		status
+		self.expect_success_output(msg).status
 	}
 	fn expect_success_output(&mut self, msg: &str) -> process::Output {
 		let output = self.output().expect(msg);
-		output.expect_success(msg);
-		output
-	}
-}
-
-pub trait OutputExt {
-	fn expect_success(&self, msg: &str);
-}
-
-impl OutputExt for process::Output {
-	fn expect_success(&self, msg: &str) {
-		self.status.expect_success(msg)
-	}
-}
-
-pub trait ExitStatusExt {
-	fn expect_success(&self, msg: &str);
-}
-
-impl ExitStatusExt for process::ExitStatus {
-	fn expect_success(&self, msg: &str) {
-		if !self.success() {
-			match self.code() {
-				Some(code) => panic!(
-					"Command exited with code {code}: {msg}",
-					code = code,
-					msg = msg
-				),
-				None => panic!("Command exited with signal: {msg}", msg = msg),
-			}
+		if !output.status.success() {
+			panic!(
+				"{}: command {:?} exited with error {:?}\nSTDOUT: {}\nSTDERR: {}",
+				msg,
+				self,
+				output.status.code(),
+				String::from_utf8_lossy(&output.stdout),
+				String::from_utf8_lossy(&output.stderr)
+			);
 		}
+		output
 	}
 }

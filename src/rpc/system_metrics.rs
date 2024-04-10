@@ -3,7 +3,6 @@ use std::time::{Duration, Instant};
 
 use opentelemetry::{global, metrics::*, KeyValue};
 
-use crate::ring::Ring;
 use crate::system::{ClusterHealthStatus, System};
 
 /// TableMetrics reference all counter used for metrics
@@ -69,7 +68,7 @@ impl SystemMetrics {
 				let replication_factor = system.replication_factor;
 				meter
 					.u64_value_observer("garage_replication_factor", move |observer| {
-						observer.observe(replication_factor as u64, &[])
+						observer.observe(replication_factor.replication_factor() as u64, &[])
 					})
 					.with_description("Garage replication factor setting")
 					.init()
@@ -215,14 +214,14 @@ impl SystemMetrics {
 				let system = system.clone();
 				meter
 					.u64_value_observer("cluster_layout_node_connected", move |observer| {
-						let ring: Arc<Ring> = system.ring.borrow().clone();
+						let layout = system.cluster_layout();
 						let nodes = system.get_known_nodes();
-						for (id, _, config) in ring.layout.roles.items().iter() {
-							if let Some(role) = &config.0 {
-								let mut kv = vec![
-									KeyValue::new("id", format!("{:?}", id)),
-									KeyValue::new("role_zone", role.zone.clone()),
-								];
+						for id in layout.all_nodes().iter() {
+							let mut kv = vec![KeyValue::new("id", format!("{:?}", id))];
+							if let Some(role) =
+								layout.current().roles.get(id).and_then(|r| r.0.as_ref())
+							{
+								kv.push(KeyValue::new("role_zone", role.zone.clone()));
 								match role.capacity {
 									Some(cap) => {
 										kv.push(KeyValue::new("role_capacity", cap as i64));
@@ -232,24 +231,24 @@ impl SystemMetrics {
 										kv.push(KeyValue::new("role_gateway", 1));
 									}
 								}
+							}
 
-								let value;
-								if let Some(node) = nodes.iter().find(|n| n.id == *id) {
-									value = if node.is_up { 1 } else { 0 };
+							let value;
+							if let Some(node) = nodes.iter().find(|n| n.id == *id) {
 								// TODO: if we add address and hostname, and those change, we
 								// get duplicate metrics, due to bad otel aggregation :(
 								// Can probably be fixed when we upgrade opentelemetry
 								// kv.push(KeyValue::new("address", node.addr.to_string()));
 								// kv.push(KeyValue::new(
-								// 	"hostname",
-								// 	node.status.hostname.clone(),
+								//	"hostname",
+								//	node.status.hostname.clone(),
 								// ));
-								} else {
-									value = 0;
-								}
-
-								observer.observe(value, &kv);
+								value = if node.is_up { 1 } else { 0 };
+							} else {
+								value = 0;
 							}
+
+							observer.observe(value, &kv);
 						}
 					})
 					.with_description("Connection status for nodes in the cluster layout")
@@ -259,14 +258,14 @@ impl SystemMetrics {
 				let system = system.clone();
 				meter
 					.u64_value_observer("cluster_layout_node_disconnected_time", move |observer| {
-						let ring: Arc<Ring> = system.ring.borrow().clone();
+						let layout = system.cluster_layout();
 						let nodes = system.get_known_nodes();
-						for (id, _, config) in ring.layout.roles.items().iter() {
-							if let Some(role) = &config.0 {
-								let mut kv = vec![
-									KeyValue::new("id", format!("{:?}", id)),
-									KeyValue::new("role_zone", role.zone.clone()),
-								];
+						for id in layout.all_nodes().iter() {
+							let mut kv = vec![KeyValue::new("id", format!("{:?}", id))];
+							if let Some(role) =
+								layout.current().roles.get(id).and_then(|r| r.0.as_ref())
+							{
+								kv.push(KeyValue::new("role_zone", role.zone.clone()));
 								match role.capacity {
 									Some(cap) => {
 										kv.push(KeyValue::new("role_capacity", cap as i64));
@@ -276,19 +275,19 @@ impl SystemMetrics {
 										kv.push(KeyValue::new("role_gateway", 1));
 									}
 								}
+							}
 
-								if let Some(node) = nodes.iter().find(|n| n.id == *id) {
-									// TODO: see comment above
-									// kv.push(KeyValue::new("address", node.addr.to_string()));
-									// kv.push(KeyValue::new(
-									// 	"hostname",
-									// 	node.status.hostname.clone(),
-									// ));
-									if node.is_up {
-										observer.observe(0, &kv);
-									} else if let Some(secs) = node.last_seen_secs_ago {
-										observer.observe(secs, &kv);
-									}
+							if let Some(node) = nodes.iter().find(|n| n.id == *id) {
+								// TODO: see comment above
+								// kv.push(KeyValue::new("address", node.addr.to_string()));
+								// kv.push(KeyValue::new(
+								//	"hostname",
+								//	node.status.hostname.clone(),
+								// ));
+								if node.is_up {
+									observer.observe(0, &kv);
+								} else if let Some(secs) = node.last_seen_secs_ago {
+									observer.observe(secs, &kv);
 								}
 							}
 						}
