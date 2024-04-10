@@ -38,7 +38,9 @@
    "tsfix2" "c82d91c6bccf307186332b6c5c6fc0b128b1b2b1"
    "task3a" "707442f5de416fdbed4681a33b739f0a787b7834"
    "task3b" "431b28e0cfdc9cac6c649193cf602108a8b02997"
-   "task3c" "0041b013a473e3ae72f50209d8f79db75a72848b"})
+   "task3c" "0041b013a473e3ae72f50209d8f79db75a72848b"
+   "v093" "v0.9.3"
+   "v1rc1" "v1.0.0-rc1"})
 
 (def cli-opts
   "Additional command line options."

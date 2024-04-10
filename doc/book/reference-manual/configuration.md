@@ -390,10 +390,12 @@ if geographical replication is used.
 
 If this value is set, Garage will automatically take a snapshot of the metadata
 DB file at a regular interval and save it in the metadata directory.
-This can allow to recover from situations where the metadata DB file is corrupted,
-for instance after an unclean shutdown.
-See [this page](@/documentation/operations/recovering.md#corrupted_meta) for details.
+This parameter can take any duration string that can be parsed by
+the [`parse_duration`](https://docs.rs/parse_duration/latest/parse_duration/#syntax) crate.
 
+Snapshots can allow to recover from situations where the metadata DB file is
+corrupted, for instance after an unclean shutdown.  See [this
+page](@/documentation/operations/recovering.md#corrupted_meta) for details.
 Garage keeps only the two most recent snapshots of the metadata DB and deletes
 older ones automatically.
 
