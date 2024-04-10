@@ -85,6 +85,9 @@ metrics_token = "$(openssl rand -base64 32)"
 EOF
 ```
 
+See the [Configuration file format](https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/)
+for complete options and values.
+
 Now that your configuration file has been created, you may save it to the directory of your choice.
 By default, Garage looks for **`/etc/garage.toml`.**
 You can also store it somewhere else, but you will have to specify `-c path/to/garage.toml`
@@ -111,6 +114,25 @@ garage -c path/to/garage.toml server
 
 If you have placed the `garage.toml` file in `/etc` (its default location), you can simply run `garage server`.
 
+To create a Docker container of Garage from an image, run:
+
+```bash
+docker run \
+  -d \
+  --name garaged \
+  -p 3900:3900 -p 3901:3901 -p 3902:3902 -p 3903:3903 \
+  -v /etc/garage.toml:/path/to/garage.toml \
+  -v /var/lib/garage/meta:/path/to/garage/meta \
+  -v /var/lib/garage/data:/path/to/garage/data \
+  dxflrs/garage:v0.9.4
+```
+
+Under Linux, you can substitute `--network host` for `-p 3900:3900 -p 3901:3901 -p 3902:3902 -p 3903:3903`
+
+#### Troubleshooting
+
+Ensure your configuration file, `metadata_dir` and `data_dir`  are readable by the user running the `garage` server or Docker.
+
 You can tune Garage's verbosity by setting the `RUST_LOG=` environment variable. \
 Available log levels are (from less verbose to more verbose): `error`, `warn`, `info` *(default)*, `debug` and `trace`.
 
@@ -130,6 +152,9 @@ The `garage` utility is also used as a CLI tool to configure your Garage deploym
 It uses values from the TOML configuration file to find the Garage daemon running on the
 local node, therefore if your configuration file is not at `/etc/garage.toml` you will
 again have to specify `-c path/to/garage.toml` at each invocation.
+
+If you are running Garage in a Docker container, you can set `alias garage="docker exec -ti <container name> /garage"`
+to use the Garage binary inside your container.
 
 If the `garage` CLI is able to correctly detect the parameters of your local Garage node,
 the following command should be enough to show the status of your cluster:
