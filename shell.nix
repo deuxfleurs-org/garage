@@ -11,6 +11,7 @@ in
 {
   # --- Dev shell inherited from flake.nix ---
   devShell = devShells.default;
+  devShellFull = devShells.full;
 
   # --- Continuous integration shell ---
   # The shell used for all CI jobs (along with devShell)
