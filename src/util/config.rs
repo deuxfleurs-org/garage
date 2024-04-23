@@ -85,6 +85,10 @@ pub struct Config {
 	/// Public IP address of this node
 	pub rpc_public_addr: Option<String>,
 
+	/// In case `rpc_public_addr` was not set, this can filter
+	/// the addresses announced to other peers to a specific subnet.
+	pub rpc_public_addr_subnet: Option<String>,
+
 	/// Timeout for Netapp's ping messagess
 	pub rpc_ping_timeout_msec: Option<u64>,
 	/// Timeout for Netapp RPC calls

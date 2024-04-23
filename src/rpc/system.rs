@@ -844,12 +844,20 @@ impl NodeStatus {
 	}
 }
 
-fn get_default_ip() -> Option<IpAddr> {
+/// Obtain the list of currently available IP addresses on all non-loopback
+/// interfaces, optionally filtering them to be inside a given IpNet.
+fn get_default_ip(filter_ipnet: Option<ipnet::IpNet>) -> Option<IpAddr> {
 	pnet_datalink::interfaces()
-		.iter()
-		.find(|e| e.is_up() && !e.is_loopback() && !e.ips.is_empty())
-		.and_then(|e| e.ips.first())
-		.map(|a| a.ip())
+		.into_iter()
+		// filter down and loopback interfaces
+		.filter(|i| i.is_up() && !i.is_loopback())
+		// get all IPs
+		.flat_map(|e| e.ips)
+		// optionally, filter to be inside filter_ipnet
+		.find(|ipn| {
+			filter_ipnet.is_some_and(|ipnet| ipnet.contains(&ipn.ip())) || filter_ipnet.is_none()
+		})
+		.map(|ipn| ipn.ip())
 }
 
 fn get_rpc_public_addr(config: &Config) -> Option<SocketAddr> {
@@ -877,7 +885,28 @@ fn get_rpc_public_addr(config: &Config) -> Option<SocketAddr> {
 			}
 		}
 		None => {
-			let addr = get_default_ip().map(|ip| SocketAddr::new(ip, config.rpc_bind_addr.port()));
+			// `No rpc_public_addr` specified, try to discover one, optionally filtering by `rpc_public_addr_subnet`.
+			let filter_subnet: Option<ipnet::IpNet> = config
+				.rpc_public_addr_subnet
+				.as_ref()
+				.and_then(|filter_subnet_str| match filter_subnet_str.parse::<ipnet::IpNet>() {
+					Ok(filter_subnet) => {
+						let filter_subnet_trunc = filter_subnet.trunc();
+						if filter_subnet_trunc != filter_subnet {
+							warn!("`rpc_public_addr_subnet` changed after applying netmask, continuing with {}", filter_subnet.trunc());
+						}
+						Some(filter_subnet_trunc)
+					}
+					Err(e) => {
+						panic!(
+							"Cannot parse rpc_public_addr_subnet {} from config file: {}. Bailing out.",
+							filter_subnet_str, e
+						);
+					}
+				});
+
+			let addr = get_default_ip(filter_subnet)
+				.map(|ip| SocketAddr::new(ip, config.rpc_bind_addr.port()));
 			if let Some(a) = addr {
 				warn!("Using autodetected rpc_public_addr: {}. Consider specifying it explicitly in configuration file if possible.", a);
 			}

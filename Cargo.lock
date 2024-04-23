@@ -1527,6 +1527,7 @@ dependencies = [
  "garage_util",
  "gethostname",
  "hex",
+ "ipnet",
  "itertools 0.12.1",
  "k8s-openapi",
  "kube",
