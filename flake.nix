@@ -76,6 +76,7 @@
             # import the full shell using `nix develop .#full`
             full = shellWithPackages (with pkgs; [
               rustfmt
+              rust-analyzer
               clang
               mold
               # ---- extra packages for dev tasks ----
