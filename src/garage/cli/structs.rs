@@ -48,7 +48,7 @@ pub enum Command {
 	#[structopt(name = "worker", version = garage_version())]
 	Worker(WorkerOperation),
 
-	/// Low-level debug operations on data blocks
+	/// Low-level node-local debug operations on data blocks
 	#[structopt(name = "block", version = garage_version())]
 	Block(BlockOperation),
 
