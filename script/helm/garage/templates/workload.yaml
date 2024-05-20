@@ -11,6 +11,7 @@ spec:
   {{- if eq .Values.deployment.kind "StatefulSet" }}
   replicas: {{ .Values.deployment.replicaCount }}
   serviceName: {{ include "garage.fullname" . }}
+  podManagementPolicy: {{ .Values.deployment.podManagementPolicy }}
   {{- end }}
   template:
     metadata:

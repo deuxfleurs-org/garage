@@ -96,6 +96,8 @@ deployment:
   kind: StatefulSet
   # Number of StatefulSet replicas/garage nodes to start
   replicaCount: 3
+  # If using statefulset, allow Parallel or OrderedReady (default)
+  podManagementPolicy: OrderedReady
 
 image:
   repository: dxflrs/amd64_garage
