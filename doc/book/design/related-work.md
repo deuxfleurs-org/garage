@@ -67,7 +67,7 @@ Pithos has been abandonned and should probably not used yet, in the following we
 Pithos was relying as a S3 proxy in front of Cassandra (and was working with Scylla DB too).
 From its designers' mouth, storing data in Cassandra has shown its limitations justifying the project abandonment.
 They built a closed-source version 2 that does not store blobs in the database (only metadata) but did not communicate further on it.
-We considered there v2's design but concluded that it does not fit both our *Self-contained & lightweight* and *Simple* properties. It makes the development, the deployment and the operations more complicated while reducing the flexibility.
+We considered their v2's design but concluded that it does not fit both our *Self-contained & lightweight* and *Simple* properties. It makes the development, the deployment and the operations more complicated while reducing the flexibility.
 
 **[Riak CS](https://docs.riak.com/riak/cs/2.1.1/index.html):**
 *Not written yet*
