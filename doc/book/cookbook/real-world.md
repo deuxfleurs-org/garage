@@ -152,6 +152,8 @@ Check the following for your configuration files:
 - Make sure `rpc_public_addr` contains the public IP address of the node you are configuring.
   This parameter is optional but recommended: if your nodes have trouble communicating with
   one another, consider adding it.
+  Alternatively, you can also set `rpc_public_addr_subnet`, which can filter
+  the addresses announced to other peers to a specific subnet.
 
 - Make sure `rpc_secret` is the same value on all nodes. It should be a 32-bytes hex-encoded secret key.
   You can generate such a key with `openssl rand -hex 32`.

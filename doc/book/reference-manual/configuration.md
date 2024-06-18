@@ -31,6 +31,9 @@ rpc_secret = "4425f5c26c5e11581d3223904324dcb5b5d5dfb14e5e7f35e38c595424f5f1e6"
 rpc_bind_addr = "[::]:3901"
 rpc_bind_outgoing = false
 rpc_public_addr = "[fc00:1::1]:3901"
+# or set rpc_public_adr_subnet to filter down autodiscovery to a subnet:
+# rpc_public_addr_subnet = "2001:0db8:f00:b00:/64"
+
 
 allow_world_readable_secrets = false
 
@@ -105,6 +108,7 @@ Top-level configuration options:
 [`rpc_bind_addr`](#rpc_bind_addr),
 [`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
+[`rpc_public_addr_subnet`](#rpc_public_addr_subnet)
 [`rpc_secret`/`rpc_secret_file`](#rpc_secret).
 
 The `[consul_discovery]` section:
@@ -542,6 +546,14 @@ The address and port that other nodes need to use to contact this node for
 RPC calls.  **This parameter is optional but recommended.** In case you have
 a NAT that binds the RPC port to a port that is different on your public IP,
 this field might help making it work.
+
+#### `rpc_public_addr_subnet` {#rpc_public_addr_subnet}
+In case `rpc_public_addr` is not set, but autodiscovery is used, this allows
+filtering the list of automatically discovered IPs to a specific subnet.
+
+For example, if nodes should pick *their* IP inside a specific subnet, but you
+don't want to explicitly write the IP down (as it's dynamic, or you want to
+share configs across nodes), you can use this option.
 
 #### `bootstrap_peers` {#bootstrap_peers}
 

@@ -24,6 +24,7 @@ bytes.workspace = true
 bytesize.workspace = true
 gethostname.workspace = true
 hex.workspace = true
+ipnet.workspace = true
 tracing.workspace = true
 rand.workspace = true
 itertools.workspace = true
