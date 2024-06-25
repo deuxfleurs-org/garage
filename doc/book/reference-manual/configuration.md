@@ -299,7 +299,7 @@ Since `v0.8.0`, Garage can use alternative storage backends as follows:
 
 | DB engine | `db_engine` value | Database path |
 | --------- | ----------------- | ------------- |
-| [LMDB](https://www.lmdb.tech) (since `v0.8.0`, default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
+| [LMDB](https://www.symas.com/lmdb) (since `v0.8.0`, default since `v0.9.0`) | `"lmdb"` | `<metadata_dir>/db.lmdb/` |
 | [Sqlite](https://sqlite.org) (since `v0.8.0`) | `"sqlite"` | `<metadata_dir>/db.sqlite` |
 | [Sled](https://sled.rs) (old default, removed since `v1.0`) | `"sled"` | `<metadata_dir>/db/` |
 
