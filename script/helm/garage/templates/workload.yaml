@@ -64,6 +64,10 @@ spec:
               name: web-api
             - containerPort: 3903
               name: admin
+          {{- with .Values.environment }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: meta
               mountPath: /mnt/meta
