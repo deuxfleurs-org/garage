@@ -141,7 +141,7 @@ impl Garage {
 		)?)
 		.ok()
 		.and_then(|x| NetworkKey::from_slice(&x))
-		.ok_or_message("Invalid RPC secret key")?;
+		.ok_or_message("Invalid RPC secret key: expected 32 bits of entropy, please check the documentation for requirements")?;
 
 		let (replication_factor, consistency_mode) = parse_replication_mode(&config)?;
 
