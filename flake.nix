@@ -2,24 +2,19 @@
   description =
     "Garage, an S3-compatible distributed object store for self-hosted deployments";
 
-  # Nixpkgs 23.11 as of 2024-02-07, has rustc v1.73
+  # Nixpkgs 24.05 as of 2024-08-07, has rustc v1.77.2
   inputs.nixpkgs.url =
-    "github:NixOS/nixpkgs/9f2ee8c91ac42da3ae6c6a1d21555f283458247e";
+    "github:NixOS/nixpkgs/63dacb46bf939521bdc93981b4cbb7ecb58427a0";
 
   inputs.flake-compat.url = "github:nix-community/flake-compat";
 
   inputs.cargo2nix = {
-    # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
-    url = "github:Alexis211/cargo2nix/a7a61179b66054904ef6a195d8da736eaaa06c36";
+    # Top of unreleased 0.12 branch, include the two patches from Alex, nix 23.11 rust 1.75.0
+    url = "github:cargo2nix/cargo2nix/da5f5d796af00fe818aa12f3b2d46a4800e6fec8";
 
-    # As of 2023-04-25:
-    # - my two patches were merged into unstable (one for clippy and one to "fix" feature detection)
-    # - rustc v1.66
-    # url = "github:cargo2nix/cargo2nix/8fb57a670f7993bfc24099c33eb9c5abb51f29a2";
-
-    # Rust overlay as of 2024-02-07
+    # Rust overlay as of 2024-08-07
     inputs.rust-overlay.url =
-      "github:oxalica/rust-overlay/7a94fe7690d2bdfe1aab475382a505e14dc114a6";
+      "github:oxalica/rust-overlay/7df2ac544c203d21b63aac23bfaec7f9b919a733";
 
     inputs.nixpkgs.follows = "nixpkgs";
     inputs.flake-compat.follows = "flake-compat";
