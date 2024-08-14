@@ -39,12 +39,15 @@ pub struct LmdbDb {
 }
 
 impl LmdbDb {
-	pub fn init(db: Env) -> Db {
-		let s = Self {
+	pub fn to_wrap(db: Env) -> Self {
+		Self {
 			db,
 			trees: RwLock::new((Vec::new(), HashMap::new())),
-		};
-		Db(Arc::new(s))
+		}
+	}
+
+	pub fn init(db: Env) -> Db {
+		Db(Arc::new(Self::to_wrap(db)))
 	}
 
 	fn get_tree(&self, i: usize) -> Result<Database> {

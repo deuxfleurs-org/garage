@@ -1,8 +1,12 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
-use crate::lmdb_adapter::{LmdbDb, LmdbTx};
-use crate::{Bound, IDb, ITx, ITxFn, OnCommit, Result, TxResult, Value, ValueIter};
+use crate::lmdb_adapter::LmdbDb;
+use crate::{
+	Bound, Db, IDb, ITx, ITxFn, OnCommit, Result, TxFnResult, TxOpResult, TxResult, TxValueIter,
+	Value, ValueIter,
+};
 use opentelemetry::{
 	global,
 	metrics::{Counter, ValueRecorder},
@@ -10,15 +14,16 @@ use opentelemetry::{
 };
 
 pub struct MetricDbProxy {
+	//@FIXME Replace with a template
 	db: LmdbDb,
 	op_counter: Counter<u64>,
 	op_duration: ValueRecorder<f64>,
 }
 
 impl MetricDbProxy {
-	pub fn init(db: LmdbDb) -> MetricDbProxy {
+	pub fn init(db: LmdbDb) -> Db {
 		let meter = global::meter("garage/web");
-		Self {
+		let s = Self {
 			db,
 			op_counter: meter
 				.u64_counter("db.op_counter")
@@ -28,7 +33,8 @@ impl MetricDbProxy {
 				.f64_value_recorder("db.op_duration")
 				.with_description("Duration of operations on the local metadata engine")
 				.init(),
-		}
+		};
+		Db(Arc::new(s))
 	}
 
 	fn instrument<T>(
@@ -131,10 +137,87 @@ impl IDb for MetricDbProxy {
 	// ----
 
 	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
-		self.instrument(|| self.db.transaction(f), "transaction", "control", "yes")
+		self.instrument(
+			|| self.db.transaction(&MetricITxFnProxy { f, metrics: self }),
+			"transaction",
+			"control",
+			"yes",
+		)
+	}
+}
+
+struct MetricITxFnProxy<'a> {
+	f: &'a dyn ITxFn,
+	metrics: &'a MetricDbProxy,
+}
+impl<'a> ITxFn for MetricITxFnProxy<'a> {
+	fn try_on(&self, tx: &mut dyn ITx) -> TxFnResult {
+		self.f.try_on(&mut MetricTxProxy {
+			tx,
+			metrics: self.metrics,
+		})
 	}
 }
 
 struct MetricTxProxy<'a> {
-	tx: LmdbTx<'a>,
+	tx: &'a mut dyn ITx,
+	metrics: &'a MetricDbProxy,
+}
+impl<'a> ITx for MetricTxProxy<'a> {
+	fn get(&self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>> {
+		self.metrics
+			.instrument(|| self.tx.get(tree, key), "get", "data", "yes")
+	}
+
+	fn len(&self, tree: usize) -> TxOpResult<usize> {
+		self.metrics
+			.instrument(|| self.tx.len(tree), "len", "data", "yes")
+	}
+
+	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>> {
+		self.metrics
+			.instrument(|| self.tx.insert(tree, key, value), "insert", "data", "yes")
+	}
+
+	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>> {
+		self.metrics
+			.instrument(|| self.tx.remove(tree, key), "remove", "data", "yes")
+	}
+
+	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
+		self.metrics
+			.instrument(|| self.tx.clear(tree), "clear", "data", "yes")
+	}
+
+	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		self.metrics
+			.instrument(|| self.tx.iter(tree), "iter", "data", "yes")
+	}
+	fn iter_rev(&self, tree: usize) -> TxOpResult<TxValueIter<'_>> {
+		self.metrics
+			.instrument(|| self.tx.iter_rev(tree), "iter_rev", "data", "yes")
+	}
+	fn range<'r>(
+		&self,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
+	) -> TxOpResult<TxValueIter<'_>> {
+		self.metrics
+			.instrument(|| self.tx.range(tree, low, high), "range", "data", "yes")
+	}
+
+	fn range_rev<'r>(
+		&self,
+		tree: usize,
+		low: Bound<&'r [u8]>,
+		high: Bound<&'r [u8]>,
+	) -> TxOpResult<TxValueIter<'_>> {
+		self.metrics.instrument(
+			|| self.tx.range_rev(tree, low, high),
+			"range_rev",
+			"data",
+			"yes",
+		)
+	}
 }

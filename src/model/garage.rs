@@ -121,7 +121,7 @@ impl Garage {
 			db::Engine::Sqlite => {
 				db_path.push("db.sqlite");
 			}
-			db::Engine::Lmdb => {
+			db::Engine::Lmdb | db::Engine::LmdbWithMetrics => {
 				db_path.push("db.lmdb");
 			}
 		}

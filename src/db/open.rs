@@ -10,6 +10,7 @@ use crate::{Db, Error, Result};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Engine {
 	Lmdb,
+	LmdbWithMetrics,
 	Sqlite,
 }
 
@@ -18,6 +19,7 @@ impl Engine {
 	pub fn as_str(&self) -> &'static str {
 		match self {
 			Self::Lmdb => "lmdb",
+			Self::LmdbWithMetrics => "lmdb-with-metrics",
 			Self::Sqlite => "sqlite",
 		}
 	}
@@ -35,6 +37,7 @@ impl std::str::FromStr for Engine {
 	fn from_str(text: &str) -> Result<Engine> {
 		match text {
 			"lmdb" | "heed" => Ok(Self::Lmdb),
+			"lmdb-with-metrics" | "heed-with-metrics" => Ok(Self::LmdbWithMetrics),
 			"sqlite" | "sqlite3" | "rusqlite" => Ok(Self::Sqlite),
 			"sled" => Err(Error("Sled is no longer supported as a database engine. Converting your old metadata db can be done using an older Garage binary (e.g. v0.9.4).".into())),
 			kind => Err(Error(
@@ -74,7 +77,7 @@ pub fn open_db(path: &PathBuf, engine: Engine, opt: &OpenOpt) -> Result<Db> {
 
 		// ---- LMDB DB ----
 		#[cfg(feature = "lmdb")]
-		Engine::Lmdb => {
+		Engine::Lmdb | Engine::LmdbWithMetrics => {
 			info!("Opening LMDB database at: {}", path.display());
 			if let Err(e) = std::fs::create_dir_all(&path) {
 				return Err(Error(
@@ -109,7 +112,13 @@ pub fn open_db(path: &PathBuf, engine: Engine, opt: &OpenOpt) -> Result<Db> {
 					))
 				}
 				Err(e) => Err(Error(format!("Cannot open LMDB database: {}", e).into())),
-				Ok(db) => Ok(crate::lmdb_adapter::LmdbDb::init(db)),
+				Ok(db) => match engine {
+					Engine::LmdbWithMetrics => {
+						let to_wrap = crate::lmdb_adapter::LmdbDb::to_wrap(db);
+						Ok(crate::metric_proxy::MetricDbProxy::init(to_wrap))
+					}
+					_ => Ok(crate::lmdb_adapter::LmdbDb::init(db)),
+				},
 			}
 		}
 
