@@ -3,6 +3,9 @@ extern crate tracing;
 
 #[cfg(feature = "lmdb")]
 pub mod lmdb_adapter;
+#[cfg(feature = "lmdb")]
+pub mod metric_proxy;
+
 #[cfg(feature = "sqlite")]
 pub mod sqlite_adapter;
 

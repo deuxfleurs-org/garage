@@ -226,7 +226,7 @@ impl IDb for LmdbDb {
 
 // ----
 
-struct LmdbTx<'a> {
+pub(crate) struct LmdbTx<'a> {
 	trees: &'a [Database],
 	tx: RwTxn<'a, 'a>,
 }

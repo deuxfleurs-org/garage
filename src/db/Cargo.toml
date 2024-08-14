@@ -15,6 +15,7 @@ path = "lib.rs"
 err-derive.workspace = true
 hexdump.workspace = true
 tracing.workspace = true
+opentelemetry.workspace = true
 
 heed = { workspace = true, optional = true }
 rusqlite = { workspace = true, optional = true, features = ["backup"] }
