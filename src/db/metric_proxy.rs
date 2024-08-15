@@ -16,8 +16,7 @@ use opentelemetry::{
 pub struct MetricDbProxy {
 	//@FIXME Replace with a template
 	db: LmdbDb,
-	op_counter: Counter<u64>,
-	op_duration: ValueRecorder<f64>,
+	op: ValueRecorder<f64>,
 }
 
 impl MetricDbProxy {
@@ -25,13 +24,9 @@ impl MetricDbProxy {
 		let meter = global::meter("garage/web");
 		let s = Self {
 			db,
-			op_counter: meter
-				.u64_counter("db.op_counter")
-				.with_description("Number of operations on the local metadata engine")
-				.init(),
-			op_duration: meter
-				.f64_value_recorder("db.op_duration")
-				.with_description("Duration of operations on the local metadata engine")
+			op: meter
+				.f64_value_recorder("db.op")
+				.with_description("Duration and amount of operations on the local metadata engine")
 				.with_unit(Unit::new("ms"))
 				.init(),
 		};
@@ -50,7 +45,6 @@ impl MetricDbProxy {
 			KeyValue::new("cat", cat),
 			KeyValue::new("tx", tx),
 		];
-		self.op_counter.add(1, &metric_tags);
 
 		let request_start = Instant::now();
 		let res = fx();
@@ -58,7 +52,7 @@ impl MetricDbProxy {
 			.saturating_duration_since(request_start)
 			.as_nanos();
 		let delay_millis: f64 = delay_nanos as f64 / 1_000_000f64;
-		self.op_duration.record(delay_millis, &metric_tags);
+		self.op.record(delay_millis, &metric_tags);
 
 		res
 	}
