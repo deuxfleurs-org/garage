@@ -9,7 +9,7 @@ use crate::{
 };
 use opentelemetry::{
 	global,
-	metrics::{Counter, ValueRecorder},
+	metrics::{Counter, Unit, ValueRecorder},
 	KeyValue,
 };
 
@@ -32,6 +32,7 @@ impl MetricDbProxy {
 			op_duration: meter
 				.f64_value_recorder("db.op_duration")
 				.with_description("Duration of operations on the local metadata engine")
+				.with_unit(Unit::new("us"))
 				.init(),
 		};
 		Db(Arc::new(s))
@@ -53,12 +54,12 @@ impl MetricDbProxy {
 
 		let request_start = Instant::now();
 		let res = fx();
-		self.op_duration.record(
-			Instant::now()
-				.saturating_duration_since(request_start)
-				.as_secs_f64(),
-			&metric_tags,
-		);
+		let delay_nanos = Instant::now()
+			.saturating_duration_since(request_start)
+			.as_nanos();
+		let delay_micro: f64 = delay_nanos as f64 / 1000.0f64;
+		println!("delay {}", delay_micro);
+		self.op_duration.record(delay_micro, &metric_tags);
 
 		res
 	}
