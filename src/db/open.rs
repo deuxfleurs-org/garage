@@ -92,6 +92,7 @@ pub fn open_db(path: &PathBuf, engine: Engine, opt: &OpenOpt) -> Result<Db> {
 			env_builder.map_size(map_size);
 			env_builder.max_readers(2048);
 			unsafe {
+				env_builder.flag(crate::lmdb_adapter::heed::flags::Flags::MdbNoRdAhead);
 				env_builder.flag(crate::lmdb_adapter::heed::flags::Flags::MdbNoMetaSync);
 				if !opt.fsync {
 					env_builder.flag(heed::flags::Flags::MdbNoSync);
