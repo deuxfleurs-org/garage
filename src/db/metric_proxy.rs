@@ -9,7 +9,7 @@ use crate::{
 };
 use opentelemetry::{
 	global,
-	metrics::{Counter, Unit, ValueRecorder},
+	metrics::{Unit, ValueRecorder},
 	KeyValue,
 };
 
@@ -21,7 +21,7 @@ pub struct MetricDbProxy {
 
 impl MetricDbProxy {
 	pub fn init(db: LmdbDb) -> Db {
-		let meter = global::meter("garage/web");
+		let meter = global::meter("garage/db");
 		let s = Self {
 			db,
 			op: meter
