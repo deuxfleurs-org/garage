@@ -227,24 +227,29 @@ impl LayoutHistory {
 	// ================== updates to layout, public interface ===================
 
 	pub fn merge(&mut self, other: &LayoutHistory) -> bool {
+		// If our current layout version is completely out-of-date,
+		// forget everything we know and replace it by incoming layout data.
+		if self.current().version < other.min_stored() {
+			*self = other.clone();
+			return true;
+		}
+
 		let mut changed = false;
 
 		// Add any new versions to history
 		for v2 in other.versions.iter() {
-			if let Some(v1) = self.versions.iter().find(|v| v.version == v2.version) {
+			if v2.version == self.current().version + 1 {
+				// This is the next version, add it to our version list
+				self.versions.push(v2.clone());
+				changed = true;
+			} else if let Some(v1) = self.versions.iter().find(|v| v.version == v2.version) {
 				// Version is already present, check consistency
 				if v1 != v2 {
 					error!("Inconsistent layout histories: different layout compositions for version {}. Your cluster will be broken as long as this layout version is not replaced.", v2.version);
 				}
-			} else if self.versions.iter().all(|v| v.version != v2.version - 1) {
-				error!(
-					"Cannot receive new layout version {}, version {} is missing",
-					v2.version,
-					v2.version - 1
-				);
 			} else {
-				self.versions.push(v2.clone());
-				changed = true;
+				// This is an older version
+				assert!(v2.version < self.min_stored());
 			}
 		}
 
