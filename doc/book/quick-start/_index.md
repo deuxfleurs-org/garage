@@ -42,6 +42,13 @@ If a binary of the last version is not available for your architecture,
 or if you want a build customized for your system,
 you can [build Garage from source](@/documentation/cookbook/from-source.md).
 
+If none of these option work for you, you can also run Garage in a Docker
+container.  When using Docker, the commands used in this guide will not work
+anymore.  We recommend reading the tutorial on [configuring a
+multi-node cluster](@/documentation/cookbook/real-world.md) to learn about
+using Garage as a Docker container. For simplicity, a minimal command to launch
+Garage using Docker is provided in this quick start guide as well.
+
 
 ## Configuring and starting Garage
 
@@ -114,7 +121,8 @@ garage -c path/to/garage.toml server
 
 If you have placed the `garage.toml` file in `/etc` (its default location), you can simply run `garage server`.
 
-To create a Docker container of Garage from an image, run:
+Alternatively, if you cannot or do not wish to run the Garage binary directly,
+you may use Docker to run Garage in a container using the following command:
 
 ```bash
 docker run \
