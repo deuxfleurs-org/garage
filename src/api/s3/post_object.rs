@@ -71,21 +71,11 @@ pub async fn handle_post_object(
 		}
 
 		if let Ok(content) = HeaderValue::from_str(&field.text().await?) {
-			match name.as_str() {
-				"tag" => (/* tag need to be reencoded, but we don't support them yet anyway */),
-				"acl" => {
-					if params.insert("x-amz-acl", content).is_some() {
-						return Err(Error::bad_request("Field 'acl' provided more than once"));
-					}
-				}
-				_ => {
-					if params.insert(&name, content).is_some() {
-						return Err(Error::bad_request(format!(
-							"Field '{}' provided more than once",
-							name
-						)));
-					}
-				}
+			if params.insert(&name, content).is_some() {
+				return Err(Error::bad_request(format!(
+					"Field '{}' provided more than once",
+					name
+				)));
 			}
 		}
 	};
@@ -222,6 +212,8 @@ pub async fn handle_post_object(
 		)));
 	}
 
+	// if we ever start supporting ACLs, we likely want to map "acl" to x-amz-acl" somewhere
+	// arround here to make sure the rest of the machinery takes our acl into account.
 	let headers = get_headers(&params)?;
 
 	let expected_checksums = ExpectedChecksums {
