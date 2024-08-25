@@ -388,13 +388,14 @@ fn check_size_filter(version_data: &ObjectVersionData, filter: &LifecycleFilter)
 fn midnight_ts(date: NaiveDate) -> u64 {
 	date.and_hms_opt(0, 0, 0)
 		.expect("midnight does not exist")
+		.and_utc()
 		.timestamp_millis() as u64
 }
 
 fn next_date(ts: u64) -> NaiveDate {
-	NaiveDateTime::from_timestamp_millis(ts as i64)
+	DateTime::from_timestamp_millis(ts as i64)
 		.expect("bad timestamp")
-		.date()
+		.date_naive()
 		.succ_opt()
 		.expect("no next day")
 }

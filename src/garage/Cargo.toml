@@ -63,7 +63,10 @@ syslog-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
 aws-config.workspace = true
+aws-types.workspace = true
+aws-credential-types.workspace = true
 aws-sdk-s3.workspace = true
+
 chrono.workspace = true
 http.workspace = true
 hmac.workspace = true

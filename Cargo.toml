@@ -137,9 +137,11 @@ assert-json-diff = "2.0"
 rustc_version = "0.4.0"
 static_init = "1.0"
 
-aws-config = "1.1.4"
-aws-sdk-config = "1.13"
-aws-sdk-s3 = "1.14"
+aws-config = "=1.1.4"
+aws-credential-types = "=1.1.4"
+aws-types = "=1.1.4"
+aws-sdk-config = "=1.13.0"
+aws-sdk-s3 = "=1.14.0"
 
 [profile.dev]
 #lto = "thin"	# disabled for now, adds 2-4 min to each CI build
