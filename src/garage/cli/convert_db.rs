@@ -24,6 +24,7 @@ pub struct ConvertDbOpt {
 	output_engine: Engine,
 
 	#[structopt(flatten)]
+	#[allow(dead_code)]
 	db_open: OpenDbOpt,
 }
 
@@ -52,6 +53,7 @@ pub(crate) fn do_conversion(args: ConvertDbOpt) -> Result<()> {
 	}
 
 	let opt = OpenOpt {
+		#[cfg(feature = "lmdb")]
 		lmdb_map_size: args.db_open.lmdb.map_size.map(|x| x.as_u64() as usize),
 		..Default::default()
 	};
