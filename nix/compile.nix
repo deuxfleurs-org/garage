@@ -20,7 +20,7 @@ let
     };
 
   toolchainOptions = {
-    rustVersion = "1.73.0";
+    rustVersion = "1.77.0";
     extraRustComponents = [ "clippy" ];
   };
 
