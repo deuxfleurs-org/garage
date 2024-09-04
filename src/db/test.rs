@@ -12,7 +12,7 @@ fn test_suite(db: Db) {
 
 	// ---- test simple insert/delete ----
 
-	assert!(tree.insert(ka, va).unwrap().is_none());
+	assert!(tree.insert(ka, va).is_ok());
 	assert_eq!(tree.get(ka).unwrap().unwrap(), va);
 	assert_eq!(tree.len().unwrap(), 1);
 
@@ -50,7 +50,7 @@ fn test_suite(db: Db) {
 	assert!(iter.next().is_none());
 	drop(iter);
 
-	assert!(tree.insert(kb, vc).unwrap().is_none());
+	assert!(tree.insert(kb, vc).is_ok());
 	assert_eq!(tree.get(kb).unwrap().unwrap(), vc);
 
 	let mut iter = tree.iter().unwrap();
