@@ -193,7 +193,6 @@ impl IDb for SqliteDb {
 		let lock = self.write_lock.lock();
 
 		let n = db.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
-		assert_eq!(n, 1);
 
 		drop(lock);
 		Ok(())
