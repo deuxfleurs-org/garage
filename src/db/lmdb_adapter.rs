@@ -132,22 +132,20 @@ impl IDb for LmdbDb {
 		Ok(tree.len(&tx)?.try_into().unwrap())
 	}
 
-	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>> {
+	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<()> {
 		let tree = self.get_tree(tree)?;
 		let mut tx = self.db.write_txn()?;
-		let old_val = tree.get(&tx, key)?.map(Vec::from);
 		tree.put(&mut tx, key, value)?;
 		tx.commit()?;
-		Ok(old_val)
+		Ok(())
 	}
 
-	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>> {
+	fn remove(&self, tree: usize, key: &[u8]) -> Result<()> {
 		let tree = self.get_tree(tree)?;
 		let mut tx = self.db.write_txn()?;
-		let old_val = tree.get(&tx, key)?.map(Vec::from);
 		tree.delete(&mut tx, key)?;
 		tx.commit()?;
-		Ok(old_val)
+		Ok(())
 	}
 
 	fn clear(&self, tree: usize) -> Result<()> {

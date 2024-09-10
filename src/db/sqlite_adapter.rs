@@ -169,7 +169,7 @@ impl IDb for SqliteDb {
 		}
 	}
 
-	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>> {
+	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<()> {
 		let tree = self.get_tree(tree)?;
 		let db = self.db.get()?;
 		let lock = self.write_lock.lock();
@@ -184,23 +184,18 @@ impl IDb for SqliteDb {
 		assert_eq!(n, 1);
 
 		drop(lock);
-		Ok(old_val)
+		Ok(())
 	}
 
-	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>> {
+	fn remove(&self, tree: usize, key: &[u8]) -> Result<()> {
 		let tree = self.get_tree(tree)?;
 		let db = self.db.get()?;
 		let lock = self.write_lock.lock();
 
-		let old_val = self.internal_get(&db, &tree, key)?;
-
-		if old_val.is_some() {
-			let n = db.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
-			assert_eq!(n, 1);
-		}
+		let n = db.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
 
 		drop(lock);
-		Ok(old_val)
+		Ok(())
 	}
 
 	fn clear(&self, tree: usize) -> Result<()> {

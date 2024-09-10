@@ -211,16 +211,12 @@ impl Tree {
 
 	/// Returns the old value if there was one
 	#[inline]
-	pub fn insert<T: AsRef<[u8]>, U: AsRef<[u8]>>(
-		&self,
-		key: T,
-		value: U,
-	) -> Result<Option<Value>> {
+	pub fn insert<T: AsRef<[u8]>, U: AsRef<[u8]>>(&self, key: T, value: U) -> Result<()> {
 		self.0.insert(self.1, key.as_ref(), value.as_ref())
 	}
 	/// Returns the old value if there was one
 	#[inline]
-	pub fn remove<T: AsRef<[u8]>>(&self, key: T) -> Result<Option<Value>> {
+	pub fn remove<T: AsRef<[u8]>>(&self, key: T) -> Result<()> {
 		self.0.remove(self.1, key.as_ref())
 	}
 	/// Clears all values from the tree
@@ -339,8 +335,8 @@ pub(crate) trait IDb: Send + Sync {
 	fn get(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
 	fn len(&self, tree: usize) -> Result<usize>;
 
-	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<Option<Value>>;
-	fn remove(&self, tree: usize, key: &[u8]) -> Result<Option<Value>>;
+	fn insert(&self, tree: usize, key: &[u8], value: &[u8]) -> Result<()>;
+	fn remove(&self, tree: usize, key: &[u8]) -> Result<()>;
 	fn clear(&self, tree: usize) -> Result<()>;
 
 	fn iter(&self, tree: usize) -> Result<ValueIter<'_>>;
