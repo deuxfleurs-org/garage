@@ -5,7 +5,7 @@ weight = 40
 
 Garage is meant to work on old, second-hand hardware.
 In particular, this makes it likely that some of your drives will fail, and some manual intervention will be needed.
-Fear not! For Garage is fully equipped to handle drive failures, in most common cases.
+Fear not! Garage is fully equipped to handle drive failures, in most common cases.
 
 ## A note on availability of Garage
 
@@ -61,7 +61,7 @@ garage repair -a --yes blocks
 
 This will re-synchronize blocks of data that are missing to the new HDD, reading them from copies located on other nodes.
 
-You can check on the advancement of this process by doing the following command: 
+You can check on the advancement of this process by doing the following command:
 
 ```bash
 garage stats -a
