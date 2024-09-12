@@ -252,17 +252,15 @@ impl<'a> ITx for LmdbTx<'a> {
 		Ok(tree.len(&self.tx)? as usize)
 	}
 
-	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>> {
+	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<()> {
 		let tree = *self.get_tree(tree)?;
-		let old_val = tree.get(&self.tx, key)?.map(Vec::from);
 		tree.put(&mut self.tx, key, value)?;
-		Ok(old_val)
+		Ok(())
 	}
-	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>> {
+	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<()> {
 		let tree = *self.get_tree(tree)?;
-		let old_val = tree.get(&self.tx, key)?.map(Vec::from);
 		tree.delete(&mut self.tx, key)?;
-		Ok(old_val)
+		Ok(())
 	}
 	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
 		let tree = *self.get_tree(tree)?;

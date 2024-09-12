@@ -274,12 +274,12 @@ impl<'a> Transaction<'a> {
 		tree: &Tree,
 		key: T,
 		value: U,
-	) -> TxOpResult<Option<Value>> {
+	) -> TxOpResult<()> {
 		self.tx.insert(tree.1, key.as_ref(), value.as_ref())
 	}
 	/// Returns the old value if there was one
 	#[inline]
-	pub fn remove<T: AsRef<[u8]>>(&mut self, tree: &Tree, key: T) -> TxOpResult<Option<Value>> {
+	pub fn remove<T: AsRef<[u8]>>(&mut self, tree: &Tree, key: T) -> TxOpResult<()> {
 		self.tx.remove(tree.1, key.as_ref())
 	}
 	/// Clears all values in a tree
@@ -362,8 +362,8 @@ pub(crate) trait ITx {
 	fn get(&self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>>;
 	fn len(&self, tree: usize) -> TxOpResult<usize>;
 
-	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>>;
-	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>>;
+	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<()>;
+	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<()>;
 	fn clear(&mut self, tree: usize) -> TxOpResult<()>;
 
 	fn iter(&self, tree: usize) -> TxOpResult<TxValueIter<'_>>;

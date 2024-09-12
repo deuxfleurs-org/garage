@@ -192,7 +192,7 @@ impl IDb for SqliteDb {
 		let db = self.db.get()?;
 		let lock = self.write_lock.lock();
 
-		let n = db.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
+		db.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
 
 		drop(lock);
 		Ok(())
@@ -336,31 +336,17 @@ impl<'a> ITx for SqliteTx<'a> {
 		}
 	}
 
-	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<Option<Value>> {
+	fn insert(&mut self, tree: usize, key: &[u8], value: &[u8]) -> TxOpResult<()> {
 		let tree = self.get_tree(tree)?;
-		let old_val = self.internal_get(tree, key)?;
-
-		let sql = match &old_val {
-			Some(_) => format!("UPDATE {} SET v = ?2 WHERE k = ?1", tree),
-			None => format!("INSERT INTO {} (k, v) VALUES (?1, ?2)", tree),
-		};
-		let n = self.tx.execute(&sql, params![key, value])?;
-		assert_eq!(n, 1);
-
-		Ok(old_val)
+		let sql = format!("INSERT OR REPLACE INTO {} (k, v) VALUES (?1, ?2)", tree);
+		self.tx.execute(&sql, params![key, value])?;
+		Ok(())
 	}
-	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<Option<Value>> {
+	fn remove(&mut self, tree: usize, key: &[u8]) -> TxOpResult<()> {
 		let tree = self.get_tree(tree)?;
-		let old_val = self.internal_get(tree, key)?;
-
-		if old_val.is_some() {
-			let n = self
-				.tx
-				.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
-			assert_eq!(n, 1);
-		}
-
-		Ok(old_val)
+		self.tx
+			.execute(&format!("DELETE FROM {} WHERE k = ?1", tree), params![key])?;
+		Ok(())
 	}
 	fn clear(&mut self, tree: usize) -> TxOpResult<()> {
 		let tree = self.get_tree(tree)?;
