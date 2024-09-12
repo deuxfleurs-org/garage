@@ -21,7 +21,7 @@ fn test_suite(db: Db) {
 	let res = db.transaction::<_, (), _>(|tx| {
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), va);
 
-		assert_eq!(tx.insert(&tree, ka, vb).unwrap().unwrap(), va);
+		assert_eq!(tx.insert(&tree, ka, vb).unwrap(), ());
 
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vb);
 
@@ -33,7 +33,7 @@ fn test_suite(db: Db) {
 	let res = db.transaction::<(), _, _>(|tx| {
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vb);
 
-		assert_eq!(tx.insert(&tree, ka, vc).unwrap().unwrap(), vb);
+		assert_eq!(tx.insert(&tree, ka, vc).unwrap(), ());
 
 		assert_eq!(tx.get(&tree, ka).unwrap().unwrap(), vc);
 
