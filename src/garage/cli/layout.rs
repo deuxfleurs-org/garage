@@ -358,7 +358,7 @@ pub async fn cmd_layout_history(
 
 	if layout.versions.len() > 1 {
 		println!("==== UPDATE TRACKERS ====");
-		println!("Several layout versions are currently live in the version, and data is being migrated.");
+		println!("Several layout versions are currently live in the cluster, and data is being migrated.");
 		println!(
 			"This is the internal data that Garage stores to know which nodes have what data."
 		);
@@ -377,15 +377,27 @@ pub async fn cmd_layout_history(
 		table[1..].sort();
 		format_table(table);
 
+		let min_ack = layout
+			.update_trackers
+			.ack_map
+			.min_among(&all_nodes, layout.min_stored());
+
 		println!();
 		println!(
 			"If some nodes are not catching up to the latest layout version in the update trackers,"
 		);
 		println!("it might be because they are offline or unable to complete a sync successfully.");
-		println!(
-			"You may force progress using `garage layout skip-dead-nodes --version {}`",
-			layout.current().version
-		);
+		if min_ack < layout.current().version {
+			println!(
+				"You may force progress using `garage layout skip-dead-nodes --version {}`",
+				layout.current().version
+			);
+		} else {
+			println!(
+				"You may force progress using `garage layout skip-dead-nodes --version {} --allow-missing-data`.",
+				layout.current().version
+			);
+		}
 	} else {
 		println!("Your cluster is currently in a stable state with a single live layout version.");
 		println!("No metadata migration is in progress. Note that the migration of data blocks is not tracked,");
@@ -426,15 +438,15 @@ pub async fn cmd_layout_skip_dead_nodes(
 	let all_nodes = layout.get_all_nodes();
 	let mut did_something = false;
 	for node in all_nodes.iter() {
-		if status.iter().any(|x| x.id == *node && x.is_up) {
-			continue;
+		// Update ACK tracker for dead nodes or for all nodes if --allow-missing-data
+		if opt.allow_missing_data || !status.iter().any(|x| x.id == *node && x.is_up) {
+			if layout.update_trackers.ack_map.set_max(*node, opt.version) {
+				println!("Increased the ACK tracker for node {:?}", node);
+				did_something = true;
+			}
 		}
 
-		if layout.update_trackers.ack_map.set_max(*node, opt.version) {
-			println!("Increased the ACK tracker for node {:?}", node);
-			did_something = true;
-		}
-
+		// If --allow-missing-data, update SYNC tracker for all nodes.
 		if opt.allow_missing_data {
 			if layout.update_trackers.sync_map.set_max(*node, opt.version) {
 				println!("Increased the SYNC tracker for node {:?}", node);
