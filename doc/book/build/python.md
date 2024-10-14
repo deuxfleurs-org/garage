@@ -23,7 +23,7 @@ client = minio.Minio(
   "GKyourapikey",
   "abcd[...]1234",
   # Force the region, this is specific to garage
-  region="region",
+  region="garage",
 )
 ```
 
