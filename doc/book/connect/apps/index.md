@@ -335,6 +335,7 @@ From the [official Mastodon documentation](https://docs.joinmastodon.org/admin/t
 
 ```bash
 $ RAILS_ENV=production bin/tootctl media remove --days 3
+$ RAILS_ENV=production bin/tootctl media remove --days 15 --prune-profiles
 $ RAILS_ENV=production bin/tootctl media remove-orphans
 $ RAILS_ENV=production bin/tootctl preview_cards remove --days 15
 ```
@@ -352,8 +353,6 @@ Backups:	0 Bytes
 Imports:	1.7 KB
 Settings:	0 Bytes
 ```
-
-Unfortunately, [old avatars and headers cannot currently be cleaned up](https://github.com/mastodon/mastodon/issues/9567).
 
 ### Migrating your data
 
