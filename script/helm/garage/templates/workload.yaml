@@ -76,6 +76,9 @@ spec:
             - name: etc
               mountPath: /etc/garage.toml
               subPath: garage.toml
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           # TODO
           # livenessProbe:
           #   httpGet:
@@ -109,6 +112,9 @@ spec:
           emptyDir: {}
         - name: data
           emptyDir: {}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+          {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
