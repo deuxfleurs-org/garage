@@ -83,6 +83,7 @@ pretty_env_logger = "0.5"
 structopt = { version = "0.3", default-features = false }
 syslog-tracing = "0.3"
 tracing = "0.1"
+tracing-journald = "0.3.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 heed = { version = "0.11", default-features = false, features = ["lmdb"] }

@@ -160,6 +160,10 @@ variable, it does not exist in the configuration file:
   Garage daemon send its logs to `syslog` (using the libc `syslog` function)
   instead of printing to stderr.
 
+- `GARAGE_LOG_TO_JOURNALD` (since `v2.0.0`): set this to `1` or `true` to make the
+  Garage daemon send its logs to `journald` (using the native protocol of `systemd-journald`)
+  instead of printing to stderr.
+
 The following environment variables can be used to override the corresponding
 values in the configuration file:
 
