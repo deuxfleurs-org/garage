@@ -50,3 +50,20 @@ locations. They use Garage themselves for the following tasks:
 
 The Deuxfleurs Garage cluster is a multi-site cluster currently composed of
 9 nodes in 3 physical locations.
+
+### Triplebit
+
+[Triplebit](https://www.triplebit.org) is a non-profit hosting provider and
+ISP focused on improving access to privacy-related services. They use
+Garage themselves for the following tasks:
+
+- Hosting of their homepage, [privacyguides.org](https://www.privacyguides.org/), and various other static sites
+
+- As a Mastodon object storage backend for [mstdn.party](https://mstdn.party/) and [mstdn.plus](https://mstdn.plus/)
+
+- As a PeerTube storage backend for [neat.tube](https://neat.tube/)
+
+- As a [Matrix media backend](https://github.com/matrix-org/synapse-s3-storage-provider)
+
+Triplebit's Garage cluster is a multi-site cluster currently composed of
+10 nodes in 3 physical locations.
