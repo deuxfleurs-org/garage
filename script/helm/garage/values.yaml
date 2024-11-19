@@ -218,6 +218,10 @@ affinity: {}
 
 environment: {}
 
+extraVolumes: {}
+
+extraVolumeMounts: {}
+
 monitoring:
   metrics:
     # If true, a service for monitoring is created with a prometheus.io/scrape annotation
