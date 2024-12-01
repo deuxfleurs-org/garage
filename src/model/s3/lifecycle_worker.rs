@@ -70,7 +70,7 @@ pub fn register_bg_vars(
 
 impl LifecycleWorker {
 	pub fn new(garage: Arc<Garage>, persister: PersisterShared<LifecycleWorkerPersisted>) -> Self {
-		let today = today();
+		let today = today(garage.config.use_local_tz);
 		let last_completed = persister.get_with(|x| {
 			x.last_completed
 				.as_deref()
@@ -205,8 +205,9 @@ impl Worker for LifecycleWorker {
 	async fn wait_for_work(&mut self) -> WorkerState {
 		match &self.state {
 			State::Completed(d) => {
+				let use_local_tz = self.garage.config.use_local_tz;
 				let next_day = d.succ_opt().expect("no next day");
-				let next_start = midnight_ts(next_day);
+				let next_start = midnight_ts(next_day, use_local_tz);
 				loop {
 					let now = now_msec();
 					if now < next_start {
@@ -218,7 +219,7 @@ impl Worker for LifecycleWorker {
 						break;
 					}
 				}
-				self.state = State::start(std::cmp::max(next_day, today()));
+				self.state = State::start(std::cmp::max(next_day, today(use_local_tz)));
 			}
 			State::Running { .. } => (),
 		}
@@ -385,10 +386,16 @@ fn check_size_filter(version_data: &ObjectVersionData, filter: &LifecycleFilter)
 	true
 }
 
-fn midnight_ts(date: NaiveDate) -> u64 {
-	date.and_hms_opt(0, 0, 0)
-		.expect("midnight does not exist")
-		.timestamp_millis() as u64
+fn midnight_ts(date: NaiveDate, use_local_tz: bool) -> u64 {
+	let midnight = date.and_hms_opt(0, 0, 0).expect("midnight does not exist");
+	if use_local_tz {
+		return midnight
+			.and_local_timezone(Local)
+			.single()
+			.expect("bad local midnight")
+			.timestamp_millis() as u64;
+	}
+	midnight.timestamp_millis() as u64
 }
 
 fn next_date(ts: u64) -> NaiveDate {
@@ -399,6 +406,9 @@ fn next_date(ts: u64) -> NaiveDate {
 		.expect("no next day")
 }
 
-fn today() -> NaiveDate {
+fn today(use_local_tz: bool) -> NaiveDate {
+	if use_local_tz {
+		return Local::now().naive_local().date();
+	}
 	Utc::now().naive_utc().date()
 }

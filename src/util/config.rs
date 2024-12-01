@@ -27,6 +27,10 @@ pub struct Config {
 	#[serde(default)]
 	pub disable_scrub: bool,
 
+	/// Use local timezone
+	#[serde(default)]
+	pub use_local_tz: bool,
+
 	/// Automatic snapshot interval for metadata
 	#[serde(default)]
 	pub metadata_auto_snapshot_interval: Option<String>,

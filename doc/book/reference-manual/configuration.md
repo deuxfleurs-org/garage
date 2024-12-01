@@ -16,6 +16,7 @@ data_dir = "/var/lib/garage/data"
 metadata_fsync = true
 data_fsync = false
 disable_scrub = false
+use_local_tz = false
 metadata_auto_snapshot_interval = "6h"
 
 db_engine = "lmdb"
@@ -99,6 +100,7 @@ Top-level configuration options:
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
 [`disable_scrub`](#disable_scrub),
+[`use_local_tz`](#use_local_tz),
 [`lmdb_map_size`](#lmdb_map_size),
 [`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
@@ -426,6 +428,13 @@ filesystem level. Note that in this case, if you find a corrupted data file,
 you should delete it from the data directory and then call `garage repair
 blocks` on the node to ensure that it re-obtains a copy from another node on
 the network.
+
+#### `use_local_tz` {#use_local_tz}
+
+By default, Garage runs the lifecycle worker every day at midnight in UTC. Set the
+`use_local_tz` configuration value to `true` if you want Garage to run the
+lifecycle worker at midnight in your local timezone. If you have multiple nodes,
+you should also ensure that each node has the same timezone configuration.
 
 #### `block_size` {#block_size}
 
