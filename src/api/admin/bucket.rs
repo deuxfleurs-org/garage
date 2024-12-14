@@ -423,6 +423,7 @@ pub async fn handle_update_bucket(
 					"Please specify indexDocument when enabling website access.",
 				)?,
 				error_document: wa.error_document,
+				routing_rules: Vec::new(),
 			}));
 		} else {
 			if wa.index_document.is_some() || wa.error_document.is_some() {

@@ -60,6 +60,60 @@ mod v08 {
 	pub struct WebsiteConfig {
 		pub index_document: String,
 		pub error_document: Option<String>,
+		#[serde(default, skip_serializing_if = "Vec::is_empty")]
+		pub routing_rules: Vec<RoutingRule>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RoutingRule {
+		pub condition: Option<Condition>,
+		pub redirect: Redirect,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Condition {
+		pub http_error_code: Option<u16>,
+		pub prefix: Option<String>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Redirect {
+		pub hostname: Option<String>,
+		pub http_redirect_code: u16,
+		pub protocol: Option<String>,
+		pub replace_key_prefix: Option<String>,
+		pub replace_key: Option<String>,
+	}
+
+	impl Redirect {
+		pub fn compute_target(&self, suffix: Option<&str>) -> String {
+			let mut res = String::new();
+			if let Some(hostname) = &self.hostname {
+				if let Some(protocol) = &self.protocol {
+					res.push_str(&protocol);
+					res.push_str("://");
+				} else {
+					res.push_str("//");
+				}
+				res.push_str(&hostname);
+			}
+			res.push('/');
+			if let Some(replace_key_prefix) = &self.replace_key_prefix {
+				res.push_str(&replace_key_prefix);
+				if let Some(suffix) = suffix {
+					res.push_str(suffix)
+				}
+			} else if let Some(replace_key) = &self.replace_key {
+				res.push_str(&replace_key)
+			}
+			res
+		}
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RedirectAll {
+		pub hostname: String,
+		pub protoco: String,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
