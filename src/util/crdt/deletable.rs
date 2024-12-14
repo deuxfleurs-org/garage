@@ -9,6 +9,16 @@ pub enum Deletable<T> {
 	Deleted,
 }
 
+impl<T> Deletable<T> {
+	/// Map value, used for migrations
+	pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Deletable<U> {
+		match self {
+			Self::Present(x) => Deletable::<U>::Present(f(x)),
+			Self::Deleted => Deletable::<U>::Deleted,
+		}
+	}
+}
+
 impl<T: Crdt> Deletable<T> {
 	/// Create a new deletable object that isn't deleted
 	pub fn present(v: T) -> Self {
