@@ -5,7 +5,10 @@ use crate::json_body;
 use assert_json_diff::assert_json_eq;
 use aws_sdk_s3::{
 	primitives::ByteStream,
-	types::{CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, WebsiteConfiguration},
+	types::{
+		Condition, CorsConfiguration, CorsRule, ErrorDocument, IndexDocument, Protocol, Redirect,
+		RoutingRule, WebsiteConfiguration,
+	},
 };
 use http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -532,6 +535,447 @@ async fn test_website_check_domain() {
 			"path": "/check",
 		})
 	);
+}
+
+#[tokio::test]
+async fn test_website_redirect_full_bucket() {
+	const BCKT_NAME: &str = "my-redirect-full";
+	let ctx = common::context();
+	let bucket = ctx.create_bucket(BCKT_NAME);
+
+	let conf = WebsiteConfiguration::builder()
+		.routing_rules(
+			RoutingRule::builder()
+				.condition(Condition::builder().key_prefix_equals("").build())
+				.redirect(
+					Redirect::builder()
+						.protocol(Protocol::Https)
+						.host_name("other.tld")
+						.replace_key_prefix_with("")
+						.build(),
+				)
+				.build(),
+		)
+		.build();
+
+	ctx.client
+		.put_bucket_website()
+		.bucket(&bucket)
+		.website_configuration(conf)
+		.send()
+		.await
+		.unwrap();
+
+	let req = Request::builder()
+		.method("GET")
+		.uri(format!("http://127.0.0.1:{}/my-path", ctx.garage.web_port))
+		.header("Host", format!("{}.web.garage", BCKT_NAME))
+		.body(Body::new(Bytes::new()))
+		.unwrap();
+
+	let client = Client::builder(TokioExecutor::new()).build_http();
+	let resp = client.request(req).await.unwrap();
+	assert_eq!(resp.status(), StatusCode::FOUND);
+	assert_eq!(
+		resp.headers()
+			.get(hyper::header::LOCATION)
+			.unwrap()
+			.to_str()
+			.unwrap(),
+		"https://other.tld/my-path"
+	);
+}
+
+#[tokio::test]
+async fn test_website_redirect() {
+	const BCKT_NAME: &str = "my-redirect";
+	let ctx = common::context();
+	let bucket = ctx.create_bucket(BCKT_NAME);
+
+	ctx.client
+		.put_object()
+		.bucket(&bucket)
+		.key("index.html")
+		.body(ByteStream::from_static(b"index"))
+		.send()
+		.await
+		.unwrap();
+	ctx.client
+		.put_object()
+		.bucket(&bucket)
+		.key("404.html")
+		.body(ByteStream::from_static(b"main 404"))
+		.send()
+		.await
+		.unwrap();
+	ctx.client
+		.put_object()
+		.bucket(&bucket)
+		.key("static-file")
+		.body(ByteStream::from_static(b"static file"))
+		.send()
+		.await
+		.unwrap();
+
+	let mut conf = WebsiteConfiguration::builder()
+		.index_document(
+			IndexDocument::builder()
+				.suffix("home.html")
+				.build()
+				.unwrap(),
+		)
+		.error_document(ErrorDocument::builder().key("404.html").build().unwrap());
+
+	for (prefix, condition) in [("unconditional", false), ("conditional", true)] {
+		let code = condition.then(|| "404".to_string());
+		conf = conf
+			// simple redirect
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/redirect-prefix/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("302")
+							.replace_key_prefix_with("other-prefix/")
+							.build(),
+					)
+					.build(),
+			)
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/redirect-prefix-307/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("307")
+							.replace_key_prefix_with("other-prefix/")
+							.build(),
+					)
+					.build(),
+			)
+			// simple redirect
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/redirect-fixed/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("302")
+							.replace_key_with("fixed_key")
+							.build(),
+					)
+					.build(),
+			)
+			// stream other file
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/stream-fixed/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("200")
+							.replace_key_with("static-file")
+							.build(),
+					)
+					.build(),
+			)
+			// stream other file as error
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/stream-404/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("404")
+							.replace_key_with("static-file")
+							.build(),
+					)
+					.build(),
+			)
+			// fail to stream other file
+			.routing_rules(
+				RoutingRule::builder()
+					.condition(
+						Condition::builder()
+							.set_http_error_code_returned_equals(code.clone())
+							.key_prefix_equals(format!("{prefix}/stream-missing/"))
+							.build(),
+					)
+					.redirect(
+						Redirect::builder()
+							.http_redirect_code("200")
+							.replace_key_with("missing-file")
+							.build(),
+					)
+					.build(),
+			);
+	}
+	let conf = conf.build();
+
+	ctx.client
+		.put_bucket_website()
+		.bucket(&bucket)
+		.website_configuration(conf.clone())
+		.send()
+		.await
+		.unwrap();
+
+	let stored_cfg = ctx
+		.client
+		.get_bucket_website()
+		.bucket(&bucket)
+		.send()
+		.await
+		.unwrap();
+	assert_eq!(stored_cfg.index_document, conf.index_document);
+	assert_eq!(stored_cfg.error_document, conf.error_document);
+	assert_eq!(stored_cfg.routing_rules, conf.routing_rules);
+
+	let req = |path| {
+		Request::builder()
+			.method("GET")
+			.uri(format!(
+				"http://127.0.0.1:{}/{}/path",
+				ctx.garage.web_port, path
+			))
+			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.body(Body::new(Bytes::new()))
+			.unwrap()
+	};
+
+	test_redirect_helper("unconditional", true, &req).await;
+	test_redirect_helper("conditional", true, &req).await;
+	for prefix in ["unconditional", "conditional"] {
+		for rule_path in [
+			"redirect-prefix",
+			"redirect-prefix-307",
+			"redirect-fixed",
+			"stream-fixed",
+			"stream-404",
+			"stream-missing",
+		] {
+			ctx.client
+				.put_object()
+				.bucket(&bucket)
+				.key(format!("{prefix}/{rule_path}/path"))
+				.body(ByteStream::from_static(b"i exist"))
+				.send()
+				.await
+				.unwrap();
+		}
+	}
+	test_redirect_helper("unconditional", true, &req).await;
+	test_redirect_helper("conditional", false, &req).await;
+}
+
+async fn test_redirect_helper(
+	prefix: &str,
+	should_see_redirect: bool,
+	req: impl Fn(String) -> Request<http_body_util::Full<Bytes>>,
+) {
+	use http::header;
+	let client = Client::builder(TokioExecutor::new()).build_http();
+	let expected_body = b"i exist".as_ref();
+
+	let resp = client
+		.request(req(format!("{prefix}/redirect-prefix")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::FOUND);
+		assert_eq!(
+			resp.headers()
+				.get(header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"/other-prefix/path"
+		);
+		assert!(resp
+			.into_body()
+			.collect()
+			.await
+			.unwrap()
+			.to_bytes()
+			.is_empty());
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+
+	let resp = client
+		.request(req(format!("{prefix}/redirect-prefix-307")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
+		assert_eq!(
+			resp.headers()
+				.get(header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"/other-prefix/path"
+		);
+		assert!(resp
+			.into_body()
+			.collect()
+			.await
+			.unwrap()
+			.to_bytes()
+			.is_empty());
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+
+	let resp = client
+		.request(req(format!("{prefix}/redirect-fixed")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::FOUND);
+		assert_eq!(
+			resp.headers()
+				.get(header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"/fixed_key"
+		);
+		assert!(resp
+			.into_body()
+			.collect()
+			.await
+			.unwrap()
+			.to_bytes()
+			.is_empty());
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+	let resp = client
+		.request(req(format!("{prefix}/stream-fixed")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			b"static file".as_ref(),
+		);
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+	let resp = client
+		.request(req(format!("{prefix}/stream-404")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			b"static file".as_ref(),
+		);
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+	let resp = client
+		.request(req(format!("{prefix}/stream-404")))
+		.await
+		.unwrap();
+	if should_see_redirect {
+		assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			b"static file".as_ref(),
+		);
+	} else {
+		assert_eq!(resp.status(), StatusCode::OK);
+		assert!(resp.headers().get(header::LOCATION).is_none());
+		assert_eq!(
+			resp.into_body().collect().await.unwrap().to_bytes(),
+			expected_body,
+		);
+	}
+}
+
+#[tokio::test]
+async fn test_website_invalid_redirect() {
+	const BCKT_NAME: &str = "my-invalid-redirect";
+	let ctx = common::context();
+	let bucket = ctx.create_bucket(BCKT_NAME);
+
+	let conf = WebsiteConfiguration::builder()
+		.routing_rules(
+			RoutingRule::builder()
+				.condition(Condition::builder().key_prefix_equals("").build())
+				.redirect(
+					Redirect::builder()
+						.protocol(Protocol::Https)
+						.host_name("other.tld")
+						.replace_key_prefix_with("")
+						// we don't allow 200 with hostname
+						.http_redirect_code("200")
+						.build(),
+				)
+				.build(),
+		)
+		.build();
+
+	ctx.client
+		.put_bucket_website()
+		.bucket(&bucket)
+		.website_configuration(conf)
+		.send()
+		.await
+		.unwrap_err();
 }
 
 #[tokio::test]
