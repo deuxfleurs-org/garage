@@ -25,8 +25,28 @@ pub async fn handle_get_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error>
 				suffix: Value(website.index_document.to_string()),
 			}),
 			redirect_all_requests_to: None,
-			// TODO put the correct config here
-			routing_rules: Vec::new(),
+			routing_rules: RoutingRules {
+				rules: website
+					.routing_rules
+					.clone()
+					.into_iter()
+					.map(|rule| RoutingRule {
+						condition: rule.condition.map(|cond| Condition {
+							http_error_code: cond.http_error_code.map(|c| IntValue(c as i64)),
+							prefix: cond.prefix.map(Value),
+						}),
+						redirect: Redirect {
+							hostname: rule.redirect.hostname.map(Value),
+							http_redirect_code: Some(IntValue(
+								rule.redirect.http_redirect_code as i64,
+							)),
+							protocol: rule.redirect.protocol.map(Value),
+							replace_full: rule.redirect.replace_key.map(Value),
+							replace_prefix: rule.redirect.replace_key_prefix.map(Value),
+						},
+					})
+					.collect(),
+			},
 		};
 		let xml = to_xml_with_header(&wc)?;
 		Ok(Response::builder()
@@ -105,19 +125,25 @@ pub struct WebsiteConfiguration {
 	#[serde(
 		rename = "RoutingRules",
 		default,
-		skip_serializing_if = "Vec::is_empty"
+		skip_serializing_if = "RoutingRules::is_empty"
 	)]
-	pub routing_rules: Vec<RoutingRule>,
+	pub routing_rules: RoutingRules,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct RoutingRules {
+	#[serde(rename = "RoutingRule")]
+	pub rules: Vec<RoutingRule>,
+}
+
+impl RoutingRules {
+	fn is_empty(&self) -> bool {
+		self.rules.is_empty()
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RoutingRule {
-	#[serde(rename = "RoutingRule")]
-	pub inner: RoutingRuleInner,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct RoutingRuleInner {
 	#[serde(rename = "Condition")]
 	pub condition: Option<Condition>,
 	#[serde(rename = "Redirect")]
@@ -186,10 +212,10 @@ impl WebsiteConfiguration {
 		if let Some(ref rart) = self.redirect_all_requests_to {
 			rart.validate()?;
 		}
-		for rr in &self.routing_rules {
-			rr.inner.validate()?;
+		for rr in &self.routing_rules.rules {
+			rr.validate()?;
 		}
-		if self.routing_rules.len() > 1000 {
+		if self.routing_rules.rules.len() > 1000 {
 			// we will do linear scans, best to avoid overly long configuration. The
 			// limit was choosen arbitrarily
 			return Err(Error::bad_request(
@@ -205,12 +231,6 @@ impl WebsiteConfiguration {
 			Err(Error::NotImplemented(
 				"S3 website redirects are not currently implemented in Garage.".into(),
 			))
-			/*
-			} else if self.routing_rules.map(|x| !x.is_empty()).unwrap_or(false) {
-				Err(Error::NotImplemented(
-					"S3 routing rules are not currently implemented in Garage.".into(),
-				))
-					*/
 		} else {
 			Ok(WebsiteConfig {
 				index_document: self
@@ -220,29 +240,27 @@ impl WebsiteConfiguration {
 				error_document: self.error_document.map(|x| x.key.0),
 				routing_rules: self
 					.routing_rules
+					.rules
 					.into_iter()
 					.map(|rule| {
 						bucket_table::RoutingRule {
-							condition: rule.inner.condition.map(|condition| {
-								bucket_table::Condition {
-									http_error_code: condition.http_error_code.map(|c| c.0 as u16),
-									prefix: condition.prefix.map(|p| p.0),
-								}
+							condition: rule.condition.map(|condition| bucket_table::Condition {
+								http_error_code: condition.http_error_code.map(|c| c.0 as u16),
+								prefix: condition.prefix.map(|p| p.0),
 							}),
 							redirect: bucket_table::Redirect {
-								hostname: rule.inner.redirect.hostname.map(|h| h.0),
-								protocol: rule.inner.redirect.protocol.map(|p| p.0),
+								hostname: rule.redirect.hostname.map(|h| h.0),
+								protocol: rule.redirect.protocol.map(|p| p.0),
 								// aws default to 301, which i find punitive in case of
 								// missconfiguration (can be permanently cached on the
 								// user agent)
 								http_redirect_code: rule
-									.inner
 									.redirect
 									.http_redirect_code
 									.map(|c| c.0 as u16)
 									.unwrap_or(302),
-								replace_key_prefix: rule.inner.redirect.replace_prefix.map(|k| k.0),
-								replace_key: rule.inner.redirect.replace_full.map(|k| k.0),
+								replace_key_prefix: rule.redirect.replace_prefix.map(|k| k.0),
+								replace_key: rule.redirect.replace_full.map(|k| k.0),
 							},
 						}
 					})
@@ -287,7 +305,7 @@ impl Target {
 	}
 }
 
-impl RoutingRuleInner {
+impl RoutingRule {
 	pub fn validate(&self) -> Result<(), Error> {
 		if let Some(condition) = &self.condition {
 			condition.validate()?;
@@ -390,6 +408,15 @@ mod tests {
             <ReplaceKeyWith>fullkey</ReplaceKeyWith>
          </Redirect>
       </RoutingRule>
+      <RoutingRule>
+         <Condition>
+            <KeyPrefixEquals></KeyPrefixEquals>
+         </Condition>
+         <Redirect>
+            <HttpRedirectCode>404</HttpRedirectCode>
+            <ReplaceKeyWith>missing</ReplaceKeyWith>
+         </Redirect>
+      </RoutingRule>
    </RoutingRules>
 </WebsiteConfiguration>"#;
 		let conf: WebsiteConfiguration = from_str(message).unwrap();
@@ -405,21 +432,36 @@ mod tests {
 				hostname: Value("garage.tld".to_owned()),
 				protocol: Some(Value("https".to_owned())),
 			}),
-			routing_rules: vec![RoutingRule {
-				inner: RoutingRuleInner {
-					condition: Some(Condition {
-						http_error_code: Some(IntValue(404)),
-						prefix: Some(Value("prefix1".to_owned())),
-					}),
-					redirect: Redirect {
-						hostname: Some(Value("gara.ge".to_owned())),
-						protocol: Some(Value("http".to_owned())),
-						http_redirect_code: Some(IntValue(303)),
-						replace_prefix: Some(Value("prefix2".to_owned())),
-						replace_full: Some(Value("fullkey".to_owned())),
+			routing_rules: RoutingRules {
+				rules: vec![
+					RoutingRule {
+						condition: Some(Condition {
+							http_error_code: Some(IntValue(404)),
+							prefix: Some(Value("prefix1".to_owned())),
+						}),
+						redirect: Redirect {
+							hostname: Some(Value("gara.ge".to_owned())),
+							protocol: Some(Value("http".to_owned())),
+							http_redirect_code: Some(IntValue(303)),
+							replace_prefix: Some(Value("prefix2".to_owned())),
+							replace_full: Some(Value("fullkey".to_owned())),
+						},
 					},
-				},
-			}],
+					RoutingRule {
+						condition: Some(Condition {
+							http_error_code: None,
+							prefix: Some(Value("".to_owned())),
+						}),
+						redirect: Redirect {
+							hostname: None,
+							protocol: None,
+							http_redirect_code: Some(IntValue(404)),
+							replace_prefix: None,
+							replace_full: Some(Value("missing".to_owned())),
+						},
+					},
+				],
+			},
 		};
 		assert_eq! {
 			ref_value,

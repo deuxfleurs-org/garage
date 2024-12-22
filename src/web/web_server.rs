@@ -235,7 +235,7 @@ impl WebServer {
 		// Get path
 		let path = req.uri().path().to_string();
 		let index = &website_config.index_document;
-		let routing_result = path_to_keys(&path, index, &[])?;
+		let routing_result = path_to_keys(&path, index, &website_config.routing_rules)?;
 
 		debug!(
 			"Selected bucket: \"{}\" {:?}, routing to {:?}",
@@ -518,7 +518,7 @@ fn path_to_keys<'a>(
 			} else {
 				None
 			};
-			let target = routing_rule.redirect.compute_target(suffix);
+			let mut target = routing_rule.redirect.compute_target(suffix);
 			let query_alternative_key =
 				status_code == StatusCode::OK || status_code == StatusCode::NOT_FOUND;
 			let redirect_on_error =
@@ -531,6 +531,8 @@ fn path_to_keys<'a>(
 					})
 				}
 				(true, false) => {
+					// we need to remove the leading /
+					target.remove(0);
 					if status_code == StatusCode::OK {
 						break target;
 					} else {
@@ -549,6 +551,7 @@ fn path_to_keys<'a>(
 					});
 				}
 				(true, true) => {
+					target.remove(0);
 					return Ok(RoutingResult::LoadOrAlternativeError {
 						key,
 						redirect_key: target,
@@ -573,14 +576,14 @@ fn path_to_keys<'a>(
 	} else {
 		Ok(RoutingResult::LoadOrRedirect {
 			redirect_if_exists: Some(format!("{key}/{index}")),
-			key,
 			// we can't use `path` because key might have changed substentially in case of
 			// routing rules
 			redirect_url: percent_encoding::percent_encode(
-				format!("{path}/").as_bytes(),
+				format!("/{key}/").as_bytes(),
 				PATH_ENCODING_SET,
 			)
 			.to_string(),
+			key,
 			redirect_code: StatusCode::FOUND,
 		})
 	}
