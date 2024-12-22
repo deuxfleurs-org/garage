@@ -330,12 +330,10 @@ impl Condition {
 
 impl Redirect {
 	pub fn validate(&self) -> Result<(), Error> {
-		if self.replace_prefix.is_some() {
-			if self.replace_full.is_some() {
-				return Err(Error::bad_request(
-					"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set",
-				));
-			}
+		if self.replace_prefix.is_some() && self.replace_full.is_some() {
+			return Err(Error::bad_request(
+				"Bad XML: both ReplaceKeyPrefixWith and ReplaceKeyWith are set",
+			));
 		}
 		if let Some(ref protocol) = self.protocol {
 			if protocol.0 != "http" && protocol.0 != "https" {

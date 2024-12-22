@@ -476,8 +476,8 @@ impl RoutingResult {
 /// which is also AWS S3 behavior.
 ///
 /// Check: https://docs.aws.amazon.com/AmazonS3/latest/userguide/IndexDocumentSupport.html
-fn path_to_keys<'a>(
-	path: &'a str,
+fn path_to_keys(
+	path: &str,
 	index: &str,
 	routing_rules: &[RoutingRule],
 ) -> Result<RoutingResult, Error> {
@@ -488,7 +488,7 @@ fn path_to_keys<'a>(
 		None => return Err(Error::BadRequest("Path must start with a / (slash)".into())),
 	};
 
-	let is_bucket_root = base_key.len() == 0;
+	let is_bucket_root = base_key.is_empty();
 	let is_trailing_slash = path_utf8.ends_with("/");
 
 	let key = if is_bucket_root || is_trailing_slash {

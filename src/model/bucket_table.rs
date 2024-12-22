@@ -90,21 +90,21 @@ mod v08 {
 			let mut res = String::new();
 			if let Some(hostname) = &self.hostname {
 				if let Some(protocol) = &self.protocol {
-					res.push_str(&protocol);
+					res.push_str(protocol);
 					res.push_str("://");
 				} else {
 					res.push_str("//");
 				}
-				res.push_str(&hostname);
+				res.push_str(hostname);
 			}
 			res.push('/');
 			if let Some(replace_key_prefix) = &self.replace_key_prefix {
-				res.push_str(&replace_key_prefix);
+				res.push_str(replace_key_prefix);
 				if let Some(suffix) = suffix {
 					res.push_str(suffix)
 				}
 			} else if let Some(replace_key) = &self.replace_key {
-				res.push_str(&replace_key)
+				res.push_str(replace_key)
 			}
 			res
 		}
