@@ -48,11 +48,10 @@ steps:
     image: nixpkgs/nix:nixos-22.05
     environment:
       TARGET: "${TARGET}"
-    secrets:
-      - source: garagehq_aws_access_key_id
-        target: AWS_ACCESS_KEY_ID
-      - source: garagehq_aws_secret_access_key
-        target: AWS_SECRET_ACCESS_KEY
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
     commands:
       - nix-shell --attr ci --run "to_s3"
 
