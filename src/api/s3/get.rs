@@ -163,15 +163,7 @@ pub async fn handle_head(
 	key: &str,
 	part_number: Option<u64>,
 ) -> Result<Response<ResBody>, Error> {
-	handle_head_without_ctx(
-		ctx.garage,
-		req,
-		ctx.bucket_id,
-		key,
-		StatusCode::OK,
-		part_number,
-	)
-	.await
+	handle_head_without_ctx(ctx.garage, req, ctx.bucket_id, key, part_number).await
 }
 
 /// Handle HEAD request for website
@@ -180,7 +172,6 @@ pub async fn handle_head_without_ctx(
 	req: &Request<impl Body>,
 	bucket_id: Uuid,
 	key: &str,
-	status_code: StatusCode,
 	part_number: Option<u64>,
 ) -> Result<Response<ResBody>, Error> {
 	let object = garage
@@ -281,7 +272,7 @@ pub async fn handle_head_without_ctx(
 			checksum_mode,
 		)
 		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
-		.status(status_code)
+		.status(StatusCode::OK)
 		.body(empty_body())?)
 	}
 }
@@ -294,16 +285,7 @@ pub async fn handle_get(
 	part_number: Option<u64>,
 	overrides: GetObjectOverrides,
 ) -> Result<Response<ResBody>, Error> {
-	handle_get_without_ctx(
-		ctx.garage,
-		req,
-		ctx.bucket_id,
-		key,
-		StatusCode::OK,
-		part_number,
-		overrides,
-	)
-	.await
+	handle_get_without_ctx(ctx.garage, req, ctx.bucket_id, key, part_number, overrides).await
 }
 
 /// Handle GET request
@@ -312,7 +294,6 @@ pub async fn handle_get_without_ctx(
 	req: &Request<impl Body>,
 	bucket_id: Uuid,
 	key: &str,
-	status_code: StatusCode,
 	part_number: Option<u64>,
 	overrides: GetObjectOverrides,
 ) -> Result<Response<ResBody>, Error> {
@@ -348,15 +329,11 @@ pub async fn handle_get_without_ctx(
 
 	let checksum_mode = checksum_mode(&req);
 
-	match (
-		part_number,
-		parse_range_header(req, last_v_meta.size)?,
-		status_code == StatusCode::OK,
-	) {
-		(Some(_), Some(_), _) => Err(Error::bad_request(
+	match (part_number, parse_range_header(req, last_v_meta.size)?) {
+		(Some(_), Some(_)) => Err(Error::bad_request(
 			"Cannot specify both partNumber and Range header",
 		)),
-		(Some(pn), None, true) => {
+		(Some(pn), None) => {
 			handle_get_part(
 				garage,
 				last_v,
@@ -369,7 +346,7 @@ pub async fn handle_get_without_ctx(
 			)
 			.await
 		}
-		(None, Some(range), true) => {
+		(None, Some(range)) => {
 			handle_get_range(
 				garage,
 				last_v,
@@ -383,8 +360,7 @@ pub async fn handle_get_without_ctx(
 			)
 			.await
 		}
-		_ => {
-			// either not a range, or an error request: always return the full doc
+		(None, None) => {
 			handle_get_full(
 				garage,
 				last_v,
@@ -394,7 +370,6 @@ pub async fn handle_get_without_ctx(
 				&headers,
 				overrides,
 				checksum_mode,
-				status_code,
 			)
 			.await
 		}
@@ -410,7 +385,6 @@ async fn handle_get_full(
 	meta_inner: &ObjectVersionMetaInner,
 	overrides: GetObjectOverrides,
 	checksum_mode: ChecksumMode,
-	status_code: StatusCode,
 ) -> Result<Response<ResBody>, Error> {
 	let mut resp_builder = object_headers(
 		version,
@@ -420,7 +394,7 @@ async fn handle_get_full(
 		checksum_mode,
 	)
 	.header(CONTENT_LENGTH, format!("{}", version_meta.size))
-	.status(status_code);
+	.status(StatusCode::OK);
 	getobject_override_headers(overrides, &mut resp_builder)?;
 
 	let stream = full_object_byte_stream(garage, version, version_data, encryption);

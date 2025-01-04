@@ -6,6 +6,7 @@ use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
 use hyper::{
+	body::Body,
 	body::Incoming as IncomingBody,
 	header::{HeaderValue, HOST},
 	Method, Request, Response, StatusCode,
@@ -22,6 +23,7 @@ use crate::error::*;
 
 use garage_api::generic_server::{server_loop, UnixListenerOn};
 use garage_api::helpers::*;
+use garage_api::s3::api_server::ResBody;
 use garage_api::s3::cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
 use garage_api::s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
@@ -252,19 +254,10 @@ impl WebServer {
 				.body(empty_body())
 				.unwrap()),
 			(&Method::HEAD, Ok((key, code))) => {
-				handle_head_without_ctx(self.garage.clone(), req, bucket_id, key, code, None).await
+				handle_head(self.garage.clone(), req, bucket_id, key, code).await
 			}
 			(&Method::GET, Ok((key, code))) => {
-				handle_get_without_ctx(
-					self.garage.clone(),
-					req,
-					bucket_id,
-					key,
-					code,
-					None,
-					Default::default(),
-				)
-				.await
+				handle_get(self.garage.clone(), req, bucket_id, key, code).await
 			}
 			_ => Err(ApiError::bad_request("HTTP method not supported")),
 		};
@@ -306,25 +299,22 @@ impl WebServer {
 			) => {
 				match *req.method() {
 					Method::HEAD => {
-						handle_head_without_ctx(
+						handle_head(
 							self.garage.clone(),
 							req,
 							bucket_id,
 							redirect_key,
 							*redirect_code,
-							None,
 						)
 						.await
 					}
 					Method::GET => {
-						handle_get_without_ctx(
+						handle_get(
 							self.garage.clone(),
 							req,
 							bucket_id,
 							redirect_key,
 							*redirect_code,
-							None,
-							Default::default(),
 						)
 						.await
 					}
@@ -361,14 +351,12 @@ impl WebServer {
 					.body(empty_body::<Infallible>())
 					.unwrap();
 
-				match handle_get_without_ctx(
+				match handle_get(
 					self.garage.clone(),
 					&req2,
 					bucket_id,
 					&error_document,
 					error.http_status_code(),
-					None,
-					Default::default(),
 				)
 				.await
 				{
@@ -410,6 +398,63 @@ impl WebServer {
 				Ok(resp)
 			}
 		}
+	}
+}
+
+async fn handle_head(
+	garage: Arc<Garage>,
+	req: &Request<impl Body>,
+	bucket_id: Uuid,
+	key: &str,
+	status_code: StatusCode,
+) -> Result<Response<ResBody>, ApiError> {
+	if status_code != StatusCode::OK {
+		// See comment in handle_get
+		let cleaned_req = Request::builder()
+			.uri(req.uri())
+			.body(empty_body::<Infallible>())
+			.unwrap();
+
+		let mut ret = handle_head_without_ctx(garage, &cleaned_req, bucket_id, key, None).await?;
+		*ret.status_mut() = status_code;
+		Ok(ret)
+	} else {
+		handle_head_without_ctx(garage, req, bucket_id, key, None).await
+	}
+}
+
+pub async fn handle_get(
+	garage: Arc<Garage>,
+	req: &Request<impl Body>,
+	bucket_id: Uuid,
+	key: &str,
+	status_code: StatusCode,
+) -> Result<Response<ResBody>, ApiError> {
+	if status_code != StatusCode::OK {
+		// If we are returning an error document, discard all headers from
+		// the original GET request that would have influenced the result:
+		// - Range header, we don't want to return a subrange of the error document
+		// - Caching directives such as If-None-Match, etc, which are not relevant
+		let cleaned_req = Request::builder()
+			.uri(req.uri())
+			.body(empty_body::<Infallible>())
+			.unwrap();
+
+		let mut ret = handle_get_without_ctx(
+			garage,
+			&cleaned_req,
+			bucket_id,
+			key,
+			None,
+			Default::default(),
+		)
+		.await?;
+
+		*ret.status_mut() = status_code;
+
+		Ok(ret)
+	} else {
+		handle_get_without_ctx(garage, req, bucket_id, key, None, Default::default()).await
 	}
 }
 
