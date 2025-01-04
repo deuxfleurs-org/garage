@@ -28,7 +28,7 @@ use garage_api::s3::error::{
 };
 use garage_api::s3::get::{handle_get_without_ctx, handle_head_without_ctx};
 
-use garage_model::bucket_table::RoutingRule;
+use garage_model::bucket_table::{self, RoutingRule};
 use garage_model::garage::Garage;
 
 use garage_table::*;
@@ -518,7 +518,7 @@ fn path_to_keys(
 			} else {
 				None
 			};
-			let mut target = routing_rule.redirect.compute_target(suffix);
+			let mut target = compute_redirect_target(&routing_rule.redirect, suffix);
 			let query_alternative_key =
 				status_code == StatusCode::OK || status_code == StatusCode::NOT_FOUND;
 			let redirect_on_error =
@@ -560,7 +560,7 @@ fn path_to_keys(
 				}
 			}
 		} else {
-			let target = routing_rule.redirect.compute_target(None);
+			let target = compute_redirect_target(&routing_rule.redirect, None);
 			return Ok(RoutingResult::Redirect {
 				url: target,
 				code: status_code,
@@ -600,6 +600,29 @@ const PATH_ENCODING_SET: &percent_encoding::AsciiSet = &percent_encoding::CONTRO
 	.add(b'`')
 	.add(b'{')
 	.add(b'}');
+
+fn compute_redirect_target(redirect: &bucket_table::Redirect, suffix: Option<&str>) -> String {
+	let mut res = String::new();
+	if let Some(hostname) = &redirect.hostname {
+		if let Some(protocol) = &redirect.protocol {
+			res.push_str(protocol);
+			res.push_str("://");
+		} else {
+			res.push_str("//");
+		}
+		res.push_str(hostname);
+	}
+	res.push('/');
+	if let Some(replace_key_prefix) = &redirect.replace_key_prefix {
+		res.push_str(replace_key_prefix);
+		if let Some(suffix) = suffix {
+			res.push_str(suffix)
+		}
+	} else if let Some(replace_key) = &redirect.replace_key {
+		res.push_str(replace_key)
+	}
+	res
+}
 
 #[cfg(test)]
 mod tests {
