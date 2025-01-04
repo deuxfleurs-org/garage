@@ -111,12 +111,6 @@ mod v08 {
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct RedirectAll {
-		pub hostname: String,
-		pub protoco: String,
-	}
-
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct CorsRule {
 		pub id: Option<String>,
 		pub max_age_seconds: Option<u64>,
