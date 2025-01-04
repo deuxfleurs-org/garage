@@ -807,6 +807,16 @@ impl NodeStatus {
 
 	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &DataDirEnum) {
 		use nix::sys::statvfs::statvfs;
+
+		// The HashMap used below requires a filesystem identifier from statfs (instead of statvfs) on FreeBSD, as
+		// FreeBSD's statvfs filesystem identifier is "not meaningful in this implementation" (man 3 statvfs).
+
+		#[cfg(target_os = "freebsd")]
+		let get_filesystem_id = |path: &Path| match nix::sys::statfs::statfs(path) {
+			Ok(fs) => Some(fs.filesystem_id()),
+			Err(_) => None,
+		};
+
 		let mount_avail = |path: &Path| match statvfs(path) {
 			Ok(x) => {
 				let avail = x.blocks_available() as u64 * x.fragment_size() as u64;
@@ -817,6 +827,7 @@ impl NodeStatus {
 		};
 
 		self.meta_disk_avail = mount_avail(meta_dir).map(|(_, a, t)| (a, t));
+
 		self.data_disk_avail = match data_dir {
 			DataDirEnum::Single(dir) => mount_avail(dir).map(|(_, a, t)| (a, t)),
 			DataDirEnum::Multiple(dirs) => (|| {
@@ -827,10 +838,23 @@ impl NodeStatus {
 					if dir.capacity.is_none() {
 						continue;
 					}
+
+					#[cfg(not(target_os = "freebsd"))]
 					match mount_avail(&dir.path) {
 						Some((fsid, avail, total)) => {
 							mounts.insert(fsid, (avail, total));
 						}
+						None => return None,
+					}
+
+					#[cfg(target_os = "freebsd")]
+					match get_filesystem_id(&dir.path) {
+						Some(fsid) => match mount_avail(&dir.path) {
+							Some((_, avail, total)) => {
+								mounts.insert(fsid, (avail, total));
+							}
+							None => return None,
+						},
 						None => return None,
 					}
 				}
