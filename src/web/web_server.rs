@@ -253,13 +253,9 @@ impl WebServer {
 				.header("Location", url)
 				.body(empty_body())
 				.unwrap()),
-			(&Method::HEAD, Ok((key, code))) => {
-				handle_head(self.garage.clone(), req, bucket_id, key, code).await
+			(_, Ok((key, code))) => {
+				handle_inner(self.garage.clone(), req, bucket_id, key, code).await
 			}
-			(&Method::GET, Ok((key, code))) => {
-				handle_get(self.garage.clone(), req, bucket_id, key, code).await
-			}
-			_ => Err(ApiError::bad_request("HTTP method not supported")),
 		};
 
 		// Try handling errors if bucket configuration provided fallbacks
@@ -297,30 +293,14 @@ impl WebServer {
 					..
 				},
 			) => {
-				match *req.method() {
-					Method::HEAD => {
-						handle_head(
-							self.garage.clone(),
-							req,
-							bucket_id,
-							redirect_key,
-							*redirect_code,
-						)
-						.await
-					}
-					Method::GET => {
-						handle_get(
-							self.garage.clone(),
-							req,
-							bucket_id,
-							redirect_key,
-							*redirect_code,
-						)
-						.await
-					}
-					// we shouldn't ever reach here
-					_ => Err(ApiError::bad_request("HTTP method not supported")),
-				}
+				handle_inner(
+					self.garage.clone(),
+					req,
+					bucket_id,
+					redirect_key,
+					*redirect_code,
+				)
+				.await
 			}
 			_ => ret_doc,
 		};
@@ -347,11 +327,12 @@ impl WebServer {
 				// We want to return the error document
 				// Create a fake HTTP request with path = the error document
 				let req2 = Request::builder()
+					.method("GET")
 					.uri(format!("http://{}/{}", host, &error_document))
 					.body(empty_body::<Infallible>())
 					.unwrap();
 
-				match handle_get(
+				match handle_inner(
 					self.garage.clone(),
 					&req2,
 					bucket_id,
@@ -401,29 +382,7 @@ impl WebServer {
 	}
 }
 
-async fn handle_head(
-	garage: Arc<Garage>,
-	req: &Request<impl Body>,
-	bucket_id: Uuid,
-	key: &str,
-	status_code: StatusCode,
-) -> Result<Response<ResBody>, ApiError> {
-	if status_code != StatusCode::OK {
-		// See comment in handle_get
-		let cleaned_req = Request::builder()
-			.uri(req.uri())
-			.body(empty_body::<Infallible>())
-			.unwrap();
-
-		let mut ret = handle_head_without_ctx(garage, &cleaned_req, bucket_id, key, None).await?;
-		*ret.status_mut() = status_code;
-		Ok(ret)
-	} else {
-		handle_head_without_ctx(garage, req, bucket_id, key, None).await
-	}
-}
-
-pub async fn handle_get(
+async fn handle_inner(
 	garage: Arc<Garage>,
 	req: &Request<impl Body>,
 	bucket_id: Uuid,
@@ -432,7 +391,7 @@ pub async fn handle_get(
 ) -> Result<Response<ResBody>, ApiError> {
 	if status_code != StatusCode::OK {
 		// If we are returning an error document, discard all headers from
-		// the original GET request that would have influenced the result:
+		// the original request that would have influenced the result:
 		// - Range header, we don't want to return a subrange of the error document
 		// - Caching directives such as If-None-Match, etc, which are not relevant
 		let cleaned_req = Request::builder()
@@ -440,21 +399,35 @@ pub async fn handle_get(
 			.body(empty_body::<Infallible>())
 			.unwrap();
 
-		let mut ret = handle_get_without_ctx(
-			garage,
-			&cleaned_req,
-			bucket_id,
-			key,
-			None,
-			Default::default(),
-		)
-		.await?;
+		let mut ret = match req.method() {
+			&Method::HEAD => {
+				handle_head_without_ctx(garage, &cleaned_req, bucket_id, key, None).await?
+			}
+			&Method::GET => {
+				handle_get_without_ctx(
+					garage,
+					&cleaned_req,
+					bucket_id,
+					key,
+					None,
+					Default::default(),
+				)
+				.await?
+			}
+			_ => return Err(ApiError::bad_request("HTTP method not supported")),
+		};
 
 		*ret.status_mut() = status_code;
 
 		Ok(ret)
 	} else {
-		handle_get_without_ctx(garage, req, bucket_id, key, None, Default::default()).await
+		match req.method() {
+			&Method::HEAD => handle_head_without_ctx(garage, req, bucket_id, key, None).await,
+			&Method::GET => {
+				handle_get_without_ctx(garage, req, bucket_id, key, None, Default::default()).await
+			}
+			_ => Err(ApiError::bad_request("HTTP method not supported")),
+		}
 	}
 }
 
