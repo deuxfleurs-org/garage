@@ -843,7 +843,7 @@ impl NodeStatus {
 					match mount_avail(&dir.path) {
 						Some((fsid, avail, total)) => {
 							mounts.insert(fsid, (avail, total));
-						}
+						},
 						None => return None,
 					}
 
@@ -852,9 +852,9 @@ impl NodeStatus {
 						Some(fsid) => match mount_avail(&dir.path) {
 							Some((_, avail, total)) => {
 								mounts.insert(fsid, (avail, total));
-							}
+							},
 							None => return None,
-						}
+						},
 						None => return None,
 					}
 				}
