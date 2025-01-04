@@ -229,7 +229,7 @@ impl WebsiteConfiguration {
 	pub fn into_garage_website_config(self) -> Result<WebsiteConfig, Error> {
 		if self.redirect_all_requests_to.is_some() {
 			Err(Error::NotImplemented(
-				"S3 website redirects are not currently implemented in Garage.".into(),
+				"RedirectAllRequestsTo is not currently implemented in Garage, however its effect can be emulated using a single inconditional RoutingRule.".into(),
 			))
 		} else {
 			Ok(WebsiteConfig {
