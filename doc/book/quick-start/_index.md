@@ -199,7 +199,7 @@ For instance here you could write just `garage layout assign -z dc1 -c 1G 563e`.
 The layout then has to be applied to the cluster, using:
 
 ```bash
-garage layout apply
+garage layout apply --version 1
 ```
 
 
