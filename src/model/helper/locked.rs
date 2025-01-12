@@ -279,7 +279,8 @@ impl<'a> LockedHelper<'a> {
 			.local_aliases
 			.get(alias_name)
 			.cloned()
-			.flatten() != Some(bucket_id)
+			.flatten()
+			!= Some(bucket_id)
 		{
 			return Err(GarageError::Message(format!(
 				"Bucket {:?} does not have alias {} in namespace of key {}",
