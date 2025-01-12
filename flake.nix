@@ -10,12 +10,15 @@
 
   inputs.cargo2nix = {
     # As of 2022-10-18: two small patches over unstable branch, one for clippy and one to fix feature detection
-    url = "github:Alexis211/cargo2nix/a7a61179b66054904ef6a195d8da736eaaa06c36";
+    #url = "github:Alexis211/cargo2nix/a7a61179b66054904ef6a195d8da736eaaa06c36";
 
     # As of 2023-04-25:
     # - my two patches were merged into unstable (one for clippy and one to "fix" feature detection)
     # - rustc v1.66
     # url = "github:cargo2nix/cargo2nix/8fb57a670f7993bfc24099c33eb9c5abb51f29a2";
+
+    # Mainline cargo2nix as of of 2025-01-12 (branch release-0.11.0)
+    url = "github:cargo2nix/cargo2nix/ae19a9e1f8f0880c088ea155ab66cee1fa001f59";
 
     # Rust overlay as of 2025-01-12
     inputs.rust-overlay.url =

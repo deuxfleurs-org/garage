@@ -12,17 +12,17 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1666087781,
-        "narHash": "sha256-trKVdjMZ8mNkGfLcY5LsJJGtdV3xJDZnMVrkFjErlcs=",
-        "owner": "Alexis211",
+        "lastModified": 1705129117,
+        "narHash": "sha256-LgdDHibvimzYhxBK3kxCk2gAL7k4Hyigl5KI0X9cijA=",
+        "owner": "cargo2nix",
         "repo": "cargo2nix",
-        "rev": "a7a61179b66054904ef6a195d8da736eaaa06c36",
+        "rev": "ae19a9e1f8f0880c088ea155ab66cee1fa001f59",
         "type": "github"
       },
       "original": {
-        "owner": "Alexis211",
+        "owner": "cargo2nix",
         "repo": "cargo2nix",
-        "rev": "a7a61179b66054904ef6a195d8da736eaaa06c36",
+        "rev": "ae19a9e1f8f0880c088ea155ab66cee1fa001f59",
         "type": "github"
       }
     },
