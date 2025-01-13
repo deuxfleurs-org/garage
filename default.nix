@@ -45,11 +45,4 @@ in {
       ];
     });
   };
-  clippy = {
-    amd64 = (compile {
-      inherit system git_version pkgsSrc cargo2nixOverlay;
-      target = "x86_64-unknown-linux-musl";
-      compiler = "clippy";
-    }).workspace.garage { compileMode = "build"; };
-  };
 }

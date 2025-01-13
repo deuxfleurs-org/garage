@@ -279,7 +279,8 @@ impl DataLayout {
 		u16::from_be_bytes([
 			hash.as_slice()[HASH_DRIVE_BYTES.0],
 			hash.as_slice()[HASH_DRIVE_BYTES.1],
-		]) as usize % DRIVE_NPART
+		]) as usize
+			% DRIVE_NPART
 	}
 
 	fn block_dir_from(&self, hash: &Hash, dir: &PathBuf) -> PathBuf {

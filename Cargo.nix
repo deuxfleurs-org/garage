@@ -25,6 +25,7 @@ args@{
   target ? null,
   codegenOpts ? null,
   profileOpts ? null,
+  cargoUnstableFlags ? null,
   rustcLinkFlags ? null,
   rustcBuildFlags ? null,
   mkRustCrate,
@@ -51,7 +52,7 @@ else let
   rootFeatures' = expandFeatures rootFeatures;
   overridableMkRustCrate = f:
     let
-      drvs = genDrvsByProfile profilesByName ({ profile, profileName }: mkRustCrate ({ inherit release profile hostPlatformCpu hostPlatformFeatures target profileOpts codegenOpts rustcLinkFlags rustcBuildFlags; } // (f profileName)));
+      drvs = genDrvsByProfile profilesByName ({ profile, profileName }: mkRustCrate ({ inherit release profile hostPlatformCpu hostPlatformFeatures target profileOpts codegenOpts cargoUnstableFlags rustcLinkFlags rustcBuildFlags; } // (f profileName)));
     in { compileMode ? null, profileName ? decideProfile compileMode release }:
       let drv = drvs.${profileName}; in if compileMode == null then drv else drv.override { inherit compileMode; };
 in
@@ -1756,7 +1757,7 @@ in
     name = "format_table";
     version = "0.1.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/format-table");
+    src = fetchCrateLocal workspaceSrc;
   });
   
   "registry+https://github.com/rust-lang/crates.io-index".futures."0.3.30" = overridableMkRustCrate (profileName: rec {
@@ -1914,7 +1915,7 @@ in
     name = "garage";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/garage");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/bundled-libs" || rootFeatures' ? "garage/default") "bundled-libs")
       (lib.optional (rootFeatures' ? "garage/consul-discovery") "consul-discovery")
@@ -1992,7 +1993,7 @@ in
     name = "garage_api";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/api");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api/k2v") "k2v")
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/metrics" || rootFeatures' ? "garage_api/metrics") "metrics")
@@ -2056,7 +2057,7 @@ in
     name = "garage_block";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/block");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/system-libs" || rootFeatures' ? "garage_block/system-libs") "system-libs")
     ];
@@ -2089,7 +2090,7 @@ in
     name = "garage_db";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/db");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/bundled-libs" || rootFeatures' ? "garage/default" || rootFeatures' ? "garage_db/bundled-libs") "bundled-libs")
       (lib.optional (rootFeatures' ? "garage_db/default") "default")
@@ -2118,7 +2119,7 @@ in
     name = "garage_model";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/model");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage_model/default") "default")
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api/k2v" || rootFeatures' ? "garage_model/k2v") "k2v")
@@ -2157,7 +2158,7 @@ in
     name = "garage_net";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/net");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       [ "default" ]
       (lib.optional (rootFeatures' ? "garage_net/opentelemetry" || rootFeatures' ? "garage_net/telemetry") "opentelemetry")
@@ -2194,7 +2195,7 @@ in
     name = "garage_rpc";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/rpc");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/consul-discovery" || rootFeatures' ? "garage_rpc/consul-discovery") "consul-discovery")
       (lib.optional (rootFeatures' ? "garage/consul-discovery" || rootFeatures' ? "garage_rpc/consul-discovery" || rootFeatures' ? "garage_rpc/err-derive") "err-derive")
@@ -2243,7 +2244,7 @@ in
     name = "garage_table";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/table");
+    src = fetchCrateLocal workspaceSrc;
     dependencies = {
       arc_swap = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".arc-swap."1.6.0" { inherit profileName; }).out;
       async_trait = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.77" { profileName = "__noProfile"; }).out;
@@ -2268,7 +2269,7 @@ in
     name = "garage_util";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/util");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api/k2v" || rootFeatures' ? "garage_model/k2v" || rootFeatures' ? "garage_util/k2v") "k2v")
     ];
@@ -2312,7 +2313,7 @@ in
     name = "garage_web";
     version = "1.0.1";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/web");
+    src = fetchCrateLocal workspaceSrc;
     dependencies = {
       err_derive = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".err-derive."0.3.1" { profileName = "__noProfile"; }).out;
       futures = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.30" { inherit profileName; }).out;
@@ -3148,7 +3149,7 @@ in
     name = "k2v-client";
     version = "0.0.4";
     registry = "unknown";
-    src = fetchCrateLocal (workspaceSrc + "/src/k2v-client");
+    src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "k2v-client/clap" || rootFeatures' ? "k2v-client/cli") "clap")
       (lib.optional (rootFeatures' ? "k2v-client/cli") "cli")
