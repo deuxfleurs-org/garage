@@ -26,6 +26,8 @@ garage:
   rpcSecret: ""
   # -- This is not required if you use the integrated kubernetes discovery
   bootstrapPeers: []
+  # -- Set to true if you want to use k8s discovery but install the CRDs manually outside
+  # of the helm chart, for example if you operate at namespace level without cluster ressources
   kubernetesSkipCrd: false
   s3:
     api:
@@ -35,14 +37,14 @@ garage:
       rootDomain: ".web.garage.tld"
       index: "index.html"
 
-  # -- if not empty string, allow using an existing ConfigMap for the garage.toml
+  # -- if not empty string, allow using an existing ConfigMap for the garage.toml,
   # if set, ignores garage.toml
   existingConfigMap: ""
 
   # -- String Template for the garage configuration
-  # if set, ignores above values
-  # Values can be templated
-  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  # if set, ignores above values.
+  # Values can be templated,
+  # see https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
   garageTomlString: ""
 
 # Data persistence
@@ -69,8 +71,10 @@ deployment:
   podManagementPolicy: OrderedReady
 
 image:
+  # -- default to amd64 docker image
   repository: dxflrs/amd64_garage
-  # -- please prefer using the chart version and not this tag
+  # -- set the image tag, please prefer using the chart version and not this
+  # to avoid compatibility issues
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -79,6 +83,7 @@ initImage:
   tag: stable
   pullPolicy: IfNotPresent
 
+# -- set if you need credentials to pull your custom image
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -92,6 +97,7 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
+# -- additonal pod annotations
 podAnnotations: {}
 
 podSecurityContext:
@@ -101,7 +107,7 @@ podSecurityContext:
   runAsNonRoot: true
 
 securityContext:
-  # -- The default security context is heavily restricted
+  # -- The default security context is heavily restricted,
   # feel free to tune it to your requirements
   capabilities:
     drop:
@@ -125,16 +131,17 @@ ingress:
   s3:
     api:
       enabled: false
-      # -- Rely either on the className or the annotation below but not both
-      # replace "nginx" by an Ingress controller
-      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
+      # -- Rely _either_ on the className or the annotation below but not both!
+      # If you want to use the className, set
       # className: "nginx"
+      # and replace "nginx" by an Ingress controller name,
+      # examples [here](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers).
       annotations: {}
         # kubernetes.io/ingress.class: "nginx"
         # kubernetes.io/tls-acme: "true"
       labels: {}
       hosts:
-        # -- garage S3 API endpoint
+        # -- garage S3 API endpoint, to be used with awscli for example
         - host: "s3.garage.tld"
           paths:
             - path: /
@@ -150,10 +157,11 @@ ingress:
       #      - kubernetes.docker.internal
     web:
       enabled: false
-      # -- Rely either on the className or the annotation below but not both
-      # replace "nginx" by an Ingress controller
-      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
+      # -- Rely _either_ on the className or the annotation below but not both!
+      # If you want to use the className, set
       # className: "nginx"
+      # and replace "nginx" by an Ingress controller name,
+      # examples [here](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers).
       annotations: {}
         # kubernetes.io/ingress.class: nginx
         # kubernetes.io/tls-acme: "true"
@@ -212,4 +220,5 @@ monitoring:
       scrapeTimeout: 10s
       relabelings: []
   tracing:
+    # -- specify a sink endpoint for OpenTelemetry Traces, eg. `http://localhost:4317`
     sink: ""
