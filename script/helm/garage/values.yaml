@@ -4,28 +4,30 @@
 
 # Garage configuration. These values go to garage.toml
 garage:
-  # Can be changed for better performance on certain systems
+  # -- Can be changed for better performance on certain systems
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db-engine-since-v0-8-0
   dbEngine: "lmdb"
 
-  # Defaults is 1MB
+  # -- Defaults is 1MB
   # An increase can result in better performance in certain scenarios
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block-size
   blockSize: "1048576"
 
-  # Default to 3 replicas, see the replication_mode section at
+  # -- Default to 3 replicas, see the replication_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication-mode
   replicationMode: "3"
 
-  # zstd compression level of stored blocks
+  # -- zstd compression level of stored blocks
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression-level
   compressionLevel: "1"
 
   rpcBindAddr: "[::]:3901"
-  # If not given, a random secret will be generated and stored in a Secret object
+  # -- If not given, a random secret will be generated and stored in a Secret object
   rpcSecret: ""
-  # This is not required if you use the integrated kubernetes discovery
+  # -- This is not required if you use the integrated kubernetes discovery
   bootstrapPeers: []
+  # -- Set to true if you want to use k8s discovery but install the CRDs manually outside
+  # of the helm chart, for example if you operate at namespace level without cluster ressources
   kubernetesSkipCrd: false
   s3:
     api:
@@ -34,47 +36,16 @@ garage:
     web:
       rootDomain: ".web.garage.tld"
       index: "index.html"
-  # Template for the garage configuration
-  # Values can be templated
-  # ref: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
-  garage.toml: |-
-    metadata_dir = "/mnt/meta"
-    data_dir = "/mnt/data"
 
-    db_engine = "{{ .Values.garage.dbEngine }}"
+  # -- if not empty string, allow using an existing ConfigMap for the garage.toml,
+  # if set, ignores garage.toml
+  existingConfigMap: ""
 
-    block_size = {{ .Values.garage.blockSize }}
-
-    replication_mode = "{{ .Values.garage.replicationMode }}"
-
-    compression_level = {{ .Values.garage.compressionLevel }}
-
-    rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
-    # rpc_secret will be populated by the init container from a k8s secret object
-    rpc_secret = "__RPC_SECRET_REPLACE__"
-
-    bootstrap_peers = {{ .Values.garage.bootstrapPeers }}
-
-    [kubernetes_discovery]
-    namespace = "{{ .Release.Namespace }}"
-    service_name = "{{ include "garage.fullname" . }}"
-    skip_crd = {{ .Values.garage.kubernetesSkipCrd }}
-
-    [s3_api]
-    s3_region = "{{ .Values.garage.s3.api.region }}"
-    api_bind_addr = "[::]:3900"
-    root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
-
-    [s3_web]
-    bind_addr = "[::]:3902"
-    root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
-    index = "{{ .Values.garage.s3.web.index }}"
-
-    [admin]
-    api_bind_addr = "[::]:3903"
-    {{- if .Values.monitoring.tracing.sink }}
-    trace_sink = "{{ .Values.monitoring.tracing.sink }}"
-    {{- end }}
+  # -- String Template for the garage configuration
+  # if set, ignores above values.
+  # Values can be templated,
+  # see https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+  garageTomlString: ""
 
 # Data persistence
 persistence:
@@ -92,16 +63,18 @@ persistence:
 
 # Deployment configuration
 deployment:
-  # Switchable to DaemonSet
+  # -- Switchable to DaemonSet
   kind: StatefulSet
-  # Number of StatefulSet replicas/garage nodes to start
+  # -- Number of StatefulSet replicas/garage nodes to start
   replicaCount: 3
-  # If using statefulset, allow Parallel or OrderedReady (default)
+  # -- If using statefulset, allow Parallel or OrderedReady (default)
   podManagementPolicy: OrderedReady
 
 image:
+  # -- default to amd64 docker image
   repository: dxflrs/amd64_garage
-  # please prefer using the chart version and not this tag
+  # -- set the image tag, please prefer using the chart version and not this
+  # to avoid compatibility issues
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -110,19 +83,21 @@ initImage:
   tag: stable
   pullPolicy: IfNotPresent
 
+# -- set if you need credentials to pull your custom image
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
+  # -- Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
+  # -- Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
+  # -- The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: ""
 
+# -- additonal pod annotations
 podAnnotations: {}
 
 podSecurityContext:
@@ -132,7 +107,7 @@ podSecurityContext:
   runAsNonRoot: true
 
 securityContext:
-  # The default security context is heavily restricted
+  # -- The default security context is heavily restricted,
   # feel free to tune it to your requirements
   capabilities:
     drop:
@@ -140,7 +115,7 @@ securityContext:
   readOnlyRootFilesystem: true
 
 service:
-  # You can rely on any service to expose your cluster
+  # -- You can rely on any service to expose your cluster
   # - ClusterIP (+ Ingress)
   # - NodePort (+ Ingress)
   # - LoadBalancer
@@ -156,20 +131,23 @@ ingress:
   s3:
     api:
       enabled: false
-      # Rely either on the className or the annotation below but not both
-      # replace "nginx" by an Ingress controller
-      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
+      # -- Rely _either_ on the className or the annotation below but not both!
+      # If you want to use the className, set
       # className: "nginx"
+      # and replace "nginx" by an Ingress controller name,
+      # examples [here](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers).
       annotations: {}
         # kubernetes.io/ingress.class: "nginx"
         # kubernetes.io/tls-acme: "true"
       labels: {}
       hosts:
-        - host: "s3.garage.tld" # garage S3 API endpoint
+        # -- garage S3 API endpoint, to be used with awscli for example
+        - host: "s3.garage.tld"
           paths:
             - path: /
               pathType: Prefix
-        - host: "*.s3.garage.tld" # garage S3 API endpoint, DNS style bucket access
+        # -- garage S3 API endpoint, DNS style bucket access
+        - host: "*.s3.garage.tld"
           paths:
             - path: /
               pathType: Prefix
@@ -179,20 +157,23 @@ ingress:
       #      - kubernetes.docker.internal
     web:
       enabled: false
-      # Rely either on the className or the annotation below but not both
-      # replace "nginx" by an Ingress controller
-      # you can find examples here https://kubernetes.io/docs/concepts/services-networking/ingress-controllers
+      # -- Rely _either_ on the className or the annotation below but not both!
+      # If you want to use the className, set
       # className: "nginx"
+      # and replace "nginx" by an Ingress controller name,
+      # examples [here](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers).
       annotations: {}
         # kubernetes.io/ingress.class: nginx
         # kubernetes.io/tls-acme: "true"
       labels: {}
       hosts:
-       - host: "*.web.garage.tld" # wildcard website access with bucket name prefix
+      # --  wildcard website access with bucket name prefix
+       - host: "*.web.garage.tld"
          paths:
            - path: /
              pathType: Prefix
-       - host: "mywebpage.example.com" # specific bucket access with FQDN bucket
+       # -- specific bucket access with FQDN bucket
+       - host: "mywebpage.example.com"
          paths:
            - path: /
              pathType: Prefix
@@ -224,10 +205,10 @@ extraVolumeMounts: {}
 
 monitoring:
   metrics:
-    # If true, a service for monitoring is created with a prometheus.io/scrape annotation
+    # -- If true, a service for monitoring is created with a prometheus.io/scrape annotation
     enabled: false
     serviceMonitor:
-      # If true, a ServiceMonitor CRD is created for a prometheus operator
+      # -- If true, a ServiceMonitor CRD is created for a prometheus operator
       # https://github.com/coreos/prometheus-operator
       enabled: false
       path: /metrics
@@ -239,4 +220,5 @@ monitoring:
       scrapeTimeout: 10s
       relabelings: []
   tracing:
+    # -- specify a sink endpoint for OpenTelemetry Traces, eg. `http://localhost:4317`
     sink: ""
