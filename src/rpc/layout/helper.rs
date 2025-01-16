@@ -90,7 +90,7 @@ impl LayoutHelper {
 		// sync_map_min is the minimum value of sync_map among storage nodes
 		// in the cluster (non-gateway nodes only, current and previous layouts).
 		// It is the highest layout version for which we know that all relevant
-		// storage nodes have fullfilled a sync, and therefore it is safe to
+		// storage nodes have fulfilled a sync, and therefore it is safe to
 		// use a read quorum within that layout to ensure consistency.
 		// Gateway nodes are excluded here because they hold no relevant data
 		// (they store the bucket and access key tables, but we don't have

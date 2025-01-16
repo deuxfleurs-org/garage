@@ -89,9 +89,9 @@ pub fn is_valid_bucket_name(n: &str) -> bool {
 	//  Bucket names must start and end with a letter or a number
 	&& !n.starts_with(&['-', '.'][..])
 	&& !n.ends_with(&['-', '.'][..])
-	// Bucket names must not be formated as an IP address
+	// Bucket names must not be formatted as an IP address
 	&& n.parse::<std::net::IpAddr>().is_err()
-	// Bucket names must not start wih "xn--"
+	// Bucket names must not start with "xn--"
 	&& !n.starts_with("xn--")
 	// Bucket names must not end with "-s3alias"
 	&& !n.ends_with("-s3alias")

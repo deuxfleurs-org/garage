@@ -138,7 +138,7 @@ pub enum PeerConnState {
 	/// A connection tentative is in progress (the nth, where n is the value stored)
 	Trying(usize),
 
-	/// We abandonned trying to connect to this peer (too many failed attempts)
+	/// We abandoned trying to connect to this peer (too many failed attempts)
 	Abandonned,
 }
 

@@ -276,7 +276,7 @@ impl Redirect {
 				return Err(Error::bad_request("Bad XML: invalid protocol"));
 			}
 		}
-		// TODO there are probably more invalide cases, but which ones?
+		// TODO there are probably more invalid cases, but which ones?
 		Ok(())
 	}
 }

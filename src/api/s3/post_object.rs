@@ -213,7 +213,7 @@ pub async fn handle_post_object(
 	}
 
 	// if we ever start supporting ACLs, we likely want to map "acl" to x-amz-acl" somewhere
-	// arround here to make sure the rest of the machinery takes our acl into account.
+	// around here to make sure the rest of the machinery takes our acl into account.
 	let headers = get_headers(&params)?;
 
 	let expected_checksums = ExpectedChecksums {

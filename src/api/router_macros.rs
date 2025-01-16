@@ -204,7 +204,7 @@ macro_rules! generateQueryParameters {
             }
 
             /// Get an error message in case not all parameters where used when extracting them to
-            /// build an Enpoint variant
+            /// build an Endpoint variant
             fn nonempty_message(&self) -> Option<&str> {
                 if self.keyword.is_some() {
                     Some("Keyword not used")

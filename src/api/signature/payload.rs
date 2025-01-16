@@ -47,8 +47,8 @@ pub async fn check_payload_signature(
 	let query = parse_query_map(request.uri())?;
 
 	if query.contains_key(&X_AMZ_ALGORITHM) {
-		// We check for presigned-URL-style authentification first, because
-		// the browser or someting else could inject an Authorization header
+		// We check for presigned-URL-style authentication first, because
+		// the browser or something else could inject an Authorization header
 		// that is totally unrelated to AWS signatures.
 		check_presigned_signature(garage, service, request, query).await
 	} else if request.headers().contains_key(AUTHORIZATION) {
@@ -132,7 +132,7 @@ async fn check_presigned_signature(
 	let authorization = Authorization::parse_presigned(&algorithm.value, &query)?;
 
 	// Verify that all necessary request headers are included in signed_headers
-	// For AWSv4 pre-signed URLs, the following must be incldued:
+	// For AWSv4 pre-signed URLs, the following must be included:
 	// - the Host header (mandatory)
 	// - all x-amz-* headers used in the request
 	let signed_headers = split_signed_headers(&authorization)?;
@@ -306,7 +306,7 @@ pub fn canonical_request(
 	// Note that there is also the issue of path normalization, which I hope is unrelated to the
 	// one of URI-encoding. At least in aws-sigv4 both parameters can be set independently,
 	// and rusoto_signature does not seem to do any effective path normalization, even though
-	// it mentions it in the comments (same link to the souce code as above).
+	// it mentions it in the comments (same link to the source code as above).
 	// We make the explicit choice of NOT normalizing paths in the K2V API because doing so
 	// would make non-normalized paths invalid K2V partition keys, and we don't want that.
 	let canonical_uri: std::borrow::Cow<str> = if service != "s3" {

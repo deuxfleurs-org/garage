@@ -233,7 +233,7 @@ impl<'a> LmdbTx<'a> {
 	fn get_tree(&self, i: usize) -> TxOpResult<&Database> {
 		self.trees.get(i).ok_or_else(|| {
 			TxOpError(Error(
-				"invalid tree id (it might have been openned after the transaction started)".into(),
+				"invalid tree id (it might have been opened after the transaction started)".into(),
 			))
 		})
 	}

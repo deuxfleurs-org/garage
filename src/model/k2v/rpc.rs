@@ -310,7 +310,7 @@ impl K2VRpcHandler {
 		// - we have a response to a read quorum of requests (e.g. 2/3), and an extra delay
 		//   has passed since the quorum was achieved
 		// - a global RPC timeout expired
-		// The extra delay after a quorum was received is usefull if the third response was to
+		// The extra delay after a quorum was received is useful if the third response was to
 		// arrive during this short interval: this would allow us to consider all the data seen
 		// by that last node in the response we produce, and would likely help reduce the
 		// size of the seen marker that we will return (because we would have an info of the
@@ -500,7 +500,7 @@ impl K2VRpcHandler {
 		} else {
 			// If no seen marker was specified, we do not poll for anything.
 			// We return immediately with the set of known items (even if
-			// it is empty), which will give the client an inital view of
+			// it is empty), which will give the client an initial view of
 			// the dataset and an initial seen marker for further
 			// PollRange calls.
 			self.poll_range_read_range(range, &RangeSeenMarker::default())

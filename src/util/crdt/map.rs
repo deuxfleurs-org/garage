@@ -57,7 +57,7 @@ where
 			Err(_) => None,
 		}
 	}
-	/// Gets a reference to all of the items, as a slice. Usefull to iterate on all map values.
+	/// Gets a reference to all of the items, as a slice. Useful to iterate on all map values.
 	pub fn items(&self) -> &[(K, V)] {
 		&self.vals[..]
 	}

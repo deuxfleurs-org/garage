@@ -18,7 +18,7 @@ use crate::util::*;
 /// in the send queue of the client, and their responses in the send queue of the
 /// server. Lower values mean higher priority.
 ///
-/// This mechanism is usefull for messages bigger than the maximum chunk size
+/// This mechanism is useful for messages bigger than the maximum chunk size
 /// (set at `0x4000` bytes), such as large file transfers.
 /// In such case, all of the messages in the send queue with the highest priority
 /// will take turns to send individual chunks, in a round-robin fashion.
@@ -102,7 +102,7 @@ pub trait Message: Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static
 
 /// The Req<M> is a helper object used to create requests and attach them
 /// a stream of data. If the stream is a fixed Bytes and not a ByteStream,
-/// Req<M> is cheaply clonable to allow the request to be sent to different
+/// Req<M> is cheaply cloneable to allow the request to be sent to different
 /// peers (Clone will panic if the stream is a ByteStream).
 pub struct Req<M: Message> {
 	pub(crate) msg: Arc<M>,

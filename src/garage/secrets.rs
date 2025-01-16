@@ -104,7 +104,7 @@ pub(crate) fn fill_secret(
 
 	if let Some(val) = cli_value {
 		if config_secret.is_some() || config_secret_file.is_some() {
-			debug!("Overriding secret `{}` using value specified using CLI argument or environnement variable.", name);
+			debug!("Overriding secret `{}` using value specified using CLI argument or environment variable.", name);
 		}
 
 		*config_secret = Some(val);

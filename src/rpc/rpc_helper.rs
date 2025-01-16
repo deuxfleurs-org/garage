@@ -413,7 +413,7 @@ impl RpcHelper {
 	/// Make a RPC call to multiple servers, returning either a Vec of responses,
 	/// or an error if quorum could not be reached due to too many errors
 	///
-	/// Contrary to try_call_many, this fuction is especially made for broadcast
+	/// Contrary to try_call_many, this function is especially made for broadcast
 	/// write operations. In particular:
 	///
 	/// - The request are sent to all specified nodes as soon as `try_write_many_sets`
@@ -506,7 +506,7 @@ impl RpcHelper {
 
 			// If we have a quorum of ok in all quorum sets, then it's a success!
 			if result_tracker.all_quorums_ok() {
-				// Continue all other requets in background
+				// Continue all other requests in background
 				tokio::spawn(async move {
 					resp_stream.collect::<Vec<(Uuid, Result<_, _>)>>().await;
 					drop(drop_on_complete);

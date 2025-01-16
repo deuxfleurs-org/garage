@@ -16,7 +16,7 @@ use crate::bytes_buf::BytesBuf;
 ///
 /// Items sent in the ByteStream may be errors of type `std::io::Error`.
 /// An error indicates the end of the ByteStream: a reader should no longer read
-/// after recieving an error, and a writer should stop writing after sending an error.
+/// after receiving an error, and a writer should stop writing after sending an error.
 pub type ByteStream = Pin<Box<dyn Stream<Item = Packet> + Send + Sync>>;
 
 /// A packet sent in a ByteStream, which may contain either

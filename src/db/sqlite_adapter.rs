@@ -142,7 +142,7 @@ impl IDb for SqliteDb {
 	fn snapshot(&self, to: &PathBuf) -> Result<()> {
 		fn progress(p: rusqlite::backup::Progress) {
 			let percent = (p.pagecount - p.remaining) * 100 / p.pagecount;
-			info!("Sqlite snapshot progres: {}%", percent);
+			info!("Sqlite snapshot progress: {}%", percent);
 		}
 		self.db
 			.get()?
@@ -304,7 +304,7 @@ impl<'a> SqliteTx<'a> {
 	fn get_tree(&self, i: usize) -> TxOpResult<&'_ str> {
 		self.trees.get(i).map(Arc::as_ref).ok_or_else(|| {
 			TxOpError(Error(
-				"invalid tree id (it might have been openned after the transaction started)".into(),
+				"invalid tree id (it might have been opened after the transaction started)".into(),
 			))
 		})
 	}

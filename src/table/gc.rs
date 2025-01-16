@@ -258,14 +258,14 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 			.await
 			.err_context("GC: remote delete tombstones")?;
 
-		// GC has been successfull for all of these entries.
+		// GC has been successful for all of these entries.
 		// We now remove them all from our local table and from the GC todo list.
 		for item in items {
 			self.data
 				.delete_if_equal_hash(&item.key[..], item.value_hash)
 				.err_context("GC: local delete tombstones")?;
 			item.remove_if_equal(&self.data.gc_todo)
-				.err_context("GC: remove from todo list after successfull GC")?;
+				.err_context("GC: remove from todo list after successful GC")?;
 		}
 
 		Ok(())
@@ -383,7 +383,7 @@ impl GcTodoEntry {
 
 	/// Removes the GcTodoEntry from the gc_todo tree if the
 	/// hash of the serialized value is the same here as in the tree.
-	/// This is usefull to remove a todo entry only under the condition
+	/// This is useful to remove a todo entry only under the condition
 	/// that it has not changed since the time it was read, i.e.
 	/// what we have to do is still the same
 	pub(crate) fn remove_if_equal(&self, gc_todo_tree: &db::Tree) -> Result<(), Error> {

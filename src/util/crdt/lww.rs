@@ -16,7 +16,7 @@ use crate::crdt::crdt::*;
 /// In our case, we add the constraint that the value that is wrapped inside the LWW CRDT must
 /// itself be a CRDT: in the case when the timestamp does not allow us to decide on which value to
 /// keep, the merge rule of the inner CRDT is applied on the wrapped values.  (Note that all types
-/// that implement the `Ord` trait get a default CRDT implemetnation that keeps the maximum value.
+/// that implement the `Ord` trait get a default CRDT implementation that keeps the maximum value.
 /// This enables us to use LWW directly with primitive data types such as numbers or strings. It is
 /// generally desirable in this case to never explicitly produce LWW values with the same timestamp
 /// but different inner values, as the rule to keep the maximum value isn't generally the desired
@@ -28,9 +28,9 @@ use crate::crdt::crdt::*;
 ///
 /// Given that clocks are not too desynchronized, this assumption
 /// is enough for most cases, as there is few chance that two humans
-/// coordonate themself faster than the time difference between two NTP servers.
+/// coordinate themself faster than the time difference between two NTP servers.
 ///
-/// As a more concret example, let's suppose you want to upload a file
+/// As a more concrete example, let's suppose you want to upload a file
 /// with the same key (path) in the same bucket at the very same time.
 /// For each request, the file will be timestamped by the receiving server
 /// and may differ from what you observed with your atomic clock!
@@ -84,16 +84,16 @@ where
 		&self.v
 	}
 
-	/// Take the value inside the CRDT (discards the timesamp)
+	/// Take the value inside the CRDT (discards the timestamp)
 	pub fn take(self) -> T {
 		self.v
 	}
 
 	/// Get a mutable reference to the CRDT's value
 	///
-	/// This is usefull to mutate the inside value without changing the LWW timestamp.
+	/// This is useful to mutate the inside value without changing the LWW timestamp.
 	/// When such mutation is done, the merge between two LWW values is done using the inner
-	/// CRDT's merge operation. This is usefull in the case where the inner CRDT is a large
+	/// CRDT's merge operation. This is useful in the case where the inner CRDT is a large
 	/// data type, such as a map, and we only want to change a single item in the map.
 	/// To do this, we can produce a "CRDT delta", i.e. a LWW that contains only the modification.
 	/// This delta consists in a LWW with the same timestamp, and the map

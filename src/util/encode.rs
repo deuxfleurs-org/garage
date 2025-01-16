@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-/// Serialize to MessagePacki, without versionning
-/// (see garage_util::migrate for functions that manage versionned
+/// Serialize to MessagePack, without versioning
+/// (see garage_util::migrate for functions that manage versioned
 /// data formats)
 pub fn nonversioned_encode<T>(val: &T) -> Result<Vec<u8>, rmp_serde::encode::Error>
 where
@@ -13,8 +13,8 @@ where
 	Ok(wr)
 }
 
-/// Deserialize from MessagePacki, without versionning
-/// (see garage_util::migrate for functions that manage versionned
+/// Deserialize from MessagePack, without versioning
+/// (see garage_util::migrate for functions that manage versioned
 /// data formats)
 pub fn nonversioned_decode<T>(bytes: &[u8]) -> Result<T, rmp_serde::decode::Error>
 where

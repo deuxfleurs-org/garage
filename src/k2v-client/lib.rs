@@ -336,7 +336,7 @@ impl K2vClient {
 			.collect())
 	}
 
-	/// Perform a DeleteBatch request, deleting mutiple values or range of values at once, without
+	/// Perform a DeleteBatch request, deleting multiple values or range of values at once, without
 	/// providing causality information.
 	pub async fn delete_batch(&self, operations: &[BatchDeleteOp<'_>]) -> Result<Vec<u64>, Error> {
 		let url = self.build_url(None, &[("delete", "")]);

@@ -49,7 +49,7 @@ mod v08 {
 		pub offset: u64,
 	}
 
-	/// Informations about a single block
+	/// Information about a single block
 	#[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Copy, Debug, Serialize, Deserialize)]
 	pub struct VersionBlock {
 		/// Blake2 sum of the block

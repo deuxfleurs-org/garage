@@ -392,7 +392,7 @@ table_merkle_updater_todo_queue_length{table_name="block_ref"} 0
 
 #### `table_sync_items_received`, `table_sync_items_sent` (counters)
 
-Number of data items sent to/recieved from other nodes during resync procedures
+Number of data items sent to/received from other nodes during resync procedures
 
 ```
 table_sync_items_received{from="<remote node>",table_name="bucket_v2"} 3

@@ -14,7 +14,7 @@ mod v08 {
 	/// A bucket is a collection of objects
 	///
 	/// Its parameters are not directly accessible as:
-	///  - It must be possible to merge paramaters, hence the use of a LWW CRDT.
+	///  - It must be possible to merge parameters, hence the use of a LWW CRDT.
 	///  - A bucket has 2 states, Present or Deleted and parameters make sense only if present.
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Bucket {
@@ -126,7 +126,7 @@ impl AutoCrdt for BucketQuotas {
 }
 
 impl BucketParams {
-	/// Create an empty BucketParams with no authorized keys and no website accesss
+	/// Create an empty BucketParams with no authorized keys and no website access
 	fn new() -> Self {
 		BucketParams {
 			creation_date: now_msec(),

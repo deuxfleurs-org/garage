@@ -93,12 +93,12 @@ pub struct Config {
 	/// the addresses announced to other peers to a specific subnet.
 	pub rpc_public_addr_subnet: Option<String>,
 
-	/// Timeout for Netapp's ping messagess
+	/// Timeout for Netapp's ping messages
 	pub rpc_ping_timeout_msec: Option<u64>,
 	/// Timeout for Netapp RPC calls
 	pub rpc_timeout_msec: Option<u64>,
 
-	// -- Bootstraping and discovery
+	// -- Bootstrapping and discovery
 	/// Bootstrap peers RPC address
 	#[serde(default)]
 	pub bootstrap_peers: Vec<String>,
