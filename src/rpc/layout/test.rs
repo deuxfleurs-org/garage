@@ -9,7 +9,7 @@ use crate::replication_mode::ReplicationFactor;
 
 // This function checks that the partition size S computed is at least better than the
 // one given by a very naive algorithm. To do so, we try to run the naive algorithm
-// assuming a partion size of S+1. If we succed, it means that the optimal assignment
+// assuming a partition size of S+1. If we succeed, it means that the optimal assignment
 // was not optimal. The naive algorithm is the following :
 // - we compute the max number of partitions associated to every node, capped at the
 // partition number. It gives the number of tokens of every node.

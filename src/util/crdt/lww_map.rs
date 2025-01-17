@@ -109,7 +109,7 @@ where
 	}
 
 	/// Takes all of the values of the map and returns them. The current map is reset to the
-	/// empty map. This is very usefull to produce in-place a new map that contains only a delta
+	/// empty map. This is very useful to produce in-place a new map that contains only a delta
 	/// that modifies a certain value:
 	///
 	/// ```ignore
@@ -162,7 +162,7 @@ where
 		}
 	}
 
-	/// Gets a reference to all of the items, as a slice. Usefull to iterate on all map values.
+	/// Gets a reference to all of the items, as a slice. Useful to iterate on all map values.
 	/// In most case you will want to ignore the timestamp (second item of the tuple).
 	pub fn items(&self) -> &[(K, u64, V)] {
 		&self.vals[..]

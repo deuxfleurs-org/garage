@@ -41,7 +41,7 @@ pub(crate) type VersionTag = [u8; 16];
 pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6772676e65740010; // grgnet 0x0010 (1.0)
 
 /// HelloMessage is sent by the client on a Netapp connection to indicate
-/// that they are also a server and ready to recieve incoming connections
+/// that they are also a server and ready to receive incoming connections
 /// at the specified address and port. If the client doesn't know their
 /// public address, they don't need to specify it and we look at the
 /// remote address of the socket is used instead.
@@ -290,7 +290,7 @@ impl NetApp {
 	/// Attempt to connect to a peer, given by its ip:port and its public key.
 	/// The public key will be checked during the secret handshake process.
 	/// This function returns once the connection has been established and a
-	/// successfull handshake was made. At this point we can send messages to
+	/// successful handshake was made. At this point we can send messages to
 	/// the other node with `Netapp::request`
 	pub async fn try_connect(self: Arc<Self>, ip: SocketAddr, id: NodeID) -> Result<(), Error> {
 		// Don't connect to ourself, we don't care

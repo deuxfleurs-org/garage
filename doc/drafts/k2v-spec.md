@@ -562,7 +562,7 @@ token>", v: ["<value1>", ...] }`, with the following fields:
 - in case of concurrent update and deletion, a `null` is added to the list of concurrent values
 
 - if the `tombstones` query parameter is set to `true`, tombstones are returned
-  for items that have been deleted (this can be usefull for inserting after an
+  for items that have been deleted (this can be useful for inserting after an
   item that has been deleted, so that the insert is not considered
   concurrent with the delete). Tombstones are returned as tuples in the
   same format with only `null` values

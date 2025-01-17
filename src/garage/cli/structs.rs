@@ -184,7 +184,7 @@ pub struct SkipDeadNodesOpt {
 	/// This will generally be the current layout version.
 	#[structopt(long = "version")]
 	pub(crate) version: u64,
-	/// Allow the skip even if a quorum of ndoes could not be found for
+	/// Allow the skip even if a quorum of nodes could not be found for
 	/// the data among the remaining nodes
 	#[structopt(long = "allow-missing-data")]
 	pub(crate) allow_missing_data: bool,

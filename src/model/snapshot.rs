@@ -20,7 +20,7 @@ static SNAPSHOT_MUTEX: Mutex<()> = Mutex::new(());
 
 // ================ snapshotting logic =====================
 
-/// Run snashot_metadata in a blocking thread and async await on it
+/// Run snapshot_metadata in a blocking thread and async await on it
 pub async fn async_snapshot_metadata(garage: &Arc<Garage>) -> Result<(), Error> {
 	let garage = garage.clone();
 	let worker = tokio::task::spawn_blocking(move || snapshot_metadata(&garage));

@@ -63,7 +63,7 @@ pub async fn handle_copy(
 	let source_checksum_algorithm = source_checksum.map(|x| x.algorithm());
 
 	// If source object has a checksum, the destination object must as well.
-	// The x-amz-checksum-algorihtm header allows to change that algorithm,
+	// The x-amz-checksum-algorithm header allows to change that algorithm,
 	// but if it is absent, we must use the same as before
 	let checksum_algorithm = checksum_algorithm.or(source_checksum_algorithm);
 

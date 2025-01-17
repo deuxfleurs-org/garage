@@ -13,12 +13,12 @@ pub trait TableReplication: Send + Sync + 'static {
 
 	/// Which nodes to send read requests to
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid>;
-	/// Responses needed to consider a read succesfull
+	/// Responses needed to consider a read successful
 	fn read_quorum(&self) -> usize;
 
 	/// Which nodes to send writes to
 	fn write_sets(&self, hash: &Hash) -> Self::WriteSets;
-	/// Responses needed to consider a write succesfull in each set
+	/// Responses needed to consider a write successful in each set
 	fn write_quorum(&self) -> usize;
 
 	// Accessing partitions, for Merkle tree & sync

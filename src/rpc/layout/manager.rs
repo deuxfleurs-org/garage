@@ -48,7 +48,7 @@ impl LayoutManager {
 			Ok(x) => {
 				if x.current().replication_factor != replication_factor.replication_factor() {
 					return Err(Error::Message(format!(
-						"Prevous cluster layout has replication factor {}, which is different than the one specified in the config file ({}). The previous cluster layout can be purged, if you know what you are doing, simply by deleting the `cluster_layout` file in your metadata directory.",
+						"Previous cluster layout has replication factor {}, which is different than the one specified in the config file ({}). The previous cluster layout can be purged, if you know what you are doing, simply by deleting the `cluster_layout` file in your metadata directory.",
 						x.current().replication_factor,
 						replication_factor.replication_factor()
 					)));

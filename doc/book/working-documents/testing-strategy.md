@@ -37,7 +37,7 @@ There are two reasons for this:
 
 Reminder: rules of simplicity, concerning changes to Garage's source code.
 Always question what we are doing.
-Never do anything just because it looks nice or because we "think" it might be usefull at some later point but without knowing precisely why/when.
+Never do anything just because it looks nice or because we "think" it might be useful at some later point but without knowing precisely why/when.
 Only do things that make perfect sense in the context of what we currently know.
 
 ## References

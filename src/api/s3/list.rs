@@ -398,7 +398,7 @@ enum ExtractionResult {
 		key: String,
 	},
 	// Fallback key is used for legacy APIs that only support
-	// exlusive pagination (and not inclusive one).
+	// exclusive pagination (and not inclusive one).
 	SkipTo {
 		key: String,
 		fallback_key: Option<String>,
@@ -408,7 +408,7 @@ enum ExtractionResult {
 #[derive(PartialEq, Clone, Debug)]
 enum RangeBegin {
 	// Fallback key is used for legacy APIs that only support
-	// exlusive pagination (and not inclusive one).
+	// exclusive pagination (and not inclusive one).
 	IncludingKey {
 		key: String,
 		fallback_key: Option<String>,

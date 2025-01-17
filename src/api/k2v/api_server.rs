@@ -77,7 +77,7 @@ impl ApiHandler for K2VApiServer {
 		} = endpoint;
 		let garage = self.garage.clone();
 
-		// The OPTIONS method is procesed early, before we even check for an API key
+		// The OPTIONS method is processed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
 			let options_res = handle_options_api(garage, &req, Some(bucket_name))
 				.await

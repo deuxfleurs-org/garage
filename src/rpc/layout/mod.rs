@@ -241,7 +241,7 @@ mod v010 {
 		/// The versions currently in use in the cluster
 		pub versions: Vec<LayoutVersion>,
 		/// At most 5 of the previous versions, not used by the garage_table
-		/// module, but usefull for the garage_block module to find data blocks
+		/// module, but useful for the garage_block module to find data blocks
 		/// that have not yet been moved
 		pub old_versions: Vec<LayoutVersion>,
 

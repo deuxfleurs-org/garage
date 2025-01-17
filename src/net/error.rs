@@ -59,7 +59,7 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for Error {
 	}
 }
 
-/// Ths trait adds a `.log_err()` method on `Result<(), E>` types,
+/// The trait adds a `.log_err()` method on `Result<(), E>` types,
 /// which dismisses the error by logging it to stderr.
 pub trait LogError {
 	fn log_err(self, msg: &'static str);

@@ -107,7 +107,7 @@ async fn main() {
 	);
 
 	// Initialize panic handler that aborts on panic and shows a nice message.
-	// By default, Tokio continues runing normally when a task panics. We want
+	// By default, Tokio continues running normally when a task panics. We want
 	// to avoid this behavior in Garage as this would risk putting the process in an
 	// unknown/uncontrollable state. We prefer to exit the process and restart it
 	// from scratch, so that it boots back into a fresh, known state.

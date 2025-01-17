@@ -54,7 +54,7 @@ enum Command {
 		partition_key: String,
 		/// Sort key to read from
 		sort_key: String,
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: ReadOutputKind,
 	},
@@ -70,7 +70,7 @@ enum Command {
 		/// Timeout, in seconds
 		#[clap(short = 'T', long)]
 		timeout: Option<u64>,
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: ReadOutputKind,
 	},
@@ -87,7 +87,7 @@ enum Command {
 		/// Timeout, in seconds
 		#[clap(short = 'T', long)]
 		timeout: Option<u64>,
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: BatchOutputKind,
 	},
@@ -103,7 +103,7 @@ enum Command {
 	},
 	/// List partition keys
 	ReadIndex {
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: BatchOutputKind,
 		/// Output only partition keys matching this filter
@@ -114,7 +114,7 @@ enum Command {
 	ReadRange {
 		/// Partition key to read from
 		partition_key: String,
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: BatchOutputKind,
 		/// Output only sort keys matching this filter
@@ -125,7 +125,7 @@ enum Command {
 	DeleteRange {
 		/// Partition key to delete from
 		partition_key: String,
-		/// Output formating
+		/// Output formatting
 		#[clap(flatten)]
 		output_kind: BatchOutputKind,
 		/// Delete only sort keys matching this filter
@@ -185,10 +185,10 @@ struct ReadOutputKind {
 	/// Raw output. Conflicts generate error, causality token is not returned
 	#[clap(short, long, group = "output-kind")]
 	raw: bool,
-	/// Human formated output
+	/// Human formatted output
 	#[clap(short = 'H', long, group = "output-kind")]
 	human: bool,
-	/// JSON formated output
+	/// JSON formatted output
 	#[clap(short, long, group = "output-kind")]
 	json: bool,
 }
@@ -207,7 +207,7 @@ impl ReadOutputKind {
 			let mut val = val.value;
 			if val.len() != 1 {
 				eprintln!(
-					"Raw mode can only read non-concurent values, found {} values, expected 1",
+					"Raw mode can only read non-concurrent values, found {} values, expected 1",
 					val.len()
 				);
 				exit(1);
@@ -265,10 +265,10 @@ impl ReadOutputKind {
 #[derive(Parser, Debug)]
 #[clap(group = clap::ArgGroup::new("output-kind").multiple(false).required(false))]
 struct BatchOutputKind {
-	/// Human formated output
+	/// Human formatted output
 	#[clap(short = 'H', long, group = "output-kind")]
 	human: bool,
-	/// JSON formated output
+	/// JSON formatted output
 	#[clap(short, long, group = "output-kind")]
 	json: bool,
 }

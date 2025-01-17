@@ -349,7 +349,7 @@ Check [our s3 compatibility list](@/documentation/reference-manual/s3-compatibil
 
 ### Other tools for interacting with Garage
 
-The following tools can also be used to send and recieve files from/to Garage:
+The following tools can also be used to send and receive files from/to Garage:
 
 - [minio-client](@/documentation/connect/cli.md#minio-client) 
 - [s3cmd](@/documentation/connect/cli.md#s3cmd) 

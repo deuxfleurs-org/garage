@@ -61,7 +61,7 @@ directed to a Garage cluster can be handled independently of one another instead
 of going through a central bottleneck (the leader node).
 As a consequence, requests can be handled much faster, even in cases where latency
 between cluster nodes is important (see our [benchmarks](@/documentation/design/benchmarks/index.md) for data on this).
-This is particularly usefull when nodes are far from one another and talk to one other through standard Internet connections.
+This is particularly useful when nodes are far from one another and talk to one other through standard Internet connections.
 
 ### Web server for static websites
 

@@ -471,7 +471,7 @@ impl LayoutVersion {
 			}
 		}
 
-		// We clear the ring assignemnt data
+		// We clear the ring assignment data
 		self.ring_assignment_data = Vec::<CompactNodeType>::new();
 
 		Ok(Some(old_assignment))

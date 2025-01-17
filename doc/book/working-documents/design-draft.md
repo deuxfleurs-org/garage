@@ -42,7 +42,7 @@ The general principle are similar, but details have not been updated.**
 A version is defined by the existence of at least one entry in the blocks table for a certain version UUID.
 We must keep the following invariant: if a version exists in the blocks table, it has to be referenced in the objects table.
 We explicitly manage concurrent versions of an object: the version timestamp and version UUID columns are index columns, thus we may have several concurrent versions of an object.
-Important: before deleting an older version from the objects table, we must make sure that we did a successfull delete of the blocks of that version from the blocks table.
+Important: before deleting an older version from the objects table, we must make sure that we did a successful delete of the blocks of that version from the blocks table.
 
 Thus, the workflow for reading an object is as follows:
 
@@ -95,7 +95,7 @@ Known issue: if someone is reading from a version that we want to delete and the
 Usefull metadata:
 
 - list of versions that reference this block in the Casandra table, so that we can do GC by checking in Cassandra that the lines still exist
-- list of other nodes that we know have acknowledged a write of this block, usefull in the rebalancing algorithm
+- list of other nodes that we know have acknowledged a write of this block, useful in the rebalancing algorithm
 
 Write strategy: have a single thread that does all write IO so that it is serialized (or have several threads that manage independent parts of the hash space). When writing a blob, write it to a temporary file, close, then rename so that a concurrent read gets a consistent result (either not found or found with whole content).
 
