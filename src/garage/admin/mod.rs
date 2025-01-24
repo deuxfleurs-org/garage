@@ -484,7 +484,7 @@ impl AdminRpcHandler {
 							AdminRpc::MetaOperation(MetaOperation::Snapshot { all: false }),
 							PRIO_NORMAL,
 						)
-						.await
+						.await?
 				}))
 				.await;
 
