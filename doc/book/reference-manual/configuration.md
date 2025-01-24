@@ -13,6 +13,7 @@ consistency_mode = "consistent"
 
 metadata_dir = "/var/lib/garage/meta"
 data_dir = "/var/lib/garage/data"
+metadata_snapshots_dir = "/var/lib/garage/snapshots"
 metadata_fsync = true
 data_fsync = false
 disable_scrub = false
@@ -105,6 +106,7 @@ Top-level configuration options:
 [`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
+[`metadata_snapshots_dir`](#metadata_snapshots_dir),
 [`replication_factor`](#replication_factor),
 [`consistency_mode`](#consistency_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
@@ -275,6 +277,7 @@ as the index of all objects, object version and object blocks.
 
 Store this folder on a fast SSD drive if possible to maximize Garage's performance.
 
+
 #### `data_dir` {#data_dir}
 
 The directory in which Garage will store the data blocks of objects.
@@ -294,6 +297,25 @@ data_dir = [
 
 See [the dedicated documentation page](@/documentation/operations/multi-hdd.md)
 on how to operate Garage in such a setup.
+
+#### `metadata_snapshots_dir` (since Garage `v1.0.2`) {#metadata_snapshots_dir}
+
+The directory in which Garage will store metadata snapshots when it
+performs a snapshot of the metadata database, either when instructed to do
+so from a RPC call or regularly through
+[`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval).
+
+By default, Garage will store snapshots into a `snapshots/` subdirectory
+of [`metadata_dir`](#metadata_dir). This might quickly fill up your
+metadata storage space if you use snapshots, because Garage will need up
+to 4x the space of the existing metadata database: each snapshot requires
+roughly as much space as the original database, and Garage temporarily
+needs to store up to three different snapshots before it cleans up the oldest
+snapshot to go back to two stored snapshots.
+
+To prevent filling your disk, you might to change this setting to a
+directory with ample available space, e.g. on the same storage space as
+[`data_dir`](#data_dir).
 
 #### `db_engine` (since `v0.8.0`) {#db_engine}
 
