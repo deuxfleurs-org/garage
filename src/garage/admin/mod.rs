@@ -497,7 +497,11 @@ impl AdminRpcHandler {
 					ret.push(format!("{:?}\t{}", to, res_str));
 				}
 
-				Ok(AdminRpc::Ok(format_table_to_string(ret)))
+				if resps.iter().any(Result::is_err) {
+					Err(GarageError::Message(format_table_to_string(ret)).into())
+				} else {
+					Ok(AdminRpc::Ok(format_table_to_string(ret)))
+				}
 			}
 			MetaOperation::Snapshot { all: false } => {
 				garage_model::snapshot::async_snapshot_metadata(&self.garage).await?;
