@@ -622,7 +622,7 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<HeaderList
 	for (name, value) in headers.iter() {
 		if name.as_str().starts_with("x-amz-meta-") {
 			ret.push((
-				name.to_string(),
+				name.as_str().to_ascii_lowercase(),
 				std::str::from_utf8(value.as_bytes())?.to_string(),
 			));
 		}
