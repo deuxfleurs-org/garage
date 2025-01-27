@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use hyper::{body::Incoming as IncomingBody, Request, Response};
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -14,14 +13,13 @@ use garage_model::garage::Garage;
 use crate::admin::api::{
 	ApplyClusterLayoutRequest, ApplyClusterLayoutResponse, ConnectClusterNodeResponse,
 	ConnectClusterNodesRequest, ConnectClusterNodesResponse, FreeSpaceResp,
-	GetClusterHealthRequest, GetClusterHealthResponse, GetClusterLayoutResponse,
-	GetClusterStatusRequest, GetClusterStatusResponse, NodeResp, NodeRoleChange,
-	NodeRoleChangeEnum, NodeRoleResp, UpdateClusterLayoutRequest,
+	GetClusterHealthRequest, GetClusterHealthResponse, GetClusterLayoutRequest,
+	GetClusterLayoutResponse, GetClusterStatusRequest, GetClusterStatusResponse, NodeResp,
+	NodeRoleChange, NodeRoleChangeEnum, NodeRoleResp, RevertClusterLayoutRequest,
+	RevertClusterLayoutResponse, UpdateClusterLayoutRequest, UpdateClusterLayoutResponse,
 };
-use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
 use crate::admin::EndpointHandler;
-use crate::helpers::{json_ok_response, parse_json_body};
 
 #[async_trait]
 impl EndpointHandler for GetClusterStatusRequest {
@@ -149,17 +147,6 @@ impl EndpointHandler for GetClusterHealthRequest {
 	}
 }
 
-pub async fn handle_connect_cluster_nodes(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<ConnectClusterNodesRequest, _, Error>(req).await?;
-
-	let res = req.handle(garage).await?;
-
-	Ok(json_ok_response(&res)?)
-}
-
 #[async_trait]
 impl EndpointHandler for ConnectClusterNodesRequest {
 	type Response = ConnectClusterNodesResponse;
@@ -183,10 +170,15 @@ impl EndpointHandler for ConnectClusterNodesRequest {
 	}
 }
 
-pub async fn handle_get_cluster_layout(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
-	let res = format_cluster_layout(garage.system.cluster_layout().inner());
+#[async_trait]
+impl EndpointHandler for GetClusterLayoutRequest {
+	type Response = GetClusterLayoutResponse;
 
-	Ok(json_ok_response(&res)?)
+	async fn handle(self, garage: &Arc<Garage>) -> Result<GetClusterLayoutResponse, Error> {
+		Ok(format_cluster_layout(
+			garage.system.cluster_layout().inner(),
+		))
+	}
 }
 
 fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResponse {
@@ -238,85 +230,87 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 
 // ---- update functions ----
 
-pub async fn handle_update_cluster_layout(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
+#[async_trait]
+impl EndpointHandler for UpdateClusterLayoutRequest {
+	type Response = UpdateClusterLayoutResponse;
 
-	let mut layout = garage.system.cluster_layout().inner().clone();
+	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateClusterLayoutResponse, Error> {
+		let mut layout = garage.system.cluster_layout().inner().clone();
 
-	let mut roles = layout.current().roles.clone();
-	roles.merge(&layout.staging.get().roles);
+		let mut roles = layout.current().roles.clone();
+		roles.merge(&layout.staging.get().roles);
 
-	for change in updates.0 {
-		let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
-		let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
+		for change in self.0 {
+			let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
+			let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
 
-		let new_role = match change.action {
-			NodeRoleChangeEnum::Remove { remove: true } => None,
-			NodeRoleChangeEnum::Update {
-				zone,
-				capacity,
-				tags,
-			} => Some(layout::NodeRole {
-				zone,
-				capacity,
-				tags,
-			}),
-			_ => return Err(Error::bad_request("Invalid layout change")),
-		};
+			let new_role = match change.action {
+				NodeRoleChangeEnum::Remove { remove: true } => None,
+				NodeRoleChangeEnum::Update {
+					zone,
+					capacity,
+					tags,
+				} => Some(layout::NodeRole {
+					zone,
+					capacity,
+					tags,
+				}),
+				_ => return Err(Error::bad_request("Invalid layout change")),
+			};
 
-		layout
-			.staging
-			.get_mut()
-			.roles
-			.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
+			layout
+				.staging
+				.get_mut()
+				.roles
+				.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
+		}
+
+		garage
+			.system
+			.layout_manager
+			.update_cluster_layout(&layout)
+			.await?;
+
+		let res = format_cluster_layout(&layout);
+		Ok(UpdateClusterLayoutResponse(res))
 	}
-
-	garage
-		.system
-		.layout_manager
-		.update_cluster_layout(&layout)
-		.await?;
-
-	let res = format_cluster_layout(&layout);
-	Ok(json_ok_response(&res)?)
 }
 
-pub async fn handle_apply_cluster_layout(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let param = parse_json_body::<ApplyClusterLayoutRequest, _, Error>(req).await?;
+#[async_trait]
+impl EndpointHandler for ApplyClusterLayoutRequest {
+	type Response = ApplyClusterLayoutResponse;
 
-	let layout = garage.system.cluster_layout().inner().clone();
-	let (layout, msg) = layout.apply_staged_changes(Some(param.version))?;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<ApplyClusterLayoutResponse, Error> {
+		let layout = garage.system.cluster_layout().inner().clone();
+		let (layout, msg) = layout.apply_staged_changes(Some(self.version))?;
 
-	garage
-		.system
-		.layout_manager
-		.update_cluster_layout(&layout)
-		.await?;
+		garage
+			.system
+			.layout_manager
+			.update_cluster_layout(&layout)
+			.await?;
 
-	let res = ApplyClusterLayoutResponse {
-		message: msg,
-		layout: format_cluster_layout(&layout),
-	};
-	Ok(json_ok_response(&res)?)
+		Ok(ApplyClusterLayoutResponse {
+			message: msg,
+			layout: format_cluster_layout(&layout),
+		})
+	}
 }
 
-pub async fn handle_revert_cluster_layout(
-	garage: &Arc<Garage>,
-) -> Result<Response<ResBody>, Error> {
-	let layout = garage.system.cluster_layout().inner().clone();
-	let layout = layout.revert_staged_changes()?;
-	garage
-		.system
-		.layout_manager
-		.update_cluster_layout(&layout)
-		.await?;
+#[async_trait]
+impl EndpointHandler for RevertClusterLayoutRequest {
+	type Response = RevertClusterLayoutResponse;
 
-	let res = format_cluster_layout(&layout);
-	Ok(json_ok_response(&res)?)
+	async fn handle(self, garage: &Arc<Garage>) -> Result<RevertClusterLayoutResponse, Error> {
+		let layout = garage.system.cluster_layout().inner().clone();
+		let layout = layout.revert_staged_changes()?;
+		garage
+			.system
+			.layout_manager
+			.update_cluster_layout(&layout)
+			.await?;
+
+		let res = format_cluster_layout(&layout);
+		Ok(RevertClusterLayoutResponse(res))
+	}
 }

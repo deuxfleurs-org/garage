@@ -1,7 +1,13 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use garage_model::garage::Garage;
+
+use crate::admin::error::Error;
+use crate::admin::EndpointHandler;
 use crate::helpers::is_default;
 
 pub enum AdminApiRequest {
@@ -13,8 +19,35 @@ pub enum AdminApiRequest {
 	UpdateClusterLayout(UpdateClusterLayoutRequest),
 	ApplyClusterLayout(ApplyClusterLayoutRequest),
 	RevertClusterLayout(RevertClusterLayoutRequest),
+
+	// Access key operations
+	ListKeys(ListKeysRequest),
+	GetKeyInfo(GetKeyInfoRequest),
+	CreateKey(CreateKeyRequest),
+	ImportKey(ImportKeyRequest),
+	UpdateKey(UpdateKeyRequest),
+	DeleteKey(DeleteKeyRequest),
+
+	// Bucket operations
+	ListBuckets(ListBucketsRequest),
+	GetBucketInfo(GetBucketInfoRequest),
+	CreateBucket(CreateBucketRequest),
+	UpdateBucket(UpdateBucketRequest),
+	DeleteBucket(DeleteBucketRequest),
+
+	// Operations on permissions for keys on buckets
+	BucketAllowKey(BucketAllowKeyRequest),
+	BucketDenyKey(BucketDenyKeyRequest),
+
+	// Operations on bucket aliases
+	GlobalAliasBucket(GlobalAliasBucketRequest),
+	GlobalUnaliasBucket(GlobalUnaliasBucketRequest),
+	LocalAliasBucket(LocalAliasBucketRequest),
+	LocalUnaliasBucket(LocalUnaliasBucketRequest),
 }
 
+#[derive(Serialize)]
+#[serde(untagged)]
 pub enum AdminApiResponse {
 	// Cluster operations
 	GetClusterStatus(GetClusterStatusResponse),
@@ -24,6 +57,98 @@ pub enum AdminApiResponse {
 	UpdateClusterLayout(UpdateClusterLayoutResponse),
 	ApplyClusterLayout(ApplyClusterLayoutResponse),
 	RevertClusterLayout(RevertClusterLayoutResponse),
+
+	// Access key operations
+	ListKeys(ListKeysResponse),
+	GetKeyInfo(GetKeyInfoResponse),
+	CreateKey(CreateKeyResponse),
+	ImportKey(ImportKeyResponse),
+	UpdateKey(UpdateKeyResponse),
+	DeleteKey(DeleteKeyResponse),
+
+	// Bucket operations
+	ListBuckets(ListBucketsResponse),
+	GetBucketInfo(GetBucketInfoResponse),
+	CreateBucket(CreateBucketResponse),
+	UpdateBucket(UpdateBucketResponse),
+	DeleteBucket(DeleteBucketResponse),
+
+	// Operations on permissions for keys on buckets
+	BucketAllowKey(BucketAllowKeyResponse),
+	BucketDenyKey(BucketDenyKeyResponse),
+
+	// Operations on bucket aliases
+	GlobalAliasBucket(GlobalAliasBucketResponse),
+	GlobalUnaliasBucket(GlobalUnaliasBucketResponse),
+	LocalAliasBucket(LocalAliasBucketResponse),
+	LocalUnaliasBucket(LocalUnaliasBucketResponse),
+}
+
+#[async_trait]
+impl EndpointHandler for AdminApiRequest {
+	type Response = AdminApiResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<AdminApiResponse, Error> {
+		Ok(match self {
+			// Cluster operations
+			Self::GetClusterStatus(req) => {
+				AdminApiResponse::GetClusterStatus(req.handle(garage).await?)
+			}
+			Self::GetClusterHealth(req) => {
+				AdminApiResponse::GetClusterHealth(req.handle(garage).await?)
+			}
+			Self::ConnectClusterNodes(req) => {
+				AdminApiResponse::ConnectClusterNodes(req.handle(garage).await?)
+			}
+			Self::GetClusterLayout(req) => {
+				AdminApiResponse::GetClusterLayout(req.handle(garage).await?)
+			}
+			Self::UpdateClusterLayout(req) => {
+				AdminApiResponse::UpdateClusterLayout(req.handle(garage).await?)
+			}
+			Self::ApplyClusterLayout(req) => {
+				AdminApiResponse::ApplyClusterLayout(req.handle(garage).await?)
+			}
+			Self::RevertClusterLayout(req) => {
+				AdminApiResponse::RevertClusterLayout(req.handle(garage).await?)
+			}
+
+			// Access key operations
+			Self::ListKeys(req) => AdminApiResponse::ListKeys(req.handle(garage).await?),
+			Self::GetKeyInfo(req) => AdminApiResponse::GetKeyInfo(req.handle(garage).await?),
+			Self::CreateKey(req) => AdminApiResponse::CreateKey(req.handle(garage).await?),
+			Self::ImportKey(req) => AdminApiResponse::ImportKey(req.handle(garage).await?),
+			Self::UpdateKey(req) => AdminApiResponse::UpdateKey(req.handle(garage).await?),
+			Self::DeleteKey(req) => AdminApiResponse::DeleteKey(req.handle(garage).await?),
+
+			// Bucket operations
+			Self::ListBuckets(req) => AdminApiResponse::ListBuckets(req.handle(garage).await?),
+			Self::GetBucketInfo(req) => AdminApiResponse::GetBucketInfo(req.handle(garage).await?),
+			Self::CreateBucket(req) => AdminApiResponse::CreateBucket(req.handle(garage).await?),
+			Self::UpdateBucket(req) => AdminApiResponse::UpdateBucket(req.handle(garage).await?),
+			Self::DeleteBucket(req) => AdminApiResponse::DeleteBucket(req.handle(garage).await?),
+
+			// Operations on permissions for keys on buckets
+			Self::BucketAllowKey(req) => {
+				AdminApiResponse::BucketAllowKey(req.handle(garage).await?)
+			}
+			Self::BucketDenyKey(req) => AdminApiResponse::BucketDenyKey(req.handle(garage).await?),
+
+			// Operations on bucket aliases
+			Self::GlobalAliasBucket(req) => {
+				AdminApiResponse::GlobalAliasBucket(req.handle(garage).await?)
+			}
+			Self::GlobalUnaliasBucket(req) => {
+				AdminApiResponse::GlobalUnaliasBucket(req.handle(garage).await?)
+			}
+			Self::LocalAliasBucket(req) => {
+				AdminApiResponse::LocalAliasBucket(req.handle(garage).await?)
+			}
+			Self::LocalUnaliasBucket(req) => {
+				AdminApiResponse::LocalUnaliasBucket(req.handle(garage).await?)
+			}
+		})
+	}
 }
 
 // **********************************************
@@ -277,17 +402,22 @@ pub struct ImportKeyResponse(pub GetKeyInfoResponse);
 
 // ---- UpdateKey ----
 
+pub struct UpdateKeyRequest {
+	pub id: String,
+	pub params: UpdateKeyRequestParams,
+}
+
+#[derive(Serialize)]
+pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateKeyRequest {
+pub struct UpdateKeyRequestParams {
 	// TODO: id (get parameter) goes here
 	pub name: Option<String>,
 	pub allow: Option<KeyPerm>,
 	pub deny: Option<KeyPerm>,
 }
-
-#[derive(Serialize)]
-pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
 
 // ---- DeleteKey ----
 
@@ -295,6 +425,7 @@ pub struct DeleteKeyRequest {
 	pub id: String,
 }
 
+#[derive(Serialize)]
 pub struct DeleteKeyResponse;
 
 // **********************************************
@@ -305,6 +436,7 @@ pub struct DeleteKeyResponse;
 
 pub struct ListBucketsRequest;
 
+#[derive(Serialize)]
 pub struct ListBucketsResponse(pub Vec<ListBucketsResponseItem>);
 
 #[derive(Serialize)]
@@ -380,7 +512,7 @@ pub struct CreateBucketRequest {
 }
 
 #[derive(Serialize)]
-pub struct CreateBucketResponse(GetBucketInfoResponse);
+pub struct CreateBucketResponse(pub GetBucketInfoResponse);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -393,15 +525,20 @@ pub struct CreateBucketLocalAlias {
 
 // ---- UpdateBucket ----
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequest {
-	pub website_access: Option<UpdateBucketWebsiteAccess>,
-	pub quotas: Option<ApiBucketQuotas>,
+	pub id: String,
+	pub params: UpdateBucketRequestParams,
 }
 
 #[derive(Serialize)]
-pub struct UpdateBucketResponse(GetBucketInfoResponse);
+pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateBucketRequestParams {
+	pub website_access: Option<UpdateBucketWebsiteAccess>,
+	pub quotas: Option<ApiBucketQuotas>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -417,6 +554,7 @@ pub struct DeleteBucketRequest {
 	pub id: String,
 }
 
+#[derive(Serialize)]
 pub struct DeleteBucketResponse;
 
 // **********************************************
@@ -427,7 +565,8 @@ pub struct DeleteBucketResponse;
 
 pub struct BucketAllowKeyRequest(pub BucketKeyPermChangeRequest);
 
-pub struct BucketAllowKeyResponse;
+#[derive(Serialize)]
+pub struct BucketAllowKeyResponse(pub GetBucketInfoResponse);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -441,7 +580,8 @@ pub struct BucketKeyPermChangeRequest {
 
 pub struct BucketDenyKeyRequest(pub BucketKeyPermChangeRequest);
 
-pub struct BucketDenyKeyResponse;
+#[derive(Serialize)]
+pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
 
 // **********************************************
 //      Operations on bucket aliases
@@ -454,7 +594,8 @@ pub struct GlobalAliasBucketRequest {
 	pub alias: String,
 }
 
-pub struct GlobalAliasBucketReponse;
+#[derive(Serialize)]
+pub struct GlobalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- GlobalUnaliasBucket ----
 
@@ -463,7 +604,8 @@ pub struct GlobalUnaliasBucketRequest {
 	pub alias: String,
 }
 
-pub struct GlobalUnaliasBucketReponse;
+#[derive(Serialize)]
+pub struct GlobalUnaliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalAliasBucket ----
 
@@ -473,7 +615,8 @@ pub struct LocalAliasBucketRequest {
 	pub alias: String,
 }
 
-pub struct LocalAliasBucketReponse;
+#[derive(Serialize)]
+pub struct LocalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalUnaliasBucket ----
 
@@ -483,4 +626,5 @@ pub struct LocalUnaliasBucketRequest {
 	pub alias: String,
 }
 
-pub struct LocalUnaliasBucketReponse;
+#[derive(Serialize)]
+pub struct LocalUnaliasBucketResponse(pub GetBucketInfoResponse);

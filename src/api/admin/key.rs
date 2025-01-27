@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
+use async_trait::async_trait;
 
 use garage_table::*;
 
@@ -9,138 +9,149 @@ use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
 use crate::admin::api::{
-	ApiBucketKeyPerm, CreateKeyRequest, GetKeyInfoResponse, ImportKeyRequest,
-	KeyInfoBucketResponse, KeyPerm, ListKeysResponseItem, UpdateKeyRequest,
+	ApiBucketKeyPerm, CreateKeyRequest, CreateKeyResponse, DeleteKeyRequest, DeleteKeyResponse,
+	GetKeyInfoRequest, GetKeyInfoResponse, ImportKeyRequest, ImportKeyResponse,
+	KeyInfoBucketResponse, KeyPerm, ListKeysRequest, ListKeysResponse, ListKeysResponseItem,
+	UpdateKeyRequest, UpdateKeyResponse,
 };
-use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
-use crate::helpers::*;
+use crate::admin::EndpointHandler;
 
-pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
-	let res = garage
-		.key_table
-		.get_range(
-			&EmptyKey,
-			None,
-			Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
-			10000,
-			EnumerationOrder::Forward,
-		)
-		.await?
-		.iter()
-		.map(|k| ListKeysResponseItem {
-			id: k.key_id.to_string(),
-			name: k.params().unwrap().name.get().clone(),
-		})
-		.collect::<Vec<_>>();
+#[async_trait]
+impl EndpointHandler for ListKeysRequest {
+	type Response = ListKeysResponse;
 
-	Ok(json_ok_response(&res)?)
-}
-
-pub async fn handle_get_key_info(
-	garage: &Arc<Garage>,
-	id: Option<String>,
-	search: Option<String>,
-	show_secret_key: bool,
-) -> Result<Response<ResBody>, Error> {
-	let key = if let Some(id) = id {
-		garage.key_helper().get_existing_key(&id).await?
-	} else if let Some(search) = search {
-		garage
-			.key_helper()
-			.get_existing_matching_key(&search)
+	async fn handle(self, garage: &Arc<Garage>) -> Result<ListKeysResponse, Error> {
+		let res = garage
+			.key_table
+			.get_range(
+				&EmptyKey,
+				None,
+				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
+				10000,
+				EnumerationOrder::Forward,
+			)
 			.await?
-	} else {
-		unreachable!();
-	};
+			.iter()
+			.map(|k| ListKeysResponseItem {
+				id: k.key_id.to_string(),
+				name: k.params().unwrap().name.get().clone(),
+			})
+			.collect::<Vec<_>>();
 
-	key_info_results(garage, key, show_secret_key).await
-}
-
-pub async fn handle_create_key(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<CreateKeyRequest, _, Error>(req).await?;
-
-	let key = Key::new(req.name.as_deref().unwrap_or("Unnamed key"));
-	garage.key_table.insert(&key).await?;
-
-	key_info_results(garage, key, true).await
-}
-
-pub async fn handle_import_key(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<ImportKeyRequest, _, Error>(req).await?;
-
-	let prev_key = garage.key_table.get(&EmptyKey, &req.access_key_id).await?;
-	if prev_key.is_some() {
-		return Err(Error::KeyAlreadyExists(req.access_key_id.to_string()));
+		Ok(ListKeysResponse(res))
 	}
-
-	let imported_key = Key::import(
-		&req.access_key_id,
-		&req.secret_access_key,
-		req.name.as_deref().unwrap_or("Imported key"),
-	)
-	.ok_or_bad_request("Invalid key format")?;
-	garage.key_table.insert(&imported_key).await?;
-
-	key_info_results(garage, imported_key, false).await
 }
 
-pub async fn handle_update_key(
-	garage: &Arc<Garage>,
-	id: String,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<UpdateKeyRequest, _, Error>(req).await?;
+#[async_trait]
+impl EndpointHandler for GetKeyInfoRequest {
+	type Response = GetKeyInfoResponse;
 
-	let mut key = garage.key_helper().get_existing_key(&id).await?;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<GetKeyInfoResponse, Error> {
+		let key = if let Some(id) = self.id {
+			garage.key_helper().get_existing_key(&id).await?
+		} else if let Some(search) = self.search {
+			garage
+				.key_helper()
+				.get_existing_matching_key(&search)
+				.await?
+		} else {
+			unreachable!();
+		};
 
-	let key_state = key.state.as_option_mut().unwrap();
-
-	if let Some(new_name) = req.name {
-		key_state.name.update(new_name);
+		Ok(key_info_results(garage, key, self.show_secret_key).await?)
 	}
-	if let Some(allow) = req.allow {
-		if allow.create_bucket {
-			key_state.allow_create_bucket.update(true);
+}
+
+#[async_trait]
+impl EndpointHandler for CreateKeyRequest {
+	type Response = CreateKeyResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<CreateKeyResponse, Error> {
+		let key = Key::new(self.name.as_deref().unwrap_or("Unnamed key"));
+		garage.key_table.insert(&key).await?;
+
+		Ok(CreateKeyResponse(
+			key_info_results(garage, key, true).await?,
+		))
+	}
+}
+
+#[async_trait]
+impl EndpointHandler for ImportKeyRequest {
+	type Response = ImportKeyResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<ImportKeyResponse, Error> {
+		let prev_key = garage.key_table.get(&EmptyKey, &self.access_key_id).await?;
+		if prev_key.is_some() {
+			return Err(Error::KeyAlreadyExists(self.access_key_id.to_string()));
 		}
-	}
-	if let Some(deny) = req.deny {
-		if deny.create_bucket {
-			key_state.allow_create_bucket.update(false);
-		}
-	}
 
-	garage.key_table.insert(&key).await?;
+		let imported_key = Key::import(
+			&self.access_key_id,
+			&self.secret_access_key,
+			self.name.as_deref().unwrap_or("Imported key"),
+		)
+		.ok_or_bad_request("Invalid key format")?;
+		garage.key_table.insert(&imported_key).await?;
 
-	key_info_results(garage, key, false).await
+		Ok(ImportKeyResponse(
+			key_info_results(garage, imported_key, false).await?,
+		))
+	}
 }
 
-pub async fn handle_delete_key(
-	garage: &Arc<Garage>,
-	id: String,
-) -> Result<Response<ResBody>, Error> {
-	let helper = garage.locked_helper().await;
+#[async_trait]
+impl EndpointHandler for UpdateKeyRequest {
+	type Response = UpdateKeyResponse;
 
-	let mut key = helper.key().get_existing_key(&id).await?;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateKeyResponse, Error> {
+		let mut key = garage.key_helper().get_existing_key(&self.id).await?;
 
-	helper.delete_key(&mut key).await?;
+		let key_state = key.state.as_option_mut().unwrap();
 
-	Ok(Response::builder()
-		.status(StatusCode::NO_CONTENT)
-		.body(empty_body())?)
+		if let Some(new_name) = self.params.name {
+			key_state.name.update(new_name);
+		}
+		if let Some(allow) = self.params.allow {
+			if allow.create_bucket {
+				key_state.allow_create_bucket.update(true);
+			}
+		}
+		if let Some(deny) = self.params.deny {
+			if deny.create_bucket {
+				key_state.allow_create_bucket.update(false);
+			}
+		}
+
+		garage.key_table.insert(&key).await?;
+
+		Ok(UpdateKeyResponse(
+			key_info_results(garage, key, false).await?,
+		))
+	}
+}
+
+#[async_trait]
+impl EndpointHandler for DeleteKeyRequest {
+	type Response = DeleteKeyResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<DeleteKeyResponse, Error> {
+		let helper = garage.locked_helper().await;
+
+		let mut key = helper.key().get_existing_key(&self.id).await?;
+
+		helper.delete_key(&mut key).await?;
+
+		Ok(DeleteKeyResponse)
+	}
 }
 
 async fn key_info_results(
 	garage: &Arc<Garage>,
 	key: Key,
 	show_secret: bool,
-) -> Result<Response<ResBody>, Error> {
+) -> Result<GetKeyInfoResponse, Error> {
 	let mut relevant_buckets = HashMap::new();
 
 	let key_state = key.state.as_option().unwrap();
@@ -211,5 +222,5 @@ async fn key_info_results(
 			.collect::<Vec<_>>(),
 	};
 
-	Ok(json_ok_response(&res)?)
+	Ok(res)
 }

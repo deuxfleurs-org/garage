@@ -23,10 +23,7 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use crate::generic_server::*;
 
 use crate::admin::api::*;
-use crate::admin::bucket::*;
-use crate::admin::cluster::*;
 use crate::admin::error::*;
-use crate::admin::key::*;
 use crate::admin::router_v0;
 use crate::admin::router_v1::{Authorization, Endpoint};
 use crate::admin::EndpointHandler;
@@ -271,67 +268,134 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::CheckDomain => self.handle_check_domain(req).await,
 			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
-			Endpoint::GetClusterStatus => GetClusterStatusRequest
-				.handle(&self.garage)
+			e => {
+				async {
+					let body = parse_request_body(e, req).await?;
+					let res = body.handle(&self.garage).await?;
+					json_ok_response(&res)
+				}
 				.await
-				.and_then(|x| json_ok_response(&x)),
-			Endpoint::GetClusterHealth => GetClusterHealthRequest
-				.handle(&self.garage)
-				.await
-				.and_then(|x| json_ok_response(&x)),
-			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,
-			// Layout
-			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,
-			Endpoint::UpdateClusterLayout => handle_update_cluster_layout(&self.garage, req).await,
-			Endpoint::ApplyClusterLayout => handle_apply_cluster_layout(&self.garage, req).await,
-			Endpoint::RevertClusterLayout => handle_revert_cluster_layout(&self.garage).await,
-			// Keys
-			Endpoint::ListKeys => handle_list_keys(&self.garage).await,
-			Endpoint::GetKeyInfo {
+			}
+		}
+	}
+}
+
+async fn parse_request_body(
+	endpoint: Endpoint,
+	req: Request<IncomingBody>,
+) -> Result<AdminApiRequest, Error> {
+	match endpoint {
+		Endpoint::GetClusterStatus => {
+			Ok(AdminApiRequest::GetClusterStatus(GetClusterStatusRequest))
+		}
+		Endpoint::GetClusterHealth => {
+			Ok(AdminApiRequest::GetClusterHealth(GetClusterHealthRequest))
+		}
+		Endpoint::ConnectClusterNodes => {
+			let req = parse_json_body::<ConnectClusterNodesRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::ConnectClusterNodes(req))
+		}
+		// Layout
+		Endpoint::GetClusterLayout => {
+			Ok(AdminApiRequest::GetClusterLayout(GetClusterLayoutRequest))
+		}
+		Endpoint::UpdateClusterLayout => {
+			let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::UpdateClusterLayout(updates))
+		}
+		Endpoint::ApplyClusterLayout => {
+			let param = parse_json_body::<ApplyClusterLayoutRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::ApplyClusterLayout(param))
+		}
+		Endpoint::RevertClusterLayout => Ok(AdminApiRequest::RevertClusterLayout(
+			RevertClusterLayoutRequest,
+		)),
+		// Keys
+		Endpoint::ListKeys => Ok(AdminApiRequest::ListKeys(ListKeysRequest)),
+		Endpoint::GetKeyInfo {
+			id,
+			search,
+			show_secret_key,
+		} => {
+			let show_secret_key = show_secret_key.map(|x| x == "true").unwrap_or(false);
+			Ok(AdminApiRequest::GetKeyInfo(GetKeyInfoRequest {
 				id,
 				search,
 				show_secret_key,
-			} => {
-				let show_secret_key = show_secret_key.map(|x| x == "true").unwrap_or(false);
-				handle_get_key_info(&self.garage, id, search, show_secret_key).await
-			}
-			Endpoint::CreateKey => handle_create_key(&self.garage, req).await,
-			Endpoint::ImportKey => handle_import_key(&self.garage, req).await,
-			Endpoint::UpdateKey { id } => handle_update_key(&self.garage, id, req).await,
-			Endpoint::DeleteKey { id } => handle_delete_key(&self.garage, id).await,
-			// Buckets
-			Endpoint::ListBuckets => handle_list_buckets(&self.garage).await,
-			Endpoint::GetBucketInfo { id, global_alias } => {
-				handle_get_bucket_info(&self.garage, id, global_alias).await
-			}
-			Endpoint::CreateBucket => handle_create_bucket(&self.garage, req).await,
-			Endpoint::DeleteBucket { id } => handle_delete_bucket(&self.garage, id).await,
-			Endpoint::UpdateBucket { id } => handle_update_bucket(&self.garage, id, req).await,
-			// Bucket-key permissions
-			Endpoint::BucketAllowKey => {
-				handle_bucket_change_key_perm(&self.garage, req, true).await
-			}
-			Endpoint::BucketDenyKey => {
-				handle_bucket_change_key_perm(&self.garage, req, false).await
-			}
-			// Bucket aliasing
-			Endpoint::GlobalAliasBucket { id, alias } => {
-				handle_global_alias_bucket(&self.garage, id, alias).await
-			}
-			Endpoint::GlobalUnaliasBucket { id, alias } => {
-				handle_global_unalias_bucket(&self.garage, id, alias).await
-			}
-			Endpoint::LocalAliasBucket {
-				id,
-				access_key_id,
-				alias,
-			} => handle_local_alias_bucket(&self.garage, id, access_key_id, alias).await,
-			Endpoint::LocalUnaliasBucket {
-				id,
-				access_key_id,
-				alias,
-			} => handle_local_unalias_bucket(&self.garage, id, access_key_id, alias).await,
+			}))
 		}
+		Endpoint::CreateKey => {
+			let req = parse_json_body::<CreateKeyRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::CreateKey(req))
+		}
+		Endpoint::ImportKey => {
+			let req = parse_json_body::<ImportKeyRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::ImportKey(req))
+		}
+		Endpoint::UpdateKey { id } => {
+			let params = parse_json_body::<UpdateKeyRequestParams, _, Error>(req).await?;
+			Ok(AdminApiRequest::UpdateKey(UpdateKeyRequest { id, params }))
+		}
+		Endpoint::DeleteKey { id } => Ok(AdminApiRequest::DeleteKey(DeleteKeyRequest { id })),
+		// Buckets
+		Endpoint::ListBuckets => Ok(AdminApiRequest::ListBuckets(ListBucketsRequest)),
+		Endpoint::GetBucketInfo { id, global_alias } => {
+			Ok(AdminApiRequest::GetBucketInfo(GetBucketInfoRequest {
+				id,
+				global_alias,
+			}))
+		}
+		Endpoint::CreateBucket => {
+			let req = parse_json_body::<CreateBucketRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::CreateBucket(req))
+		}
+		Endpoint::DeleteBucket { id } => {
+			Ok(AdminApiRequest::DeleteBucket(DeleteBucketRequest { id }))
+		}
+		Endpoint::UpdateBucket { id } => {
+			let params = parse_json_body::<UpdateBucketRequestParams, _, Error>(req).await?;
+			Ok(AdminApiRequest::UpdateBucket(UpdateBucketRequest {
+				id,
+				params,
+			}))
+		}
+		// Bucket-key permissions
+		Endpoint::BucketAllowKey => {
+			let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::BucketAllowKey(BucketAllowKeyRequest(req)))
+		}
+		Endpoint::BucketDenyKey => {
+			let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
+			Ok(AdminApiRequest::BucketDenyKey(BucketDenyKeyRequest(req)))
+		}
+		// Bucket aliasing
+		Endpoint::GlobalAliasBucket { id, alias } => Ok(AdminApiRequest::GlobalAliasBucket(
+			GlobalAliasBucketRequest { id, alias },
+		)),
+		Endpoint::GlobalUnaliasBucket { id, alias } => Ok(AdminApiRequest::GlobalUnaliasBucket(
+			GlobalUnaliasBucketRequest { id, alias },
+		)),
+		Endpoint::LocalAliasBucket {
+			id,
+			access_key_id,
+			alias,
+		} => Ok(AdminApiRequest::LocalAliasBucket(LocalAliasBucketRequest {
+			access_key_id,
+			id,
+			alias,
+		})),
+		Endpoint::LocalUnaliasBucket {
+			id,
+			access_key_id,
+			alias,
+		} => Ok(AdminApiRequest::LocalUnaliasBucket(
+			LocalUnaliasBucketRequest {
+				access_key_id,
+				id,
+				alias,
+			},
+		)),
+		_ => unreachable!(),
 	}
 }
 
