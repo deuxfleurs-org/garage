@@ -2,13 +2,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
-use serde::{Deserialize, Serialize};
 
 use garage_table::*;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
+use crate::admin::api::{
+	ApiBucketKeyPerm, CreateKeyRequest, GetKeyInfoResponse, ImportKeyRequest,
+	KeyInfoBucketResponse, KeyPerm, ListKeysResponseItem, UpdateKeyRequest,
+};
 use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
 use crate::helpers::*;
@@ -25,20 +28,13 @@ pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<ResBody>,
 		)
 		.await?
 		.iter()
-		.map(|k| ListKeyResultItem {
+		.map(|k| ListKeysResponseItem {
 			id: k.key_id.to_string(),
 			name: k.params().unwrap().name.get().clone(),
 		})
 		.collect::<Vec<_>>();
 
 	Ok(json_ok_response(&res)?)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListKeyResultItem {
-	id: String,
-	name: String,
 }
 
 pub async fn handle_get_key_info(
@@ -73,12 +69,6 @@ pub async fn handle_create_key(
 	key_info_results(garage, key, true).await
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateKeyRequest {
-	name: Option<String>,
-}
-
 pub async fn handle_import_key(
 	garage: &Arc<Garage>,
 	req: Request<IncomingBody>,
@@ -99,14 +89,6 @@ pub async fn handle_import_key(
 	garage.key_table.insert(&imported_key).await?;
 
 	key_info_results(garage, imported_key, false).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ImportKeyRequest {
-	access_key_id: String,
-	secret_access_key: String,
-	name: Option<String>,
 }
 
 pub async fn handle_update_key(
@@ -137,14 +119,6 @@ pub async fn handle_update_key(
 	garage.key_table.insert(&key).await?;
 
 	key_info_results(garage, key, false).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateKeyRequest {
-	name: Option<String>,
-	allow: Option<KeyPerm>,
-	deny: Option<KeyPerm>,
 }
 
 pub async fn handle_delete_key(
@@ -192,7 +166,7 @@ async fn key_info_results(
 		}
 	}
 
-	let res = GetKeyInfoResult {
+	let res = GetKeyInfoResponse {
 		name: key_state.name.get().clone(),
 		access_key_id: key.key_id.clone(),
 		secret_access_key: if show_secret {
@@ -207,7 +181,7 @@ async fn key_info_results(
 			.into_values()
 			.map(|bucket| {
 				let state = bucket.state.as_option().unwrap();
-				KeyInfoBucketResult {
+				KeyInfoBucketResponse {
 					id: hex::encode(bucket.id),
 					global_aliases: state
 						.aliases
@@ -238,42 +212,4 @@ async fn key_info_results(
 	};
 
 	Ok(json_ok_response(&res)?)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetKeyInfoResult {
-	name: String,
-	access_key_id: String,
-	#[serde(skip_serializing_if = "is_default")]
-	secret_access_key: Option<String>,
-	permissions: KeyPerm,
-	buckets: Vec<KeyInfoBucketResult>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct KeyPerm {
-	#[serde(default)]
-	create_bucket: bool,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct KeyInfoBucketResult {
-	id: String,
-	global_aliases: Vec<String>,
-	local_aliases: Vec<String>,
-	permissions: ApiBucketKeyPerm,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ApiBucketKeyPerm {
-	#[serde(default)]
-	pub(crate) read: bool,
-	#[serde(default)]
-	pub(crate) write: bool,
-	#[serde(default)]
-	pub(crate) owner: bool,
 }

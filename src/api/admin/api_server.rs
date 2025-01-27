@@ -22,12 +22,14 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use crate::generic_server::*;
 
+use crate::admin::api::*;
 use crate::admin::bucket::*;
 use crate::admin::cluster::*;
 use crate::admin::error::*;
 use crate::admin::key::*;
 use crate::admin::router_v0;
 use crate::admin::router_v1::{Authorization, Endpoint};
+use crate::admin::EndpointHandler;
 use crate::helpers::*;
 
 pub type ResBody = BoxBody<Error>;
@@ -269,8 +271,14 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::CheckDomain => self.handle_check_domain(req).await,
 			Endpoint::Health => self.handle_health(),
 			Endpoint::Metrics => self.handle_metrics(),
-			Endpoint::GetClusterStatus => handle_get_cluster_status(&self.garage).await,
-			Endpoint::GetClusterHealth => handle_get_cluster_health(&self.garage).await,
+			Endpoint::GetClusterStatus => GetClusterStatusRequest
+				.handle(&self.garage)
+				.await
+				.and_then(|x| json_ok_response(&x)),
+			Endpoint::GetClusterHealth => GetClusterHealthRequest
+				.handle(&self.garage)
+				.await
+				.and_then(|x| json_ok_response(&x)),
 			Endpoint::ConnectClusterNodes => handle_connect_cluster_nodes(&self.garage, req).await,
 			// Layout
 			Endpoint::GetClusterLayout => handle_get_cluster_layout(&self.garage).await,

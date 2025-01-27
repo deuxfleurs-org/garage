@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
-use serde::{Deserialize, Serialize};
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -17,9 +16,14 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
+use crate::admin::api::ApiBucketKeyPerm;
+use crate::admin::api::{
+	ApiBucketQuotas, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
+	GetBucketInfoKey, GetBucketInfoResponse, GetBucketInfoWebsiteResponse, ListBucketsResponseItem,
+	UpdateBucketRequest,
+};
 use crate::admin::api_server::ResBody;
 use crate::admin::error::*;
-use crate::admin::key::ApiBucketKeyPerm;
 use crate::common_error::CommonError;
 use crate::helpers::*;
 
@@ -39,7 +43,7 @@ pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<ResBod
 		.into_iter()
 		.map(|b| {
 			let state = b.state.as_option().unwrap();
-			ListBucketResultItem {
+			ListBucketsResponseItem {
 				id: hex::encode(b.id),
 				global_aliases: state
 					.aliases
@@ -63,28 +67,6 @@ pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<ResBod
 		.collect::<Vec<_>>();
 
 	Ok(json_ok_response(&res)?)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListBucketResultItem {
-	id: String,
-	global_aliases: Vec<String>,
-	local_aliases: Vec<BucketLocalAlias>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BucketLocalAlias {
-	access_key_id: String,
-	alias: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApiBucketQuotas {
-	max_size: Option<u64>,
-	max_objects: Option<u64>,
 }
 
 pub async fn handle_get_bucket_info(
@@ -175,96 +157,61 @@ async fn bucket_info_results(
 	let state = bucket.state.as_option().unwrap();
 
 	let quotas = state.quotas.get();
-	let res =
-		GetBucketInfoResult {
-			id: hex::encode(bucket.id),
-			global_aliases: state
-				.aliases
-				.items()
-				.iter()
-				.filter(|(_, _, a)| *a)
-				.map(|(n, _, _)| n.to_string())
-				.collect::<Vec<_>>(),
-			website_access: state.website_config.get().is_some(),
-			website_config: state.website_config.get().clone().map(|wsc| {
-				GetBucketInfoWebsiteResult {
-					index_document: wsc.index_document,
-					error_document: wsc.error_document,
+	let res = GetBucketInfoResponse {
+		id: hex::encode(bucket.id),
+		global_aliases: state
+			.aliases
+			.items()
+			.iter()
+			.filter(|(_, _, a)| *a)
+			.map(|(n, _, _)| n.to_string())
+			.collect::<Vec<_>>(),
+		website_access: state.website_config.get().is_some(),
+		website_config: state.website_config.get().clone().map(|wsc| {
+			GetBucketInfoWebsiteResponse {
+				index_document: wsc.index_document,
+				error_document: wsc.error_document,
+			}
+		}),
+		keys: relevant_keys
+			.into_values()
+			.map(|key| {
+				let p = key.state.as_option().unwrap();
+				GetBucketInfoKey {
+					access_key_id: key.key_id,
+					name: p.name.get().to_string(),
+					permissions: p
+						.authorized_buckets
+						.get(&bucket.id)
+						.map(|p| ApiBucketKeyPerm {
+							read: p.allow_read,
+							write: p.allow_write,
+							owner: p.allow_owner,
+						})
+						.unwrap_or_default(),
+					bucket_local_aliases: p
+						.local_aliases
+						.items()
+						.iter()
+						.filter(|(_, _, b)| *b == Some(bucket.id))
+						.map(|(n, _, _)| n.to_string())
+						.collect::<Vec<_>>(),
 				}
-			}),
-			keys: relevant_keys
-				.into_values()
-				.map(|key| {
-					let p = key.state.as_option().unwrap();
-					GetBucketInfoKey {
-						access_key_id: key.key_id,
-						name: p.name.get().to_string(),
-						permissions: p
-							.authorized_buckets
-							.get(&bucket.id)
-							.map(|p| ApiBucketKeyPerm {
-								read: p.allow_read,
-								write: p.allow_write,
-								owner: p.allow_owner,
-							})
-							.unwrap_or_default(),
-						bucket_local_aliases: p
-							.local_aliases
-							.items()
-							.iter()
-							.filter(|(_, _, b)| *b == Some(bucket.id))
-							.map(|(n, _, _)| n.to_string())
-							.collect::<Vec<_>>(),
-					}
-				})
-				.collect::<Vec<_>>(),
-			objects: *counters.get(OBJECTS).unwrap_or(&0),
-			bytes: *counters.get(BYTES).unwrap_or(&0),
-			unfinished_uploads: *counters.get(UNFINISHED_UPLOADS).unwrap_or(&0),
-			unfinished_multipart_uploads: *mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0),
-			unfinished_multipart_upload_parts: *mpu_counters.get(mpu_table::PARTS).unwrap_or(&0),
-			unfinished_multipart_upload_bytes: *mpu_counters.get(mpu_table::BYTES).unwrap_or(&0),
-			quotas: ApiBucketQuotas {
-				max_size: quotas.max_size,
-				max_objects: quotas.max_objects,
-			},
-		};
+			})
+			.collect::<Vec<_>>(),
+		objects: *counters.get(OBJECTS).unwrap_or(&0),
+		bytes: *counters.get(BYTES).unwrap_or(&0),
+		unfinished_uploads: *counters.get(UNFINISHED_UPLOADS).unwrap_or(&0),
+		unfinished_multipart_uploads: *mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0),
+		unfinished_multipart_upload_parts: *mpu_counters.get(mpu_table::PARTS).unwrap_or(&0),
+		unfinished_multipart_upload_bytes: *mpu_counters.get(mpu_table::BYTES).unwrap_or(&0),
+		quotas: ApiBucketQuotas {
+			max_size: quotas.max_size,
+			max_objects: quotas.max_objects,
+		},
+	};
 
 	Ok(json_ok_response(&res)?)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoResult {
-	id: String,
-	global_aliases: Vec<String>,
-	website_access: bool,
-	#[serde(default)]
-	website_config: Option<GetBucketInfoWebsiteResult>,
-	keys: Vec<GetBucketInfoKey>,
-	objects: i64,
-	bytes: i64,
-	unfinished_uploads: i64,
-	unfinished_multipart_uploads: i64,
-	unfinished_multipart_upload_parts: i64,
-	unfinished_multipart_upload_bytes: i64,
-	quotas: ApiBucketQuotas,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoWebsiteResult {
-	index_document: String,
-	error_document: Option<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoKey {
-	access_key_id: String,
-	name: String,
-	permissions: ApiBucketKeyPerm,
-	bucket_local_aliases: Vec<String>,
 }
 
 pub async fn handle_create_bucket(
@@ -334,22 +281,6 @@ pub async fn handle_create_bucket(
 	}
 
 	bucket_info_results(garage, bucket.id).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateBucketRequest {
-	global_alias: Option<String>,
-	local_alias: Option<CreateBucketLocalAlias>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateBucketLocalAlias {
-	access_key_id: String,
-	alias: String,
-	#[serde(default)]
-	allow: ApiBucketKeyPerm,
 }
 
 pub async fn handle_delete_bucket(
@@ -446,21 +377,6 @@ pub async fn handle_update_bucket(
 	bucket_info_results(garage, bucket_id).await
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateBucketRequest {
-	website_access: Option<UpdateBucketWebsiteAccess>,
-	quotas: Option<ApiBucketQuotas>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateBucketWebsiteAccess {
-	enabled: bool,
-	index_document: Option<String>,
-	error_document: Option<String>,
-}
-
 // ---- BUCKET/KEY PERMISSIONS ----
 
 pub async fn handle_bucket_change_key_perm(
@@ -500,14 +416,6 @@ pub async fn handle_bucket_change_key_perm(
 		.await?;
 
 	bucket_info_results(garage, bucket.id).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BucketKeyPermChangeRequest {
-	bucket_id: String,
-	access_key_id: String,
-	permissions: ApiBucketKeyPerm,
 }
 
 // ---- BUCKET ALIASES ----
