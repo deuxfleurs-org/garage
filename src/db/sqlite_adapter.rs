@@ -144,9 +144,12 @@ impl IDb for SqliteDb {
 			let percent = (p.pagecount - p.remaining) * 100 / p.pagecount;
 			info!("Sqlite snapshot progress: {}%", percent);
 		}
+		std::fs::create_dir_all(to)?;
+		let mut path = to.clone();
+		path.push("db.sqlite");
 		self.db
 			.get()?
-			.backup(rusqlite::DatabaseName::Main, to, Some(progress))?;
+			.backup(rusqlite::DatabaseName::Main, path, Some(progress))?;
 		Ok(())
 	}
 
