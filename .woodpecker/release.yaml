@@ -60,8 +60,8 @@ steps:
     environment:
       DOCKER_PLATFORM: "linux/${ARCH}"
       CONTAINER_NAME: "dxflrs/${ARCH}_garage"
-    secrets:
-      - docker_auth
+      DOCKER_AUTH:
+        from_secret: docker_auth
     commands:
       - mkdir -p /root/.docker
       - echo $DOCKER_AUTH > /root/.docker/config.json

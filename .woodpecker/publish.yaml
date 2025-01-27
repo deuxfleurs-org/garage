@@ -20,8 +20,9 @@ steps:
 
   - name: multiarch-docker
     image: nixpkgs/nix:nixos-22.05
-    secrets:
-      - docker_auth
+    environment:
+      DOCKER_AUTH:
+        from_secret: docker_auth
     commands:
       - mkdir -p /root/.docker
       - echo $DOCKER_AUTH > /root/.docker/config.json
