@@ -31,6 +31,9 @@ pub struct Config {
 	#[serde(default)]
 	pub use_local_tz: bool,
 
+	/// Optional directory where metadata snapshots will be store
+	pub metadata_snapshots_dir: Option<PathBuf>,
+
 	/// Automatic snapshot interval for metadata
 	#[serde(default)]
 	pub metadata_auto_snapshot_interval: Option<String>,

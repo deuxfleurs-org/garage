@@ -41,8 +41,14 @@ pub fn snapshot_metadata(garage: &Garage) -> Result<(), Error> {
 		}
 	};
 
-	let mut snapshots_dir = garage.config.metadata_dir.clone();
-	snapshots_dir.push("snapshots");
+	let snapshots_dir = match &garage.config.metadata_snapshots_dir {
+		Some(d) => d.clone(),
+		None => {
+			let mut default_snapshots_dir = garage.config.metadata_dir.clone();
+			default_snapshots_dir.push("snapshots");
+			default_snapshots_dir
+		}
+	};
 	fs::create_dir_all(&snapshots_dir)?;
 
 	let mut new_path = snapshots_dir.clone();
