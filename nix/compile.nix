@@ -134,4 +134,5 @@ let
 in pkgs.rustBuilder.makePackageSet ({
   inherit release packageFun packageOverrides codegenOpts rootFeatures;
   target = rustTarget;
+  workspaceSrc = pkgs.lib.cleanSource ../.;
 } // toolchainOptions)

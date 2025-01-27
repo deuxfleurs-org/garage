@@ -24,8 +24,7 @@ steps:
       GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
       GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-      - nix-build --no-build-output --attr test.amd64
+      - nix-build --no-build-output --attr test.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
       - ./result/bin/garage_db-*
       - ./result/bin/garage_api-*
       - ./result/bin/garage_model-*
