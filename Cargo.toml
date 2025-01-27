@@ -59,7 +59,7 @@ ipnet = "2.9.0"
 lazy_static = "1.4"
 md-5 = "0.10"
 mktemp = "0.5"
-nix = { version = "0.27", default-features = false, features = ["fs"] }
+nix = { version = "0.29", default-features = false, features = ["fs"] }
 nom = "7.1"
 parse_duration = "2.1"
 pin-project = "1.0.12"
