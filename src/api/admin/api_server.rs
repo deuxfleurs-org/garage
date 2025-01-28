@@ -127,12 +127,10 @@ impl ApiHandler for AdminApiServer {
 		req: Request<IncomingBody>,
 		endpoint: Endpoint,
 	) -> Result<Response<ResBody>, Error> {
-		let auth_header = req.headers().get(AUTHORIZATION).clone();
+		let auth_header = req.headers().get(AUTHORIZATION).cloned();
 
 		let request = match endpoint {
-			Endpoint::Old(endpoint_v1) => {
-				todo!() // TODO: convert from old semantics, if possible
-			}
+			Endpoint::Old(endpoint_v1) => AdminApiRequest::from_v1(endpoint_v1, req).await?,
 			Endpoint::New(_) => AdminApiRequest::from_request(req).await?,
 		};
 

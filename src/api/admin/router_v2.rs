@@ -6,7 +6,7 @@ use paste::paste;
 
 use crate::admin::api::*;
 use crate::admin::error::*;
-//use crate::admin::router_v1;
+use crate::admin::router_v1;
 use crate::admin::Authorization;
 use crate::helpers::*;
 use crate::router_macros::*;
@@ -67,82 +67,141 @@ impl AdminApiRequest {
 
 		Ok(res)
 	}
-	/*
-	/// Some endpoints work exactly the same in their v1/ version as they did in their v0/ version.
-	/// For these endpoints, we can convert a v0/ call to its equivalent as if it was made using
-	/// its v1/ URL.
-	pub fn from_v0(v0_endpoint: router_v0::Endpoint) -> Result<Self, Error> {
-		match v0_endpoint {
-			// Cluster endpoints
-			router_v0::Endpoint::ConnectClusterNodes => Ok(Self::ConnectClusterNodes),
-			// - GetClusterStatus: response format changed
-			// - GetClusterHealth: response format changed
 
-			// Layout endpoints
-			router_v0::Endpoint::RevertClusterLayout => Ok(Self::RevertClusterLayout),
-			// - GetClusterLayout: response format changed
-			// - UpdateClusterLayout: query format changed
-			// - ApplyCusterLayout: response format changed
+	/// Some endpoints work exactly the same in their v2/ version as they did in their v1/ version.
+	/// For these endpoints, we can convert a v1/ call to its equivalent as if it was made using
+	/// its v2/ URL.
+	pub async fn from_v1(
+		v1_endpoint: router_v1::Endpoint,
+		req: Request<IncomingBody>,
+	) -> Result<Self, Error> {
+		use router_v1::Endpoint;
 
-			// Key endpoints
-			router_v0::Endpoint::ListKeys => Ok(Self::ListKeys),
-			router_v0::Endpoint::CreateKey => Ok(Self::CreateKey),
-			router_v0::Endpoint::GetKeyInfo { id, search } => Ok(Self::GetKeyInfo {
+		match v1_endpoint {
+			Endpoint::GetClusterStatus => {
+				Ok(AdminApiRequest::GetClusterStatus(GetClusterStatusRequest))
+			}
+			Endpoint::GetClusterHealth => {
+				Ok(AdminApiRequest::GetClusterHealth(GetClusterHealthRequest))
+			}
+			Endpoint::ConnectClusterNodes => {
+				let req = parse_json_body::<ConnectClusterNodesRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::ConnectClusterNodes(req))
+			}
+
+			// Layout
+			Endpoint::GetClusterLayout => {
+				Ok(AdminApiRequest::GetClusterLayout(GetClusterLayoutRequest))
+			}
+			Endpoint::UpdateClusterLayout => {
+				let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::UpdateClusterLayout(updates))
+			}
+			Endpoint::ApplyClusterLayout => {
+				let param = parse_json_body::<ApplyClusterLayoutRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::ApplyClusterLayout(param))
+			}
+			Endpoint::RevertClusterLayout => Ok(AdminApiRequest::RevertClusterLayout(
+				RevertClusterLayoutRequest,
+			)),
+
+			// Keys
+			Endpoint::ListKeys => Ok(AdminApiRequest::ListKeys(ListKeysRequest)),
+			Endpoint::GetKeyInfo {
 				id,
 				search,
-				show_secret_key: Some("true".into()),
-			}),
-			router_v0::Endpoint::DeleteKey { id } => Ok(Self::DeleteKey { id }),
-			// - UpdateKey: response format changed (secret key no longer returned)
-
-			// Bucket endpoints
-			router_v0::Endpoint::GetBucketInfo { id, global_alias } => {
-				Ok(Self::GetBucketInfo { id, global_alias })
+				show_secret_key,
+			} => {
+				let show_secret_key = show_secret_key.map(|x| x == "true").unwrap_or(false);
+				Ok(AdminApiRequest::GetKeyInfo(GetKeyInfoRequest {
+					id,
+					search,
+					show_secret_key,
+				}))
 			}
-			router_v0::Endpoint::ListBuckets => Ok(Self::ListBuckets),
-			router_v0::Endpoint::CreateBucket => Ok(Self::CreateBucket),
-			router_v0::Endpoint::DeleteBucket { id } => Ok(Self::DeleteBucket { id }),
-			router_v0::Endpoint::UpdateBucket { id } => Ok(Self::UpdateBucket { id }),
+			Endpoint::CreateKey => {
+				let req = parse_json_body::<CreateKeyRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::CreateKey(req))
+			}
+			Endpoint::ImportKey => {
+				let req = parse_json_body::<ImportKeyRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::ImportKey(req))
+			}
+			Endpoint::UpdateKey { id } => {
+				let body = parse_json_body::<UpdateKeyRequestBody, _, Error>(req).await?;
+				Ok(AdminApiRequest::UpdateKey(UpdateKeyRequest { id, body }))
+			}
+			Endpoint::DeleteKey { id } => Ok(AdminApiRequest::DeleteKey(DeleteKeyRequest { id })),
+
+			// Buckets
+			Endpoint::ListBuckets => Ok(AdminApiRequest::ListBuckets(ListBucketsRequest)),
+			Endpoint::GetBucketInfo { id, global_alias } => {
+				Ok(AdminApiRequest::GetBucketInfo(GetBucketInfoRequest {
+					id,
+					global_alias,
+				}))
+			}
+			Endpoint::CreateBucket => {
+				let req = parse_json_body::<CreateBucketRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::CreateBucket(req))
+			}
+			Endpoint::DeleteBucket { id } => {
+				Ok(AdminApiRequest::DeleteBucket(DeleteBucketRequest { id }))
+			}
+			Endpoint::UpdateBucket { id } => {
+				let body = parse_json_body::<UpdateBucketRequestBody, _, Error>(req).await?;
+				Ok(AdminApiRequest::UpdateBucket(UpdateBucketRequest {
+					id,
+					body,
+				}))
+			}
 
 			// Bucket-key permissions
-			router_v0::Endpoint::BucketAllowKey => Ok(Self::BucketAllowKey),
-			router_v0::Endpoint::BucketDenyKey => Ok(Self::BucketDenyKey),
-
-			// Bucket alias endpoints
-			router_v0::Endpoint::GlobalAliasBucket { id, alias } => {
-				Ok(Self::GlobalAliasBucket { id, alias })
+			Endpoint::BucketAllowKey => {
+				let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::BucketAllowKey(BucketAllowKeyRequest(req)))
 			}
-			router_v0::Endpoint::GlobalUnaliasBucket { id, alias } => {
-				Ok(Self::GlobalUnaliasBucket { id, alias })
+			Endpoint::BucketDenyKey => {
+				let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
+				Ok(AdminApiRequest::BucketDenyKey(BucketDenyKeyRequest(req)))
 			}
-			router_v0::Endpoint::LocalAliasBucket {
+			// Bucket aliasing
+			Endpoint::GlobalAliasBucket { id, alias } => Ok(AdminApiRequest::GlobalAliasBucket(
+				GlobalAliasBucketRequest { id, alias },
+			)),
+			Endpoint::GlobalUnaliasBucket { id, alias } => Ok(
+				AdminApiRequest::GlobalUnaliasBucket(GlobalUnaliasBucketRequest { id, alias }),
+			),
+			Endpoint::LocalAliasBucket {
 				id,
 				access_key_id,
 				alias,
-			} => Ok(Self::LocalAliasBucket {
+			} => Ok(AdminApiRequest::LocalAliasBucket(LocalAliasBucketRequest {
+				access_key_id,
+				id,
+				alias,
+			})),
+			Endpoint::LocalUnaliasBucket {
 				id,
 				access_key_id,
 				alias,
-			}),
-			router_v0::Endpoint::LocalUnaliasBucket {
-				id,
-				access_key_id,
-				alias,
-			} => Ok(Self::LocalUnaliasBucket {
-				id,
-				access_key_id,
-				alias,
-			}),
+			} => Ok(AdminApiRequest::LocalUnaliasBucket(
+				LocalUnaliasBucketRequest {
+					access_key_id,
+					id,
+					alias,
+				},
+			)),
 
 			// For endpoints that have different body content syntax, issue
 			// deprecation warning
 			_ => Err(Error::bad_request(format!(
-				"v0/ endpoint is no longer supported: {}",
-				v0_endpoint.name()
+				"v1/ endpoint is no longer supported: {}",
+				v1_endpoint.name()
 			))),
 		}
 	}
-	*/
+
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
