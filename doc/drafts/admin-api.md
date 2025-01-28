@@ -705,7 +705,7 @@ Warning: this will delete all aliases associated with the bucket!
 
 ### Operations on permissions for keys on buckets
 
-#### BucketAllowKey `POST /v2/BucketAllowKey`
+#### AllowBucketKey `POST /v2/AllowBucketKey`
 
 Allows a key to do read/write/owner operations on a bucket.
 
@@ -726,7 +726,7 @@ Request body format:
 Flags in `permissions` which have the value `true` will be activated.
 Other flags will remain unchanged.
 
-#### BucketDenyKey `POST /v2/BucketDenyKey`
+#### DenyBucketKey `POST /v2/DenyBucketKey`
 
 Denies a key from doing read/write/owner operations on a bucket.
 

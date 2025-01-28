@@ -50,8 +50,8 @@ admin_endpoints![
 	DeleteBucket,
 
 	// Operations on permissions for keys on buckets
-	BucketAllowKey,
-	BucketDenyKey,
+	AllowBucketKey,
+	DenyBucketKey,
 
 	// Operations on bucket aliases
 	AddGlobalBucketAlias,
@@ -486,13 +486,13 @@ pub struct DeleteBucketResponse;
 //      Operations on permissions for keys on buckets
 // **********************************************
 
-// ---- BucketAllowKey ----
+// ---- AllowBucketKey ----
 
 #[derive(Serialize, Deserialize)]
-pub struct BucketAllowKeyRequest(pub BucketKeyPermChangeRequest);
+pub struct AllowBucketKeyRequest(pub BucketKeyPermChangeRequest);
 
 #[derive(Serialize, Deserialize)]
-pub struct BucketAllowKeyResponse(pub GetBucketInfoResponse);
+pub struct AllowBucketKeyResponse(pub GetBucketInfoResponse);
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -502,13 +502,13 @@ pub struct BucketKeyPermChangeRequest {
 	pub permissions: ApiBucketKeyPerm,
 }
 
-// ---- BucketDenyKey ----
+// ---- DenyBucketKey ----
 
 #[derive(Serialize, Deserialize)]
-pub struct BucketDenyKeyRequest(pub BucketKeyPermChangeRequest);
+pub struct DenyBucketKeyRequest(pub BucketKeyPermChangeRequest);
 
 #[derive(Serialize, Deserialize)]
-pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
+pub struct DenyBucketKeyResponse(pub GetBucketInfoResponse);
 
 // **********************************************
 //      Operations on bucket aliases

@@ -52,8 +52,8 @@ impl AdminApiRequest {
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),
 			// Bucket-key permissions
-			POST BucketAllowKey (body),
-			POST BucketDenyKey (body),
+			POST AllowBucketKey (body),
+			POST DenyBucketKey (body),
 			// Bucket aliases
 			POST AddGlobalBucketAlias (body),
 			POST RemoveGlobalBucketAlias (body),
@@ -167,11 +167,11 @@ impl AdminApiRequest {
 			// Bucket-key permissions
 			Endpoint::BucketAllowKey => {
 				let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
-				Ok(AdminApiRequest::BucketAllowKey(BucketAllowKeyRequest(req)))
+				Ok(AdminApiRequest::AllowBucketKey(AllowBucketKeyRequest(req)))
 			}
 			Endpoint::BucketDenyKey => {
 				let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
-				Ok(AdminApiRequest::BucketDenyKey(BucketDenyKeyRequest(req)))
+				Ok(AdminApiRequest::DenyBucketKey(DenyBucketKeyRequest(req)))
 			}
 			// Bucket aliasing
 			Endpoint::GlobalAliasBucket { id, alias } => Ok(AdminApiRequest::AddGlobalBucketAlias(

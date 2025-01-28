@@ -826,11 +826,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /BucketAllowKey:
+  /AllowBucketKey:
     post:
       tags:
         - Permissions
-      operationId: "BucketAllowKey"
+      operationId: "AllowBucketKey"
       summary: "Allow key"
       description: |
         ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
@@ -886,11 +886,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /BucketDenyKey:
+  /DenyBucketKey:
     post:
       tags:
         - Permissions
-      operationId: "BucketDenyKey"
+      operationId: "DenyBucketKey"
       summary: "Deny key"
       description: |
         ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.

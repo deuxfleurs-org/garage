@@ -18,8 +18,8 @@ use garage_model::s3::object_table::*;
 
 use crate::admin::api::ApiBucketKeyPerm;
 use crate::admin::api::{
-	ApiBucketQuotas, BucketAllowKeyRequest, BucketAllowKeyResponse, BucketDenyKeyRequest,
-	BucketDenyKeyResponse, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
+	ApiBucketQuotas, AllowBucketKeyRequest, AllowBucketKeyResponse, DenyBucketKeyRequest,
+	DenyBucketKeyResponse, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
 	CreateBucketResponse, DeleteBucketRequest, DeleteBucketResponse, GetBucketInfoKey,
 	GetBucketInfoRequest, GetBucketInfoResponse, GetBucketInfoWebsiteResponse,
 	AddGlobalBucketAliasRequest, AddGlobalBucketAliasResponse, RemoveGlobalBucketAliasRequest,
@@ -394,22 +394,22 @@ impl EndpointHandler for UpdateBucketRequest {
 // ---- BUCKET/KEY PERMISSIONS ----
 
 #[async_trait]
-impl EndpointHandler for BucketAllowKeyRequest {
-	type Response = BucketAllowKeyResponse;
+impl EndpointHandler for AllowBucketKeyRequest {
+	type Response = AllowBucketKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<BucketAllowKeyResponse, Error> {
+	async fn handle(self, garage: &Arc<Garage>) -> Result<AllowBucketKeyResponse, Error> {
 		let res = handle_bucket_change_key_perm(garage, self.0, true).await?;
-		Ok(BucketAllowKeyResponse(res))
+		Ok(AllowBucketKeyResponse(res))
 	}
 }
 
 #[async_trait]
-impl EndpointHandler for BucketDenyKeyRequest {
-	type Response = BucketDenyKeyResponse;
+impl EndpointHandler for DenyBucketKeyRequest {
+	type Response = DenyBucketKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<BucketDenyKeyResponse, Error> {
+	async fn handle(self, garage: &Arc<Garage>) -> Result<DenyBucketKeyResponse, Error> {
 		let res = handle_bucket_change_key_perm(garage, self.0, false).await?;
-		Ok(BucketDenyKeyResponse(res))
+		Ok(DenyBucketKeyResponse(res))
 	}
 }
 
