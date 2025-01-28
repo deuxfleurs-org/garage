@@ -39,7 +39,7 @@ pub struct AdminApiServer {
 	admin_token: Option<String>,
 }
 
-enum Endpoint {
+pub enum Endpoint {
 	Old(router_v1::Endpoint),
 	New(String),
 }
@@ -159,7 +159,7 @@ impl ApiHandler for AdminApiServer {
 			AdminApiRequest::Options(req) => req.handle(&self.garage).await,
 			AdminApiRequest::CheckDomain(req) => req.handle(&self.garage).await,
 			AdminApiRequest::Health(req) => req.handle(&self.garage).await,
-			AdminApiRequest::Metrics(req) => self.handle_metrics(),
+			AdminApiRequest::Metrics(_req) => self.handle_metrics(),
 			req => {
 				let res = req.handle(&self.garage).await?;
 				json_ok_response(&res)

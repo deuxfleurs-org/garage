@@ -457,7 +457,7 @@ impl EndpointHandler for GlobalAliasBucketRequest {
 	type Response = GlobalAliasBucketResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<GlobalAliasBucketResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.id)?;
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 
@@ -476,7 +476,7 @@ impl EndpointHandler for GlobalUnaliasBucketRequest {
 	type Response = GlobalUnaliasBucketResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<GlobalUnaliasBucketResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.id)?;
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 
@@ -495,7 +495,7 @@ impl EndpointHandler for LocalAliasBucketRequest {
 	type Response = LocalAliasBucketResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<LocalAliasBucketResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.id)?;
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 
@@ -514,7 +514,7 @@ impl EndpointHandler for LocalUnaliasBucketRequest {
 	type Response = LocalUnaliasBucketResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<LocalUnaliasBucketResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.id)?;
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 

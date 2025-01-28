@@ -43,22 +43,22 @@ impl AdminApiRequest {
 			POST UpdateKey (body_field, query::id),
 			POST CreateKey (body),
 			POST ImportKey (body),
-			DELETE DeleteKey (query::id),
+			POST DeleteKey (query::id),
 			GET ListKeys (),
 			// Bucket endpoints
 			GET GetBucketInfo (query_opt::id, query_opt::global_alias),
 			GET ListBuckets (),
 			POST CreateBucket (body),
-			DELETE DeleteBucket (query::id),
-			PUT UpdateBucket (body_field, query::id),
+			POST DeleteBucket (query::id),
+			POST UpdateBucket (body_field, query::id),
 			// Bucket-key permissions
 			POST BucketAllowKey (body),
 			POST BucketDenyKey (body),
 			// Bucket aliases
-			PUT GlobalAliasBucket (query::id, query::alias),
-			DELETE GlobalUnaliasBucket (query::id, query::alias),
-			PUT LocalAliasBucket (query::id, query::access_key_id, query::alias),
-			DELETE LocalUnaliasBucket (query::id, query::access_key_id, query::alias),
+			POST GlobalAliasBucket (body),
+			POST GlobalUnaliasBucket (body),
+			POST LocalAliasBucket (body),
+			POST LocalUnaliasBucket (body),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -131,7 +131,11 @@ impl AdminApiRequest {
 				let body = parse_json_body::<UpdateKeyRequestBody, _, Error>(req).await?;
 				Ok(AdminApiRequest::UpdateKey(UpdateKeyRequest { id, body }))
 			}
-			Endpoint::DeleteKey { id } => Ok(AdminApiRequest::DeleteKey(DeleteKeyRequest { id })),
+
+			// DeleteKey semantics changed:
+			// - in v1/ : HTTP DELETE => HTTP 204 No Content
+			// - in v2/ : HTTP POST => HTTP 200 Ok
+			// Endpoint::DeleteKey { id } => Ok(AdminApiRequest::DeleteKey(DeleteKeyRequest { id })),
 
 			// Buckets
 			Endpoint::ListBuckets => Ok(AdminApiRequest::ListBuckets(ListBucketsRequest)),
@@ -145,9 +149,13 @@ impl AdminApiRequest {
 				let req = parse_json_body::<CreateBucketRequest, _, Error>(req).await?;
 				Ok(AdminApiRequest::CreateBucket(req))
 			}
-			Endpoint::DeleteBucket { id } => {
-				Ok(AdminApiRequest::DeleteBucket(DeleteBucketRequest { id }))
-			}
+
+			// DeleteBucket semantics changed::
+			// - in v1/ : HTTP DELETE => HTTP 204 No Content
+			// - in v2/ : HTTP POST => HTTP 200 Ok
+			// Endpoint::DeleteBucket { id } => {
+			// 	Ok(AdminApiRequest::DeleteBucket(DeleteBucketRequest { id }))
+			// }
 			Endpoint::UpdateBucket { id } => {
 				let body = parse_json_body::<UpdateBucketRequestBody, _, Error>(req).await?;
 				Ok(AdminApiRequest::UpdateBucket(UpdateBucketRequest {
@@ -167,10 +175,16 @@ impl AdminApiRequest {
 			}
 			// Bucket aliasing
 			Endpoint::GlobalAliasBucket { id, alias } => Ok(AdminApiRequest::GlobalAliasBucket(
-				GlobalAliasBucketRequest { id, alias },
+				GlobalAliasBucketRequest {
+					bucket_id: id,
+					alias,
+				},
 			)),
 			Endpoint::GlobalUnaliasBucket { id, alias } => Ok(
-				AdminApiRequest::GlobalUnaliasBucket(GlobalUnaliasBucketRequest { id, alias }),
+				AdminApiRequest::GlobalUnaliasBucket(GlobalUnaliasBucketRequest {
+					bucket_id: id,
+					alias,
+				}),
 			),
 			Endpoint::LocalAliasBucket {
 				id,
@@ -178,7 +192,7 @@ impl AdminApiRequest {
 				alias,
 			} => Ok(AdminApiRequest::LocalAliasBucket(LocalAliasBucketRequest {
 				access_key_id,
-				id,
+				bucket_id: id,
 				alias,
 			})),
 			Endpoint::LocalUnaliasBucket {
@@ -188,7 +202,7 @@ impl AdminApiRequest {
 			} => Ok(AdminApiRequest::LocalUnaliasBucket(
 				LocalUnaliasBucketRequest {
 					access_key_id,
-					id,
+					bucket_id: id,
 					alias,
 				},
 			)),

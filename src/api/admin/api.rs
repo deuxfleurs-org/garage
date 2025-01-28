@@ -500,8 +500,9 @@ pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
 
 // ---- GlobalAliasBucket ----
 
+#[derive(Deserialize)]
 pub struct GlobalAliasBucketRequest {
-	pub id: String,
+	pub bucket_id: String,
 	pub alias: String,
 }
 
@@ -510,8 +511,9 @@ pub struct GlobalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- GlobalUnaliasBucket ----
 
+#[derive(Deserialize)]
 pub struct GlobalUnaliasBucketRequest {
-	pub id: String,
+	pub bucket_id: String,
 	pub alias: String,
 }
 
@@ -520,8 +522,9 @@ pub struct GlobalUnaliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalAliasBucket ----
 
+#[derive(Deserialize)]
 pub struct LocalAliasBucketRequest {
-	pub id: String,
+	pub bucket_id: String,
 	pub access_key_id: String,
 	pub alias: String,
 }
@@ -531,8 +534,9 @@ pub struct LocalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalUnaliasBucket ----
 
+#[derive(Deserialize)]
 pub struct LocalUnaliasBucketRequest {
-	pub id: String,
+	pub bucket_id: String,
 	pub access_key_id: String,
 	pub alias: String,
 }

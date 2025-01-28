@@ -22,7 +22,7 @@ macro_rules! admin_endpoints {
             }
 
             impl AdminApiRequest {
-                fn name(&self) -> &'static str {
+                pub fn name(&self) -> &'static str {
                     match self {
                         $(
                             Self::$special_endpoint(_) => stringify!($special_endpoint),
