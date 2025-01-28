@@ -4,7 +4,7 @@ use std::sync::Arc;
 use argon2::password_hash::PasswordHash;
 use async_trait::async_trait;
 
-use http::header::AUTHORIZATION;
+use http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION};
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use tokio::sync::watch;
 
@@ -134,6 +134,8 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::New(_) => AdminApiRequest::from_request(req).await?,
 		};
 
+		info!("Admin request: {}", request.name());
+
 		let required_auth_hash =
 			match request.authorization_type() {
 				Authorization::None => None,
@@ -162,7 +164,10 @@ impl ApiHandler for AdminApiServer {
 			AdminApiRequest::Metrics(_req) => self.handle_metrics(),
 			req => {
 				let res = req.handle(&self.garage).await?;
-				json_ok_response(&res)
+				let mut res = json_ok_response(&res)?;
+				res.headers_mut()
+					.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+				Ok(res)
 			}
 		}
 	}

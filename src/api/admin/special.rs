@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
+use http::header::{
+	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW,
+};
 use hyper::{Response, StatusCode};
 
 use garage_model::garage::Garage;
@@ -20,9 +22,10 @@ impl EndpointHandler for OptionsRequest {
 
 	async fn handle(self, _garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 		Ok(Response::builder()
-			.status(StatusCode::NO_CONTENT)
-			.header(ALLOW, "OPTIONS, GET, POST")
-			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS, GET, POST")
+			.status(StatusCode::OK)
+			.header(ALLOW, "OPTIONS,GET,POST")
+			.header(ACCESS_CONTROL_ALLOW_METHODS, "OPTIONS,GET,POST")
+			.header(ACCESS_CONTROL_ALLOW_HEADERS, "authorization,content-type")
 			.header(ACCESS_CONTROL_ALLOW_ORIGIN, "*")
 			.body(empty_body())?)
 	}

@@ -219,6 +219,7 @@ impl AdminApiRequest {
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
+			Self::Options(_) => Authorization::None,
 			Self::Health(_) => Authorization::None,
 			Self::CheckDomain(_) => Authorization::None,
 			Self::Metrics(_) => Authorization::MetricsToken,
