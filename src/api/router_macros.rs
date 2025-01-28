@@ -44,6 +44,68 @@ macro_rules! router_match {
             }
         }
     }};
+    (@gen_path_parser_v2 ($method:expr, $reqpath:expr, $pathprefix:literal, $query:expr, $req:expr)
+     [
+     $(@special $spec_meth:ident $spec_path:pat =>  $spec_api:ident $spec_params:tt,)*
+     $($meth:ident $api:ident $params:tt,)*
+     ]) => {{
+        {
+            #[allow(unused_parens)]
+            match ($method, $reqpath) {
+                $(
+                    (&Method::$spec_meth, $spec_path) => AdminApiRequest::$spec_api (
+                        router_match!(@@gen_parse_request $spec_api, $spec_params, $query, $req)
+                    ),
+                )*
+                $(
+                    (&Method::$meth, concat!($pathprefix, stringify!($api)))
+                    => AdminApiRequest::$api (
+                        router_match!(@@gen_parse_request $api, $params, $query, $req)
+                        ),
+                )*
+                (m, p) => {
+                    return Err(Error::bad_request(format!(
+                        "Unknown API endpoint: {} {}",
+                        m, p
+                    )))
+                }
+            }
+        }
+    }};
+    (@@gen_parse_request $api:ident, (), $query: expr, $req:expr) => {{
+        paste!(
+            [< $api Request >]
+        )
+    }};
+    (@@gen_parse_request $api:ident, (body), $query: expr, $req:expr) => {{
+        paste!({
+            parse_json_body::< [<$api Request>], _, Error>($req).await?
+        })
+    }};
+    (@@gen_parse_request $api:ident, (body_field, $($conv:ident $(($conv_arg:expr))? :: $param:ident),*), $query: expr, $req:expr)
+        =>
+    {{
+        paste!({
+            let body = parse_json_body::< [<$api RequestBody>], _, Error>($req).await?;
+            [< $api Request >] {
+                body,
+                $(
+                    $param: router_match!(@@parse_param $query, $conv $(($conv_arg))?, $param),
+                )+
+            }
+        })
+    }};
+    (@@gen_parse_request $api:ident, ($($conv:ident $(($conv_arg:expr))? :: $param:ident),*), $query: expr, $req:expr)
+        =>
+    {{
+        paste!({
+            [< $api Request >] {
+                $(
+                    $param: router_match!(@@parse_param $query, $conv $(($conv_arg))?, $param),
+                )+
+            }
+        })
+    }};
     (@gen_parser ($keyword:expr, $key:ident, $query:expr, $header:expr),
         key: [$($kw_k:ident $(if $required_k:ident)? $(header $header_k:expr)? => $api_k:ident $(($($conv_k:ident :: $param_k:ident),*))?,)*],
         no_key: [$($kw_nk:ident $(if $required_nk:ident)? $(if_header $header_nk:expr)? => $api_nk:ident $(($($conv_nk:ident :: $param_nk:ident),*))?,)*]) => {{
@@ -101,6 +163,15 @@ macro_rules! router_match {
         $query.$param.take().ok_or_bad_request("Missing argument for endpoint")?
             .parse()
             .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
+    }};
+    (@@parse_param $query:expr, parse_default($default:expr), $param:ident) => {{
+        // extract and parse mandatory query parameter
+        // both missing and un-parseable parameters are reported as errors
+        $query.$param.take().map(|x| x
+            .parse()
+            .map_err(|_| Error::bad_request("Failed to parse query parameter")))
+            .transpose()?
+            .unwrap_or($default)
     }};
     (@func
     $(#[$doc:meta])*

@@ -358,7 +358,7 @@ impl EndpointHandler for UpdateBucketRequest {
 
 		let state = bucket.state.as_option_mut().unwrap();
 
-		if let Some(wa) = self.params.website_access {
+		if let Some(wa) = self.body.website_access {
 			if wa.enabled {
 				state.website_config.update(Some(WebsiteConfig {
 					index_document: wa.index_document.ok_or_bad_request(
@@ -376,7 +376,7 @@ impl EndpointHandler for UpdateBucketRequest {
 			}
 		}
 
-		if let Some(q) = self.params.quotas {
+		if let Some(q) = self.body.quotas {
 			state.quotas.update(BucketQuotas {
 				max_size: q.max_size,
 				max_objects: q.max_objects,

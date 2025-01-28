@@ -110,15 +110,15 @@ impl EndpointHandler for UpdateKeyRequest {
 
 		let key_state = key.state.as_option_mut().unwrap();
 
-		if let Some(new_name) = self.params.name {
+		if let Some(new_name) = self.body.name {
 			key_state.name.update(new_name);
 		}
-		if let Some(allow) = self.params.allow {
+		if let Some(allow) = self.body.allow {
 			if allow.create_bucket {
 				key_state.allow_create_bucket.update(true);
 			}
 		}
-		if let Some(deny) = self.params.deny {
+		if let Some(deny) = self.body.deny {
 			if deny.create_bucket {
 				key_state.allow_create_bucket.update(false);
 			}

@@ -1,128 +1,64 @@
 use std::borrow::Cow;
 
+use hyper::body::Incoming as IncomingBody;
 use hyper::{Method, Request};
+use paste::paste;
 
+use crate::admin::api::*;
 use crate::admin::error::*;
-use crate::admin::router_v0;
+//use crate::admin::router_v1;
 use crate::admin::Authorization;
+use crate::helpers::*;
 use crate::router_macros::*;
 
-router_match! {@func
-
-/// List of all Admin API endpoints.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Endpoint {
-	Options,
-	CheckDomain,
-	Health,
-	Metrics,
-	GetClusterStatus,
-	GetClusterHealth,
-	ConnectClusterNodes,
-	// Layout
-	GetClusterLayout,
-	UpdateClusterLayout,
-	ApplyClusterLayout,
-	RevertClusterLayout,
-	// Keys
-	ListKeys,
-	CreateKey,
-	ImportKey,
-	GetKeyInfo {
-		id: Option<String>,
-		search: Option<String>,
-		show_secret_key: Option<String>,
-	},
-	DeleteKey {
-		id: String,
-	},
-	UpdateKey {
-		id: String,
-	},
-	// Buckets
-	ListBuckets,
-	CreateBucket,
-	GetBucketInfo {
-		id: Option<String>,
-		global_alias: Option<String>,
-	},
-	DeleteBucket {
-		id: String,
-	},
-	UpdateBucket {
-		id: String,
-	},
-	// Bucket-Key Permissions
-	BucketAllowKey,
-	BucketDenyKey,
-	// Bucket aliases
-	GlobalAliasBucket {
-		id: String,
-		alias: String,
-	},
-	GlobalUnaliasBucket {
-		id: String,
-		alias: String,
-	},
-	LocalAliasBucket {
-		id: String,
-		access_key_id: String,
-		alias: String,
-	},
-	LocalUnaliasBucket {
-		id: String,
-		access_key_id: String,
-		alias: String,
-	},
-}}
-
-impl Endpoint {
+impl AdminApiRequest {
 	/// Determine which S3 endpoint a request is for using the request, and a bucket which was
 	/// possibly extracted from the Host header.
 	/// Returns Self plus bucket name, if endpoint is not Endpoint::ListBuckets
-	pub fn from_request<T>(req: &Request<T>) -> Result<Self, Error> {
-		let uri = req.uri();
+	pub async fn from_request<T>(req: Request<IncomingBody>) -> Result<Self, Error> {
+		let uri = req.uri().clone();
 		let path = uri.path();
 		let query = uri.query();
 
+		let method = req.method().clone();
+
 		let mut query = QueryParameters::from_query(query.unwrap_or_default())?;
 
-		let res = router_match!(@gen_path_parser (req.method(), path, query) [
-			OPTIONS _ => Options,
-			GET "/check" => CheckDomain,
-			GET "/health" => Health,
-			GET "/metrics" => Metrics,
-			GET "/v1/status" => GetClusterStatus,
-			GET "/v1/health" => GetClusterHealth,
-			POST "/v1/connect" => ConnectClusterNodes,
+		let res = router_match!(@gen_path_parser_v2 (&method, path, "/v2/", query, req) [
+			@special OPTIONS _ => Options (),
+			@special GET "/check" => CheckDomain (query::domain),
+			@special GET "/health" => Health (),
+			@special GET "/metrics" => Metrics (),
+			// Cluster endpoints
+			GET GetClusterStatus (),
+			GET GetClusterHealth (),
+			POST ConnectClusterNodes (body),
 			// Layout endpoints
-			GET "/v1/layout" => GetClusterLayout,
-			POST "/v1/layout" => UpdateClusterLayout,
-			POST "/v1/layout/apply" => ApplyClusterLayout,
-			POST "/v1/layout/revert" => RevertClusterLayout,
+			GET GetClusterLayout (),
+			POST UpdateClusterLayout (body),
+			POST ApplyClusterLayout (body),
+			POST RevertClusterLayout (),
 			// API key endpoints
-			GET "/v1/key" if id => GetKeyInfo (query_opt::id, query_opt::search, query_opt::show_secret_key),
-			GET "/v1/key" if search => GetKeyInfo (query_opt::id, query_opt::search, query_opt::show_secret_key),
-			POST "/v1/key" if id => UpdateKey (query::id),
-			POST "/v1/key" => CreateKey,
-			POST "/v1/key/import" => ImportKey,
-			DELETE "/v1/key" if id => DeleteKey (query::id),
-			GET "/v1/key" => ListKeys,
+			GET GetKeyInfo (query_opt::id, query_opt::search, parse_default(false)::show_secret_key),
+			POST UpdateKey (body_field, query::id),
+			POST CreateKey (body),
+			POST ImportKey (body),
+			DELETE DeleteKey (query::id),
+			GET ListKeys (),
 			// Bucket endpoints
-			GET "/v1/bucket" if id => GetBucketInfo (query_opt::id, query_opt::global_alias),
-			GET "/v1/bucket" if global_alias => GetBucketInfo (query_opt::id, query_opt::global_alias),
-			GET "/v1/bucket" => ListBuckets,
-			POST "/v1/bucket" => CreateBucket,
-			DELETE "/v1/bucket" if id => DeleteBucket (query::id),
-			PUT "/v1/bucket" if id => UpdateBucket (query::id),
+			GET GetBucketInfo (query_opt::id, query_opt::global_alias),
+			GET ListBuckets (),
+			POST CreateBucket (body),
+			DELETE DeleteBucket (query::id),
+			PUT UpdateBucket (body_field, query::id),
 			// Bucket-key permissions
-			POST "/v1/bucket/allow" => BucketAllowKey,
-			POST "/v1/bucket/deny" => BucketDenyKey,
+			POST BucketAllowKey (body),
+			POST BucketDenyKey (body),
 			// Bucket aliases
-			PUT "/v1/bucket/alias/global" => GlobalAliasBucket (query::id, query::alias),
-			DELETE "/v1/bucket/alias/global" => GlobalUnaliasBucket (query::id, query::alias),
-			PUT "/v1/bucket/alias/local" => LocalAliasBucket (query::id, query::access_key_id, query::alias),
-			DELETE "/v1/bucket/alias/local" => LocalUnaliasBucket (query::id, query::access_key_id, query::alias),
+			PUT GlobalAliasBucket (query::id, query::alias),
+			DELETE GlobalUnaliasBucket (query::id, query::alias),
+			PUT LocalAliasBucket (query::id, query::access_key_id, query::alias),
+			DELETE LocalUnaliasBucket (query::id, query::access_key_id, query::alias),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -131,6 +67,7 @@ impl Endpoint {
 
 		Ok(res)
 	}
+	/*
 	/// Some endpoints work exactly the same in their v1/ version as they did in their v0/ version.
 	/// For these endpoints, we can convert a v0/ call to its equivalent as if it was made using
 	/// its v1/ URL.
@@ -205,12 +142,13 @@ impl Endpoint {
 			))),
 		}
 	}
+	*/
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
-			Self::Health => Authorization::None,
-			Self::CheckDomain => Authorization::None,
-			Self::Metrics => Authorization::MetricsToken,
+			Self::Health(_) => Authorization::None,
+			Self::CheckDomain(_) => Authorization::None,
+			Self::Metrics(_) => Authorization::MetricsToken,
 			_ => Authorization::AdminToken,
 		}
 	}
@@ -219,6 +157,7 @@ impl Endpoint {
 generateQueryParameters! {
 	keywords: [],
 	fields: [
+		"domain" => domain,
 		"format" => format,
 		"id" => id,
 		"search" => search,

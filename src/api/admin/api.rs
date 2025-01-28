@@ -11,6 +11,12 @@ use crate::admin::EndpointHandler;
 use crate::helpers::is_default;
 
 pub enum AdminApiRequest {
+	// Special endpoints of the Admin API
+	Options(OptionsRequest),
+	CheckDomain(CheckDomainRequest),
+	Health(HealthRequest),
+	Metrics(MetricsRequest),
+
 	// Cluster operations
 	GetClusterStatus(GetClusterStatusRequest),
 	GetClusterHealth(GetClusterHealthRequest),
@@ -90,6 +96,7 @@ impl EndpointHandler for AdminApiRequest {
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<AdminApiResponse, Error> {
 		Ok(match self {
+			Self::Options | Self::CheckDomain | Self::Health | Self::Metrics => unreachable!(),
 			// Cluster operations
 			Self::GetClusterStatus(req) => {
 				AdminApiResponse::GetClusterStatus(req.handle(garage).await?)
@@ -152,18 +159,18 @@ impl EndpointHandler for AdminApiRequest {
 }
 
 // **********************************************
-//      Metrics-related endpoints
+//      Special endpoints
 // **********************************************
 
-// TODO: do we want this here ??
+pub struct OptionsRequest;
 
-// ---- Metrics ----
-
-pub struct MetricsRequest;
-
-// ---- Health ----
+pub struct CheckDomainRequest {
+	pub domain: String,
+}
 
 pub struct HealthRequest;
+
+pub struct MetricsRequest;
 
 // **********************************************
 //      Cluster operations
@@ -404,7 +411,7 @@ pub struct ImportKeyResponse(pub GetKeyInfoResponse);
 
 pub struct UpdateKeyRequest {
 	pub id: String,
-	pub params: UpdateKeyRequestParams,
+	pub body: UpdateKeyRequestBody,
 }
 
 #[derive(Serialize)]
@@ -412,7 +419,7 @@ pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateKeyRequestParams {
+pub struct UpdateKeyRequestBody {
 	// TODO: id (get parameter) goes here
 	pub name: Option<String>,
 	pub allow: Option<KeyPerm>,
@@ -527,7 +534,7 @@ pub struct CreateBucketLocalAlias {
 
 pub struct UpdateBucketRequest {
 	pub id: String,
-	pub params: UpdateBucketRequestParams,
+	pub body: UpdateBucketRequestBody,
 }
 
 #[derive(Serialize)]
@@ -535,7 +542,7 @@ pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateBucketRequestParams {
+pub struct UpdateBucketRequestBody {
 	pub website_access: Option<UpdateBucketWebsiteAccess>,
 	pub quotas: Option<ApiBucketQuotas>,
 }
@@ -563,6 +570,7 @@ pub struct DeleteBucketResponse;
 
 // ---- BucketAllowKey ----
 
+#[derive(Deserialize)]
 pub struct BucketAllowKeyRequest(pub BucketKeyPermChangeRequest);
 
 #[derive(Serialize)]
@@ -578,6 +586,7 @@ pub struct BucketKeyPermChangeRequest {
 
 // ---- BucketDenyKey ----
 
+#[derive(Deserialize)]
 pub struct BucketDenyKeyRequest(pub BucketKeyPermChangeRequest);
 
 #[derive(Serialize)]

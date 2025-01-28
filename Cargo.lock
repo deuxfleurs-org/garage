@@ -1402,6 +1402,7 @@ dependencies = [
  "nom",
  "opentelemetry",
  "opentelemetry-prometheus",
+ "paste",
  "percent-encoding",
  "pin-project",
  "prometheus",
