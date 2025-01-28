@@ -1,5 +1,6 @@
 pub mod api_server;
 mod error;
+mod macros;
 
 pub mod api;
 mod router_v0;

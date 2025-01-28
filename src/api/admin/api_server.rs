@@ -1,10 +1,10 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use argon2::password_hash::PasswordHash;
 use async_trait::async_trait;
 
+use http::header::AUTHORIZATION;
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
 use tokio::sync::watch;
 
@@ -16,7 +16,6 @@ use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
-use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
@@ -26,6 +25,7 @@ use crate::admin::api::*;
 use crate::admin::error::*;
 use crate::admin::router_v0;
 use crate::admin::router_v1;
+use crate::admin::Authorization;
 use crate::admin::EndpointHandler;
 use crate::helpers::*;
 
@@ -40,7 +40,7 @@ pub struct AdminApiServer {
 }
 
 enum Endpoint {
-	Old(endpoint_v1::Endpoint),
+	Old(router_v1::Endpoint),
 	New(String),
 }
 
@@ -112,7 +112,7 @@ impl ApiHandler for AdminApiServer {
 	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<Endpoint, Error> {
 		if req.uri().path().starts_with("/v0/") {
 			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
-			let endpoint_v1 = router_v1::Endpoint::from_v0(endpoint_v0);
+			let endpoint_v1 = router_v1::Endpoint::from_v0(endpoint_v0)?;
 			Ok(Endpoint::Old(endpoint_v1))
 		} else if req.uri().path().starts_with("/v1/") {
 			let endpoint_v1 = router_v1::Endpoint::from_request(req)?;
@@ -127,6 +127,8 @@ impl ApiHandler for AdminApiServer {
 		req: Request<IncomingBody>,
 		endpoint: Endpoint,
 	) -> Result<Response<ResBody>, Error> {
+		let auth_header = req.headers().get(AUTHORIZATION).clone();
+
 		let request = match endpoint {
 			Endpoint::Old(endpoint_v1) => {
 				todo!() // TODO: convert from old semantics, if possible
@@ -147,7 +149,7 @@ impl ApiHandler for AdminApiServer {
 			};
 
 		if let Some(password_hash) = required_auth_hash {
-			match req.headers().get("Authorization") {
+			match auth_header {
 				None => return Err(Error::forbidden("Authorization token must be provided")),
 				Some(authorization) => {
 					verify_bearer_token(&authorization, password_hash)?;
@@ -169,10 +171,10 @@ impl ApiHandler for AdminApiServer {
 }
 
 impl ApiEndpoint for Endpoint {
-	fn name(&self) -> Cow<'_, str> {
+	fn name(&self) -> Cow<'static, str> {
 		match self {
-			Self::Old(endpoint_v1) => Cow::owned(format!("v1:{}", endpoint_v1.name)),
-			Self::New(path) => Cow::borrowed(&path),
+			Self::Old(endpoint_v1) => Cow::Owned(format!("v1:{}", endpoint_v1.name())),
+			Self::New(path) => Cow::Owned(path.clone()),
 		}
 	}
 

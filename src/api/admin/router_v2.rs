@@ -15,7 +15,7 @@ impl AdminApiRequest {
 	/// Determine which S3 endpoint a request is for using the request, and a bucket which was
 	/// possibly extracted from the Host header.
 	/// Returns Self plus bucket name, if endpoint is not Endpoint::ListBuckets
-	pub async fn from_request<T>(req: Request<IncomingBody>) -> Result<Self, Error> {
+	pub async fn from_request(req: Request<IncomingBody>) -> Result<Self, Error> {
 		let uri = req.uri().clone();
 		let path = uri.path();
 		let query = uri.query();

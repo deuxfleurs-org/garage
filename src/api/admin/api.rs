@@ -2,161 +2,63 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use paste::paste;
 use serde::{Deserialize, Serialize};
 
 use garage_model::garage::Garage;
 
 use crate::admin::error::Error;
+use crate::admin::macros::*;
 use crate::admin::EndpointHandler;
 use crate::helpers::is_default;
 
-pub enum AdminApiRequest {
+// This generates the following:
+// - An enum AdminApiRequest that contains a variant for all endpoints
+// - An enum AdminApiResponse that contains a variant for all non-special endpoints
+// - AdminApiRequest::name() that returns the name of the endpoint
+// - impl EndpointHandler for AdminApiHandler, that uses the impl EndpointHandler
+//   of each request type below for non-special endpoints
+admin_endpoints![
 	// Special endpoints of the Admin API
-	Options(OptionsRequest),
-	CheckDomain(CheckDomainRequest),
-	Health(HealthRequest),
-	Metrics(MetricsRequest),
+	@special Options,
+	@special CheckDomain,
+	@special Health,
+	@special Metrics,
 
 	// Cluster operations
-	GetClusterStatus(GetClusterStatusRequest),
-	GetClusterHealth(GetClusterHealthRequest),
-	ConnectClusterNodes(ConnectClusterNodesRequest),
-	GetClusterLayout(GetClusterLayoutRequest),
-	UpdateClusterLayout(UpdateClusterLayoutRequest),
-	ApplyClusterLayout(ApplyClusterLayoutRequest),
-	RevertClusterLayout(RevertClusterLayoutRequest),
+	GetClusterStatus,
+	GetClusterHealth,
+	ConnectClusterNodes,
+	GetClusterLayout,
+	UpdateClusterLayout,
+	ApplyClusterLayout,
+	RevertClusterLayout,
 
 	// Access key operations
-	ListKeys(ListKeysRequest),
-	GetKeyInfo(GetKeyInfoRequest),
-	CreateKey(CreateKeyRequest),
-	ImportKey(ImportKeyRequest),
-	UpdateKey(UpdateKeyRequest),
-	DeleteKey(DeleteKeyRequest),
+	ListKeys,
+	GetKeyInfo,
+	CreateKey,
+	ImportKey,
+	UpdateKey,
+	DeleteKey,
 
 	// Bucket operations
-	ListBuckets(ListBucketsRequest),
-	GetBucketInfo(GetBucketInfoRequest),
-	CreateBucket(CreateBucketRequest),
-	UpdateBucket(UpdateBucketRequest),
-	DeleteBucket(DeleteBucketRequest),
+	ListBuckets,
+	GetBucketInfo,
+	CreateBucket,
+	UpdateBucket,
+	DeleteBucket,
 
 	// Operations on permissions for keys on buckets
-	BucketAllowKey(BucketAllowKeyRequest),
-	BucketDenyKey(BucketDenyKeyRequest),
+	BucketAllowKey,
+	BucketDenyKey,
 
 	// Operations on bucket aliases
-	GlobalAliasBucket(GlobalAliasBucketRequest),
-	GlobalUnaliasBucket(GlobalUnaliasBucketRequest),
-	LocalAliasBucket(LocalAliasBucketRequest),
-	LocalUnaliasBucket(LocalUnaliasBucketRequest),
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-pub enum AdminApiResponse {
-	// Cluster operations
-	GetClusterStatus(GetClusterStatusResponse),
-	GetClusterHealth(GetClusterHealthResponse),
-	ConnectClusterNodes(ConnectClusterNodesResponse),
-	GetClusterLayout(GetClusterLayoutResponse),
-	UpdateClusterLayout(UpdateClusterLayoutResponse),
-	ApplyClusterLayout(ApplyClusterLayoutResponse),
-	RevertClusterLayout(RevertClusterLayoutResponse),
-
-	// Access key operations
-	ListKeys(ListKeysResponse),
-	GetKeyInfo(GetKeyInfoResponse),
-	CreateKey(CreateKeyResponse),
-	ImportKey(ImportKeyResponse),
-	UpdateKey(UpdateKeyResponse),
-	DeleteKey(DeleteKeyResponse),
-
-	// Bucket operations
-	ListBuckets(ListBucketsResponse),
-	GetBucketInfo(GetBucketInfoResponse),
-	CreateBucket(CreateBucketResponse),
-	UpdateBucket(UpdateBucketResponse),
-	DeleteBucket(DeleteBucketResponse),
-
-	// Operations on permissions for keys on buckets
-	BucketAllowKey(BucketAllowKeyResponse),
-	BucketDenyKey(BucketDenyKeyResponse),
-
-	// Operations on bucket aliases
-	GlobalAliasBucket(GlobalAliasBucketResponse),
-	GlobalUnaliasBucket(GlobalUnaliasBucketResponse),
-	LocalAliasBucket(LocalAliasBucketResponse),
-	LocalUnaliasBucket(LocalUnaliasBucketResponse),
-}
-
-#[async_trait]
-impl EndpointHandler for AdminApiRequest {
-	type Response = AdminApiResponse;
-
-	async fn handle(self, garage: &Arc<Garage>) -> Result<AdminApiResponse, Error> {
-		Ok(match self {
-			Self::Options | Self::CheckDomain | Self::Health | Self::Metrics => unreachable!(),
-			// Cluster operations
-			Self::GetClusterStatus(req) => {
-				AdminApiResponse::GetClusterStatus(req.handle(garage).await?)
-			}
-			Self::GetClusterHealth(req) => {
-				AdminApiResponse::GetClusterHealth(req.handle(garage).await?)
-			}
-			Self::ConnectClusterNodes(req) => {
-				AdminApiResponse::ConnectClusterNodes(req.handle(garage).await?)
-			}
-			Self::GetClusterLayout(req) => {
-				AdminApiResponse::GetClusterLayout(req.handle(garage).await?)
-			}
-			Self::UpdateClusterLayout(req) => {
-				AdminApiResponse::UpdateClusterLayout(req.handle(garage).await?)
-			}
-			Self::ApplyClusterLayout(req) => {
-				AdminApiResponse::ApplyClusterLayout(req.handle(garage).await?)
-			}
-			Self::RevertClusterLayout(req) => {
-				AdminApiResponse::RevertClusterLayout(req.handle(garage).await?)
-			}
-
-			// Access key operations
-			Self::ListKeys(req) => AdminApiResponse::ListKeys(req.handle(garage).await?),
-			Self::GetKeyInfo(req) => AdminApiResponse::GetKeyInfo(req.handle(garage).await?),
-			Self::CreateKey(req) => AdminApiResponse::CreateKey(req.handle(garage).await?),
-			Self::ImportKey(req) => AdminApiResponse::ImportKey(req.handle(garage).await?),
-			Self::UpdateKey(req) => AdminApiResponse::UpdateKey(req.handle(garage).await?),
-			Self::DeleteKey(req) => AdminApiResponse::DeleteKey(req.handle(garage).await?),
-
-			// Bucket operations
-			Self::ListBuckets(req) => AdminApiResponse::ListBuckets(req.handle(garage).await?),
-			Self::GetBucketInfo(req) => AdminApiResponse::GetBucketInfo(req.handle(garage).await?),
-			Self::CreateBucket(req) => AdminApiResponse::CreateBucket(req.handle(garage).await?),
-			Self::UpdateBucket(req) => AdminApiResponse::UpdateBucket(req.handle(garage).await?),
-			Self::DeleteBucket(req) => AdminApiResponse::DeleteBucket(req.handle(garage).await?),
-
-			// Operations on permissions for keys on buckets
-			Self::BucketAllowKey(req) => {
-				AdminApiResponse::BucketAllowKey(req.handle(garage).await?)
-			}
-			Self::BucketDenyKey(req) => AdminApiResponse::BucketDenyKey(req.handle(garage).await?),
-
-			// Operations on bucket aliases
-			Self::GlobalAliasBucket(req) => {
-				AdminApiResponse::GlobalAliasBucket(req.handle(garage).await?)
-			}
-			Self::GlobalUnaliasBucket(req) => {
-				AdminApiResponse::GlobalUnaliasBucket(req.handle(garage).await?)
-			}
-			Self::LocalAliasBucket(req) => {
-				AdminApiResponse::LocalAliasBucket(req.handle(garage).await?)
-			}
-			Self::LocalUnaliasBucket(req) => {
-				AdminApiResponse::LocalUnaliasBucket(req.handle(garage).await?)
-			}
-		})
-	}
-}
+	GlobalAliasBucket,
+	GlobalUnaliasBucket,
+	LocalAliasBucket,
+	LocalUnaliasBucket,
+];
 
 // **********************************************
 //      Special endpoints

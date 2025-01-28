@@ -38,7 +38,7 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use crate::helpers::{BoxBody, ErrorBody};
 
 pub(crate) trait ApiEndpoint: Send + Sync + 'static {
-	fn name(&self) -> Cow<'_, str>;
+	fn name(&self) -> Cow<'static, str>;
 	fn add_span_attributes(&self, span: SpanRef<'_>);
 }
 
