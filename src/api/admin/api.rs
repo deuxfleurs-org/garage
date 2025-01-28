@@ -64,14 +64,18 @@ admin_endpoints![
 //      Special endpoints
 // **********************************************
 
+#[derive(Serialize, Deserialize)]
 pub struct OptionsRequest;
 
+#[derive(Serialize, Deserialize)]
 pub struct CheckDomainRequest {
 	pub domain: String,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct HealthRequest;
 
+#[derive(Serialize, Deserialize)]
 pub struct MetricsRequest;
 
 // **********************************************
@@ -80,21 +84,22 @@ pub struct MetricsRequest;
 
 // ---- GetClusterStatus ----
 
+#[derive(Serialize, Deserialize)]
 pub struct GetClusterStatusRequest;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterStatusResponse {
 	pub node: String,
-	pub garage_version: &'static str,
-	pub garage_features: Option<&'static [&'static str]>,
-	pub rust_version: &'static str,
+	pub garage_version: String,
+	pub garage_features: Option<Vec<String>>,
+	pub rust_version: String,
 	pub db_engine: String,
 	pub layout_version: u64,
 	pub nodes: Vec<NodeResp>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeResp {
 	pub id: String,
@@ -110,7 +115,7 @@ pub struct NodeResp {
 	pub metadata_partition: Option<FreeSpaceResp>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeRoleResp {
 	pub id: String,
@@ -119,7 +124,7 @@ pub struct NodeRoleResp {
 	pub tags: Vec<String>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FreeSpaceResp {
 	pub available: u64,
@@ -128,12 +133,13 @@ pub struct FreeSpaceResp {
 
 // ---- GetClusterHealth ----
 
+#[derive(Serialize, Deserialize)]
 pub struct GetClusterHealthRequest;
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterHealthResponse {
-	pub status: &'static str,
+	pub status: String,
 	pub known_nodes: usize,
 	pub connected_nodes: usize,
 	pub storage_nodes: usize,
@@ -145,13 +151,13 @@ pub struct GetClusterHealthResponse {
 
 // ---- ConnectClusterNodes ----
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectClusterNodesRequest(pub Vec<String>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ConnectClusterNodesResponse(pub Vec<ConnectClusterNodeResponse>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectClusterNodeResponse {
 	pub success: bool,
@@ -160,9 +166,10 @@ pub struct ConnectClusterNodeResponse {
 
 // ---- GetClusterLayout ----
 
+#[derive(Serialize, Deserialize)]
 pub struct GetClusterLayoutRequest;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterLayoutResponse {
 	pub version: u64,
@@ -193,21 +200,21 @@ pub enum NodeRoleChangeEnum {
 
 // ---- UpdateClusterLayout ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateClusterLayoutRequest(pub Vec<NodeRoleChange>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateClusterLayoutResponse(pub GetClusterLayoutResponse);
 
 // ---- ApplyClusterLayout ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyClusterLayoutRequest {
 	pub version: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyClusterLayoutResponse {
 	pub message: Vec<String>,
@@ -216,9 +223,10 @@ pub struct ApplyClusterLayoutResponse {
 
 // ---- RevertClusterLayout ----
 
+#[derive(Serialize, Deserialize)]
 pub struct RevertClusterLayoutRequest;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RevertClusterLayoutResponse(pub GetClusterLayoutResponse);
 
 // **********************************************
@@ -227,12 +235,13 @@ pub struct RevertClusterLayoutResponse(pub GetClusterLayoutResponse);
 
 // ---- ListKeys ----
 
+#[derive(Serialize, Deserialize)]
 pub struct ListKeysRequest;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ListKeysResponse(pub Vec<ListKeysResponseItem>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListKeysResponseItem {
 	pub id: String,
@@ -241,13 +250,14 @@ pub struct ListKeysResponseItem {
 
 // ---- GetKeyInfo ----
 
+#[derive(Serialize, Deserialize)]
 pub struct GetKeyInfoRequest {
 	pub id: Option<String>,
 	pub search: Option<String>,
 	pub show_secret_key: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetKeyInfoResponse {
 	pub name: String,
@@ -265,7 +275,7 @@ pub struct KeyPerm {
 	pub create_bucket: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyInfoBucketResponse {
 	pub id: String,
@@ -287,18 +297,18 @@ pub struct ApiBucketKeyPerm {
 
 // ---- CreateKey ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateKeyRequest {
 	pub name: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CreateKeyResponse(pub GetKeyInfoResponse);
 
 // ---- ImportKey ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportKeyRequest {
 	pub access_key_id: String,
@@ -306,20 +316,21 @@ pub struct ImportKeyRequest {
 	pub name: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ImportKeyResponse(pub GetKeyInfoResponse);
 
 // ---- UpdateKey ----
 
+#[derive(Serialize, Deserialize)]
 pub struct UpdateKeyRequest {
 	pub id: String,
 	pub body: UpdateKeyRequestBody,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateKeyRequestBody {
 	// TODO: id (get parameter) goes here
@@ -330,11 +341,12 @@ pub struct UpdateKeyRequestBody {
 
 // ---- DeleteKey ----
 
+#[derive(Serialize, Deserialize)]
 pub struct DeleteKeyRequest {
 	pub id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DeleteKeyResponse;
 
 // **********************************************
@@ -343,12 +355,13 @@ pub struct DeleteKeyResponse;
 
 // ---- ListBuckets ----
 
+#[derive(Serialize, Deserialize)]
 pub struct ListBucketsRequest;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ListBucketsResponse(pub Vec<ListBucketsResponseItem>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListBucketsResponseItem {
 	pub id: String,
@@ -356,7 +369,7 @@ pub struct ListBucketsResponseItem {
 	pub local_aliases: Vec<BucketLocalAlias>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BucketLocalAlias {
 	pub access_key_id: String,
@@ -365,12 +378,13 @@ pub struct BucketLocalAlias {
 
 // ---- GetBucketInfo ----
 
+#[derive(Serialize, Deserialize)]
 pub struct GetBucketInfoRequest {
 	pub id: Option<String>,
 	pub global_alias: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoResponse {
 	pub id: String,
@@ -388,14 +402,14 @@ pub struct GetBucketInfoResponse {
 	pub quotas: ApiBucketQuotas,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoWebsiteResponse {
 	pub index_document: String,
 	pub error_document: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoKey {
 	pub access_key_id: String,
@@ -413,17 +427,17 @@ pub struct ApiBucketQuotas {
 
 // ---- CreateBucket ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBucketRequest {
 	pub global_alias: Option<String>,
 	pub local_alias: Option<CreateBucketLocalAlias>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CreateBucketResponse(pub GetBucketInfoResponse);
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBucketLocalAlias {
 	pub access_key_id: String,
@@ -434,22 +448,23 @@ pub struct CreateBucketLocalAlias {
 
 // ---- UpdateBucket ----
 
+#[derive(Serialize, Deserialize)]
 pub struct UpdateBucketRequest {
 	pub id: String,
 	pub body: UpdateBucketRequestBody,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequestBody {
 	pub website_access: Option<UpdateBucketWebsiteAccess>,
 	pub quotas: Option<ApiBucketQuotas>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketWebsiteAccess {
 	pub enabled: bool,
@@ -459,11 +474,12 @@ pub struct UpdateBucketWebsiteAccess {
 
 // ---- DeleteBucket ----
 
+#[derive(Serialize, Deserialize)]
 pub struct DeleteBucketRequest {
 	pub id: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DeleteBucketResponse;
 
 // **********************************************
@@ -472,13 +488,13 @@ pub struct DeleteBucketResponse;
 
 // ---- BucketAllowKey ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct BucketAllowKeyRequest(pub BucketKeyPermChangeRequest);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct BucketAllowKeyResponse(pub GetBucketInfoResponse);
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BucketKeyPermChangeRequest {
 	pub bucket_id: String,
@@ -488,10 +504,10 @@ pub struct BucketKeyPermChangeRequest {
 
 // ---- BucketDenyKey ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct BucketDenyKeyRequest(pub BucketKeyPermChangeRequest);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
 
 // **********************************************
@@ -500,46 +516,46 @@ pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
 
 // ---- GlobalAliasBucket ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GlobalAliasBucketRequest {
 	pub bucket_id: String,
 	pub alias: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GlobalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- GlobalUnaliasBucket ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GlobalUnaliasBucketRequest {
 	pub bucket_id: String,
 	pub alias: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GlobalUnaliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalAliasBucket ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LocalAliasBucketRequest {
 	pub bucket_id: String,
 	pub access_key_id: String,
 	pub alias: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LocalAliasBucketResponse(pub GetBucketInfoResponse);
 
 // ---- LocalUnaliasBucket ----
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LocalUnaliasBucketRequest {
 	pub bucket_id: String,
 	pub access_key_id: String,
 	pub alias: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LocalUnaliasBucketResponse(pub GetBucketInfoResponse);

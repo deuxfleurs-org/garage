@@ -4,6 +4,7 @@ macro_rules! admin_endpoints {
         $($endpoint:ident,)*
     ] => {
         paste! {
+            #[derive(Serialize, Deserialize)]
             pub enum AdminApiRequest {
                 $(
                     $special_endpoint( [<$special_endpoint Request>] ),
@@ -13,7 +14,7 @@ macro_rules! admin_endpoints {
                 )*
             }
 
-            #[derive(Serialize)]
+            #[derive(Serialize, Deserialize)]
             #[serde(untagged)]
             pub enum AdminApiResponse {
                 $(

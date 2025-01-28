@@ -112,9 +112,10 @@ impl EndpointHandler for GetClusterStatusRequest {
 
 		Ok(GetClusterStatusResponse {
 			node: hex::encode(garage.system.id),
-			garage_version: garage_util::version::garage_version(),
-			garage_features: garage_util::version::garage_features(),
-			rust_version: garage_util::version::rust_version(),
+			garage_version: garage_util::version::garage_version().to_string(),
+			garage_features: garage_util::version::garage_features()
+				.map(|features| features.iter().map(ToString::to_string).collect()),
+			rust_version: garage_util::version::rust_version().to_string(),
 			db_engine: garage.db.engine(),
 			layout_version: layout.current().version,
 			nodes,
@@ -134,7 +135,8 @@ impl EndpointHandler for GetClusterHealthRequest {
 				ClusterHealthStatus::Healthy => "healthy",
 				ClusterHealthStatus::Degraded => "degraded",
 				ClusterHealthStatus::Unavailable => "unavailable",
-			},
+			}
+			.to_string(),
 			known_nodes: health.known_nodes,
 			connected_nodes: health.connected_nodes,
 			storage_nodes: health.storage_nodes,
