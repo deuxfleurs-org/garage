@@ -146,7 +146,10 @@ macro_rules! router_match {
     }};
     (@@parse_param $query:expr, query, $param:ident) => {{
         // extract mendatory query parameter
-        $query.$param.take().ok_or_bad_request("Missing argument for endpoint")?.into_owned()
+        $query.$param.take()
+            .ok_or_bad_request(
+                format!("Missing argument `{}` for endpoint", stringify!($param))
+            )?.into_owned()
     }};
     (@@parse_param $query:expr, opt_parse, $param:ident) => {{
         // extract and parse optional query parameter
@@ -160,7 +163,10 @@ macro_rules! router_match {
     (@@parse_param $query:expr, parse, $param:ident) => {{
         // extract and parse mandatory query parameter
         // both missing and un-parseable parameters are reported as errors
-        $query.$param.take().ok_or_bad_request("Missing argument for endpoint")?
+        $query.$param.take()
+            .ok_or_bad_request(
+                format!("Missing argument `{}` for endpoint", stringify!($param))
+            )?
             .parse()
             .map_err(|_| Error::bad_request("Failed to parse query parameter"))?
     }};
@@ -256,6 +262,7 @@ macro_rules! generateQueryParameters {
                             },
                         )*
                         $(
+                            // FIXME: remove if !v.is_empty() ?
                             $f_param => if !v.is_empty() {
                                 if res.$f_name.replace(v).is_some() {
                                     return Err(Error::bad_request(format!(
