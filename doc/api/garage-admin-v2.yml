@@ -319,14 +319,6 @@ paths:
       summary: "Clear staged layout"
       description: |
         Clears all of the staged layout changes.
-      requestBody:
-        description: |
-          Reverting the staged changes is done by incrementing the version number and clearing the contents of the staged change list. Similarly to the CLI, the body must include the incremented version number, which MUST be 1 + the value of the currently existing layout in the cluster.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LayoutVersion'
       responses:
         '500':
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -439,9 +431,9 @@ paths:
             type: string
             default: "false"
             enum:
-              - "true"
               - "false"
-          example: "true"
+              - "true"
+          example: "false"
           required: false
           description: "Wether or not the secret key should be returned in the response"
       responses:
@@ -837,7 +829,7 @@ paths:
   /BucketAllowKey:
     post:
       tags:
-        - Bucket
+        - Permissions
       operationId: "BucketAllowKey"
       summary: "Allow key"
       description: |
@@ -897,7 +889,7 @@ paths:
   /BucketDenyKey:
     post:
       tags:
-        - Bucket
+        - Permissions
       operationId: "BucketDenyKey"
       summary: "Deny key"
       description: |
@@ -957,7 +949,7 @@ paths:
   /GlobalAliasBucket:
     post:
       tags:
-        - Bucket
+        - Bucket aliases
       operationId: "GlobalAliasBucket"
       summary: "Add a global alias"
       description: |
@@ -993,7 +985,7 @@ paths:
   /GlobalUnaliasBucket:
     post:
       tags:
-        - Bucket
+        - Bucket aliases
       operationId: "GlobalUnaliasBucket"
       summary: "Delete a global alias"
       description: |
@@ -1029,7 +1021,7 @@ paths:
   /LocalAliasBucket:
     post:
       tags:
-        - Bucket
+        - Bucket aliases
       operationId: "LocalAliasBucket"
       summary: "Add a local alias"
       description: |
@@ -1068,7 +1060,7 @@ paths:
   /LocalUnaliasBucket:
     post:
       tags:
-        - Bucket
+        - Bucket aliases
       operationId: "LocalUnaliasBucket"
       summary: "Delete a local alias"
       description: |
