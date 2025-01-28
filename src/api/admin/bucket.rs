@@ -18,14 +18,12 @@ use garage_model::s3::object_table::*;
 
 use crate::admin::api::ApiBucketKeyPerm;
 use crate::admin::api::{
-	ApiBucketQuotas, AllowBucketKeyRequest, AllowBucketKeyResponse, DenyBucketKeyRequest,
-	DenyBucketKeyResponse, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
-	CreateBucketResponse, DeleteBucketRequest, DeleteBucketResponse, GetBucketInfoKey,
-	GetBucketInfoRequest, GetBucketInfoResponse, GetBucketInfoWebsiteResponse,
-	AddGlobalBucketAliasRequest, AddGlobalBucketAliasResponse, RemoveGlobalBucketAliasRequest,
-	RemoveGlobalBucketAliasResponse, ListBucketsRequest, ListBucketsResponse, ListBucketsResponseItem,
-	AddLocalBucketAliasRequest, AddLocalBucketAliasResponse, RemoveLocalBucketAliasRequest,
-	RemoveLocalBucketAliasResponse, UpdateBucketRequest, UpdateBucketResponse,
+	AddBucketAliasRequest, AddBucketAliasResponse, AllowBucketKeyRequest, AllowBucketKeyResponse,
+	ApiBucketQuotas, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
+	CreateBucketResponse, DeleteBucketRequest, DeleteBucketResponse, DenyBucketKeyRequest,
+	DenyBucketKeyResponse, GetBucketInfoKey, GetBucketInfoRequest, GetBucketInfoResponse,
+	GetBucketInfoWebsiteResponse, ListBucketsRequest, ListBucketsResponse, ListBucketsResponseItem,
+	RemoveBucketAliasRequest, RemoveBucketAliasResponse, UpdateBucketRequest, UpdateBucketResponse,
 };
 use crate::admin::error::*;
 use crate::admin::EndpointHandler;
@@ -453,76 +451,56 @@ pub async fn handle_bucket_change_key_perm(
 // ---- BUCKET ALIASES ----
 
 #[async_trait]
-impl EndpointHandler for AddGlobalBucketAliasRequest {
-	type Response = AddGlobalBucketAliasResponse;
+impl EndpointHandler for AddBucketAliasRequest {
+	type Response = AddBucketAliasResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<AddGlobalBucketAliasResponse, Error> {
+	async fn handle(self, garage: &Arc<Garage>) -> Result<AddBucketAliasResponse, Error> {
 		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 
-		helper
-			.set_global_bucket_alias(bucket_id, &self.alias)
-			.await?;
+		match self.access_key_id {
+			None => {
+				helper
+					.set_global_bucket_alias(bucket_id, &self.alias)
+					.await?;
+			}
+			Some(ak) => {
+				helper
+					.set_local_bucket_alias(bucket_id, &ak, &self.alias)
+					.await?;
+			}
+		}
 
-		Ok(AddGlobalBucketAliasResponse(
+		Ok(AddBucketAliasResponse(
 			bucket_info_results(garage, bucket_id).await?,
 		))
 	}
 }
 
 #[async_trait]
-impl EndpointHandler for RemoveGlobalBucketAliasRequest {
-	type Response = RemoveGlobalBucketAliasResponse;
+impl EndpointHandler for RemoveBucketAliasRequest {
+	type Response = RemoveBucketAliasResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<RemoveGlobalBucketAliasResponse, Error> {
+	async fn handle(self, garage: &Arc<Garage>) -> Result<RemoveBucketAliasResponse, Error> {
 		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
 
-		helper
-			.unset_global_bucket_alias(bucket_id, &self.alias)
-			.await?;
+		match self.access_key_id {
+			None => {
+				helper
+					.unset_global_bucket_alias(bucket_id, &self.alias)
+					.await?;
+			}
+			Some(ak) => {
+				helper
+					.unset_local_bucket_alias(bucket_id, &ak, &self.alias)
+					.await?;
+			}
+		}
 
-		Ok(RemoveGlobalBucketAliasResponse(
-			bucket_info_results(garage, bucket_id).await?,
-		))
-	}
-}
-
-#[async_trait]
-impl EndpointHandler for AddLocalBucketAliasRequest {
-	type Response = AddLocalBucketAliasResponse;
-
-	async fn handle(self, garage: &Arc<Garage>) -> Result<AddLocalBucketAliasResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.bucket_id)?;
-
-		let helper = garage.locked_helper().await;
-
-		helper
-			.set_local_bucket_alias(bucket_id, &self.access_key_id, &self.alias)
-			.await?;
-
-		Ok(AddLocalBucketAliasResponse(
-			bucket_info_results(garage, bucket_id).await?,
-		))
-	}
-}
-
-#[async_trait]
-impl EndpointHandler for RemoveLocalBucketAliasRequest {
-	type Response = RemoveLocalBucketAliasResponse;
-
-	async fn handle(self, garage: &Arc<Garage>) -> Result<RemoveLocalBucketAliasResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.bucket_id)?;
-
-		let helper = garage.locked_helper().await;
-
-		helper
-			.unset_local_bucket_alias(bucket_id, &self.access_key_id, &self.alias)
-			.await?;
-
-		Ok(RemoveLocalBucketAliasResponse(
+		Ok(RemoveBucketAliasResponse(
 			bucket_info_results(garage, bucket_id).await?,
 		))
 	}

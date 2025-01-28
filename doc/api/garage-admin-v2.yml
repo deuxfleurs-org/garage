@@ -946,14 +946,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /AddGlobalBucketAlias:
+  /AddBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "AddGlobalBucketAlias"
-      summary: "Add a global alias"
+      operationId: "AddlBucketAlias"
+      summary: "Add an alias to a bucket"
       description: |
-        Add a global alias to the target bucket
+        Add an alias for the target bucket.
+        This can be a local alias if `accessKeyId` is specified,
+        or a global alias otherwise.
       requestBody:
         required: true
         content:
@@ -961,78 +963,6 @@ paths:
             schema:
               type: object
               required: [bucketId, alias]
-              properties:
-                bucketId:
-                  type: string
-                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-                alias:
-                  type: string
-                  example: my_documents
-      responses:
-        '500': 
-          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
-        '400':
-          description: "Bad request, check your request body"
-        '404':
-          description: "Bucket not found"
-        '200':
-          description: Returns exhaustive information about the bucket
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BucketInfo'
-
-  /RemoveGlobalBucketAlias:
-    post:
-      tags:
-        - Bucket aliases
-      operationId: "RemoveGlobalBucketAlias"
-      summary: "Delete a global alias"
-      description: |
-        Delete a global alias from the target bucket
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [bucketId, alias]
-              properties:
-                bucketId:
-                  type: string
-                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-                alias:
-                  type: string
-                  example: my_documents
-      responses:
-        '500': 
-          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
-        '400':
-          description: "Bad request, check your request body"
-        '404':
-          description: "Bucket not found"
-        '200':
-          description: Returns exhaustive information about the bucket
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BucketInfo'
-
-  /AddLocalBucketAlias:
-    post:
-      tags:
-        - Bucket aliases
-      operationId: "AddLocalBucketAlias"
-      summary: "Add a local alias"
-      description: |
-        Add a local alias, bound to specified account, to the target bucket
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [bucketId, accessKeyId, alias]
               properties:
                 bucketId:
                   type: string
@@ -1057,21 +987,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /RemoveGlobalBucketAlias:
+  /RemoveBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "RemoveGlobalBucketAlias"
-      summary: "Delete a local alias"
+      operationId: "RemoveBucketAlias"
+      summary: "Remove an alias from a bucket"
       description: |
-        Delete a local alias, bound to specified account, from the target bucket
+        Remove an alias for the target bucket.
+        This can be a local alias if `accessKeyId` is specified,
+        or a global alias otherwise.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [bucketId, accessKeyId, alias]
+              required: [bucketId, alias]
               properties:
                 bucketId:
                   type: string

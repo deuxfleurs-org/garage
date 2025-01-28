@@ -750,35 +750,11 @@ Other flags will remain unchanged.
 
 ### Operations on bucket aliases
 
-#### AddGlobalBucketAlias `POST /v2/AddGlobalBucketAlias`
+#### AddBucketAlias `POST /v2/AddBucketAlias`
 
-Creates a global alias for a bucket.
-
-Request body format:
-
-```json
-{
-    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
-    "alias": "the-bucket"
-}
-```
-
-#### RemoveGlobalBucketAlias `POST /v2/RemoveGlobalBucketAlias`
-
-Removes a global alias for a bucket.
-
-Request body format:
-
-```json
-{
-    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
-    "alias": "the-bucket"
-}
-```
-
-#### AddLocalBucketAlias `POST /v2/AddLocalBucketAlias`
-
-Creates a local alias for a bucket in the namespace of a specific access key.
+Creates an alias for a bucket in the namespace of a specific access key.
+If `accessKeyId` is specified, an alias is created in the local namespace
+of the key. Otherwise, a global alias is created.
 
 Request body format:
 
@@ -790,9 +766,11 @@ Request body format:
 }
 ```
 
-#### RemoveLocalBucketAlias `POST /v2/RemoveLocalBucketAlias`
+#### RemoveBucketAlias `POST /v2/RemoveBucketAlias`
 
-Removes a local alias for a bucket in the namespace of a specific access key.
+Removes an alias for a bucket in the namespace of a specific access key.
+If `accessKeyId` is specified, the alias is removed from the local namespace
+of the key. Otherwise, the alias is removed from the global namespace.
 
 Request body format:
 

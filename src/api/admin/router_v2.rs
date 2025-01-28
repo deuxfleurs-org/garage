@@ -55,10 +55,8 @@ impl AdminApiRequest {
 			POST AllowBucketKey (body),
 			POST DenyBucketKey (body),
 			// Bucket aliases
-			POST AddGlobalBucketAlias (body),
-			POST RemoveGlobalBucketAlias (body),
-			POST AddLocalBucketAlias (body),
-			POST RemoveLocalBucketAlias (body),
+			POST AddBucketAlias (body),
+			POST RemoveBucketAlias (body),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -174,24 +172,26 @@ impl AdminApiRequest {
 				Ok(AdminApiRequest::DenyBucketKey(DenyBucketKeyRequest(req)))
 			}
 			// Bucket aliasing
-			Endpoint::GlobalAliasBucket { id, alias } => Ok(AdminApiRequest::AddGlobalBucketAlias(
-				AddGlobalBucketAliasRequest {
+			Endpoint::GlobalAliasBucket { id, alias } => {
+				Ok(AdminApiRequest::AddBucketAlias(AddBucketAliasRequest {
+					access_key_id: None,
+					bucket_id: id,
+					alias,
+				}))
+			}
+			Endpoint::GlobalUnaliasBucket { id, alias } => Ok(AdminApiRequest::RemoveBucketAlias(
+				RemoveBucketAliasRequest {
+					access_key_id: None,
 					bucket_id: id,
 					alias,
 				},
 			)),
-			Endpoint::GlobalUnaliasBucket { id, alias } => Ok(
-				AdminApiRequest::RemoveGlobalBucketAlias(RemoveGlobalBucketAliasRequest {
-					bucket_id: id,
-					alias,
-				}),
-			),
 			Endpoint::LocalAliasBucket {
 				id,
 				access_key_id,
 				alias,
-			} => Ok(AdminApiRequest::AddLocalBucketAlias(AddLocalBucketAliasRequest {
-				access_key_id,
+			} => Ok(AdminApiRequest::AddBucketAlias(AddBucketAliasRequest {
+				access_key_id: Some(access_key_id),
 				bucket_id: id,
 				alias,
 			})),
@@ -199,9 +199,9 @@ impl AdminApiRequest {
 				id,
 				access_key_id,
 				alias,
-			} => Ok(AdminApiRequest::RemoveLocalBucketAlias(
-				RemoveLocalBucketAliasRequest {
-					access_key_id,
+			} => Ok(AdminApiRequest::RemoveBucketAlias(
+				RemoveBucketAliasRequest {
+					access_key_id: Some(access_key_id),
 					bucket_id: id,
 					alias,
 				},
