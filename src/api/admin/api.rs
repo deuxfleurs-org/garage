@@ -54,10 +54,10 @@ admin_endpoints![
 	BucketDenyKey,
 
 	// Operations on bucket aliases
-	GlobalAliasBucket,
-	GlobalUnaliasBucket,
-	LocalAliasBucket,
-	LocalUnaliasBucket,
+	AddGlobalBucketAlias,
+	RemoveGlobalBucketAlias,
+	AddLocalBucketAlias,
+	RemoveLocalBucketAlias,
 ];
 
 // **********************************************
@@ -514,48 +514,48 @@ pub struct BucketDenyKeyResponse(pub GetBucketInfoResponse);
 //      Operations on bucket aliases
 // **********************************************
 
-// ---- GlobalAliasBucket ----
+// ---- AddGlobalBucketAlias ----
 
 #[derive(Serialize, Deserialize)]
-pub struct GlobalAliasBucketRequest {
+pub struct AddGlobalBucketAliasRequest {
 	pub bucket_id: String,
 	pub alias: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GlobalAliasBucketResponse(pub GetBucketInfoResponse);
+pub struct AddGlobalBucketAliasResponse(pub GetBucketInfoResponse);
 
-// ---- GlobalUnaliasBucket ----
+// ---- RemoveGlobalBucketAlias ----
 
 #[derive(Serialize, Deserialize)]
-pub struct GlobalUnaliasBucketRequest {
+pub struct RemoveGlobalBucketAliasRequest {
 	pub bucket_id: String,
 	pub alias: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GlobalUnaliasBucketResponse(pub GetBucketInfoResponse);
+pub struct RemoveGlobalBucketAliasResponse(pub GetBucketInfoResponse);
 
-// ---- LocalAliasBucket ----
-
-#[derive(Serialize, Deserialize)]
-pub struct LocalAliasBucketRequest {
-	pub bucket_id: String,
-	pub access_key_id: String,
-	pub alias: String,
-}
+// ---- AddLocalBucketAlias ----
 
 #[derive(Serialize, Deserialize)]
-pub struct LocalAliasBucketResponse(pub GetBucketInfoResponse);
-
-// ---- LocalUnaliasBucket ----
-
-#[derive(Serialize, Deserialize)]
-pub struct LocalUnaliasBucketRequest {
+pub struct AddLocalBucketAliasRequest {
 	pub bucket_id: String,
 	pub access_key_id: String,
 	pub alias: String,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LocalUnaliasBucketResponse(pub GetBucketInfoResponse);
+pub struct AddLocalBucketAliasResponse(pub GetBucketInfoResponse);
+
+// ---- RemoveLocalBucketAlias ----
+
+#[derive(Serialize, Deserialize)]
+pub struct RemoveLocalBucketAliasRequest {
+	pub bucket_id: String,
+	pub access_key_id: String,
+	pub alias: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RemoveLocalBucketAliasResponse(pub GetBucketInfoResponse);

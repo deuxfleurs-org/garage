@@ -750,7 +750,7 @@ Other flags will remain unchanged.
 
 ### Operations on bucket aliases
 
-#### GlobalAliasBucket `POST /v2/GlobalAliasBucket`
+#### AddGlobalBucketAlias `POST /v2/AddGlobalBucketAlias`
 
 Creates a global alias for a bucket.
 
@@ -763,7 +763,7 @@ Request body format:
 }
 ```
 
-#### GlobalUnaliasBucket `POST /v2/GlobalUnaliasBucket`
+#### RemoveGlobalBucketAlias `POST /v2/RemoveGlobalBucketAlias`
 
 Removes a global alias for a bucket.
 
@@ -776,7 +776,7 @@ Request body format:
 }
 ```
 
-#### LocalAliasBucket `POST /v2/LocalAliasBucket`
+#### AddLocalBucketAlias `POST /v2/AddLocalBucketAlias`
 
 Creates a local alias for a bucket in the namespace of a specific access key.
 
@@ -790,7 +790,7 @@ Request body format:
 }
 ```
 
-#### LocalUnaliasBucket `POST /v2/LocalUnaliasBucket`
+#### RemoveLocalBucketAlias `POST /v2/RemoveLocalBucketAlias`
 
 Removes a local alias for a bucket in the namespace of a specific access key.
 

@@ -946,11 +946,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /GlobalAliasBucket:
+  /AddGlobalBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "GlobalAliasBucket"
+      operationId: "AddGlobalBucketAlias"
       summary: "Add a global alias"
       description: |
         Add a global alias to the target bucket
@@ -982,11 +982,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /GlobalUnaliasBucket:
+  /RemoveGlobalBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "GlobalUnaliasBucket"
+      operationId: "RemoveGlobalBucketAlias"
       summary: "Delete a global alias"
       description: |
         Delete a global alias from the target bucket
@@ -1018,11 +1018,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /LocalAliasBucket:
+  /AddLocalBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "LocalAliasBucket"
+      operationId: "AddLocalBucketAlias"
       summary: "Add a local alias"
       description: |
         Add a local alias, bound to specified account, to the target bucket
@@ -1057,11 +1057,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /LocalUnaliasBucket:
+  /RemoveGlobalBucketAlias:
     post:
       tags:
         - Bucket aliases
-      operationId: "LocalUnaliasBucket"
+      operationId: "RemoveGlobalBucketAlias"
       summary: "Delete a local alias"
       description: |
         Delete a local alias, bound to specified account, from the target bucket
