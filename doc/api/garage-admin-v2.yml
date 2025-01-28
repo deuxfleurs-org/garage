@@ -1,17 +1,17 @@
 openapi: 3.0.0
 info:
-  version: v0.9.0
-  title: Garage Administration API v0+garage-v0.9.0
+  version: v2.0.0
+  title: Garage Administration API v0+garage-v2.0.0
   description: |
     Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.
-    
-    *Disclaimer: The API is not stable yet, hence its v0 tag. The API can change at any time, and changes can include breaking backward compatibility. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*
+        
+    *Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*
 paths: 
-  /health:
+  /GetClusterHealth:
     get:
       tags:
         - Nodes               
-      operationId: "GetHealth"
+      operationId: "GetClusterHealth"
       summary: "Cluster health report"
       description: |
         Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).
@@ -59,11 +59,11 @@ paths:
                     type: integer
                     format: int64
                     example: 256
-  /status:
+  /GetClusterStatus:
     get:
       tags: 
         - Nodes
-      operationId: "GetNodes"
+      operationId: "GetClusterStatus"
       summary: "Describe cluster"
       description: |
         Returns the cluster's current status, including:
@@ -134,11 +134,11 @@ paths:
                   layout:
                     $ref: '#/components/schemas/ClusterLayout'
                           
-  /connect:
+  /ConnectClusterNodes:
     post:
       tags:
         - Nodes
-      operationId: "AddNode"
+      operationId: "ConnectClusterNodes"
       summary: "Connect a new node"
       description: |
         Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.
@@ -184,11 +184,11 @@ paths:
                       nullable: true
                       example: null
 
-  /layout:
+  /GetClusterLayout:
     get:
       tags:
         - Layout
-      operationId: "GetLayout"
+      operationId: "GetClusterLayout"
       summary: "Details on the current and staged layout"
       description: |
         Returns the cluster's current layout, including:
@@ -196,7 +196,7 @@ paths:
           - Staged changes to the cluster layout
           
         *Capacity is given in bytes*
-        *The info returned by this endpoint is a subset of the info returned by `GET /status`.*
+        *The info returned by this endpoint is a subset of the info returned by `GET /GetClusterStatus`.*
       responses:
         '500':
           description: |
@@ -211,13 +211,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClusterLayout'
                 
+  /UpdateClusterLayout:
     post:
       tags:
         - Layout
-      operationId: "AddLayout"
+      operationId: "UpdateClusterLayout"
       summary: "Send modifications to the cluster layout"
       description: |
-        Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /layout`. Once the set of staged changes is satisfactory, the user may call `POST /layout/apply` to apply the changed changes, or `POST /layout/revert` to clear all of the staged changes in the layout.
+        Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /GetClusterHealth`. Once the set of staged changes is satisfactory, the user may call `POST /ApplyClusterLayout` to apply the changed changes, or `POST /RevertClusterLayout` to clear all of the staged changes in the layout.
 
         Setting the capacity to `null` will configure the node as a gateway.
         Otherwise, capacity must be now set in bytes (before Garage 0.9 it was arbitrary weights).
@@ -258,11 +259,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClusterLayout'
           
-  /layout/apply:
+  /ApplyClusterLayout:
     post:
       tags:
         - Layout
-      operationId: "ApplyLayout"
+      operationId: "ApplyClusterLayout"
       summary: "Apply staged layout"
       description: |
         Applies to the cluster the layout changes currently registered as staged layout changes.
@@ -310,11 +311,11 @@ paths:
                     $ref: '#/components/schemas/ClusterLayout'
 
           
-  /layout/revert:
+  /RevertClusterLayout:
     post:
       tags:
         - Layout
-      operationId: "RevertLayout"
+      operationId: "RevertClusterLayout"
       summary: "Clear staged layout"
       description: |
         Clears all of the staged layout changes.
@@ -332,9 +333,9 @@ paths:
         '400':
           description: "Invalid syntax or requested change"
         '200':
-          description: "The staged layout has been cleared, you can start again sending modification from a fresh copy with `POST /layout`."
+          description: "The staged layout has been cleared, you can start again sending modification from a fresh copy with `POST /UpdateClusterLayout`."
           
-  "/key?list":
+  /ListKeys:
     get:
       tags:
         - Key
@@ -365,10 +366,12 @@ paths:
                       type: string
                     name:
                       type: string
+
+  /CreateKey:
     post:
       tags:
         - Key
-      operationId: "AddKey"
+      operationId: "CreateKey"
       summary: "Create a new API key"
       description: |
         Creates a new API access key.
@@ -400,11 +403,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/KeyInfo'
 
-  "/key":
+  /GetKeyInfo:
     get:
       tags:
         - Key
-      operationId: "GetKey"
+      operationId: "GetKeyInfo"
       summary: "Get key information"
       description: |
         Return information about a specific key like its identifiers, its permissions and buckets on which it has permissions. 
@@ -452,7 +455,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/KeyInfo'
               
-    delete:
+  /DeleteKey:
+    post:
       tags: 
         - Key
       operationId: "DeleteKey"
@@ -474,6 +478,7 @@ paths:
           description: "The key has been deleted"
 
         
+  /UpdateKey:
     post:
       tags:
         - Key
@@ -530,7 +535,7 @@ paths:
                 $ref: '#/components/schemas/KeyInfo'
 
         
-  /key/import:
+  /ImportKey:
     post:
       tags:
         - Key
@@ -572,7 +577,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/KeyInfo' 
 
-  "/bucket?list":
+  /ListBuckets:
     get:
       tags:
         - Bucket
@@ -629,7 +634,7 @@ paths:
                           accessKeyId:
                             type: string
 
-  /bucket:
+  /CreateBucket:
     post:
       tags:
         - Bucket
@@ -646,7 +651,6 @@ paths:
           application/json:
             schema:
               type: object
-              required: [ ]
               properties:
                 globalAlias:
                   type: string
@@ -681,6 +685,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
+
+  /GetBucketInfo:
     get:
       tags:
         - Bucket
@@ -723,7 +729,8 @@ paths:
                 $ref: '#/components/schemas/BucketInfo'
 
 
-    delete:
+  /DeleteBucket:
+    post:
       tags:
         - Bucket
       operationId: "DeleteBucket"
@@ -747,12 +754,13 @@ paths:
           description: "Bucket is not empty"
         '404':
           description: "Bucket not found"
-        '204':
+        '200':
           description: Bucket has been deleted
 
 
       
-    put:
+  /UpdateBucket:
+    post:
       tags:
         - Bucket
       operationId: "UpdateBucket"
@@ -785,7 +793,6 @@ paths:
           application/json:
             schema:
               type: object
-              required: [ ]
               properties:
                 websiteAccess:
                   type: object
@@ -827,11 +834,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /bucket/allow:
+  /BucketAllowKey:
     post:
       tags:
         - Bucket
-      operationId: "AllowBucketKey"
+      operationId: "BucketAllowKey"
       summary: "Allow key"
       description: |
         ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
@@ -887,11 +894,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /bucket/deny:
+  /BucketDenyKey:
     post:
       tags:
         - Bucket
-      operationId: "DenyBucketKey"
+      operationId: "BucketDenyKey"
       summary: "Deny key"
       description: |
         ⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.
@@ -947,27 +954,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /bucket/alias/global:
-    put:
+  /GlobalAliasBucket:
+    post:
       tags:
         - Bucket
-      operationId: "PutBucketGlobalAlias"
+      operationId: "GlobalAliasBucket"
       summary: "Add a global alias"
       description: |
         Add a global alias to the target bucket
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: string
-          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-        - name: alias
-          in: query
-          required: true
-          example: my_documents
-          schema:
-            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucketId, alias]
+              properties:
+                bucketId:
+                  type: string
+                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                alias:
+                  type: string
+                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -982,26 +990,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-    delete:
+  /GlobalUnaliasBucket:
+    post:
       tags:
         - Bucket
-      operationId: "DeleteBucketGlobalAlias"
+      operationId: "GlobalUnaliasBucket"
       summary: "Delete a global alias"
       description: |
         Delete a global alias from the target bucket
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: string
-          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-        - name: alias
-          in: query
-          required: true
-          schema:
-            type: string
-          example: my_documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucketId, alias]
+              properties:
+                bucketId:
+                  type: string
+                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                alias:
+                  type: string
+                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -1016,33 +1026,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-  /bucket/alias/local:
-    put:
+  /LocalAliasBucket:
+    post:
       tags:
         - Bucket
-      operationId: "PutBucketLocalAlias"
+      operationId: "LocalAliasBucket"
       summary: "Add a local alias"
       description: |
         Add a local alias, bound to specified account, to the target bucket
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: string
-          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-        - name: accessKeyId
-          in: query
-          required: true
-          schema:
-            type: string
-          example: GK31c2f218a2e44f485b94239e
-        - name: alias
-          in: query
-          required: true
-          schema:
-            type: string
-          example: my_documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucketId, accessKeyId, alias]
+              properties:
+                bucketId:
+                  type: string
+                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                accessKeyId:
+                  type: string
+                  example: GK31c2f218a2e44f485b94239e
+                alias:
+                  type: string
+                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -1057,32 +1065,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
-    delete:
+  /LocalUnaliasBucket:
+    post:
       tags:
         - Bucket
-      operationId: "DeleteBucketLocalAlias"
+      operationId: "LocalUnaliasBucket"
       summary: "Delete a local alias"
       description: |
         Delete a local alias, bound to specified account, from the target bucket
-      parameters:
-        - name: id
-          in: query
-          required: true
-          schema:
-            type: string
-          example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
-        - name: accessKeyId
-          in: query
-          schema:
-            type: string
-          required: true
-          example: GK31c2f218a2e44f485b94239e
-        - name: alias
-          in: query
-          schema:
-            type: string
-          required: true
-          example: my_documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucketId, accessKeyId, alias]
+              properties:
+                bucketId:
+                  type: string
+                  example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                accessKeyId:
+                  type: string
+                  example: GK31c2f218a2e44f485b94239e
+                alias:
+                  type: string
+                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -1359,4 +1366,4 @@ security:
 
 servers:
   - description: A local server
-    url: http://localhost:3903/v1/
+    url: http://localhost:3903/v2/
