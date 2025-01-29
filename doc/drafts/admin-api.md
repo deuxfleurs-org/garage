@@ -753,32 +753,32 @@ Other flags will remain unchanged.
 #### AddBucketAlias `POST /v2/AddBucketAlias`
 
 Creates an alias for a bucket in the namespace of a specific access key.
-If `accessKeyId` is specified, an alias is created in the local namespace
-of the key. Otherwise, a global alias is created.
+To create a global alias, specify the `globalAlias` field.
+To create a local alias, specify the `localAlias` and `accessKeyId` fields.
 
 Request body format:
 
 ```json
 {
     "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "globalAlias": "my-bucket"
+}
+```
+
+or:
+
+```json
+{
+    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
     "accessKeyId": "GK31c2f218a2e44f485b94239e",
-    "alias": "my-bucket"
+    "localAlias": "my-bucket"
 }
 ```
 
 #### RemoveBucketAlias `POST /v2/RemoveBucketAlias`
 
 Removes an alias for a bucket in the namespace of a specific access key.
-If `accessKeyId` is specified, the alias is removed from the local namespace
-of the key. Otherwise, the alias is removed from the global namespace.
+To remove a global alias, specify the `globalAlias` field.
+To remove a local alias, specify the `localAlias` and `accessKeyId` fields.
 
-Request body format:
-
-```json
-{
-    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
-    "accessKeyId": "GK31c2f218a2e44f485b94239e",
-    "alias": "my-bucket"
-}
-```
-
+Request body format: same as AddBucketAlias.

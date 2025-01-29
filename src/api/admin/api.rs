@@ -515,22 +515,36 @@ pub struct DenyBucketKeyResponse(pub GetBucketInfoResponse);
 // ---- AddBucketAlias ----
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AddBucketAliasRequest {
 	pub bucket_id: String,
-	pub access_key_id: Option<String>,
-	pub alias: String,
+	#[serde(flatten)]
+	pub alias: BucketAliasEnum,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct AddBucketAliasResponse(pub GetBucketInfoResponse);
 
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum BucketAliasEnum {
+	#[serde(rename_all = "camelCase")]
+	Global { global_alias: String },
+	#[serde(rename_all = "camelCase")]
+	Local {
+		local_alias: String,
+		access_key_id: String,
+	},
+}
+
 // ---- RemoveBucketAlias ----
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoveBucketAliasRequest {
 	pub bucket_id: String,
-	pub access_key_id: Option<String>,
-	pub alias: String,
+	#[serde(flatten)]
+	pub alias: BucketAliasEnum,
 }
 
 #[derive(Serialize, Deserialize)]

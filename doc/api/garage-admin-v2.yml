@@ -950,7 +950,7 @@ paths:
     post:
       tags:
         - Bucket aliases
-      operationId: "AddlBucketAlias"
+      operationId: "AddBucketAlias"
       summary: "Add an alias to a bucket"
       description: |
         Add an alias for the target bucket.
@@ -962,17 +962,19 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bucketId, alias]
+              required: [bucketId]
               properties:
                 bucketId:
                   type: string
                   example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                globalAlias:
+                  type: string
+                localAlias:
+                  type: string
+                  example: my_documents
                 accessKeyId:
                   type: string
                   example: GK31c2f218a2e44f485b94239e
-                alias:
-                  type: string
-                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
@@ -1003,17 +1005,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bucketId, alias]
+              required: [bucketId]
               properties:
                 bucketId:
                   type: string
                   example: e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b
+                globalAlias:
+                  type: string
+                  example: the_bucket
+                localAlias:
+                  type: string
                 accessKeyId:
                   type: string
-                  example: GK31c2f218a2e44f485b94239e
-                alias:
-                  type: string
-                  example: my_documents
       responses:
         '500': 
           description: "The server can not handle your request. Check your connectivity with the rest of the cluster."

@@ -10,14 +10,7 @@ use garage_rpc::layout;
 
 use garage_model::garage::Garage;
 
-use crate::admin::api::{
-	ApplyClusterLayoutRequest, ApplyClusterLayoutResponse, ConnectClusterNodeResponse,
-	ConnectClusterNodesRequest, ConnectClusterNodesResponse, FreeSpaceResp,
-	GetClusterHealthRequest, GetClusterHealthResponse, GetClusterLayoutRequest,
-	GetClusterLayoutResponse, GetClusterStatusRequest, GetClusterStatusResponse, NodeResp,
-	NodeRoleChange, NodeRoleChangeEnum, NodeRoleResp, RevertClusterLayoutRequest,
-	RevertClusterLayoutResponse, UpdateClusterLayoutRequest, UpdateClusterLayoutResponse,
-};
+use crate::admin::api::*;
 use crate::admin::error::*;
 use crate::admin::EndpointHandler;
 

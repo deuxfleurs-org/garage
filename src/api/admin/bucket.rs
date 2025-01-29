@@ -16,15 +16,7 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
-use crate::admin::api::ApiBucketKeyPerm;
-use crate::admin::api::{
-	AddBucketAliasRequest, AddBucketAliasResponse, AllowBucketKeyRequest, AllowBucketKeyResponse,
-	ApiBucketQuotas, BucketKeyPermChangeRequest, BucketLocalAlias, CreateBucketRequest,
-	CreateBucketResponse, DeleteBucketRequest, DeleteBucketResponse, DenyBucketKeyRequest,
-	DenyBucketKeyResponse, GetBucketInfoKey, GetBucketInfoRequest, GetBucketInfoResponse,
-	GetBucketInfoWebsiteResponse, ListBucketsRequest, ListBucketsResponse, ListBucketsResponseItem,
-	RemoveBucketAliasRequest, RemoveBucketAliasResponse, UpdateBucketRequest, UpdateBucketResponse,
-};
+use crate::admin::api::*;
 use crate::admin::error::*;
 use crate::admin::EndpointHandler;
 use crate::common_error::CommonError;
@@ -459,15 +451,18 @@ impl EndpointHandler for AddBucketAliasRequest {
 
 		let helper = garage.locked_helper().await;
 
-		match self.access_key_id {
-			None => {
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
 				helper
-					.set_global_bucket_alias(bucket_id, &self.alias)
+					.set_global_bucket_alias(bucket_id, &global_alias)
 					.await?;
 			}
-			Some(ak) => {
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
 				helper
-					.set_local_bucket_alias(bucket_id, &ak, &self.alias)
+					.set_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
 					.await?;
 			}
 		}
@@ -487,15 +482,18 @@ impl EndpointHandler for RemoveBucketAliasRequest {
 
 		let helper = garage.locked_helper().await;
 
-		match self.access_key_id {
-			None => {
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
 				helper
-					.unset_global_bucket_alias(bucket_id, &self.alias)
+					.unset_global_bucket_alias(bucket_id, &global_alias)
 					.await?;
 			}
-			Some(ak) => {
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
 				helper
-					.unset_local_bucket_alias(bucket_id, &ak, &self.alias)
+					.unset_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
 					.await?;
 			}
 		}

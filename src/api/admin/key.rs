@@ -8,12 +8,7 @@ use garage_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use crate::admin::api::{
-	ApiBucketKeyPerm, CreateKeyRequest, CreateKeyResponse, DeleteKeyRequest, DeleteKeyResponse,
-	GetKeyInfoRequest, GetKeyInfoResponse, ImportKeyRequest, ImportKeyResponse,
-	KeyInfoBucketResponse, KeyPerm, ListKeysRequest, ListKeysResponse, ListKeysResponseItem,
-	UpdateKeyRequest, UpdateKeyResponse,
-};
+use crate::admin::api::*;
 use crate::admin::error::*;
 use crate::admin::EndpointHandler;
 

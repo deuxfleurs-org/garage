@@ -174,16 +174,18 @@ impl AdminApiRequest {
 			// Bucket aliasing
 			Endpoint::GlobalAliasBucket { id, alias } => {
 				Ok(AdminApiRequest::AddBucketAlias(AddBucketAliasRequest {
-					access_key_id: None,
 					bucket_id: id,
-					alias,
+					alias: BucketAliasEnum::Global {
+						global_alias: alias,
+					},
 				}))
 			}
 			Endpoint::GlobalUnaliasBucket { id, alias } => Ok(AdminApiRequest::RemoveBucketAlias(
 				RemoveBucketAliasRequest {
-					access_key_id: None,
 					bucket_id: id,
-					alias,
+					alias: BucketAliasEnum::Global {
+						global_alias: alias,
+					},
 				},
 			)),
 			Endpoint::LocalAliasBucket {
@@ -191,9 +193,11 @@ impl AdminApiRequest {
 				access_key_id,
 				alias,
 			} => Ok(AdminApiRequest::AddBucketAlias(AddBucketAliasRequest {
-				access_key_id: Some(access_key_id),
 				bucket_id: id,
-				alias,
+				alias: BucketAliasEnum::Local {
+					local_alias: alias,
+					access_key_id,
+				},
 			})),
 			Endpoint::LocalUnaliasBucket {
 				id,
@@ -201,9 +205,11 @@ impl AdminApiRequest {
 				alias,
 			} => Ok(AdminApiRequest::RemoveBucketAlias(
 				RemoveBucketAliasRequest {
-					access_key_id: Some(access_key_id),
 					bucket_id: id,
-					alias,
+					alias: BucketAliasEnum::Local {
+						local_alias: alias,
+						access_key_id,
+					},
 				},
 			)),
 
