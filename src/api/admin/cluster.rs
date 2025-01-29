@@ -151,11 +151,11 @@ impl EndpointHandler for ConnectClusterNodesRequest {
 			.await
 			.into_iter()
 			.map(|r| match r {
-				Ok(()) => ConnectClusterNodeResponse {
+				Ok(()) => ConnectNodeResponse {
 					success: true,
 					error: None,
 				},
-				Err(e) => ConnectClusterNodeResponse {
+				Err(e) => ConnectNodeResponse {
 					success: false,
 					error: Some(format!("{}", e)),
 				},

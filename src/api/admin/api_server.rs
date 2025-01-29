@@ -176,7 +176,7 @@ impl ApiHandler for AdminApiServer {
 impl ApiEndpoint for Endpoint {
 	fn name(&self) -> Cow<'static, str> {
 		match self {
-			Self::Old(endpoint_v1) => Cow::Owned(format!("v1:{}", endpoint_v1.name())),
+			Self::Old(endpoint_v1) => Cow::Borrowed(endpoint_v1.name()),
 			Self::New(path) => Cow::Owned(path.clone()),
 		}
 	}

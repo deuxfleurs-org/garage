@@ -13,9 +13,21 @@ use crate::admin::EndpointHandler;
 use crate::helpers::is_default;
 
 // This generates the following:
+//
 // - An enum AdminApiRequest that contains a variant for all endpoints
-// - An enum AdminApiResponse that contains a variant for all non-special endpoints
+//
+// - An enum AdminApiResponse that contains a variant for all non-special endpoints.
+//   This enum is serialized in api_server.rs, without the enum tag,
+//   which gives directly the JSON response corresponding to the API call.
+//   This enum does not implement Deserialize as its meaning can be ambiguous.
+//
+// - An enum TaggedAdminApiResponse that contains the same variants, but
+//   serializes as a tagged enum. This allows it to be transmitted through
+//   Garage RPC and deserialized correctly upon receival.
+//   Conversion from untagged to tagged can be done using the `.tagged()` method.
+//
 // - AdminApiRequest::name() that returns the name of the endpoint
+//
 // - impl EndpointHandler for AdminApiHandler, that uses the impl EndpointHandler
 //   of each request type below for non-special endpoints
 admin_endpoints![
@@ -60,6 +72,9 @@ admin_endpoints![
 
 // **********************************************
 //      Special endpoints
+//
+// These endpoints don't have associated *Response structs
+// because they directly produce an http::Response
 // **********************************************
 
 #[derive(Serialize, Deserialize)]
@@ -153,11 +168,11 @@ pub struct GetClusterHealthResponse {
 pub struct ConnectClusterNodesRequest(pub Vec<String>);
 
 #[derive(Serialize, Deserialize)]
-pub struct ConnectClusterNodesResponse(pub Vec<ConnectClusterNodeResponse>);
+pub struct ConnectClusterNodesResponse(pub Vec<ConnectNodeResponse>);
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConnectClusterNodeResponse {
+pub struct ConnectNodeResponse {
 	pub success: bool,
 	pub error: Option<String>,
 }
@@ -331,7 +346,6 @@ pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateKeyRequestBody {
-	// TODO: id (get parameter) goes here
 	pub name: Option<String>,
 	pub allow: Option<KeyPerm>,
 	pub deny: Option<KeyPerm>,

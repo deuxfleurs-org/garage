@@ -53,7 +53,7 @@ Returns an HTTP status 200 if the node is ready to answer user's requests,
 and an HTTP status 503 (Service Unavailable) if there are some partitions
 for which a quorum of nodes is not available.
 A simple textual message is also returned in a body with content-type `text/plain`.
-See `/v2/health` for an API that also returns JSON output.
+See `/v2/GetClusterHealth` for an API that also returns JSON output.
 
 ### Other special endpoints
 

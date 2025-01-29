@@ -14,9 +14,16 @@ macro_rules! admin_endpoints {
                 )*
             }
 
-            #[derive(Serialize, Deserialize)]
+            #[derive(Serialize)]
             #[serde(untagged)]
             pub enum AdminApiResponse {
+                $(
+                    $endpoint( [<$endpoint Response>] ),
+                )*
+            }
+
+            #[derive(Serialize, Deserialize)]
+            pub enum TaggedAdminApiResponse {
                 $(
                     $endpoint( [<$endpoint Response>] ),
                 )*
@@ -30,6 +37,16 @@ macro_rules! admin_endpoints {
                         )*
                         $(
                             Self::$endpoint(_) => stringify!($endpoint),
+                        )*
+                    }
+                }
+            }
+
+            impl AdminApiResponse {
+                fn tagged(self) -> TaggedAdminApiResponse {
+                    match self {
+                        $(
+                            Self::$endpoint(res) => TaggedAdminApiResponse::$endpoint(res),
                         )*
                     }
                 }
