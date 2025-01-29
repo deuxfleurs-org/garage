@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -356,8 +357,8 @@ impl ApiHandler for S3ApiServer {
 }
 
 impl ApiEndpoint for S3ApiEndpoint {
-	fn name(&self) -> &'static str {
-		self.endpoint.name()
+	fn name(&self) -> Cow<'static, str> {
+		Cow::Borrowed(self.endpoint.name())
 	}
 
 	fn add_span_attributes(&self, span: SpanRef<'_>) {

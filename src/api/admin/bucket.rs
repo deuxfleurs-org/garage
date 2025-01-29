@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
-use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -17,102 +16,85 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
-use crate::admin::api_server::ResBody;
+use crate::admin::api::*;
 use crate::admin::error::*;
-use crate::admin::key::ApiBucketKeyPerm;
+use crate::admin::EndpointHandler;
 use crate::common_error::CommonError;
-use crate::helpers::*;
 
-pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
-	let buckets = garage
-		.bucket_table
-		.get_range(
-			&EmptyKey,
-			None,
-			Some(DeletedFilter::NotDeleted),
-			10000,
-			EnumerationOrder::Forward,
-		)
-		.await?;
+#[async_trait]
+impl EndpointHandler for ListBucketsRequest {
+	type Response = ListBucketsResponse;
 
-	let res = buckets
-		.into_iter()
-		.map(|b| {
-			let state = b.state.as_option().unwrap();
-			ListBucketResultItem {
-				id: hex::encode(b.id),
-				global_aliases: state
-					.aliases
-					.items()
-					.iter()
-					.filter(|(_, _, a)| *a)
-					.map(|(n, _, _)| n.to_string())
-					.collect::<Vec<_>>(),
-				local_aliases: state
-					.local_aliases
-					.items()
-					.iter()
-					.filter(|(_, _, a)| *a)
-					.map(|((k, n), _, _)| BucketLocalAlias {
-						access_key_id: k.to_string(),
-						alias: n.to_string(),
-					})
-					.collect::<Vec<_>>(),
+	async fn handle(self, garage: &Arc<Garage>) -> Result<ListBucketsResponse, Error> {
+		let buckets = garage
+			.bucket_table
+			.get_range(
+				&EmptyKey,
+				None,
+				Some(DeletedFilter::NotDeleted),
+				10000,
+				EnumerationOrder::Forward,
+			)
+			.await?;
+
+		let res = buckets
+			.into_iter()
+			.map(|b| {
+				let state = b.state.as_option().unwrap();
+				ListBucketsResponseItem {
+					id: hex::encode(b.id),
+					global_aliases: state
+						.aliases
+						.items()
+						.iter()
+						.filter(|(_, _, a)| *a)
+						.map(|(n, _, _)| n.to_string())
+						.collect::<Vec<_>>(),
+					local_aliases: state
+						.local_aliases
+						.items()
+						.iter()
+						.filter(|(_, _, a)| *a)
+						.map(|((k, n), _, _)| BucketLocalAlias {
+							access_key_id: k.to_string(),
+							alias: n.to_string(),
+						})
+						.collect::<Vec<_>>(),
+				}
+			})
+			.collect::<Vec<_>>();
+
+		Ok(ListBucketsResponse(res))
+	}
+}
+
+#[async_trait]
+impl EndpointHandler for GetBucketInfoRequest {
+	type Response = GetBucketInfoResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<GetBucketInfoResponse, Error> {
+		let bucket_id = match (self.id, self.global_alias) {
+			(Some(id), None) => parse_bucket_id(&id)?,
+			(None, Some(ga)) => garage
+				.bucket_helper()
+				.resolve_global_bucket_name(&ga)
+				.await?
+				.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
+			_ => {
+				return Err(Error::bad_request(
+					"Either id or globalAlias must be provided (but not both)",
+				));
 			}
-		})
-		.collect::<Vec<_>>();
+		};
 
-	Ok(json_ok_response(&res)?)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ListBucketResultItem {
-	id: String,
-	global_aliases: Vec<String>,
-	local_aliases: Vec<BucketLocalAlias>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BucketLocalAlias {
-	access_key_id: String,
-	alias: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApiBucketQuotas {
-	max_size: Option<u64>,
-	max_objects: Option<u64>,
-}
-
-pub async fn handle_get_bucket_info(
-	garage: &Arc<Garage>,
-	id: Option<String>,
-	global_alias: Option<String>,
-) -> Result<Response<ResBody>, Error> {
-	let bucket_id = match (id, global_alias) {
-		(Some(id), None) => parse_bucket_id(&id)?,
-		(None, Some(ga)) => garage
-			.bucket_helper()
-			.resolve_global_bucket_name(&ga)
-			.await?
-			.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
-		_ => {
-			return Err(Error::bad_request(
-				"Either id or globalAlias must be provided (but not both)",
-			));
-		}
-	};
-
-	bucket_info_results(garage, bucket_id).await
+		bucket_info_results(garage, bucket_id).await
+	}
 }
 
 async fn bucket_info_results(
 	garage: &Arc<Garage>,
 	bucket_id: Uuid,
-) -> Result<Response<ResBody>, Error> {
+) -> Result<GetBucketInfoResponse, Error> {
 	let bucket = garage
 		.bucket_helper()
 		.get_existing_bucket(bucket_id)
@@ -175,301 +157,257 @@ async fn bucket_info_results(
 	let state = bucket.state.as_option().unwrap();
 
 	let quotas = state.quotas.get();
-	let res =
-		GetBucketInfoResult {
-			id: hex::encode(bucket.id),
-			global_aliases: state
-				.aliases
-				.items()
-				.iter()
-				.filter(|(_, _, a)| *a)
-				.map(|(n, _, _)| n.to_string())
-				.collect::<Vec<_>>(),
-			website_access: state.website_config.get().is_some(),
-			website_config: state.website_config.get().clone().map(|wsc| {
-				GetBucketInfoWebsiteResult {
-					index_document: wsc.index_document,
-					error_document: wsc.error_document,
+	let res = GetBucketInfoResponse {
+		id: hex::encode(bucket.id),
+		global_aliases: state
+			.aliases
+			.items()
+			.iter()
+			.filter(|(_, _, a)| *a)
+			.map(|(n, _, _)| n.to_string())
+			.collect::<Vec<_>>(),
+		website_access: state.website_config.get().is_some(),
+		website_config: state.website_config.get().clone().map(|wsc| {
+			GetBucketInfoWebsiteResponse {
+				index_document: wsc.index_document,
+				error_document: wsc.error_document,
+			}
+		}),
+		keys: relevant_keys
+			.into_values()
+			.map(|key| {
+				let p = key.state.as_option().unwrap();
+				GetBucketInfoKey {
+					access_key_id: key.key_id,
+					name: p.name.get().to_string(),
+					permissions: p
+						.authorized_buckets
+						.get(&bucket.id)
+						.map(|p| ApiBucketKeyPerm {
+							read: p.allow_read,
+							write: p.allow_write,
+							owner: p.allow_owner,
+						})
+						.unwrap_or_default(),
+					bucket_local_aliases: p
+						.local_aliases
+						.items()
+						.iter()
+						.filter(|(_, _, b)| *b == Some(bucket.id))
+						.map(|(n, _, _)| n.to_string())
+						.collect::<Vec<_>>(),
 				}
-			}),
-			keys: relevant_keys
-				.into_values()
-				.map(|key| {
-					let p = key.state.as_option().unwrap();
-					GetBucketInfoKey {
-						access_key_id: key.key_id,
-						name: p.name.get().to_string(),
-						permissions: p
-							.authorized_buckets
-							.get(&bucket.id)
-							.map(|p| ApiBucketKeyPerm {
-								read: p.allow_read,
-								write: p.allow_write,
-								owner: p.allow_owner,
-							})
-							.unwrap_or_default(),
-						bucket_local_aliases: p
-							.local_aliases
-							.items()
-							.iter()
-							.filter(|(_, _, b)| *b == Some(bucket.id))
-							.map(|(n, _, _)| n.to_string())
-							.collect::<Vec<_>>(),
-					}
-				})
-				.collect::<Vec<_>>(),
-			objects: *counters.get(OBJECTS).unwrap_or(&0),
-			bytes: *counters.get(BYTES).unwrap_or(&0),
-			unfinished_uploads: *counters.get(UNFINISHED_UPLOADS).unwrap_or(&0),
-			unfinished_multipart_uploads: *mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0),
-			unfinished_multipart_upload_parts: *mpu_counters.get(mpu_table::PARTS).unwrap_or(&0),
-			unfinished_multipart_upload_bytes: *mpu_counters.get(mpu_table::BYTES).unwrap_or(&0),
-			quotas: ApiBucketQuotas {
-				max_size: quotas.max_size,
-				max_objects: quotas.max_objects,
-			},
-		};
+			})
+			.collect::<Vec<_>>(),
+		objects: *counters.get(OBJECTS).unwrap_or(&0),
+		bytes: *counters.get(BYTES).unwrap_or(&0),
+		unfinished_uploads: *counters.get(UNFINISHED_UPLOADS).unwrap_or(&0),
+		unfinished_multipart_uploads: *mpu_counters.get(mpu_table::UPLOADS).unwrap_or(&0),
+		unfinished_multipart_upload_parts: *mpu_counters.get(mpu_table::PARTS).unwrap_or(&0),
+		unfinished_multipart_upload_bytes: *mpu_counters.get(mpu_table::BYTES).unwrap_or(&0),
+		quotas: ApiBucketQuotas {
+			max_size: quotas.max_size,
+			max_objects: quotas.max_objects,
+		},
+	};
 
-	Ok(json_ok_response(&res)?)
+	Ok(res)
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoResult {
-	id: String,
-	global_aliases: Vec<String>,
-	website_access: bool,
-	#[serde(default)]
-	website_config: Option<GetBucketInfoWebsiteResult>,
-	keys: Vec<GetBucketInfoKey>,
-	objects: i64,
-	bytes: i64,
-	unfinished_uploads: i64,
-	unfinished_multipart_uploads: i64,
-	unfinished_multipart_upload_parts: i64,
-	unfinished_multipart_upload_bytes: i64,
-	quotas: ApiBucketQuotas,
-}
+#[async_trait]
+impl EndpointHandler for CreateBucketRequest {
+	type Response = CreateBucketResponse;
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoWebsiteResult {
-	index_document: String,
-	error_document: Option<String>,
-}
+	async fn handle(self, garage: &Arc<Garage>) -> Result<CreateBucketResponse, Error> {
+		let helper = garage.locked_helper().await;
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GetBucketInfoKey {
-	access_key_id: String,
-	name: String,
-	permissions: ApiBucketKeyPerm,
-	bucket_local_aliases: Vec<String>,
-}
+		if let Some(ga) = &self.global_alias {
+			if !is_valid_bucket_name(ga) {
+				return Err(Error::bad_request(format!(
+					"{}: {}",
+					ga, INVALID_BUCKET_NAME_MESSAGE
+				)));
+			}
 
-pub async fn handle_create_bucket(
-	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<CreateBucketRequest, _, Error>(req).await?;
-
-	let helper = garage.locked_helper().await;
-
-	if let Some(ga) = &req.global_alias {
-		if !is_valid_bucket_name(ga) {
-			return Err(Error::bad_request(format!(
-				"{}: {}",
-				ga, INVALID_BUCKET_NAME_MESSAGE
-			)));
-		}
-
-		if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
-			if alias.state.get().is_some() {
-				return Err(CommonError::BucketAlreadyExists.into());
+			if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
+				if alias.state.get().is_some() {
+					return Err(CommonError::BucketAlreadyExists.into());
+				}
 			}
 		}
-	}
 
-	if let Some(la) = &req.local_alias {
-		if !is_valid_bucket_name(&la.alias) {
-			return Err(Error::bad_request(format!(
-				"{}: {}",
-				la.alias, INVALID_BUCKET_NAME_MESSAGE
-			)));
+		if let Some(la) = &self.local_alias {
+			if !is_valid_bucket_name(&la.alias) {
+				return Err(Error::bad_request(format!(
+					"{}: {}",
+					la.alias, INVALID_BUCKET_NAME_MESSAGE
+				)));
+			}
+
+			let key = helper.key().get_existing_key(&la.access_key_id).await?;
+			let state = key.state.as_option().unwrap();
+			if matches!(state.local_aliases.get(&la.alias), Some(_)) {
+				return Err(Error::bad_request("Local alias already exists"));
+			}
 		}
 
-		let key = helper.key().get_existing_key(&la.access_key_id).await?;
-		let state = key.state.as_option().unwrap();
-		if matches!(state.local_aliases.get(&la.alias), Some(_)) {
-			return Err(Error::bad_request("Local alias already exists"));
+		let bucket = Bucket::new();
+		garage.bucket_table.insert(&bucket).await?;
+
+		if let Some(ga) = &self.global_alias {
+			helper.set_global_bucket_alias(bucket.id, ga).await?;
 		}
+
+		if let Some(la) = &self.local_alias {
+			helper
+				.set_local_bucket_alias(bucket.id, &la.access_key_id, &la.alias)
+				.await?;
+
+			if la.allow.read || la.allow.write || la.allow.owner {
+				helper
+					.set_bucket_key_permissions(
+						bucket.id,
+						&la.access_key_id,
+						BucketKeyPerm {
+							timestamp: now_msec(),
+							allow_read: la.allow.read,
+							allow_write: la.allow.write,
+							allow_owner: la.allow.owner,
+						},
+					)
+					.await?;
+			}
+		}
+
+		Ok(CreateBucketResponse(
+			bucket_info_results(garage, bucket.id).await?,
+		))
 	}
+}
 
-	let bucket = Bucket::new();
-	garage.bucket_table.insert(&bucket).await?;
+#[async_trait]
+impl EndpointHandler for DeleteBucketRequest {
+	type Response = DeleteBucketResponse;
 
-	if let Some(ga) = &req.global_alias {
-		helper.set_global_bucket_alias(bucket.id, ga).await?;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<DeleteBucketResponse, Error> {
+		let helper = garage.locked_helper().await;
+
+		let bucket_id = parse_bucket_id(&self.id)?;
+
+		let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
+		let state = bucket.state.as_option().unwrap();
+
+		// Check bucket is empty
+		if !helper.bucket().is_bucket_empty(bucket_id).await? {
+			return Err(CommonError::BucketNotEmpty.into());
+		}
+
+		// --- done checking, now commit ---
+		// 1. delete authorization from keys that had access
+		for (key_id, perm) in bucket.authorized_keys() {
+			if perm.is_any() {
+				helper
+					.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
+					.await?;
+			}
+		}
+		// 2. delete all local aliases
+		for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
+			if *active {
+				helper
+					.unset_local_bucket_alias(bucket.id, key_id, alias)
+					.await?;
+			}
+		}
+		// 3. delete all global aliases
+		for (alias, _, active) in state.aliases.items().iter() {
+			if *active {
+				helper.purge_global_bucket_alias(bucket.id, alias).await?;
+			}
+		}
+
+		// 4. delete bucket
+		bucket.state = Deletable::delete();
+		garage.bucket_table.insert(&bucket).await?;
+
+		Ok(DeleteBucketResponse)
 	}
+}
 
-	if let Some(la) = &req.local_alias {
-		helper
-			.set_local_bucket_alias(bucket.id, &la.access_key_id, &la.alias)
+#[async_trait]
+impl EndpointHandler for UpdateBucketRequest {
+	type Response = UpdateBucketResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateBucketResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.id)?;
+
+		let mut bucket = garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
 			.await?;
 
-		if la.allow.read || la.allow.write || la.allow.owner {
-			helper
-				.set_bucket_key_permissions(
-					bucket.id,
-					&la.access_key_id,
-					BucketKeyPerm {
-						timestamp: now_msec(),
-						allow_read: la.allow.read,
-						allow_write: la.allow.write,
-						allow_owner: la.allow.owner,
-					},
-				)
-				.await?;
-		}
-	}
+		let state = bucket.state.as_option_mut().unwrap();
 
-	bucket_info_results(garage, bucket.id).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateBucketRequest {
-	global_alias: Option<String>,
-	local_alias: Option<CreateBucketLocalAlias>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateBucketLocalAlias {
-	access_key_id: String,
-	alias: String,
-	#[serde(default)]
-	allow: ApiBucketKeyPerm,
-}
-
-pub async fn handle_delete_bucket(
-	garage: &Arc<Garage>,
-	id: String,
-) -> Result<Response<ResBody>, Error> {
-	let helper = garage.locked_helper().await;
-
-	let bucket_id = parse_bucket_id(&id)?;
-
-	let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
-	let state = bucket.state.as_option().unwrap();
-
-	// Check bucket is empty
-	if !helper.bucket().is_bucket_empty(bucket_id).await? {
-		return Err(CommonError::BucketNotEmpty.into());
-	}
-
-	// --- done checking, now commit ---
-	// 1. delete authorization from keys that had access
-	for (key_id, perm) in bucket.authorized_keys() {
-		if perm.is_any() {
-			helper
-				.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
-				.await?;
-		}
-	}
-	// 2. delete all local aliases
-	for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
-		if *active {
-			helper
-				.unset_local_bucket_alias(bucket.id, key_id, alias)
-				.await?;
-		}
-	}
-	// 3. delete all global aliases
-	for (alias, _, active) in state.aliases.items().iter() {
-		if *active {
-			helper.purge_global_bucket_alias(bucket.id, alias).await?;
-		}
-	}
-
-	// 4. delete bucket
-	bucket.state = Deletable::delete();
-	garage.bucket_table.insert(&bucket).await?;
-
-	Ok(Response::builder()
-		.status(StatusCode::NO_CONTENT)
-		.body(empty_body())?)
-}
-
-pub async fn handle_update_bucket(
-	garage: &Arc<Garage>,
-	id: String,
-	req: Request<IncomingBody>,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<UpdateBucketRequest, _, Error>(req).await?;
-	let bucket_id = parse_bucket_id(&id)?;
-
-	let mut bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
-
-	let state = bucket.state.as_option_mut().unwrap();
-
-	if let Some(wa) = req.website_access {
-		if wa.enabled {
-			state.website_config.update(Some(WebsiteConfig {
-				index_document: wa.index_document.ok_or_bad_request(
-					"Please specify indexDocument when enabling website access.",
-				)?,
-				error_document: wa.error_document,
-			}));
-		} else {
-			if wa.index_document.is_some() || wa.error_document.is_some() {
-				return Err(Error::bad_request(
-					"Cannot specify indexDocument or errorDocument when disabling website access.",
-				));
+		if let Some(wa) = self.body.website_access {
+			if wa.enabled {
+				state.website_config.update(Some(WebsiteConfig {
+					index_document: wa.index_document.ok_or_bad_request(
+						"Please specify indexDocument when enabling website access.",
+					)?,
+					error_document: wa.error_document,
+				}));
+			} else {
+				if wa.index_document.is_some() || wa.error_document.is_some() {
+					return Err(Error::bad_request(
+                        "Cannot specify indexDocument or errorDocument when disabling website access.",
+                    ));
+				}
+				state.website_config.update(None);
 			}
-			state.website_config.update(None);
 		}
+
+		if let Some(q) = self.body.quotas {
+			state.quotas.update(BucketQuotas {
+				max_size: q.max_size,
+				max_objects: q.max_objects,
+			});
+		}
+
+		garage.bucket_table.insert(&bucket).await?;
+
+		Ok(UpdateBucketResponse(
+			bucket_info_results(garage, bucket_id).await?,
+		))
 	}
-
-	if let Some(q) = req.quotas {
-		state.quotas.update(BucketQuotas {
-			max_size: q.max_size,
-			max_objects: q.max_objects,
-		});
-	}
-
-	garage.bucket_table.insert(&bucket).await?;
-
-	bucket_info_results(garage, bucket_id).await
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateBucketRequest {
-	website_access: Option<UpdateBucketWebsiteAccess>,
-	quotas: Option<ApiBucketQuotas>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UpdateBucketWebsiteAccess {
-	enabled: bool,
-	index_document: Option<String>,
-	error_document: Option<String>,
 }
 
 // ---- BUCKET/KEY PERMISSIONS ----
 
+#[async_trait]
+impl EndpointHandler for AllowBucketKeyRequest {
+	type Response = AllowBucketKeyResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<AllowBucketKeyResponse, Error> {
+		let res = handle_bucket_change_key_perm(garage, self.0, true).await?;
+		Ok(AllowBucketKeyResponse(res))
+	}
+}
+
+#[async_trait]
+impl EndpointHandler for DenyBucketKeyRequest {
+	type Response = DenyBucketKeyResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<DenyBucketKeyResponse, Error> {
+		let res = handle_bucket_change_key_perm(garage, self.0, false).await?;
+		Ok(DenyBucketKeyResponse(res))
+	}
+}
+
 pub async fn handle_bucket_change_key_perm(
 	garage: &Arc<Garage>,
-	req: Request<IncomingBody>,
+	req: BucketKeyPermChangeRequest,
 	new_perm_flag: bool,
-) -> Result<Response<ResBody>, Error> {
-	let req = parse_json_body::<BucketKeyPermChangeRequest, _, Error>(req).await?;
-
+) -> Result<GetBucketInfoResponse, Error> {
 	let helper = garage.locked_helper().await;
 
 	let bucket_id = parse_bucket_id(&req.bucket_id)?;
@@ -502,76 +440,68 @@ pub async fn handle_bucket_change_key_perm(
 	bucket_info_results(garage, bucket.id).await
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BucketKeyPermChangeRequest {
-	bucket_id: String,
-	access_key_id: String,
-	permissions: ApiBucketKeyPerm,
-}
-
 // ---- BUCKET ALIASES ----
 
-pub async fn handle_global_alias_bucket(
-	garage: &Arc<Garage>,
-	bucket_id: String,
-	alias: String,
-) -> Result<Response<ResBody>, Error> {
-	let bucket_id = parse_bucket_id(&bucket_id)?;
+#[async_trait]
+impl EndpointHandler for AddBucketAliasRequest {
+	type Response = AddBucketAliasResponse;
 
-	let helper = garage.locked_helper().await;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<AddBucketAliasResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
-	helper.set_global_bucket_alias(bucket_id, &alias).await?;
+		let helper = garage.locked_helper().await;
 
-	bucket_info_results(garage, bucket_id).await
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
+				helper
+					.set_global_bucket_alias(bucket_id, &global_alias)
+					.await?;
+			}
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
+				helper
+					.set_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
+					.await?;
+			}
+		}
+
+		Ok(AddBucketAliasResponse(
+			bucket_info_results(garage, bucket_id).await?,
+		))
+	}
 }
 
-pub async fn handle_global_unalias_bucket(
-	garage: &Arc<Garage>,
-	bucket_id: String,
-	alias: String,
-) -> Result<Response<ResBody>, Error> {
-	let bucket_id = parse_bucket_id(&bucket_id)?;
+#[async_trait]
+impl EndpointHandler for RemoveBucketAliasRequest {
+	type Response = RemoveBucketAliasResponse;
 
-	let helper = garage.locked_helper().await;
+	async fn handle(self, garage: &Arc<Garage>) -> Result<RemoveBucketAliasResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
-	helper.unset_global_bucket_alias(bucket_id, &alias).await?;
+		let helper = garage.locked_helper().await;
 
-	bucket_info_results(garage, bucket_id).await
-}
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
+				helper
+					.unset_global_bucket_alias(bucket_id, &global_alias)
+					.await?;
+			}
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
+				helper
+					.unset_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
+					.await?;
+			}
+		}
 
-pub async fn handle_local_alias_bucket(
-	garage: &Arc<Garage>,
-	bucket_id: String,
-	access_key_id: String,
-	alias: String,
-) -> Result<Response<ResBody>, Error> {
-	let bucket_id = parse_bucket_id(&bucket_id)?;
-
-	let helper = garage.locked_helper().await;
-
-	helper
-		.set_local_bucket_alias(bucket_id, &access_key_id, &alias)
-		.await?;
-
-	bucket_info_results(garage, bucket_id).await
-}
-
-pub async fn handle_local_unalias_bucket(
-	garage: &Arc<Garage>,
-	bucket_id: String,
-	access_key_id: String,
-	alias: String,
-) -> Result<Response<ResBody>, Error> {
-	let bucket_id = parse_bucket_id(&bucket_id)?;
-
-	let helper = garage.locked_helper().await;
-
-	helper
-		.unset_local_bucket_alias(bucket_id, &access_key_id, &alias)
-		.await?;
-
-	bucket_info_results(garage, bucket_id).await
+		Ok(RemoveBucketAliasResponse(
+			bucket_info_results(garage, bucket_id).await?,
+		))
+	}
 }
 
 // ---- HELPER ----

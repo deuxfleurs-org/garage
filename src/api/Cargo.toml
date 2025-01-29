@@ -38,6 +38,7 @@ idna.workspace = true
 tracing.workspace = true
 md-5.workspace = true
 nom.workspace = true
+paste.workspace = true
 pin-project.workspace = true
 sha1.workspace = true
 sha2.workspace = true
