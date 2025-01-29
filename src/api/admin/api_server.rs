@@ -134,8 +134,6 @@ impl ApiHandler for AdminApiServer {
 			Endpoint::New(_) => AdminApiRequest::from_request(req).await?,
 		};
 
-		info!("Admin request: {}", request.name());
-
 		let required_auth_hash =
 			match request.authorization_type() {
 				Authorization::None => None,
