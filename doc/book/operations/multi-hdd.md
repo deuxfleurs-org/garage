@@ -21,14 +21,14 @@ data_dir = [
 ```
 
 Garage will automatically balance all blocks stored by the node
-among the different specified directories, proportionnally to the
+among the different specified directories, proportionally to the
 specified capacities.
 
 ## Updating the list of storage locations
 
 If you add new storage locations to your `data_dir`,
 Garage will not rebalance existing data between storage locations.
-Newly written blocks will be balanced proportionnally to the specified capacities,
+Newly written blocks will be balanced proportionally to the specified capacities,
 and existing data may be moved between drives to improve balancing,
 but only opportunistically when a data block is re-written (e.g. an object
 is re-uploaded, or an object with a duplicate block is uploaded).
