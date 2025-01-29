@@ -43,15 +43,19 @@ impl EndpointHandler for GetKeyInfoRequest {
 	type Response = GetKeyInfoResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<GetKeyInfoResponse, Error> {
-		let key = if let Some(id) = self.id {
-			garage.key_helper().get_existing_key(&id).await?
-		} else if let Some(search) = self.search {
-			garage
-				.key_helper()
-				.get_existing_matching_key(&search)
-				.await?
-		} else {
-			unreachable!();
+		let key = match (self.id, self.search) {
+			(Some(id), None) => garage.key_helper().get_existing_key(&id).await?,
+			(None, Some(search)) => {
+				garage
+					.key_helper()
+					.get_existing_matching_key(&search)
+					.await?
+			}
+			_ => {
+				return Err(Error::bad_request(
+					"Either id or search must be provided (but not both)",
+				));
+			}
 		};
 
 		Ok(key_info_results(garage, key, self.show_secret_key).await?)
