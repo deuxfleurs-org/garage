@@ -90,11 +90,13 @@ impl ApiHandler for K2VApiServer {
 		let bucket_id = garage
 			.bucket_helper()
 			.resolve_bucket(&bucket_name, &api_key)
-			.await?;
+			.await
+			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)
-			.await?;
+			.await
+			.map_err(helper_error_as_internal)?;
 		let bucket_params = bucket.state.into_option().unwrap();
 
 		let allowed = match endpoint.authorization_type() {

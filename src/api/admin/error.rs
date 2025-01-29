@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
@@ -35,6 +37,19 @@ where
 {
 	fn from(err: T) -> Self {
 		Error::Common(CommonError::from(err))
+	}
+}
+
+/// FIXME: helper errors are transformed into their corresponding variants
+/// in the Error struct, but in many case a helper error should be considered
+/// an internal error.
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Error {
+		match CommonError::try_from(err) {
+			Ok(ce) => Self::Common(ce),
+			Err(HelperError::NoSuchAccessKey(k)) => Self::NoSuchAccessKey(k),
+			Err(_) => unreachable!(),
+		}
 	}
 }
 

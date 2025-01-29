@@ -4,7 +4,10 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use crate::common_error::CommonError;
+use garage_model::helper::error::Error as HelperError;
+
+pub(crate) use crate::common_error::pass_helper_error;
+use crate::common_error::{helper_error_as_internal, CommonError};
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::helpers::*;
@@ -84,6 +87,14 @@ where
 {
 	fn from(err: T) -> Self {
 		Error::Common(CommonError::from(err))
+	}
+}
+
+// Helper errors are always passed as internal errors by default.
+// To pass the specific error code back to the client, use `pass_helper_error`.
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Error {
+		Error::Common(helper_error_as_internal(err))
 	}
 }
 

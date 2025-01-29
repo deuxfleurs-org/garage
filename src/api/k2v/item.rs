@@ -18,6 +18,10 @@ pub enum ReturnFormat {
 	Either,
 }
 
+pub(crate) fn parse_causality_token(s: &str) -> Result<CausalContext, Error> {
+	CausalContext::parse(s).ok_or(Error::InvalidCausalityToken)
+}
+
 impl ReturnFormat {
 	pub fn from(req: &Request<ReqBody>) -> Result<Self, Error> {
 		let accept = match req.headers().get(header::ACCEPT) {
@@ -136,7 +140,7 @@ pub async fn handle_insert_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse_helper)
+		.map(parse_causality_token)
 		.transpose()?;
 
 	let body = http_body_util::BodyExt::collect(req.into_body())
@@ -176,7 +180,7 @@ pub async fn handle_delete_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse_helper)
+		.map(parse_causality_token)
 		.transpose()?;
 
 	let value = DvvsValue::Deleted;

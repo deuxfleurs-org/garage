@@ -3,6 +3,7 @@ use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
 use crate::common_error::CommonError;
+pub(crate) use crate::common_error::{helper_error_as_internal, pass_helper_error};
 pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
 use crate::generic_server::ApiError;
 use crate::helpers::*;
@@ -27,6 +28,10 @@ pub enum Error {
 	/// Some base64 encoded data was badly encoded
 	#[error(display = "Invalid base64: {}", _0)]
 	InvalidBase64(#[error(source)] base64::DecodeError),
+
+	/// Invalid causality token
+	#[error(display = "Invalid causality token")]
+	InvalidCausalityToken,
 
 	/// The client asked for an invalid return format (invalid Accept header)
 	#[error(display = "Not acceptable: {}", _0)]
@@ -72,6 +77,7 @@ impl Error {
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::InvalidBase64(_) => "InvalidBase64",
 			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
+			Error::InvalidCausalityToken => "CausalityToken",
 		}
 	}
 }
@@ -85,7 +91,8 @@ impl ApiError for Error {
 			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
 			Error::AuthorizationHeaderMalformed(_)
 			| Error::InvalidBase64(_)
-			| Error::InvalidUtf8Str(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidUtf8Str(_)
+			| Error::InvalidCausalityToken => StatusCode::BAD_REQUEST,
 		}
 	}
 
