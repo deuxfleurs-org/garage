@@ -16,8 +16,6 @@ use serde::{Deserialize, Serialize};
 
 use garage_util::data::*;
 
-use crate::helper::error::{Error as HelperError, OkOrBadRequest};
-
 /// Node IDs used in K2V are u64 integers that are the abbreviation
 /// of full Garage node IDs which are 256-bit UUIDs.
 pub type K2VNodeId = u64;
@@ -97,10 +95,6 @@ impl CausalContext {
 		}
 
 		Some(ret)
-	}
-
-	pub fn parse_helper(s: &str) -> Result<Self, HelperError> {
-		Self::parse(s).ok_or_bad_request("Invalid causality token")
 	}
 
 	/// Check if this causal context contains newer items than another one

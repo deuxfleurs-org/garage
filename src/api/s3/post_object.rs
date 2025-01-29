@@ -107,7 +107,8 @@ pub async fn handle_post_object(
 	let bucket_id = garage
 		.bucket_helper()
 		.resolve_bucket(&bucket_name, &api_key)
-		.await?;
+		.await
+		.map_err(pass_helper_error)?;
 
 	if !api_key.allow_write(&bucket_id) {
 		return Err(Error::forbidden("Operation is not allowed for this key."));

@@ -1,5 +1,6 @@
-use quick_xml::de::from_reader;
 use std::sync::Arc;
+
+use quick_xml::de::from_reader;
 
 use http::header::{
 	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
@@ -14,7 +15,7 @@ use http_body_util::BodyExt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::common_error::CommonError;
+use crate::common_error::{helper_error_as_internal, CommonError};
 use crate::helpers::*;
 use crate::s3::api_server::{ReqBody, ResBody};
 use crate::s3::error::*;
@@ -116,9 +117,16 @@ pub async fn handle_options_api(
 	// OPTIONS calls are not auhtenticated).
 	if let Some(bn) = bucket_name {
 		let helper = garage.bucket_helper();
-		let bucket_id = helper.resolve_global_bucket_name(&bn).await?;
+		let bucket_id = helper
+			.resolve_global_bucket_name(&bn)
+			.await
+			.map_err(helper_error_as_internal)?;
 		if let Some(id) = bucket_id {
-			let bucket = garage.bucket_helper().get_existing_bucket(id).await?;
+			let bucket = garage
+				.bucket_helper()
+				.get_existing_bucket(id)
+				.await
+				.map_err(helper_error_as_internal)?;
 			let bucket_params = bucket.state.into_option().unwrap();
 			handle_options_for_bucket(req, &bucket_params)
 		} else {

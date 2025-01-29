@@ -150,7 +150,8 @@ impl ApiHandler for S3ApiServer {
 		let bucket_id = garage
 			.bucket_helper()
 			.resolve_bucket(&bucket_name, &api_key)
-			.await?;
+			.await
+			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)

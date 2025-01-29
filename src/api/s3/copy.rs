@@ -655,7 +655,8 @@ async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object,
 	let source_bucket_id = garage
 		.bucket_helper()
 		.resolve_bucket(&source_bucket.to_string(), api_key)
-		.await?;
+		.await
+		.map_err(pass_helper_error)?;
 
 	if !api_key.allow_read(&source_bucket_id) {
 		return Err(Error::forbidden(format!(
