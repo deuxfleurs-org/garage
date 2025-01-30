@@ -3,7 +3,6 @@ pub mod cluster;
 pub mod key;
 pub mod layout;
 
-use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;

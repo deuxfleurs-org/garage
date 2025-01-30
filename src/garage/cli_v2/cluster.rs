@@ -12,11 +12,12 @@ impl Cli {
 	pub async fn cmd_status(&self) -> Result<(), Error> {
 		let status = self.api_request(GetClusterStatusRequest).await?;
 		let layout = self.api_request(GetClusterLayoutRequest).await?;
-		// TODO: layout history
 
 		println!("==== HEALTHY NODES ====");
+
 		let mut healthy_nodes =
 			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
+
 		for adv in status.nodes.iter().filter(|adv| adv.is_up) {
 			let host = adv.hostname.as_deref().unwrap_or("?");
 			let addr = match adv.addr {
@@ -43,83 +44,68 @@ impl Cli {
 					capacity = capacity_string(cfg.capacity),
 					data_avail = data_avail,
 				));
-			} else if adv.draining {
-				healthy_nodes.push(format!(
-					"{id:.16}\t{host}\t{addr}\t\t\tdraining metadata...",
-					id = adv.id,
-					host = host,
-					addr = addr,
-				));
 			} else {
-				let new_role = match layout.staged_role_changes.iter().find(|x| x.id == adv.id) {
-					Some(_) => "pending...",
+				let status = match layout.staged_role_changes.iter().find(|x| x.id == adv.id) {
+					Some(NodeRoleChange {
+						action: NodeRoleChangeEnum::Update { .. },
+						..
+					}) => "pending...",
+					_ if adv.draining => "draining metadata..",
 					_ => "NO ROLE ASSIGNED",
 				};
 				healthy_nodes.push(format!(
-					"{id:.16}\t{h}\t{addr}\t\t\t{new_role}",
+					"{id:.16}\t{h}\t{addr}\t\t\t{status}",
 					id = adv.id,
 					h = host,
 					addr = addr,
-					new_role = new_role,
+					status = status,
 				));
 			}
 		}
 		format_table(healthy_nodes);
 
-		// Determine which nodes are unhealthy and print that to stdout
-		// TODO: do we need this, or can it be done in the GetClusterStatus handler?
-		let status_map = status
-			.nodes
-			.iter()
-			.map(|adv| (&adv.id, adv))
-			.collect::<HashMap<_, _>>();
-
 		let tf = timeago::Formatter::new();
 		let mut drain_msg = false;
 		let mut failed_nodes = vec!["ID\tHostname\tTags\tZone\tCapacity\tLast seen".to_string()];
-		let mut listed = HashSet::new();
-		//for ver in layout.versions.iter().rev() {
-		for ver in [&layout].iter() {
-			for cfg in ver.roles.iter() {
-				let node = &cfg.id;
-				if listed.contains(node.as_str()) {
-					continue;
-				}
-				listed.insert(node.as_str());
+		for adv in status.nodes.iter().filter(|x| !x.is_up) {
+			let node = &adv.id;
 
-				let adv = status_map.get(node);
-				if adv.map(|x| x.is_up).unwrap_or(false) {
-					continue;
-				}
+			let host = adv.hostname.as_deref().unwrap_or("?");
+			let last_seen = adv
+				.last_seen_secs_ago
+				.map(|s| tf.convert(Duration::from_secs(s)))
+				.unwrap_or_else(|| "never seen".into());
 
-				// Node is in a layout version, is not a gateway node, and is not up:
-				// it is in a failed state, add proper line to the output
-				let (host, last_seen) = match adv {
-					Some(adv) => (
-						adv.hostname.as_deref().unwrap_or("?"),
-						adv.last_seen_secs_ago
-							.map(|s| tf.convert(Duration::from_secs(s)))
-							.unwrap_or_else(|| "never seen".into()),
-					),
-					None => ("??", "never seen".into()),
-				};
-				/*
-				let capacity = if ver.version == layout.current().version {
-					cfg.capacity_string()
-				} else {
-					drain_msg = true;
-					"draining metadata...".to_string()
-				};
-				*/
+			if let Some(cfg) = &adv.role {
 				let capacity = capacity_string(cfg.capacity);
 
 				failed_nodes.push(format!(
-					"{id:?}\t{host}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
+					"{id:.16}\t{host}\t[{tags}]\t{zone}\t{capacity}\t{last_seen}",
 					id = node,
 					host = host,
 					tags = cfg.tags.join(","),
 					zone = cfg.zone,
 					capacity = capacity,
+					last_seen = last_seen,
+				));
+			} else {
+				let status = match layout.staged_role_changes.iter().find(|x| x.id == adv.id) {
+					Some(NodeRoleChange {
+						action: NodeRoleChangeEnum::Update { .. },
+						..
+					}) => "pending...",
+					_ if adv.draining => {
+						drain_msg = true;
+						"draining metadata.."
+					}
+					_ => unreachable!(),
+				};
+
+				failed_nodes.push(format!(
+					"{id:.16}\t{host}\t\t\t{status}\t{last_seen}",
+					id = node,
+					host = host,
+					status = status,
 					last_seen = last_seen,
 				));
 			}
