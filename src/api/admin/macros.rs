@@ -4,7 +4,7 @@ macro_rules! admin_endpoints {
         $($endpoint:ident,)*
     ] => {
         paste! {
-            #[derive(Serialize, Deserialize)]
+            #[derive(Debug, Clone, Serialize, Deserialize)]
             pub enum AdminApiRequest {
                 $(
                     $special_endpoint( [<$special_endpoint Request>] ),
@@ -14,7 +14,7 @@ macro_rules! admin_endpoints {
                 )*
             }
 
-            #[derive(Serialize)]
+            #[derive(Debug, Clone, Serialize)]
             #[serde(untagged)]
             pub enum AdminApiResponse {
                 $(
@@ -22,7 +22,7 @@ macro_rules! admin_endpoints {
                 )*
             }
 
-            #[derive(Serialize, Deserialize)]
+            #[derive(Debug, Clone, Serialize, Deserialize)]
             pub enum TaggedAdminApiResponse {
                 $(
                     $endpoint( [<$endpoint Response>] ),
@@ -43,7 +43,7 @@ macro_rules! admin_endpoints {
             }
 
             impl AdminApiResponse {
-                fn tagged(self) -> TaggedAdminApiResponse {
+                pub fn tagged(self) -> TaggedAdminApiResponse {
                     match self {
                         $(
                             Self::$endpoint(res) => TaggedAdminApiResponse::$endpoint(res),
@@ -51,6 +51,24 @@ macro_rules! admin_endpoints {
                     }
                 }
             }
+
+            $(
+                impl From< [< $endpoint Request >] > for AdminApiRequest {
+                    fn from(req: [< $endpoint Request >]) -> AdminApiRequest {
+                        AdminApiRequest::$endpoint(req)
+                    }
+                }
+
+                impl TryFrom<TaggedAdminApiResponse> for [< $endpoint Response >] {
+                    type Error = TaggedAdminApiResponse;
+                    fn try_from(resp: TaggedAdminApiResponse) -> Result< [< $endpoint Response >], TaggedAdminApiResponse> {
+                        match resp {
+                            TaggedAdminApiResponse::$endpoint(v) => Ok(v),
+                            x => Err(x),
+                        }
+                    }
+                }
+            )*
 
             #[async_trait]
             impl EndpointHandler for AdminApiRequest {

@@ -30,6 +30,10 @@ use garage_model::key_table::*;
 use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
+use garage_api::admin::api::{AdminApiRequest, TaggedAdminApiResponse};
+use garage_api::admin::EndpointHandler as AdminApiEndpoint;
+use garage_api::generic_server::ApiError;
+
 use crate::cli::*;
 use crate::repair::online::launch_online_repair;
 
@@ -69,6 +73,15 @@ pub enum AdminRpc {
 		refcount: u64,
 		versions: Vec<Result<Version, Uuid>>,
 		uploads: Vec<MultipartUpload>,
+	},
+
+	// Proxying HTTP Admin API endpoints
+	ApiRequest(AdminApiRequest),
+	ApiOkResponse(TaggedAdminApiResponse),
+	ApiErrorResponse {
+		http_code: u16,
+		error_code: String,
+		message: String,
 	},
 }
 
@@ -503,6 +516,24 @@ impl AdminRpcHandler {
 			}
 		}
 	}
+
+	// ================== PROXYING ADMIN API REQUESTS ===================
+
+	async fn handle_api_request(
+		self: &Arc<Self>,
+		req: &AdminApiRequest,
+	) -> Result<AdminRpc, Error> {
+		let req = req.clone();
+		let res = req.handle(&self.garage).await;
+		match res {
+			Ok(res) => Ok(AdminRpc::ApiOkResponse(res.tagged())),
+			Err(e) => Ok(AdminRpc::ApiErrorResponse {
+				http_code: e.http_status_code().as_u16(),
+				error_code: e.code().to_string(),
+				message: e.to_string(),
+			}),
+		}
+	}
 }
 
 #[async_trait]
@@ -520,6 +551,7 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
 			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
 			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
+			AdminRpc::ApiRequest(r) => self.handle_api_request(r).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

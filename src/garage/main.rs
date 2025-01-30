@@ -6,6 +6,7 @@ extern crate tracing;
 
 mod admin;
 mod cli;
+mod cli_v2;
 mod repair;
 mod secrets;
 mod server;
@@ -284,10 +285,11 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
 	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
 
-	match cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await {
-		Err(HelperError::Internal(i)) => Err(Error::Message(format!("Internal error: {}", i))),
-		Err(HelperError::BadRequest(b)) => Err(Error::Message(b)),
-		Err(e) => Err(Error::Message(format!("{}", e))),
-		Ok(x) => Ok(x),
-	}
+	let cli = cli_v2::Cli {
+		system_rpc_endpoint,
+		admin_rpc_endpoint,
+		rpc_host: id,
+	};
+
+	cli.handle(opt.cmd).await
 }
