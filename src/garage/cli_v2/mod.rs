@@ -3,6 +3,8 @@ pub mod cluster;
 pub mod key;
 pub mod layout;
 
+pub mod worker;
+
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,7 +15,8 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use garage_api_admin::api::*;
-use garage_api_admin::EndpointHandler as AdminApiEndpoint;
+use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
+use garage_api_admin::RequestHandler as AdminApiEndpoint;
 
 use crate::admin::*;
 use crate::cli as cli_v1;
@@ -23,6 +26,7 @@ use crate::cli::Command;
 pub struct Cli {
 	pub system_rpc_endpoint: Arc<Endpoint<SystemRpc, ()>>,
 	pub admin_rpc_endpoint: Arc<Endpoint<AdminRpc, ()>>,
+	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
 	pub rpc_host: NodeID,
 }
 
@@ -36,6 +40,7 @@ impl Cli {
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
 			Command::Bucket(bo) => self.cmd_bucket(bo).await,
 			Command::Key(ko) => self.cmd_key(ko).await,
+			Command::Worker(wo) => self.cmd_worker(wo).await,
 
 			// TODO
 			Command::Repair(ro) => cli_v1::cmd_admin(
@@ -50,13 +55,6 @@ impl Cli {
 					.await
 					.ok_or_message("cli_v1")
 			}
-			Command::Worker(wo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::Worker(wo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
 			Command::Block(bo) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
 				self.rpc_host,
@@ -85,14 +83,16 @@ impl Cli {
 		let req = AdminApiRequest::from(req);
 		let req_name = req.name();
 		match self
-			.admin_rpc_endpoint
-			.call(&self.rpc_host, AdminRpc::ApiRequest(req), PRIO_NORMAL)
-			.await?
-			.ok_or_message("rpc")?
+			.proxy_rpc_endpoint
+			.call(&self.rpc_host, ProxyRpc::Proxy(req), PRIO_NORMAL)
+			.await??
 		{
-			AdminRpc::ApiOkResponse(resp) => <T as AdminApiEndpoint>::Response::try_from(resp)
-				.map_err(|_| Error::Message(format!("{} returned unexpected response", req_name))),
-			AdminRpc::ApiErrorResponse {
+			ProxyRpcResponse::ProxyApiOkResponse(resp) => {
+				<T as AdminApiEndpoint>::Response::try_from(resp).map_err(|_| {
+					Error::Message(format!("{} returned unexpected response", req_name))
+				})
+			}
+			ProxyRpcResponse::ApiErrorResponse {
 				http_code,
 				error_code,
 				message,

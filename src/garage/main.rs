@@ -35,6 +35,8 @@ use garage_util::error::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
+use garage_api_admin::api_server::{AdminRpc as ProxyRpc, ADMIN_RPC_PATH as PROXY_RPC_PATH};
+
 use admin::*;
 use cli::*;
 use secrets::Secrets;
@@ -282,10 +284,12 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
 	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
+	let proxy_rpc_endpoint = netapp.endpoint::<ProxyRpc, ()>(PROXY_RPC_PATH.into());
 
 	let cli = cli_v2::Cli {
 		system_rpc_endpoint,
 		admin_rpc_endpoint,
+		proxy_rpc_endpoint,
 		rpc_host: id,
 	};
 

@@ -21,13 +21,17 @@ use garage_api_common::common_error::CommonError;
 
 use crate::api::*;
 use crate::error::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
 #[async_trait]
-impl EndpointHandler for ListBucketsRequest {
+impl RequestHandler for ListBucketsRequest {
 	type Response = ListBucketsResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<ListBucketsResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ListBucketsResponse, Error> {
 		let buckets = garage
 			.bucket_table
 			.get_range(
@@ -71,10 +75,14 @@ impl EndpointHandler for ListBucketsRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for GetBucketInfoRequest {
+impl RequestHandler for GetBucketInfoRequest {
 	type Response = GetBucketInfoResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<GetBucketInfoResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetBucketInfoResponse, Error> {
 		let bucket_id = match (self.id, self.global_alias, self.search) {
 			(Some(id), None, None) => parse_bucket_id(&id)?,
 			(None, Some(ga), None) => garage
@@ -223,10 +231,14 @@ async fn bucket_info_results(
 }
 
 #[async_trait]
-impl EndpointHandler for CreateBucketRequest {
+impl RequestHandler for CreateBucketRequest {
 	type Response = CreateBucketResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<CreateBucketResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<CreateBucketResponse, Error> {
 		let helper = garage.locked_helper().await;
 
 		if let Some(ga) = &self.global_alias {
@@ -294,10 +306,14 @@ impl EndpointHandler for CreateBucketRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for DeleteBucketRequest {
+impl RequestHandler for DeleteBucketRequest {
 	type Response = DeleteBucketResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<DeleteBucketResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<DeleteBucketResponse, Error> {
 		let helper = garage.locked_helper().await;
 
 		let bucket_id = parse_bucket_id(&self.id)?;
@@ -343,10 +359,14 @@ impl EndpointHandler for DeleteBucketRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for UpdateBucketRequest {
+impl RequestHandler for UpdateBucketRequest {
 	type Response = UpdateBucketResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateBucketResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<UpdateBucketResponse, Error> {
 		let bucket_id = parse_bucket_id(&self.id)?;
 
 		let mut bucket = garage
@@ -390,10 +410,14 @@ impl EndpointHandler for UpdateBucketRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for CleanupIncompleteUploadsRequest {
+impl RequestHandler for CleanupIncompleteUploadsRequest {
 	type Response = CleanupIncompleteUploadsResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<CleanupIncompleteUploadsResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<CleanupIncompleteUploadsResponse, Error> {
 		let duration = Duration::from_secs(self.older_than_secs);
 
 		let bucket_id = parse_bucket_id(&self.bucket_id)?;
@@ -412,20 +436,28 @@ impl EndpointHandler for CleanupIncompleteUploadsRequest {
 // ---- BUCKET/KEY PERMISSIONS ----
 
 #[async_trait]
-impl EndpointHandler for AllowBucketKeyRequest {
+impl RequestHandler for AllowBucketKeyRequest {
 	type Response = AllowBucketKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<AllowBucketKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<AllowBucketKeyResponse, Error> {
 		let res = handle_bucket_change_key_perm(garage, self.0, true).await?;
 		Ok(AllowBucketKeyResponse(res))
 	}
 }
 
 #[async_trait]
-impl EndpointHandler for DenyBucketKeyRequest {
+impl RequestHandler for DenyBucketKeyRequest {
 	type Response = DenyBucketKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<DenyBucketKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<DenyBucketKeyResponse, Error> {
 		let res = handle_bucket_change_key_perm(garage, self.0, false).await?;
 		Ok(DenyBucketKeyResponse(res))
 	}
@@ -471,10 +503,14 @@ pub async fn handle_bucket_change_key_perm(
 // ---- BUCKET ALIASES ----
 
 #[async_trait]
-impl EndpointHandler for AddBucketAliasRequest {
+impl RequestHandler for AddBucketAliasRequest {
 	type Response = AddBucketAliasResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<AddBucketAliasResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<AddBucketAliasResponse, Error> {
 		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;
@@ -502,10 +538,14 @@ impl EndpointHandler for AddBucketAliasRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for RemoveBucketAliasRequest {
+impl RequestHandler for RemoveBucketAliasRequest {
 	type Response = RemoveBucketAliasResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<RemoveBucketAliasResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<RemoveBucketAliasResponse, Error> {
 		let bucket_id = parse_bucket_id(&self.bucket_id)?;
 
 		let helper = garage.locked_helper().await;

@@ -15,11 +15,15 @@ mod cluster;
 mod key;
 mod special;
 
+mod worker;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
 
 use garage_model::garage::Garage;
+
+pub use api_server::AdminApiServer as Admin;
 
 pub enum Authorization {
 	None,
@@ -28,8 +32,12 @@ pub enum Authorization {
 }
 
 #[async_trait]
-pub trait EndpointHandler {
+pub trait RequestHandler {
 	type Response;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<Self::Response, error::Error>;
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		admin: &Admin,
+	) -> Result<Self::Response, error::Error>;
 }

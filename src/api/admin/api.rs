@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -6,13 +7,17 @@ use async_trait::async_trait;
 use paste::paste;
 use serde::{Deserialize, Serialize};
 
+use garage_rpc::*;
+
 use garage_model::garage::Garage;
 
+use garage_api_common::common_error::CommonErrorDerivative;
 use garage_api_common::helpers::is_default;
 
+use crate::api_server::{AdminRpc, AdminRpcResponse};
 use crate::error::Error;
 use crate::macros::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
 // This generates the following:
 //
@@ -71,7 +76,13 @@ admin_endpoints![
 	// Operations on bucket aliases
 	AddBucketAlias,
 	RemoveBucketAlias,
+
+	// Worker operations
+	GetWorkerVariable,
+	SetWorkerVariable,
 ];
+
+local_admin_endpoints![GetWorkerVariable, SetWorkerVariable,];
 
 // **********************************************
 //      Special endpoints
@@ -580,3 +591,31 @@ pub struct RemoveBucketAliasRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
+
+// **********************************************
+//      Worker operations
+// **********************************************
+
+// ---- GetWorkerVariable ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalGetWorkerVariableRequest {
+	pub variable: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalGetWorkerVariableResponse(pub HashMap<String, String>);
+
+// ---- SetWorkerVariable ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalSetWorkerVariableRequest {
+	pub variable: String,
+	pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalSetWorkerVariableResponse {
+	pub variable: String,
+	pub value: String,
+}

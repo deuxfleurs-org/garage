@@ -59,6 +59,8 @@ impl AdminApiRequest {
 			// Bucket aliases
 			POST AddBucketAlias (body),
 			POST RemoveBucketAlias (body),
+			// Worker APIs
+			POST GetWorkerVariable (body_field, query::node),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -240,6 +242,7 @@ impl AdminApiRequest {
 generateQueryParameters! {
 	keywords: [],
 	fields: [
+		"node" => node,
 		"domain" => domain,
 		"format" => format,
 		"id" => id,

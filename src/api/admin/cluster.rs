@@ -12,13 +12,17 @@ use garage_model::garage::Garage;
 
 use crate::api::*;
 use crate::error::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
 #[async_trait]
-impl EndpointHandler for GetClusterStatusRequest {
+impl RequestHandler for GetClusterStatusRequest {
 	type Response = GetClusterStatusResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<GetClusterStatusResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetClusterStatusResponse, Error> {
 		let layout = garage.system.cluster_layout();
 		let mut nodes = garage
 			.system
@@ -117,10 +121,14 @@ impl EndpointHandler for GetClusterStatusRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for GetClusterHealthRequest {
+impl RequestHandler for GetClusterHealthRequest {
 	type Response = GetClusterHealthResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<GetClusterHealthResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetClusterHealthResponse, Error> {
 		use garage_rpc::system::ClusterHealthStatus;
 		let health = garage.system.health();
 		let health = GetClusterHealthResponse {
@@ -143,10 +151,14 @@ impl EndpointHandler for GetClusterHealthRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for ConnectClusterNodesRequest {
+impl RequestHandler for ConnectClusterNodesRequest {
 	type Response = ConnectClusterNodesResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<ConnectClusterNodesResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ConnectClusterNodesResponse, Error> {
 		let res = futures::future::join_all(self.0.iter().map(|node| garage.system.connect(node)))
 			.await
 			.into_iter()
@@ -166,10 +178,14 @@ impl EndpointHandler for ConnectClusterNodesRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for GetClusterLayoutRequest {
+impl RequestHandler for GetClusterLayoutRequest {
 	type Response = GetClusterLayoutResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<GetClusterLayoutResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetClusterLayoutResponse, Error> {
 		Ok(format_cluster_layout(
 			garage.system.cluster_layout().inner(),
 		))
@@ -226,10 +242,14 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 // ---- update functions ----
 
 #[async_trait]
-impl EndpointHandler for UpdateClusterLayoutRequest {
+impl RequestHandler for UpdateClusterLayoutRequest {
 	type Response = UpdateClusterLayoutResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateClusterLayoutResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<UpdateClusterLayoutResponse, Error> {
 		let mut layout = garage.system.cluster_layout().inner().clone();
 
 		let mut roles = layout.current().roles.clone();
@@ -272,10 +292,14 @@ impl EndpointHandler for UpdateClusterLayoutRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for ApplyClusterLayoutRequest {
+impl RequestHandler for ApplyClusterLayoutRequest {
 	type Response = ApplyClusterLayoutResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<ApplyClusterLayoutResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ApplyClusterLayoutResponse, Error> {
 		let layout = garage.system.cluster_layout().inner().clone();
 		let (layout, msg) = layout.apply_staged_changes(Some(self.version))?;
 
@@ -293,10 +317,14 @@ impl EndpointHandler for ApplyClusterLayoutRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for RevertClusterLayoutRequest {
+impl RequestHandler for RevertClusterLayoutRequest {
 	type Response = RevertClusterLayoutResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<RevertClusterLayoutResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<RevertClusterLayoutResponse, Error> {
 		let layout = garage.system.cluster_layout().inner().clone();
 		let layout = layout.revert_staged_changes()?;
 		garage

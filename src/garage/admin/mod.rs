@@ -27,7 +27,7 @@ use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
 use garage_api_admin::api::{AdminApiRequest, TaggedAdminApiResponse};
-use garage_api_admin::EndpointHandler as AdminApiEndpoint;
+use garage_api_admin::RequestHandler as AdminApiEndpoint;
 use garage_api_common::generic_server::ApiError;
 
 use crate::cli::*;
@@ -50,7 +50,6 @@ pub enum AdminRpc {
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
 	),
-	WorkerVars(Vec<(Uuid, String, String)>),
 	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
@@ -58,15 +57,6 @@ pub enum AdminRpc {
 		refcount: u64,
 		versions: Vec<Result<Version, Uuid>>,
 		uploads: Vec<MultipartUpload>,
-	},
-
-	// Proxying HTTP Admin API endpoints
-	ApiRequest(AdminApiRequest),
-	ApiOkResponse(TaggedAdminApiResponse),
-	ApiErrorResponse {
-		http_code: u16,
-		error_code: String,
-		message: String,
 	},
 }
 
@@ -367,101 +357,7 @@ impl AdminRpcHandler {
 					.clone();
 				Ok(AdminRpc::WorkerInfo(*tid, info))
 			}
-			WorkerOperation::Get {
-				all_nodes,
-				variable,
-			} => self.handle_get_var(*all_nodes, variable).await,
-			WorkerOperation::Set {
-				all_nodes,
-				variable,
-				value,
-			} => self.handle_set_var(*all_nodes, variable, value).await,
-		}
-	}
-
-	async fn handle_get_var(
-		&self,
-		all_nodes: bool,
-		variable: &Option<String>,
-	) -> Result<AdminRpc, Error> {
-		if all_nodes {
-			let mut ret = vec![];
-			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
-			for node in all_nodes.iter() {
-				let node = (*node).into();
-				match self
-					.endpoint
-					.call(
-						&node,
-						AdminRpc::Worker(WorkerOperation::Get {
-							all_nodes: false,
-							variable: variable.clone(),
-						}),
-						PRIO_NORMAL,
-					)
-					.await??
-				{
-					AdminRpc::WorkerVars(v) => ret.extend(v),
-					m => return Err(GarageError::unexpected_rpc_message(m).into()),
-				}
-			}
-			Ok(AdminRpc::WorkerVars(ret))
-		} else {
-			#[allow(clippy::collapsible_else_if)]
-			if let Some(v) = variable {
-				Ok(AdminRpc::WorkerVars(vec![(
-					self.garage.system.id,
-					v.clone(),
-					self.garage.bg_vars.get(v)?,
-				)]))
-			} else {
-				let mut vars = self.garage.bg_vars.get_all();
-				vars.sort();
-				Ok(AdminRpc::WorkerVars(
-					vars.into_iter()
-						.map(|(k, v)| (self.garage.system.id, k.to_string(), v))
-						.collect(),
-				))
-			}
-		}
-	}
-
-	async fn handle_set_var(
-		&self,
-		all_nodes: bool,
-		variable: &str,
-		value: &str,
-	) -> Result<AdminRpc, Error> {
-		if all_nodes {
-			let mut ret = vec![];
-			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
-			for node in all_nodes.iter() {
-				let node = (*node).into();
-				match self
-					.endpoint
-					.call(
-						&node,
-						AdminRpc::Worker(WorkerOperation::Set {
-							all_nodes: false,
-							variable: variable.to_string(),
-							value: value.to_string(),
-						}),
-						PRIO_NORMAL,
-					)
-					.await??
-				{
-					AdminRpc::WorkerVars(v) => ret.extend(v),
-					m => return Err(GarageError::unexpected_rpc_message(m).into()),
-				}
-			}
-			Ok(AdminRpc::WorkerVars(ret))
-		} else {
-			self.garage.bg_vars.set(variable, value)?;
-			Ok(AdminRpc::WorkerVars(vec![(
-				self.garage.system.id,
-				variable.to_string(),
-				value.to_string(),
-			)]))
+			_ => unreachable!(),
 		}
 	}
 
@@ -501,25 +397,6 @@ impl AdminRpcHandler {
 			}
 		}
 	}
-
-	// ================== PROXYING ADMIN API REQUESTS ===================
-
-	async fn handle_api_request(
-		self: &Arc<Self>,
-		req: &AdminApiRequest,
-	) -> Result<AdminRpc, Error> {
-		let req = req.clone();
-		info!("Proxied admin API request: {}", req.name());
-		let res = req.handle(&self.garage).await;
-		match res {
-			Ok(res) => Ok(AdminRpc::ApiOkResponse(res.tagged())),
-			Err(e) => Ok(AdminRpc::ApiErrorResponse {
-				http_code: e.http_status_code().as_u16(),
-				error_code: e.code().to_string(),
-				message: e.to_string(),
-			}),
-		}
-	}
 }
 
 #[async_trait]
@@ -535,7 +412,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
 			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
 			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
-			AdminRpc::ApiRequest(r) => self.handle_api_request(r).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

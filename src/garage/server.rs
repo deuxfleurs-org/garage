@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tokio::sync::watch;
 
@@ -64,8 +65,9 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 	}
 
 	info!("Initialize Admin API server and metrics collector...");
-	let admin_server = AdminApiServer::new(
+	let admin_server: Arc<AdminApiServer> = AdminApiServer::new(
 		garage.clone(),
+		background.clone(),
 		#[cfg(feature = "metrics")]
 		metrics_exporter,
 	);

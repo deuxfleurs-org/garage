@@ -71,10 +71,10 @@ macro_rules! admin_endpoints {
             )*
 
             #[async_trait]
-            impl EndpointHandler for AdminApiRequest {
+            impl RequestHandler for AdminApiRequest {
                 type Response = AdminApiResponse;
 
-                async fn handle(self, garage: &Arc<Garage>) -> Result<AdminApiResponse, Error> {
+                async fn handle(self, garage: &Arc<Garage>, admin: &Admin) -> Result<AdminApiResponse, Error> {
                     Ok(match self {
                         $(
                             AdminApiRequest::$special_endpoint(_) => panic!(
@@ -82,7 +82,142 @@ macro_rules! admin_endpoints {
                             ),
                         )*
                         $(
-                            AdminApiRequest::$endpoint(req) => AdminApiResponse::$endpoint(req.handle(garage).await?),
+                            AdminApiRequest::$endpoint(req) => AdminApiResponse::$endpoint(req.handle(garage, admin).await?),
+                        )*
+                    })
+                }
+            }
+        }
+    };
+}
+
+macro_rules! local_admin_endpoints {
+    [
+        $($endpoint:ident,)*
+    ] => {
+        paste! {
+            #[derive(Debug, Clone, Serialize, Deserialize)]
+            pub enum LocalAdminApiRequest {
+                $(
+                    $endpoint( [<Local $endpoint Request>] ),
+                )*
+            }
+
+            #[derive(Debug, Clone, Serialize, Deserialize)]
+            pub enum LocalAdminApiResponse {
+                $(
+                    $endpoint( [<Local $endpoint Response>] ),
+                )*
+            }
+
+            $(
+                #[derive(Debug, Clone, Serialize, Deserialize)]
+                pub struct [< $endpoint Request >] {
+                    pub node: String,
+                    pub body: [< Local $endpoint Request >],
+                }
+
+                pub type [< $endpoint RequestBody >] = [< Local $endpoint Request >];
+
+                #[derive(Debug, Clone, Serialize, Deserialize)]
+                pub struct [< $endpoint Response >] {
+                    pub success: HashMap<String, [< Local $endpoint Response >] >,
+                    pub error: HashMap<String, String>,
+                }
+
+                impl From< [< Local $endpoint Request >] > for LocalAdminApiRequest {
+                    fn from(req: [< Local $endpoint Request >]) -> LocalAdminApiRequest {
+                        LocalAdminApiRequest::$endpoint(req)
+                    }
+                }
+
+                impl TryFrom<LocalAdminApiResponse> for [< Local $endpoint Response >] {
+                    type Error = LocalAdminApiResponse;
+                    fn try_from(resp: LocalAdminApiResponse) -> Result< [< Local $endpoint Response >], LocalAdminApiResponse> {
+                        match resp {
+                            LocalAdminApiResponse::$endpoint(v) => Ok(v),
+                            x => Err(x),
+                        }
+                    }
+                }
+
+                #[async_trait]
+                impl RequestHandler for [< $endpoint Request >] {
+                    type Response = [< $endpoint Response >];
+
+	                async fn handle(self, garage: &Arc<Garage>, admin: &Admin) -> Result<Self::Response, Error> {
+				        let to = match self.node.as_str() {
+                            "*" => garage.system.cluster_layout().all_nodes().to_vec(),
+                            id => {
+                                let nodes = garage.system.cluster_layout().all_nodes()
+                                    .iter()
+                                    .filter(|x| hex::encode(x).starts_with(id))
+                                    .cloned()
+                                    .collect::<Vec<_>>();
+                                if nodes.len() != 1 {
+                                    return Err(Error::bad_request(format!("Zero or multiple nodes matching {}: {:?}", id, nodes)));
+                                }
+                                nodes
+                            }
+                        };
+
+                        let resps = garage.system.rpc_helper().call_many(&admin.endpoint,
+                            &to,
+                            AdminRpc::Internal(self.body.into()),
+                            RequestStrategy::with_priority(PRIO_NORMAL),
+                        ).await?;
+
+                        let mut ret = [< $endpoint Response >] {
+                            success: HashMap::new(),
+                            error: HashMap::new(),
+                        };
+                        for (node, resp) in resps {
+                            match resp {
+                                Ok(AdminRpcResponse::InternalApiOkResponse(r)) => {
+                                    match [< Local $endpoint Response >]::try_from(r) {
+                                        Ok(r) => {
+                                            ret.success.insert(hex::encode(node), r);
+                                        }
+                                        Err(_) => {
+                                            ret.error.insert(hex::encode(node), "returned invalid value".to_string());
+                                        }
+                                    }
+                                }
+                                Ok(AdminRpcResponse::ApiErrorResponse{error_code, http_code, message}) => {
+                                    ret.error.insert(hex::encode(node), format!("{} ({}): {}", error_code, http_code, message));
+                                }
+                                Ok(_) => {
+                                    ret.error.insert(hex::encode(node), "returned invalid value".to_string());
+                                }
+                                Err(e) => {
+                                    ret.error.insert(hex::encode(node), e.to_string());
+                                }
+                            }
+                        }
+
+                        Ok(ret)
+                    }
+                }
+            )*
+
+            impl LocalAdminApiRequest {
+                pub fn name(&self) -> &'static str {
+                    match self {
+                        $(
+                            Self::$endpoint(_) => stringify!($endpoint),
+                        )*
+                    }
+                }
+            }
+
+            #[async_trait]
+            impl RequestHandler for LocalAdminApiRequest {
+                type Response = LocalAdminApiResponse;
+
+                async fn handle(self, garage: &Arc<Garage>, admin: &Admin) -> Result<LocalAdminApiResponse, Error> {
+                    Ok(match self {
+                        $(
+                            LocalAdminApiRequest::$endpoint(req) => LocalAdminApiResponse::$endpoint(req.handle(garage, admin).await?),
                         )*
                     })
                 }
@@ -92,3 +227,4 @@ macro_rules! admin_endpoints {
 }
 
 pub(crate) use admin_endpoints;
+pub(crate) use local_admin_endpoints;

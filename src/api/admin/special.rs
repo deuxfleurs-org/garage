@@ -15,13 +15,17 @@ use garage_api_common::helpers::*;
 use crate::api::{CheckDomainRequest, HealthRequest, OptionsRequest};
 use crate::api_server::ResBody;
 use crate::error::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
 #[async_trait]
-impl EndpointHandler for OptionsRequest {
+impl RequestHandler for OptionsRequest {
 	type Response = Response<ResBody>;
 
-	async fn handle(self, _garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
+	async fn handle(
+		self,
+		_garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
 		Ok(Response::builder()
 			.status(StatusCode::OK)
 			.header(ALLOW, "OPTIONS,GET,POST")
@@ -33,10 +37,14 @@ impl EndpointHandler for OptionsRequest {
 }
 
 #[async_trait]
-impl EndpointHandler for CheckDomainRequest {
+impl RequestHandler for CheckDomainRequest {
 	type Response = Response<ResBody>;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
 		if check_domain(garage, &self.domain).await? {
 			Ok(Response::builder()
 				.status(StatusCode::OK)
@@ -103,10 +111,14 @@ async fn check_domain(garage: &Arc<Garage>, domain: &str) -> Result<bool, Error>
 }
 
 #[async_trait]
-impl EndpointHandler for HealthRequest {
+impl RequestHandler for HealthRequest {
 	type Response = Response<ResBody>;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
 		let health = garage.system.health();
 
 		let (status, status_str) = match health.status {
