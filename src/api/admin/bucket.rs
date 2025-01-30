@@ -73,16 +73,22 @@ impl EndpointHandler for GetBucketInfoRequest {
 	type Response = GetBucketInfoResponse;
 
 	async fn handle(self, garage: &Arc<Garage>) -> Result<GetBucketInfoResponse, Error> {
-		let bucket_id = match (self.id, self.global_alias) {
-			(Some(id), None) => parse_bucket_id(&id)?,
-			(None, Some(ga)) => garage
+		let bucket_id = match (self.id, self.global_alias, self.search) {
+			(Some(id), None, None) => parse_bucket_id(&id)?,
+			(None, Some(ga), None) => garage
 				.bucket_helper()
 				.resolve_global_bucket_name(&ga)
 				.await?
 				.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
+			(None, None, Some(search)) => {
+				garage
+					.bucket_helper()
+					.admin_get_existing_matching_bucket(&search)
+					.await?
+			}
 			_ => {
 				return Err(Error::bad_request(
-					"Either id or globalAlias must be provided (but not both)",
+					"Either id, globalAlias or search must be provided (but not several of them)",
 				));
 			}
 		};

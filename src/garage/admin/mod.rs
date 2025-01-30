@@ -1,6 +1,5 @@
 mod block;
 mod bucket;
-mod key;
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -23,12 +22,14 @@ use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
 
-use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
-use garage_model::key_table::*;
 use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
+
+use garage_api::admin::api::{AdminApiRequest, TaggedAdminApiResponse};
+use garage_api::admin::EndpointHandler as AdminApiEndpoint;
+use garage_api::generic_server::ApiError;
 
 use crate::cli::*;
 use crate::repair::online::launch_online_repair;
@@ -39,7 +40,6 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 #[allow(clippy::large_enum_variant)]
 pub enum AdminRpc {
 	BucketOperation(BucketOperation),
-	KeyOperation(KeyOperation),
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
 	Worker(WorkerOperation),
@@ -48,15 +48,6 @@ pub enum AdminRpc {
 
 	// Replies
 	Ok(String),
-	BucketList(Vec<Bucket>),
-	BucketInfo {
-		bucket: Bucket,
-		relevant_keys: HashMap<String, Key>,
-		counters: HashMap<String, i64>,
-		mpu_counters: HashMap<String, i64>,
-	},
-	KeyList(Vec<(String, String)>),
-	KeyInfo(Key, HashMap<Uuid, Bucket>),
 	WorkerList(
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
@@ -69,6 +60,15 @@ pub enum AdminRpc {
 		refcount: u64,
 		versions: Vec<Result<Version, Uuid>>,
 		uploads: Vec<MultipartUpload>,
+	},
+
+	// Proxying HTTP Admin API endpoints
+	ApiRequest(AdminApiRequest),
+	ApiOkResponse(TaggedAdminApiResponse),
+	ApiErrorResponse {
+		http_code: u16,
+		error_code: String,
+		message: String,
 	},
 }
 
@@ -503,6 +503,25 @@ impl AdminRpcHandler {
 			}
 		}
 	}
+
+	// ================== PROXYING ADMIN API REQUESTS ===================
+
+	async fn handle_api_request(
+		self: &Arc<Self>,
+		req: &AdminApiRequest,
+	) -> Result<AdminRpc, Error> {
+		let req = req.clone();
+		info!("Proxied admin API request: {}", req.name());
+		let res = req.handle(&self.garage).await;
+		match res {
+			Ok(res) => Ok(AdminRpc::ApiOkResponse(res.tagged())),
+			Err(e) => Ok(AdminRpc::ApiErrorResponse {
+				http_code: e.http_status_code().as_u16(),
+				error_code: e.code().to_string(),
+				message: e.to_string(),
+			}),
+		}
+	}
 }
 
 #[async_trait]
@@ -514,12 +533,12 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		match message {
 			AdminRpc::BucketOperation(bo) => self.handle_bucket_cmd(bo).await,
-			AdminRpc::KeyOperation(ko) => self.handle_key_cmd(ko).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
 			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
 			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
+			AdminRpc::ApiRequest(r) => self.handle_api_request(r).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

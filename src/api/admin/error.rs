@@ -56,7 +56,7 @@ impl From<HelperError> for Error {
 impl CommonErrorDerivative for Error {}
 
 impl Error {
-	fn code(&self) -> &'static str {
+	pub fn code(&self) -> &'static str {
 		match self {
 			Error::Common(c) => c.aws_code(),
 			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",

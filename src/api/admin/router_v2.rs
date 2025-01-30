@@ -46,7 +46,7 @@ impl AdminApiRequest {
 			POST DeleteKey (query::id),
 			GET ListKeys (),
 			// Bucket endpoints
-			GET GetBucketInfo (query_opt::id, query_opt::global_alias),
+			GET GetBucketInfo (query_opt::id, query_opt::global_alias, query_opt::search),
 			GET ListBuckets (),
 			POST CreateBucket (body),
 			POST DeleteBucket (query::id),
@@ -141,6 +141,7 @@ impl AdminApiRequest {
 				Ok(AdminApiRequest::GetBucketInfo(GetBucketInfoRequest {
 					id,
 					global_alias,
+					search: None,
 				}))
 			}
 			Endpoint::CreateBucket => {
