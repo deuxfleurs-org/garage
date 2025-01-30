@@ -47,11 +47,11 @@ impl Cli {
 				AdminRpc::LaunchRepair(ro),
 			)
 			.await
-			.ok_or_message("xoxo"),
+			.ok_or_message("cli_v1"),
 			Command::Stats(so) => {
 				cli_v1::cmd_admin(&self.admin_rpc_endpoint, self.rpc_host, AdminRpc::Stats(so))
 					.await
-					.ok_or_message("xoxo")
+					.ok_or_message("cli_v1")
 			}
 			Command::Worker(wo) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
@@ -59,21 +59,21 @@ impl Cli {
 				AdminRpc::Worker(wo),
 			)
 			.await
-			.ok_or_message("xoxo"),
+			.ok_or_message("cli_v1"),
 			Command::Block(bo) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
 				self.rpc_host,
 				AdminRpc::BlockOperation(bo),
 			)
 			.await
-			.ok_or_message("xoxo"),
+			.ok_or_message("cli_v1"),
 			Command::Meta(mo) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
 				self.rpc_host,
 				AdminRpc::MetaOperation(mo),
 			)
 			.await
-			.ok_or_message("xoxo"),
+			.ok_or_message("cli_v1"),
 
 			_ => unreachable!(),
 		}
@@ -91,7 +91,7 @@ impl Cli {
 			.admin_rpc_endpoint
 			.call(&self.rpc_host, AdminRpc::ApiRequest(req), PRIO_NORMAL)
 			.await?
-			.ok_or_message("xoxo")?
+			.ok_or_message("rpc")?
 		{
 			AdminRpc::ApiOkResponse(resp) => <T as AdminApiEndpoint>::Response::try_from(resp)
 				.map_err(|_| Error::Message(format!("{} returned unexpected response", req_name))),
