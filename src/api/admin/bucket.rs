@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 
@@ -385,6 +386,26 @@ impl EndpointHandler for UpdateBucketRequest {
 		Ok(UpdateBucketResponse(
 			bucket_info_results(garage, bucket_id).await?,
 		))
+	}
+}
+
+#[async_trait]
+impl EndpointHandler for CleanupIncompleteUploadsRequest {
+	type Response = CleanupIncompleteUploadsResponse;
+
+	async fn handle(self, garage: &Arc<Garage>) -> Result<CleanupIncompleteUploadsResponse, Error> {
+		let duration = Duration::from_secs(self.older_than_secs);
+
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
+
+		let count = garage
+			.bucket_helper()
+			.cleanup_incomplete_uploads(&bucket_id, duration)
+			.await?;
+
+		Ok(CleanupIncompleteUploadsResponse {
+			uploads_deleted: count as u64,
+		})
 	}
 }
 

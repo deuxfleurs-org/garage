@@ -826,6 +826,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/BucketInfo'
 
+  /CleanupIncompleteUploads:
+    post:
+      tags:
+        - Bucket
+      operationId: "CleanupIncompleteUploads"
+      summary: "Cleanup incomplete uploads in a bucket"
+      description: |
+        Cleanup all incomplete uploads in a bucket that are older than a specified number of seconds
+      requestBody:
+        description: |
+          Bucket id and minimum age of uploads to delete (in seconds)
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bucketId, olderThanSecs]
+              properties:
+                bucketId:
+                  type: string
+                  example: "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b"
+                olderThanSecs:
+                  type: integer
+                  example: "3600"
+      responses:
+        '500':
+          description: "The server can not handle your request. Check your connectivity with the rest of the cluster."
+        '400':
+          description: "The payload is not formatted correctly"
+        '200':
+          description: "The bucket was cleaned up successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadsDeleted:
+                    type: integer
+                    example: 12
+
   /AllowBucketKey:
     post:
       tags:

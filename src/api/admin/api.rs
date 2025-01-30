@@ -62,6 +62,7 @@ admin_endpoints![
 	CreateBucket,
 	UpdateBucket,
 	DeleteBucket,
+	CleanupIncompleteUploads,
 
 	// Operations on permissions for keys on buckets
 	AllowBucketKey,
@@ -496,6 +497,19 @@ pub struct DeleteBucketRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteBucketResponse;
+
+// ---- CleanupIncompleteUploads ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CleanupIncompleteUploadsRequest {
+	pub bucket_id: String,
+	pub older_than_secs: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CleanupIncompleteUploadsResponse {
+	pub uploads_deleted: u64,
+}
 
 // **********************************************
 //      Operations on permissions for keys on buckets

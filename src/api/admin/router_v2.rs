@@ -52,6 +52,7 @@ impl AdminApiRequest {
 			POST CreateBucket (body),
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),
+			POST CleanupIncompleteUploads (body),
 			// Bucket-key permissions
 			POST AllowBucketKey (body),
 			POST DenyBucketKey (body),

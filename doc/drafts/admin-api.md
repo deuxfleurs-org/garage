@@ -702,6 +702,28 @@ Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
 
+#### CleanupIncompleteUploads `POST /v2/CleanupIncompleteUploads`
+
+Cleanup all incomplete uploads in a bucket that are older than a specified number
+of seconds.
+
+Request body format:
+
+```json
+{
+    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "olderThanSecs": 3600
+}
+```
+
+Response format
+
+```json
+{
+    "uploadsDeleted": 12
+}
+```
+
 
 ### Operations on permissions for keys on buckets
 

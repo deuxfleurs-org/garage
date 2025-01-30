@@ -1,5 +1,4 @@
 mod block;
-mod bucket;
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -39,7 +38,6 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum AdminRpc {
-	BucketOperation(BucketOperation),
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
 	Worker(WorkerOperation),
@@ -532,7 +530,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 		_from: NodeID,
 	) -> Result<AdminRpc, Error> {
 		match message {
-			AdminRpc::BucketOperation(bo) => self.handle_bucket_cmd(bo).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
