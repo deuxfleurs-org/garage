@@ -1,5 +1,3 @@
-pub mod util;
-
 pub mod bucket;
 pub mod cluster;
 pub mod key;

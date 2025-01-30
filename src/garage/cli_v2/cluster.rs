@@ -5,7 +5,7 @@ use garage_util::error::*;
 use garage_api::admin::api::*;
 
 use crate::cli::structs::*;
-use crate::cli_v2::util::*;
+use crate::cli_v2::layout::*;
 use crate::cli_v2::*;
 
 impl Cli {
