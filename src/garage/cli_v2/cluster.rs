@@ -71,7 +71,7 @@ impl Cli {
 						_ => "NO ROLE ASSIGNED",
 					};
 					healthy_nodes.push(format!(
-						"{id:?}\t{h}\t{addr}\t\t\t{new_role}",
+						"{id:.16}\t{h}\t{addr}\t\t\t{new_role}",
 						id = adv.id,
 						h = host,
 						addr = addr,
