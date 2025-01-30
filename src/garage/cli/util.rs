@@ -233,27 +233,6 @@ pub fn print_bucket_info(
 	};
 }
 
-pub fn find_matching_node(
-	cand: impl std::iter::Iterator<Item = Uuid>,
-	pattern: &str,
-) -> Result<Uuid, Error> {
-	let mut candidates = vec![];
-	for c in cand {
-		if hex::encode(c).starts_with(pattern) && !candidates.contains(&c) {
-			candidates.push(c);
-		}
-	}
-	if candidates.len() != 1 {
-		Err(Error::Message(format!(
-			"{} nodes match '{}'",
-			candidates.len(),
-			pattern,
-		)))
-	} else {
-		Ok(candidates[0])
-	}
-}
-
 pub fn print_worker_list(wi: HashMap<usize, WorkerInfo>, wlo: WorkerListOpt) {
 	let mut wi = wi.into_iter().collect::<Vec<_>>();
 	wi.sort_by_key(|(tid, info)| {

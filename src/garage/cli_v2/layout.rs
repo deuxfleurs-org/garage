@@ -1,5 +1,5 @@
-use bytesize::ByteSize;
-use format_table::format_table;
+//use bytesize::ByteSize;
+//use format_table::format_table;
 
 use garage_util::error::*;
 
@@ -14,20 +14,13 @@ impl Cli {
 	pub async fn layout_command_dispatch(&self, cmd: LayoutOperation) -> Result<(), Error> {
 		match cmd {
 			LayoutOperation::Assign(assign_opt) => self.cmd_assign_role(assign_opt).await,
+			LayoutOperation::Remove(remove_opt) => self.cmd_remove_role(remove_opt).await,
+			LayoutOperation::Apply(apply_opt) => self.cmd_apply_layout(apply_opt).await,
+			LayoutOperation::Revert(revert_opt) => self.cmd_revert_layout(revert_opt).await,
 
 			// TODO
-			LayoutOperation::Remove(remove_opt) => {
-				cli_v1::cmd_remove_role(&self.system_rpc_endpoint, self.rpc_host, remove_opt).await
-			}
 			LayoutOperation::Show => {
 				cli_v1::cmd_show_layout(&self.system_rpc_endpoint, self.rpc_host).await
-			}
-			LayoutOperation::Apply(apply_opt) => {
-				cli_v1::cmd_apply_layout(&self.system_rpc_endpoint, self.rpc_host, apply_opt).await
-			}
-			LayoutOperation::Revert(revert_opt) => {
-				cli_v1::cmd_revert_layout(&self.system_rpc_endpoint, self.rpc_host, revert_opt)
-					.await
 			}
 			LayoutOperation::Config(config_opt) => {
 				cli_v1::cmd_config_layout(&self.system_rpc_endpoint, self.rpc_host, config_opt)
@@ -114,6 +107,66 @@ impl Cli {
 		println!("Role changes are staged but not yet committed.");
 		println!("Use `garage layout show` to view staged role changes,");
 		println!("and `garage layout apply` to enact staged changes.");
+		Ok(())
+	}
+
+	pub async fn cmd_remove_role(&self, opt: RemoveRoleOpt) -> Result<(), Error> {
+		let status = self.api_request(GetClusterStatusRequest).await?;
+		let layout = self.api_request(GetClusterLayoutRequest).await?;
+
+		let all_node_ids_iter = status
+			.nodes
+			.iter()
+			.map(|x| x.id.as_str())
+			.chain(layout.roles.iter().map(|x| x.id.as_str()));
+
+		let id = find_matching_node(all_node_ids_iter.clone(), &opt.node_id)?;
+
+		let actions = vec![NodeRoleChange {
+			id,
+			action: NodeRoleChangeEnum::Remove { remove: true },
+		}];
+
+		self.api_request(UpdateClusterLayoutRequest(actions))
+			.await?;
+
+		println!("Role removal is staged but not yet committed.");
+		println!("Use `garage layout show` to view staged role changes,");
+		println!("and `garage layout apply` to enact staged changes.");
+		Ok(())
+	}
+
+	pub async fn cmd_apply_layout(&self, apply_opt: ApplyLayoutOpt) -> Result<(), Error> {
+		let missing_version_error = r#"
+Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
+To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
+        "#;
+
+		let req = ApplyClusterLayoutRequest {
+			version: apply_opt.version.ok_or_message(missing_version_error)?,
+		};
+		let res = self.api_request(req).await?;
+
+		for line in res.message.iter() {
+			println!("{}", line);
+		}
+
+		println!("New cluster layout with updated role assignment has been applied in cluster.");
+		println!("Data will now be moved around between nodes accordingly.");
+
+		Ok(())
+	}
+
+	pub async fn cmd_revert_layout(&self, revert_opt: RevertLayoutOpt) -> Result<(), Error> {
+		if !revert_opt.yes {
+			return Err(Error::Message(
+				"Please add the --yes flag to run the layout revert operation".into(),
+			));
+		}
+
+		self.api_request(RevertClusterLayoutRequest).await?;
+
+		println!("All proposed role changes in cluster layout have been canceled.");
 		Ok(())
 	}
 }

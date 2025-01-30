@@ -1,7 +1,6 @@
 use bytesize::ByteSize;
 
 use format_table::format_table;
-use garage_util::crdt::Crdt;
 use garage_util::error::*;
 
 use garage_rpc::layout::*;
@@ -9,33 +8,6 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use crate::cli::*;
-
-pub async fn cmd_remove_role(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-	args: RemoveRoleOpt,
-) -> Result<(), Error> {
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
-
-	let mut roles = layout.current().roles.clone();
-	roles.merge(&layout.staging.get().roles);
-
-	let deleted_node =
-		find_matching_node(roles.items().iter().map(|(id, _, _)| *id), &args.node_id)?;
-
-	layout
-		.staging
-		.get_mut()
-		.roles
-		.merge(&roles.update_mutator(deleted_node, NodeRoleV(None)));
-
-	send_layout(rpc_cli, rpc_host, layout).await?;
-
-	println!("Role removal is staged but not yet committed.");
-	println!("Use `garage layout show` to view staged role changes,");
-	println!("and `garage layout apply` to enact staged changes.");
-	Ok(())
-}
 
 pub async fn cmd_show_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
@@ -82,47 +54,6 @@ pub async fn cmd_show_layout(
 		}
 	}
 
-	Ok(())
-}
-
-pub async fn cmd_apply_layout(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-	apply_opt: ApplyLayoutOpt,
-) -> Result<(), Error> {
-	let layout = fetch_layout(rpc_cli, rpc_host).await?;
-
-	let (layout, msg) = layout.apply_staged_changes(apply_opt.version)?;
-	for line in msg.iter() {
-		println!("{}", line);
-	}
-
-	send_layout(rpc_cli, rpc_host, layout).await?;
-
-	println!("New cluster layout with updated role assignment has been applied in cluster.");
-	println!("Data will now be moved around between nodes accordingly.");
-
-	Ok(())
-}
-
-pub async fn cmd_revert_layout(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-	revert_opt: RevertLayoutOpt,
-) -> Result<(), Error> {
-	if !revert_opt.yes {
-		return Err(Error::Message(
-			"Please add the --yes flag to run the layout revert operation".into(),
-		));
-	}
-
-	let layout = fetch_layout(rpc_cli, rpc_host).await?;
-
-	let layout = layout.revert_staged_changes()?;
-
-	send_layout(rpc_cli, rpc_host, layout).await?;
-
-	println!("All proposed role changes in cluster layout have been canceled.");
 	Ok(())
 }
 
