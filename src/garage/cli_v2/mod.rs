@@ -2,6 +2,7 @@ pub mod util;
 
 pub mod bucket;
 pub mod cluster;
+pub mod key;
 pub mod layout;
 
 use std::collections::{HashMap, HashSet};
@@ -37,15 +38,9 @@ impl Cli {
 			}
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
 			Command::Bucket(bo) => self.cmd_bucket(bo).await,
+			Command::Key(ko) => self.cmd_key(ko).await,
 
 			// TODO
-			Command::Key(ko) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::KeyOperation(ko),
-			)
-			.await
-			.ok_or_message("xoxo"),
 			Command::Repair(ro) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
 				self.rpc_host,

@@ -43,41 +43,25 @@ impl Cli {
 					capacity = capacity_string(cfg.capacity),
 					data_avail = data_avail,
 				));
+			} else if adv.draining {
+				healthy_nodes.push(format!(
+					"{id:.16}\t{host}\t{addr}\t\t\tdraining metadata...",
+					id = adv.id,
+					host = host,
+					addr = addr,
+				));
 			} else {
-				/*
-				let prev_role = layout
-					.versions
-					.iter()
-					.rev()
-					.find_map(|x| match x.roles.get(&adv.id) {
-						Some(NodeRoleV(Some(cfg))) => Some(cfg),
-						_ => None,
-					});
-				*/
-				let prev_role = Option::<NodeRoleResp>::None; //TODO
-				if let Some(cfg) = prev_role {
-					healthy_nodes.push(format!(
-						"{id:.16}\t{host}\t{addr}\t[{tags}]\t{zone}\tdraining metadata...",
-						id = adv.id,
-						host = host,
-						addr = addr,
-						tags = cfg.tags.join(","),
-						zone = cfg.zone,
-					));
-				} else {
-					let new_role = match layout.staged_role_changes.iter().find(|x| x.id == adv.id)
-					{
-						Some(_) => "pending...",
-						_ => "NO ROLE ASSIGNED",
-					};
-					healthy_nodes.push(format!(
-						"{id:.16}\t{h}\t{addr}\t\t\t{new_role}",
-						id = adv.id,
-						h = host,
-						addr = addr,
-						new_role = new_role,
-					));
-				}
+				let new_role = match layout.staged_role_changes.iter().find(|x| x.id == adv.id) {
+					Some(_) => "pending...",
+					_ => "NO ROLE ASSIGNED",
+				};
+				healthy_nodes.push(format!(
+					"{id:.16}\t{h}\t{addr}\t\t\t{new_role}",
+					id = adv.id,
+					h = host,
+					addr = addr,
+					new_role = new_role,
+				));
 			}
 		}
 		format_table(healthy_nodes);

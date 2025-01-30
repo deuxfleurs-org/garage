@@ -17,12 +17,6 @@ pub async fn cmd_admin(
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}
-		AdminRpc::KeyList(kl) => {
-			print_key_list(kl);
-		}
-		AdminRpc::KeyInfo(key, rb) => {
-			print_key_info(&key, &rb);
-		}
 		AdminRpc::WorkerList(wi, wlo) => {
 			print_worker_list(wi, wlo);
 		}

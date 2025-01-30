@@ -1,6 +1,5 @@
 mod block;
 mod bucket;
-mod key;
 
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -23,10 +22,8 @@ use garage_rpc::*;
 
 use garage_block::manager::BlockResyncErrorInfo;
 
-use garage_model::bucket_table::*;
 use garage_model::garage::Garage;
 use garage_model::helper::error::{Error, OkOrBadRequest};
-use garage_model::key_table::*;
 use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
@@ -43,7 +40,6 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 #[allow(clippy::large_enum_variant)]
 pub enum AdminRpc {
 	BucketOperation(BucketOperation),
-	KeyOperation(KeyOperation),
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
 	Worker(WorkerOperation),
@@ -52,15 +48,6 @@ pub enum AdminRpc {
 
 	// Replies
 	Ok(String),
-	BucketList(Vec<Bucket>),
-	BucketInfo {
-		bucket: Bucket,
-		relevant_keys: HashMap<String, Key>,
-		counters: HashMap<String, i64>,
-		mpu_counters: HashMap<String, i64>,
-	},
-	KeyList(Vec<(String, String)>),
-	KeyInfo(Key, HashMap<Uuid, Bucket>),
 	WorkerList(
 		HashMap<usize, garage_util::background::WorkerInfo>,
 		WorkerListOpt,
@@ -546,7 +533,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 	) -> Result<AdminRpc, Error> {
 		match message {
 			AdminRpc::BucketOperation(bo) => self.handle_bucket_cmd(bo).await,
-			AdminRpc::KeyOperation(ko) => self.handle_key_cmd(ko).await,
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
 			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
