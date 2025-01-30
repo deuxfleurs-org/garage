@@ -395,6 +395,7 @@ pub struct BucketLocalAlias {
 pub struct GetBucketInfoRequest {
 	pub id: Option<String>,
 	pub global_alias: Option<String>,
+	pub search: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

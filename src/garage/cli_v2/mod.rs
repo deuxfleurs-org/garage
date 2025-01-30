@@ -1,5 +1,6 @@
 pub mod util;
 
+pub mod bucket;
 pub mod cluster;
 pub mod layout;
 
@@ -35,15 +36,9 @@ impl Cli {
 				self.cmd_connect(connect_opt).await
 			}
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
+			Command::Bucket(bo) => self.cmd_bucket(bo).await,
 
 			// TODO
-			Command::Bucket(bo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::BucketOperation(bo),
-			)
-			.await
-			.ok_or_message("xoxo"),
 			Command::Key(ko) => cli_v1::cmd_admin(
 				&self.admin_rpc_endpoint,
 				self.rpc_host,

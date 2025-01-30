@@ -524,6 +524,7 @@ impl AdminRpcHandler {
 		req: &AdminApiRequest,
 	) -> Result<AdminRpc, Error> {
 		let req = req.clone();
+		info!("Proxied admin API request: {}", req.name());
 		let res = req.handle(&self.garage).await;
 		match res {
 			Ok(res) => Ok(AdminRpc::ApiOkResponse(res.tagged())),
