@@ -35,8 +35,6 @@ use garage_util::error::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
-use garage_model::helper::error::Error as HelperError;
-
 use admin::*;
 use cli::*;
 use secrets::Secrets;
