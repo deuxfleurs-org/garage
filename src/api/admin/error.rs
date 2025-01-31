@@ -6,10 +6,12 @@ use hyper::{HeaderMap, StatusCode};
 
 pub use garage_model::helper::error::Error as HelperError;
 
-use crate::common_error::CommonError;
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
+use garage_api_common::common_error::CommonError;
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
 
 /// Errors of this crate
 #[derive(Debug, Error)]

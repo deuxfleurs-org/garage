@@ -28,9 +28,9 @@ use garage_util::migrate::Migrate;
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::{ObjectVersionEncryption, ObjectVersionMetaInner};
 
-use crate::common_error::*;
-use crate::s3::checksum::Md5Checksum;
-use crate::s3::error::Error;
+use crate::checksum::Md5Checksum;
+use crate::error::Error;
+use garage_api_common::common_error::*;
 
 const X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-server-side-encryption-customer-algorithm");

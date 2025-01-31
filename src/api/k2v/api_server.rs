@@ -12,19 +12,19 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 
-use crate::generic_server::*;
-use crate::k2v::error::*;
+use crate::error::*;
+use garage_api_common::generic_server::*;
 
-use crate::signature::verify_request;
+use garage_api_common::signature::verify_request;
 
-use crate::helpers::*;
-use crate::k2v::batch::*;
-use crate::k2v::index::*;
-use crate::k2v::item::*;
-use crate::k2v::router::Endpoint;
-use crate::s3::cors::*;
+use crate::batch::*;
+use crate::index::*;
+use crate::item::*;
+use crate::router::Endpoint;
+use garage_api_common::helpers::*;
+use garage_api_s3::cors::*;
 
-pub use crate::signature::streaming::ReqBody;
+pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
 
 pub struct K2VApiServer {

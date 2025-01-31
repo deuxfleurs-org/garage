@@ -4,14 +4,9 @@ extern crate tracing;
 
 pub mod common_error;
 
-mod encoding;
+pub mod encoding;
 pub mod generic_server;
 pub mod helpers;
-mod router_macros;
+pub mod router_macros;
 /// This mode is public only to help testing. Don't expect stability here
 pub mod signature;
-
-pub mod admin;
-#[cfg(feature = "k2v")]
-pub mod k2v;
-pub mod s3;

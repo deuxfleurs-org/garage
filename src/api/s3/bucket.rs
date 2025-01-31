@@ -13,12 +13,12 @@ use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
 
-use crate::common_error::CommonError;
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::error::*;
-use crate::s3::xml as s3_xml;
-use crate::signature::verify_signed_content;
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
+use crate::xml as s3_xml;
+use garage_api_common::common_error::CommonError;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_signed_content;
 
 pub fn handle_get_bucket_location(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { garage, .. } = ctx;

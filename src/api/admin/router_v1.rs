@@ -2,9 +2,9 @@ use std::borrow::Cow;
 
 use hyper::{Method, Request};
 
-use crate::admin::error::*;
-use crate::admin::router_v0;
-use crate::router_macros::*;
+use crate::error::*;
+use crate::router_v0;
+use garage_api_common::router_macros::*;
 
 pub enum Authorization {
 	None,

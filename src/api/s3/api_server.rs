@@ -14,26 +14,26 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
-use crate::generic_server::*;
-use crate::s3::error::*;
+use crate::error::*;
+use garage_api_common::generic_server::*;
 
-use crate::signature::verify_request;
+use garage_api_common::signature::verify_request;
 
-use crate::helpers::*;
-use crate::s3::bucket::*;
-use crate::s3::copy::*;
-use crate::s3::cors::*;
-use crate::s3::delete::*;
-use crate::s3::get::*;
-use crate::s3::lifecycle::*;
-use crate::s3::list::*;
-use crate::s3::multipart::*;
-use crate::s3::post_object::handle_post_object;
-use crate::s3::put::*;
-use crate::s3::router::Endpoint;
-use crate::s3::website::*;
+use crate::bucket::*;
+use crate::copy::*;
+use crate::cors::*;
+use crate::delete::*;
+use crate::get::*;
+use crate::lifecycle::*;
+use crate::list::*;
+use crate::multipart::*;
+use crate::post_object::handle_post_object;
+use crate::put::*;
+use crate::router::Endpoint;
+use crate::website::*;
+use garage_api_common::helpers::*;
 
-pub use crate::signature::streaming::ReqBody;
+pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
 
 pub struct S3ApiServer {

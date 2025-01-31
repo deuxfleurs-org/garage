@@ -118,14 +118,14 @@ impl TryFrom<HelperError> for CommonError {
 /// This is used for helper functions that might return InvalidBucketName
 /// or NoSuchBucket for instance, and we want to pass that error
 /// up to our caller.
-pub(crate) fn pass_helper_error(err: HelperError) -> CommonError {
+pub fn pass_helper_error(err: HelperError) -> CommonError {
 	match CommonError::try_from(err) {
 		Ok(e) => e,
 		Err(e) => panic!("Helper error `{}` should hot have happenned here", e),
 	}
 }
 
-pub(crate) fn helper_error_as_internal(err: HelperError) -> CommonError {
+pub fn helper_error_as_internal(err: HelperError) -> CommonError {
 	match err {
 		HelperError::Internal(e) => CommonError::InternalError(e),
 		e => CommonError::InternalError(GarageError::Message(e.to_string())),

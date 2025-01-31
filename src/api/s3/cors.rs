@@ -15,12 +15,12 @@ use http_body_util::BodyExt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::common_error::{helper_error_as_internal, CommonError};
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::error::*;
-use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
-use crate::signature::verify_signed_content;
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
+use crate::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
+use garage_api_common::common_error::{helper_error_as_internal, CommonError};
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_signed_content;
 
 use garage_model::bucket_table::{Bucket, BucketParams, CorsRule as GarageCorsRule};
 use garage_model::garage::Garage;

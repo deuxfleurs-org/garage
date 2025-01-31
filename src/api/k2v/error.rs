@@ -2,12 +2,14 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use crate::common_error::CommonError;
-pub(crate) use crate::common_error::{helper_error_as_internal, pass_helper_error};
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
-use crate::signature::error::Error as SignatureError;
+use garage_api_common::common_error::CommonError;
+pub(crate) use garage_api_common::common_error::{helper_error_as_internal, pass_helper_error};
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::error::Error as SignatureError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]

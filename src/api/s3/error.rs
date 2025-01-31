@@ -6,13 +6,18 @@ use hyper::{HeaderMap, StatusCode};
 
 use garage_model::helper::error::Error as HelperError;
 
-pub(crate) use crate::common_error::pass_helper_error;
-use crate::common_error::{helper_error_as_internal, CommonError};
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
-use crate::s3::xml as s3_xml;
-use crate::signature::error::Error as SignatureError;
+pub(crate) use garage_api_common::common_error::pass_helper_error;
+
+use garage_api_common::common_error::{helper_error_as_internal, CommonError};
+
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+
+use crate::xml as s3_xml;
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::error::Error as SignatureError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]

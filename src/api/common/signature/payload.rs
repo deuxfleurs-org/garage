@@ -518,7 +518,7 @@ impl Authorization {
 		})
 	}
 
-	pub(crate) fn parse_form(params: &HeaderMap) -> Result<Self, Error> {
+	pub fn parse_form(params: &HeaderMap) -> Result<Self, Error> {
 		let algorithm = params
 			.get(X_AMZ_ALGORITHM)
 			.ok_or_bad_request("Missing X-Amz-Algorithm header")?

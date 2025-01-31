@@ -13,13 +13,13 @@ use garage_model::s3::object_table::*;
 
 use garage_table::EnumerationOrder;
 
-use crate::encoding::*;
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::encryption::EncryptionParams;
-use crate::s3::error::*;
-use crate::s3::multipart as s3_multipart;
-use crate::s3::xml as s3_xml;
+use crate::api_server::{ReqBody, ResBody};
+use crate::encryption::EncryptionParams;
+use crate::error::*;
+use crate::multipart as s3_multipart;
+use crate::xml as s3_xml;
+use garage_api_common::encoding::*;
+use garage_api_common::helpers::*;
 
 const DUMMY_NAME: &str = "Dummy Key";
 const DUMMY_KEY: &str = "GKDummyKey";
