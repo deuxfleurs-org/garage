@@ -1945,9 +1945,6 @@ in
     version = "1.0.1";
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;
-    features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/garage_api_k2v" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api_k2v/default") "default")
-    ];
     dependencies = {
       async_trait = (buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.77" { profileName = "__noProfile"; }).out;
       base64 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".base64."0.21.7" { inherit profileName; }).out;
@@ -2085,7 +2082,7 @@ in
     src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
       (lib.optional (rootFeatures' ? "garage_model/default") "default")
-      (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/garage_api_k2v" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api_k2v/default" || rootFeatures' ? "garage_model/k2v") "k2v")
+      [ "k2v" ]
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/lmdb" || rootFeatures' ? "garage_model/default" || rootFeatures' ? "garage_model/lmdb") "lmdb")
       (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/sqlite" || rootFeatures' ? "garage_model/default" || rootFeatures' ? "garage_model/sqlite") "sqlite")
     ];
@@ -2226,7 +2223,7 @@ in
     registry = "unknown";
     src = fetchCrateLocal workspaceSrc;
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "garage/default" || rootFeatures' ? "garage/garage_api_k2v" || rootFeatures' ? "garage/k2v" || rootFeatures' ? "garage_api_k2v/default" || rootFeatures' ? "garage_model/k2v" || rootFeatures' ? "garage_util/k2v") "k2v")
+      [ "k2v" ]
     ];
     dependencies = {
       arc_swap = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".arc-swap."1.6.0" { inherit profileName; }).out;
