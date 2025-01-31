@@ -12,10 +12,10 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 
+use garage_api_common::cors::*;
 use garage_api_common::generic_server::*;
 use garage_api_common::helpers::*;
 use garage_api_common::signature::verify_request;
-use garage_api_s3::cors::*;
 
 use crate::batch::*;
 use crate::error::*;

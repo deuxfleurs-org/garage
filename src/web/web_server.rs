@@ -20,9 +20,11 @@ use opentelemetry::{
 
 use crate::error::*;
 
+use garage_api_common::cors::{
+	add_cors_headers, find_matching_cors_rule, handle_options_for_bucket,
+};
 use garage_api_common::generic_server::{server_loop, UnixListenerOn};
 use garage_api_common::helpers::*;
-use garage_api_s3::cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
 use garage_api_s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
 };
