@@ -57,6 +57,35 @@ pub enum CommonError {
 	InvalidBucketName(String),
 }
 
+#[macro_export]
+macro_rules! commonErrorDerivative {
+	( $error_struct: ident ) => {
+		impl From<garage_util::error::Error> for $error_struct {
+			fn from(err: garage_util::error::Error) -> Self {
+				Self::Common(CommonError::InternalError(err))
+			}
+		}
+		impl From<http::Error> for $error_struct {
+			fn from(err: http::Error) -> Self {
+				Self::Common(CommonError::Http(err))
+			}
+		}
+		impl From<hyper::Error> for $error_struct {
+			fn from(err: hyper::Error) -> Self {
+				Self::Common(CommonError::Hyper(err))
+			}
+		}
+		impl From<hyper::header::ToStrError> for $error_struct {
+			fn from(err: hyper::header::ToStrError) -> Self {
+				Self::Common(CommonError::InvalidHeader(err))
+			}
+		}
+		impl CommonErrorDerivative for $error_struct {}
+	};
+}
+
+pub use commonErrorDerivative;
+
 impl CommonError {
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {

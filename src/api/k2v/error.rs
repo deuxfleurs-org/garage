@@ -2,7 +2,7 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use garage_api_common::common_error::CommonError;
+use garage_api_common::common_error::{commonErrorDerivative, CommonError};
 pub(crate) use garage_api_common::common_error::{helper_error_as_internal, pass_helper_error};
 pub use garage_api_common::common_error::{
 	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
@@ -16,7 +16,7 @@ use garage_api_common::signature::error::Error as SignatureError;
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	Common(CommonError),
+	Common(#[error(source)] CommonError),
 
 	// Category: cannot process
 	/// Authorization Header Malformed
@@ -44,16 +44,7 @@ pub enum Error {
 	InvalidUtf8Str(#[error(source)] std::str::Utf8Error),
 }
 
-impl<T> From<T> for Error
-where
-	CommonError: From<T>,
-{
-	fn from(err: T) -> Self {
-		Error::Common(CommonError::from(err))
-	}
-}
-
-impl CommonErrorDerivative for Error {}
+commonErrorDerivative!(Error);
 
 impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {

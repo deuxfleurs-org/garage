@@ -25,11 +25,12 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use garage_api_common::helpers::*;
+
 use crate::api_server::ResBody;
 use crate::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
 use crate::encryption::EncryptionParams;
 use crate::error::*;
-use garage_api_common::helpers::*;
 
 const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
 

@@ -16,6 +16,9 @@ use serde::Deserialize;
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 
+use garage_api_common::helpers::*;
+use garage_api_common::signature::payload::{verify_v4, Authorization};
+
 use crate::api_server::ResBody;
 use crate::checksum::*;
 use crate::cors::*;
@@ -23,8 +26,6 @@ use crate::encryption::EncryptionParams;
 use crate::error::*;
 use crate::put::{get_headers, save_stream, ChecksumMode};
 use crate::xml as s3_xml;
-use garage_api_common::helpers::*;
-use garage_api_common::signature::payload::{verify_v4, Authorization};
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,

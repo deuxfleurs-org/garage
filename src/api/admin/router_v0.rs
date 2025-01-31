@@ -2,8 +2,9 @@ use std::borrow::Cow;
 
 use hyper::{Method, Request};
 
-use crate::error::*;
 use garage_api_common::router_macros::*;
+
+use crate::error::*;
 
 router_match! {@func
 

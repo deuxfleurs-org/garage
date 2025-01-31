@@ -21,6 +21,7 @@ use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
 
 use crate::bucket::*;
 use crate::cluster::*;
@@ -28,7 +29,6 @@ use crate::error::*;
 use crate::key::*;
 use crate::router_v0;
 use crate::router_v1::{Authorization, Endpoint};
-use garage_api_common::helpers::*;
 
 pub type ResBody = BoxBody<Error>;
 

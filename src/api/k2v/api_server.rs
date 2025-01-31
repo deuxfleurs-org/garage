@@ -12,17 +12,16 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 
-use crate::error::*;
 use garage_api_common::generic_server::*;
-
+use garage_api_common::helpers::*;
 use garage_api_common::signature::verify_request;
+use garage_api_s3::cors::*;
 
 use crate::batch::*;
+use crate::error::*;
 use crate::index::*;
 use crate::item::*;
 use crate::router::Endpoint;
-use garage_api_common::helpers::*;
-use garage_api_s3::cors::*;
 
 pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
@@ -31,7 +30,7 @@ pub struct K2VApiServer {
 	garage: Arc<Garage>,
 }
 
-pub(crate) struct K2VApiEndpoint {
+pub struct K2VApiEndpoint {
 	bucket_name: String,
 	endpoint: Endpoint,
 }

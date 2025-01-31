@@ -30,11 +30,12 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use garage_api_common::helpers::*;
+
 use crate::api_server::{ReqBody, ResBody};
 use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
-use garage_api_common::helpers::*;
 
 const PUT_BLOCKS_MAX_PARALLEL: usize = 3;
 

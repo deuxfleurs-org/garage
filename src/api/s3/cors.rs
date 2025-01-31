@@ -15,16 +15,17 @@ use http_body_util::BodyExt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::api_server::{ReqBody, ResBody};
-use crate::error::*;
-use crate::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
+use garage_model::bucket_table::{Bucket, BucketParams, CorsRule as GarageCorsRule};
+use garage_model::garage::Garage;
+use garage_util::data::*;
+
 use garage_api_common::common_error::{helper_error_as_internal, CommonError};
 use garage_api_common::helpers::*;
 use garage_api_common::signature::verify_signed_content;
 
-use garage_model::bucket_table::{Bucket, BucketParams, CorsRule as GarageCorsRule};
-use garage_model::garage::Garage;
-use garage_util::data::*;
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
+use crate::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 
 pub async fn handle_get_cors(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;

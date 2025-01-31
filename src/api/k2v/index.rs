@@ -5,10 +5,11 @@ use garage_table::util::*;
 
 use garage_model::k2v::item_table::{BYTES, CONFLICTS, ENTRIES, VALUES};
 
+use garage_api_common::helpers::*;
+
 use crate::api_server::ResBody;
 use crate::error::*;
 use crate::range::read_range;
-use garage_api_common::helpers::*;
 
 pub async fn handle_read_index(
 	ctx: ReqCtx,

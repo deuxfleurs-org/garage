@@ -5,12 +5,13 @@ use garage_util::data::*;
 
 use garage_model::s3::object_table::*;
 
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_signed_content;
+
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
 use crate::put::next_timestamp;
 use crate::xml as s3_xml;
-use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 async fn handle_delete_internal(ctx: &ReqCtx, key: &str) -> Result<(Uuid, Uuid), Error> {
 	let ReqCtx {

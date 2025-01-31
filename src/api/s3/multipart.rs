@@ -15,14 +15,15 @@ use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_signed_content;
+
 use crate::api_server::{ReqBody, ResBody};
 use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 use crate::put::*;
 use crate::xml as s3_xml;
-use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 // ----
 

@@ -9,9 +9,10 @@ use garage_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
+use garage_api_common::helpers::*;
+
 use crate::api_server::ResBody;
 use crate::error::*;
-use garage_api_common::helpers::*;
 
 pub async fn handle_list_keys(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let res = garage

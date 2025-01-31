@@ -98,7 +98,7 @@ consul-discovery = [ "garage_rpc/consul-discovery" ]
 # Automatic registration and discovery via Kubernetes API
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).
-metrics = [ "garage_api_common/metrics", "opentelemetry-prometheus", "prometheus" ]
+metrics = [ "garage_api_common/metrics", "garage_api_admin/metrics", "opentelemetry-prometheus", "prometheus" ]
 # Exporter for the OpenTelemetry Collector.
 telemetry-otlp = [ "opentelemetry-otlp" ]
 # Logging to syslog

@@ -69,3 +69,6 @@ quick-xml.workspace = true
 opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }
 prometheus = { workspace = true, optional = true }
+
+[features]
+metrics = [ "opentelemetry-prometheus", "prometheus", "garage_api_common/metrics" ]

@@ -14,15 +14,15 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
-use crate::error::*;
 use garage_api_common::generic_server::*;
-
+use garage_api_common::helpers::*;
 use garage_api_common::signature::verify_request;
 
 use crate::bucket::*;
 use crate::copy::*;
 use crate::cors::*;
 use crate::delete::*;
+use crate::error::*;
 use crate::get::*;
 use crate::lifecycle::*;
 use crate::list::*;
@@ -31,7 +31,6 @@ use crate::post_object::handle_post_object;
 use crate::put::*;
 use crate::router::Endpoint;
 use crate::website::*;
-use garage_api_common::helpers::*;
 
 pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
@@ -40,7 +39,7 @@ pub struct S3ApiServer {
 	garage: Arc<Garage>,
 }
 
-pub(crate) struct S3ApiEndpoint {
+pub struct S3ApiEndpoint {
 	bucket_name: Option<String>,
 	endpoint: Endpoint,
 }
