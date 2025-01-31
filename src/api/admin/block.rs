@@ -12,10 +12,11 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::{Admin, RequestHandler};
-use crate::common_error::CommonErrorDerivative;
+use garage_api_common::common_error::CommonErrorDerivative;
+
+use crate::api::*;
+use crate::error::*;
+use crate::{Admin, RequestHandler};
 
 #[async_trait]
 impl RequestHandler for LocalListBlockErrorsRequest {

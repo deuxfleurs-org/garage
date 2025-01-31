@@ -5,7 +5,7 @@ use argon2::password_hash::PasswordHash;
 use async_trait::async_trait;
 
 use http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION};
-use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
+use hyper::{body::Incoming as IncomingBody, Request, Response};
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 
@@ -13,8 +13,6 @@ use opentelemetry::trace::SpanRef;
 
 #[cfg(feature = "metrics")]
 use opentelemetry_prometheus::PrometheusExporter;
-#[cfg(feature = "metrics")]
-use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
 use garage_rpc::{Endpoint as RpcEndpoint, *};
@@ -100,7 +98,7 @@ pub type ResBody = BoxBody<Error>;
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
 	#[cfg(feature = "metrics")]
-	exporter: PrometheusExporter,
+	pub(crate) exporter: PrometheusExporter,
 	metrics_token: Option<String>,
 	admin_token: Option<String>,
 	pub(crate) background: Arc<BackgroundRunner>,
@@ -147,34 +145,6 @@ impl AdminApiServer {
 		ApiServer::new(region, ArcAdminApiServer(self))
 			.run_server(bind_addr, Some(0o220), must_exit)
 			.await
-	}
-
-	fn handle_metrics(&self) -> Result<Response<ResBody>, Error> {
-		#[cfg(feature = "metrics")]
-		{
-			use opentelemetry::trace::Tracer;
-
-			let mut buffer = vec![];
-			let encoder = TextEncoder::new();
-
-			let tracer = opentelemetry::global::tracer("garage");
-			let metric_families = tracer.in_span("admin/gather_metrics", |_| {
-				self.exporter.registry().gather()
-			});
-
-			encoder
-				.encode(&metric_families, &mut buffer)
-				.ok_or_internal_error("Could not serialize metrics")?;
-
-			Ok(Response::builder()
-				.status(StatusCode::OK)
-				.header(http::header::CONTENT_TYPE, encoder.format_type())
-				.body(bytes_body(buffer.into()))?)
-		}
-		#[cfg(not(feature = "metrics"))]
-		Err(Error::bad_request(
-			"Garage was built without the metrics feature".to_string(),
-		))
 	}
 }
 
@@ -246,7 +216,7 @@ impl AdminApiServer {
 			AdminApiRequest::Options(req) => req.handle(&self.garage, &self).await,
 			AdminApiRequest::CheckDomain(req) => req.handle(&self.garage, &self).await,
 			AdminApiRequest::Health(req) => req.handle(&self.garage, &self).await,
-			AdminApiRequest::Metrics(_req) => self.handle_metrics(),
+			AdminApiRequest::Metrics(req) => req.handle(&self.garage, &self).await,
 			req => {
 				let res = req.handle(&self.garage, &self).await?;
 				let mut res = json_ok_response(&res)?;
