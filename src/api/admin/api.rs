@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use garage_rpc::*;
 
 use garage_model::garage::Garage;
-use garage_util::error::Error as GarageError;
 
 use garage_api_common::common_error::CommonErrorDerivative;
 use garage_api_common::helpers::is_default;
@@ -103,21 +102,6 @@ pub struct MultiRequest<RB> {
 pub struct MultiResponse<RB> {
 	pub success: HashMap<String, RB>,
 	pub error: HashMap<String, String>,
-}
-
-impl<RB> MultiResponse<RB> {
-	pub fn into_single_response(self) -> Result<RB, GarageError> {
-		if let Some((_, e)) = self.error.into_iter().next() {
-			return Err(GarageError::Message(e));
-		}
-		if self.success.len() != 1 {
-			return Err(GarageError::Message(format!(
-				"{} responses returned, expected 1",
-				self.success.len()
-			)));
-		}
-		Ok(self.success.into_iter().next().unwrap().1)
-	}
 }
 
 // **********************************************

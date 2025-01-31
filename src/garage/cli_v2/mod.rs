@@ -16,7 +16,7 @@ use garage_rpc::*;
 
 use garage_api_admin::api::*;
 use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
-use garage_api_admin::RequestHandler as AdminApiEndpoint;
+use garage_api_admin::RequestHandler;
 
 use crate::admin::*;
 use crate::cli as cli_v1;
@@ -74,11 +74,11 @@ impl Cli {
 		}
 	}
 
-	pub async fn api_request<T>(&self, req: T) -> Result<<T as AdminApiEndpoint>::Response, Error>
+	pub async fn api_request<T>(&self, req: T) -> Result<<T as RequestHandler>::Response, Error>
 	where
-		T: AdminApiEndpoint,
+		T: RequestHandler,
 		AdminApiRequest: From<T>,
-		<T as AdminApiEndpoint>::Response: TryFrom<TaggedAdminApiResponse>,
+		<T as RequestHandler>::Response: TryFrom<TaggedAdminApiResponse>,
 	{
 		let req = AdminApiRequest::from(req);
 		let req_name = req.name();
@@ -88,7 +88,7 @@ impl Cli {
 			.await??
 		{
 			ProxyRpcResponse::ProxyApiOkResponse(resp) => {
-				<T as AdminApiEndpoint>::Response::try_from(resp).map_err(|_| {
+				<T as RequestHandler>::Response::try_from(resp).map_err(|_| {
 					Error::Message(format!("{} returned unexpected response", req_name))
 				})
 			}
@@ -102,5 +102,33 @@ impl Cli {
 			))),
 			m => Err(Error::unexpected_rpc_message(m)),
 		}
+	}
+
+	pub async fn local_api_request<T>(
+		&self,
+		req: T,
+	) -> Result<<T as RequestHandler>::Response, Error>
+	where
+		T: RequestHandler,
+		MultiRequest<T>: RequestHandler<Response = MultiResponse<<T as RequestHandler>::Response>>,
+		AdminApiRequest: From<MultiRequest<T>>,
+		<MultiRequest<T> as RequestHandler>::Response: TryFrom<TaggedAdminApiResponse>,
+	{
+		let req = MultiRequest {
+			node: hex::encode(self.rpc_host),
+			body: req,
+		};
+		let resp = self.api_request(req).await?;
+
+		if let Some((_, e)) = resp.error.into_iter().next() {
+			return Err(Error::Message(e));
+		}
+		if resp.success.len() != 1 {
+			return Err(Error::Message(format!(
+				"{} responses returned, expected 1",
+				resp.success.len()
+			)));
+		}
+		Ok(resp.success.into_iter().next().unwrap().1)
 	}
 }

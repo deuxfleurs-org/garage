@@ -27,15 +27,11 @@ impl Cli {
 
 	pub async fn cmd_list_workers(&self, opt: WorkerListOpt) -> Result<(), Error> {
 		let mut list = self
-			.api_request(ListWorkersRequest {
-				node: hex::encode(self.rpc_host),
-				body: LocalListWorkersRequest {
-					busy_only: opt.busy,
-					error_only: opt.errors,
-				},
+			.local_api_request(LocalListWorkersRequest {
+				busy_only: opt.busy,
+				error_only: opt.errors,
 			})
 			.await?
-			.into_single_response()?
 			.0;
 
 		list.sort_by_key(|info| {
@@ -90,12 +86,8 @@ impl Cli {
 
 	pub async fn cmd_worker_info(&self, tid: usize) -> Result<(), Error> {
 		let info = self
-			.api_request(GetWorkerInfoRequest {
-				node: hex::encode(self.rpc_host),
-				body: LocalGetWorkerInfoRequest { id: tid as u64 },
-			})
+			.local_api_request(LocalGetWorkerInfoRequest { id: tid as u64 })
 			.await?
-			.into_single_response()?
 			.0;
 
 		let mut table = vec![];
