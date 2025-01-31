@@ -24,12 +24,9 @@ err-derive.workspace = true
 tracing.workspace = true
 percent-encoding.workspace = true
 
-futures.workspace = true
-
 http.workspace = true
 http-body-util.workspace = true
 hyper.workspace = true
-hyper-util.workspace = true
 
 tokio.workspace = true
 

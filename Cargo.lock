@@ -237,36 +237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "aws-config"
-version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b30c39ebe61f75d1b3785362b1586b41991873c9ab3e317a9181c246fb71d82"
-dependencies = [
- "aws-credential-types",
- "aws-runtime",
- "aws-sdk-sso",
- "aws-sdk-ssooidc",
- "aws-sdk-sts",
- "aws-smithy-async",
- "aws-smithy-http",
- "aws-smithy-json",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "aws-types",
- "bytes",
- "fastrand",
- "hex",
- "http 0.2.11",
- "hyper 0.14.28",
- "ring",
- "time",
- "tokio",
- "tracing",
- "zeroize",
-]
-
-[[package]]
 name = "aws-credential-types"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -351,73 +321,6 @@ dependencies = [
  "regex-lite",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "aws-sdk-sso"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f486420a66caad72635bc2ce0ff6581646e0d32df02aa39dc983bfe794955a5b"
-dependencies = [
- "aws-credential-types",
- "aws-runtime",
- "aws-smithy-async",
- "aws-smithy-http",
- "aws-smithy-json",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "aws-types",
- "bytes",
- "http 0.2.11",
- "once_cell",
- "regex-lite",
- "tracing",
-]
-
-[[package]]
-name = "aws-sdk-ssooidc"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39ddccf01d82fce9b4a15c8ae8608211ee7db8ed13a70b514bbfe41df3d24841"
-dependencies = [
- "aws-credential-types",
- "aws-runtime",
- "aws-smithy-async",
- "aws-smithy-http",
- "aws-smithy-json",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "aws-types",
- "bytes",
- "http 0.2.11",
- "once_cell",
- "regex-lite",
- "tracing",
-]
-
-[[package]]
-name = "aws-sdk-sts"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a591f8c7e6a621a501b2b5d2e88e1697fcb6274264523a6ad4d5959889a41ce"
-dependencies = [
- "aws-credential-types",
- "aws-runtime",
- "aws-smithy-async",
- "aws-smithy-http",
- "aws-smithy-json",
- "aws-smithy-query",
- "aws-smithy-runtime",
- "aws-smithy-runtime-api",
- "aws-smithy-types",
- "aws-smithy-xml",
- "aws-types",
- "http 0.2.11",
- "once_cell",
- "regex-lite",
- "tracing",
 ]
 
 [[package]]
@@ -523,16 +426,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aws-smithy-query"
-version = "0.60.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bda4b1dfc9810e35fba8a620e900522cd1bd4f9578c446e82f49d1ce41d2e9f9"
-dependencies = [
- "aws-smithy-types",
- "urlencoding",
-]
-
-[[package]]
 name = "aws-smithy-runtime"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -570,7 +463,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
- "zeroize",
 ]
 
 [[package]]
@@ -1314,7 +1206,6 @@ version = "1.0.1"
 dependencies = [
  "assert-json-diff",
  "async-trait",
- "aws-config",
  "aws-sdk-s3",
  "backtrace",
  "base64 0.21.7",
@@ -1323,9 +1214,7 @@ dependencies = [
  "chrono",
  "format_table",
  "futures",
- "futures-util",
  "garage_api_admin",
- "garage_api_common",
  "garage_api_k2v",
  "garage_api_s3",
  "garage_block",
@@ -1350,10 +1239,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
  "parse_duration",
- "prometheus",
- "rand",
  "serde",
- "serde_bytes",
  "serde_json",
  "sha1",
  "sha2",
@@ -1362,7 +1248,6 @@ dependencies = [
  "syslog-tracing",
  "timeago",
  "tokio",
- "toml",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1371,52 +1256,24 @@ dependencies = [
 name = "garage_api_admin"
 version = "1.0.1"
 dependencies = [
- "aes-gcm",
  "argon2",
- "async-compression",
  "async-trait",
- "base64 0.21.7",
- "bytes",
- "chrono",
- "crc32c",
- "crc32fast",
- "crypto-common",
  "err-derive",
- "form_urlencoded",
  "futures",
- "futures-util",
  "garage_api_common",
- "garage_block",
  "garage_model",
- "garage_net",
  "garage_rpc",
  "garage_table",
  "garage_util",
  "hex",
- "hmac",
  "http 1.0.0",
- "http-body-util",
- "http-range",
- "httpdate",
  "hyper 1.1.0",
- "hyper-util",
- "idna",
- "md-5",
- "multer",
- "nom",
  "opentelemetry",
  "opentelemetry-prometheus",
- "percent-encoding",
- "pin-project",
  "prometheus",
  "serde",
- "serde_bytes",
  "serde_json",
- "sha1",
- "sha2",
  "tokio",
- "tokio-stream",
- "tokio-util 0.7.10",
  "tracing",
  "url",
 ]
@@ -1425,51 +1282,29 @@ dependencies = [
 name = "garage_api_common"
 version = "1.0.1"
 dependencies = [
- "aes-gcm",
- "argon2",
- "async-compression",
  "async-trait",
- "base64 0.21.7",
  "bytes",
  "chrono",
- "crc32c",
- "crc32fast",
  "crypto-common",
  "err-derive",
- "form_urlencoded",
  "futures",
- "futures-util",
- "garage_block",
  "garage_model",
- "garage_net",
- "garage_rpc",
  "garage_table",
  "garage_util",
  "hex",
  "hmac",
  "http 1.0.0",
  "http-body-util",
- "http-range",
- "httpdate",
  "hyper 1.1.0",
  "hyper-util",
  "idna",
- "md-5",
- "multer",
  "nom",
  "opentelemetry",
- "opentelemetry-prometheus",
- "percent-encoding",
  "pin-project",
- "prometheus",
  "serde",
- "serde_bytes",
  "serde_json",
- "sha1",
  "sha2",
  "tokio",
- "tokio-stream",
- "tokio-util 0.7.10",
  "tracing",
  "url",
 ]
@@ -1478,52 +1313,22 @@ dependencies = [
 name = "garage_api_k2v"
 version = "1.0.1"
 dependencies = [
- "aes-gcm",
- "argon2",
- "async-compression",
  "async-trait",
  "base64 0.21.7",
- "bytes",
- "chrono",
- "crc32c",
- "crc32fast",
- "crypto-common",
  "err-derive",
- "form_urlencoded",
  "futures",
- "futures-util",
  "garage_api_common",
- "garage_block",
  "garage_model",
- "garage_net",
- "garage_rpc",
  "garage_table",
  "garage_util",
- "hex",
- "hmac",
  "http 1.0.0",
  "http-body-util",
- "http-range",
- "httpdate",
  "hyper 1.1.0",
- "hyper-util",
- "idna",
- "md-5",
- "multer",
- "nom",
  "opentelemetry",
- "opentelemetry-prometheus",
  "percent-encoding",
- "pin-project",
- "prometheus",
  "serde",
- "serde_bytes",
  "serde_json",
- "sha1",
- "sha2",
  "tokio",
- "tokio-stream",
- "tokio-util 0.7.10",
  "tracing",
  "url",
 ]
@@ -1533,7 +1338,6 @@ name = "garage_api_s3"
 version = "1.0.1"
 dependencies = [
  "aes-gcm",
- "argon2",
  "async-compression",
  "async-trait",
  "base64 0.21.7",
@@ -1541,11 +1345,9 @@ dependencies = [
  "chrono",
  "crc32c",
  "crc32fast",
- "crypto-common",
  "err-derive",
  "form_urlencoded",
  "futures",
- "futures-util",
  "garage_api_common",
  "garage_block",
  "garage_model",
@@ -1554,26 +1356,19 @@ dependencies = [
  "garage_table",
  "garage_util",
  "hex",
- "hmac",
  "http 1.0.0",
  "http-body-util",
  "http-range",
  "httpdate",
  "hyper 1.1.0",
- "hyper-util",
- "idna",
  "md-5",
  "multer",
- "nom",
  "opentelemetry",
- "opentelemetry-prometheus",
  "percent-encoding",
  "pin-project",
- "prometheus",
  "quick-xml",
  "roxmltree",
  "serde",
- "serde_bytes",
  "serde_json",
  "sha1",
  "sha2",
@@ -1594,7 +1389,6 @@ dependencies = [
  "bytes",
  "bytesize",
  "futures",
- "futures-util",
  "garage_db",
  "garage_net",
  "garage_rpc",
@@ -1604,7 +1398,6 @@ dependencies = [
  "opentelemetry",
  "rand",
  "serde",
- "serde_bytes",
  "tokio",
  "tokio-util 0.7.10",
  "tracing",
@@ -1617,7 +1410,6 @@ version = "1.0.1"
 dependencies = [
  "err-derive",
  "heed",
- "hexdump",
  "mktemp",
  "r2d2",
  "r2d2_sqlite",
@@ -1629,14 +1421,12 @@ dependencies = [
 name = "garage_model"
 version = "1.0.1"
 dependencies = [
- "arc-swap",
  "async-trait",
  "base64 0.21.7",
  "blake2",
  "chrono",
  "err-derive",
  "futures",
- "futures-util",
  "garage_block",
  "garage_db",
  "garage_net",
@@ -1645,7 +1435,6 @@ dependencies = [
  "garage_util",
  "hex",
  "http 1.0.0",
- "opentelemetry",
  "parse_duration",
  "rand",
  "serde",
@@ -1687,13 +1476,10 @@ version = "1.0.1"
 dependencies = [
  "arc-swap",
  "async-trait",
- "bytes",
  "bytesize",
  "err-derive",
  "format_table",
  "futures",
- "futures-util",
- "garage_db",
  "garage_net",
  "garage_util",
  "gethostname",
@@ -1713,7 +1499,6 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "tokio",
- "tokio-stream",
  "tracing",
 ]
 
@@ -1723,7 +1508,6 @@ version = "1.0.1"
 dependencies = [
  "arc-swap",
  "async-trait",
- "bytes",
  "futures",
  "futures-util",
  "garage_db",
@@ -1746,10 +1530,8 @@ dependencies = [
  "arc-swap",
  "async-trait",
  "blake2",
- "bytes",
  "bytesize",
  "chrono",
- "digest",
  "err-derive",
  "futures",
  "garage_db",
@@ -1778,7 +1560,6 @@ name = "garage_web"
 version = "1.0.1"
 dependencies = [
  "err-derive",
- "futures",
  "garage_api_common",
  "garage_api_s3",
  "garage_model",
@@ -1787,7 +1568,6 @@ dependencies = [
  "http 1.0.0",
  "http-body-util",
  "hyper 1.1.0",
- "hyper-util",
  "opentelemetry",
  "percent-encoding",
  "tokio",
@@ -2423,7 +2203,6 @@ dependencies = [
  "sha2",
  "thiserror",
  "tokio",
- "tracing",
  "tracing-subscriber",
 ]
 
@@ -4706,12 +4485,6 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
-
-[[package]]
-name = "urlencoding"
-version = "2.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "utf8parse"

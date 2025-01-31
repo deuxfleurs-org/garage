@@ -23,7 +23,6 @@ path = "tests/lib.rs"
 [dependencies]
 format_table.workspace = true
 garage_db.workspace = true
-garage_api_common.workspace = true
 garage_api_admin.workspace = true
 garage_api_s3.workspace = true
 garage_api_k2v = { workspace = true, optional = true }
@@ -43,7 +42,6 @@ parse_duration.workspace = true
 hex.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-rand.workspace = true
 async-trait.workspace = true
 sha1.workspace = true
 sodiumoxide.workspace = true
@@ -51,21 +49,16 @@ structopt.workspace = true
 git-version.workspace = true
 
 serde.workspace = true
-serde_bytes.workspace = true
-toml.workspace = true
 
 futures.workspace = true
-futures-util.workspace = true
 tokio.workspace = true
 
 opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }
 opentelemetry-otlp = { workspace = true, optional = true }
-prometheus = { workspace = true, optional = true }
 syslog-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
-aws-config.workspace = true
 aws-sdk-s3.workspace = true
 chrono.workspace = true
 http.workspace = true
@@ -98,7 +91,7 @@ consul-discovery = [ "garage_rpc/consul-discovery" ]
 # Automatic registration and discovery via Kubernetes API
 kubernetes-discovery = [ "garage_rpc/kubernetes-discovery" ]
 # Prometheus exporter (/metrics endpoint).
-metrics = [ "garage_api_common/metrics", "garage_api_admin/metrics", "opentelemetry-prometheus", "prometheus" ]
+metrics = [ "garage_api_admin/metrics", "opentelemetry-prometheus" ]
 # Exporter for the OpenTelemetry Collector.
 telemetry-otlp = [ "opentelemetry-otlp" ]
 # Logging to syslog

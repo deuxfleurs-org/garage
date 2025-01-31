@@ -23,7 +23,6 @@ garage_rpc.workspace = true
 garage_api_common.workspace = true
 
 aes-gcm.workspace = true
-argon2.workspace = true
 async-compression.workspace = true
 async-trait.workspace = true
 base64.workspace = true
@@ -31,20 +30,15 @@ bytes.workspace = true
 chrono.workspace = true
 crc32fast.workspace = true
 crc32c.workspace = true
-crypto-common.workspace = true
 err-derive.workspace = true
 hex.workspace = true
-hmac.workspace = true
-idna.workspace = true
 tracing.workspace = true
 md-5.workspace = true
-nom.workspace = true
 pin-project.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 
 futures.workspace = true
-futures-util.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
@@ -55,17 +49,13 @@ httpdate.workspace = true
 http-range.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, default-features = false, features = ["server", "http1"] }
-hyper-util.workspace = true
 multer.workspace = true
 percent-encoding.workspace = true
 roxmltree.workspace = true
 url.workspace = true
 
 serde.workspace = true
-serde_bytes.workspace = true
 serde_json.workspace = true
 quick-xml.workspace = true
 
 opentelemetry.workspace = true
-opentelemetry-prometheus = { workspace = true, optional = true }
-prometheus = { workspace = true, optional = true }
