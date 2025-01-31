@@ -64,6 +64,9 @@ impl AdminApiRequest {
 			POST GetWorkerInfo (body_field, query::node),
 			POST GetWorkerVariable (body_field, query::node),
 			POST SetWorkerVariable (body_field, query::node),
+			// Block APIs
+			GET ListBlockErrors (default::body, query::node),
+			POST GetBlockInfo (body_field, query::node),
 		]);
 
 		if let Some(message) = query.nonempty_message() {

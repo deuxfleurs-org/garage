@@ -6,7 +6,6 @@ use garage_rpc::*;
 use garage_model::helper::error::Error as HelperError;
 
 use crate::admin::*;
-use crate::cli::*;
 
 pub async fn cmd_admin(
 	rpc_cli: &Endpoint<AdminRpc, ()>,
@@ -16,17 +15,6 @@ pub async fn cmd_admin(
 	match rpc_cli.call(&rpc_host, args, PRIO_NORMAL).await?? {
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
-		}
-		AdminRpc::BlockErrorList(el) => {
-			print_block_error_list(el);
-		}
-		AdminRpc::BlockInfo {
-			hash,
-			refcount,
-			versions,
-			uploads,
-		} => {
-			print_block_info(hash, refcount, versions, uploads);
 		}
 		r => {
 			error!("Unexpected response: {:?}", r);

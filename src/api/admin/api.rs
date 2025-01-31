@@ -82,6 +82,10 @@ admin_endpoints![
 	GetWorkerInfo,
 	GetWorkerVariable,
 	SetWorkerVariable,
+
+	// Block operations
+	ListBlockErrors,
+	GetBlockInfo,
 ];
 
 local_admin_endpoints![
@@ -90,6 +94,9 @@ local_admin_endpoints![
 	GetWorkerInfo,
 	GetWorkerVariable,
 	SetWorkerVariable,
+	// Block operations
+	ListBlockErrors,
+	GetBlockInfo,
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -619,6 +626,7 @@ pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
 // ---- GetWorkerList ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalListWorkersRequest {
 	#[serde(default)]
 	pub busy_only: bool,
@@ -693,4 +701,67 @@ pub struct LocalSetWorkerVariableRequest {
 pub struct LocalSetWorkerVariableResponse {
 	pub variable: String,
 	pub value: String,
+}
+
+// **********************************************
+//      Block operations
+// **********************************************
+
+// ---- ListBlockErrors ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalListBlockErrorsRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalListBlockErrorsResponse(pub Vec<BlockError>);
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockError {
+	pub block_hash: String,
+	pub refcount: u64,
+	pub error_count: u64,
+	pub last_try_secs_ago: u64,
+	pub next_try_in_secs: u64,
+}
+
+// ---- GetBlockInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalGetBlockInfoRequest {
+	pub block_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalGetBlockInfoResponse {
+	pub block_hash: String,
+	pub refcount: u64,
+	pub versions: Vec<BlockVersion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockVersion {
+	pub version_id: String,
+	pub deleted: bool,
+	pub garbage_collected: bool,
+	pub backlink: Option<BlockVersionBacklink>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BlockVersionBacklink {
+	Object {
+		bucket_id: String,
+		key: String,
+	},
+	Upload {
+		upload_id: String,
+		upload_deleted: bool,
+		upload_garbage_collected: bool,
+		bucket_id: Option<String>,
+		key: Option<String>,
+	},
 }

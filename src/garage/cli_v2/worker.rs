@@ -1,4 +1,3 @@
-//use bytesize::ByteSize;
 use format_table::format_table;
 
 use garage_util::error::*;

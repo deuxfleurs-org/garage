@@ -100,7 +100,7 @@ impl RequestHandler for LocalSetWorkerVariableRequest {
 
 fn worker_info_to_api(id: u64, info: WorkerInfo) -> WorkerInfoResp {
 	WorkerInfoResp {
-		id: id,
+		id,
 		name: info.name,
 		state: match info.state {
 			WorkerState::Busy => WorkerStateResp::Busy,
@@ -112,7 +112,7 @@ fn worker_info_to_api(id: u64, info: WorkerInfo) -> WorkerInfoResp {
 		consecutive_errors: info.consecutive_errors as u64,
 		last_error: info.last_error.map(|(message, t)| WorkerLastError {
 			message,
-			secs_ago: (std::cmp::max(t, now_msec()) - t) / 1000,
+			secs_ago: now_msec().saturating_sub(t) / 1000,
 		}),
 
 		tranquility: info.status.tranquility,

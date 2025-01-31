@@ -19,12 +19,8 @@ use garage_table::*;
 use garage_rpc::layout::PARTITION_BITS;
 use garage_rpc::*;
 
-use garage_block::manager::BlockResyncErrorInfo;
-
 use garage_model::garage::Garage;
 use garage_model::helper::error::Error;
-use garage_model::s3::mpu_table::MultipartUpload;
-use garage_model::s3::version_table::Version;
 
 use garage_api_admin::api::{AdminApiRequest, TaggedAdminApiResponse};
 use garage_api_admin::RequestHandler as AdminApiEndpoint;
@@ -45,13 +41,6 @@ pub enum AdminRpc {
 
 	// Replies
 	Ok(String),
-	BlockErrorList(Vec<BlockResyncErrorInfo>),
-	BlockInfo {
-		hash: Hash,
-		refcount: u64,
-		versions: Vec<Result<Version, Uuid>>,
-		uploads: Vec<MultipartUpload>,
-	},
 }
 
 impl Rpc for AdminRpc {
