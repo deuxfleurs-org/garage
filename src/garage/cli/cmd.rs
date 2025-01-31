@@ -17,12 +17,6 @@ pub async fn cmd_admin(
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}
-		AdminRpc::WorkerList(wi, wlo) => {
-			print_worker_list(wi, wlo);
-		}
-		AdminRpc::WorkerInfo(tid, wi) => {
-			print_worker_info(tid, wi);
-		}
 		AdminRpc::BlockErrorList(el) => {
 			print_block_error_list(el);
 		}

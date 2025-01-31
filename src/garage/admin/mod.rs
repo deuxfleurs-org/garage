@@ -22,7 +22,7 @@ use garage_rpc::*;
 use garage_block::manager::BlockResyncErrorInfo;
 
 use garage_model::garage::Garage;
-use garage_model::helper::error::{Error, OkOrBadRequest};
+use garage_model::helper::error::Error;
 use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
@@ -40,17 +40,11 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 pub enum AdminRpc {
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
-	Worker(WorkerOperation),
 	BlockOperation(BlockOperation),
 	MetaOperation(MetaOperation),
 
 	// Replies
 	Ok(String),
-	WorkerList(
-		HashMap<usize, garage_util::background::WorkerInfo>,
-		WorkerListOpt,
-	),
-	WorkerInfo(usize, garage_util::background::WorkerInfo),
 	BlockErrorList(Vec<BlockResyncErrorInfo>),
 	BlockInfo {
 		hash: Hash,
@@ -340,27 +334,6 @@ impl AdminRpcHandler {
 		))
 	}
 
-	// ================ WORKER COMMANDS ====================
-
-	async fn handle_worker_cmd(&self, cmd: &WorkerOperation) -> Result<AdminRpc, Error> {
-		match cmd {
-			WorkerOperation::List { opt } => {
-				let workers = self.background.get_worker_info();
-				Ok(AdminRpc::WorkerList(workers, *opt))
-			}
-			WorkerOperation::Info { tid } => {
-				let info = self
-					.background
-					.get_worker_info()
-					.get(tid)
-					.ok_or_bad_request(format!("No worker with TID {}", tid))?
-					.clone();
-				Ok(AdminRpc::WorkerInfo(*tid, info))
-			}
-			_ => unreachable!(),
-		}
-	}
-
 	// ================ META DB COMMANDS ====================
 
 	async fn handle_meta_cmd(self: &Arc<Self>, mo: &MetaOperation) -> Result<AdminRpc, Error> {
@@ -409,7 +382,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 		match message {
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
-			AdminRpc::Worker(wo) => self.handle_worker_cmd(wo).await,
 			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
 			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),

@@ -141,6 +141,9 @@ macro_rules! router_match {
         }
     }};
 
+    (@@parse_param $query:expr, default, $param:ident) => {{
+        Default::default()
+    }};
     (@@parse_param $query:expr, query_opt, $param:ident) => {{
         // extract optional query parameter
         $query.$param.take().map(|param| param.into_owned())

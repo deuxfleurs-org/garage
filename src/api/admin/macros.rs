@@ -111,19 +111,11 @@ macro_rules! local_admin_endpoints {
             }
 
             $(
-                #[derive(Debug, Clone, Serialize, Deserialize)]
-                pub struct [< $endpoint Request >] {
-                    pub node: String,
-                    pub body: [< Local $endpoint Request >],
-                }
+                pub type [< $endpoint Request >] = MultiRequest< [< Local $endpoint Request >] >;
 
                 pub type [< $endpoint RequestBody >] = [< Local $endpoint Request >];
 
-                #[derive(Debug, Clone, Serialize, Deserialize)]
-                pub struct [< $endpoint Response >] {
-                    pub success: HashMap<String, [< Local $endpoint Response >] >,
-                    pub error: HashMap<String, String>,
-                }
+                pub type [< $endpoint Response >] = MultiResponse< [< Local $endpoint Response >] >;
 
                 impl From< [< Local $endpoint Request >] > for LocalAdminApiRequest {
                     fn from(req: [< Local $endpoint Request >]) -> LocalAdminApiRequest {

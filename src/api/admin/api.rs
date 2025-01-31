@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use garage_rpc::*;
 
 use garage_model::garage::Garage;
+use garage_util::error::Error as GarageError;
 
 use garage_api_common::common_error::CommonErrorDerivative;
 use garage_api_common::helpers::is_default;
@@ -78,11 +79,46 @@ admin_endpoints![
 	RemoveBucketAlias,
 
 	// Worker operations
+	ListWorkers,
+	GetWorkerInfo,
 	GetWorkerVariable,
 	SetWorkerVariable,
 ];
 
-local_admin_endpoints![GetWorkerVariable, SetWorkerVariable,];
+local_admin_endpoints![
+	// Background workers
+	ListWorkers,
+	GetWorkerInfo,
+	GetWorkerVariable,
+	SetWorkerVariable,
+];
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiRequest<RB> {
+	pub node: String,
+	pub body: RB,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiResponse<RB> {
+	pub success: HashMap<String, RB>,
+	pub error: HashMap<String, String>,
+}
+
+impl<RB> MultiResponse<RB> {
+	pub fn into_single_response(self) -> Result<RB, GarageError> {
+		if let Some((_, e)) = self.error.into_iter().next() {
+			return Err(GarageError::Message(e));
+		}
+		if self.success.len() != 1 {
+			return Err(GarageError::Message(format!(
+				"{} responses returned, expected 1",
+				self.success.len()
+			)));
+		}
+		Ok(self.success.into_iter().next().unwrap().1)
+	}
+}
 
 // **********************************************
 //      Special endpoints
@@ -595,6 +631,61 @@ pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
 // **********************************************
 //      Worker operations
 // **********************************************
+
+// ---- GetWorkerList ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalListWorkersRequest {
+	#[serde(default)]
+	pub busy_only: bool,
+	#[serde(default)]
+	pub error_only: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalListWorkersResponse(pub Vec<WorkerInfoResp>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkerInfoResp {
+	pub id: u64,
+	pub name: String,
+	pub state: WorkerStateResp,
+	pub errors: u64,
+	pub consecutive_errors: u64,
+	pub last_error: Option<WorkerLastError>,
+	pub tranquility: Option<u32>,
+	pub progress: Option<String>,
+	pub queue_length: Option<u64>,
+	pub persistent_errors: Option<u64>,
+	pub freeform: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WorkerStateResp {
+	Busy,
+	Throttled { duration_secs: f32 },
+	Idle,
+	Done,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkerLastError {
+	pub message: String,
+	pub secs_ago: u64,
+}
+
+// ---- GetWorkerList ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalGetWorkerInfoRequest {
+	pub id: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalGetWorkerInfoResponse(pub WorkerInfoResp);
 
 // ---- GetWorkerVariable ----
 

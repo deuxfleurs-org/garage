@@ -60,7 +60,10 @@ impl AdminApiRequest {
 			POST AddBucketAlias (body),
 			POST RemoveBucketAlias (body),
 			// Worker APIs
+			POST ListWorkers (body_field, query::node),
+			POST GetWorkerInfo (body_field, query::node),
 			POST GetWorkerVariable (body_field, query::node),
+			POST SetWorkerVariable (body_field, query::node),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
