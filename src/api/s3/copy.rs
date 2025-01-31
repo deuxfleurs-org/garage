@@ -863,7 +863,7 @@ pub struct CopyPartResult {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::s3::xml::to_xml_with_header;
+	use crate::xml::to_xml_with_header;
 
 	#[test]
 	fn copy_object_result() -> Result<(), Error> {

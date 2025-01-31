@@ -15,7 +15,7 @@ use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
 
 use super::garage::{Instance, Key};
-use garage_api::signature;
+use garage_api_common::signature;
 
 pub type Body = FullBody<hyper::body::Bytes>;
 

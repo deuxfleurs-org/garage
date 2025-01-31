@@ -59,6 +59,8 @@ opentelemetry-otlp = { workspace = true, optional = true }
 syslog-tracing = { workspace = true, optional = true }
 
 [dev-dependencies]
+garage_api_common.workspace = true
+
 aws-sdk-s3.workspace = true
 chrono.workspace = true
 http.workspace = true

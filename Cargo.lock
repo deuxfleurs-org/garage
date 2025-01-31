@@ -1215,6 +1215,7 @@ dependencies = [
  "format_table",
  "futures",
  "garage_api_admin",
+ "garage_api_common",
  "garage_api_k2v",
  "garage_api_s3",
  "garage_block",

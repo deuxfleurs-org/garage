@@ -38,7 +38,7 @@ args@{
   ignoreLockHash,
 }:
 let
-  nixifiedLockHash = "a0ad7b8ebb60b6026864b3e19a17053a367f66e9a82703879b03b4111804bfef";
+  nixifiedLockHash = "a38a3cff52f86f965656bd7560d8d74db79b3f7c5aadfce4c6e84ae181ed37c0";
   workspaceSrc = if args.workspaceSrc == null then ./. else args.workspaceSrc;
   currentLockHash = builtins.hashFile "sha256" (workspaceSrc + /Cargo.lock);
   lockHashIgnored = if ignoreLockHash
@@ -1859,6 +1859,7 @@ in
       aws_sdk_s3 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".aws-sdk-s3."1.14.0" { inherit profileName; }).out;
       base64 = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".base64."0.21.7" { inherit profileName; }).out;
       chrono = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.33" { inherit profileName; }).out;
+      garage_api_common = (rustPackages."unknown".garage_api_common."1.0.1" { inherit profileName; }).out;
       hmac = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".hmac."0.12.1" { inherit profileName; }).out;
       http = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."1.0.0" { inherit profileName; }).out;
       http_body_util = (rustPackages."registry+https://github.com/rust-lang/crates.io-index".http-body-util."0.1.0" { inherit profileName; }).out;
