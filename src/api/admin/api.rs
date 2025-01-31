@@ -86,6 +86,8 @@ admin_endpoints![
 	// Block operations
 	ListBlockErrors,
 	GetBlockInfo,
+	RetryBlockResync,
+	PurgeBlocks,
 ];
 
 local_admin_endpoints![
@@ -97,6 +99,8 @@ local_admin_endpoints![
 	// Block operations
 	ListBlockErrors,
 	GetBlockInfo,
+	RetryBlockResync,
+	PurgeBlocks,
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -764,4 +768,36 @@ pub enum BlockVersionBacklink {
 		bucket_id: Option<String>,
 		key: Option<String>,
 	},
+}
+
+// ---- RetryBlockResync ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum LocalRetryBlockResyncRequest {
+	#[serde(rename_all = "camelCase")]
+	All { all: bool },
+	#[serde(rename_all = "camelCase")]
+	Blocks { block_hashes: Vec<String> },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalRetryBlockResyncResponse {
+	pub count: u64,
+}
+
+// ---- PurgeBlocks ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalPurgeBlocksRequest(pub Vec<String>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalPurgeBlocksResponse {
+	pub blocks_purged: u64,
+	pub objects_deleted: u64,
+	pub uploads_deleted: u64,
+	pub versions_deleted: u64,
 }

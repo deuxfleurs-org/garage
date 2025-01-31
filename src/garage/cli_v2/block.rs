@@ -13,14 +13,8 @@ impl Cli {
 		match cmd {
 			BlockOperation::ListErrors => self.cmd_list_block_errors().await,
 			BlockOperation::Info { hash } => self.cmd_get_block_info(hash).await,
-
-			bo => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::BlockOperation(bo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
+			BlockOperation::RetryNow { all, blocks } => self.cmd_block_retry_now(all, blocks).await,
+			BlockOperation::Purge { yes, blocks } => self.cmd_block_purge(yes, blocks).await,
 		}
 	}
 
@@ -103,6 +97,48 @@ impl Cli {
                 "Warning: refcount does not match number of non-deleted versions, you should try `garage repair block-rc`."
             );
 		}
+
+		Ok(())
+	}
+
+	pub async fn cmd_block_retry_now(&self, all: bool, blocks: Vec<String>) -> Result<(), Error> {
+		let req = match (all, blocks.len()) {
+			(true, 0) => LocalRetryBlockResyncRequest::All { all: true },
+			(false, n) if n > 0 => LocalRetryBlockResyncRequest::Blocks {
+				block_hashes: blocks,
+			},
+			_ => {
+				return Err(Error::Message(
+					"Please specify block hashes or --all (not both)".into(),
+				))
+			}
+		};
+
+		let res = self.local_api_request(req).await?;
+
+		println!(
+			"{} blocks returned in queue for a retry now (check logs to see results)",
+			res.count
+		);
+
+		Ok(())
+	}
+
+	pub async fn cmd_block_purge(&self, yes: bool, blocks: Vec<String>) -> Result<(), Error> {
+		if !yes {
+			return Err(Error::Message(
+				"Pass the --yes flag to confirm block purge operation.".into(),
+			));
+		}
+
+		let res = self
+			.local_api_request(LocalPurgeBlocksRequest(blocks))
+			.await?;
+
+		println!(
+			"Purged {} blocks: deleted {} versions, {} objects, {} multipart uploads",
+			res.blocks_purged, res.versions_deleted, res.objects_deleted, res.uploads_deleted,
+		);
 
 		Ok(())
 	}

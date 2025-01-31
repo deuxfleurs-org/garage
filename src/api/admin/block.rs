@@ -9,6 +9,7 @@ use garage_util::time::now_msec;
 use garage_table::EmptyKey;
 
 use garage_model::garage::Garage;
+use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
 use crate::admin::api::*;
@@ -107,6 +108,89 @@ impl RequestHandler for LocalGetBlockInfoRequest {
 	}
 }
 
+#[async_trait]
+impl RequestHandler for LocalRetryBlockResyncRequest {
+	type Response = LocalRetryBlockResyncResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<LocalRetryBlockResyncResponse, Error> {
+		match self {
+			Self::All { all: true } => {
+				let blocks = garage.block_manager.list_resync_errors()?;
+				for b in blocks.iter() {
+					garage.block_manager.resync.clear_backoff(&b.hash)?;
+				}
+				Ok(LocalRetryBlockResyncResponse {
+					count: blocks.len() as u64,
+				})
+			}
+			Self::All { all: false } => Err(Error::bad_request("nonsense")),
+			Self::Blocks { block_hashes } => {
+				for hash in block_hashes.iter() {
+					let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
+					let hash = Hash::try_from(&hash).ok_or_bad_request("invalid hash")?;
+					garage.block_manager.resync.clear_backoff(&hash)?;
+				}
+				Ok(LocalRetryBlockResyncResponse {
+					count: block_hashes.len() as u64,
+				})
+			}
+		}
+	}
+}
+
+#[async_trait]
+impl RequestHandler for LocalPurgeBlocksRequest {
+	type Response = LocalPurgeBlocksResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<LocalPurgeBlocksResponse, Error> {
+		let mut obj_dels = 0;
+		let mut mpu_dels = 0;
+		let mut ver_dels = 0;
+
+		for hash in self.0.iter() {
+			let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
+			let hash = Hash::try_from(&hash).ok_or_bad_request("invalid hash")?;
+			let block_refs = garage
+				.block_ref_table
+				.get_range(&hash, None, None, 10000, Default::default())
+				.await?;
+
+			for br in block_refs {
+				if let Some(version) = garage.version_table.get(&br.version, &EmptyKey).await? {
+					handle_block_purge_version_backlink(
+						garage,
+						&version,
+						&mut obj_dels,
+						&mut mpu_dels,
+					)
+					.await?;
+
+					if !version.deleted.get() {
+						let deleted_version = Version::new(version.uuid, version.backlink, true);
+						garage.version_table.insert(&deleted_version).await?;
+						ver_dels += 1;
+					}
+				}
+			}
+		}
+
+		Ok(LocalPurgeBlocksResponse {
+			blocks_purged: self.0.len() as u64,
+			versions_deleted: ver_dels,
+			objects_deleted: obj_dels,
+			uploads_deleted: mpu_dels,
+		})
+	}
+}
+
 fn find_block_hash_by_prefix(garage: &Arc<Garage>, prefix: &str) -> Result<Hash, Error> {
 	if prefix.len() < 4 {
 		return Err(Error::bad_request(
@@ -146,4 +230,50 @@ fn find_block_hash_by_prefix(garage: &Arc<Garage>, prefix: &str) -> Result<Hash,
 	}
 
 	found.ok_or_else(|| Error::NoSuchBlock(prefix.to_string()))
+}
+
+async fn handle_block_purge_version_backlink(
+	garage: &Arc<Garage>,
+	version: &Version,
+	obj_dels: &mut u64,
+	mpu_dels: &mut u64,
+) -> Result<(), Error> {
+	let (bucket_id, key, ov_id) = match &version.backlink {
+		VersionBacklink::Object { bucket_id, key } => (*bucket_id, key.clone(), version.uuid),
+		VersionBacklink::MultipartUpload { upload_id } => {
+			if let Some(mut mpu) = garage.mpu_table.get(upload_id, &EmptyKey).await? {
+				if !mpu.deleted.get() {
+					mpu.parts.clear();
+					mpu.deleted.set();
+					garage.mpu_table.insert(&mpu).await?;
+					*mpu_dels += 1;
+				}
+				(mpu.bucket_id, mpu.key.clone(), *upload_id)
+			} else {
+				return Ok(());
+			}
+		}
+	};
+
+	if let Some(object) = garage.object_table.get(&bucket_id, &key).await? {
+		let ov = object.versions().iter().rev().find(|v| v.is_complete());
+		if let Some(ov) = ov {
+			if ov.uuid == ov_id {
+				let del_uuid = gen_uuid();
+				let deleted_object = Object::new(
+					bucket_id,
+					key,
+					vec![ObjectVersion {
+						uuid: del_uuid,
+						timestamp: ov.timestamp + 1,
+						state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
+					}],
+				);
+				garage.object_table.insert(&deleted_object).await?;
+				*obj_dels += 1;
+			}
+		}
+	}
+
+	Ok(())
 }

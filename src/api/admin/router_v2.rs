@@ -67,6 +67,8 @@ impl AdminApiRequest {
 			// Block APIs
 			GET ListBlockErrors (default::body, query::node),
 			POST GetBlockInfo (body_field, query::node),
+			POST RetryBlockResync (body_field, query::node),
+			POST PurgeBlocks (body_field, query::node),
 		]);
 
 		if let Some(message) = query.nonempty_message() {

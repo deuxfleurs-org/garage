@@ -1,5 +1,3 @@
-mod block;
-
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
@@ -36,7 +34,6 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 pub enum AdminRpc {
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
-	BlockOperation(BlockOperation),
 	MetaOperation(MetaOperation),
 
 	// Replies
@@ -371,7 +368,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 		match message {
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
-			AdminRpc::BlockOperation(bo) => self.handle_block_cmd(bo).await,
 			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
