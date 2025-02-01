@@ -110,8 +110,6 @@ pub enum HttpEndpoint {
 	New(String),
 }
 
-struct ArcAdminApiServer(Arc<AdminApiServer>);
-
 impl AdminApiServer {
 	pub fn new(
 		garage: Arc<Garage>,
@@ -146,39 +144,7 @@ impl AdminApiServer {
 			.run_server(bind_addr, Some(0o220), must_exit)
 			.await
 	}
-}
 
-#[async_trait]
-impl ApiHandler for ArcAdminApiServer {
-	const API_NAME: &'static str = "admin";
-	const API_NAME_DISPLAY: &'static str = "Admin";
-
-	type Endpoint = HttpEndpoint;
-	type Error = Error;
-
-	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<HttpEndpoint, Error> {
-		if req.uri().path().starts_with("/v0/") {
-			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
-			let endpoint_v1 = router_v1::Endpoint::from_v0(endpoint_v0)?;
-			Ok(HttpEndpoint::Old(endpoint_v1))
-		} else if req.uri().path().starts_with("/v1/") {
-			let endpoint_v1 = router_v1::Endpoint::from_request(req)?;
-			Ok(HttpEndpoint::Old(endpoint_v1))
-		} else {
-			Ok(HttpEndpoint::New(req.uri().path().to_string()))
-		}
-	}
-
-	async fn handle(
-		&self,
-		req: Request<IncomingBody>,
-		endpoint: HttpEndpoint,
-	) -> Result<Response<ResBody>, Error> {
-		self.0.handle_http_api(req, endpoint).await
-	}
-}
-
-impl AdminApiServer {
 	async fn handle_http_api(
 		&self,
 		req: Request<IncomingBody>,
@@ -225,6 +191,38 @@ impl AdminApiServer {
 				Ok(res)
 			}
 		}
+	}
+}
+
+struct ArcAdminApiServer(Arc<AdminApiServer>);
+
+#[async_trait]
+impl ApiHandler for ArcAdminApiServer {
+	const API_NAME: &'static str = "admin";
+	const API_NAME_DISPLAY: &'static str = "Admin";
+
+	type Endpoint = HttpEndpoint;
+	type Error = Error;
+
+	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<HttpEndpoint, Error> {
+		if req.uri().path().starts_with("/v0/") {
+			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
+			let endpoint_v1 = router_v1::Endpoint::from_v0(endpoint_v0)?;
+			Ok(HttpEndpoint::Old(endpoint_v1))
+		} else if req.uri().path().starts_with("/v1/") {
+			let endpoint_v1 = router_v1::Endpoint::from_request(req)?;
+			Ok(HttpEndpoint::Old(endpoint_v1))
+		} else {
+			Ok(HttpEndpoint::New(req.uri().path().to_string()))
+		}
+	}
+
+	async fn handle(
+		&self,
+		req: Request<IncomingBody>,
+		endpoint: HttpEndpoint,
+	) -> Result<Response<ResBody>, Error> {
+		self.0.handle_http_api(req, endpoint).await
 	}
 }
 
