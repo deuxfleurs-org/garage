@@ -16,7 +16,7 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build -j4 --no-build-output --attr pkgs.amd64.debug --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
 
   - name: unit + func tests
     image: nixpkgs/nix:nixos-22.05
@@ -24,7 +24,7 @@ steps:
       GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
       GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
     commands:
-      - nix-build --no-build-output --attr test.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build -j4 --no-build-output --attr test.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
       - ./result/bin/garage_db-*
       - ./result/bin/garage_api_common-*
       - ./result/bin/garage_api_s3-*
@@ -45,5 +45,5 @@ steps:
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.amd64.debug --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build -j4 --no-build-output --attr pkgs.amd64.debug --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
       - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
