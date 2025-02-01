@@ -16,10 +16,11 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::EndpointHandler;
-use crate::common_error::CommonError;
+use garage_api_common::common_error::CommonError;
+
+use crate::api::*;
+use crate::error::*;
+use crate::EndpointHandler;
 
 #[async_trait]
 impl EndpointHandler for ListBucketsRequest {

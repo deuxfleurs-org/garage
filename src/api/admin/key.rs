@@ -8,9 +8,9 @@ use garage_table::*;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::EndpointHandler;
+use crate::api::*;
+use crate::error::*;
+use crate::EndpointHandler;
 
 #[async_trait]
 impl EndpointHandler for ListKeysRequest {

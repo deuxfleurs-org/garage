@@ -2,14 +2,14 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use garage_api::generic_server::ApiError;
+use garage_api_common::generic_server::ApiError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum Error {
 	/// An error received from the API crate
 	#[error(display = "API error: {}", _0)]
-	ApiError(garage_api::s3::error::Error),
+	ApiError(garage_api_s3::error::Error),
 
 	/// The file does not exist
 	#[error(display = "Not found")]
@@ -22,10 +22,10 @@ pub enum Error {
 
 impl<T> From<T> for Error
 where
-	garage_api::s3::error::Error: From<T>,
+	garage_api_s3::error::Error: From<T>,
 {
 	fn from(err: T) -> Self {
-		Error::ApiError(garage_api::s3::error::Error::from(err))
+		Error::ApiError(garage_api_s3::error::Error::from(err))
 	}
 }
 

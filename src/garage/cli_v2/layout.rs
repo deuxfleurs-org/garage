@@ -3,7 +3,7 @@ use format_table::format_table;
 
 use garage_util::error::*;
 
-use garage_api::admin::api::*;
+use garage_api_admin::api::*;
 
 use crate::cli::layout as cli_v1;
 use crate::cli::structs::*;

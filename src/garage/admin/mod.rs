@@ -27,9 +27,9 @@ use garage_model::helper::error::{Error, OkOrBadRequest};
 use garage_model::s3::mpu_table::MultipartUpload;
 use garage_model::s3::version_table::Version;
 
-use garage_api::admin::api::{AdminApiRequest, TaggedAdminApiResponse};
-use garage_api::admin::EndpointHandler as AdminApiEndpoint;
-use garage_api::generic_server::ApiError;
+use garage_api_admin::api::{AdminApiRequest, TaggedAdminApiResponse};
+use garage_api_admin::EndpointHandler as AdminApiEndpoint;
+use garage_api_common::generic_server::ApiError;
 
 use crate::cli::*;
 use crate::repair::online::launch_online_repair;

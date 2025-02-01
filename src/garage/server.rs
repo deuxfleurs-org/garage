@@ -6,13 +6,13 @@ use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
 
-use garage_api::admin::api_server::AdminApiServer;
-use garage_api::s3::api_server::S3ApiServer;
+use garage_api_admin::api_server::AdminApiServer;
+use garage_api_s3::api_server::S3ApiServer;
 use garage_model::garage::Garage;
 use garage_web::WebServer;
 
 #[cfg(feature = "k2v")]
-use garage_api::k2v::api_server::K2VApiServer;
+use garage_api_k2v::api_server::K2VApiServer;
 
 use crate::admin::*;
 use crate::secrets::{fill_secrets, Secrets};

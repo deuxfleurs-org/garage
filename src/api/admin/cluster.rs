@@ -10,9 +10,9 @@ use garage_rpc::layout;
 
 use garage_model::garage::Garage;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::EndpointHandler;
+use crate::api::*;
+use crate::error::*;
+use crate::EndpointHandler;
 
 #[async_trait]
 impl EndpointHandler for GetClusterStatusRequest {

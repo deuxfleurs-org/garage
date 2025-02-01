@@ -19,15 +19,15 @@ use garage_model::garage::Garage;
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
-use crate::generic_server::*;
+use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::router_v0;
-use crate::admin::router_v1;
-use crate::admin::Authorization;
-use crate::admin::EndpointHandler;
-use crate::helpers::*;
+use crate::api::*;
+use crate::error::*;
+use crate::router_v0;
+use crate::router_v1;
+use crate::Authorization;
+use crate::EndpointHandler;
 
 pub type ResBody = BoxBody<Error>;
 

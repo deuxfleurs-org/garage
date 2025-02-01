@@ -20,15 +20,16 @@ use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::checksum::*;
-use crate::s3::encryption::EncryptionParams;
-use crate::s3::error::*;
-use crate::s3::get::full_object_byte_stream;
-use crate::s3::multipart;
-use crate::s3::put::{get_headers, save_stream, ChecksumMode, SaveStreamResult};
-use crate::s3::xml::{self as s3_xml, xmlns_tag};
+use garage_api_common::helpers::*;
+
+use crate::api_server::{ReqBody, ResBody};
+use crate::checksum::*;
+use crate::encryption::EncryptionParams;
+use crate::error::*;
+use crate::get::full_object_byte_stream;
+use crate::multipart;
+use crate::put::{get_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::xml::{self as s3_xml, xmlns_tag};
 
 // -------- CopyObject ---------
 
@@ -862,7 +863,7 @@ pub struct CopyPartResult {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::s3::xml::to_xml_with_header;
+	use crate::xml::to_xml_with_header;
 
 	#[test]
 	fn copy_object_result() -> Result<(), Error> {

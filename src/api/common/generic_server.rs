@@ -37,7 +37,7 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use crate::helpers::{BoxBody, ErrorBody};
 
-pub(crate) trait ApiEndpoint: Send + Sync + 'static {
+pub trait ApiEndpoint: Send + Sync + 'static {
 	fn name(&self) -> Cow<'static, str>;
 	fn add_span_attributes(&self, span: SpanRef<'_>);
 }
@@ -49,7 +49,7 @@ pub trait ApiError: std::error::Error + Send + Sync + 'static {
 }
 
 #[async_trait]
-pub(crate) trait ApiHandler: Send + Sync + 'static {
+pub trait ApiHandler: Send + Sync + 'static {
 	const API_NAME: &'static str;
 	const API_NAME_DISPLAY: &'static str;
 
@@ -64,7 +64,7 @@ pub(crate) trait ApiHandler: Send + Sync + 'static {
 	) -> Result<Response<BoxBody<Self::Error>>, Self::Error>;
 }
 
-pub(crate) struct ApiServer<A: ApiHandler> {
+pub struct ApiServer<A: ApiHandler> {
 	region: String,
 	api_handler: A,
 

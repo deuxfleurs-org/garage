@@ -4,12 +4,13 @@ use hyper::body::Incoming as IncomingBody;
 use hyper::{Method, Request};
 use paste::paste;
 
-use crate::admin::api::*;
-use crate::admin::error::*;
-use crate::admin::router_v1;
-use crate::admin::Authorization;
-use crate::helpers::*;
-use crate::router_macros::*;
+use garage_api_common::helpers::*;
+use garage_api_common::router_macros::*;
+
+use crate::api::*;
+use crate::error::*;
+use crate::router_v1;
+use crate::Authorization;
 
 impl AdminApiRequest {
 	/// Determine which S3 endpoint a request is for using the request, and a bucket which was

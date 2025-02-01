@@ -7,8 +7,9 @@ use std::sync::Arc;
 use garage_table::replication::TableShardedReplication;
 use garage_table::*;
 
-use crate::helpers::key_after_prefix;
-use crate::k2v::error::*;
+use garage_api_common::helpers::key_after_prefix;
+
+use crate::error::*;
 
 /// Read range in a Garage table.
 /// Returns (entries, more?, nextStart)

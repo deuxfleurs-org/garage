@@ -8,7 +8,10 @@ members = [
 	"src/table",
 	"src/block",
 	"src/model",
-	"src/api",
+	"src/api/common",
+	"src/api/s3",
+	"src/api/k2v",
+	"src/api/admin",
 	"src/web",
 	"src/garage",
 	"src/k2v-client",
@@ -21,7 +24,10 @@ default-members = ["src/garage"]
 
 # Internal Garage crates
 format_table = { version = "0.1.1", path = "src/format-table" }
-garage_api = { version = "1.0.1", path = "src/api" }
+garage_api_common = { version = "1.0.1", path = "src/api/common" }
+garage_api_admin = { version = "1.0.1", path = "src/api/admin" }
+garage_api_s3 = { version = "1.0.1", path = "src/api/s3" }
+garage_api_k2v = { version = "1.0.1", path = "src/api/k2v" }
 garage_block = { version = "1.0.1", path = "src/block" }
 garage_db = { version = "1.0.1", path = "src/db", default-features = false }
 garage_model = { version = "1.0.1", path = "src/model", default-features = false }
@@ -46,7 +52,6 @@ chrono = "0.4"
 crc32fast = "1.4"
 crc32c = "0.6"
 crypto-common = "0.1"
-digest = "0.10"
 err-derive = "0.3"
 gethostname = "0.4"
 git-version = "0.3.4"
@@ -137,8 +142,6 @@ thiserror = "1.0"
 assert-json-diff = "2.0"
 rustc_version = "0.4.0"
 static_init = "1.0"
-
-aws-config = "1.1.4"
 aws-sdk-config = "1.13"
 aws-sdk-s3 = "1.14"
 

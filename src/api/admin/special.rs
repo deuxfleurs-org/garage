@@ -10,11 +10,12 @@ use hyper::{Response, StatusCode};
 use garage_model::garage::Garage;
 use garage_rpc::system::ClusterHealthStatus;
 
-use crate::admin::api::{CheckDomainRequest, HealthRequest, OptionsRequest};
-use crate::admin::api_server::ResBody;
-use crate::admin::error::*;
-use crate::admin::EndpointHandler;
-use crate::helpers::*;
+use garage_api_common::helpers::*;
+
+use crate::api::{CheckDomainRequest, HealthRequest, OptionsRequest};
+use crate::api_server::ResBody;
+use crate::error::*;
+use crate::EndpointHandler;
 
 #[async_trait]
 impl EndpointHandler for OptionsRequest {

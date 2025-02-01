@@ -12,8 +12,8 @@ use garage_util::error::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
-use garage_api::admin::api::*;
-use garage_api::admin::EndpointHandler as AdminApiEndpoint;
+use garage_api_admin::api::*;
+use garage_api_admin::EndpointHandler as AdminApiEndpoint;
 
 use crate::admin::*;
 use crate::cli as cli_v1;

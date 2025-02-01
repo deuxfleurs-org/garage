@@ -204,6 +204,10 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			entries_vec.push((write_sets, e_enc));
 		}
 
+		if entries_vec.is_empty() {
+			return Ok(());
+		}
+
 		// Compute a deduplicated list of all of the write sets,
 		// and compute an index from each node to the position of the sets in which
 		// it takes part, to optimize the detection of a quorum.

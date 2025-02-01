@@ -26,7 +26,10 @@ steps:
     commands:
       - nix-build --no-build-output --attr test.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
       - ./result/bin/garage_db-*
-      - ./result/bin/garage_api-*
+      - ./result/bin/garage_api_common-*
+      - ./result/bin/garage_api_s3-*
+      - ./result/bin/garage_api_k2v-*
+      - ./result/bin/garage_api_admin-*
       - ./result/bin/garage_model-*
       - ./result/bin/garage_rpc-*
       - ./result/bin/garage_table-*

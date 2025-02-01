@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 
 use garage_model::garage::Garage;
 
-use crate::admin::error::Error;
-use crate::admin::macros::*;
-use crate::admin::EndpointHandler;
-use crate::helpers::is_default;
+use garage_api_common::helpers::is_default;
+
+use crate::error::Error;
+use crate::macros::*;
+use crate::EndpointHandler;
 
 // This generates the following:
 //
