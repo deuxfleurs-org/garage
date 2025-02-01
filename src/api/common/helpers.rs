@@ -363,9 +363,9 @@ mod tests {
 }
 
 #[derive(Serialize)]
-pub(crate) struct CustomApiErrorBody {
-	pub(crate) code: String,
-	pub(crate) message: String,
-	pub(crate) region: String,
-	pub(crate) path: String,
+pub struct CustomApiErrorBody {
+	pub code: String,
+	pub message: String,
+	pub region: String,
+	pub path: String,
 }

@@ -13,7 +13,6 @@ path = "lib.rs"
 
 [dependencies]
 err-derive.workspace = true
-hexdump.workspace = true
 tracing.workspace = true
 
 heed = { workspace = true, optional = true }

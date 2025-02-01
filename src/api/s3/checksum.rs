@@ -15,7 +15,7 @@ use garage_util::error::OkOrMessage;
 
 use garage_model::s3::object_table::*;
 
-use crate::s3::error::*;
+use crate::error::*;
 
 pub const X_AMZ_CHECKSUM_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-checksum-algorithm");

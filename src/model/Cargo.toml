@@ -22,7 +22,6 @@ garage_util.workspace = true
 garage_net.workspace = true
 
 async-trait.workspace = true
-arc-swap.workspace = true
 blake2.workspace = true
 chrono.workspace = true
 err-derive.workspace = true
@@ -38,9 +37,7 @@ serde.workspace = true
 serde_bytes.workspace = true
 
 futures.workspace = true
-futures-util.workspace = true
 tokio.workspace = true
-opentelemetry.workspace = true
 
 [features]
 default = [ "lmdb", "sqlite" ]

@@ -14,7 +14,8 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-garage_api.workspace = true
+garage_api_common.workspace = true
+garage_api_s3.workspace = true
 garage_model.workspace = true
 garage_util.workspace = true
 garage_table.workspace = true
@@ -23,12 +24,9 @@ err-derive.workspace = true
 tracing.workspace = true
 percent-encoding.workspace = true
 
-futures.workspace = true
-
 http.workspace = true
 http-body-util.workspace = true
 hyper.workspace = true
-hyper-util.workspace = true
 
 tokio.workspace = true
 

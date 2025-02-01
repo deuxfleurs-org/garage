@@ -1,5 +1,6 @@
 /// This macro is used to generate very repetitive match {} blocks in this module
 /// It is _not_ made to be used anywhere else
+#[macro_export]
 macro_rules! router_match {
     (@match $enum:expr , [ $($endpoint:ident,)* ]) => {{
         // usage: router_match {@match my_enum, [ VariantWithField1, VariantWithField2 ..] }
@@ -133,6 +134,7 @@ macro_rules! router_match {
 
 /// This macro is used to generate part of the code in this module. It must be called only one, and
 /// is useless outside of this module.
+#[macro_export]
 macro_rules! generateQueryParameters {
     (
         keywords: [ $($kw_param:expr => $kw_name: ident),* ],
@@ -220,5 +222,5 @@ macro_rules! generateQueryParameters {
     }
 }
 
-pub(crate) use generateQueryParameters;
-pub(crate) use router_match;
+pub use generateQueryParameters;
+pub use router_match;

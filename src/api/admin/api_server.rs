@@ -20,15 +20,15 @@ use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
-use crate::generic_server::*;
+use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
 
-use crate::admin::bucket::*;
-use crate::admin::cluster::*;
-use crate::admin::error::*;
-use crate::admin::key::*;
-use crate::admin::router_v0;
-use crate::admin::router_v1::{Authorization, Endpoint};
-use crate::helpers::*;
+use crate::bucket::*;
+use crate::cluster::*;
+use crate::error::*;
+use crate::key::*;
+use crate::router_v0;
+use crate::router_v1::{Authorization, Endpoint};
 
 pub type ResBody = BoxBody<Error>;
 

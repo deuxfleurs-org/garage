@@ -1,10 +1,10 @@
 [package]
-name = "garage_api"
+name = "garage_api_common"
 version = "1.0.1"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"
-description = "S3 API server crate for the Garage object store"
+description = "Common functions for the API server crates for the Garage object store"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
 readme = "../../README.md"
 
@@ -16,59 +16,30 @@ path = "lib.rs"
 [dependencies]
 garage_model.workspace = true
 garage_table.workspace = true
-garage_block.workspace = true
-garage_net.workspace = true
 garage_util.workspace = true
-garage_rpc.workspace = true
 
-aes-gcm.workspace = true
-argon2.workspace = true
-async-compression.workspace = true
 async-trait.workspace = true
-base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
-crc32fast.workspace = true
-crc32c.workspace = true
 crypto-common.workspace = true
 err-derive.workspace = true
 hex.workspace = true
 hmac.workspace = true
 idna.workspace = true
 tracing.workspace = true
-md-5.workspace = true
 nom.workspace = true
 pin-project.workspace = true
-sha1.workspace = true
 sha2.workspace = true
 
 futures.workspace = true
-futures-util.workspace = true
 tokio.workspace = true
-tokio-stream.workspace = true
-tokio-util.workspace = true
-
-form_urlencoded.workspace = true
 http.workspace = true
-httpdate.workspace = true
-http-range.workspace = true
 http-body-util.workspace = true
 hyper = { workspace = true, default-features = false, features = ["server", "http1"] }
 hyper-util.workspace = true
-multer.workspace = true
-percent-encoding.workspace = true
-roxmltree.workspace = true
 url.workspace = true
 
 serde.workspace = true
-serde_bytes.workspace = true
 serde_json.workspace = true
-quick-xml.workspace = true
 
 opentelemetry.workspace = true
-opentelemetry-prometheus = { workspace = true, optional = true }
-prometheus = { workspace = true, optional = true }
-
-[features]
-k2v = [ "garage_util/k2v", "garage_model/k2v" ]
-metrics = [ "opentelemetry-prometheus", "prometheus" ]

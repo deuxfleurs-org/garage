@@ -6,11 +6,12 @@ use garage_table::{EnumerationOrder, TableSchema};
 
 use garage_model::k2v::item_table::*;
 
-use crate::helpers::*;
-use crate::k2v::api_server::{ReqBody, ResBody};
-use crate::k2v::error::*;
-use crate::k2v::item::parse_causality_token;
-use crate::k2v::range::read_range;
+use garage_api_common::helpers::*;
+
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
+use crate::item::parse_causality_token;
+use crate::range::read_range;
 
 pub async fn handle_insert_batch(
 	ctx: ReqCtx,

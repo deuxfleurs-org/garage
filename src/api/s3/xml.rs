@@ -1,7 +1,7 @@
 use quick_xml::se::to_string;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::s3::error::Error as ApiError;
+use crate::error::Error as ApiError;
 
 pub fn to_xml_with_header<T: Serialize>(x: &T) -> Result<String, ApiError> {
 	let mut xml = r#"<?xml version="1.0" encoding="UTF-8"?>"#.to_string();

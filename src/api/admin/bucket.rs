@@ -17,11 +17,12 @@ use garage_model::permission::*;
 use garage_model::s3::mpu_table;
 use garage_model::s3::object_table::*;
 
-use crate::admin::api_server::ResBody;
-use crate::admin::error::*;
-use crate::admin::key::ApiBucketKeyPerm;
-use crate::common_error::CommonError;
-use crate::helpers::*;
+use garage_api_common::common_error::CommonError;
+use garage_api_common::helpers::*;
+
+use crate::api_server::ResBody;
+use crate::error::*;
+use crate::key::ApiBucketKeyPerm;
 
 pub async fn handle_list_buckets(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let buckets = garage
