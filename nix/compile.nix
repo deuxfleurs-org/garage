@@ -1,83 +1,64 @@
-{ system, target ? null, pkgsSrc, cargo2nixOverlay
-, release ? false, git_version ? null, features ? null, }:
+{
+  /* build inputs */
+  nixpkgs,
+  crane,
+  rust-overlay,
+
+  /* parameters */
+  system,
+  git_version ? null,
+  target ? null,
+  release ? false,
+  features ? null,
+  extraTestEnv ? {}
+}:
 
 let
   log = v: builtins.trace v v;
 
+  # NixOS and Rust/Cargo triples do not match for ARM, fix it here.
+  rustTarget = if target == "armv6l-unknown-linux-musleabihf" then
+    "arm-unknown-linux-musleabihf"
+  else
+    target;
+
+  rustTargetEnvMap = {
+    "x86_64-unknown-linux-musl" = "X86_64_UNKNOWN_LINUX_MUSL";
+    "aarch64-unknown-linux-musl" = "AARCH64_UNKNOWN_LINUX_MUSL";
+    "i686-unknown-linux-musl" = "I686_UNKNOWN_LINUX_MUSL";
+    "arm-unknown-linux-musleabihf" = "ARM_UNKNOWN_LINUX_MUSLEABIHF";
+  };
+
+  pkgsNative = import nixpkgs {
+    inherit system;
+    overlays = [ (import rust-overlay) ];
+  };
+
   pkgs = if target != null then
-    import pkgsSrc {
+    import nixpkgs {
       inherit system;
       crossSystem = {
         config = target;
         isStatic = true;
       };
-      overlays = [ cargo2nixOverlay ];
+      overlays = [ (import rust-overlay) ];
     }
   else
-    import pkgsSrc {
-      inherit system;
-      overlays = [ cargo2nixOverlay ];
-    };
+    pkgsNative;
 
-  toolchainOptions = {
-    rustVersion = "1.78.0";
-    extraRustComponents = [ "clippy" ];
-  };
+  inherit (pkgs) lib stdenv;
 
-  /* Cargo2nix provides many overrides by default, you can take inspiration from them:
-     https://github.com/cargo2nix/cargo2nix/blob/master/overlay/overrides.nix
-
-     You can have a complete list of the available options by looking at the overriden object, mkcrate:
-     https://github.com/cargo2nix/cargo2nix/blob/master/overlay/mkcrate.nix
-  */
-  packageOverrides = pkgs:
-    pkgs.rustBuilder.overrides.all ++ [
-      /* [1] We need to alter Nix hardening to make static binaries: PIE,
-         Position Independent Executables seems to be supported only on amd64. Having
-         this flag set either 1. make our executables crash or 2. compile as dynamic on some platforms.
-         Here, we deactivate it. Later (find `codegenOpts`), we reactivate it for supported targets
-         (only amd64 curently) through the `-static-pie` flag.
-         PIE is a feature used by ASLR, which helps mitigate security issues.
-         Learn more about Nix Hardening at: https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/cc-wrapper/add-hardening.sh
-
-         [2] We want to inject the git version while keeping the build deterministic.
-         As we do not want to consider the .git folder as part of the input source,
-         we ask the user (the CI often) to pass the value to Nix.
-
-         [3] We don't want libsodium-sys and zstd-sys to try to use pkgconfig to build against a system library.
-         However the features to do so get activated for some reason (due to a bug in cargo2nix?),
-         so disable them manually here.
-      */
-      (pkgs.rustBuilder.rustLib.makeOverride {
-        name = "garage";
-        overrideAttrs = drv:
-          (if git_version != null then {
-            # [2]
-            preConfigure = ''
-              ${drv.preConfigure or ""}
-              export GIT_VERSION="${git_version}"
-            '';
-          } else
-            { }) // {
-              # [1]
-              hardeningDisable = [ "pie" ];
-            };
-      })
-
-      (pkgs.rustBuilder.rustLib.makeOverride {
-        name = "libsodium-sys";
-        overrideArgs = old: {
-          features = [ ]; # [3]
-        };
-      })
-
-      (pkgs.rustBuilder.rustLib.makeOverride {
-        name = "zstd-sys";
-        overrideArgs = old: {
-          features = [ ]; # [3]
-        };
-      })
+  toolchainFn = (p: p.rust-bin.stable."1.78.0".default.override {
+    targets = lib.optionals (target != null) [ rustTarget ];
+    extensions = [
+      "rust-src"
+      "rustfmt"
     ];
+  });
+
+  craneLib = (crane.mkLib pkgs).overrideToolchain toolchainFn;
+
+  src = craneLib.cleanCargoSource ../.;
 
   /* We ship some parts of the code disabled by default by putting them behind a flag.
      It speeds up the compilation (when the feature is not required) and released crates have less dependency by default (less attack surface, disk space, etc.).
@@ -87,16 +68,15 @@ let
   rootFeatures = if features != null then
     features
   else
-    ([ "garage/bundled-libs" "garage/lmdb" "garage/sqlite" "garage/k2v" ] ++ (if release then [
-      "garage/consul-discovery"
-      "garage/kubernetes-discovery"
-      "garage/metrics"
-      "garage/telemetry-otlp"
-      "garage/syslog"
-    ] else
-      [ ]));
+    ([ "bundled-libs" "lmdb" "sqlite" "k2v" ] ++ (lib.optionals release [
+      "consul-discovery"
+      "kubernetes-discovery"
+      "metrics"
+      "telemetry-otlp"
+      "syslog"
+    ]));
 
-  packageFun = import ../Cargo.nix;
+  featuresStr = lib.concatStringsSep "," rootFeatures;
 
   /* We compile fully static binaries with musl to simplify deployment on most systems.
      When possible, we reactivate PIE hardening (see above).
@@ -107,12 +87,9 @@ let
      For more information on static builds, please refer to Rust's RFC 1721.
      https://rust-lang.github.io/rfcs/1721-crt-static.html#specifying-dynamicstatic-c-runtime-linkage
   */
-
-  codegenOpts = {
-    "armv6l-unknown-linux-musleabihf" = [
-      "target-feature=+crt-static"
-      "link-arg=-static"
-    ]; # compile as dynamic with static-pie
+  codegenOptsMap = {
+    "x86_64-unknown-linux-musl" =
+      [ "target-feature=+crt-static" "link-arg=-static-pie" ];
     "aarch64-unknown-linux-musl" = [
       "target-feature=+crt-static"
       "link-arg=-static"
@@ -121,18 +98,95 @@ let
       "target-feature=+crt-static"
       "link-arg=-static"
     ]; # segfault with static-pie
-    "x86_64-unknown-linux-musl" =
-      [ "target-feature=+crt-static" "link-arg=-static-pie" ];
+    "armv6l-unknown-linux-musleabihf" = [
+      "target-feature=+crt-static"
+      "link-arg=-static"
+    ]; # compile as dynamic with static-pie
   };
 
-  # NixOS and Rust/Cargo triples do not match for ARM, fix it here.
-  rustTarget = if target == "armv6l-unknown-linux-musleabihf" then
-    "arm-unknown-linux-musleabihf"
-  else
-    target;
+  codegenOpts = if target != null then codegenOptsMap.${target} else [
+    "link-arg=-fuse-ld=mold"
+  ];
 
-in pkgs.rustBuilder.makePackageSet ({
-  inherit release packageFun packageOverrides codegenOpts rootFeatures;
-  target = rustTarget;
-  workspaceSrc = pkgs.lib.cleanSource ../.;
-} // toolchainOptions)
+  commonArgs =
+    {
+      inherit src;
+      pname = "garage";
+      version = "dev";
+
+      strictDeps = true;
+      cargoExtraArgs = "--locked --features ${featuresStr}";
+      cargoTestExtraArgs = "--workspace";
+
+      nativeBuildInputs = [
+        pkgsNative.protobuf
+        pkgs.stdenv.cc
+      ] ++ lib.optionals (target == null) [
+        pkgs.clang
+        pkgs.mold
+      ];
+
+      CARGO_PROFILE = if release then "release" else "dev";
+      CARGO_BUILD_RUSTFLAGS =
+        lib.concatStringsSep
+          " "
+          (builtins.map (flag: "-C ${flag}") codegenOpts);
+    }
+  //
+    (if rustTarget != null then {
+      CARGO_BUILD_TARGET = rustTarget;
+
+      "CARGO_TARGET_${rustTargetEnvMap.${rustTarget}}_LINKER" = "${stdenv.cc.targetPrefix}cc";
+
+      HOST_CC = "${stdenv.cc.nativePrefix}cc";
+      TARGET_CC = "${stdenv.cc.targetPrefix}cc";
+    } else {
+      CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
+    });
+
+in rec {
+  toolchain = toolchainFn pkgs;
+
+  devShell = pkgs.mkShell {
+    buildInputs = [
+      toolchain
+    ] ++ (with pkgs; [
+      protobuf
+      clang
+      mold
+    ]);
+  };
+
+  # ---- building garage ----
+
+  garage-deps = craneLib.buildDepsOnly commonArgs;
+
+  garage = craneLib.buildPackage (commonArgs // {
+    cargoArtifacts = garage-deps;
+
+    doCheck = false;
+  } //
+    (if git_version != null then {
+      version = git_version;
+      GIT_VERSION = git_version;
+    } else {}));
+
+  # ---- testing garage ----
+
+  garage-test-bin = craneLib.cargoBuild (commonArgs // {
+    cargoArtifacts = garage-deps;
+
+    pname = "garage-tests";
+
+    CARGO_PROFILE = "test";
+    cargoExtraArgs = "${commonArgs.cargoExtraArgs} --tests --workspace";
+    doCheck = false;
+  });
+
+  garage-test = craneLib.cargoTest (commonArgs // {
+    cargoArtifacts = garage-test-bin;
+    nativeBuildInputs = commonArgs.nativeBuildInputs ++ [
+      pkgs.cacert
+    ];
+  } // extraTestEnv);
+}
