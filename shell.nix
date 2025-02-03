@@ -3,7 +3,7 @@
 with import ./nix/common.nix;
 
 let
-  pkgs = import pkgsSrc {
+  pkgs = import nixpkgs {
     inherit system;
   };
   winscp = (import ./nix/winscp.nix) pkgs;
@@ -39,7 +39,7 @@ in
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
           s3 cp \
-            ./result-bin/bin/garage \
+            ./result/bin/garage \
             s3://garagehq.deuxfleurs.fr/_releases/''${CI_COMMIT_TAG:-$CI_COMMIT_SHA}/''${TARGET}/garage
       }
 

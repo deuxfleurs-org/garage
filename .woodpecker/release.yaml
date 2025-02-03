@@ -18,12 +18,12 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr pkgs.${ARCH}.release --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build --attr releasePackages.${ARCH} --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
 
   - name: check is static binary
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-shell --attr ci --run "./script/not-dynamic.sh result-bin/bin/garage"
+      - nix-shell --attr ci --run "./script/not-dynamic.sh result/bin/garage"
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
