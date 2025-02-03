@@ -48,7 +48,7 @@ let
 
   inherit (pkgs) lib stdenv;
 
-  toolchainFn = (p: p.rust-bin.stable."1.78.0".default.override {
+  toolchainFn = (p: p.rust-bin.stable."1.82.0".default.override {
     targets = lib.optionals (target != null) [ rustTarget ];
     extensions = [
       "rust-src"
