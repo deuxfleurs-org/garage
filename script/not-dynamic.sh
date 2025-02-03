@@ -7,7 +7,12 @@ if [ "$#" -ne 1 ]; then
     exit 2
 fi
 
-if file $1 | grep 'dynamically linked' 2>&1; then
+if [ ! -x "$1" ]; then
+	echo "[fail] $1 does not exist or is not an executable"
+	exit 1
+fi
+
+if file "$1" | grep 'dynamically linked' 2>&1; then
     echo "[fail] $1 is dynamic"
     exit 1
 fi

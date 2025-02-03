@@ -2,7 +2,7 @@
 
 with import ./common.nix;
 let
-  pkgs = import pkgsSrc { };
+  pkgs = import nixpkgs { };
   lib = pkgs.lib;
 
   /* Converts a key list and a value list to a set
