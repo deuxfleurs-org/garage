@@ -59,6 +59,8 @@ impl AdminApiRequest {
 			// Bucket aliases
 			POST AddBucketAlias (body),
 			POST RemoveBucketAlias (body),
+			// Node APIs
+			POST CreateMetadataSnapshot (default::body, query::node),
 			// Worker APIs
 			POST ListWorkers (body_field, query::node),
 			POST GetWorkerInfo (body_field, query::node),

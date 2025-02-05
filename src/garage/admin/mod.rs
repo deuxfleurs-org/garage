@@ -20,10 +20,6 @@ use garage_rpc::*;
 use garage_model::garage::Garage;
 use garage_model::helper::error::Error;
 
-use garage_api_admin::api::{AdminApiRequest, TaggedAdminApiResponse};
-use garage_api_admin::RequestHandler as AdminApiEndpoint;
-use garage_api_common::generic_server::ApiError;
-
 use crate::cli::*;
 use crate::repair::online::launch_online_repair;
 
@@ -34,7 +30,6 @@ pub const ADMIN_RPC_PATH: &str = "garage/admin_rpc.rs/Rpc";
 pub enum AdminRpc {
 	LaunchRepair(RepairOpt),
 	Stats(StatsOpt),
-	MetaOperation(MetaOperation),
 
 	// Replies
 	Ok(String),
@@ -319,43 +314,6 @@ impl AdminRpcHandler {
 			t.data.gc_todo_len()?
 		))
 	}
-
-	// ================ META DB COMMANDS ====================
-
-	async fn handle_meta_cmd(self: &Arc<Self>, mo: &MetaOperation) -> Result<AdminRpc, Error> {
-		match mo {
-			MetaOperation::Snapshot { all: true } => {
-				let to = self.garage.system.cluster_layout().all_nodes().to_vec();
-
-				let resps = futures::future::join_all(to.iter().map(|to| async move {
-					let to = (*to).into();
-					self.endpoint
-						.call(
-							&to,
-							AdminRpc::MetaOperation(MetaOperation::Snapshot { all: false }),
-							PRIO_NORMAL,
-						)
-						.await
-				}))
-				.await;
-
-				let mut ret = vec![];
-				for (to, resp) in to.iter().zip(resps.iter()) {
-					let res_str = match resp {
-						Ok(_) => "ok".to_string(),
-						Err(e) => format!("error: {}", e),
-					};
-					ret.push(format!("{:?}\t{}", to, res_str));
-				}
-
-				Ok(AdminRpc::Ok(format_table_to_string(ret)))
-			}
-			MetaOperation::Snapshot { all: false } => {
-				garage_model::snapshot::async_snapshot_metadata(&self.garage).await?;
-				Ok(AdminRpc::Ok("Snapshot has been saved.".into()))
-			}
-		}
-	}
 }
 
 #[async_trait]
@@ -368,7 +326,6 @@ impl EndpointHandler<AdminRpc> for AdminRpcHandler {
 		match message {
 			AdminRpc::LaunchRepair(opt) => self.handle_launch_repair(opt.clone()).await,
 			AdminRpc::Stats(opt) => self.handle_stats(opt.clone()).await,
-			AdminRpc::MetaOperation(mo) => self.handle_meta_cmd(mo).await,
 			m => Err(GarageError::unexpected_rpc_message(m).into()),
 		}
 	}

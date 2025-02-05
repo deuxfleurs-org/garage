@@ -16,6 +16,7 @@ mod key;
 mod special;
 
 mod block;
+mod node;
 mod worker;
 
 use std::sync::Arc;

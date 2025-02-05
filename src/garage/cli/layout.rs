@@ -260,6 +260,19 @@ pub async fn cmd_layout_skip_dead_nodes(
 
 // --- utility ---
 
+pub async fn fetch_status(
+	rpc_cli: &Endpoint<SystemRpc, ()>,
+	rpc_host: NodeID,
+) -> Result<Vec<KnownNodeInfo>, Error> {
+	match rpc_cli
+		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.await??
+	{
+		SystemRpc::ReturnKnownNodes(nodes) => Ok(nodes),
+		resp => Err(Error::unexpected_rpc_message(resp)),
+	}
+}
+
 pub async fn fetch_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,

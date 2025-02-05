@@ -77,6 +77,9 @@ admin_endpoints![
 	AddBucketAlias,
 	RemoveBucketAlias,
 
+	// Node operations
+	CreateMetadataSnapshot,
+
 	// Worker operations
 	ListWorkers,
 	GetWorkerInfo,
@@ -91,6 +94,8 @@ admin_endpoints![
 ];
 
 local_admin_endpoints![
+	// Node operations
+	CreateMetadataSnapshot,
 	// Background workers
 	ListWorkers,
 	GetWorkerInfo,
@@ -622,6 +627,18 @@ pub struct RemoveBucketAliasRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
+
+// **********************************************
+//      Node operations
+// **********************************************
+
+// ---- CreateMetadataSnapshot ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalCreateMetadataSnapshotRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalCreateMetadataSnapshotResponse;
 
 // **********************************************
 //      Worker operations

@@ -4,6 +4,7 @@ pub mod key;
 pub mod layout;
 
 pub mod block;
+pub mod node;
 pub mod worker;
 
 use std::convert::TryFrom;
@@ -43,6 +44,7 @@ impl Cli {
 			Command::Key(ko) => self.cmd_key(ko).await,
 			Command::Worker(wo) => self.cmd_worker(wo).await,
 			Command::Block(bo) => self.cmd_block(bo).await,
+			Command::Meta(mo) => self.cmd_meta(mo).await,
 
 			// TODO
 			Command::Repair(ro) => cli_v1::cmd_admin(
@@ -57,13 +59,6 @@ impl Cli {
 					.await
 					.ok_or_message("cli_v1")
 			}
-			Command::Meta(mo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::MetaOperation(mo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
 
 			_ => unreachable!(),
 		}
