@@ -19,7 +19,6 @@ garage_table.workspace = true
 garage_util = { workspace = true, features = [ "k2v" ] }
 garage_api_common.workspace = true
 
-async-trait.workspace = true
 base64.workspace = true
 err-derive.workspace = true
 tracing.workspace = true

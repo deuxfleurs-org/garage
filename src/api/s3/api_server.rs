@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use hyper::header;
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use tokio::sync::watch;
@@ -70,7 +68,6 @@ impl S3ApiServer {
 	}
 }
 
-#[async_trait]
 impl ApiHandler for S3ApiServer {
 	const API_NAME: &'static str = "s3";
 	const API_NAME_DISPLAY: &'static str = "S3";

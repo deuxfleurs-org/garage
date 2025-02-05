@@ -1301,7 +1301,6 @@ dependencies = [
 name = "garage_api_common"
 version = "1.0.1"
 dependencies = [
- "async-trait",
  "bytes",
  "chrono",
  "crypto-common",
@@ -1332,7 +1331,6 @@ dependencies = [
 name = "garage_api_k2v"
 version = "1.0.1"
 dependencies = [
- "async-trait",
  "base64 0.21.7",
  "err-derive",
  "futures",
@@ -1358,7 +1356,6 @@ version = "1.0.1"
 dependencies = [
  "aes-gcm",
  "async-compression",
- "async-trait",
  "base64 0.21.7",
  "bytes",
  "chrono",
@@ -1468,7 +1465,6 @@ name = "garage_net"
 version = "1.0.1"
 dependencies = [
  "arc-swap",
- "async-trait",
  "bytes",
  "cfg-if",
  "err-derive",
