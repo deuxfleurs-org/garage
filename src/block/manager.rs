@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use arc_swap::{ArcSwap, ArcSwapOption};
-use async_trait::async_trait;
 use bytes::Bytes;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -688,7 +687,6 @@ impl BlockManager {
 	}
 }
 
-#[async_trait]
 impl StreamingEndpointHandler<BlockRpc> for BlockManager {
 	async fn handle(self: &Arc<Self>, mut message: Req<BlockRpc>, _from: NodeID) -> Resp<BlockRpc> {
 		match message.msg() {

@@ -5,7 +5,6 @@ use std::sync::{Arc, RwLock};
 use log::{debug, error, info, trace, warn};
 
 use arc_swap::ArcSwapOption;
-use async_trait::async_trait;
 
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::auth;
@@ -457,7 +456,6 @@ impl NetApp {
 	}
 }
 
-#[async_trait]
 impl EndpointHandler<HelloMessage> for NetApp {
 	async fn handle(self: &Arc<Self>, msg: &HelloMessage, from: NodeID) {
 		debug!("Hello from {:?}: {:?}", hex::encode(&from[..8]), msg);

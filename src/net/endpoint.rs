@@ -1,8 +1,9 @@
+use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use arc_swap::ArcSwapOption;
-use async_trait::async_trait;
+use futures::future::{BoxFuture, FutureExt};
 
 use crate::error::Error;
 use crate::message::*;
@@ -14,19 +15,17 @@ use crate::netapp::*;
 /// attached to the response..
 ///
 /// The handler object should be in an Arc, see `Endpoint::set_handler`
-#[async_trait]
 pub trait StreamingEndpointHandler<M>: Send + Sync
 where
 	M: Message,
 {
-	async fn handle(self: &Arc<Self>, m: Req<M>, from: NodeID) -> Resp<M>;
+	fn handle(self: &Arc<Self>, m: Req<M>, from: NodeID) -> impl Future<Output = Resp<M>> + Send;
 }
 
 /// If one simply wants to use an endpoint in a client fashion,
 /// without locally serving requests to that endpoint,
 /// use the unit type `()` as the handler type:
 /// it will panic if it is ever made to handle request.
-#[async_trait]
 impl<M: Message> EndpointHandler<M> for () {
 	async fn handle(self: &Arc<()>, _m: &M, _from: NodeID) -> M::Response {
 		panic!("This endpoint should not have a local handler.");
@@ -38,15 +37,13 @@ impl<M: Message> EndpointHandler<M> for () {
 /// This trait should be implemented by an object of your application
 /// that can handle a message of type `M`, in the cases where it doesn't
 /// care about attached stream in the request nor in the response.
-#[async_trait]
 pub trait EndpointHandler<M>: Send + Sync
 where
 	M: Message,
 {
-	async fn handle(self: &Arc<Self>, m: &M, from: NodeID) -> M::Response;
+	fn handle(self: &Arc<Self>, m: &M, from: NodeID) -> impl Future<Output = M::Response> + Send;
 }
 
-#[async_trait]
 impl<T, M> StreamingEndpointHandler<M> for T
 where
 	T: EndpointHandler<M>,
@@ -161,9 +158,8 @@ where
 
 pub(crate) type DynEndpoint = Box<dyn GenericEndpoint + Send + Sync>;
 
-#[async_trait]
 pub(crate) trait GenericEndpoint {
-	async fn handle(&self, req_enc: ReqEnc, from: NodeID) -> Result<RespEnc, Error>;
+	fn handle(&self, req_enc: ReqEnc, from: NodeID) -> BoxFuture<Result<RespEnc, Error>>;
 	fn drop_handler(&self);
 	fn clone_endpoint(&self) -> DynEndpoint;
 }
@@ -174,21 +170,23 @@ where
 	M: Message,
 	H: StreamingEndpointHandler<M>;
 
-#[async_trait]
 impl<M, H> GenericEndpoint for EndpointArc<M, H>
 where
 	M: Message,
 	H: StreamingEndpointHandler<M> + 'static,
 {
-	async fn handle(&self, req_enc: ReqEnc, from: NodeID) -> Result<RespEnc, Error> {
-		match self.0.handler.load_full() {
-			None => Err(Error::NoHandler),
-			Some(h) => {
-				let req = Req::from_enc(req_enc)?;
-				let res = h.handle(req, from).await;
-				Ok(res.into_enc()?)
+	fn handle(&self, req_enc: ReqEnc, from: NodeID) -> BoxFuture<Result<RespEnc, Error>> {
+		async move {
+			match self.0.handler.load_full() {
+				None => Err(Error::NoHandler),
+				Some(h) => {
+					let req = Req::from_enc(req_enc)?;
+					let res = h.handle(req, from).await;
+					Ok(res.into_enc()?)
+				}
 			}
 		}
+		.boxed()
 	}
 
 	fn drop_handler(&self) {

@@ -22,6 +22,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 tokio-stream.workspace = true
 
+async-trait.workspace = true
 serde.workspace = true
 rmp-serde.workspace = true
 hex.workspace = true
@@ -30,7 +31,6 @@ rand.workspace = true
 
 log.workspace = true
 arc-swap.workspace = true
-async-trait.workspace = true
 err-derive.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
