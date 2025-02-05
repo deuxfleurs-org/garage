@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -104,7 +105,7 @@ trait TableRepair: Send + Sync + 'static {
 		&mut self,
 		garage: &Garage,
 		entry: <<Self as TableRepair>::T as TableSchema>::E,
-	) -> impl std::future::Future<Output = Result<bool, GarageError>> + Send;
+	) -> impl Future<Output = Result<bool, GarageError>> + Send;
 }
 
 struct TableRepairWorker<T: TableRepair> {

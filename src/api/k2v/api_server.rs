@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use hyper::{body::Incoming as IncomingBody, Method, Request, Response};
 use tokio::sync::watch;
 
@@ -49,7 +47,6 @@ impl K2VApiServer {
 	}
 }
 
-#[async_trait]
 impl ApiHandler for K2VApiServer {
 	const API_NAME: &'static str = "k2v";
 	const API_NAME_DISPLAY: &'static str = "K2V";

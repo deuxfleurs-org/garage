@@ -18,7 +18,6 @@ garage_model.workspace = true
 garage_table.workspace = true
 garage_util.workspace = true
 
-async-trait.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 crypto-common.workspace = true

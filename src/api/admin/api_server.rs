@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use argon2::password_hash::PasswordHash;
-use async_trait::async_trait;
 
 use http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
@@ -55,7 +54,6 @@ impl Rpc for AdminRpc {
 	type Response = Result<AdminRpcResponse, GarageError>;
 }
 
-#[async_trait]
 impl EndpointHandler<AdminRpc> for AdminApiServer {
 	async fn handle(
 		self: &Arc<Self>,
@@ -196,7 +194,6 @@ impl AdminApiServer {
 
 struct ArcAdminApiServer(Arc<AdminApiServer>);
 
-#[async_trait]
 impl ApiHandler for ArcAdminApiServer {
 	const API_NAME: &'static str = "admin";
 	const API_NAME_DISPLAY: &'static str = "Admin";

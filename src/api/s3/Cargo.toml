@@ -24,7 +24,6 @@ garage_api_common.workspace = true
 
 aes-gcm.workspace = true
 async-compression.workspace = true
-async-trait.workspace = true
 base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true

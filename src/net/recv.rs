@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use bytes::Bytes;
 use log::*;
 
@@ -50,7 +49,6 @@ impl Drop for Sender {
 /// according to the protocol defined above: chunks of message in progress of being
 /// received are stored in a buffer, and when the last chunk of a message is received,
 /// the full message is passed to the receive handler.
-#[async_trait]
 pub(crate) trait RecvLoop: Sync + 'static {
 	fn recv_handler(self: &Arc<Self>, id: RequestID, stream: ByteStream);
 	fn cancel_handler(self: &Arc<Self>, _id: RequestID) {}

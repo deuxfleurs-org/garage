@@ -10,7 +10,6 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -537,7 +536,6 @@ impl K2VRpcHandler {
 	}
 }
 
-#[async_trait]
 impl EndpointHandler<K2VRpc> for K2VRpcHandler {
 	async fn handle(self: &Arc<Self>, message: &K2VRpc, _from: NodeID) -> Result<K2VRpc, Error> {
 		match message {
