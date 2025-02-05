@@ -2,7 +2,6 @@ use std::borrow::Borrow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use futures::stream::*;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -500,7 +499,6 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	}
 }
 
-#[async_trait]
 impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table<F, R> {
 	async fn handle(
 		self: &Arc<Self>,

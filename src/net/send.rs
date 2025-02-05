@@ -3,7 +3,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use async_trait::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
 use log::*;
 
@@ -273,7 +272,6 @@ impl DataFrame {
 ///
 /// The `.send_loop()` exits when the sending end of the channel is closed,
 /// or if there is an error at any time writing to the async writer.
-#[async_trait]
 pub(crate) trait SendLoop: Sync {
 	async fn send_loop<W>(
 		self: Arc<Self>,
