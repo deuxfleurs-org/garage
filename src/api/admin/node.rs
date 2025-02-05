@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use format_table::format_table_to_string;
 
 use garage_util::data::*;
@@ -20,7 +18,6 @@ use crate::api::*;
 use crate::error::Error;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for LocalCreateMetadataSnapshotRequest {
 	type Response = LocalCreateMetadataSnapshotResponse;
 
@@ -34,7 +31,6 @@ impl RequestHandler for LocalCreateMetadataSnapshotRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalGetNodeStatisticsRequest {
 	type Response = LocalGetNodeStatisticsResponse;
 
@@ -99,7 +95,6 @@ impl RequestHandler for LocalGetNodeStatisticsRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for GetClusterStatisticsRequest {
 	type Response = GetClusterStatisticsResponse;
 

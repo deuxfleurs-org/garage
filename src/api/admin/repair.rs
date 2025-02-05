@@ -27,7 +27,6 @@ use crate::{Admin, RequestHandler};
 
 const RC_REPAIR_ITER_COUNT: usize = 64;
 
-#[async_trait]
 impl RequestHandler for LocalLaunchRepairOperationRequest {
 	type Response = LocalLaunchRepairOperationResponse;
 
@@ -96,17 +95,16 @@ impl RequestHandler for LocalLaunchRepairOperationRequest {
 
 // ----
 
-#[async_trait]
 trait TableRepair: Send + Sync + 'static {
 	type T: TableSchema;
 
 	fn table(garage: &Garage) -> &Table<Self::T, TableShardedReplication>;
 
-	async fn process(
+	fn process(
 		&mut self,
 		garage: &Garage,
 		entry: <<Self as TableRepair>::T as TableSchema>::E,
-	) -> Result<bool, GarageError>;
+	) -> impl std::future::Future<Output = Result<bool, GarageError>> + Send;
 }
 
 struct TableRepairWorker<T: TableRepair> {
@@ -180,7 +178,6 @@ impl<R: TableRepair> Worker for TableRepairWorker<R> {
 
 struct RepairVersions;
 
-#[async_trait]
 impl TableRepair for RepairVersions {
 	type T = VersionTable;
 
@@ -227,7 +224,6 @@ impl TableRepair for RepairVersions {
 
 struct RepairBlockRefs;
 
-#[async_trait]
 impl TableRepair for RepairBlockRefs {
 	type T = BlockRefTable;
 
@@ -267,7 +263,6 @@ impl TableRepair for RepairBlockRefs {
 
 struct RepairMpu;
 
-#[async_trait]
 impl TableRepair for RepairMpu {
 	type T = MultipartUploadTable;
 

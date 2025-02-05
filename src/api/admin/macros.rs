@@ -70,7 +70,6 @@ macro_rules! admin_endpoints {
                 }
             )*
 
-            #[async_trait]
             impl RequestHandler for AdminApiRequest {
                 type Response = AdminApiResponse;
 
@@ -133,7 +132,6 @@ macro_rules! local_admin_endpoints {
                     }
                 }
 
-                #[async_trait]
                 impl RequestHandler for [< $endpoint Request >] {
                     type Response = [< $endpoint Response >];
 
@@ -202,7 +200,6 @@ macro_rules! local_admin_endpoints {
                 }
             }
 
-            #[async_trait]
             impl RequestHandler for LocalAdminApiRequest {
                 type Response = LocalAdminApiResponse;
 

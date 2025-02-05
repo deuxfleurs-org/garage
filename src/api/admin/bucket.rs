@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_trait::async_trait;
-
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
@@ -23,7 +21,6 @@ use crate::api::*;
 use crate::error::*;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for ListBucketsRequest {
 	type Response = ListBucketsResponse;
 
@@ -74,7 +71,6 @@ impl RequestHandler for ListBucketsRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for GetBucketInfoRequest {
 	type Response = GetBucketInfoResponse;
 
@@ -230,7 +226,6 @@ async fn bucket_info_results(
 	Ok(res)
 }
 
-#[async_trait]
 impl RequestHandler for CreateBucketRequest {
 	type Response = CreateBucketResponse;
 
@@ -305,7 +300,6 @@ impl RequestHandler for CreateBucketRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for DeleteBucketRequest {
 	type Response = DeleteBucketResponse;
 
@@ -358,7 +352,6 @@ impl RequestHandler for DeleteBucketRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for UpdateBucketRequest {
 	type Response = UpdateBucketResponse;
 
@@ -409,7 +402,6 @@ impl RequestHandler for UpdateBucketRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for CleanupIncompleteUploadsRequest {
 	type Response = CleanupIncompleteUploadsResponse;
 
@@ -435,7 +427,6 @@ impl RequestHandler for CleanupIncompleteUploadsRequest {
 
 // ---- BUCKET/KEY PERMISSIONS ----
 
-#[async_trait]
 impl RequestHandler for AllowBucketKeyRequest {
 	type Response = AllowBucketKeyResponse;
 
@@ -449,7 +440,6 @@ impl RequestHandler for AllowBucketKeyRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for DenyBucketKeyRequest {
 	type Response = DenyBucketKeyResponse;
 
@@ -502,7 +492,6 @@ pub async fn handle_bucket_change_key_perm(
 
 // ---- BUCKET ALIASES ----
 
-#[async_trait]
 impl RequestHandler for AddBucketAliasRequest {
 	type Response = AddBucketAliasResponse;
 
@@ -537,7 +526,6 @@ impl RequestHandler for AddBucketAliasRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for RemoveBucketAliasRequest {
 	type Response = RemoveBucketAliasResponse;
 

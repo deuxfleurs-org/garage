@@ -3,7 +3,6 @@ use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use paste::paste;
 use serde::{Deserialize, Serialize};
 

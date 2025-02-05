@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_table::*;
 
 use garage_model::garage::Garage;
@@ -12,7 +10,6 @@ use crate::api::*;
 use crate::error::*;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for ListKeysRequest {
 	type Response = ListKeysResponse;
 
@@ -38,7 +35,6 @@ impl RequestHandler for ListKeysRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for GetKeyInfoRequest {
 	type Response = GetKeyInfoResponse;
 
@@ -66,7 +62,6 @@ impl RequestHandler for GetKeyInfoRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for CreateKeyRequest {
 	type Response = CreateKeyResponse;
 
@@ -84,7 +79,6 @@ impl RequestHandler for CreateKeyRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for ImportKeyRequest {
 	type Response = ImportKeyResponse;
 
@@ -112,7 +106,6 @@ impl RequestHandler for ImportKeyRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for UpdateKeyRequest {
 	type Response = UpdateKeyResponse;
 
@@ -147,7 +140,6 @@ impl RequestHandler for UpdateKeyRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for DeleteKeyRequest {
 	type Response = DeleteKeyResponse;
 

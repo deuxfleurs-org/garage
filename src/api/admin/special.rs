@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use http::header::{
 	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW,
 };
@@ -20,7 +18,6 @@ use crate::api_server::ResBody;
 use crate::error::*;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for OptionsRequest {
 	type Response = Response<ResBody>;
 
@@ -39,7 +36,6 @@ impl RequestHandler for OptionsRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for MetricsRequest {
 	type Response = Response<ResBody>;
 
@@ -76,7 +72,6 @@ impl RequestHandler for MetricsRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for HealthRequest {
 	type Response = Response<ResBody>;
 
@@ -110,7 +105,6 @@ impl RequestHandler for HealthRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for CheckDomainRequest {
 	type Response = Response<ResBody>;
 

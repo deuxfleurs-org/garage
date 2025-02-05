@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_util::background::*;
 use garage_util::time::now_msec;
 
@@ -12,7 +10,6 @@ use crate::api::*;
 use crate::error::Error;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for LocalListWorkersRequest {
 	type Response = LocalListWorkersResponse;
 
@@ -35,7 +32,6 @@ impl RequestHandler for LocalListWorkersRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalGetWorkerInfoRequest {
 	type Response = LocalGetWorkerInfoResponse;
 
@@ -56,7 +52,6 @@ impl RequestHandler for LocalGetWorkerInfoRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalGetWorkerVariableRequest {
 	type Response = LocalGetWorkerVariableResponse;
 
@@ -78,7 +73,6 @@ impl RequestHandler for LocalGetWorkerVariableRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalSetWorkerVariableRequest {
 	type Response = LocalSetWorkerVariableResponse;
 

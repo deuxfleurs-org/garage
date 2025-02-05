@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::now_msec;
@@ -18,7 +16,6 @@ use crate::api::*;
 use crate::error::*;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for LocalListBlockErrorsRequest {
 	type Response = LocalListBlockErrorsResponse;
 
@@ -43,7 +40,6 @@ impl RequestHandler for LocalListBlockErrorsRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalGetBlockInfoRequest {
 	type Response = LocalGetBlockInfoResponse;
 
@@ -109,7 +105,6 @@ impl RequestHandler for LocalGetBlockInfoRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalRetryBlockResyncRequest {
 	type Response = LocalRetryBlockResyncResponse;
 
@@ -143,7 +138,6 @@ impl RequestHandler for LocalRetryBlockResyncRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for LocalPurgeBlocksRequest {
 	type Response = LocalPurgeBlocksResponse;
 

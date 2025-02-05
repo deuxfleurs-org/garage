@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_util::crdt::*;
 use garage_util::data::*;
 
@@ -14,7 +12,6 @@ use crate::api::*;
 use crate::error::*;
 use crate::{Admin, RequestHandler};
 
-#[async_trait]
 impl RequestHandler for GetClusterStatusRequest {
 	type Response = GetClusterStatusResponse;
 
@@ -120,7 +117,6 @@ impl RequestHandler for GetClusterStatusRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for GetClusterHealthRequest {
 	type Response = GetClusterHealthResponse;
 
@@ -150,7 +146,6 @@ impl RequestHandler for GetClusterHealthRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for ConnectClusterNodesRequest {
 	type Response = ConnectClusterNodesResponse;
 
@@ -177,7 +172,6 @@ impl RequestHandler for ConnectClusterNodesRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for GetClusterLayoutRequest {
 	type Response = GetClusterLayoutResponse;
 
@@ -241,7 +235,6 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 
 // ---- update functions ----
 
-#[async_trait]
 impl RequestHandler for UpdateClusterLayoutRequest {
 	type Response = UpdateClusterLayoutResponse;
 
@@ -291,7 +284,6 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for ApplyClusterLayoutRequest {
 	type Response = ApplyClusterLayoutResponse;
 
@@ -316,7 +308,6 @@ impl RequestHandler for ApplyClusterLayoutRequest {
 	}
 }
 
-#[async_trait]
 impl RequestHandler for RevertClusterLayoutRequest {
 	type Response = RevertClusterLayoutResponse;
 

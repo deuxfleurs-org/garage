@@ -22,8 +22,6 @@ mod worker;
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_model::garage::Garage;
 
 pub use api_server::AdminApiServer as Admin;
@@ -34,13 +32,12 @@ pub enum Authorization {
 	AdminToken,
 }
 
-#[async_trait]
 pub trait RequestHandler {
 	type Response;
 
-	async fn handle(
+	fn handle(
 		self,
 		garage: &Arc<Garage>,
 		admin: &Admin,
-	) -> Result<Self::Response, error::Error>;
+	) -> impl std::future::Future<Output = Result<Self::Response, error::Error>> + Send;
 }
