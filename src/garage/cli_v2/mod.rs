@@ -45,6 +45,7 @@ impl Cli {
 			Command::Worker(wo) => self.cmd_worker(wo).await,
 			Command::Block(bo) => self.cmd_block(bo).await,
 			Command::Meta(mo) => self.cmd_meta(mo).await,
+			Command::Stats(so) => self.cmd_stats(so).await,
 
 			// TODO
 			Command::Repair(ro) => cli_v1::cmd_admin(
@@ -54,11 +55,6 @@ impl Cli {
 			)
 			.await
 			.ok_or_message("cli_v1"),
-			Command::Stats(so) => {
-				cli_v1::cmd_admin(&self.admin_rpc_endpoint, self.rpc_host, AdminRpc::Stats(so))
-					.await
-					.ok_or_message("cli_v1")
-			}
 
 			_ => unreachable!(),
 		}

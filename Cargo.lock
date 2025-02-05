@@ -1277,7 +1277,9 @@ version = "1.0.1"
 dependencies = [
  "argon2",
  "async-trait",
+ "bytesize",
  "err-derive",
+ "format_table",
  "futures",
  "garage_api_common",
  "garage_model",

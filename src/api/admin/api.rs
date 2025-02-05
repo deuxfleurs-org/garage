@@ -79,6 +79,8 @@ admin_endpoints![
 
 	// Node operations
 	CreateMetadataSnapshot,
+	GetNodeStatistics,
+	GetClusterStatistics,
 
 	// Worker operations
 	ListWorkers,
@@ -96,6 +98,7 @@ admin_endpoints![
 local_admin_endpoints![
 	// Node operations
 	CreateMetadataSnapshot,
+	GetNodeStatistics,
 	// Background workers
 	ListWorkers,
 	GetWorkerInfo,
@@ -639,6 +642,26 @@ pub struct LocalCreateMetadataSnapshotRequest;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalCreateMetadataSnapshotResponse;
+
+// ---- GetNodeStatistics ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalGetNodeStatisticsRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalGetNodeStatisticsResponse {
+	pub freeform: String,
+}
+
+// ---- GetClusterStatistics ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GetClusterStatisticsRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetClusterStatisticsResponse {
+	pub freeform: String,
+}
 
 // **********************************************
 //      Worker operations

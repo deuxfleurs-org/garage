@@ -33,4 +33,35 @@ impl Cli {
 
 		Ok(())
 	}
+
+	pub async fn cmd_stats(&self, cmd: StatsOpt) -> Result<(), Error> {
+		let res = self
+			.api_request(GetNodeStatisticsRequest {
+				node: if cmd.all_nodes {
+					"*".to_string()
+				} else {
+					hex::encode(self.rpc_host)
+				},
+				body: LocalGetNodeStatisticsRequest,
+			})
+			.await?;
+
+		for (node, res) in res.success.iter() {
+			println!("======================");
+			println!("Stats for node {:.16}:\n", node);
+			println!("{}\n", res.freeform);
+		}
+
+		for (node, err) in res.error.iter() {
+			println!("======================");
+			println!("Node {:.16}: error: {}\n", node, err);
+		}
+
+		let res = self.api_request(GetClusterStatisticsRequest).await?;
+		println!("======================");
+		println!("Cluster statistics:\n");
+		println!("{}\n", res.freeform);
+
+		Ok(())
+	}
 }
