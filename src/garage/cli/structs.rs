@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
 use garage_util::version::garage_version;
@@ -190,7 +189,7 @@ pub struct SkipDeadNodesOpt {
 	pub(crate) allow_missing_data: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub enum BucketOperation {
 	/// List buckets
 	#[structopt(name = "list", version = garage_version())]
@@ -237,7 +236,7 @@ pub enum BucketOperation {
 	CleanupIncompleteUploads(CleanupIncompleteUploadsOpt),
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct WebsiteOpt {
 	/// Create
 	#[structopt(long = "allow")]
@@ -259,13 +258,13 @@ pub struct WebsiteOpt {
 	pub error_document: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct BucketOpt {
 	/// Bucket name
 	pub name: String,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct DeleteBucketOpt {
 	/// Bucket name
 	pub name: String,
@@ -275,7 +274,7 @@ pub struct DeleteBucketOpt {
 	pub yes: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct AliasBucketOpt {
 	/// Existing bucket name (its alias in global namespace or its full hex uuid)
 	pub existing_bucket: String,
@@ -288,7 +287,7 @@ pub struct AliasBucketOpt {
 	pub local: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct UnaliasBucketOpt {
 	/// Bucket name
 	pub name: String,
@@ -298,7 +297,7 @@ pub struct UnaliasBucketOpt {
 	pub local: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct PermBucketOpt {
 	/// Access key name or ID
 	#[structopt(long = "key")]
@@ -321,7 +320,7 @@ pub struct PermBucketOpt {
 	pub bucket: String,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct SetQuotasOpt {
 	/// Bucket name
 	pub bucket: String,
@@ -336,7 +335,7 @@ pub struct SetQuotasOpt {
 	pub max_objects: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct CleanupIncompleteUploadsOpt {
 	/// Abort multipart uploads older than this value
 	#[structopt(long = "older-than", default_value = "1d")]
@@ -347,7 +346,7 @@ pub struct CleanupIncompleteUploadsOpt {
 	pub buckets: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub enum KeyOperation {
 	/// List keys
 	#[structopt(name = "list", version = garage_version())]
@@ -382,7 +381,7 @@ pub enum KeyOperation {
 	Import(KeyImportOpt),
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyInfoOpt {
 	/// ID or name of the key
 	pub key_pattern: String,
@@ -391,14 +390,14 @@ pub struct KeyInfoOpt {
 	pub show_secret: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyNewOpt {
 	/// Name of the key
 	#[structopt(default_value = "Unnamed key")]
 	pub name: String,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyRenameOpt {
 	/// ID or name of the key
 	pub key_pattern: String,
@@ -407,7 +406,7 @@ pub struct KeyRenameOpt {
 	pub new_name: String,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyDeleteOpt {
 	/// ID or name of the key
 	pub key_pattern: String,
@@ -417,7 +416,7 @@ pub struct KeyDeleteOpt {
 	pub yes: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyPermOpt {
 	/// ID or name of the key
 	pub key_pattern: String,
@@ -427,7 +426,7 @@ pub struct KeyPermOpt {
 	pub create_bucket: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug)]
+#[derive(StructOpt, Debug)]
 pub struct KeyImportOpt {
 	/// Access key ID
 	pub key_id: String,
@@ -444,7 +443,7 @@ pub struct KeyImportOpt {
 	pub yes: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+#[derive(StructOpt, Debug, Clone)]
 pub struct RepairOpt {
 	/// Launch repair operation on all nodes
 	#[structopt(short = "a", long = "all-nodes")]
@@ -458,7 +457,7 @@ pub struct RepairOpt {
 	pub what: RepairWhat,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum RepairWhat {
 	/// Do a full sync of metadata tables
 	#[structopt(name = "tables", version = garage_version())]
@@ -489,7 +488,7 @@ pub enum RepairWhat {
 	Rebalance,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum ScrubCmd {
 	/// Start scrub
 	#[structopt(name = "start", version = garage_version())]
@@ -503,15 +502,9 @@ pub enum ScrubCmd {
 	/// Cancel scrub in progress
 	#[structopt(name = "cancel", version = garage_version())]
 	Cancel,
-	/// Set tranquility level for in-progress and future scrubs
-	#[structopt(name = "set-tranquility", version = garage_version())]
-	SetTranquility {
-		#[structopt()]
-		tranquility: u32,
-	},
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+#[derive(StructOpt, Debug, Clone)]
 pub struct OfflineRepairOpt {
 	/// Confirm the launch of the repair operation
 	#[structopt(long = "yes")]
@@ -521,7 +514,7 @@ pub struct OfflineRepairOpt {
 	pub what: OfflineRepairWhat,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum OfflineRepairWhat {
 	/// Repair K2V item counters
 	#[cfg(feature = "k2v")]
@@ -532,19 +525,14 @@ pub enum OfflineRepairWhat {
 	ObjectCounters,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Clone)]
+#[derive(StructOpt, Debug, Clone)]
 pub struct StatsOpt {
 	/// Gather statistics from all nodes
 	#[structopt(short = "a", long = "all-nodes")]
 	pub all_nodes: bool,
-
-	/// Don't show global cluster stats (internal use in RPC)
-	#[structopt(skip)]
-	#[serde(default)]
-	pub skip_global: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum WorkerOperation {
 	/// List all workers on Garage node
 	#[structopt(name = "list", version = garage_version())]
@@ -577,7 +565,7 @@ pub enum WorkerOperation {
 	},
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
 pub struct WorkerListOpt {
 	/// Show only busy workers
 	#[structopt(short = "b", long = "busy")]
@@ -587,7 +575,7 @@ pub struct WorkerListOpt {
 	pub errors: bool,
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum BlockOperation {
 	/// List all blocks that currently have a resync error
 	#[structopt(name = "list-errors", version = garage_version())]
@@ -619,7 +607,7 @@ pub enum BlockOperation {
 	},
 }
 
-#[derive(Serialize, Deserialize, StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
+#[derive(StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
 pub enum MetaOperation {
 	/// Save a snapshot of the metadata db file
 	#[structopt(name = "snapshot", version = garage_version())]

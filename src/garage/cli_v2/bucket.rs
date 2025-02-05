@@ -5,7 +5,6 @@ use garage_util::error::*;
 
 use garage_api_admin::api::*;
 
-use crate::cli as cli_v1;
 use crate::cli::structs::*;
 use crate::cli_v2::*;
 
@@ -22,15 +21,9 @@ impl Cli {
 			BucketOperation::Deny(query) => self.cmd_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.cmd_bucket_website(query).await,
 			BucketOperation::SetQuotas(query) => self.cmd_bucket_set_quotas(query).await,
-
-			// TODO
-			x => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::BucketOperation(x),
-			)
-			.await
-			.ok_or_message("old error"),
+			BucketOperation::CleanupIncompleteUploads(query) => {
+				self.cmd_cleanup_incomplete_uploads(query).await
+			}
 		}
 	}
 
@@ -517,6 +510,39 @@ impl Cli {
 		.await?;
 
 		println!("Quotas updated for bucket {:.16}", bucket.id);
+
+		Ok(())
+	}
+
+	pub async fn cmd_cleanup_incomplete_uploads(
+		&self,
+		opt: CleanupIncompleteUploadsOpt,
+	) -> Result<(), Error> {
+		let older_than = parse_duration::parse::parse(&opt.older_than)
+			.ok_or_message("Invalid duration passed for --older-than parameter")?;
+
+		for b in opt.buckets.iter() {
+			let bucket = self
+				.api_request(GetBucketInfoRequest {
+					id: None,
+					global_alias: None,
+					search: Some(b.clone()),
+				})
+				.await?;
+
+			let res = self
+				.api_request(CleanupIncompleteUploadsRequest {
+					bucket_id: bucket.id.clone(),
+					older_than_secs: older_than.as_secs(),
+				})
+				.await?;
+
+			if res.uploads_deleted > 0 {
+				println!("{:.16}: {} uploads deleted", bucket.id, res.uploads_deleted);
+			} else {
+				println!("{:.16}: no uploads deleted", bucket.id);
+			}
+		}
 
 		Ok(())
 	}

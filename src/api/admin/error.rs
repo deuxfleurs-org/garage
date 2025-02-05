@@ -25,6 +25,14 @@ pub enum Error {
 	#[error(display = "Access key not found: {}", _0)]
 	NoSuchAccessKey(String),
 
+	/// The requested block does not exist
+	#[error(display = "Block not found: {}", _0)]
+	NoSuchBlock(String),
+
+	/// The requested worker does not exist
+	#[error(display = "Worker not found: {}", _0)]
+	NoSuchWorker(u64),
+
 	/// In Import key, the key already exists
 	#[error(
 		display = "Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.",
@@ -53,6 +61,8 @@ impl Error {
 		match self {
 			Error::Common(c) => c.aws_code(),
 			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",
+			Error::NoSuchWorker(_) => "NoSuchWorker",
+			Error::NoSuchBlock(_) => "NoSuchBlock",
 			Error::KeyAlreadyExists(_) => "KeyAlreadyExists",
 		}
 	}
@@ -63,7 +73,9 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::Common(c) => c.http_status_code(),
-			Error::NoSuchAccessKey(_) => StatusCode::NOT_FOUND,
+			Error::NoSuchAccessKey(_) | Error::NoSuchWorker(_) | Error::NoSuchBlock(_) => {
+				StatusCode::NOT_FOUND
+			}
 			Error::KeyAlreadyExists(_) => StatusCode::CONFLICT,
 		}
 	}

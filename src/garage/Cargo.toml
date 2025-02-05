@@ -49,8 +49,6 @@ sodiumoxide.workspace = true
 structopt.workspace = true
 git-version.workspace = true
 
-serde.workspace = true
-
 futures.workspace = true
 tokio.workspace = true
 

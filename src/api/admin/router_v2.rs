@@ -52,12 +52,28 @@ impl AdminApiRequest {
 			POST CreateBucket (body),
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),
+			POST CleanupIncompleteUploads (body),
 			// Bucket-key permissions
 			POST AllowBucketKey (body),
 			POST DenyBucketKey (body),
 			// Bucket aliases
 			POST AddBucketAlias (body),
 			POST RemoveBucketAlias (body),
+			// Node APIs
+			POST CreateMetadataSnapshot (default::body, query::node),
+			GET GetNodeStatistics (default::body, query::node),
+			GET GetClusterStatistics (),
+			POST LaunchRepairOperation (body_field, query::node),
+			// Worker APIs
+			POST ListWorkers (body_field, query::node),
+			POST GetWorkerInfo (body_field, query::node),
+			POST GetWorkerVariable (body_field, query::node),
+			POST SetWorkerVariable (body_field, query::node),
+			// Block APIs
+			GET ListBlockErrors (default::body, query::node),
+			POST GetBlockInfo (body_field, query::node),
+			POST RetryBlockResync (body_field, query::node),
+			POST PurgeBlocks (body_field, query::node),
 		]);
 
 		if let Some(message) = query.nonempty_message() {
@@ -239,6 +255,7 @@ impl AdminApiRequest {
 generateQueryParameters! {
 	keywords: [],
 	fields: [
+		"node" => node,
 		"domain" => domain,
 		"format" => format,
 		"id" => id,

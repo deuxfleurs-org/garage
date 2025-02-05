@@ -3,6 +3,10 @@ pub mod cluster;
 pub mod key;
 pub mod layout;
 
+pub mod block;
+pub mod node;
+pub mod worker;
+
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,16 +17,14 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use garage_api_admin::api::*;
-use garage_api_admin::EndpointHandler as AdminApiEndpoint;
+use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
+use garage_api_admin::RequestHandler;
 
-use crate::admin::*;
-use crate::cli as cli_v1;
 use crate::cli::structs::*;
-use crate::cli::Command;
 
 pub struct Cli {
 	pub system_rpc_endpoint: Arc<Endpoint<SystemRpc, ()>>,
-	pub admin_rpc_endpoint: Arc<Endpoint<AdminRpc, ()>>,
+	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
 	pub rpc_host: NodeID,
 }
 
@@ -36,63 +38,35 @@ impl Cli {
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
 			Command::Bucket(bo) => self.cmd_bucket(bo).await,
 			Command::Key(ko) => self.cmd_key(ko).await,
-
-			// TODO
-			Command::Repair(ro) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::LaunchRepair(ro),
-			)
-			.await
-			.ok_or_message("cli_v1"),
-			Command::Stats(so) => {
-				cli_v1::cmd_admin(&self.admin_rpc_endpoint, self.rpc_host, AdminRpc::Stats(so))
-					.await
-					.ok_or_message("cli_v1")
-			}
-			Command::Worker(wo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::Worker(wo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
-			Command::Block(bo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::BlockOperation(bo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
-			Command::Meta(mo) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::MetaOperation(mo),
-			)
-			.await
-			.ok_or_message("cli_v1"),
+			Command::Worker(wo) => self.cmd_worker(wo).await,
+			Command::Block(bo) => self.cmd_block(bo).await,
+			Command::Meta(mo) => self.cmd_meta(mo).await,
+			Command::Stats(so) => self.cmd_stats(so).await,
+			Command::Repair(ro) => self.cmd_repair(ro).await,
 
 			_ => unreachable!(),
 		}
 	}
 
-	pub async fn api_request<T>(&self, req: T) -> Result<<T as AdminApiEndpoint>::Response, Error>
+	pub async fn api_request<T>(&self, req: T) -> Result<<T as RequestHandler>::Response, Error>
 	where
-		T: AdminApiEndpoint,
+		T: RequestHandler,
 		AdminApiRequest: From<T>,
-		<T as AdminApiEndpoint>::Response: TryFrom<TaggedAdminApiResponse>,
+		<T as RequestHandler>::Response: TryFrom<TaggedAdminApiResponse>,
 	{
 		let req = AdminApiRequest::from(req);
 		let req_name = req.name();
 		match self
-			.admin_rpc_endpoint
-			.call(&self.rpc_host, AdminRpc::ApiRequest(req), PRIO_NORMAL)
-			.await?
-			.ok_or_message("rpc")?
+			.proxy_rpc_endpoint
+			.call(&self.rpc_host, ProxyRpc::Proxy(req), PRIO_NORMAL)
+			.await??
 		{
-			AdminRpc::ApiOkResponse(resp) => <T as AdminApiEndpoint>::Response::try_from(resp)
-				.map_err(|_| Error::Message(format!("{} returned unexpected response", req_name))),
-			AdminRpc::ApiErrorResponse {
+			ProxyRpcResponse::ProxyApiOkResponse(resp) => {
+				<T as RequestHandler>::Response::try_from(resp).map_err(|_| {
+					Error::Message(format!("{} returned unexpected response", req_name))
+				})
+			}
+			ProxyRpcResponse::ApiErrorResponse {
 				http_code,
 				error_code,
 				message,
@@ -102,5 +76,33 @@ impl Cli {
 			))),
 			m => Err(Error::unexpected_rpc_message(m)),
 		}
+	}
+
+	pub async fn local_api_request<T>(
+		&self,
+		req: T,
+	) -> Result<<T as RequestHandler>::Response, Error>
+	where
+		T: RequestHandler,
+		MultiRequest<T>: RequestHandler<Response = MultiResponse<<T as RequestHandler>::Response>>,
+		AdminApiRequest: From<MultiRequest<T>>,
+		<MultiRequest<T> as RequestHandler>::Response: TryFrom<TaggedAdminApiResponse>,
+	{
+		let req = MultiRequest {
+			node: hex::encode(self.rpc_host),
+			body: req,
+		};
+		let resp = self.api_request(req).await?;
+
+		if let Some((_, e)) = resp.error.into_iter().next() {
+			return Err(Error::Message(e));
+		}
+		if resp.success.len() != 1 {
+			return Err(Error::Message(format!(
+				"{} responses returned, expected 1",
+				resp.success.len()
+			)));
+		}
+		Ok(resp.success.into_iter().next().unwrap().1)
 	}
 }

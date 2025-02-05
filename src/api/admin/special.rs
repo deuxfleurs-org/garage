@@ -1,27 +1,31 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use http::header::{
 	ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW,
 };
 use hyper::{Response, StatusCode};
+
+#[cfg(feature = "metrics")]
+use prometheus::{Encoder, TextEncoder};
 
 use garage_model::garage::Garage;
 use garage_rpc::system::ClusterHealthStatus;
 
 use garage_api_common::helpers::*;
 
-use crate::api::{CheckDomainRequest, HealthRequest, OptionsRequest};
+use crate::api::{CheckDomainRequest, HealthRequest, MetricsRequest, OptionsRequest};
 use crate::api_server::ResBody;
 use crate::error::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
-#[async_trait]
-impl EndpointHandler for OptionsRequest {
+impl RequestHandler for OptionsRequest {
 	type Response = Response<ResBody>;
 
-	async fn handle(self, _garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
+	async fn handle(
+		self,
+		_garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
 		Ok(Response::builder()
 			.status(StatusCode::OK)
 			.header(ALLOW, "OPTIONS,GET,POST")
@@ -32,11 +36,83 @@ impl EndpointHandler for OptionsRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for CheckDomainRequest {
+impl RequestHandler for MetricsRequest {
 	type Response = Response<ResBody>;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
+	async fn handle(
+		self,
+		_garage: &Arc<Garage>,
+		admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
+		#[cfg(feature = "metrics")]
+		{
+			use opentelemetry::trace::Tracer;
+
+			let mut buffer = vec![];
+			let encoder = TextEncoder::new();
+
+			let tracer = opentelemetry::global::tracer("garage");
+			let metric_families = tracer.in_span("admin/gather_metrics", |_| {
+				admin.exporter.registry().gather()
+			});
+
+			encoder
+				.encode(&metric_families, &mut buffer)
+				.ok_or_internal_error("Could not serialize metrics")?;
+
+			Ok(Response::builder()
+				.status(StatusCode::OK)
+				.header(http::header::CONTENT_TYPE, encoder.format_type())
+				.body(bytes_body(buffer.into()))?)
+		}
+		#[cfg(not(feature = "metrics"))]
+		Err(Error::bad_request(
+			"Garage was built without the metrics feature".to_string(),
+		))
+	}
+}
+
+impl RequestHandler for HealthRequest {
+	type Response = Response<ResBody>;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
+		let health = garage.system.health();
+
+		let (status, status_str) = match health.status {
+			ClusterHealthStatus::Healthy => (StatusCode::OK, "Garage is fully operational"),
+			ClusterHealthStatus::Degraded => (
+				StatusCode::OK,
+				"Garage is operational but some storage nodes are unavailable",
+			),
+			ClusterHealthStatus::Unavailable => (
+				StatusCode::SERVICE_UNAVAILABLE,
+				"Quorum is not available for some/all partitions, reads and writes will fail",
+			),
+		};
+		let status_str = format!(
+			"{}\nConsult the full health check API endpoint at /v2/GetClusterHealth for more details\n",
+			status_str
+		);
+
+		Ok(Response::builder()
+			.status(status)
+			.header(http::header::CONTENT_TYPE, "text/plain")
+			.body(string_body(status_str))?)
+	}
+}
+
+impl RequestHandler for CheckDomainRequest {
+	type Response = Response<ResBody>;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<Response<ResBody>, Error> {
 		if check_domain(garage, &self.domain).await? {
 			Ok(Response::builder()
 				.status(StatusCode::OK)
@@ -99,35 +175,5 @@ async fn check_domain(garage: &Arc<Garage>, domain: &str) -> Result<bool, Error>
 	match bucket_website_config {
 		Some(_v) => Ok(true),
 		None => Ok(false),
-	}
-}
-
-#[async_trait]
-impl EndpointHandler for HealthRequest {
-	type Response = Response<ResBody>;
-
-	async fn handle(self, garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
-		let health = garage.system.health();
-
-		let (status, status_str) = match health.status {
-			ClusterHealthStatus::Healthy => (StatusCode::OK, "Garage is fully operational"),
-			ClusterHealthStatus::Degraded => (
-				StatusCode::OK,
-				"Garage is operational but some storage nodes are unavailable",
-			),
-			ClusterHealthStatus::Unavailable => (
-				StatusCode::SERVICE_UNAVAILABLE,
-				"Quorum is not available for some/all partitions, reads and writes will fail",
-			),
-		};
-		let status_str = format!(
-			"{}\nConsult the full health check API endpoint at /v2/GetClusterHealth for more details\n",
-			status_str
-		);
-
-		Ok(Response::builder()
-			.status(status)
-			.header(http::header::CONTENT_TYPE, "text/plain")
-			.body(string_body(status_str))?)
 	}
 }

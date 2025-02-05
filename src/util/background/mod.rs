@@ -6,7 +6,6 @@ pub mod worker;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch};
 
 use worker::WorkerProcessor;
@@ -18,7 +17,7 @@ pub struct BackgroundRunner {
 	worker_info: Arc<std::sync::Mutex<HashMap<usize, WorkerInfo>>>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug)]
 pub struct WorkerInfo {
 	pub name: String,
 	pub status: WorkerStatus,
@@ -30,7 +29,7 @@ pub struct WorkerInfo {
 
 /// WorkerStatus is a struct returned by the worker with a bunch of canonical
 /// fields to indicate their status to CLI users. All fields are optional.
-#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct WorkerStatus {
 	pub tranquility: Option<u32>,
 	pub progress: Option<String>,

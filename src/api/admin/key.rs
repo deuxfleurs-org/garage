@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use garage_table::*;
 
 use garage_model::garage::Garage;
@@ -10,13 +8,12 @@ use garage_model::key_table::*;
 
 use crate::api::*;
 use crate::error::*;
-use crate::EndpointHandler;
+use crate::{Admin, RequestHandler};
 
-#[async_trait]
-impl EndpointHandler for ListKeysRequest {
+impl RequestHandler for ListKeysRequest {
 	type Response = ListKeysResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<ListKeysResponse, Error> {
+	async fn handle(self, garage: &Arc<Garage>, _admin: &Admin) -> Result<ListKeysResponse, Error> {
 		let res = garage
 			.key_table
 			.get_range(
@@ -38,11 +35,14 @@ impl EndpointHandler for ListKeysRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for GetKeyInfoRequest {
+impl RequestHandler for GetKeyInfoRequest {
 	type Response = GetKeyInfoResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<GetKeyInfoResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetKeyInfoResponse, Error> {
 		let key = match (self.id, self.search) {
 			(Some(id), None) => garage.key_helper().get_existing_key(&id).await?,
 			(None, Some(search)) => {
@@ -62,11 +62,14 @@ impl EndpointHandler for GetKeyInfoRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for CreateKeyRequest {
+impl RequestHandler for CreateKeyRequest {
 	type Response = CreateKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<CreateKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<CreateKeyResponse, Error> {
 		let key = Key::new(self.name.as_deref().unwrap_or("Unnamed key"));
 		garage.key_table.insert(&key).await?;
 
@@ -76,11 +79,14 @@ impl EndpointHandler for CreateKeyRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for ImportKeyRequest {
+impl RequestHandler for ImportKeyRequest {
 	type Response = ImportKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<ImportKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ImportKeyResponse, Error> {
 		let prev_key = garage.key_table.get(&EmptyKey, &self.access_key_id).await?;
 		if prev_key.is_some() {
 			return Err(Error::KeyAlreadyExists(self.access_key_id.to_string()));
@@ -100,11 +106,14 @@ impl EndpointHandler for ImportKeyRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for UpdateKeyRequest {
+impl RequestHandler for UpdateKeyRequest {
 	type Response = UpdateKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<UpdateKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<UpdateKeyResponse, Error> {
 		let mut key = garage.key_helper().get_existing_key(&self.id).await?;
 
 		let key_state = key.state.as_option_mut().unwrap();
@@ -131,11 +140,14 @@ impl EndpointHandler for UpdateKeyRequest {
 	}
 }
 
-#[async_trait]
-impl EndpointHandler for DeleteKeyRequest {
+impl RequestHandler for DeleteKeyRequest {
 	type Response = DeleteKeyResponse;
 
-	async fn handle(self, garage: &Arc<Garage>) -> Result<DeleteKeyResponse, Error> {
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<DeleteKeyResponse, Error> {
 		let helper = garage.locked_helper().await;
 
 		let mut key = helper.key().get_existing_key(&self.id).await?;
