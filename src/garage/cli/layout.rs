@@ -7,7 +7,7 @@ use garage_rpc::layout::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
-use crate::cli::*;
+use crate::cli::structs::*;
 
 pub async fn cmd_show_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,

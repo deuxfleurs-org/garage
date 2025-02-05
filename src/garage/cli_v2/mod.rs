@@ -20,14 +20,10 @@ use garage_api_admin::api::*;
 use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
 use garage_api_admin::RequestHandler;
 
-use crate::admin::*;
-use crate::cli as cli_v1;
 use crate::cli::structs::*;
-use crate::cli::Command;
 
 pub struct Cli {
 	pub system_rpc_endpoint: Arc<Endpoint<SystemRpc, ()>>,
-	pub admin_rpc_endpoint: Arc<Endpoint<AdminRpc, ()>>,
 	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
 	pub rpc_host: NodeID,
 }
@@ -46,15 +42,7 @@ impl Cli {
 			Command::Block(bo) => self.cmd_block(bo).await,
 			Command::Meta(mo) => self.cmd_meta(mo).await,
 			Command::Stats(so) => self.cmd_stats(so).await,
-
-			// TODO
-			Command::Repair(ro) => cli_v1::cmd_admin(
-				&self.admin_rpc_endpoint,
-				self.rpc_host,
-				AdminRpc::LaunchRepair(ro),
-			)
-			.await
-			.ok_or_message("cli_v1"),
+			Command::Repair(ro) => self.cmd_repair(ro).await,
 
 			_ => unreachable!(),
 		}

@@ -63,6 +63,7 @@ impl AdminApiRequest {
 			POST CreateMetadataSnapshot (default::body, query::node),
 			GET GetNodeStatistics (default::body, query::node),
 			GET GetClusterStatistics (),
+			POST LaunchRepairOperation (body_field, query::node),
 			// Worker APIs
 			POST ListWorkers (body_field, query::node),
 			POST GetWorkerInfo (body_field, query::node),

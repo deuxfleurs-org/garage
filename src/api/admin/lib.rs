@@ -17,6 +17,7 @@ mod special;
 
 mod block;
 mod node;
+mod repair;
 mod worker;
 
 use std::sync::Arc;

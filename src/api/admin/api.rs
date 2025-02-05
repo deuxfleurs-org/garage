@@ -81,6 +81,7 @@ admin_endpoints![
 	CreateMetadataSnapshot,
 	GetNodeStatistics,
 	GetClusterStatistics,
+	LaunchRepairOperation,
 
 	// Worker operations
 	ListWorkers,
@@ -99,6 +100,7 @@ local_admin_endpoints![
 	// Node operations
 	CreateMetadataSnapshot,
 	GetNodeStatistics,
+	LaunchRepairOperation,
 	// Background workers
 	ListWorkers,
 	GetWorkerInfo,
@@ -662,6 +664,38 @@ pub struct GetClusterStatisticsRequest;
 pub struct GetClusterStatisticsResponse {
 	pub freeform: String,
 }
+
+// ---- LaunchRepairOperation ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalLaunchRepairOperationRequest {
+	pub repair_type: RepairType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RepairType {
+	Tables,
+	Blocks,
+	Versions,
+	MultipartUploads,
+	BlockRefs,
+	BlockRc,
+	Rebalance,
+	Scrub(ScrubCommand),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ScrubCommand {
+	Start,
+	Pause,
+	Resume,
+	Cancel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LocalLaunchRepairOperationResponse;
 
 // **********************************************
 //      Worker operations
