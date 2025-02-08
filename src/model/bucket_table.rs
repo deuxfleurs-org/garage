@@ -171,7 +171,16 @@ mod v2 {
 	pub struct WebsiteConfig {
 		pub index_document: String,
 		pub error_document: Option<String>,
+		// this field is currently unused, but present so adding it in the future doesn't
+		// need a new migration
+		pub redirect_all: Option<RedirectAll>,
 		pub routing_rules: Vec<RoutingRule>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RedirectAll {
+		pub hostname: String,
+		pub protocol: String,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -212,6 +221,7 @@ mod v2 {
 						wc_opt.map(|wc| WebsiteConfig {
 							index_document: wc.index_document,
 							error_document: wc.error_document,
+							redirect_all: None,
 							routing_rules: vec![],
 						})
 					}),

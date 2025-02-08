@@ -238,6 +238,7 @@ impl WebsiteConfiguration {
 					.map(|x| x.suffix.0)
 					.unwrap_or_else(|| "index.html".to_string()),
 				error_document: self.error_document.map(|x| x.key.0),
+				redirect_all: None,
 				routing_rules: self
 					.routing_rules
 					.rules

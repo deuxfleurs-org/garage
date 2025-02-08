@@ -393,6 +393,7 @@ impl AdminRpcHandler {
 			Some(WebsiteConfig {
 				index_document: query.index_document.clone(),
 				error_document: query.error_document.clone(),
+				redirect_all: None,
 				routing_rules: Vec::new(),
 			})
 		} else {
