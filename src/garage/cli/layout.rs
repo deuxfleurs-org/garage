@@ -129,7 +129,7 @@ pub async fn cmd_assign_role(
 					zone: args
 						.zone
 						.clone()
-						.ok_or("Please specifiy a zone with the -z flag")?,
+						.ok_or("Please specify a zone with the -z flag")?,
 					capacity,
 					tags: args.tags.clone(),
 				}
@@ -145,7 +145,7 @@ pub async fn cmd_assign_role(
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
-	println!("Role changes are staged but not yet commited.");
+	println!("Role changes are staged but not yet committed.");
 	println!("Use `garage layout show` to view staged role changes,");
 	println!("and `garage layout apply` to enact staged changes.");
 	Ok(())
@@ -172,7 +172,7 @@ pub async fn cmd_remove_role(
 
 	send_layout(rpc_cli, rpc_host, layout).await?;
 
-	println!("Role removal is staged but not yet commited.");
+	println!("Role removal is staged but not yet committed.");
 	println!("Use `garage layout show` to view staged role changes,");
 	println!("and `garage layout apply` to enact staged changes.");
 	Ok(())

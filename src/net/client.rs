@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
 use arc_swap::ArcSwapOption;
-use async_trait::async_trait;
 use bytes::Bytes;
 use log::{debug, error, trace};
 
@@ -220,7 +219,6 @@ impl ClientConn {
 
 impl SendLoop for ClientConn {}
 
-#[async_trait]
 impl RecvLoop for ClientConn {
 	fn recv_handler(self: &Arc<Self>, id: RequestID, stream: ByteStream) {
 		trace!("ClientConn recv_handler {}", id);

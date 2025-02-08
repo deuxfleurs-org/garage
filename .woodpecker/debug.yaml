@@ -16,32 +16,21 @@ steps:
   - name: build
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build -j4 --attr flakePackages.dev
 
-  - name: unit + func tests
+  - name: unit + func tests (lmdb)
     image: nixpkgs/nix:nixos-22.05
-    environment:
-      GARAGE_TEST_INTEGRATION_EXE: result-bin/bin/garage
-      GARAGE_TEST_INTEGRATION_PATH: tmp-garage-integration
     commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
-      - nix-build --no-build-output --attr test.amd64
-      - ./result/bin/garage_db-*
-      - ./result/bin/garage_api-*
-      - ./result/bin/garage_model-*
-      - ./result/bin/garage_rpc-*
-      - ./result/bin/garage_table-*
-      - ./result/bin/garage_util-*
-      - ./result/bin/garage_web-*
-      - ./result/bin/garage-*
-      - GARAGE_TEST_INTEGRATION_DB_ENGINE=lmdb ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
-      - nix-shell --attr ci --run "killall -9 garage" || true
-      - GARAGE_TEST_INTEGRATION_DB_ENGINE=sqlite ./result/bin/integration-* || (cat tmp-garage-integration/stderr.log; false)
-      - rm result
-      - rm -rv tmp-garage-integration
+      - nix-build -j4 --attr flakePackages.tests-lmdb
+
+  - name: unit + func tests (sqlite)
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-build -j4 --attr flakePackages.tests-sqlite
 
   - name: integration tests
     image: nixpkgs/nix:nixos-22.05
     commands:
-      - nix-build --no-build-output --attr clippy.amd64 --argstr git_version ${CI_COMMIT_TAG:-$CI_COMMIT_SHA}
+      - nix-build -j4 --attr flakePackages.dev
       - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
+    depends_on: [ build ]

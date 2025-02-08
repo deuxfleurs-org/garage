@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use argon2::password_hash::PasswordHash;
-use async_trait::async_trait;
 
 use http::header::{ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN, ALLOW};
 use hyper::{body::Incoming as IncomingBody, Request, Response, StatusCode};
@@ -20,15 +19,15 @@ use garage_rpc::system::ClusterHealthStatus;
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
-use crate::generic_server::*;
+use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
 
-use crate::admin::bucket::*;
-use crate::admin::cluster::*;
-use crate::admin::error::*;
-use crate::admin::key::*;
-use crate::admin::router_v0;
-use crate::admin::router_v1::{Authorization, Endpoint};
-use crate::helpers::*;
+use crate::bucket::*;
+use crate::cluster::*;
+use crate::error::*;
+use crate::key::*;
+use crate::router_v0;
+use crate::router_v1::{Authorization, Endpoint};
 
 pub type ResBody = BoxBody<Error>;
 
@@ -221,7 +220,6 @@ impl AdminApiServer {
 	}
 }
 
-#[async_trait]
 impl ApiHandler for AdminApiServer {
 	const API_NAME: &'static str = "admin";
 	const API_NAME_DISPLAY: &'static str = "Admin";

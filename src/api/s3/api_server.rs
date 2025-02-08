@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use hyper::header;
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use tokio::sync::watch;
@@ -14,33 +12,33 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
-use crate::generic_server::*;
-use crate::s3::error::*;
+use garage_api_common::cors::*;
+use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_request;
 
-use crate::signature::verify_request;
+use crate::bucket::*;
+use crate::copy::*;
+use crate::cors::*;
+use crate::delete::*;
+use crate::error::*;
+use crate::get::*;
+use crate::lifecycle::*;
+use crate::list::*;
+use crate::multipart::*;
+use crate::post_object::handle_post_object;
+use crate::put::*;
+use crate::router::Endpoint;
+use crate::website::*;
 
-use crate::helpers::*;
-use crate::s3::bucket::*;
-use crate::s3::copy::*;
-use crate::s3::cors::*;
-use crate::s3::delete::*;
-use crate::s3::get::*;
-use crate::s3::lifecycle::*;
-use crate::s3::list::*;
-use crate::s3::multipart::*;
-use crate::s3::post_object::handle_post_object;
-use crate::s3::put::*;
-use crate::s3::router::Endpoint;
-use crate::s3::website::*;
-
-pub use crate::signature::streaming::ReqBody;
+pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
 
 pub struct S3ApiServer {
 	garage: Arc<Garage>,
 }
 
-pub(crate) struct S3ApiEndpoint {
+pub struct S3ApiEndpoint {
 	bucket_name: Option<String>,
 	endpoint: Endpoint,
 }
@@ -70,7 +68,6 @@ impl S3ApiServer {
 	}
 }
 
-#[async_trait]
 impl ApiHandler for S3ApiServer {
 	const API_NAME: &'static str = "s3";
 	const API_NAME_DISPLAY: &'static str = "S3";
@@ -150,7 +147,8 @@ impl ApiHandler for S3ApiServer {
 		let bucket_id = garage
 			.bucket_helper()
 			.resolve_bucket(&bucket_name, &api_key)
-			.await?;
+			.await
+			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)

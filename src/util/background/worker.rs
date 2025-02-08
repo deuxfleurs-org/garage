@@ -14,7 +14,7 @@ use crate::background::{WorkerInfo, WorkerStatus};
 use crate::error::Error;
 use crate::time::now_msec;
 
-// All workers that haven't exited for this time after an exit signal was recieved
+// All workers that haven't exited for this time after an exit signal was received
 // will be interrupted in the middle of whatever they are doing.
 const EXIT_DEADLINE: Duration = Duration::from_secs(8);
 
@@ -54,7 +54,7 @@ pub trait Worker: Send {
 	async fn work(&mut self, must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error>;
 
 	/// Wait for work: await for some task to become available.  This future can be interrupted in
-	/// the middle for any reason, for example if an interrupt signal was recieved.
+	/// the middle for any reason, for example if an interrupt signal was received.
 	async fn wait_for_work(&mut self) -> WorkerState;
 }
 

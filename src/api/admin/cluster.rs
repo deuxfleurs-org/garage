@@ -12,9 +12,10 @@ use garage_rpc::layout;
 
 use garage_model::garage::Garage;
 
-use crate::admin::api_server::ResBody;
-use crate::admin::error::*;
-use crate::helpers::{json_ok_response, parse_json_body};
+use garage_api_common::helpers::{json_ok_response, parse_json_body};
+
+use crate::api_server::ResBody;
+use crate::error::*;
 
 pub async fn handle_get_cluster_status(garage: &Arc<Garage>) -> Result<Response<ResBody>, Error> {
 	let layout = garage.system.cluster_layout();

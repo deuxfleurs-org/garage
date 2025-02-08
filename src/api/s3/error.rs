@@ -4,19 +4,30 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use crate::common_error::CommonError;
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
-use crate::s3::xml as s3_xml;
-use crate::signature::error::Error as SignatureError;
+use garage_model::helper::error::Error as HelperError;
+
+pub(crate) use garage_api_common::common_error::pass_helper_error;
+
+use garage_api_common::common_error::{
+	commonErrorDerivative, helper_error_as_internal, CommonError,
+};
+
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::error::Error as SignatureError;
+
+use crate::xml as s3_xml;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	Common(CommonError),
+	Common(#[error(source)] CommonError),
 
 	// Category: cannot process
 	/// Authorization Header Malformed
@@ -78,16 +89,15 @@ pub enum Error {
 	NotImplemented(String),
 }
 
-impl<T> From<T> for Error
-where
-	CommonError: From<T>,
-{
-	fn from(err: T) -> Self {
-		Error::Common(CommonError::from(err))
+commonErrorDerivative!(Error);
+
+// Helper errors are always passed as internal errors by default.
+// To pass the specific error code back to the client, use `pass_helper_error`.
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Error {
+		Error::Common(helper_error_as_internal(err))
 	}
 }
-
-impl CommonErrorDerivative for Error {}
 
 impl From<roxmltree::Error> for Error {
 	fn from(err: roxmltree::Error) -> Self {

@@ -133,7 +133,7 @@ impl Graph<FlowEdge> {
 	/// This function shuffles the order of the edge lists. It keeps the ids of the
 	/// reversed edges consistent.
 	fn shuffle_edges(&mut self) {
-		// We use deterministic randomness so that the layout calculation algorihtm
+		// We use deterministic randomness so that the layout calculation algorithm
 		// will output the same thing every time it is run. This way, the results
 		// pre-calculated in `garage layout show` will match exactly those used
 		// in practice with `garage layout apply`

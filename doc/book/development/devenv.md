@@ -36,7 +36,7 @@ sudo killall nix-daemon
 Now you can enter our nix-shell, all the required packages will be downloaded but they will not pollute your environment outside of the shell:
 
 ```bash
-nix-shell
+nix-shell -A devShell
 ```
 
 You can use the traditional Rust development workflow:
@@ -65,8 +65,8 @@ nix-build -j $(nproc) --max-jobs auto
 ```
 
 Our build has multiple parameters you might want to set:
-  - `release` build with release optimisations instead of debug
-  - `target allows` for cross compilation
+  - `release` to build with release optimisations instead of debug
+  - `target` allows for cross compilation
   - `compileMode` can be set to test or bench to build a unit test runner
   - `git_version` to inject the hash to display when running `garage stats`
 

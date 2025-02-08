@@ -2,18 +2,21 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
-use crate::common_error::CommonError;
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
-use crate::signature::error::Error as SignatureError;
+use garage_api_common::common_error::{commonErrorDerivative, CommonError};
+pub(crate) use garage_api_common::common_error::{helper_error_as_internal, pass_helper_error};
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::error::Error as SignatureError;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	Common(CommonError),
+	Common(#[error(source)] CommonError),
 
 	// Category: cannot process
 	/// Authorization Header Malformed
@@ -28,6 +31,10 @@ pub enum Error {
 	#[error(display = "Invalid base64: {}", _0)]
 	InvalidBase64(#[error(source)] base64::DecodeError),
 
+	/// Invalid causality token
+	#[error(display = "Invalid causality token")]
+	InvalidCausalityToken,
+
 	/// The client asked for an invalid return format (invalid Accept header)
 	#[error(display = "Not acceptable: {}", _0)]
 	NotAcceptable(String),
@@ -37,16 +44,7 @@ pub enum Error {
 	InvalidUtf8Str(#[error(source)] std::str::Utf8Error),
 }
 
-impl<T> From<T> for Error
-where
-	CommonError: From<T>,
-{
-	fn from(err: T) -> Self {
-		Error::Common(CommonError::from(err))
-	}
-}
-
-impl CommonErrorDerivative for Error {}
+commonErrorDerivative!(Error);
 
 impl From<SignatureError> for Error {
 	fn from(err: SignatureError) -> Self {
@@ -72,6 +70,7 @@ impl Error {
 			Error::AuthorizationHeaderMalformed(_) => "AuthorizationHeaderMalformed",
 			Error::InvalidBase64(_) => "InvalidBase64",
 			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
+			Error::InvalidCausalityToken => "CausalityToken",
 		}
 	}
 }
@@ -85,7 +84,8 @@ impl ApiError for Error {
 			Error::NotAcceptable(_) => StatusCode::NOT_ACCEPTABLE,
 			Error::AuthorizationHeaderMalformed(_)
 			| Error::InvalidBase64(_)
-			| Error::InvalidUtf8Str(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidUtf8Str(_)
+			| Error::InvalidCausalityToken => StatusCode::BAD_REQUEST,
 		}
 	}
 

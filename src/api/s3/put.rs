@@ -30,11 +30,12 @@ use garage_model::s3::block_ref_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::checksum::*;
-use crate::s3::encryption::EncryptionParams;
-use crate::s3::error::*;
+use garage_api_common::helpers::*;
+
+use crate::api_server::{ReqBody, ResBody};
+use crate::checksum::*;
+use crate::encryption::EncryptionParams;
+use crate::error::*;
 
 const PUT_BLOCKS_MAX_PARALLEL: usize = 3;
 
@@ -622,7 +623,7 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<HeaderList
 	for (name, value) in headers.iter() {
 		if name.as_str().starts_with("x-amz-meta-") {
 			ret.push((
-				name.to_string(),
+				name.as_str().to_ascii_lowercase(),
 				std::str::from_utf8(value.as_bytes())?.to_string(),
 			));
 		}

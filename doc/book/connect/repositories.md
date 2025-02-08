@@ -17,7 +17,7 @@ Garage can also help you serve this content.
 
 ## Gitea
 
-You can use Garage with Gitea to store your [git LFS](https://git-lfs.github.com/) data, your users' avatar, and their attachements.
+You can use Garage with Gitea to store your [git LFS](https://git-lfs.github.com/) data, your users' avatar, and their attachments.
 You can configure a different target for each data type (check `[lfs]` and `[attachment]` sections of the Gitea documentation) and you can provide a default one through the `[storage]` section.
 
 Let's start by creating a key and a bucket (your key id and secret will be needed later, keep them somewhere):

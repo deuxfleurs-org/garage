@@ -22,7 +22,6 @@ opentelemetry.workspace = true
 
 async-trait.workspace = true
 arc-swap.workspace = true
-bytes.workspace = true
 hex.workspace = true
 hexdump.workspace = true
 tracing.workspace = true

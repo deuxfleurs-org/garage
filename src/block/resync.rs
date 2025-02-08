@@ -105,7 +105,7 @@ impl BlockResyncManager {
 		}
 	}
 
-	/// Get lenght of resync queue
+	/// Get length of resync queue
 	pub fn queue_len(&self) -> Result<usize, Error> {
 		Ok(self.queue.len()?)
 	}
@@ -185,10 +185,10 @@ impl BlockResyncManager {
 	//
 	// - resync.errors: a tree that indicates for each block
 	//   if the last resync resulted in an error, and if so,
-	//   the following two informations (see the ErrorCounter struct):
+	//   the following two information (see the ErrorCounter struct):
 	//   - how many consecutive resync errors for this block?
 	//   - when was the last try?
-	//   These two informations are used to implement an
+	//   These two information are used to implement an
 	//   exponential backoff retry strategy.
 	//   The key in this tree is the 32-byte hash of the block,
 	//   and the value is the encoded ErrorCounter value.

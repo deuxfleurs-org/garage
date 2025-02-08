@@ -16,15 +16,16 @@ use serde::Deserialize;
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 
-use crate::helpers::*;
-use crate::s3::api_server::ResBody;
-use crate::s3::checksum::*;
-use crate::s3::cors::*;
-use crate::s3::encryption::EncryptionParams;
-use crate::s3::error::*;
-use crate::s3::put::{get_headers, save_stream, ChecksumMode};
-use crate::s3::xml as s3_xml;
-use crate::signature::payload::{verify_v4, Authorization};
+use garage_api_common::cors::*;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::payload::{verify_v4, Authorization};
+
+use crate::api_server::ResBody;
+use crate::checksum::*;
+use crate::encryption::EncryptionParams;
+use crate::error::*;
+use crate::put::{get_headers, save_stream, ChecksumMode};
+use crate::xml as s3_xml;
 
 pub async fn handle_post_object(
 	garage: Arc<Garage>,
@@ -107,7 +108,8 @@ pub async fn handle_post_object(
 	let bucket_id = garage
 		.bucket_helper()
 		.resolve_bucket(&bucket_name, &api_key)
-		.await?;
+		.await
+		.map_err(pass_helper_error)?;
 
 	if !api_key.allow_write(&bucket_id) {
 		return Err(Error::forbidden("Operation is not allowed for this key."));
@@ -213,7 +215,7 @@ pub async fn handle_post_object(
 	}
 
 	// if we ever start supporting ACLs, we likely want to map "acl" to x-amz-acl" somewhere
-	// arround here to make sure the rest of the machinery takes our acl into account.
+	// around here to make sure the rest of the machinery takes our acl into account.
 	let headers = get_headers(&params)?;
 
 	let expected_checksums = ExpectedChecksums {

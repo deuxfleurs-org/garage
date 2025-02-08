@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use async_trait::async_trait;
-
 use hyper::{body::Incoming as IncomingBody, Method, Request, Response};
 use tokio::sync::watch;
 
@@ -12,26 +10,25 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
 
-use crate::generic_server::*;
-use crate::k2v::error::*;
+use garage_api_common::cors::*;
+use garage_api_common::generic_server::*;
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_request;
 
-use crate::signature::verify_request;
+use crate::batch::*;
+use crate::error::*;
+use crate::index::*;
+use crate::item::*;
+use crate::router::Endpoint;
 
-use crate::helpers::*;
-use crate::k2v::batch::*;
-use crate::k2v::index::*;
-use crate::k2v::item::*;
-use crate::k2v::router::Endpoint;
-use crate::s3::cors::*;
-
-pub use crate::signature::streaming::ReqBody;
+pub use garage_api_common::signature::streaming::ReqBody;
 pub type ResBody = BoxBody<Error>;
 
 pub struct K2VApiServer {
 	garage: Arc<Garage>,
 }
 
-pub(crate) struct K2VApiEndpoint {
+pub struct K2VApiEndpoint {
 	bucket_name: String,
 	endpoint: Endpoint,
 }
@@ -49,7 +46,6 @@ impl K2VApiServer {
 	}
 }
 
-#[async_trait]
 impl ApiHandler for K2VApiServer {
 	const API_NAME: &'static str = "k2v";
 	const API_NAME_DISPLAY: &'static str = "K2V";
@@ -77,7 +73,7 @@ impl ApiHandler for K2VApiServer {
 		} = endpoint;
 		let garage = self.garage.clone();
 
-		// The OPTIONS method is procesed early, before we even check for an API key
+		// The OPTIONS method is processed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
 			let options_res = handle_options_api(garage, &req, Some(bucket_name))
 				.await
@@ -90,11 +86,13 @@ impl ApiHandler for K2VApiServer {
 		let bucket_id = garage
 			.bucket_helper()
 			.resolve_bucket(&bucket_name, &api_key)
-			.await?;
+			.await
+			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
 			.get_existing_bucket(bucket_id)
-			.await?;
+			.await
+			.map_err(helper_error_as_internal)?;
 		let bucket_params = bucket.state.into_option().unwrap();
 
 		let allowed = match endpoint.authorization_type() {

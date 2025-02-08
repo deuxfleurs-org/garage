@@ -9,19 +9,20 @@ depends_on:
 steps:
   - name: refresh-index
     image: nixpkgs/nix:nixos-22.05
-    secrets:
-      - source: garagehq_aws_access_key_id
-        target: AWS_ACCESS_KEY_ID
-      - source: garagehq_aws_secret_access_key
-        target: AWS_SECRET_ACCESS_KEY
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
     commands:
       - mkdir -p /etc/nix && cp nix/nix.conf /etc/nix/nix.conf
       - nix-shell --attr ci --run "refresh_index"
 
   - name: multiarch-docker
     image: nixpkgs/nix:nixos-22.05
-    secrets:
-      - docker_auth
+    environment:
+      DOCKER_AUTH:
+        from_secret: docker_auth
     commands:
       - mkdir -p /root/.docker
       - echo $DOCKER_AUTH > /root/.docker/config.json

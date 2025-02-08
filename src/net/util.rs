@@ -25,7 +25,7 @@ where
 /// This async function returns only when a true signal was received
 /// from a watcher that tells us when to exit.
 ///
-/// Usefull in a select statement to interrupt another
+/// Useful in a select statement to interrupt another
 /// future:
 /// ```ignore
 /// select!(

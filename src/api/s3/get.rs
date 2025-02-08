@@ -25,11 +25,12 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use crate::helpers::*;
-use crate::s3::api_server::ResBody;
-use crate::s3::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
-use crate::s3::encryption::EncryptionParams;
-use crate::s3::error::*;
+use garage_api_common::helpers::*;
+
+use crate::api_server::ResBody;
+use crate::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
+use crate::encryption::EncryptionParams;
+use crate::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
 
@@ -68,14 +69,11 @@ fn object_headers(
 	// See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
 	let mut headers_by_name = BTreeMap::new();
 	for (name, value) in meta_inner.headers.iter() {
-		match headers_by_name.get_mut(name) {
-			None => {
-				headers_by_name.insert(name, vec![value.as_str()]);
-			}
-			Some(headers) => {
-				headers.push(value.as_str());
-			}
-		}
+		let name_lower = name.to_ascii_lowercase();
+		headers_by_name
+			.entry(name_lower)
+			.or_insert(vec![])
+			.push(value.as_str());
 	}
 
 	for (name, values) in headers_by_name {

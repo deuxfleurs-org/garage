@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use err_derive::Error;
 use hyper::StatusCode;
 
@@ -55,6 +57,35 @@ pub enum CommonError {
 	InvalidBucketName(String),
 }
 
+#[macro_export]
+macro_rules! commonErrorDerivative {
+	( $error_struct: ident ) => {
+		impl From<garage_util::error::Error> for $error_struct {
+			fn from(err: garage_util::error::Error) -> Self {
+				Self::Common(CommonError::InternalError(err))
+			}
+		}
+		impl From<http::Error> for $error_struct {
+			fn from(err: http::Error) -> Self {
+				Self::Common(CommonError::Http(err))
+			}
+		}
+		impl From<hyper::Error> for $error_struct {
+			fn from(err: hyper::Error) -> Self {
+				Self::Common(CommonError::Hyper(err))
+			}
+		}
+		impl From<hyper::header::ToStrError> for $error_struct {
+			fn from(err: hyper::header::ToStrError) -> Self {
+				Self::Common(CommonError::InvalidHeader(err))
+			}
+		}
+		impl CommonErrorDerivative for $error_struct {}
+	};
+}
+
+pub use commonErrorDerivative;
+
 impl CommonError {
 	pub fn http_status_code(&self) -> StatusCode {
 		match self {
@@ -97,15 +128,36 @@ impl CommonError {
 	}
 }
 
-impl From<HelperError> for CommonError {
-	fn from(err: HelperError) -> Self {
+impl TryFrom<HelperError> for CommonError {
+	type Error = HelperError;
+
+	fn try_from(err: HelperError) -> Result<Self, HelperError> {
 		match err {
-			HelperError::Internal(i) => Self::InternalError(i),
-			HelperError::BadRequest(b) => Self::BadRequest(b),
-			HelperError::InvalidBucketName(n) => Self::InvalidBucketName(n),
-			HelperError::NoSuchBucket(n) => Self::NoSuchBucket(n),
-			e => Self::bad_request(format!("{}", e)),
+			HelperError::Internal(i) => Ok(Self::InternalError(i)),
+			HelperError::BadRequest(b) => Ok(Self::BadRequest(b)),
+			HelperError::InvalidBucketName(n) => Ok(Self::InvalidBucketName(n)),
+			HelperError::NoSuchBucket(n) => Ok(Self::NoSuchBucket(n)),
+			e => Err(e),
 		}
+	}
+}
+
+/// This function converts HelperErrors into CommonErrors,
+/// for variants that exist in CommonError.
+/// This is used for helper functions that might return InvalidBucketName
+/// or NoSuchBucket for instance, and we want to pass that error
+/// up to our caller.
+pub fn pass_helper_error(err: HelperError) -> CommonError {
+	match CommonError::try_from(err) {
+		Ok(e) => e,
+		Err(e) => panic!("Helper error `{}` should hot have happenned here", e),
+	}
+}
+
+pub fn helper_error_as_internal(err: HelperError) -> CommonError {
+	match err {
+		HelperError::Internal(e) => CommonError::InternalError(e),
+		e => CommonError::InternalError(GarageError::Message(e.to_string())),
 	}
 }
 

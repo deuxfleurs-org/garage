@@ -122,7 +122,7 @@ impl Db {
 				_ => unreachable!(),
 			},
 			Err(TxError::Db(e2)) => match ret {
-				// Ok was stored -> the error occured when finalizing
+				// Ok was stored -> the error occurred when finalizing
 				// transaction
 				Ok(_) => Err(TxError::Db(e2)),
 				// An error was already stored: that's the one we want to

@@ -231,7 +231,7 @@ impl<'a> LockedHelper<'a> {
 		let bucket_p_local_alias_key = (key.key_id.clone(), alias_name.clone());
 
 		// Calculate the timestamp to assign to this aliasing in the two local_aliases maps
-		// (the one from key to bucket, and the reverse one stored in the bucket iself)
+		// (the one from key to bucket, and the reverse one stored in the bucket itself)
 		// so that merges on both maps in case of a concurrent operation resolve
 		// to the same alias being set
 		let alias_ts = increment_logical_clock_2(
@@ -279,7 +279,8 @@ impl<'a> LockedHelper<'a> {
 			.local_aliases
 			.get(alias_name)
 			.cloned()
-			.flatten() != Some(bucket_id)
+			.flatten()
+			!= Some(bucket_id)
 		{
 			return Err(GarageError::Message(format!(
 				"Bucket {:?} does not have alias {} in namespace of key {}",

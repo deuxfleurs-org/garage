@@ -31,6 +31,9 @@ pub struct Config {
 	#[serde(default)]
 	pub use_local_tz: bool,
 
+	/// Optional directory where metadata snapshots will be store
+	pub metadata_snapshots_dir: Option<PathBuf>,
+
 	/// Automatic snapshot interval for metadata
 	#[serde(default)]
 	pub metadata_auto_snapshot_interval: Option<String>,
@@ -93,12 +96,12 @@ pub struct Config {
 	/// the addresses announced to other peers to a specific subnet.
 	pub rpc_public_addr_subnet: Option<String>,
 
-	/// Timeout for Netapp's ping messagess
+	/// Timeout for Netapp's ping messages
 	pub rpc_ping_timeout_msec: Option<u64>,
 	/// Timeout for Netapp RPC calls
 	pub rpc_timeout_msec: Option<u64>,
 
-	// -- Bootstraping and discovery
+	// -- Bootstrapping and discovery
 	/// Bootstrap peers RPC address
 	#[serde(default)]
 	pub bootstrap_peers: Vec<String>,

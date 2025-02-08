@@ -199,7 +199,7 @@ For instance here you could write just `garage layout assign -z dc1 -c 1G 563e`.
 The layout then has to be applied to the cluster, using:
 
 ```bash
-garage layout apply
+garage layout apply --version 1
 ```
 
 
@@ -349,7 +349,7 @@ Check [our s3 compatibility list](@/documentation/reference-manual/s3-compatibil
 
 ### Other tools for interacting with Garage
 
-The following tools can also be used to send and recieve files from/to Garage:
+The following tools can also be used to send and receive files from/to Garage:
 
 - [minio-client](@/documentation/connect/cli.md#minio-client) 
 - [s3cmd](@/documentation/connect/cli.md#s3cmd) 

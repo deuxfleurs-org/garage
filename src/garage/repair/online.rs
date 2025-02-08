@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -93,17 +94,16 @@ pub async fn launch_online_repair(
 
 // ----
 
-#[async_trait]
 trait TableRepair: Send + Sync + 'static {
 	type T: TableSchema;
 
 	fn table(garage: &Garage) -> &Table<Self::T, TableShardedReplication>;
 
-	async fn process(
+	fn process(
 		&mut self,
 		garage: &Garage,
 		entry: <<Self as TableRepair>::T as TableSchema>::E,
-	) -> Result<bool, Error>;
+	) -> impl Future<Output = Result<bool, Error>> + Send;
 }
 
 struct TableRepairWorker<T: TableRepair> {
@@ -174,7 +174,6 @@ impl<R: TableRepair> Worker for TableRepairWorker<R> {
 
 struct RepairVersions;
 
-#[async_trait]
 impl TableRepair for RepairVersions {
 	type T = VersionTable;
 
@@ -221,7 +220,6 @@ impl TableRepair for RepairVersions {
 
 struct RepairBlockRefs;
 
-#[async_trait]
 impl TableRepair for RepairBlockRefs {
 	type T = BlockRefTable;
 
@@ -257,7 +255,6 @@ impl TableRepair for RepairBlockRefs {
 
 struct RepairMpu;
 
-#[async_trait]
 impl TableRepair for RepairMpu {
 	type T = MultipartUploadTable;
 

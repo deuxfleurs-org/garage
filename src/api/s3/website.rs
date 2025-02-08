@@ -4,14 +4,15 @@ use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use crate::helpers::*;
-use crate::s3::api_server::{ReqBody, ResBody};
-use crate::s3::error::*;
-use crate::s3::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
-use crate::signature::verify_signed_content;
-
 use garage_model::bucket_table::{self, *};
 use garage_util::data::*;
+
+use garage_api_common::helpers::*;
+use garage_api_common::signature::verify_signed_content;
+
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
+use crate::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
 
 pub async fn handle_get_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;

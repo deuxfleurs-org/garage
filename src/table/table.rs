@@ -2,7 +2,6 @@ use std::borrow::Borrow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use futures::stream::*;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -171,11 +170,11 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		// We will here batch all items into a single request for each concerned
 		// node, with all of the entries it must store within that request.
 		// Each entry has to be saved to a specific list of "write sets", i.e. a set
-		// of node within wich a quorum must be achieved. In normal operation, there
+		// of node within which a quorum must be achieved. In normal operation, there
 		// is a single write set which corresponds to the quorum in the current
 		// cluster layout, but when the layout is updated, multiple write sets might
 		// have to be handled at once. Here, since we are sending many entries, we
-		// will have to handle many write sets in all cases. The algorihtm is thus
+		// will have to handle many write sets in all cases. The algorithm is thus
 		// to send one request to each node with all the items it must save,
 		// and keep track of the OK responses within each write set: if for all sets
 		// a quorum of nodes has answered OK, then the insert has succeeded and
@@ -202,6 +201,10 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			}
 			let e_enc = Arc::new(ByteBuf::from(entry.encode()?));
 			entries_vec.push((write_sets, e_enc));
+		}
+
+		if entries_vec.is_empty() {
+			return Ok(());
 		}
 
 		// Compute a deduplicated list of all of the write sets,
@@ -496,7 +499,6 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	}
 }
 
-#[async_trait]
 impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table<F, R> {
 	async fn handle(
 		self: &Arc<Self>,

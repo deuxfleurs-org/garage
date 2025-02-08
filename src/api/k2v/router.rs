@@ -1,11 +1,11 @@
-use crate::k2v::error::*;
+use crate::error::*;
 
 use std::borrow::Cow;
 
 use hyper::{Method, Request};
 
-use crate::helpers::Authorization;
-use crate::router_macros::{generateQueryParameters, router_match};
+use garage_api_common::helpers::Authorization;
+use garage_api_common::router_macros::{generateQueryParameters, router_match};
 
 router_match! {@func
 

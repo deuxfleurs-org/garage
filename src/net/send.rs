@@ -3,7 +3,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use async_trait::async_trait;
 use bytes::{BufMut, Bytes, BytesMut};
 use log::*;
 
@@ -28,7 +27,7 @@ use crate::stream::*;
 //   - if error:
 //       - u8: error kind, encoded using error::io_errorkind_to_u8
 //       - rest: error message
-//   - absent for cancel messag
+//   - absent for cancel message
 
 pub(crate) type RequestID = u32;
 pub(crate) type ChunkLength = u16;
@@ -217,7 +216,7 @@ impl<'a> futures::Future for SendQueuePollNextReady<'a> {
 
 enum DataFrame {
 	/// a fixed size buffer containing some data + a boolean indicating whether
-	/// there may be more data comming from this stream. Can be used for some
+	/// there may be more data coming from this stream. Can be used for some
 	/// optimization. It's an error to set it to false if there is more data, but it is correct
 	/// (albeit sub-optimal) to set it to true if there is nothing coming after
 	Data(Bytes, bool),
@@ -273,7 +272,6 @@ impl DataFrame {
 ///
 /// The `.send_loop()` exits when the sending end of the channel is closed,
 /// or if there is an error at any time writing to the async writer.
-#[async_trait]
 pub(crate) trait SendLoop: Sync {
 	async fn send_loop<W>(
 		self: Arc<Self>,
@@ -310,7 +308,7 @@ pub(crate) trait SendLoop: Sync {
 			// recv_fut is cancellation-safe according to tokio doc,
 			// send_fut is cancellation-safe as implemented above?
 			tokio::select! {
-				biased;	// always read incomming channel first if it has data
+				biased;	// always read incoming channel first if it has data
 				sth = recv_fut => {
 					match sth {
 						Some(SendItem::Stream(id, prio, order_tag, data)) => {

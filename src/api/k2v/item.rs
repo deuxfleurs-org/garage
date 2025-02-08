@@ -6,9 +6,10 @@ use hyper::{Request, Response, StatusCode};
 use garage_model::k2v::causality::*;
 use garage_model::k2v::item_table::*;
 
-use crate::helpers::*;
-use crate::k2v::api_server::{ReqBody, ResBody};
-use crate::k2v::error::*;
+use garage_api_common::helpers::*;
+
+use crate::api_server::{ReqBody, ResBody};
+use crate::error::*;
 
 pub const X_GARAGE_CAUSALITY_TOKEN: &str = "X-Garage-Causality-Token";
 
@@ -16,6 +17,10 @@ pub enum ReturnFormat {
 	Json,
 	Binary,
 	Either,
+}
+
+pub(crate) fn parse_causality_token(s: &str) -> Result<CausalContext, Error> {
+	CausalContext::parse(s).ok_or(Error::InvalidCausalityToken)
 }
 
 impl ReturnFormat {
@@ -136,7 +141,7 @@ pub async fn handle_insert_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse_helper)
+		.map(parse_causality_token)
 		.transpose()?;
 
 	let body = http_body_util::BodyExt::collect(req.into_body())
@@ -176,7 +181,7 @@ pub async fn handle_delete_item(
 		.get(X_GARAGE_CAUSALITY_TOKEN)
 		.map(|s| s.to_str())
 		.transpose()?
-		.map(CausalContext::parse_helper)
+		.map(parse_causality_token)
 		.transpose()?;
 
 	let value = DvvsValue::Deleted;

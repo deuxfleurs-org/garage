@@ -21,14 +21,16 @@ use opentelemetry::{
 
 use crate::error::*;
 
-use garage_api::generic_server::{server_loop, UnixListenerOn};
-use garage_api::helpers::*;
-use garage_api::s3::api_server::ResBody;
-use garage_api::s3::cors::{add_cors_headers, find_matching_cors_rule, handle_options_for_bucket};
-use garage_api::s3::error::{
+use garage_api_common::cors::{
+	add_cors_headers, find_matching_cors_rule, handle_options_for_bucket,
+};
+use garage_api_common::generic_server::{server_loop, UnixListenerOn};
+use garage_api_common::helpers::*;
+use garage_api_s3::api_server::ResBody;
+use garage_api_s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
 };
-use garage_api::s3::get::{handle_get_without_ctx, handle_head_without_ctx};
+use garage_api_s3::get::{handle_get_without_ctx, handle_head_without_ctx};
 
 use garage_model::bucket_table::{self, RoutingRule};
 use garage_model::garage::Garage;

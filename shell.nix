@@ -3,7 +3,7 @@
 with import ./nix/common.nix;
 
 let
-  pkgs = import pkgsSrc {
+  pkgs = import nixpkgs {
     inherit system;
   };
   winscp = (import ./nix/winscp.nix) pkgs;
@@ -39,7 +39,7 @@ in
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
           s3 cp \
-            ./result-bin/bin/garage \
+            ./result/bin/garage \
             s3://garagehq.deuxfleurs.fr/_releases/''${CI_COMMIT_TAG:-$CI_COMMIT_SHA}/''${TARGET}/garage
       }
 
@@ -115,7 +115,7 @@ in
     shellHook = ''
       function refresh_cache {
         pass show deuxfleurs/nix_priv_key > /tmp/nix-signing-key.sec
-        for attr in clippy.amd64 test.amd64 pkgs.{amd64,i386,arm,arm64}.release; do
+        for attr in pkgs.amd64.debug test.amd64 pkgs.{amd64,i386,arm,arm64}.release; do
           echo "Updating cache for ''${attr}"
           nix copy -j8 \
             --to 's3://nix?endpoint=garage.deuxfleurs.fr&region=garage&secret-key=/tmp/nix-signing-key.sec' \

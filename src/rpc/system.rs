@@ -7,7 +7,6 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwapOption;
-use async_trait::async_trait;
 use futures::join;
 use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::sign::ed25519;
@@ -54,7 +53,7 @@ pub const SYSTEM_RPC_PATH: &str = "garage_rpc/system.rs/SystemRpc";
 /// RPC messages related to membership
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SystemRpc {
-	/// Response to successfull advertisements
+	/// Response to successful advertisements
 	Ok,
 	/// Request to connect to a specific node (in <pubkey>@<host>:<port> format, pubkey = full-length node ID)
 	Connect(String),
@@ -172,7 +171,7 @@ pub struct ClusterHealth {
 pub enum ClusterHealthStatus {
 	/// All nodes are available
 	Healthy,
-	/// Some storage nodes are unavailable, but quorum is stil
+	/// Some storage nodes are unavailable, but quorum is still
 	/// achieved for all partitions
 	Degraded,
 	/// Quorum is not available for some partitions
@@ -286,7 +285,7 @@ impl System {
 		let mut local_status = NodeStatus::initial(replication_factor, &layout_manager);
 		local_status.update_disk_usage(&config.metadata_dir, &config.data_dir);
 
-		// ---- if enabled, set up additionnal peer discovery methods ----
+		// ---- if enabled, set up additional peer discovery methods ----
 		#[cfg(feature = "consul-discovery")]
 		let consul_discovery = match &config.consul_discovery {
 			Some(cfg) => Some(
@@ -337,7 +336,7 @@ impl System {
 		Ok(sys)
 	}
 
-	/// Perform bootstraping, starting the ping loop
+	/// Perform bootstrapping, starting the ping loop
 	pub async fn run(self: Arc<Self>, must_exit: watch::Receiver<bool>) {
 		join!(
 			self.netapp.clone().listen(
@@ -749,7 +748,6 @@ impl System {
 	}
 }
 
-#[async_trait]
 impl EndpointHandler<SystemRpc> for System {
 	async fn handle(self: &Arc<Self>, msg: &SystemRpc, from: NodeID) -> Result<SystemRpc, Error> {
 		match msg {
@@ -807,6 +805,16 @@ impl NodeStatus {
 
 	fn update_disk_usage(&mut self, meta_dir: &Path, data_dir: &DataDirEnum) {
 		use nix::sys::statvfs::statvfs;
+
+		// The HashMap used below requires a filesystem identifier from statfs (instead of statvfs) on FreeBSD, as
+		// FreeBSD's statvfs filesystem identifier is "not meaningful in this implementation" (man 3 statvfs).
+
+		#[cfg(target_os = "freebsd")]
+		let get_filesystem_id = |path: &Path| match nix::sys::statfs::statfs(path) {
+			Ok(fs) => Some(fs.filesystem_id()),
+			Err(_) => None,
+		};
+
 		let mount_avail = |path: &Path| match statvfs(path) {
 			Ok(x) => {
 				let avail = x.blocks_available() as u64 * x.fragment_size() as u64;
@@ -817,6 +825,7 @@ impl NodeStatus {
 		};
 
 		self.meta_disk_avail = mount_avail(meta_dir).map(|(_, a, t)| (a, t));
+
 		self.data_disk_avail = match data_dir {
 			DataDirEnum::Single(dir) => mount_avail(dir).map(|(_, a, t)| (a, t)),
 			DataDirEnum::Multiple(dirs) => (|| {
@@ -827,10 +836,23 @@ impl NodeStatus {
 					if dir.capacity.is_none() {
 						continue;
 					}
+
+					#[cfg(not(target_os = "freebsd"))]
 					match mount_avail(&dir.path) {
 						Some((fsid, avail, total)) => {
 							mounts.insert(fsid, (avail, total));
 						}
+						None => return None,
+					}
+
+					#[cfg(target_os = "freebsd")]
+					match get_filesystem_id(&dir.path) {
+						Some(fsid) => match mount_avail(&dir.path) {
+							Some((_, avail, total)) => {
+								mounts.insert(fsid, (avail, total));
+							}
+							None => return None,
+						},
 						None => return None,
 					}
 				}

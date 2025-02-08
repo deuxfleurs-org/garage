@@ -66,7 +66,7 @@ async fn run_test_inner(port_base: u16) {
 	println!("A pl2: {:?}", pl2);
 	assert_eq!(pl2.len(), 2);
 
-	// Connect third ndoe and check it peers with everyone
+	// Connect third node and check it peers with everyone
 	let (thread3, _netapp3, peering3) =
 		run_netapp(netid, pk3, sk3, addr3, vec![(pk2, addr2)], stop_rx.clone());
 	tokio::time::sleep(Duration::from_secs(3)).await;

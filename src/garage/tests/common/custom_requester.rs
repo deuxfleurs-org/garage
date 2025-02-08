@@ -15,7 +15,7 @@ use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
 
 use super::garage::{Instance, Key};
-use garage_api::signature;
+use garage_api_common::signature;
 
 pub type Body = FullBody<hyper::body::Bytes>;
 
@@ -153,7 +153,7 @@ impl<'a> RequestBuilder<'a> {
 
 	pub async fn send(&mut self) -> Result<Response<Body>, String> {
 		// TODO this is a bit incorrect in that path and query params should be url-encoded and
-		// aren't, but this is good enought for now.
+		// aren't, but this is good enough for now.
 
 		let query = query_param_to_string(&self.query_params);
 		let (host, path) = if self.vhost_style {
@@ -210,9 +210,9 @@ impl<'a> RequestBuilder<'a> {
 					HeaderName::from_static("x-amz-decoded-content-length"),
 					HeaderValue::from_str(&self.body.len().to_string()).unwrap(),
 				);
-				// Get lenght of body by doing the conversion to a streaming body with an
+				// Get length of body by doing the conversion to a streaming body with an
 				// invalid signature (we don't know the seed) just to get its length. This
-				// is a pretty lazy and inefficient way to do it, but it's enought for test
+				// is a pretty lazy and inefficient way to do it, but it's enough for test
 				// code.
 				all_headers.insert(
 					CONTENT_LENGTH,

@@ -1,20 +1,24 @@
+use std::convert::TryFrom;
+
 use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
 pub use garage_model::helper::error::Error as HelperError;
 
-use crate::common_error::CommonError;
-pub use crate::common_error::{CommonErrorDerivative, OkOrBadRequest, OkOrInternalError};
-use crate::generic_server::ApiError;
-use crate::helpers::*;
+use garage_api_common::common_error::{commonErrorDerivative, CommonError};
+pub use garage_api_common::common_error::{
+	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
+};
+use garage_api_common::generic_server::ApiError;
+use garage_api_common::helpers::*;
 
 /// Errors of this crate
 #[derive(Debug, Error)]
 pub enum Error {
 	#[error(display = "{}", _0)]
 	/// Error from common error
-	Common(CommonError),
+	Common(#[error(source)] CommonError),
 
 	// Category: cannot process
 	/// The API access key does not exist
@@ -29,16 +33,20 @@ pub enum Error {
 	KeyAlreadyExists(String),
 }
 
-impl<T> From<T> for Error
-where
-	CommonError: From<T>,
-{
-	fn from(err: T) -> Self {
-		Error::Common(CommonError::from(err))
+commonErrorDerivative!(Error);
+
+/// FIXME: helper errors are transformed into their corresponding variants
+/// in the Error struct, but in many case a helper error should be considered
+/// an internal error.
+impl From<HelperError> for Error {
+	fn from(err: HelperError) -> Error {
+		match CommonError::try_from(err) {
+			Ok(ce) => Self::Common(ce),
+			Err(HelperError::NoSuchAccessKey(k)) => Self::NoSuchAccessKey(k),
+			Err(_) => unreachable!(),
+		}
 	}
 }
-
-impl CommonErrorDerivative for Error {}
 
 impl Error {
 	fn code(&self) -> &'static str {

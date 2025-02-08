@@ -5,7 +5,6 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
-use async_trait::async_trait;
 use log::{debug, info, trace, warn};
 use serde::{Deserialize, Serialize};
 
@@ -138,7 +137,7 @@ pub enum PeerConnState {
 	/// A connection tentative is in progress (the nth, where n is the value stored)
 	Trying(usize),
 
-	/// We abandonned trying to connect to this peer (too many failed attempts)
+	/// We abandoned trying to connect to this peer (too many failed attempts)
 	Abandonned,
 }
 
@@ -592,7 +591,6 @@ impl PeeringManager {
 	}
 }
 
-#[async_trait]
 impl EndpointHandler<PingMessage> for PeeringManager {
 	async fn handle(self: &Arc<Self>, ping: &PingMessage, from: NodeID) -> PingMessage {
 		let ping_resp = PingMessage {
@@ -604,7 +602,6 @@ impl EndpointHandler<PingMessage> for PeeringManager {
 	}
 }
 
-#[async_trait]
 impl EndpointHandler<PeerListMessage> for PeeringManager {
 	async fn handle(
 		self: &Arc<Self>,

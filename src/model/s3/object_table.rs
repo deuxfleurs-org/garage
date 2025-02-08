@@ -31,11 +31,11 @@ mod v08 {
 		/// The key at which the object is stored in its bucket, used as sorting key
 		pub key: String,
 
-		/// The list of currenty stored versions of the object
+		/// The list of currently stored versions of the object
 		pub(super) versions: Vec<ObjectVersion>,
 	}
 
-	/// Informations about a version of an object
+	/// Information about a version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct ObjectVersion {
 		/// Id of the version
@@ -109,11 +109,11 @@ mod v09 {
 		/// The key at which the object is stored in its bucket, used as sorting key
 		pub key: String,
 
-		/// The list of currenty stored versions of the object
+		/// The list of currently stored versions of the object
 		pub(super) versions: Vec<ObjectVersion>,
 	}
 
-	/// Informations about a version of an object
+	/// Information about a version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct ObjectVersion {
 		/// Id of the version
@@ -186,11 +186,11 @@ mod v010 {
 		/// The key at which the object is stored in its bucket, used as sorting key
 		pub key: String,
 
-		/// The list of currenty stored versions of the object
+		/// The list of currently stored versions of the object
 		pub(super) versions: Vec<ObjectVersion>,
 	}
 
-	/// Informations about a version of an object
+	/// Information about a version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct ObjectVersion {
 		/// Id of the version

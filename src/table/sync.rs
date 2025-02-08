@@ -316,7 +316,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 			SyncRpc::RootCkDifferent(true) => VecDeque::from(vec![root_ck_key]),
 			x => {
 				return Err(Error::Message(format!(
-					"Invalid respone to RootCkHash RPC: {}",
+					"Invalid response to RootCkHash RPC: {}",
 					debug_serialize(x)
 				)));
 			}
@@ -362,7 +362,7 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 						SyncRpc::Node(_, node) => node,
 						x => {
 							return Err(Error::Message(format!(
-								"Invalid respone to GetNode RPC: {}",
+								"Invalid response to GetNode RPC: {}",
 								debug_serialize(x)
 							)));
 						}
@@ -444,7 +444,6 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 // ======= SYNCHRONIZATION PROCEDURE -- RECEIVER SIDE ======
 
-#[async_trait]
 impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSyncer<F, R> {
 	async fn handle(self: &Arc<Self>, message: &SyncRpc, from: NodeID) -> Result<SyncRpc, Error> {
 		match message {

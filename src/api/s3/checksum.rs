@@ -15,7 +15,7 @@ use garage_util::error::OkOrMessage;
 
 use garage_model::s3::object_table::*;
 
-use crate::s3::error::*;
+use crate::error::*;
 
 pub const X_AMZ_CHECKSUM_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-checksum-algorithm");
@@ -340,8 +340,8 @@ pub(crate) fn request_checksum_value(
 	Ok(ret.pop())
 }
 
-/// Checks for the presense of x-amz-checksum-algorithm
-/// if so extract the corrseponding x-amz-checksum-* value
+/// Checks for the presence of x-amz-checksum-algorithm
+/// if so extract the corresponding x-amz-checksum-* value
 pub(crate) fn request_checksum_algorithm_value(
 	headers: &HeaderMap<HeaderValue>,
 ) -> Result<Option<ChecksumValue>, Error> {
