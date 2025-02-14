@@ -395,13 +395,13 @@ fn midnight_ts(date: NaiveDate, use_local_tz: bool) -> u64 {
 			.expect("bad local midnight")
 			.timestamp_millis() as u64;
 	}
-	midnight.timestamp_millis() as u64
+	midnight.and_utc().timestamp_millis() as u64
 }
 
 fn next_date(ts: u64) -> NaiveDate {
-	NaiveDateTime::from_timestamp_millis(ts as i64)
+	DateTime::<Utc>::from_timestamp_millis(ts as i64)
 		.expect("bad timestamp")
-		.date()
+		.date_naive()
 		.succ_opt()
 		.expect("no next day")
 }

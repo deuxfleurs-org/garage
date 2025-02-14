@@ -27,8 +27,15 @@ use crate::permission::BucketKeyPerm;
 /// See issues: #649, #723
 pub struct LockedHelper<'a>(
 	pub(crate) &'a Garage,
-	pub(crate) tokio::sync::MutexGuard<'a, ()>,
+	pub(crate) Option<tokio::sync::MutexGuard<'a, ()>>,
 );
+
+impl<'a> Drop for LockedHelper<'a> {
+	fn drop(&mut self) {
+		// make it explicit that the mutexguard lives until here
+		drop(self.1.take())
+	}
+}
 
 #[allow(clippy::ptr_arg)]
 impl<'a> LockedHelper<'a> {
