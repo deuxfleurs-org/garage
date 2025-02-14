@@ -317,7 +317,6 @@ impl ApiHandler for S3ApiServer {
 			} => {
 				let query = ListPartsQuery {
 					bucket_name: ctx.bucket_name.clone(),
-					bucket_id,
 					key,
 					upload_id,
 					part_number_marker: part_number_marker.map(|p| p.min(10000)),
