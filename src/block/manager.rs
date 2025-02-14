@@ -668,10 +668,12 @@ impl BlockManager {
 		hash: &Hash,
 		wrong_path: DataBlockPath,
 	) -> Result<usize, Error> {
+		let data = self.read_block_from(hash, &wrong_path).await?;
 		self.lock_mutate(hash)
 			.await
-			.fix_block_location(hash, wrong_path, self)
-			.await
+			.write_block_inner(hash, &data, self, Some(wrong_path))
+			.await?;
+		Ok(data.as_parts_ref().1.len())
 	}
 
 	async fn lock_mutate(&self, hash: &Hash) -> MutexGuard<'_, BlockManagerLocked> {
@@ -826,18 +828,6 @@ impl BlockManagerLocked {
 			}
 		}
 		Ok(())
-	}
-
-	async fn fix_block_location(
-		&self,
-		hash: &Hash,
-		wrong_path: DataBlockPath,
-		mgr: &BlockManager,
-	) -> Result<usize, Error> {
-		let data = mgr.read_block_from(hash, &wrong_path).await?;
-		self.write_block_inner(hash, &data, mgr, Some(wrong_path))
-			.await?;
-		Ok(data.as_parts_ref().1.len())
 	}
 }
 
