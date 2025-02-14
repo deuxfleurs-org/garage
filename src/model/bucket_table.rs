@@ -119,7 +119,122 @@ mod v08 {
 	impl garage_util::migrate::InitialFormat for Bucket {}
 }
 
-pub use v08::*;
+mod v2 {
+	use crate::permission::BucketKeyPerm;
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	use super::v08;
+
+	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Bucket {
+		/// ID of the bucket
+		pub id: Uuid,
+		/// State, and configuration if not deleted, of the bucket
+		pub state: crdt::Deletable<BucketParams>,
+	}
+
+	/// Configuration for a bucket
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct BucketParams {
+		/// Bucket's creation date
+		pub creation_date: u64,
+		/// Map of key with access to the bucket, and what kind of access they give
+		pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
+
+		/// Map of aliases that are or have been given to this bucket
+		/// in the global namespace
+		/// (not authoritative: this is just used as an indication to
+		/// map back to aliases when doing ListBuckets)
+		pub aliases: crdt::LwwMap<String, bool>,
+		/// Map of aliases that are or have been given to this bucket
+		/// in namespaces local to keys
+		/// key = (access key id, alias name)
+		pub local_aliases: crdt::LwwMap<(String, String), bool>,
+
+		/// Whether this bucket is allowed for website access
+		/// (under all of its global alias names),
+		/// and if so, the website configuration XML document
+		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+		/// CORS rules
+		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+		/// Lifecycle configuration
+		pub lifecycle_config: crdt::Lww<Option<Vec<LifecycleRule>>>,
+		/// Bucket quotas
+		pub quotas: crdt::Lww<BucketQuotas>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct WebsiteConfig {
+		pub index_document: String,
+		pub error_document: Option<String>,
+		// this field is currently unused, but present so adding it in the future doesn't
+		// need a new migration
+		pub redirect_all: Option<RedirectAll>,
+		pub routing_rules: Vec<RoutingRule>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RedirectAll {
+		pub hostname: String,
+		pub protocol: String,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RoutingRule {
+		pub condition: Option<RedirectCondition>,
+		pub redirect: Redirect,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct RedirectCondition {
+		pub http_error_code: Option<u16>,
+		pub prefix: Option<String>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Redirect {
+		pub hostname: Option<String>,
+		pub http_redirect_code: u16,
+		pub protocol: Option<String>,
+		pub replace_key_prefix: Option<String>,
+		pub replace_key: Option<String>,
+	}
+
+	impl garage_util::migrate::Migrate for Bucket {
+		const VERSION_MARKER: &'static [u8] = b"G2bkt";
+
+		type Previous = v08::Bucket;
+
+		fn migrate(old: v08::Bucket) -> Bucket {
+			Bucket {
+				id: old.id,
+				state: old.state.map(|x| BucketParams {
+					creation_date: x.creation_date,
+					authorized_keys: x.authorized_keys,
+					aliases: x.aliases,
+					local_aliases: x.local_aliases,
+					website_config: x.website_config.map(|wc_opt| {
+						wc_opt.map(|wc| WebsiteConfig {
+							index_document: wc.index_document,
+							error_document: wc.error_document,
+							redirect_all: None,
+							routing_rules: vec![],
+						})
+					}),
+					cors_config: x.cors_config,
+					lifecycle_config: x.lifecycle_config,
+					quotas: x.quotas,
+				}),
+			}
+		}
+	}
+}
+
+pub use v2::*;
 
 impl AutoCrdt for BucketQuotas {
 	const WARN_IF_DIFFERENT: bool = true;

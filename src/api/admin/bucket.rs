@@ -376,6 +376,8 @@ impl RequestHandler for UpdateBucketRequest {
 						"Please specify indexDocument when enabling website access.",
 					)?,
 					error_document: wa.error_document,
+					redirect_all: None,
+					routing_rules: Vec::new(),
 				}));
 			} else {
 				if wa.index_document.is_some() || wa.error_document.is_some() {

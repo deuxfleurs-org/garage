@@ -43,6 +43,16 @@ pub struct Lww<T> {
 	v: T,
 }
 
+impl<T> Lww<T> {
+	/// Map value, used for migrations
+	pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Lww<U> {
+		Lww::<U> {
+			ts: self.ts,
+			v: f(self.v),
+		}
+	}
+}
+
 impl<T> Lww<T>
 where
 	T: Crdt,
