@@ -185,12 +185,12 @@ mod v2 {
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct RoutingRule {
-		pub condition: Option<Condition>,
+		pub condition: Option<RedirectCondition>,
 		pub redirect: Redirect,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	pub struct Condition {
+	pub struct RedirectCondition {
 		pub http_error_code: Option<u16>,
 		pub prefix: Option<String>,
 	}

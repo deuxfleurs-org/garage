@@ -246,9 +246,11 @@ impl WebsiteConfiguration {
 					.into_iter()
 					.map(|rule| {
 						bucket_table::RoutingRule {
-							condition: rule.condition.map(|condition| bucket_table::Condition {
-								http_error_code: condition.http_error_code.map(|c| c.0 as u16),
-								prefix: condition.prefix.map(|p| p.0),
+							condition: rule.condition.map(|condition| {
+								bucket_table::RedirectCondition {
+									http_error_code: condition.http_error_code.map(|c| c.0 as u16),
+									prefix: condition.prefix.map(|p| p.0),
+								}
 							}),
 							redirect: bucket_table::Redirect {
 								hostname: rule.redirect.hostname.map(|h| h.0),
