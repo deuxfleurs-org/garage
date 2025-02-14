@@ -13,7 +13,6 @@ static GARAGE_TEST_SECRET: &str =
 
 #[derive(Debug, Default, Clone)]
 pub struct Key {
-	pub name: Option<String>,
 	pub id: String,
 	pub secret: String,
 }
@@ -213,10 +212,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		assert!(!key.id.is_empty(), "Invalid key: Key ID is empty");
 		assert!(!key.secret.is_empty(), "Invalid key: Key secret is empty");
 
-		Key {
-			name: maybe_name.map(String::from),
-			..key
-		}
+		key
 	}
 }
 
