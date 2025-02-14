@@ -329,7 +329,7 @@ impl Garage {
 
 	pub async fn locked_helper(&self) -> helper::locked::LockedHelper {
 		let lock = self.bucket_lock.lock().await;
-		helper::locked::LockedHelper(self, lock)
+		helper::locked::LockedHelper(self, Some(lock))
 	}
 }
 
