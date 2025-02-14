@@ -75,6 +75,7 @@ root_domain = ".s3.garage"
 [s3_web]
 bind_addr = "[::]:3902"
 root_domain = ".web.garage"
+add_host_to_metrics = true
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
@@ -138,6 +139,7 @@ The `[s3_api]` section:
 [`s3_region`](#s3_region).
 
 The `[s3_web]` section:
+[`add_host_to_metrics`](#web_add_host_to_metrics),
 [`bind_addr`](#web_bind_addr),
 [`root_domain`](#web_root_domain).
 
@@ -743,6 +745,13 @@ The optional suffix appended to bucket names for the corresponding HTTP Host.
 For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.fr`
 will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
 or with hostname `deuxfleurs.fr`.
+
+#### `add_host_to_metrics` {#web_add_host_to_metrics}
+
+Whether to include the requested domain name (HTTP `Host` header) in the
+Prometheus metrics of the web endpoint. This is disabled by default as the
+number of possible values is not bounded and can be a source of cardinality
+explosion in the exported metrics.
 
 
 ### The `[admin]` section

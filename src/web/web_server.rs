@@ -33,6 +33,7 @@ use garage_api_s3::get::{handle_get_without_ctx, handle_head_without_ctx};
 use garage_model::garage::Garage;
 
 use garage_table::*;
+use garage_util::config::WebConfig;
 use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 use garage_util::forwarded_headers;
@@ -69,16 +70,18 @@ pub struct WebServer {
 	garage: Arc<Garage>,
 	metrics: Arc<WebMetrics>,
 	root_domain: String,
+	add_host_to_metrics: bool,
 }
 
 impl WebServer {
 	/// Run a web server
-	pub fn new(garage: Arc<Garage>, root_domain: String) -> Arc<Self> {
+	pub fn new(garage: Arc<Garage>, config: &WebConfig) -> Arc<Self> {
 		let metrics = Arc::new(WebMetrics::new());
 		Arc::new(WebServer {
 			garage,
 			metrics,
-			root_domain,
+			root_domain: config.root_domain.clone(),
+			add_host_to_metrics: config.add_host_to_metrics,
 		})
 	}
 
@@ -120,12 +123,11 @@ impl WebServer {
 		req: Request<IncomingBody>,
 		addr: String,
 	) -> Result<Response<BoxBody<Error>>, http::Error> {
-		let request_host_bucket = req
+		let host_header = req
 			.headers()
 			.get(HOST)
-			.expect("No host header found")
-			.to_str()
-			.expect("Error converting host header to string")
+			.and_then(|x| x.to_str().ok())
+			.unwrap_or("<unknown>")
 			.to_string();
 
 		if let Ok(forwarded_for_ip_addr) =
@@ -137,17 +139,11 @@ impl WebServer {
 				forwarded_for_ip_addr,
 				addr,
 				req.method(),
-				request_host_bucket,
+				host_header,
 				req.uri()
 			);
 		} else {
-			info!(
-				"{} {} {}{}",
-				addr,
-				req.method(),
-				request_host_bucket,
-				req.uri()
-			);
+			info!("{} {} {}{}", addr, req.method(), host_header, req.uri());
 		}
 
 		// Lots of instrumentation
@@ -156,16 +152,16 @@ impl WebServer {
 			.span_builder(format!("Web {} request", req.method()))
 			.with_trace_id(gen_trace_id())
 			.with_attributes(vec![
-				KeyValue::new("domain", format!("{}", request_host_bucket.to_string())),
+				KeyValue::new("host", format!("{}", host_header.clone())),
 				KeyValue::new("method", format!("{}", req.method())),
 				KeyValue::new("uri", req.uri().to_string()),
 			])
 			.start(&tracer);
 
-		let metrics_tags = &[
-			KeyValue::new("domain", request_host_bucket.to_string()),
-			KeyValue::new("method", req.method().to_string()),
-		];
+		let mut metrics_tags = vec![KeyValue::new("method", req.method().to_string())];
+		if self.add_host_to_metrics {
+			metrics_tags.push(KeyValue::new("host", host_header.clone()));
+		}
 
 		// The actual handler
 		let res = self
@@ -184,7 +180,7 @@ impl WebServer {
 					"{} {} {}{}",
 					req.method(),
 					res.status(),
-					request_host_bucket,
+					host_header,
 					req.uri()
 				);
 				Ok(res
@@ -195,18 +191,15 @@ impl WebServer {
 					"{} {} {}{} {}",
 					req.method(),
 					error.http_status_code(),
-					request_host_bucket,
+					host_header,
 					req.uri(),
 					error
 				);
-				self.metrics.error_counter.add(
-					1,
-					&[
-						KeyValue::new("domain", request_host_bucket.to_string()),
-						KeyValue::new("method", req.method().to_string()),
-						KeyValue::new("status_code", error.http_status_code().to_string()),
-					],
-				);
+				metrics_tags.push(KeyValue::new(
+					"status_code",
+					error.http_status_code().to_string(),
+				));
+				self.metrics.error_counter.add(1, &metrics_tags);
 				Ok(error_to_res(error))
 			}
 		}
