@@ -540,19 +540,73 @@ impl RpcHelper {
 	// ---- functions not related to MAKING RPCs, but just determining to what nodes
 	//      they should be made and in which order ----
 
+	/// Determine to what nodes, and in what order, requests to read a data block
+	/// should be sent. All nodes in the Vec returned by this function are tried
+	/// one by one until there is one that returns the block (in block/manager.rs).
+	///
+	/// We want to have the best chance of finding the block in as few requests
+	/// as possible, and we want to avoid nodes that answer slowly.
+	///
+	/// Note that when there are several active layout versions, the block might
+	/// be stored only by nodes of the latest version (in case of a block that was
+	/// written after the layout change), or only by nodes of the oldest active
+	/// version (for all blocks that were written before). So we have to try nodes
+	/// of all layout versions. We also want to try nodes of all layout versions
+	/// fast, so as to optimize the chance of finding the block fast.
+	///
+	/// Therefore, the strategy is the following:
+	///
+	/// 1. ask first all nodes of all currently active layout versions
+	///   -> ask the preferred node in all layout versions (older to newer),
+	///      then the second preferred onde in all verions, etc.
+	///   -> we start by the oldest active layout version first, because a majority
+	///      of blocks will have been saved before the layout change
+	/// 2. ask all nodes of historical layout versions, for blocks which have not
+	///    yet been transferred to their new storage nodes
+	///
+	/// The preference order, for each layout version, is given by `request_order`,
+	/// based on factors such as nodes being in the same datacenter,
+	/// having low ping, etc.
 	pub fn block_read_nodes_of(&self, position: &Hash, rpc_helper: &RpcHelper) -> Vec<Uuid> {
 		let layout = self.0.layout.read().unwrap();
 
-		let mut ret = Vec::with_capacity(12);
-		let ver_iter = layout
-			.versions()
-			.iter()
-			.rev()
-			.chain(layout.inner().old_versions.iter().rev());
-		for ver in ver_iter {
-			if ver.version > layout.sync_map_min() {
-				continue;
+		// Compute, for each layout version, the set of nodes that might store
+		// the block, and put them in their preferred order as of `request_order`.
+		let mut vernodes = layout.versions().iter().map(|ver| {
+			let nodes = ver.nodes_of(position, ver.replication_factor);
+			rpc_helper.request_order(layout.current(), nodes)
+		});
+
+		let mut ret = if layout.versions().len() == 1 {
+			// If we have only one active layout version, then these are the
+			// only nodes we ask in step 1
+			vernodes.next().unwrap()
+		} else {
+			let vernodes = vernodes.collect::<Vec<_>>();
+
+			let mut nodes = Vec::<Uuid>::with_capacity(12);
+			for i in 0..layout.current().replication_factor {
+				for vn in vernodes.iter() {
+					if let Some(n) = vn.get(i) {
+						if !nodes.contains(&n) {
+							if *n == self.0.our_node_id {
+								// it's always fast (almost free) to ask locally,
+								// so always put that as first choice
+								nodes.insert(0, *n);
+							} else {
+								nodes.push(*n);
+							}
+						}
+					}
+				}
 			}
+
+			nodes
+		};
+
+		// Second step: add nodes of older layout versions
+		let old_ver_iter = layout.inner().old_versions.iter().rev();
+		for ver in old_ver_iter {
 			let nodes = ver.nodes_of(position, ver.replication_factor);
 			for node in rpc_helper.request_order(layout.current(), nodes) {
 				if !ret.contains(&node) {
@@ -560,6 +614,7 @@ impl RpcHelper {
 				}
 			}
 		}
+
 		ret
 	}
 
