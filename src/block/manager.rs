@@ -370,7 +370,7 @@ impl BlockManager {
 		prevent_compression: bool,
 		order_tag: Option<OrderTag>,
 	) -> Result<(), Error> {
-		let who = self.replication.write_sets(&hash);
+		let who = self.system.cluster_layout().current_storage_nodes_of(&hash);
 
 		let compression_level = self.compression_level.filter(|_| !prevent_compression);
 		let (header, bytes) = DataBlock::from_buffer(data, compression_level)
@@ -396,7 +396,7 @@ impl BlockManager {
 			.rpc_helper()
 			.try_write_many_sets(
 				&self.endpoint,
-				who.as_ref(),
+				&[who],
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_drop_on_completion(permit)

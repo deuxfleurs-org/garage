@@ -219,6 +219,11 @@ impl LayoutHelper {
 		ret
 	}
 
+	pub fn current_storage_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
+		let ver = self.current();
+		ver.nodes_of(position, ver.replication_factor).collect()
+	}
+
 	pub fn trackers_hash(&self) -> Hash {
 		self.trackers_hash
 	}
