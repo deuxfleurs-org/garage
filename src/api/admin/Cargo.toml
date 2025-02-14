@@ -14,7 +14,9 @@ path = "lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+format_table.workspace = true
 garage_model.workspace = true
+garage_block.workspace = true
 garage_table.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
@@ -22,8 +24,10 @@ garage_api_common.workspace = true
 
 argon2.workspace = true
 async-trait.workspace = true
+bytesize.workspace = true
 err-derive.workspace = true
 hex.workspace = true
+paste.workspace = true
 tracing.workspace = true
 
 futures.workspace = true

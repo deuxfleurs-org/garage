@@ -13,8 +13,9 @@ We will bump the version numbers prefixed to each API endpoint each time the syn
 or semantics change, meaning that code that relies on these endpoints will break
 when changes are introduced.
 
-The Garage administration API was introduced in version 0.7.2, this document
-does not apply to older versions of Garage.
+The Garage administration API was introduced in version 0.7.2, and was
+changed several times.
+This document applies only to the Garage v2 API (starting with Garage v2.0.0).
 
 
 ## Access control
@@ -52,11 +53,18 @@ Returns an HTTP status 200 if the node is ready to answer user's requests,
 and an HTTP status 503 (Service Unavailable) if there are some partitions
 for which a quorum of nodes is not available.
 A simple textual message is also returned in a body with content-type `text/plain`.
-See `/v1/health` for an API that also returns JSON output.
+See `/v2/GetClusterHealth` for an API that also returns JSON output.
+
+### Other special endpoints
+
+#### CheckDomain `GET /check?domain=<domain>`
+
+Checks whether this Garage cluster serves a website for domain `<domain>`.
+Returns HTTP 200 Ok if yes, or HTTP 4xx if no website is available for this domain.
 
 ### Cluster operations
 
-#### GetClusterStatus `GET /v1/status`
+#### GetClusterStatus `GET /v2/GetClusterStatus`
 
 Returns the cluster's current status in JSON, including:
 
@@ -70,7 +78,7 @@ Example response body:
 ```json
 {
   "node": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
-  "garageVersion": "v1.0.1",
+  "garageVersion": "v2.0.0",
   "garageFeatures": [
     "k2v",
     "lmdb",
@@ -169,7 +177,7 @@ Example response body:
 }
 ```
 
-#### GetClusterHealth `GET /v1/health`
+#### GetClusterHealth `GET /v2/GetClusterHealth`
 
 Returns the cluster's current health in JSON format, with the following variables:
 
@@ -202,7 +210,7 @@ Example response body:
 }
 ```
 
-#### ConnectClusterNodes `POST /v1/connect`
+#### ConnectClusterNodes `POST /v2/ConnectClusterNodes`
 
 Instructs this Garage node to connect to other Garage nodes at specified addresses.
 
@@ -232,7 +240,7 @@ Example response:
 ]
 ```
 
-#### GetClusterLayout `GET /v1/layout`
+#### GetClusterLayout `GET /v2/GetClusterLayout`
 
 Returns the cluster's current layout in JSON, including:
 
@@ -293,7 +301,7 @@ Example response body:
 }
 ```
 
-#### UpdateClusterLayout `POST /v1/layout`
+#### UpdateClusterLayout `POST /v2/UpdateClusterLayout`
 
 Send modifications to the cluster layout. These modifications will
 be included in the staged role changes, visible in subsequent calls
@@ -330,7 +338,7 @@ This returns the new cluster layout with the proposed staged changes,
 as returned by GetClusterLayout.
 
 
-#### ApplyClusterLayout `POST /v1/layout/apply`
+#### ApplyClusterLayout `POST /v2/ApplyClusterLayout`
 
 Applies to the cluster the layout changes currently registered as
 staged layout changes.
@@ -350,7 +358,7 @@ existing layout in the cluster.
 This returns the message describing all the calculations done to compute the new
 layout, as well as the description of the layout as returned by GetClusterLayout.
 
-#### RevertClusterLayout `POST /v1/layout/revert`
+#### RevertClusterLayout `POST /v2/RevertClusterLayout`
 
 Clears all of the staged layout changes.
 
@@ -374,7 +382,7 @@ as returned by GetClusterLayout.
 
 ### Access key operations
 
-#### ListKeys `GET /v1/key`
+#### ListKeys `GET /v2/ListKeys`
 
 Returns all API access keys in the cluster.
 
@@ -393,8 +401,8 @@ Example response:
 ]
 ```
 
-#### GetKeyInfo `GET /v1/key?id=<acces key id>`
-#### GetKeyInfo `GET /v1/key?search=<pattern>`
+#### GetKeyInfo `GET /v2/GetKeyInfo?id=<acces key id>`
+#### GetKeyInfo `GET /v2/GetKeyInfo?search=<pattern>`
 
 Returns information about the requested API access key.
 
@@ -468,7 +476,7 @@ Example response:
 }
 ```
 
-#### CreateKey `POST /v1/key`
+#### CreateKey `POST /v2/CreateKey`
 
 Creates a new API access key.
 
@@ -483,7 +491,7 @@ Request body format:
 This returns the key info, including the created secret key,
 in the same format as the result of GetKeyInfo.
 
-#### ImportKey `POST /v1/key/import`
+#### ImportKey `POST /v2/ImportKey`
 
 Imports an existing API key.
 This will check that the imported key is in the valid format, i.e.
@@ -501,7 +509,7 @@ Request body format:
 
 This returns the key info in the same format as the result of GetKeyInfo.
 
-#### UpdateKey `POST /v1/key?id=<acces key id>`
+#### UpdateKey `POST /v2/UpdateKey?id=<acces key id>`
 
 Updates information about the specified API access key.
 
@@ -523,14 +531,14 @@ The possible flags in `allow` and `deny` are: `createBucket`.
 
 This returns the key info in the same format as the result of GetKeyInfo.
 
-#### DeleteKey `DELETE /v1/key?id=<acces key id>`
+#### DeleteKey `POST /v2/DeleteKey?id=<acces key id>`
 
 Deletes an API access key.
 
 
 ### Bucket operations
 
-#### ListBuckets `GET /v1/bucket`
+#### ListBuckets `GET /v2/ListBuckets`
 
 Returns all storage buckets in the cluster.
 
@@ -572,8 +580,8 @@ Example response:
 ]
 ```
 
-#### GetBucketInfo `GET /v1/bucket?id=<bucket id>`
-#### GetBucketInfo `GET /v1/bucket?globalAlias=<alias>`
+#### GetBucketInfo `GET /v2/GetBucketInfo?id=<bucket id>`
+#### GetBucketInfo `GET /v2/GetBucketInfo?globalAlias=<alias>`
 
 Returns information about the requested storage bucket.
 
@@ -616,7 +624,7 @@ Example response:
 }
 ```
 
-#### CreateBucket `POST /v1/bucket`
+#### CreateBucket `POST /v2/CreateBucket`
 
 Creates a new storage bucket.
 
@@ -656,7 +664,7 @@ or no alias at all.
 Technically, you can also specify both `globalAlias` and `localAlias` and that would create
 two aliases, but I don't see why you would want to do that.
 
-#### UpdateBucket `PUT /v1/bucket?id=<bucket id>`
+#### UpdateBucket `POST /v2/UpdateBucket?id=<bucket id>`
 
 Updates configuration of the given bucket.
 
@@ -688,16 +696,38 @@ In `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or
 to remove the quotas. An absent value will be considered the same as a `null`. It is not possible
 to change only one of the two quotas.
 
-#### DeleteBucket `DELETE /v1/bucket?id=<bucket id>`
+#### DeleteBucket `POST /v2/DeleteBucket?id=<bucket id>`
 
 Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 
 Warning: this will delete all aliases associated with the bucket!
 
+#### CleanupIncompleteUploads `POST /v2/CleanupIncompleteUploads`
+
+Cleanup all incomplete uploads in a bucket that are older than a specified number
+of seconds.
+
+Request body format:
+
+```json
+{
+    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "olderThanSecs": 3600
+}
+```
+
+Response format
+
+```json
+{
+    "uploadsDeleted": 12
+}
+```
+
 
 ### Operations on permissions for keys on buckets
 
-#### BucketAllowKey `POST /v1/bucket/allow`
+#### AllowBucketKey `POST /v2/AllowBucketKey`
 
 Allows a key to do read/write/owner operations on a bucket.
 
@@ -718,7 +748,7 @@ Request body format:
 Flags in `permissions` which have the value `true` will be activated.
 Other flags will remain unchanged.
 
-#### BucketDenyKey `POST /v1/bucket/deny`
+#### DenyBucketKey `POST /v2/DenyBucketKey`
 
 Denies a key from doing read/write/owner operations on a bucket.
 
@@ -742,19 +772,35 @@ Other flags will remain unchanged.
 
 ### Operations on bucket aliases
 
-#### GlobalAliasBucket `PUT /v1/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+#### AddBucketAlias `POST /v2/AddBucketAlias`
 
-Empty body. Creates a global alias for a bucket.
+Creates an alias for a bucket in the namespace of a specific access key.
+To create a global alias, specify the `globalAlias` field.
+To create a local alias, specify the `localAlias` and `accessKeyId` fields.
 
-#### GlobalUnaliasBucket `DELETE /v1/bucket/alias/global?id=<bucket id>&alias=<global alias>`
+Request body format:
 
-Removes a global alias for a bucket.
+```json
+{
+    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "globalAlias": "my-bucket"
+}
+```
 
-#### LocalAliasBucket `PUT /v1/bucket/alias/local?id=<bucket id>&accessKeyId=<access key ID>&alias=<local alias>`
+or:
 
-Empty body. Creates a local alias for a bucket in the namespace of a specific access key.
+```json
+{
+    "bucketId": "e6a14cd6a27f48684579ec6b381c078ab11697e6bc8513b72b2f5307e25fff9b",
+    "accessKeyId": "GK31c2f218a2e44f485b94239e",
+    "localAlias": "my-bucket"
+}
+```
 
-#### LocalUnaliasBucket `DELETE /v1/bucket/alias/local?id=<bucket id>&accessKeyId<access key ID>&alias=<local alias>`
+#### RemoveBucketAlias `POST /v2/RemoveBucketAlias`
 
-Removes a local alias for a bucket in the namespace of a specific access key.
+Removes an alias for a bucket in the namespace of a specific access key.
+To remove a global alias, specify the `globalAlias` field.
+To remove a local alias, specify the `localAlias` and `accessKeyId` fields.
 
+Request body format: same as AddBucketAlias.

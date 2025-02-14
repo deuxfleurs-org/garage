@@ -4,9 +4,8 @@
 #[macro_use]
 extern crate tracing;
 
-mod admin;
 mod cli;
-mod repair;
+mod cli_v2;
 mod secrets;
 mod server;
 #[cfg(feature = "telemetry-otlp")]
@@ -34,10 +33,9 @@ use garage_util::error::*;
 use garage_rpc::system::*;
 use garage_rpc::*;
 
-use garage_model::helper::error::Error as HelperError;
+use garage_api_admin::api_server::{AdminRpc as ProxyRpc, ADMIN_RPC_PATH as PROXY_RPC_PATH};
 
-use admin::*;
-use cli::*;
+use cli::structs::*;
 use secrets::Secrets;
 
 #[derive(StructOpt, Debug)]
@@ -145,13 +143,13 @@ async fn main() {
 	let res = match opt.cmd {
 		Command::Server => server::run_server(opt.config_file, opt.secrets).await,
 		Command::OfflineRepair(repair_opt) => {
-			repair::offline::offline_repair(opt.config_file, opt.secrets, repair_opt).await
+			cli::repair::offline_repair(opt.config_file, opt.secrets, repair_opt).await
 		}
 		Command::ConvertDb(conv_opt) => {
 			cli::convert_db::do_conversion(conv_opt).map_err(From::from)
 		}
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
-			node_id_command(opt.config_file, node_id_opt.quiet)
+			cli::init::node_id_command(opt.config_file, node_id_opt.quiet)
 		}
 		_ => cli_command(opt).await,
 	};
@@ -252,7 +250,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 		(id, addrs[0], false)
 	} else {
 		let node_id = garage_rpc::system::read_node_id(&config.as_ref().unwrap().metadata_dir)
-			.err_context(READ_KEY_ERROR)?;
+			.err_context(cli::init::READ_KEY_ERROR)?;
 		if let Some(a) = config.as_ref().and_then(|c| c.rpc_public_addr.as_ref()) {
 			use std::net::ToSocketAddrs;
 			let a = a
@@ -282,12 +280,13 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	}
 
 	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
-	let admin_rpc_endpoint = netapp.endpoint::<AdminRpc, ()>(ADMIN_RPC_PATH.into());
+	let proxy_rpc_endpoint = netapp.endpoint::<ProxyRpc, ()>(PROXY_RPC_PATH.into());
 
-	match cli_command_dispatch(opt.cmd, &system_rpc_endpoint, &admin_rpc_endpoint, id).await {
-		Err(HelperError::Internal(i)) => Err(Error::Message(format!("Internal error: {}", i))),
-		Err(HelperError::BadRequest(b)) => Err(Error::Message(b)),
-		Err(e) => Err(Error::Message(format!("{}", e))),
-		Ok(x) => Ok(x),
-	}
+	let cli = cli_v2::Cli {
+		system_rpc_endpoint,
+		proxy_rpc_endpoint,
+		rpc_host: id,
+	};
+
+	cli.handle(opt.cmd).await
 }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::Infallible;
 use std::fs::{self, Permissions};
 use std::os::unix::fs::PermissionsExt;
@@ -35,7 +36,7 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 use crate::helpers::{BoxBody, ErrorBody};
 
 pub trait ApiEndpoint: Send + Sync + 'static {
-	fn name(&self) -> &'static str;
+	fn name(&self) -> Cow<'static, str>;
 	fn add_span_attributes(&self, span: SpanRef<'_>);
 }
 

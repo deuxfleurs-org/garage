@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use futures::future::*;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
 
@@ -18,23 +17,12 @@ use crate::time::now_msec;
 // will be interrupted in the middle of whatever they are doing.
 const EXIT_DEADLINE: Duration = Duration::from_secs(8);
 
-#[derive(PartialEq, Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum WorkerState {
 	Busy,
 	Throttled(f32),
 	Idle,
 	Done,
-}
-
-impl std::fmt::Display for WorkerState {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			WorkerState::Busy => write!(f, "Busy"),
-			WorkerState::Throttled(_) => write!(f, "Busy*"),
-			WorkerState::Idle => write!(f, "Idle"),
-			WorkerState::Done => write!(f, "Done"),
-		}
-	}
 }
 
 #[async_trait]

@@ -26,6 +26,7 @@ garage_db.workspace = true
 garage_api_admin.workspace = true
 garage_api_s3.workspace = true
 garage_api_k2v = { workspace = true, optional = true }
+garage_api_common.workspace = true
 garage_block.workspace = true
 garage_model.workspace = true
 garage_net.workspace = true
@@ -47,8 +48,6 @@ sha1.workspace = true
 sodiumoxide.workspace = true
 structopt.workspace = true
 git-version.workspace = true
-
-serde.workspace = true
 
 futures.workspace = true
 tokio.workspace = true

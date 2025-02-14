@@ -43,13 +43,10 @@ impl TableReplication for TableFullReplication {
 	}
 	fn write_quorum(&self) -> usize {
 		let nmembers = self.system.cluster_layout().current().all_nodes().len();
-
-		let max_faults = if nmembers > 1 { 1 } else { 0 };
-
-		if nmembers > max_faults {
-			nmembers - max_faults
-		} else {
+		if nmembers < 3 {
 			1
+		} else {
+			nmembers.div_euclid(2) + 1
 		}
 	}
 

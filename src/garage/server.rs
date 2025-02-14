@@ -14,7 +14,6 @@ use garage_web::WebServer;
 #[cfg(feature = "k2v")]
 use garage_api_k2v::api_server::K2VApiServer;
 
-use crate::admin::*;
 use crate::secrets::{fill_secrets, Secrets};
 #[cfg(feature = "telemetry-otlp")]
 use crate::tracing_setup::*;
@@ -66,15 +65,13 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 	info!("Initialize Admin API server and metrics collector...");
 	let admin_server = AdminApiServer::new(
 		garage.clone(),
+		background.clone(),
 		#[cfg(feature = "metrics")]
 		metrics_exporter,
 	);
 
 	info!("Launching internal Garage cluster communications...");
 	let run_system = tokio::spawn(garage.system.clone().run(watch_cancel.clone()));
-
-	info!("Create admin RPC handler...");
-	AdminRpcHandler::new(garage.clone(), background.clone());
 
 	// ---- Launch public-facing API servers ----
 

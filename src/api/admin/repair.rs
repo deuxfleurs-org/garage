@@ -5,6 +5,14 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tokio::sync::watch;
 
+use garage_util::background::*;
+use garage_util::data::*;
+use garage_util::error::{Error as GarageError, OkOrMessage};
+use garage_util::migrate::Migrate;
+
+use garage_table::replication::*;
+use garage_table::*;
+
 use garage_block::manager::BlockManager;
 use garage_block::repair::ScrubWorkerCommand;
 
@@ -14,82 +22,76 @@ use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
-use garage_table::replication::*;
-use garage_table::*;
-
-use garage_util::background::*;
-use garage_util::data::*;
-use garage_util::error::Error;
-use garage_util::migrate::Migrate;
-
-use crate::*;
+use crate::api::*;
+use crate::error::Error;
+use crate::{Admin, RequestHandler};
 
 const RC_REPAIR_ITER_COUNT: usize = 64;
 
-pub async fn launch_online_repair(
-	garage: &Arc<Garage>,
-	bg: &BackgroundRunner,
-	opt: RepairOpt,
-) -> Result<(), Error> {
-	match opt.what {
-		RepairWhat::Tables => {
-			info!("Launching a full sync of tables");
-			garage.bucket_table.syncer.add_full_sync()?;
-			garage.object_table.syncer.add_full_sync()?;
-			garage.version_table.syncer.add_full_sync()?;
-			garage.block_ref_table.syncer.add_full_sync()?;
-			garage.key_table.syncer.add_full_sync()?;
+impl RequestHandler for LocalLaunchRepairOperationRequest {
+	type Response = LocalLaunchRepairOperationResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		admin: &Admin,
+	) -> Result<LocalLaunchRepairOperationResponse, Error> {
+		let bg = &admin.background;
+		match self.repair_type {
+			RepairType::Tables => {
+				info!("Launching a full sync of tables");
+				garage.bucket_table.syncer.add_full_sync()?;
+				garage.object_table.syncer.add_full_sync()?;
+				garage.version_table.syncer.add_full_sync()?;
+				garage.block_ref_table.syncer.add_full_sync()?;
+				garage.key_table.syncer.add_full_sync()?;
+			}
+			RepairType::Versions => {
+				info!("Repairing the versions table");
+				bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairVersions));
+			}
+			RepairType::MultipartUploads => {
+				info!("Repairing the multipart uploads table");
+				bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairMpu));
+			}
+			RepairType::BlockRefs => {
+				info!("Repairing the block refs table");
+				bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairBlockRefs));
+			}
+			RepairType::BlockRc => {
+				info!("Repairing the block reference counters");
+				bg.spawn_worker(BlockRcRepair::new(
+					garage.block_manager.clone(),
+					garage.block_ref_table.clone(),
+				));
+			}
+			RepairType::Blocks => {
+				info!("Repairing the stored blocks");
+				bg.spawn_worker(garage_block::repair::RepairWorker::new(
+					garage.block_manager.clone(),
+				));
+			}
+			RepairType::Scrub(cmd) => {
+				let cmd = match cmd {
+					ScrubCommand::Start => ScrubWorkerCommand::Start,
+					ScrubCommand::Pause => {
+						ScrubWorkerCommand::Pause(Duration::from_secs(3600 * 24))
+					}
+					ScrubCommand::Resume => ScrubWorkerCommand::Resume,
+					ScrubCommand::Cancel => ScrubWorkerCommand::Cancel,
+				};
+				info!("Sending command to scrub worker: {:?}", cmd);
+				garage.block_manager.send_scrub_command(cmd).await?;
+			}
+			RepairType::Rebalance => {
+				info!("Rebalancing the stored blocks among storage locations");
+				bg.spawn_worker(garage_block::repair::RebalanceWorker::new(
+					garage.block_manager.clone(),
+				));
+			}
 		}
-		RepairWhat::Versions => {
-			info!("Repairing the versions table");
-			bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairVersions));
-		}
-		RepairWhat::MultipartUploads => {
-			info!("Repairing the multipart uploads table");
-			bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairMpu));
-		}
-		RepairWhat::BlockRefs => {
-			info!("Repairing the block refs table");
-			bg.spawn_worker(TableRepairWorker::new(garage.clone(), RepairBlockRefs));
-		}
-		RepairWhat::BlockRc => {
-			info!("Repairing the block reference counters");
-			bg.spawn_worker(BlockRcRepair::new(
-				garage.block_manager.clone(),
-				garage.block_ref_table.clone(),
-			));
-		}
-		RepairWhat::Blocks => {
-			info!("Repairing the stored blocks");
-			bg.spawn_worker(garage_block::repair::RepairWorker::new(
-				garage.block_manager.clone(),
-			));
-		}
-		RepairWhat::Scrub { cmd } => {
-			let cmd = match cmd {
-				ScrubCmd::Start => ScrubWorkerCommand::Start,
-				ScrubCmd::Pause => ScrubWorkerCommand::Pause(Duration::from_secs(3600 * 24)),
-				ScrubCmd::Resume => ScrubWorkerCommand::Resume,
-				ScrubCmd::Cancel => ScrubWorkerCommand::Cancel,
-				ScrubCmd::SetTranquility { tranquility } => {
-					garage
-						.block_manager
-						.scrub_persister
-						.set_with(|x| x.tranquility = tranquility)?;
-					return Ok(());
-				}
-			};
-			info!("Sending command to scrub worker: {:?}", cmd);
-			garage.block_manager.send_scrub_command(cmd).await?;
-		}
-		RepairWhat::Rebalance => {
-			info!("Rebalancing the stored blocks among storage locations");
-			bg.spawn_worker(garage_block::repair::RebalanceWorker::new(
-				garage.block_manager.clone(),
-			));
-		}
+		Ok(LocalLaunchRepairOperationResponse)
 	}
-	Ok(())
 }
 
 // ----
@@ -103,7 +105,7 @@ trait TableRepair: Send + Sync + 'static {
 		&mut self,
 		garage: &Garage,
 		entry: <<Self as TableRepair>::T as TableSchema>::E,
-	) -> impl Future<Output = Result<bool, Error>> + Send;
+	) -> impl Future<Output = Result<bool, GarageError>> + Send;
 }
 
 struct TableRepairWorker<T: TableRepair> {
@@ -139,7 +141,10 @@ impl<R: TableRepair> Worker for TableRepairWorker<R> {
 		}
 	}
 
-	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+	async fn work(
+		&mut self,
+		_must_exit: &mut watch::Receiver<bool>,
+	) -> Result<WorkerState, GarageError> {
 		let (item_bytes, next_pos) = match R::table(&self.garage).data.store.get_gt(&self.pos)? {
 			Some((k, v)) => (v, k),
 			None => {
@@ -181,7 +186,7 @@ impl TableRepair for RepairVersions {
 		&garage.version_table
 	}
 
-	async fn process(&mut self, garage: &Garage, version: Version) -> Result<bool, Error> {
+	async fn process(&mut self, garage: &Garage, version: Version) -> Result<bool, GarageError> {
 		if !version.deleted.get() {
 			let ref_exists = match &version.backlink {
 				VersionBacklink::Object { bucket_id, key } => garage
@@ -227,7 +232,11 @@ impl TableRepair for RepairBlockRefs {
 		&garage.block_ref_table
 	}
 
-	async fn process(&mut self, garage: &Garage, mut block_ref: BlockRef) -> Result<bool, Error> {
+	async fn process(
+		&mut self,
+		garage: &Garage,
+		mut block_ref: BlockRef,
+	) -> Result<bool, GarageError> {
 		if !block_ref.deleted.get() {
 			let ref_exists = garage
 				.version_table
@@ -262,7 +271,11 @@ impl TableRepair for RepairMpu {
 		&garage.mpu_table
 	}
 
-	async fn process(&mut self, garage: &Garage, mut mpu: MultipartUpload) -> Result<bool, Error> {
+	async fn process(
+		&mut self,
+		garage: &Garage,
+		mut mpu: MultipartUpload,
+	) -> Result<bool, GarageError> {
 		if !mpu.deleted.get() {
 			let ref_exists = garage
 				.object_table
@@ -329,7 +342,10 @@ impl Worker for BlockRcRepair {
 		}
 	}
 
-	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+	async fn work(
+		&mut self,
+		_must_exit: &mut watch::Receiver<bool>,
+	) -> Result<WorkerState, GarageError> {
 		for _i in 0..RC_REPAIR_ITER_COUNT {
 			let next1 = self
 				.block_manager

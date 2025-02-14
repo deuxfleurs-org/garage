@@ -7,12 +7,6 @@ use garage_api_common::router_macros::*;
 use crate::error::*;
 use crate::router_v0;
 
-pub enum Authorization {
-	None,
-	MetricsToken,
-	AdminToken,
-}
-
 router_match! {@func
 
 /// List of all Admin API endpoints.
@@ -209,15 +203,6 @@ impl Endpoint {
 				"v0/ endpoint is no longer supported: {}",
 				v0_endpoint.name()
 			))),
-		}
-	}
-	/// Get the kind of authorization which is required to perform the operation.
-	pub fn authorization_type(&self) -> Authorization {
-		match self {
-			Self::Health => Authorization::None,
-			Self::CheckDomain => Authorization::None,
-			Self::Metrics => Authorization::MetricsToken,
-			_ => Authorization::AdminToken,
 		}
 	}
 }
