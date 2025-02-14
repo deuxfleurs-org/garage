@@ -430,7 +430,16 @@ pub async fn handle_complete_multipart_upload(
 	// Send response saying ok we're done
 	let result = s3_xml::CompleteMultipartUploadResult {
 		xmlns: (),
-		location: None,
+		// FIXME: the location returned is not always correct:
+		// - we always return https, but maybe some people do http
+		// - if root_domain is not specified, a full URL is not returned
+		location: garage
+			.config
+			.s3_api
+			.root_domain
+			.as_ref()
+			.map(|rd| s3_xml::Value(format!("https://{}.{}/{}", bucket_name, rd, key)))
+			.or(Some(s3_xml::Value(format!("/{}/{}", bucket_name, key)))),
 		bucket: s3_xml::Value(bucket_name.to_string()),
 		key: s3_xml::Value(key),
 		etag: s3_xml::Value(format!("\"{}\"", etag)),
