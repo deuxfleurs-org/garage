@@ -146,7 +146,12 @@ impl AdminRpcHandler {
 	async fn handle_stats(&self, opt: StatsOpt) -> Result<AdminRpc, Error> {
 		if opt.all_nodes {
 			let mut ret = String::new();
-			let all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			let mut all_nodes = self.garage.system.cluster_layout().all_nodes().to_vec();
+			for node in self.garage.system.get_known_nodes().iter() {
+				if node.is_up && !all_nodes.contains(&node.id) {
+					all_nodes.push(node.id);
+				}
+			}
 
 			for node in all_nodes.iter() {
 				let mut opt = opt.clone();
