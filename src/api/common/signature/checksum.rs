@@ -12,7 +12,7 @@ use http::HeaderName;
 
 use garage_util::data::*;
 
-use garage_model::s3::object_table::*;
+use garage_model::s3::object_table::{ChecksumAlgorithm, ChecksumValue};
 
 use super::error::*;
 

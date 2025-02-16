@@ -76,7 +76,7 @@ impl Error {
 			Error::InvalidBase64(_) => "InvalidBase64",
 			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
 			Error::InvalidCausalityToken => "CausalityToken",
-            Error::InvalidDigest(_) => "InvalidDigest",
+			Error::InvalidDigest(_) => "InvalidDigest",
 		}
 	}
 }
@@ -91,7 +91,7 @@ impl ApiError for Error {
 			Error::AuthorizationHeaderMalformed(_)
 			| Error::InvalidBase64(_)
 			| Error::InvalidUtf8Str(_)
-            | Error::InvalidDigest(_)
+			| Error::InvalidDigest(_)
 			| Error::InvalidCausalityToken => StatusCode::BAD_REQUEST,
 		}
 	}

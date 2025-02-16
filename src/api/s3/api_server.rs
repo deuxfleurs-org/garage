@@ -15,7 +15,7 @@ use garage_model::key_table::Key;
 use garage_api_common::cors::*;
 use garage_api_common::generic_server::*;
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_request;
+use garage_api_common::signature::{verify_request, ContentSha256Header};
 
 use crate::bucket::*;
 use crate::copy::*;
@@ -121,7 +121,14 @@ impl ApiHandler for S3ApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (req, api_key, content_sha256) = verify_request(&garage, req, "s3").await?;
+		let verified_request = verify_request(&garage, req, "s3").await?;
+		let req = verified_request.request;
+		let api_key = verified_request.access_key;
+		let content_sha256 = match verified_request.content_sha256_header {
+			ContentSha256Header::Sha256Hash(h) => Some(h),
+			// TODO take into account streaming/trailer checksums, etc.
+			_ => None,
+		};
 
 		let bucket_name = match bucket_name {
 			None => {

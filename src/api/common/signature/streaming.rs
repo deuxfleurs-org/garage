@@ -3,7 +3,6 @@ use std::pin::Pin;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use futures::prelude::*;
 use futures::task;
-use garage_model::key_table::Key;
 use hmac::Mac;
 use http_body_util::StreamBody;
 use hyper::body::{Bytes, Incoming as IncomingBody};
@@ -14,27 +13,47 @@ use garage_util::data::Hash;
 use super::*;
 
 use crate::helpers::*;
+use crate::signature::payload::CheckedSignature;
 
 pub type ReqBody = BoxBody<Error>;
 
 pub fn parse_streaming_body(
-	api_key: &Key,
 	req: Request<IncomingBody>,
-	content_sha256: &mut Option<Hash>,
+	checked_signature: &CheckedSignature,
 	region: &str,
 	service: &str,
 ) -> Result<Request<ReqBody>, Error> {
-	match req.headers().get(X_AMZ_CONTENT_SH256) {
-		Some(header) if header == STREAMING_AWS4_HMAC_SHA256_PAYLOAD => {
-			let signature = content_sha256
-				.take()
-				.ok_or_bad_request("No signature provided")?;
+	match checked_signature.content_sha256_header {
+		ContentSha256Header::StreamingPayload { signed, trailer } => {
+			if trailer {
+				return Err(Error::bad_request(
+					"STREAMING-*-TRAILER is not supported by Garage",
+				));
+			}
+			if !signed {
+				return Err(Error::bad_request(
+					"STREAMING-UNSIGNED-PAYLOAD-* is not supported by Garage",
+				));
+			}
 
-			let secret_key = &api_key
+			let signature = checked_signature
+				.signature_header
+				.clone()
+				.ok_or_bad_request("No signature provided")?;
+			let signature = hex::decode(signature)
+				.ok()
+				.and_then(|bytes| Hash::try_from(&bytes))
+				.ok_or_bad_request("Invalid signature")?;
+
+			let secret_key = checked_signature
+				.key
+				.as_ref()
+				.ok_or_bad_request("Cannot sign streaming payload without signing key")?
 				.state
 				.as_option()
 				.ok_or_internal_error("Deleted key state")?
-				.secret_key;
+				.secret_key
+				.to_string();
 
 			let date = req
 				.headers()
@@ -46,7 +65,7 @@ pub fn parse_streaming_body(
 			let date: DateTime<Utc> = Utc.from_utc_datetime(&date);
 
 			let scope = compute_scope(&date, region, service);
-			let signing_hmac = crate::signature::signing_hmac(&date, secret_key, region, service)
+			let signing_hmac = crate::signature::signing_hmac(&date, &secret_key, region, service)
 				.ok_or_internal_error("Unable to build signing HMAC")?;
 
 			Ok(req.map(move |body| {

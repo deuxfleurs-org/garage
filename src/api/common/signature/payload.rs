@@ -25,11 +25,18 @@ pub struct QueryValue {
 	value: String,
 }
 
+#[derive(Debug)]
+pub struct CheckedSignature {
+	pub key: Option<Key>,
+	pub content_sha256_header: ContentSha256Header,
+	pub signature_header: Option<String>,
+}
+
 pub async fn check_payload_signature(
 	garage: &Garage,
 	request: &mut Request<IncomingBody>,
 	service: &'static str,
-) -> Result<(Option<Key>, Option<Hash>), Error> {
+) -> Result<CheckedSignature, Error> {
 	let query = parse_query_map(request.uri())?;
 
 	if query.contains_key(&X_AMZ_ALGORITHM) {
@@ -43,17 +50,51 @@ pub async fn check_payload_signature(
 		// Unsigned (anonymous) request
 		let content_sha256 = request
 			.headers()
-			.get("x-amz-content-sha256")
-			.filter(|c| c.as_bytes() != UNSIGNED_PAYLOAD.as_bytes());
-		if let Some(content_sha256) = content_sha256 {
-			let sha256 = hex::decode(content_sha256)
-				.ok()
-				.and_then(|bytes| Hash::try_from(&bytes))
-				.ok_or_bad_request("Invalid content sha256 hash")?;
-			Ok((None, Some(sha256)))
+			.get(X_AMZ_CONTENT_SHA256)
+			.map(|x| x.to_str())
+			.transpose()?;
+		Ok(CheckedSignature {
+			key: None,
+			content_sha256_header: parse_x_amz_content_sha256(content_sha256)?,
+			signature_header: None,
+		})
+	}
+}
+
+fn parse_x_amz_content_sha256(header: Option<&str>) -> Result<ContentSha256Header, Error> {
+	let header = match header {
+		Some(x) => x,
+		None => return Ok(ContentSha256Header::UnsignedPayload),
+	};
+	if header == UNSIGNED_PAYLOAD {
+		Ok(ContentSha256Header::UnsignedPayload)
+	} else if let Some(rest) = header.strip_prefix("STREAMING-") {
+		let (trailer, algo) = if let Some(rest2) = rest.strip_suffix("-TRAILER") {
+			(true, rest2)
 		} else {
-			Ok((None, None))
+			(false, rest)
+		};
+		if algo == AWS4_HMAC_SHA256_PAYLOAD {
+			Ok(ContentSha256Header::StreamingPayload {
+				trailer,
+				signed: true,
+			})
+		} else if algo == UNSIGNED_PAYLOAD {
+			Ok(ContentSha256Header::StreamingPayload {
+				trailer,
+				signed: false,
+			})
+		} else {
+			Err(Error::bad_request(
+				"invalid or unsupported x-amz-content-sha256",
+			))
 		}
+	} else {
+		let sha256 = hex::decode(header)
+			.ok()
+			.and_then(|bytes| Hash::try_from(&bytes))
+			.ok_or_bad_request("Invalid content sha256 hash")?;
+		Ok(ContentSha256Header::Sha256Hash(sha256))
 	}
 }
 
@@ -62,7 +103,7 @@ async fn check_standard_signature(
 	service: &'static str,
 	request: &Request<IncomingBody>,
 	query: QueryMap,
-) -> Result<(Option<Key>, Option<Hash>), Error> {
+) -> Result<CheckedSignature, Error> {
 	let authorization = Authorization::parse_header(request.headers())?;
 
 	// Verify that all necessary request headers are included in signed_headers
@@ -94,18 +135,13 @@ async fn check_standard_signature(
 
 	let key = verify_v4(garage, service, &authorization, string_to_sign.as_bytes()).await?;
 
-	let content_sha256 = if authorization.content_sha256 == UNSIGNED_PAYLOAD {
-		None
-	} else if authorization.content_sha256 == STREAMING_AWS4_HMAC_SHA256_PAYLOAD {
-		let bytes = hex::decode(authorization.signature).ok_or_bad_request("Invalid signature")?;
-		Some(Hash::try_from(&bytes).ok_or_bad_request("Invalid signature")?)
-	} else {
-		let bytes = hex::decode(authorization.content_sha256)
-			.ok_or_bad_request("Invalid content sha256 hash")?;
-		Some(Hash::try_from(&bytes).ok_or_bad_request("Invalid content sha256 hash")?)
-	};
+	let content_sha256_header = parse_x_amz_content_sha256(Some(&authorization.content_sha256))?;
 
-	Ok((Some(key), content_sha256))
+	Ok(CheckedSignature {
+		key: Some(key),
+		content_sha256_header,
+		signature_header: Some(authorization.signature),
+	})
 }
 
 async fn check_presigned_signature(
@@ -113,7 +149,7 @@ async fn check_presigned_signature(
 	service: &'static str,
 	request: &mut Request<IncomingBody>,
 	mut query: QueryMap,
-) -> Result<(Option<Key>, Option<Hash>), Error> {
+) -> Result<CheckedSignature, Error> {
 	let algorithm = query.get(&X_AMZ_ALGORITHM).unwrap();
 	let authorization = Authorization::parse_presigned(&algorithm.value, &query)?;
 
@@ -179,7 +215,11 @@ async fn check_presigned_signature(
 
 	// Presigned URLs always use UNSIGNED-PAYLOAD,
 	// so there is no sha256 hash to return.
-	Ok((Some(key), None))
+	Ok(CheckedSignature {
+		key: Some(key),
+		content_sha256_header: ContentSha256Header::UnsignedPayload,
+		signature_header: Some(authorization.signature),
+	})
 }
 
 pub fn parse_query_map(uri: &http::uri::Uri) -> Result<QueryMap, Error> {
@@ -428,7 +468,7 @@ impl Authorization {
 			.to_string();
 
 		let content_sha256 = headers
-			.get(X_AMZ_CONTENT_SH256)
+			.get(X_AMZ_CONTENT_SHA256)
 			.ok_or_bad_request("Missing X-Amz-Content-Sha256 field")?;
 
 		let date = headers

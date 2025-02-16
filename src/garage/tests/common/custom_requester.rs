@@ -192,10 +192,7 @@ impl<'a> RequestBuilder<'a> {
 			.collect::<HeaderMap>();
 
 		let date = now.format(signature::LONG_DATETIME).to_string();
-		all_headers.insert(
-			signature::payload::X_AMZ_DATE,
-			HeaderValue::from_str(&date).unwrap(),
-		);
+		all_headers.insert(signature::X_AMZ_DATE, HeaderValue::from_str(&date).unwrap());
 		all_headers.insert(HOST, HeaderValue::from_str(&host).unwrap());
 
 		let body_sha = match self.body_signature {
@@ -227,7 +224,7 @@ impl<'a> RequestBuilder<'a> {
 			}
 		};
 		all_headers.insert(
-			signature::payload::X_AMZ_CONTENT_SH256,
+			signature::X_AMZ_CONTENT_SHA256,
 			HeaderValue::from_str(&body_sha).unwrap(),
 		);
 

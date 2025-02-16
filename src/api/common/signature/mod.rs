@@ -27,7 +27,7 @@ pub const X_AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
 pub const X_AMZ_EXPIRES: HeaderName = HeaderName::from_static("x-amz-expires");
 pub const X_AMZ_SIGNEDHEADERS: HeaderName = HeaderName::from_static("x-amz-signedheaders");
 pub const X_AMZ_SIGNATURE: HeaderName = HeaderName::from_static("x-amz-signature");
-pub const X_AMZ_CONTENT_SH256: HeaderName = HeaderName::from_static("x-amz-content-sha256");
+pub const X_AMZ_CONTENT_SHA256: HeaderName = HeaderName::from_static("x-amz-content-sha256");
 pub const X_AMZ_TRAILER: HeaderName = HeaderName::from_static("x-amz-trailer");
 
 /// Result of `sha256("")`
@@ -40,6 +40,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 // Possible values for x-amz-content-sha256, in addition to the actual sha256
 pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
+pub const STREAMING_UNSIGNED_PAYLOAD_TRAILER: &str = "STREAMING-UNSIGNED-PAYLOAD-TRAILER";
 pub const STREAMING_AWS4_HMAC_SHA256_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 
 // Used in the computation of StringToSign
@@ -47,46 +48,46 @@ pub const AWS4_HMAC_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
 // ---- enums to describe stuff going on in signature calculation ----
 
+#[derive(Debug)]
 pub enum ContentSha256Header {
 	UnsignedPayload,
-	Sha256Hash(String),
-	StreamingPayload {
-		trailer: Option<TrailerHeader>,
-		algorithm: Option<SigningAlgorithm>,
-	},
-}
-
-pub enum SigningAlgorithm {
-	AwsHmacSha256,
-}
-
-pub enum TrailerHeader {
-	XAmzChecksumCrc32,
-	XAmzChecksumCrc32c,
-	XAmzChecksumCrc64Nvme,
+	Sha256Hash(Hash),
+	StreamingPayload { trailer: bool, signed: bool },
 }
 
 // ---- top-level functions ----
+
+pub struct VerifiedRequest {
+	pub request: Request<streaming::ReqBody>,
+	pub access_key: Key,
+	pub content_sha256_header: ContentSha256Header,
+	// TODO: oneshot chans to retrieve hashes after reading all body
+}
 
 pub async fn verify_request(
 	garage: &Garage,
 	mut req: Request<IncomingBody>,
 	service: &'static str,
-) -> Result<(Request<streaming::ReqBody>, Key, Option<Hash>), Error> {
-	let (api_key, mut content_sha256) =
-		payload::check_payload_signature(&garage, &mut req, service).await?;
-	let api_key =
-		api_key.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
+) -> Result<VerifiedRequest, Error> {
+	let checked_signature = payload::check_payload_signature(&garage, &mut req, service).await?;
+	eprintln!("checked signature: {:?}", checked_signature);
 
-	let req = streaming::parse_streaming_body(
-		&api_key,
+	let request = streaming::parse_streaming_body(
 		req,
-		&mut content_sha256,
+		&checked_signature,
 		&garage.config.s3_api.s3_region,
 		service,
 	)?;
 
-	Ok((req, api_key, content_sha256))
+	let access_key = checked_signature
+		.key
+		.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
+
+	Ok(VerifiedRequest {
+		request,
+		access_key,
+		content_sha256_header: checked_signature.content_sha256_header,
+	})
 }
 
 pub fn verify_signed_content(expected_sha256: Hash, body: &[u8]) -> Result<(), Error> {
