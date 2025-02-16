@@ -11,15 +11,9 @@ use hyper::Request;
 
 use garage_util::data::Hash;
 
-use super::{compute_scope, sha256sum, HmacSha256, LONG_DATETIME};
+use super::*;
 
 use crate::helpers::*;
-use crate::signature::error::*;
-use crate::signature::payload::{
-	STREAMING_AWS4_HMAC_SHA256_PAYLOAD, X_AMZ_CONTENT_SH256, X_AMZ_DATE,
-};
-
-pub const AWS4_HMAC_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 
 pub type ReqBody = BoxBody<Error>;
 
@@ -67,10 +61,6 @@ pub fn parse_streaming_body(
 		_ => Ok(req.map(|body| ReqBody::new(http_body_util::BodyExt::map_err(body, Error::from)))),
 	}
 }
-
-/// Result of `sha256("")`
-const EMPTY_STRING_HEX_DIGEST: &str =
-	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 fn compute_streaming_payload_signature(
 	signing_hmac: &HmacSha256,

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+use hyper::header::HeaderName;
 use hyper::{body::Incoming as IncomingBody, Request};
 
 use garage_model::garage::Garage;
@@ -17,7 +18,54 @@ pub mod streaming;
 pub const SHORT_DATE: &str = "%Y%m%d";
 pub const LONG_DATETIME: &str = "%Y%m%dT%H%M%SZ";
 
+// ---- Constants used in AWSv4 signatures ----
+
+pub const X_AMZ_ALGORITHM: HeaderName = HeaderName::from_static("x-amz-algorithm");
+pub const X_AMZ_CREDENTIAL: HeaderName = HeaderName::from_static("x-amz-credential");
+pub const X_AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
+pub const X_AMZ_EXPIRES: HeaderName = HeaderName::from_static("x-amz-expires");
+pub const X_AMZ_SIGNEDHEADERS: HeaderName = HeaderName::from_static("x-amz-signedheaders");
+pub const X_AMZ_SIGNATURE: HeaderName = HeaderName::from_static("x-amz-signature");
+pub const X_AMZ_CONTENT_SH256: HeaderName = HeaderName::from_static("x-amz-content-sha256");
+pub const X_AMZ_TRAILER: HeaderName = HeaderName::from_static("x-amz-trailer");
+
+/// Result of `sha256("")`
+pub(crate) const EMPTY_STRING_HEX_DIGEST: &str =
+	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+// Signature calculation algorithm
+pub const AWS4_HMAC_SHA256: &str = "AWS4-HMAC-SHA256";
 type HmacSha256 = Hmac<Sha256>;
+
+// Possible values for x-amz-content-sha256, in addition to the actual sha256
+pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
+pub const STREAMING_AWS4_HMAC_SHA256_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
+
+// Used in the computation of StringToSign
+pub const AWS4_HMAC_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
+
+// ---- enums to describe stuff going on in signature calculation ----
+
+pub enum ContentSha256Header {
+	UnsignedPayload,
+	Sha256Hash(String),
+	StreamingPayload {
+		trailer: Option<TrailerHeader>,
+		algorithm: Option<SigningAlgorithm>,
+	},
+}
+
+pub enum SigningAlgorithm {
+	AwsHmacSha256,
+}
+
+pub enum TrailerHeader {
+	XAmzChecksumCrc32,
+	XAmzChecksumCrc32c,
+	XAmzChecksumCrc64Nvme,
+}
+
+// ---- top-level functions ----
 
 pub async fn verify_request(
 	garage: &Garage,

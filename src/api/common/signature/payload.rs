@@ -13,23 +13,9 @@ use garage_util::data::Hash;
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
 
-use super::LONG_DATETIME;
-use super::{compute_scope, signing_hmac};
+use super::*;
 
 use crate::encoding::uri_encode;
-use crate::signature::error::*;
-
-pub const X_AMZ_ALGORITHM: HeaderName = HeaderName::from_static("x-amz-algorithm");
-pub const X_AMZ_CREDENTIAL: HeaderName = HeaderName::from_static("x-amz-credential");
-pub const X_AMZ_DATE: HeaderName = HeaderName::from_static("x-amz-date");
-pub const X_AMZ_EXPIRES: HeaderName = HeaderName::from_static("x-amz-expires");
-pub const X_AMZ_SIGNEDHEADERS: HeaderName = HeaderName::from_static("x-amz-signedheaders");
-pub const X_AMZ_SIGNATURE: HeaderName = HeaderName::from_static("x-amz-signature");
-pub const X_AMZ_CONTENT_SH256: HeaderName = HeaderName::from_static("x-amz-content-sha256");
-
-pub const AWS4_HMAC_SHA256: &str = "AWS4-HMAC-SHA256";
-pub const UNSIGNED_PAYLOAD: &str = "UNSIGNED-PAYLOAD";
-pub const STREAMING_AWS4_HMAC_SHA256_PAYLOAD: &str = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD";
 
 pub type QueryMap = HeaderMap<QueryValue>;
 pub struct QueryValue {
