@@ -1301,8 +1301,11 @@ dependencies = [
 name = "garage_api_common"
 version = "1.0.1"
 dependencies = [
+ "base64 0.21.7",
  "bytes",
  "chrono",
+ "crc32c",
+ "crc32fast",
  "crypto-common",
  "err-derive",
  "futures",
@@ -1316,11 +1319,13 @@ dependencies = [
  "hyper 1.6.0",
  "hyper-util",
  "idna 0.5.0",
+ "md-5",
  "nom",
  "opentelemetry",
  "pin-project",
  "serde",
  "serde_json",
+ "sha1",
  "sha2",
  "tokio",
  "tracing",

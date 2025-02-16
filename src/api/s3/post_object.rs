@@ -18,6 +18,7 @@ use garage_model::s3::object_table::*;
 
 use garage_api_common::cors::*;
 use garage_api_common::helpers::*;
+use garage_api_common::signature::checksum::*;
 use garage_api_common::signature::payload::{verify_v4, Authorization};
 
 use crate::api_server::ResBody;

@@ -18,6 +18,10 @@ pub enum Error {
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error(display = "Invalid UTF-8: {}", _0)]
 	InvalidUtf8Str(#[error(source)] std::str::Utf8Error),
+
+	/// The provided digest (checksum) value was invalid
+	#[error(display = "Invalid digest: {}", _0)]
+	InvalidDigest(String),
 }
 
 impl<T> From<T> for Error

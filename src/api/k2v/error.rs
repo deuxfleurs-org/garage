@@ -23,6 +23,10 @@ pub enum Error {
 	#[error(display = "Authorization header malformed, unexpected scope: {}", _0)]
 	AuthorizationHeaderMalformed(String),
 
+	/// The provided digest (checksum) value was invalid
+	#[error(display = "Invalid digest: {}", _0)]
+	InvalidDigest(String),
+
 	/// The object requested don't exists
 	#[error(display = "Key not found")]
 	NoSuchKey,
@@ -54,6 +58,7 @@ impl From<SignatureError> for Error {
 				Self::AuthorizationHeaderMalformed(c)
 			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
+			SignatureError::InvalidDigest(d) => Self::InvalidDigest(d),
 		}
 	}
 }
@@ -71,6 +76,7 @@ impl Error {
 			Error::InvalidBase64(_) => "InvalidBase64",
 			Error::InvalidUtf8Str(_) => "InvalidUtf8String",
 			Error::InvalidCausalityToken => "CausalityToken",
+            Error::InvalidDigest(_) => "InvalidDigest",
 		}
 	}
 }
@@ -85,6 +91,7 @@ impl ApiError for Error {
 			Error::AuthorizationHeaderMalformed(_)
 			| Error::InvalidBase64(_)
 			| Error::InvalidUtf8Str(_)
+            | Error::InvalidDigest(_)
 			| Error::InvalidCausalityToken => StatusCode::BAD_REQUEST,
 		}
 	}

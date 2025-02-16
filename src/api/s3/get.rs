@@ -26,9 +26,10 @@ use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
 use garage_api_common::helpers::*;
+use garage_api_common::signature::checksum::X_AMZ_CHECKSUM_MODE;
 
 use crate::api_server::ResBody;
-use crate::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
+use crate::checksum::add_checksum_response_headers;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 

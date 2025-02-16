@@ -11,6 +11,7 @@ use garage_util::data::{sha256sum, Hash};
 
 use error::*;
 
+pub mod checksum;
 pub mod error;
 pub mod payload;
 pub mod streaming;
