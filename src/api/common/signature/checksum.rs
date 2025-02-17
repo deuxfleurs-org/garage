@@ -32,7 +32,7 @@ pub type Md5Checksum = [u8; 16];
 pub type Sha1Checksum = [u8; 20];
 pub type Sha256Checksum = [u8; 32];
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ExpectedChecksums {
 	// base64-encoded md5 (content-md5 header)
 	pub md5: Option<String>,
@@ -70,25 +70,35 @@ impl Checksummer {
 		}
 	}
 
-	pub fn init(expected: &ExpectedChecksums, require_md5: bool) -> Self {
+	pub fn init(expected: &ExpectedChecksums, add_md5: bool) -> Self {
 		let mut ret = Self::new();
-
-		if expected.md5.is_some() || require_md5 {
-			ret.md5 = Some(Md5::new());
-		}
-		if expected.sha256.is_some() || matches!(&expected.extra, Some(ChecksumValue::Sha256(_))) {
-			ret.sha256 = Some(Sha256::new());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Crc32(_))) {
-			ret.crc32 = Some(Crc32::new());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Crc32c(_))) {
-			ret.crc32c = Some(Crc32c::default());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Sha1(_))) {
-			ret.sha1 = Some(Sha1::new());
+		ret.add_expected(expected);
+		if add_md5 {
+			ret.add_md5();
 		}
 		ret
+	}
+
+	pub fn add_md5(&mut self) {
+		self.md5 = Some(Md5::new());
+	}
+
+	pub fn add_expected(&mut self, expected: &ExpectedChecksums) {
+		if expected.md5.is_some() {
+			self.md5 = Some(Md5::new());
+		}
+		if expected.sha256.is_some() || matches!(&expected.extra, Some(ChecksumValue::Sha256(_))) {
+			self.sha256 = Some(Sha256::new());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Crc32(_))) {
+			self.crc32 = Some(Crc32::new());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Crc32c(_))) {
+			self.crc32c = Some(Crc32c::default());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Sha1(_))) {
+			self.sha1 = Some(Sha1::new());
+		}
 	}
 
 	pub fn add(mut self, algo: Option<ChecksumAlgorithm>) -> Self {

@@ -25,15 +25,11 @@ pub fn parse_streaming_body(
 	service: &str,
 ) -> Result<Request<ReqBody>, Error> {
 	let expected_checksums = ExpectedChecksums {
-		md5: match req.headers().get("content-md5") {
-			Some(x) => Some(x.to_str()?.to_string()),
-			None => None,
-		},
 		sha256: match &checked_signature.content_sha256_header {
 			ContentSha256Header::Sha256Checksum(sha256) => Some(*sha256),
 			_ => None,
 		},
-		extra: None,
+		..Default::default()
 	};
 
 	let mut checksummer = Checksummer::init(&expected_checksums, false);

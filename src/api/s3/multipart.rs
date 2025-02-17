@@ -94,7 +94,6 @@ pub async fn handle_put_part(
 	key: &str,
 	part_number: u64,
 	upload_id: &str,
-	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { garage, .. } = &ctx;
 
@@ -105,18 +104,23 @@ pub async fn handle_put_part(
 			Some(x) => Some(x.to_str()?.to_string()),
 			None => None,
 		},
-		sha256: content_sha256,
+		sha256: None,
 		extra: request_checksum_value(req.headers())?,
 	};
 
 	// Read first chuck, and at the same time try to get object to see if it exists
 	let key = key.to_string();
 
-	let (req_head, req_body) = req.into_parts();
+	let (req_head, mut req_body) = req.into_parts();
 
-	let (stream, checksums) = req_body.streaming_with_checksums(true);
+	req_body.add_expected_checksums(expected_checksums.clone());
+	// TODO: avoid parsing encryption headers twice...
+	if !EncryptionParams::new_from_headers(&garage, &req_head.headers)?.is_encrypted() {
+		req_body.add_md5();
+	}
+
+	let (stream, stream_checksums) = req_body.streaming_with_checksums();
 	let stream = stream.map_err(Error::from);
-	// TODO checksums
 
 	let mut chunker = StreamChunker::new(stream, garage.config.block_size);
 
@@ -176,21 +180,22 @@ pub async fn handle_put_part(
 	garage.version_table.insert(&version).await?;
 
 	// Copy data to version
-	let checksummer =
-		Checksummer::init(&expected_checksums, !encryption.is_encrypted()).add(checksum_algorithm);
-	let (total_size, checksums, _) = read_and_put_blocks(
+	// TODO don't duplicate checksums
+	let (total_size, _, _) = read_and_put_blocks(
 		&ctx,
 		&version,
 		encryption,
 		part_number,
 		first_block,
-		&mut chunker,
-		checksummer,
+		chunker,
+		Checksummer::new(),
 	)
 	.await?;
 
 	// Verify that checksums map
-	checksums.verify(&expected_checksums)?;
+	let checksums = stream_checksums
+		.await
+		.ok_or_internal_error("checksum calculation")??;
 
 	// Store part etag in version
 	let etag = encryption.etag_from_md5(&checksums.md5);

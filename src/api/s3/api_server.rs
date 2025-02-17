@@ -15,7 +15,7 @@ use garage_model::key_table::Key;
 use garage_api_common::cors::*;
 use garage_api_common::generic_server::*;
 use garage_api_common::helpers::*;
-use garage_api_common::signature::{verify_request, ContentSha256Header};
+use garage_api_common::signature::verify_request;
 
 use crate::bucket::*;
 use crate::copy::*;
@@ -124,11 +124,6 @@ impl ApiHandler for S3ApiServer {
 		let verified_request = verify_request(&garage, req, "s3").await?;
 		let req = verified_request.request;
 		let api_key = verified_request.access_key;
-		let content_sha256 = match verified_request.content_sha256_header {
-			ContentSha256Header::Sha256Checksum(h) => Some(h),
-			// TODO take into account streaming/trailer checksums, etc.
-			_ => None,
-		};
 
 		let bucket_name = match bucket_name {
 			None => {
@@ -205,14 +200,14 @@ impl ApiHandler for S3ApiServer {
 				key,
 				part_number,
 				upload_id,
-			} => handle_put_part(ctx, req, &key, part_number, &upload_id, content_sha256).await,
+			} => handle_put_part(ctx, req, &key, part_number, &upload_id).await,
 			Endpoint::CopyObject { key } => handle_copy(ctx, &req, &key).await,
 			Endpoint::UploadPartCopy {
 				key,
 				part_number,
 				upload_id,
 			} => handle_upload_part_copy(ctx, &req, &key, part_number, &upload_id).await,
-			Endpoint::PutObject { key } => handle_put(ctx, req, &key, content_sha256).await,
+			Endpoint::PutObject { key } => handle_put(ctx, req, &key).await,
 			Endpoint::AbortMultipartUpload { key, upload_id } => {
 				handle_abort_multipart_upload(ctx, &key, &upload_id).await
 			}
