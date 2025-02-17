@@ -22,7 +22,6 @@ use garage_api_common::signature::checksum::*;
 use garage_api_common::signature::payload::{verify_v4, Authorization};
 
 use crate::api_server::ResBody;
-use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 use crate::put::{get_headers, save_stream, ChecksumMode};

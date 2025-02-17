@@ -1,12 +1,10 @@
 use quick_xml::de::from_reader;
 
-use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
 
 use serde::{Deserialize, Serialize};
 
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
@@ -16,7 +14,6 @@ use garage_model::bucket_table::{
 	parse_lifecycle_date, Bucket, LifecycleExpiration as GarageLifecycleExpiration,
 	LifecycleFilter as GarageLifecycleFilter, LifecycleRule as GarageLifecycleRule,
 };
-use garage_util::data::*;
 
 pub async fn handle_get_lifecycle(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;
@@ -56,7 +53,6 @@ pub async fn handle_delete_lifecycle(ctx: ReqCtx) -> Result<Response<ResBody>, E
 pub async fn handle_put_lifecycle(
 	ctx: ReqCtx,
 	req: Request<ReqBody>,
-	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx {
 		garage,
@@ -65,11 +61,7 @@ pub async fn handle_put_lifecycle(
 		..
 	} = ctx;
 
-	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
+	let body = req.into_body().collect().await?;
 
 	let conf: LifecycleConfiguration = from_reader(&body as &[u8])?;
 	let config = conf

@@ -79,7 +79,9 @@ pub async fn handle_put(
 	// Determine whether object should be encrypted, and if so the key
 	let encryption = EncryptionParams::new_from_headers(&ctx.garage, req.headers())?;
 
-	let stream = body_stream(req.into_body());
+	let (stream, checksums) = req.into_body().streaming_with_checksums(true);
+	let stream = stream.map_err(Error::from);
+	// TODO checksums
 
 	let res = save_stream(
 		&ctx,

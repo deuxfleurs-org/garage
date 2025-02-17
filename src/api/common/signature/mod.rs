@@ -11,6 +11,7 @@ use garage_util::data::{sha256sum, Hash};
 
 use error::*;
 
+pub mod body;
 pub mod checksum;
 pub mod error;
 pub mod payload;
@@ -51,7 +52,7 @@ pub const AWS4_HMAC_SHA256_PAYLOAD: &str = "AWS4-HMAC-SHA256-PAYLOAD";
 #[derive(Debug)]
 pub enum ContentSha256Header {
 	UnsignedPayload,
-	Sha256Hash(Hash),
+	Sha256Checksum(Hash),
 	StreamingPayload { trailer: bool, signed: bool },
 }
 
@@ -88,15 +89,6 @@ pub async fn verify_request(
 		access_key,
 		content_sha256_header: checked_signature.content_sha256_header,
 	})
-}
-
-pub fn verify_signed_content(expected_sha256: Hash, body: &[u8]) -> Result<(), Error> {
-	if expected_sha256 != sha256sum(body) {
-		return Err(Error::bad_request(
-			"Request content hash does not match signed hash".to_string(),
-		));
-	}
-	Ok(())
 }
 
 pub fn signing_hmac(

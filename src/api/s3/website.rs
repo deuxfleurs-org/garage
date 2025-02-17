@@ -1,14 +1,11 @@
 use quick_xml::de::from_reader;
 
-use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_model::bucket_table::*;
-use garage_util::data::*;
 
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
@@ -61,7 +58,6 @@ pub async fn handle_delete_website(ctx: ReqCtx) -> Result<Response<ResBody>, Err
 pub async fn handle_put_website(
 	ctx: ReqCtx,
 	req: Request<ReqBody>,
-	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx {
 		garage,
@@ -70,11 +66,7 @@ pub async fn handle_put_website(
 		..
 	} = ctx;
 
-	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
+	let body = req.into_body().collect().await?;
 
 	let conf: WebsiteConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;

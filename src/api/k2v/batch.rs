@@ -20,7 +20,7 @@ pub async fn handle_insert_batch(
 	let ReqCtx {
 		garage, bucket_id, ..
 	} = &ctx;
-	let items = parse_json_body::<Vec<InsertBatchItem>, _, Error>(req).await?;
+	let items = req.into_body().json::<Vec<InsertBatchItem>>().await?;
 
 	let mut items2 = vec![];
 	for it in items {
@@ -47,7 +47,7 @@ pub async fn handle_read_batch(
 	ctx: ReqCtx,
 	req: Request<ReqBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let queries = parse_json_body::<Vec<ReadBatchQuery>, _, Error>(req).await?;
+	let queries = req.into_body().json::<Vec<ReadBatchQuery>>().await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -141,7 +141,7 @@ pub async fn handle_delete_batch(
 	ctx: ReqCtx,
 	req: Request<ReqBody>,
 ) -> Result<Response<ResBody>, Error> {
-	let queries = parse_json_body::<Vec<DeleteBatchQuery>, _, Error>(req).await?;
+	let queries = req.into_body().json::<Vec<DeleteBatchQuery>>().await?;
 
 	let resp_results = futures::future::join_all(
 		queries
@@ -262,7 +262,7 @@ pub(crate) async fn handle_poll_range(
 	} = ctx;
 	use garage_model::k2v::sub::PollRange;
 
-	let query = parse_json_body::<PollRangeQuery, _, Error>(req).await?;
+	let query = req.into_body().json::<PollRangeQuery>().await?;
 
 	let timeout_msec = query.timeout.unwrap_or(300).clamp(1, 600) * 1000;
 

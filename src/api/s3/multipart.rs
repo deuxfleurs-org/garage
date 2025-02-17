@@ -17,7 +17,6 @@ use garage_model::s3::version_table::*;
 
 use garage_api_common::helpers::*;
 use garage_api_common::signature::checksum::*;
-use garage_api_common::signature::verify_signed_content;
 
 use crate::api_server::{ReqBody, ResBody};
 use crate::checksum::*;
@@ -114,7 +113,11 @@ pub async fn handle_put_part(
 	let key = key.to_string();
 
 	let (req_head, req_body) = req.into_parts();
-	let stream = body_stream(req_body);
+
+	let (stream, checksums) = req_body.streaming_with_checksums(true);
+	let stream = stream.map_err(Error::from);
+	// TODO checksums
+
 	let mut chunker = StreamChunker::new(stream, garage.config.block_size);
 
 	let ((_, object_version, mut mpu), first_block) =
@@ -249,7 +252,6 @@ pub async fn handle_complete_multipart_upload(
 	req: Request<ReqBody>,
 	key: &str,
 	upload_id: &str,
-	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx {
 		garage,
@@ -261,11 +263,7 @@ pub async fn handle_complete_multipart_upload(
 
 	let expected_checksum = request_checksum_value(&req_head.headers)?;
 
-	let body = http_body_util::BodyExt::collect(req_body).await?.to_bytes();
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
+	let body = req_body.collect().await?;
 
 	let body_xml = roxmltree::Document::parse(std::str::from_utf8(&body)?)?;
 	let body_list_of_parts = parse_complete_multipart_upload_body(&body_xml)

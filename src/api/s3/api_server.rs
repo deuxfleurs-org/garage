@@ -125,7 +125,7 @@ impl ApiHandler for S3ApiServer {
 		let req = verified_request.request;
 		let api_key = verified_request.access_key;
 		let content_sha256 = match verified_request.content_sha256_header {
-			ContentSha256Header::Sha256Hash(h) => Some(h),
+			ContentSha256Header::Sha256Checksum(h) => Some(h),
 			// TODO take into account streaming/trailer checksums, etc.
 			_ => None,
 		};
@@ -141,14 +141,7 @@ impl ApiHandler for S3ApiServer {
 
 		// Special code path for CreateBucket API endpoint
 		if let Endpoint::CreateBucket {} = endpoint {
-			return handle_create_bucket(
-				&garage,
-				req,
-				content_sha256,
-				&api_key.key_id,
-				bucket_name,
-			)
-			.await;
+			return handle_create_bucket(&garage, req, &api_key.key_id, bucket_name).await;
 		}
 
 		let bucket_id = garage
@@ -186,7 +179,7 @@ impl ApiHandler for S3ApiServer {
 		let resp = match endpoint {
 			Endpoint::HeadObject {
 				key, part_number, ..
-			} => handle_head(ctx, &req, &key, part_number).await,
+			} => handle_head(ctx, &req.map(|_| ()), &key, part_number).await,
 			Endpoint::GetObject {
 				key,
 				part_number,
@@ -206,7 +199,7 @@ impl ApiHandler for S3ApiServer {
 					response_content_type,
 					response_expires,
 				};
-				handle_get(ctx, &req, &key, part_number, overrides).await
+				handle_get(ctx, &req.map(|_| ()), &key, part_number, overrides).await
 			}
 			Endpoint::UploadPart {
 				key,
@@ -228,7 +221,7 @@ impl ApiHandler for S3ApiServer {
 				handle_create_multipart_upload(ctx, &req, &key).await
 			}
 			Endpoint::CompleteMultipartUpload { key, upload_id } => {
-				handle_complete_multipart_upload(ctx, req, &key, &upload_id, content_sha256).await
+				handle_complete_multipart_upload(ctx, req, &key, &upload_id).await
 			}
 			Endpoint::CreateBucket {} => unreachable!(),
 			Endpoint::HeadBucket {} => {
@@ -331,17 +324,15 @@ impl ApiHandler for S3ApiServer {
 				};
 				handle_list_parts(ctx, req, &query).await
 			}
-			Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req, content_sha256).await,
+			Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req).await,
 			Endpoint::GetBucketWebsite {} => handle_get_website(ctx).await,
-			Endpoint::PutBucketWebsite {} => handle_put_website(ctx, req, content_sha256).await,
+			Endpoint::PutBucketWebsite {} => handle_put_website(ctx, req).await,
 			Endpoint::DeleteBucketWebsite {} => handle_delete_website(ctx).await,
 			Endpoint::GetBucketCors {} => handle_get_cors(ctx).await,
-			Endpoint::PutBucketCors {} => handle_put_cors(ctx, req, content_sha256).await,
+			Endpoint::PutBucketCors {} => handle_put_cors(ctx, req).await,
 			Endpoint::DeleteBucketCors {} => handle_delete_cors(ctx).await,
 			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(ctx).await,
-			Endpoint::PutBucketLifecycleConfiguration {} => {
-				handle_put_lifecycle(ctx, req, content_sha256).await
-			}
+			Endpoint::PutBucketLifecycleConfiguration {} => handle_put_lifecycle(ctx, req).await,
 			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx).await,
 			endpoint => Err(Error::NotImplemented(endpoint.name().to_owned())),
 		};

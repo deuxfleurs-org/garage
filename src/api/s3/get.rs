@@ -12,7 +12,7 @@ use http::header::{
 	CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH,
 	LAST_MODIFIED, RANGE,
 };
-use hyper::{body::Body, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use tokio::sync::mpsc;
 
 use garage_net::stream::ByteStream;
@@ -119,7 +119,7 @@ fn getobject_override_headers(
 fn try_answer_cached(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 ) -> Option<Response<ResBody>> {
 	// <trinity> It is possible, and is even usually the case, [that both If-None-Match and
 	// If-Modified-Since] are present in a request. In this situation If-None-Match takes
@@ -158,7 +158,7 @@ fn try_answer_cached(
 /// Handle HEAD request
 pub async fn handle_head(
 	ctx: ReqCtx,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	key: &str,
 	part_number: Option<u64>,
 ) -> Result<Response<ResBody>, Error> {
@@ -168,7 +168,7 @@ pub async fn handle_head(
 /// Handle HEAD request for website
 pub async fn handle_head_without_ctx(
 	garage: Arc<Garage>,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	bucket_id: Uuid,
 	key: &str,
 	part_number: Option<u64>,
@@ -279,7 +279,7 @@ pub async fn handle_head_without_ctx(
 /// Handle GET request
 pub async fn handle_get(
 	ctx: ReqCtx,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	key: &str,
 	part_number: Option<u64>,
 	overrides: GetObjectOverrides,
@@ -290,7 +290,7 @@ pub async fn handle_get(
 /// Handle GET request
 pub async fn handle_get_without_ctx(
 	garage: Arc<Garage>,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	bucket_id: Uuid,
 	key: &str,
 	part_number: Option<u64>,
@@ -578,7 +578,7 @@ async fn handle_get_part(
 }
 
 fn parse_range_header(
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	total_size: u64,
 ) -> Result<Option<http_range::HttpRange>, Error> {
 	let range = match req.headers().get(RANGE) {
@@ -619,7 +619,7 @@ struct ChecksumMode {
 	enabled: bool,
 }
 
-fn checksum_mode(req: &Request<impl Body>) -> ChecksumMode {
+fn checksum_mode(req: &Request<()>) -> ChecksumMode {
 	ChecksumMode {
 		enabled: req
 			.headers()

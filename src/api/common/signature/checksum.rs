@@ -8,13 +8,15 @@ use md5::{Digest, Md5};
 use sha1::Sha1;
 use sha2::Sha256;
 
-use http::HeaderName;
+use http::{HeaderMap, HeaderName, HeaderValue};
 
 use garage_util::data::*;
 
 use garage_model::s3::object_table::{ChecksumAlgorithm, ChecksumValue};
 
-use super::error::*;
+use super::*;
+
+pub const CONTENT_MD5: HeaderName = HeaderName::from_static("content-md5");
 
 pub const X_AMZ_CHECKSUM_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-checksum-algorithm");
@@ -58,14 +60,18 @@ pub struct Checksums {
 }
 
 impl Checksummer {
-	pub fn init(expected: &ExpectedChecksums, require_md5: bool) -> Self {
-		let mut ret = Self {
+	pub fn new() -> Self {
+		Self {
 			crc32: None,
 			crc32c: None,
 			md5: None,
 			sha1: None,
 			sha256: None,
-		};
+		}
+	}
+
+	pub fn init(expected: &ExpectedChecksums, require_md5: bool) -> Self {
+		let mut ret = Self::new();
 
 		if expected.md5.is_some() || require_md5 {
 			ret.md5 = Some(Md5::new());
@@ -177,5 +183,124 @@ impl Checksums {
 			Some(ChecksumAlgorithm::Sha1) => Some(ChecksumValue::Sha1(self.sha1.unwrap())),
 			Some(ChecksumAlgorithm::Sha256) => Some(ChecksumValue::Sha256(self.sha256.unwrap())),
 		}
+	}
+}
+
+// ----
+
+/// Extract the value of the x-amz-checksum-algorithm header
+pub fn request_checksum_algorithm(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<Option<ChecksumAlgorithm>, Error> {
+	match headers.get(X_AMZ_CHECKSUM_ALGORITHM) {
+		None => Ok(None),
+		Some(x) if x == "CRC32" => Ok(Some(ChecksumAlgorithm::Crc32)),
+		Some(x) if x == "CRC32C" => Ok(Some(ChecksumAlgorithm::Crc32c)),
+		Some(x) if x == "SHA1" => Ok(Some(ChecksumAlgorithm::Sha1)),
+		Some(x) if x == "SHA256" => Ok(Some(ChecksumAlgorithm::Sha256)),
+		_ => Err(Error::bad_request("invalid checksum algorithm")),
+	}
+}
+
+pub fn request_trailer_checksum_algorithm(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<Option<ChecksumAlgorithm>, Error> {
+	match headers.get(X_AMZ_TRAILER).map(|x| x.to_str()).transpose()? {
+		None => Ok(None),
+		Some(x) if x == X_AMZ_CHECKSUM_CRC32 => Ok(Some(ChecksumAlgorithm::Crc32)),
+		Some(x) if x == X_AMZ_CHECKSUM_CRC32C => Ok(Some(ChecksumAlgorithm::Crc32c)),
+		Some(x) if x == X_AMZ_CHECKSUM_SHA1 => Ok(Some(ChecksumAlgorithm::Sha1)),
+		Some(x) if x == X_AMZ_CHECKSUM_SHA256 => Ok(Some(ChecksumAlgorithm::Sha256)),
+		_ => Err(Error::bad_request("invalid checksum algorithm")),
+	}
+}
+
+/// Extract the value of any of the x-amz-checksum-* headers
+pub fn request_checksum_value(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<Option<ChecksumValue>, Error> {
+	let mut ret = vec![];
+
+	if let Some(crc32_str) = headers.get(X_AMZ_CHECKSUM_CRC32) {
+		let crc32 = BASE64_STANDARD
+			.decode(&crc32_str)
+			.ok()
+			.and_then(|x| x.try_into().ok())
+			.ok_or_bad_request("invalid x-amz-checksum-crc32 header")?;
+		ret.push(ChecksumValue::Crc32(crc32))
+	}
+	if let Some(crc32c_str) = headers.get(X_AMZ_CHECKSUM_CRC32C) {
+		let crc32c = BASE64_STANDARD
+			.decode(&crc32c_str)
+			.ok()
+			.and_then(|x| x.try_into().ok())
+			.ok_or_bad_request("invalid x-amz-checksum-crc32c header")?;
+		ret.push(ChecksumValue::Crc32c(crc32c))
+	}
+	if let Some(sha1_str) = headers.get(X_AMZ_CHECKSUM_SHA1) {
+		let sha1 = BASE64_STANDARD
+			.decode(&sha1_str)
+			.ok()
+			.and_then(|x| x.try_into().ok())
+			.ok_or_bad_request("invalid x-amz-checksum-sha1 header")?;
+		ret.push(ChecksumValue::Sha1(sha1))
+	}
+	if let Some(sha256_str) = headers.get(X_AMZ_CHECKSUM_SHA256) {
+		let sha256 = BASE64_STANDARD
+			.decode(&sha256_str)
+			.ok()
+			.and_then(|x| x.try_into().ok())
+			.ok_or_bad_request("invalid x-amz-checksum-sha256 header")?;
+		ret.push(ChecksumValue::Sha256(sha256))
+	}
+
+	if ret.len() > 1 {
+		return Err(Error::bad_request(
+			"multiple x-amz-checksum-* headers given",
+		));
+	}
+	Ok(ret.pop())
+}
+
+/// Checks for the presence of x-amz-checksum-algorithm
+/// if so extract the corresponding x-amz-checksum-* value
+pub fn request_checksum_algorithm_value(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<Option<ChecksumValue>, Error> {
+	match headers.get(X_AMZ_CHECKSUM_ALGORITHM) {
+		Some(x) if x == "CRC32" => {
+			let crc32 = headers
+				.get(X_AMZ_CHECKSUM_CRC32)
+				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
+				.and_then(|x| x.try_into().ok())
+				.ok_or_bad_request("invalid x-amz-checksum-crc32 header")?;
+			Ok(Some(ChecksumValue::Crc32(crc32)))
+		}
+		Some(x) if x == "CRC32C" => {
+			let crc32c = headers
+				.get(X_AMZ_CHECKSUM_CRC32C)
+				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
+				.and_then(|x| x.try_into().ok())
+				.ok_or_bad_request("invalid x-amz-checksum-crc32c header")?;
+			Ok(Some(ChecksumValue::Crc32c(crc32c)))
+		}
+		Some(x) if x == "SHA1" => {
+			let sha1 = headers
+				.get(X_AMZ_CHECKSUM_SHA1)
+				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
+				.and_then(|x| x.try_into().ok())
+				.ok_or_bad_request("invalid x-amz-checksum-sha1 header")?;
+			Ok(Some(ChecksumValue::Sha1(sha1)))
+		}
+		Some(x) if x == "SHA256" => {
+			let sha256 = headers
+				.get(X_AMZ_CHECKSUM_SHA256)
+				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
+				.and_then(|x| x.try_into().ok())
+				.ok_or_bad_request("invalid x-amz-checksum-sha256 header")?;
+			Ok(Some(ChecksumValue::Sha256(sha256)))
+		}
+		Some(_) => Err(Error::bad_request("invalid x-amz-checksum-algorithm")),
+		None => Ok(None),
 	}
 }

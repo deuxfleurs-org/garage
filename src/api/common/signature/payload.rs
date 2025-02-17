@@ -94,7 +94,7 @@ fn parse_x_amz_content_sha256(header: Option<&str>) -> Result<ContentSha256Heade
 			.ok()
 			.and_then(|bytes| Hash::try_from(&bytes))
 			.ok_or_bad_request("Invalid content sha256 hash")?;
-		Ok(ContentSha256Header::Sha256Hash(sha256))
+		Ok(ContentSha256Header::Sha256Checksum(sha256))
 	}
 }
 

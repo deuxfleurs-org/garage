@@ -1,21 +1,22 @@
 use std::pin::Pin;
+use std::sync::Mutex;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use futures::prelude::*;
 use futures::task;
 use hmac::Mac;
-use http_body_util::StreamBody;
-use hyper::body::{Bytes, Incoming as IncomingBody};
+use hyper::body::{Bytes, Frame, Incoming as IncomingBody};
 use hyper::Request;
 
 use garage_util::data::Hash;
 
 use super::*;
 
-use crate::helpers::*;
+use crate::helpers::body_stream;
+use crate::signature::checksum::*;
 use crate::signature::payload::CheckedSignature;
 
-pub type ReqBody = BoxBody<Error>;
+pub use crate::signature::body::ReqBody;
 
 pub fn parse_streaming_body(
 	req: Request<IncomingBody>,
@@ -23,12 +24,31 @@ pub fn parse_streaming_body(
 	region: &str,
 	service: &str,
 ) -> Result<Request<ReqBody>, Error> {
+	let expected_checksums = ExpectedChecksums {
+		md5: match req.headers().get("content-md5") {
+			Some(x) => Some(x.to_str()?.to_string()),
+			None => None,
+		},
+		sha256: match &checked_signature.content_sha256_header {
+			ContentSha256Header::Sha256Checksum(sha256) => Some(*sha256),
+			_ => None,
+		},
+		extra: None,
+	};
+
+	let mut checksummer = Checksummer::init(&expected_checksums, false);
+
 	match checked_signature.content_sha256_header {
 		ContentSha256Header::StreamingPayload { signed, trailer } => {
 			if !signed && !trailer {
 				return Err(Error::bad_request(
 					"STREAMING-UNSIGNED-PAYLOAD is not a valid combination",
 				));
+			}
+
+			if trailer {
+				let algo = request_trailer_checksum_algorithm(req.headers())?;
+				checksummer = checksummer.add(algo);
 			}
 
 			let sign_params = if signed {
@@ -77,14 +97,24 @@ pub fn parse_streaming_body(
 
 			Ok(req.map(move |body| {
 				let stream = body_stream::<_, Error>(body);
+
 				let signed_payload_stream =
-					StreamingPayloadStream::new(stream, sign_params, trailer)
-						.map(|x| x.map(hyper::body::Frame::data))
-						.map_err(Error::from);
-				ReqBody::new(StreamBody::new(signed_payload_stream))
+					StreamingPayloadStream::new(stream, sign_params, trailer).map_err(Error::from);
+				ReqBody {
+					stream: Mutex::new(signed_payload_stream.boxed()),
+					checksummer,
+					expected_checksums,
+				}
 			}))
 		}
-		_ => Ok(req.map(|body| ReqBody::new(http_body_util::BodyExt::map_err(body, Error::from)))),
+		_ => Ok(req.map(|body| {
+			let stream = http_body_util::BodyStream::new(body).map_err(Error::from);
+			ReqBody {
+				stream: Mutex::new(stream.boxed()),
+				checksummer,
+				expected_checksums,
+			}
+		})),
 	}
 }
 
@@ -386,7 +416,7 @@ impl<S> Stream for StreamingPayloadStream<S>
 where
 	S: Stream<Item = Result<Bytes, Error>> + Unpin,
 {
-	type Item = Result<Bytes, StreamingPayloadError>;
+	type Item = Result<Frame<Bytes>, StreamingPayloadError>;
 
 	fn poll_next(
 		self: Pin<&mut Self>,
@@ -450,7 +480,7 @@ where
 						return Poll::Ready(None);
 					}
 
-					return Poll::Ready(Some(Ok(data)));
+					return Poll::Ready(Some(Ok(Frame::data(data))));
 				}
 				StreamingPayloadChunk::Trailer(trailer) => {
 					if let Some(signing) = this.signing.as_mut() {

@@ -1,6 +1,6 @@
 use std::fs::{self, Permissions};
 use std::os::unix::prelude::PermissionsExt;
-use std::{convert::Infallible, sync::Arc};
+use std::sync::Arc;
 
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
@@ -163,6 +163,8 @@ impl WebServer {
 			metrics_tags.push(KeyValue::new("host", host_header.clone()));
 		}
 
+		let req = req.map(|_| ());
+
 		// The actual handler
 		let res = self
 			.serve_file(&req)
@@ -218,7 +220,7 @@ impl WebServer {
 
 	async fn serve_file(
 		self: &Arc<Self>,
-		req: &Request<IncomingBody>,
+		req: &Request<()>,
 	) -> Result<Response<BoxBody<ApiError>>, Error> {
 		// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 		let authority = req
@@ -322,7 +324,7 @@ impl WebServer {
 				// Create a fake HTTP request with path = the error document
 				let req2 = Request::builder()
 					.uri(format!("http://{}/{}", host, &error_document))
-					.body(empty_body::<Infallible>())
+					.body(())
 					.unwrap();
 
 				match handle_get_without_ctx(
