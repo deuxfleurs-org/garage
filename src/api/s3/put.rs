@@ -35,7 +35,6 @@ use garage_api_common::signature::body::StreamingChecksumReceiver;
 use garage_api_common::signature::checksum::*;
 
 use crate::api_server::{ReqBody, ResBody};
-use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 

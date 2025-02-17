@@ -314,3 +314,25 @@ pub fn request_checksum_algorithm_value(
 		None => Ok(None),
 	}
 }
+
+pub fn add_checksum_response_headers(
+	checksum: &Option<ChecksumValue>,
+	mut resp: http::response::Builder,
+) -> http::response::Builder {
+	match checksum {
+		Some(ChecksumValue::Crc32(crc32)) => {
+			resp = resp.header(X_AMZ_CHECKSUM_CRC32, BASE64_STANDARD.encode(&crc32));
+		}
+		Some(ChecksumValue::Crc32c(crc32c)) => {
+			resp = resp.header(X_AMZ_CHECKSUM_CRC32C, BASE64_STANDARD.encode(&crc32c));
+		}
+		Some(ChecksumValue::Sha1(sha1)) => {
+			resp = resp.header(X_AMZ_CHECKSUM_SHA1, BASE64_STANDARD.encode(&sha1));
+		}
+		Some(ChecksumValue::Sha256(sha256)) => {
+			resp = resp.header(X_AMZ_CHECKSUM_SHA256, BASE64_STANDARD.encode(&sha256));
+		}
+		None => (),
+	}
+	resp
+}

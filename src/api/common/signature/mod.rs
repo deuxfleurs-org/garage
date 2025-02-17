@@ -71,7 +71,6 @@ pub async fn verify_request(
 	service: &'static str,
 ) -> Result<VerifiedRequest, Error> {
 	let checked_signature = payload::check_payload_signature(&garage, &mut req, service).await?;
-	eprintln!("checked signature: {:?}", checked_signature);
 
 	let request = streaming::parse_streaming_body(
 		req,

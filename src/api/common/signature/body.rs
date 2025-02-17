@@ -8,11 +8,6 @@ use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio::task;
 
-use opentelemetry::{
-	trace::{FutureExt as OtelFutureExt, TraceContextExt, Tracer},
-	Context,
-};
-
 use super::*;
 
 use crate::signature::checksum::*;
@@ -84,8 +79,6 @@ impl ReqBody {
 		let (frame_tx, mut frame_rx) = mpsc::channel::<Frame<Bytes>>(1);
 
 		let join_checksums = tokio::spawn(async move {
-			let tracer = opentelemetry::global::tracer("garage");
-
 			while let Some(frame) = frame_rx.recv().await {
 				match frame.into_data() {
 					Ok(data) => {
