@@ -112,6 +112,19 @@ if [ -z "$SKIP_S3CMD" ]; then
   done
 fi
 
+# BOTO3
+if [ -z "$SKIP_BOTO3" ]; then
+  echo "🛠️ Testing with boto3 for STREAMING-UNSIGNED-PAYLOAD-TRAILER"
+  source ${SCRIPT_FOLDER}/dev-env-aws.sh
+  AWS_ENDPOINT_URL=https://localhost:4443 python <<EOF
+import boto3
+client = boto3.client('s3', verify=False)
+client.put_object(Body=b'hello world', Bucket='eprouvette', Key='test.s3.txt')
+client.delete_object(Bucket='eprouvette', Key='test.s3.txt')
+print("OK!")
+EOF
+fi
+
 # Minio Client
 if [ -z "$SKIP_MC" ]; then
   echo "🛠️ Testing with mc (minio client)"
