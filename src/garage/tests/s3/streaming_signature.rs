@@ -69,6 +69,13 @@ async fn test_putobject_streaming() {
 	{
 		let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
 
+		let mut crc32 = Crc32::new();
+		crc32.update(&BODY[..]);
+		let crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(crc32.finalize())[..]);
+
+		let mut headers = HashMap::new();
+		headers.insert("x-amz-checksum-crc32".to_owned(), crc32.clone());
+
 		let res = ctx
 			.custom_request
 			.builder(bucket.clone())
@@ -77,6 +84,7 @@ async fn test_putobject_streaming() {
 			//fail
 			.path("abc".to_owned())
 			.vhost_style(true)
+			.signed_headers(headers)
 			.body(BODY.to_vec())
 			.body_signature(BodySignature::Streaming { chunk_size: 16 })
 			.send()
@@ -93,6 +101,7 @@ async fn test_putobject_streaming() {
 			.bucket(&bucket)
 			//.key(CTRL_KEY)
 			.key("abc")
+			.checksum_mode(aws_sdk_s3::types::ChecksumMode::Enabled)
 			.send()
 			.await
 			.unwrap();
@@ -103,6 +112,7 @@ async fn test_putobject_streaming() {
 		assert_eq!(o.content_length.unwrap(), 62);
 		assert_eq!(o.parts_count, None);
 		assert_eq!(o.tag_count, None);
+		assert_eq!(o.checksum_crc32.unwrap(), crc32);
 	}
 }
 
@@ -210,7 +220,7 @@ async fn test_putobject_streaming_unsigned_trailer() {
 			.body_signature(BodySignature::StreamingUnsignedTrailer {
 				chunk_size: 16,
 				trailer_algorithm: "x-amz-checksum-crc32".into(),
-				trailer_value: crc32,
+				trailer_value: crc32.clone(),
 			})
 			.send()
 			.await
@@ -226,6 +236,7 @@ async fn test_putobject_streaming_unsigned_trailer() {
 			.bucket(&bucket)
 			//.key(CTRL_KEY)
 			.key("abc")
+			.checksum_mode(aws_sdk_s3::types::ChecksumMode::Enabled)
 			.send()
 			.await
 			.unwrap();
@@ -236,6 +247,7 @@ async fn test_putobject_streaming_unsigned_trailer() {
 		assert_eq!(o.content_length.unwrap(), 62);
 		assert_eq!(o.parts_count, None);
 		assert_eq!(o.tag_count, None);
+		assert_eq!(o.checksum_crc32.unwrap(), crc32);
 	}
 }
 
