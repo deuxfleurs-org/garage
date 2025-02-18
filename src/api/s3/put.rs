@@ -49,7 +49,10 @@ pub(crate) struct SaveStreamResult {
 
 pub(crate) enum ChecksumMode<'a> {
 	Verify(&'a ExpectedChecksums),
-	VerifyFrom(StreamingChecksumReceiver),
+	VerifyFrom {
+		checksummer: StreamingChecksumReceiver,
+		trailer_algo: Option<ChecksumAlgorithm>,
+	},
 	Calculate(Option<ChecksumAlgorithm>),
 }
 
@@ -70,6 +73,7 @@ pub async fn handle_put(
 		sha256: None,
 		extra: request_checksum_value(req.headers())?,
 	};
+	let trailer_checksum_algorithm = request_trailer_checksum_algorithm(req.headers())?;
 
 	let meta = ObjectVersionMetaInner {
 		headers,
@@ -90,7 +94,7 @@ pub async fn handle_put(
 		req_body.add_md5();
 	}
 
-	let (stream, checksums) = req_body.streaming_with_checksums();
+	let (stream, checksummer) = req_body.streaming_with_checksums();
 	let stream = stream.map_err(Error::from);
 
 	let res = save_stream(
@@ -99,7 +103,10 @@ pub async fn handle_put(
 		encryption,
 		stream,
 		key,
-		ChecksumMode::VerifyFrom(checksums),
+		ChecksumMode::VerifyFrom {
+			checksummer,
+			trailer_algo: trailer_checksum_algorithm,
+		},
 	)
 	.await?;
 
@@ -140,7 +147,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		ChecksumMode::Calculate(algo) => {
 			Checksummer::init(&Default::default(), !encryption.is_encrypted()).add(*algo)
 		}
-		ChecksumMode::VerifyFrom(_) => {
+		ChecksumMode::VerifyFrom { .. } => {
 			// Checksums are calculated by the garage_api_common::signature module
 			// so here we can just have an empty checksummer that does nothing
 			Checksummer::new()
@@ -160,11 +167,17 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 			ChecksumMode::Calculate(algo) => {
 				meta.checksum = checksums.extract(algo);
 			}
-			ChecksumMode::VerifyFrom(checksummer) => {
+			ChecksumMode::VerifyFrom {
+				checksummer,
+				trailer_algo,
+			} => {
 				drop(chunker);
 				checksums = checksummer
 					.await
 					.ok_or_internal_error("checksum calculation")??;
+				if let Some(algo) = trailer_algo {
+					meta.checksum = checksums.extract(Some(algo));
+				}
 			}
 		};
 
@@ -256,10 +269,16 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		ChecksumMode::Calculate(algo) => {
 			meta.checksum = checksums.extract(algo);
 		}
-		ChecksumMode::VerifyFrom(checksummer) => {
+		ChecksumMode::VerifyFrom {
+			checksummer,
+			trailer_algo,
+		} => {
 			checksums = checksummer
 				.await
 				.ok_or_internal_error("checksum calculation")??;
+			if let Some(algo) = trailer_algo {
+				meta.checksum = checksums.extract(Some(algo));
+			}
 		}
 	};
 
