@@ -78,7 +78,7 @@ impl ReqBody {
 			trailer_algorithm,
 		} = self;
 
-		let (frame_tx, mut frame_rx) = mpsc::channel::<Frame<Bytes>>(1);
+		let (frame_tx, mut frame_rx) = mpsc::channel::<Frame<Bytes>>(5);
 
 		let join_checksums = tokio::spawn(async move {
 			while let Some(frame) = frame_rx.recv().await {

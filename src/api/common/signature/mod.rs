@@ -62,7 +62,6 @@ pub struct VerifiedRequest {
 	pub request: Request<streaming::ReqBody>,
 	pub access_key: Key,
 	pub content_sha256_header: ContentSha256Header,
-	// TODO: oneshot chans to retrieve hashes after reading all body
 }
 
 pub async fn verify_request(

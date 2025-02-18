@@ -74,21 +74,16 @@ fn parse_x_amz_content_sha256(header: Option<&str>) -> Result<ContentSha256Heade
 		} else {
 			(false, rest)
 		};
-		if algo == AWS4_HMAC_SHA256_PAYLOAD {
-			Ok(ContentSha256Header::StreamingPayload {
-				trailer,
-				signed: true,
-			})
-		} else if algo == UNSIGNED_PAYLOAD {
-			Ok(ContentSha256Header::StreamingPayload {
-				trailer,
-				signed: false,
-			})
-		} else {
-			Err(Error::bad_request(
-				"invalid or unsupported x-amz-content-sha256",
-			))
-		}
+		let signed = match algo {
+			AWS4_HMAC_SHA256_PAYLOAD => true,
+			UNSIGNED_PAYLOAD => false,
+			_ => {
+				return Err(Error::bad_request(
+					"invalid or unsupported x-amz-content-sha256",
+				))
+			}
+		};
+		Ok(ContentSha256Header::StreamingPayload { trailer, signed })
 	} else {
 		let sha256 = hex::decode(header)
 			.ok()

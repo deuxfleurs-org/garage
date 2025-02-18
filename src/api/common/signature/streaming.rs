@@ -30,22 +30,12 @@ pub fn parse_streaming_body(
 		checked_signature.content_sha256_header
 	);
 
-	let expected_checksums = ExpectedChecksums {
-		sha256: match &checked_signature.content_sha256_header {
-			ContentSha256Header::Sha256Checksum(sha256) => Some(*sha256),
-			_ => None,
-		},
-		..Default::default()
-	};
-
-	let mut checksummer = Checksummer::init(&expected_checksums, false);
-
 	match checked_signature.content_sha256_header {
 		ContentSha256Header::StreamingPayload { signed, trailer } => {
 			// Sanity checks
 			if !signed && !trailer {
 				return Err(Error::bad_request(
-					"STREAMING-UNSIGNED-PAYLOAD is not a valid combination",
+					"STREAMING-UNSIGNED-PAYLOAD without trailer is not a valid combination",
 				));
 			}
 
@@ -64,6 +54,7 @@ pub fn parse_streaming_body(
 			}
 
 			// If trailer header is announced, add the calculation of the requested checksum
+			let mut checksummer = Checksummer::init(&Default::default(), false);
 			let trailer_algorithm = if trailer {
 				let algo = Some(
 					request_trailer_checksum_algorithm(req.headers())?
@@ -128,12 +119,21 @@ pub fn parse_streaming_body(
 				ReqBody {
 					stream: Mutex::new(signed_payload_stream.boxed()),
 					checksummer,
-					expected_checksums,
+					expected_checksums: Default::default(),
 					trailer_algorithm,
 				}
 			}))
 		}
 		_ => Ok(req.map(|body| {
+			let expected_checksums = ExpectedChecksums {
+				sha256: match &checked_signature.content_sha256_header {
+					ContentSha256Header::Sha256Checksum(sha256) => Some(*sha256),
+					_ => None,
+				},
+				..Default::default()
+			};
+			let checksummer = Checksummer::init(&expected_checksums, false);
+
 			let stream = http_body_util::BodyStream::new(body).map_err(Error::from);
 			ReqBody {
 				stream: Mutex::new(stream.boxed()),

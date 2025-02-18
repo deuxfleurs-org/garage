@@ -79,9 +79,14 @@ pub async fn handle_put(
 	// Determine whether object should be encrypted, and if so the key
 	let encryption = EncryptionParams::new_from_headers(&ctx.garage, req.headers())?;
 
+	// The request body is a special ReqBody object (see garage_api_common::signature::body)
+	// which supports calculating checksums while streaming the data.
+	// Before we start streaming, we configure it to calculate all the checksums we need.
 	let mut req_body = req.into_body();
 	req_body.add_expected_checksums(expected_checksums.clone());
 	if !encryption.is_encrypted() {
+		// For non-encrypted objects, we need to compute the md5sum in all cases
+		// (even if content-md5 is not set), because it is used as the object etag
 		req_body.add_md5();
 	}
 
