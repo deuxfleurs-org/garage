@@ -26,6 +26,8 @@ in
       s3cmd
       minio-client
       rclone
+      (python312.withPackages (ps: [ ps.boto3 ]))
+
       socat
       psmisc
       which
