@@ -340,7 +340,12 @@ pub async fn handle_get_without_ctx(
 				enc,
 				&headers,
 				pn,
-				checksum_mode,
+				ChecksumMode {
+					// TODO: for multipart uploads, checksums of each part should be stored
+					// so that we can return the corresponding checksum here
+					// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+					enabled: false,
+				},
 			)
 			.await
 		}
@@ -354,7 +359,12 @@ pub async fn handle_get_without_ctx(
 				&headers,
 				range.start,
 				range.start + range.length,
-				checksum_mode,
+				ChecksumMode {
+					// TODO: for range queries that align with part boundaries,
+					// we should return the saved checksum of the part
+					// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+					enabled: false,
+				},
 			)
 			.await
 		}
