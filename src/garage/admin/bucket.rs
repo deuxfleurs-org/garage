@@ -390,11 +390,15 @@ impl AdminRpcHandler {
 		}
 
 		let website = if query.allow {
+			let (redirect_all, routing_rules) = match bucket_state.website_config.get() {
+				Some(wc) => (wc.redirect_all.clone(), wc.routing_rules.clone()),
+				None => (None, Vec::new()),
+			};
 			Some(WebsiteConfig {
 				index_document: query.index_document.clone(),
 				error_document: query.error_document.clone(),
-				redirect_all: None,
-				routing_rules: Vec::new(),
+				redirect_all,
+				routing_rules,
 			})
 		} else {
 			None
