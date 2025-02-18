@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use futures::prelude::*;
 use futures::task;
 use hmac::Mac;
+use http::header::{HeaderValue, CONTENT_ENCODING};
 use hyper::body::{Bytes, Frame, Incoming as IncomingBody};
 use hyper::Request;
 
@@ -19,7 +20,7 @@ use crate::signature::payload::CheckedSignature;
 pub use crate::signature::body::ReqBody;
 
 pub fn parse_streaming_body(
-	req: Request<IncomingBody>,
+	mut req: Request<IncomingBody>,
 	checked_signature: &CheckedSignature,
 	region: &str,
 	service: &str,
@@ -41,17 +42,34 @@ pub fn parse_streaming_body(
 
 	match checked_signature.content_sha256_header {
 		ContentSha256Header::StreamingPayload { signed, trailer } => {
+			// Sanity checks
 			if !signed && !trailer {
 				return Err(Error::bad_request(
 					"STREAMING-UNSIGNED-PAYLOAD is not a valid combination",
 				));
 			}
 
+			// Remove the aws-chunked component in the content-encoding: header
+			// Note: this header is not properly sent by minio client, so don't fail
+			// if it is absent from the request.
+			if let Some(content_encoding) = req.headers_mut().remove(CONTENT_ENCODING) {
+				if let Some(rest) = content_encoding.as_bytes().strip_prefix(b"aws-chunked,") {
+					req.headers_mut()
+						.insert(CONTENT_ENCODING, HeaderValue::from_bytes(rest).unwrap());
+				} else if content_encoding != "aws-chunked" {
+					return Err(Error::bad_request(
+						"content-encoding does not contain aws-chunked for STREAMING-*-PAYLOAD",
+					));
+				}
+			}
+
+			// If trailer header is announced, add the calculation of the requested checksum
 			if trailer {
 				let algo = request_trailer_checksum_algorithm(req.headers())?;
 				checksummer = checksummer.add(algo);
 			}
 
+			// For signed variants, determine signing parameters
 			let sign_params = if signed {
 				let signature = checked_signature
 					.signature_header
