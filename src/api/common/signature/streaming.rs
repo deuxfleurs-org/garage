@@ -189,7 +189,7 @@ mod payload {
 
 	use nom::bytes::streaming::{tag, take_while};
 	use nom::character::streaming::hex_digit1;
-	use nom::combinator::map_res;
+	use nom::combinator::{map_res, opt};
 	use nom::number::streaming::hex_u32;
 
 	macro_rules! try_parse {
@@ -266,6 +266,11 @@ mod payload {
 			let (input, header_value) = try_parse!(take_while(
 				|c: u8| c.is_ascii_alphanumeric() || b"+/=".contains(&c)
 			)(input));
+
+			// Possible '\n' after the header value, depends on clients
+			// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+			let (input, _) = try_parse!(opt(tag(b"\n"))(input));
+
 			let (input, _) = try_parse!(tag(b"\r\n")(input));
 
 			Ok((
