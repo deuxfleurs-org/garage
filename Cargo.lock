@@ -1230,6 +1230,7 @@ dependencies = [
  "bytes",
  "bytesize",
  "chrono",
+ "crc32fast",
  "format_table",
  "futures",
  "garage_api_admin",

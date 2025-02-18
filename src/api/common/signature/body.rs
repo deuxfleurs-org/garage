@@ -17,6 +17,7 @@ pub struct ReqBody {
 	pub(crate) stream: Mutex<BoxStream<'static, Result<Frame<Bytes>, Error>>>,
 	pub(crate) checksummer: Checksummer,
 	pub(crate) expected_checksums: ExpectedChecksums,
+	pub(crate) trailer_algorithm: Option<ChecksumAlgorithm>,
 }
 
 pub type StreamingChecksumReceiver = task::JoinHandle<Result<Checksums, Error>>;
@@ -74,6 +75,7 @@ impl ReqBody {
 			stream,
 			mut checksummer,
 			mut expected_checksums,
+			trailer_algorithm,
 		} = self;
 
 		let (frame_tx, mut frame_rx) = mpsc::channel::<Frame<Bytes>>(1);
@@ -91,18 +93,21 @@ impl ReqBody {
 					}
 					Err(frame) => {
 						let trailers = frame.into_trailers().unwrap();
-						if let Some(cv) = request_checksum_value(&trailers)? {
-							expected_checksums.extra = Some(cv);
-						}
+						let algo = trailer_algorithm.unwrap();
+						expected_checksums.extra = Some(extract_checksum_value(&trailers, algo)?);
 						break;
 					}
 				}
 			}
 
+			if trailer_algorithm.is_some() && expected_checksums.extra.is_none() {
+				return Err(Error::bad_request("trailing checksum was not sent"));
+			}
+
 			let checksums = checksummer.finalize();
 			checksums.verify(&expected_checksums)?;
 
-			return Ok(checksums);
+			Ok(checksums)
 		});
 
 		let stream: BoxStream<_> = stream.into_inner().unwrap();

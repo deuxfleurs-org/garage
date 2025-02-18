@@ -99,7 +99,10 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			.arg("server")
 			.stdout(stdout)
 			.stderr(stderr)
-			.env("RUST_LOG", "garage=debug,garage_api=trace")
+			.env(
+				"RUST_LOG",
+				"garage=debug,garage_api_common=trace,garage_api_s3=trace",
+			)
 			.spawn()
 			.expect("Could not start garage");
 

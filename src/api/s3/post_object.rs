@@ -218,6 +218,7 @@ pub async fn handle_post_object(
 	// around here to make sure the rest of the machinery takes our acl into account.
 	let headers = get_headers(&params)?;
 
+	let checksum_algorithm = request_checksum_algorithm(&params)?;
 	let expected_checksums = ExpectedChecksums {
 		md5: params
 			.get("content-md5")
@@ -225,7 +226,9 @@ pub async fn handle_post_object(
 			.transpose()?
 			.map(str::to_string),
 		sha256: None,
-		extra: request_checksum_algorithm_value(&params)?,
+		extra: checksum_algorithm
+			.map(|algo| extract_checksum_value(&params, algo))
+			.transpose()?,
 	};
 
 	let meta = ObjectVersionMetaInner {
