@@ -24,6 +24,11 @@ pub fn parse_streaming_body(
 	region: &str,
 	service: &str,
 ) -> Result<Request<ReqBody>, Error> {
+	debug!(
+		"Content signature mode: {:?}",
+		checked_signature.content_sha256_header
+	);
+
 	let expected_checksums = ExpectedChecksums {
 		sha256: match &checked_signature.content_sha256_header {
 			ContentSha256Header::Sha256Checksum(sha256) => Some(*sha256),
@@ -243,7 +248,7 @@ mod payload {
 			let (input, header_value) = try_parse!(take_while(
 				|c: u8| c.is_ascii_alphanumeric() || b"+/=".contains(&c)
 			)(input));
-			let (input, _) = try_parse!(tag(b"\n")(input));
+			let (input, _) = try_parse!(tag(b"\r\n")(input));
 
 			Ok((
 				input,
@@ -257,15 +262,7 @@ mod payload {
 		pub fn parse_signed(input: &[u8]) -> nom::IResult<&[u8], Self, Error<&[u8]>> {
 			let (input, trailer) = Self::parse_content(input)?;
 
-			let (input, _) = try_parse!(tag(b"\r\n\r\n")(input));
-
-			Ok((input, trailer))
-		}
-		pub fn parse_unsigned(input: &[u8]) -> nom::IResult<&[u8], Self, Error<&[u8]>> {
-			let (input, trailer) = Self::parse_content(input)?;
-
-			let (input, _) = try_parse!(tag(b"\r\n")(input));
-
+			let (input, _) = try_parse!(tag(b"x-amz-trailer-signature:")(input));
 			let (input, data) = try_parse!(map_res(hex_digit1, hex::decode)(input));
 			let signature = Hash::try_from(&data).ok_or(nom::Err::Failure(Error::BadSignature))?;
 			let (input, _) = try_parse!(tag(b"\r\n")(input));
@@ -277,6 +274,12 @@ mod payload {
 					..trailer
 				},
 			))
+		}
+		pub fn parse_unsigned(input: &[u8]) -> nom::IResult<&[u8], Self, Error<&[u8]>> {
+			let (input, trailer) = Self::parse_content(input)?;
+			let (input, _) = try_parse!(tag(b"\r\n")(input));
+
+			Ok((input, trailer))
 		}
 	}
 }
