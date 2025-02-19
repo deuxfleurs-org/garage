@@ -7,7 +7,7 @@ use tokio::sync::watch;
 
 use hyper::{
 	body::Incoming as IncomingBody,
-	header::{HeaderValue, HOST},
+	header::{HeaderValue, HOST, LOCATION},
 	Method, Request, Response, StatusCode,
 };
 
@@ -29,6 +29,7 @@ use garage_api_s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
 };
 use garage_api_s3::get::{handle_get_without_ctx, handle_head_without_ctx};
+use garage_api_s3::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 
 use garage_model::garage::Garage;
 
@@ -294,7 +295,15 @@ impl WebServer {
 			{
 				Ok(Response::builder()
 					.status(StatusCode::FOUND)
-					.header("Location", url)
+					.header(LOCATION, url)
+					.body(empty_body())
+					.unwrap())
+			}
+			(Ok(ret), _) if ret.headers().contains_key(X_AMZ_WEBSITE_REDIRECT_LOCATION) => {
+				let redirect_location = ret.headers().get(X_AMZ_WEBSITE_REDIRECT_LOCATION).unwrap();
+				Ok(Response::builder()
+					.status(StatusCode::MOVED_PERMANENTLY)
+					.header(LOCATION, redirect_location)
 					.body(empty_body())
 					.unwrap())
 			}
