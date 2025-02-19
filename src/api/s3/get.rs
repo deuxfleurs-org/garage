@@ -2,15 +2,15 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::sync::Arc;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use futures::future;
 use futures::stream::{self, Stream, StreamExt};
 use http::header::{
-	ACCEPT_RANGES, CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LANGUAGE,
-	CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MATCH, IF_MODIFIED_SINCE,
-	IF_NONE_MATCH, IF_UNMODIFIED_SINCE, LAST_MODIFIED, RANGE,
+	HeaderMap, HeaderName, ACCEPT_RANGES, CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_ENCODING,
+	CONTENT_LANGUAGE, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MATCH,
+	IF_MODIFIED_SINCE, IF_NONE_MATCH, IF_UNMODIFIED_SINCE, LAST_MODIFIED, RANGE,
 };
 use hyper::{Request, Response, StatusCode};
 use tokio::sync::mpsc;
@@ -29,10 +29,11 @@ use garage_api_common::helpers::*;
 use garage_api_common::signature::checksum::{add_checksum_response_headers, X_AMZ_CHECKSUM_MODE};
 
 use crate::api_server::ResBody;
+use crate::copy::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 
-const X_AMZ_MP_PARTS_COUNT: &str = "x-amz-mp-parts-count";
+const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
 
 #[derive(Default)]
 pub struct GetObjectOverrides {
@@ -120,57 +121,12 @@ fn handle_http_precondition(
 	version_meta: &ObjectVersionMeta,
 	req: &Request<()>,
 ) -> Result<Option<Response<ResBody>>, Error> {
-	if let Some(if_match) = req.headers().get(IF_MATCH) {
-		let if_match = if_match.to_str()?;
-		let expected = format!("\"{}\"", version_meta.etag);
-		let found = if_match
-			.split(',')
-			.map(str::trim)
-			.any(|etag| etag == expected || etag == "\"*\"");
-		if !found {
-			return Ok(Some(
-				Response::builder()
-					.status(StatusCode::PRECONDITION_FAILED)
-					.body(empty_body())
-					.unwrap(),
-			));
-		}
-	}
+	let precondition_headers = PreconditionHeaders::parse(req)?;
 
-	// <trinity> It is possible, and is even usually the case, [that both If-None-Match and
-	// If-Modified-Since] are present in a request. In this situation If-None-Match takes
-	// precedence and If-Modified-Since is ignored (as per 6.Precedence from rfc7232). The rational
-	// being that etag based matching is more accurate, it has no issue with sub-second precision
-	// for instance (in case of very fast updates)
-	let object_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
-
-	let cached = if let Some(none_match) = req.headers().get(IF_NONE_MATCH) {
-		let none_match = none_match.to_str()?;
-		let expected = format!("\"{}\"", version_meta.etag);
-		let found = none_match
-			.split(',')
-			.map(str::trim)
-			.any(|etag| etag == expected || etag == "\"*\"");
-		found
-	} else if let Some(unmodified_since) = req.headers().get(IF_UNMODIFIED_SINCE) {
-		let unmodified_since = unmodified_since.to_str()?;
-		let unmodified_since =
-			httpdate::parse_http_date(unmodified_since).ok_or_bad_request("invalid http date")?;
-		object_date <= unmodified_since
-	} else if let Some(modified_since) = req.headers().get(IF_MODIFIED_SINCE) {
-		let modified_since = modified_since.to_str()?;
-		let modified_since =
-			httpdate::parse_http_date(modified_since).ok_or_bad_request("invalid http date")?;
-		let object_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
-		object_date > modified_since
-	} else {
-		false
-	};
-
-	if cached {
+	if let Some(status_code) = precondition_headers.check(&version, &version_meta.etag)? {
 		Ok(Some(
 			Response::builder()
-				.status(StatusCode::NOT_MODIFIED)
+				.status(status_code)
 				.body(empty_body())
 				.unwrap(),
 		))
@@ -785,4 +741,117 @@ fn std_error_from_read_error<E: std::fmt::Display>(e: E) -> std::io::Error {
 		std::io::ErrorKind::Other,
 		format!("Error while reading object data: {}", e),
 	)
+}
+
+// ----
+
+pub struct PreconditionHeaders {
+	if_match: Option<Vec<String>>,
+	if_modified_since: Option<SystemTime>,
+	if_none_match: Option<Vec<String>>,
+	if_unmodified_since: Option<SystemTime>,
+}
+
+impl PreconditionHeaders {
+	fn parse<B>(req: &Request<B>) -> Result<Self, Error> {
+		Self::parse_with(
+			req.headers(),
+			&IF_MATCH,
+			&IF_NONE_MATCH,
+			&IF_MODIFIED_SINCE,
+			&IF_UNMODIFIED_SINCE,
+		)
+	}
+
+	pub(crate) fn parse_copy_source<B>(req: &Request<B>) -> Result<Self, Error> {
+		Self::parse_with(
+			req.headers(),
+			&X_AMZ_COPY_SOURCE_IF_MATCH,
+			&X_AMZ_COPY_SOURCE_IF_NONE_MATCH,
+			&X_AMZ_COPY_SOURCE_IF_MODIFIED_SINCE,
+			&X_AMZ_COPY_SOURCE_IF_UNMODIFIED_SINCE,
+		)
+	}
+
+	fn parse_with(
+		headers: &HeaderMap,
+		hdr_if_match: &HeaderName,
+		hdr_if_none_match: &HeaderName,
+		hdr_if_modified_since: &HeaderName,
+		hdr_if_unmodified_since: &HeaderName,
+	) -> Result<Self, Error> {
+		Ok(Self {
+			if_match: headers
+				.get(hdr_if_match)
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| {
+					x.split(',')
+						.map(|m| m.trim().trim_matches('"').to_string())
+						.collect::<Vec<_>>()
+				}),
+			if_none_match: headers
+				.get(hdr_if_none_match)
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(|x| {
+					x.split(',')
+						.map(|m| m.trim().trim_matches('"').to_string())
+						.collect::<Vec<_>>()
+				}),
+			if_modified_since: headers
+				.get(hdr_if_modified_since)
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(httpdate::parse_http_date)
+				.transpose()
+				.ok_or_bad_request("Invalid date in if-modified-since")?,
+			if_unmodified_since: headers
+				.get(hdr_if_unmodified_since)
+				.map(|x| x.to_str())
+				.transpose()?
+				.map(httpdate::parse_http_date)
+				.transpose()
+				.ok_or_bad_request("Invalid date in if-unmodified-since")?,
+		})
+	}
+
+	fn check(&self, v: &ObjectVersion, etag: &str) -> Result<Option<StatusCode>, Error> {
+		let v_date = UNIX_EPOCH + Duration::from_millis(v.timestamp);
+
+		// Implemented from https://datatracker.ietf.org/doc/html/rfc7232#section-6
+
+		if let Some(im) = &self.if_match {
+			// Step 1: if-match is present
+			if !im.iter().any(|x| x == etag || x == "*") {
+				return Ok(Some(StatusCode::PRECONDITION_FAILED));
+			}
+		} else if let Some(ius) = &self.if_unmodified_since {
+			// Step 2: if-unmodified-since is present, and if-match is absent
+			if v_date > *ius {
+				return Ok(Some(StatusCode::PRECONDITION_FAILED));
+			}
+		}
+
+		if let Some(inm) = &self.if_none_match {
+			// Step 3: if-none-match is present
+			if inm.iter().any(|x| x == etag || x == "*") {
+				return Ok(Some(StatusCode::NOT_MODIFIED));
+			}
+		} else if let Some(ims) = &self.if_modified_since {
+			// Step 4: if-modified-since is present, and if-none-match is absent
+			if v_date <= *ims {
+				return Ok(Some(StatusCode::NOT_MODIFIED));
+			}
+		}
+
+		Ok(None)
+	}
+
+	pub(crate) fn check_copy_source(&self, v: &ObjectVersion, etag: &str) -> Result<(), Error> {
+		match self.check(v, etag)? {
+			Some(_) => Err(Error::PreconditionFailed),
+			None => Ok(()),
+		}
+	}
 }
