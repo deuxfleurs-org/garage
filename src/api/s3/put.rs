@@ -37,6 +37,7 @@ use garage_api_common::signature::checksum::*;
 use crate::api_server::{ReqBody, ResBody};
 use crate::encryption::EncryptionParams;
 use crate::error::*;
+use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 
 const PUT_BLOCKS_MAX_PARALLEL: usize = 3;
 
@@ -62,7 +63,7 @@ pub async fn handle_put(
 	key: &String,
 ) -> Result<Response<ResBody>, Error> {
 	// Retrieve interesting headers from request
-	let headers = get_headers(req.headers())?;
+	let headers = extract_metadata_headers(req.headers())?;
 	debug!("Object headers: {:?}", headers);
 
 	let expected_checksums = ExpectedChecksums {
@@ -649,7 +650,9 @@ impl Drop for InterruptedCleanup {
 
 // ============ helpers ============
 
-pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<HeaderList, Error> {
+pub(crate) fn extract_metadata_headers(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<HeaderList, Error> {
 	let mut ret = Vec::new();
 
 	// Preserve standard headers
@@ -674,6 +677,18 @@ pub(crate) fn get_headers(headers: &HeaderMap<HeaderValue>) -> Result<HeaderList
 				name.as_str().to_ascii_lowercase(),
 				std::str::from_utf8(value.as_bytes())?.to_string(),
 			));
+		}
+		if name == X_AMZ_WEBSITE_REDIRECT_LOCATION {
+			let value = std::str::from_utf8(value.as_bytes())?.to_string();
+			if !(value.starts_with("/")
+				|| value.starts_with("http://")
+				|| value.starts_with("https://"))
+			{
+				return Err(Error::bad_request(format!(
+					"Invalid {X_AMZ_WEBSITE_REDIRECT_LOCATION} header",
+				)));
+			}
+			ret.push((X_AMZ_WEBSITE_REDIRECT_LOCATION.to_string(), value));
 		}
 	}
 

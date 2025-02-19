@@ -28,7 +28,7 @@ use crate::encryption::EncryptionParams;
 use crate::error::*;
 use crate::get::full_object_byte_stream;
 use crate::multipart;
-use crate::put::{get_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
 use crate::xml::{self as s3_xml, xmlns_tag};
 
 // -------- CopyObject ---------
@@ -73,7 +73,7 @@ pub async fn handle_copy(
 	let dest_object_meta = ObjectVersionMetaInner {
 		headers: match req.headers().get("x-amz-metadata-directive") {
 			Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => {
-				get_headers(req.headers())?
+				extract_metadata_headers(req.headers())?
 			}
 			_ => source_object_meta_inner.into_owned().headers,
 		},

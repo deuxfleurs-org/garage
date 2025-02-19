@@ -14,7 +14,7 @@ mod list;
 mod multipart;
 mod post_object;
 mod put;
-mod website;
+pub mod website;
 
 mod encryption;
 mod router;

@@ -49,7 +49,7 @@ pub async fn handle_create_multipart_upload(
 	let upload_id = gen_uuid();
 	let timestamp = next_timestamp(existing_object.as_ref());
 
-	let headers = get_headers(req.headers())?;
+	let headers = extract_metadata_headers(req.headers())?;
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: None,

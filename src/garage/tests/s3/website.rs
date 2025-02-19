@@ -11,6 +11,7 @@ use http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use http_body_util::Full as FullBody;
 use hyper::body::Bytes;
+use hyper::header::LOCATION;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use serde_json::json;
@@ -293,6 +294,33 @@ async fn test_website_s3_api() {
 			resp.into_body().collect().await.unwrap().to_bytes(),
 			BODY_ERR.as_ref()
 		);
+	}
+
+	// Test x-amz-website-redirect-location
+	{
+		ctx.client
+			.put_object()
+			.bucket(&bucket)
+			.key("test-redirect.html")
+			.website_redirect_location("https://perdu.com")
+			.send()
+			.await
+			.unwrap();
+
+		let req = Request::builder()
+			.method("GET")
+			.uri(format!(
+				"http://127.0.0.1:{}/test-redirect.html",
+				ctx.garage.web_port
+			))
+			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.body(Body::new(Bytes::new()))
+			.unwrap();
+
+		let resp = client.request(req).await.unwrap();
+
+		assert_eq!(resp.status(), StatusCode::MOVED_PERMANENTLY);
+		assert_eq!(resp.headers().get(LOCATION).unwrap(), "https://perdu.com");
 	}
 
 	// Test CORS with an allowed preflight request

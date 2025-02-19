@@ -1,6 +1,6 @@
 use quick_xml::de::from_reader;
 
-use hyper::{Request, Response, StatusCode};
+use hyper::{header::HeaderName, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use garage_model::bucket_table::*;
@@ -10,6 +10,9 @@ use garage_api_common::helpers::*;
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
 use crate::xml::{to_xml_with_header, xmlns_tag, IntValue, Value};
+
+pub const X_AMZ_WEBSITE_REDIRECT_LOCATION: HeaderName =
+	HeaderName::from_static("x-amz-website-redirect-location");
 
 pub async fn handle_get_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;
