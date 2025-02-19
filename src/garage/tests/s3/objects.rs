@@ -1,5 +1,6 @@
 use crate::common;
-use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::error::SdkError;
+use aws_sdk_s3::primitives::{ByteStream, DateTime};
 use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 
 const STD_KEY: &str = "hello world";
@@ -122,6 +123,129 @@ async fn test_putobject() {
 		assert_eq!(o.content_length.unwrap(), 0);
 		assert_eq!(o.parts_count, None);
 		assert_eq!(o.tag_count, None);
+	}
+}
+
+#[tokio::test]
+async fn test_precondition() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("precondition");
+
+	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
+	let etag2 = "\"ae4984b984cd984fe98d4efa954dce98\"";
+	let data = ByteStream::from_static(BODY);
+
+	let r = ctx
+		.client
+		.put_object()
+		.bucket(&bucket)
+		.key(STD_KEY)
+		.body(data)
+		.send()
+		.await
+		.unwrap();
+
+	assert_eq!(r.e_tag.unwrap().as_str(), etag);
+
+	let last_modified;
+	{
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_match(etag)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+		last_modified = o.last_modified.unwrap();
+
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_match(etag2)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 412)
+		);
+	}
+	{
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_none_match(etag2)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_none_match(etag)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 304)
+		);
+	}
+	let older_date = DateTime::from_secs_f64(last_modified.as_secs_f64() - 10.0);
+	let newer_date = DateTime::from_secs_f64(last_modified.as_secs_f64() + 10.0);
+	{
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_modified_since(newer_date)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 304)
+		);
+
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_modified_since(older_date)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+	}
+	{
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_unmodified_since(older_date)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 412)
+		);
+
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_unmodified_since(newer_date)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
 	}
 }
 
