@@ -11,11 +11,12 @@ use sha2::Sha256;
 use http::{HeaderMap, HeaderName, HeaderValue};
 
 use garage_util::data::*;
-use garage_util::error::OkOrMessage;
 
-use garage_model::s3::object_table::*;
+use super::*;
 
-use crate::error::*;
+pub use garage_model::s3::object_table::{ChecksumAlgorithm, ChecksumValue};
+
+pub const CONTENT_MD5: HeaderName = HeaderName::from_static("content-md5");
 
 pub const X_AMZ_CHECKSUM_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-checksum-algorithm");
@@ -31,8 +32,8 @@ pub type Md5Checksum = [u8; 16];
 pub type Sha1Checksum = [u8; 20];
 pub type Sha256Checksum = [u8; 32];
 
-#[derive(Debug, Default)]
-pub(crate) struct ExpectedChecksums {
+#[derive(Debug, Default, Clone)]
+pub struct ExpectedChecksums {
 	// base64-encoded md5 (content-md5 header)
 	pub md5: Option<String>,
 	// content_sha256 (as a Hash / FixedBytes32)
@@ -41,7 +42,7 @@ pub(crate) struct ExpectedChecksums {
 	pub extra: Option<ChecksumValue>,
 }
 
-pub(crate) struct Checksummer {
+pub struct Checksummer {
 	pub crc32: Option<Crc32>,
 	pub crc32c: Option<Crc32c>,
 	pub md5: Option<Md5>,
@@ -50,7 +51,7 @@ pub(crate) struct Checksummer {
 }
 
 #[derive(Default)]
-pub(crate) struct Checksums {
+pub struct Checksums {
 	pub crc32: Option<Crc32Checksum>,
 	pub crc32c: Option<Crc32cChecksum>,
 	pub md5: Option<Md5Checksum>,
@@ -59,34 +60,48 @@ pub(crate) struct Checksums {
 }
 
 impl Checksummer {
-	pub(crate) fn init(expected: &ExpectedChecksums, require_md5: bool) -> Self {
-		let mut ret = Self {
+	pub fn new() -> Self {
+		Self {
 			crc32: None,
 			crc32c: None,
 			md5: None,
 			sha1: None,
 			sha256: None,
-		};
+		}
+	}
 
-		if expected.md5.is_some() || require_md5 {
-			ret.md5 = Some(Md5::new());
-		}
-		if expected.sha256.is_some() || matches!(&expected.extra, Some(ChecksumValue::Sha256(_))) {
-			ret.sha256 = Some(Sha256::new());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Crc32(_))) {
-			ret.crc32 = Some(Crc32::new());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Crc32c(_))) {
-			ret.crc32c = Some(Crc32c::default());
-		}
-		if matches!(&expected.extra, Some(ChecksumValue::Sha1(_))) {
-			ret.sha1 = Some(Sha1::new());
+	pub fn init(expected: &ExpectedChecksums, add_md5: bool) -> Self {
+		let mut ret = Self::new();
+		ret.add_expected(expected);
+		if add_md5 {
+			ret.add_md5();
 		}
 		ret
 	}
 
-	pub(crate) fn add(mut self, algo: Option<ChecksumAlgorithm>) -> Self {
+	pub fn add_md5(&mut self) {
+		self.md5 = Some(Md5::new());
+	}
+
+	pub fn add_expected(&mut self, expected: &ExpectedChecksums) {
+		if expected.md5.is_some() {
+			self.md5 = Some(Md5::new());
+		}
+		if expected.sha256.is_some() || matches!(&expected.extra, Some(ChecksumValue::Sha256(_))) {
+			self.sha256 = Some(Sha256::new());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Crc32(_))) {
+			self.crc32 = Some(Crc32::new());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Crc32c(_))) {
+			self.crc32c = Some(Crc32c::default());
+		}
+		if matches!(&expected.extra, Some(ChecksumValue::Sha1(_))) {
+			self.sha1 = Some(Sha1::new());
+		}
+	}
+
+	pub fn add(mut self, algo: Option<ChecksumAlgorithm>) -> Self {
 		match algo {
 			Some(ChecksumAlgorithm::Crc32) => {
 				self.crc32 = Some(Crc32::new());
@@ -105,7 +120,7 @@ impl Checksummer {
 		self
 	}
 
-	pub(crate) fn update(&mut self, bytes: &[u8]) {
+	pub fn update(&mut self, bytes: &[u8]) {
 		if let Some(crc32) = &mut self.crc32 {
 			crc32.update(bytes);
 		}
@@ -123,7 +138,7 @@ impl Checksummer {
 		}
 	}
 
-	pub(crate) fn finalize(self) -> Checksums {
+	pub fn finalize(self) -> Checksums {
 		Checksums {
 			crc32: self.crc32.map(|x| u32::to_be_bytes(x.finalize())),
 			crc32c: self
@@ -183,153 +198,56 @@ impl Checksums {
 
 // ----
 
-#[derive(Default)]
-pub(crate) struct MultipartChecksummer {
-	pub md5: Md5,
-	pub extra: Option<MultipartExtraChecksummer>,
-}
-
-pub(crate) enum MultipartExtraChecksummer {
-	Crc32(Crc32),
-	Crc32c(Crc32c),
-	Sha1(Sha1),
-	Sha256(Sha256),
-}
-
-impl MultipartChecksummer {
-	pub(crate) fn init(algo: Option<ChecksumAlgorithm>) -> Self {
-		Self {
-			md5: Md5::new(),
-			extra: match algo {
-				None => None,
-				Some(ChecksumAlgorithm::Crc32) => {
-					Some(MultipartExtraChecksummer::Crc32(Crc32::new()))
-				}
-				Some(ChecksumAlgorithm::Crc32c) => {
-					Some(MultipartExtraChecksummer::Crc32c(Crc32c::default()))
-				}
-				Some(ChecksumAlgorithm::Sha1) => Some(MultipartExtraChecksummer::Sha1(Sha1::new())),
-				Some(ChecksumAlgorithm::Sha256) => {
-					Some(MultipartExtraChecksummer::Sha256(Sha256::new()))
-				}
-			},
-		}
-	}
-
-	pub(crate) fn update(
-		&mut self,
-		etag: &str,
-		checksum: Option<ChecksumValue>,
-	) -> Result<(), Error> {
-		self.md5
-			.update(&hex::decode(&etag).ok_or_message("invalid etag hex")?);
-		match (&mut self.extra, checksum) {
-			(None, _) => (),
-			(
-				Some(MultipartExtraChecksummer::Crc32(ref mut crc32)),
-				Some(ChecksumValue::Crc32(x)),
-			) => {
-				crc32.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Crc32c(ref mut crc32c)),
-				Some(ChecksumValue::Crc32c(x)),
-			) => {
-				crc32c.write(&x);
-			}
-			(Some(MultipartExtraChecksummer::Sha1(ref mut sha1)), Some(ChecksumValue::Sha1(x))) => {
-				sha1.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Sha256(ref mut sha256)),
-				Some(ChecksumValue::Sha256(x)),
-			) => {
-				sha256.update(&x);
-			}
-			(Some(_), b) => {
-				return Err(Error::internal_error(format!(
-					"part checksum was not computed correctly, got: {:?}",
-					b
-				)))
-			}
-		}
-		Ok(())
-	}
-
-	pub(crate) fn finalize(self) -> (Md5Checksum, Option<ChecksumValue>) {
-		let md5 = self.md5.finalize()[..].try_into().unwrap();
-		let extra = match self.extra {
-			None => None,
-			Some(MultipartExtraChecksummer::Crc32(crc32)) => {
-				Some(ChecksumValue::Crc32(u32::to_be_bytes(crc32.finalize())))
-			}
-			Some(MultipartExtraChecksummer::Crc32c(crc32c)) => Some(ChecksumValue::Crc32c(
-				u32::to_be_bytes(u32::try_from(crc32c.finish()).unwrap()),
-			)),
-			Some(MultipartExtraChecksummer::Sha1(sha1)) => {
-				Some(ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap()))
-			}
-			Some(MultipartExtraChecksummer::Sha256(sha256)) => Some(ChecksumValue::Sha256(
-				sha256.finalize()[..].try_into().unwrap(),
-			)),
-		};
-		(md5, extra)
+pub fn parse_checksum_algorithm(algo: &str) -> Result<ChecksumAlgorithm, Error> {
+	match algo {
+		"CRC32" => Ok(ChecksumAlgorithm::Crc32),
+		"CRC32C" => Ok(ChecksumAlgorithm::Crc32c),
+		"SHA1" => Ok(ChecksumAlgorithm::Sha1),
+		"SHA256" => Ok(ChecksumAlgorithm::Sha256),
+		_ => Err(Error::bad_request("invalid checksum algorithm")),
 	}
 }
-
-// ----
 
 /// Extract the value of the x-amz-checksum-algorithm header
-pub(crate) fn request_checksum_algorithm(
+pub fn request_checksum_algorithm(
 	headers: &HeaderMap<HeaderValue>,
 ) -> Result<Option<ChecksumAlgorithm>, Error> {
 	match headers.get(X_AMZ_CHECKSUM_ALGORITHM) {
 		None => Ok(None),
-		Some(x) if x == "CRC32" => Ok(Some(ChecksumAlgorithm::Crc32)),
-		Some(x) if x == "CRC32C" => Ok(Some(ChecksumAlgorithm::Crc32c)),
-		Some(x) if x == "SHA1" => Ok(Some(ChecksumAlgorithm::Sha1)),
-		Some(x) if x == "SHA256" => Ok(Some(ChecksumAlgorithm::Sha256)),
+		Some(x) => parse_checksum_algorithm(x.to_str()?).map(Some),
+	}
+}
+
+pub fn request_trailer_checksum_algorithm(
+	headers: &HeaderMap<HeaderValue>,
+) -> Result<Option<ChecksumAlgorithm>, Error> {
+	match headers.get(X_AMZ_TRAILER).map(|x| x.to_str()).transpose()? {
+		None => Ok(None),
+		Some(x) if x == X_AMZ_CHECKSUM_CRC32 => Ok(Some(ChecksumAlgorithm::Crc32)),
+		Some(x) if x == X_AMZ_CHECKSUM_CRC32C => Ok(Some(ChecksumAlgorithm::Crc32c)),
+		Some(x) if x == X_AMZ_CHECKSUM_SHA1 => Ok(Some(ChecksumAlgorithm::Sha1)),
+		Some(x) if x == X_AMZ_CHECKSUM_SHA256 => Ok(Some(ChecksumAlgorithm::Sha256)),
 		_ => Err(Error::bad_request("invalid checksum algorithm")),
 	}
 }
 
 /// Extract the value of any of the x-amz-checksum-* headers
-pub(crate) fn request_checksum_value(
+pub fn request_checksum_value(
 	headers: &HeaderMap<HeaderValue>,
 ) -> Result<Option<ChecksumValue>, Error> {
 	let mut ret = vec![];
 
-	if let Some(crc32_str) = headers.get(X_AMZ_CHECKSUM_CRC32) {
-		let crc32 = BASE64_STANDARD
-			.decode(&crc32_str)
-			.ok()
-			.and_then(|x| x.try_into().ok())
-			.ok_or_bad_request("invalid x-amz-checksum-crc32 header")?;
-		ret.push(ChecksumValue::Crc32(crc32))
+	if headers.contains_key(X_AMZ_CHECKSUM_CRC32) {
+		ret.push(extract_checksum_value(headers, ChecksumAlgorithm::Crc32)?);
 	}
-	if let Some(crc32c_str) = headers.get(X_AMZ_CHECKSUM_CRC32C) {
-		let crc32c = BASE64_STANDARD
-			.decode(&crc32c_str)
-			.ok()
-			.and_then(|x| x.try_into().ok())
-			.ok_or_bad_request("invalid x-amz-checksum-crc32c header")?;
-		ret.push(ChecksumValue::Crc32c(crc32c))
+	if headers.contains_key(X_AMZ_CHECKSUM_CRC32C) {
+		ret.push(extract_checksum_value(headers, ChecksumAlgorithm::Crc32c)?);
 	}
-	if let Some(sha1_str) = headers.get(X_AMZ_CHECKSUM_SHA1) {
-		let sha1 = BASE64_STANDARD
-			.decode(&sha1_str)
-			.ok()
-			.and_then(|x| x.try_into().ok())
-			.ok_or_bad_request("invalid x-amz-checksum-sha1 header")?;
-		ret.push(ChecksumValue::Sha1(sha1))
+	if headers.contains_key(X_AMZ_CHECKSUM_SHA1) {
+		ret.push(extract_checksum_value(headers, ChecksumAlgorithm::Sha1)?);
 	}
-	if let Some(sha256_str) = headers.get(X_AMZ_CHECKSUM_SHA256) {
-		let sha256 = BASE64_STANDARD
-			.decode(&sha256_str)
-			.ok()
-			.and_then(|x| x.try_into().ok())
-			.ok_or_bad_request("invalid x-amz-checksum-sha256 header")?;
-		ret.push(ChecksumValue::Sha256(sha256))
+	if headers.contains_key(X_AMZ_CHECKSUM_SHA256) {
+		ret.push(extract_checksum_value(headers, ChecksumAlgorithm::Sha256)?);
 	}
 
 	if ret.len() > 1 {
@@ -342,48 +260,47 @@ pub(crate) fn request_checksum_value(
 
 /// Checks for the presence of x-amz-checksum-algorithm
 /// if so extract the corresponding x-amz-checksum-* value
-pub(crate) fn request_checksum_algorithm_value(
+pub fn extract_checksum_value(
 	headers: &HeaderMap<HeaderValue>,
-) -> Result<Option<ChecksumValue>, Error> {
-	match headers.get(X_AMZ_CHECKSUM_ALGORITHM) {
-		Some(x) if x == "CRC32" => {
+	algo: ChecksumAlgorithm,
+) -> Result<ChecksumValue, Error> {
+	match algo {
+		ChecksumAlgorithm::Crc32 => {
 			let crc32 = headers
 				.get(X_AMZ_CHECKSUM_CRC32)
 				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
 				.and_then(|x| x.try_into().ok())
 				.ok_or_bad_request("invalid x-amz-checksum-crc32 header")?;
-			Ok(Some(ChecksumValue::Crc32(crc32)))
+			Ok(ChecksumValue::Crc32(crc32))
 		}
-		Some(x) if x == "CRC32C" => {
+		ChecksumAlgorithm::Crc32c => {
 			let crc32c = headers
 				.get(X_AMZ_CHECKSUM_CRC32C)
 				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
 				.and_then(|x| x.try_into().ok())
 				.ok_or_bad_request("invalid x-amz-checksum-crc32c header")?;
-			Ok(Some(ChecksumValue::Crc32c(crc32c)))
+			Ok(ChecksumValue::Crc32c(crc32c))
 		}
-		Some(x) if x == "SHA1" => {
+		ChecksumAlgorithm::Sha1 => {
 			let sha1 = headers
 				.get(X_AMZ_CHECKSUM_SHA1)
 				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
 				.and_then(|x| x.try_into().ok())
 				.ok_or_bad_request("invalid x-amz-checksum-sha1 header")?;
-			Ok(Some(ChecksumValue::Sha1(sha1)))
+			Ok(ChecksumValue::Sha1(sha1))
 		}
-		Some(x) if x == "SHA256" => {
+		ChecksumAlgorithm::Sha256 => {
 			let sha256 = headers
 				.get(X_AMZ_CHECKSUM_SHA256)
 				.and_then(|x| BASE64_STANDARD.decode(&x).ok())
 				.and_then(|x| x.try_into().ok())
 				.ok_or_bad_request("invalid x-amz-checksum-sha256 header")?;
-			Ok(Some(ChecksumValue::Sha256(sha256)))
+			Ok(ChecksumValue::Sha256(sha256))
 		}
-		Some(_) => Err(Error::bad_request("invalid x-amz-checksum-algorithm")),
-		None => Ok(None),
 	}
 }
 
-pub(crate) fn add_checksum_response_headers(
+pub fn add_checksum_response_headers(
 	checksum: &Option<ChecksumValue>,
 	mut resp: http::response::Builder,
 ) -> http::response::Builder {

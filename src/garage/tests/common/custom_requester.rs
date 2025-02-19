@@ -192,16 +192,13 @@ impl<'a> RequestBuilder<'a> {
 			.collect::<HeaderMap>();
 
 		let date = now.format(signature::LONG_DATETIME).to_string();
-		all_headers.insert(
-			signature::payload::X_AMZ_DATE,
-			HeaderValue::from_str(&date).unwrap(),
-		);
+		all_headers.insert(signature::X_AMZ_DATE, HeaderValue::from_str(&date).unwrap());
 		all_headers.insert(HOST, HeaderValue::from_str(&host).unwrap());
 
-		let body_sha = match self.body_signature {
+		let body_sha = match &self.body_signature {
 			BodySignature::Unsigned => "UNSIGNED-PAYLOAD".to_owned(),
 			BodySignature::Classic => hex::encode(garage_util::data::sha256sum(&self.body)),
-			BodySignature::Streaming(size) => {
+			BodySignature::Streaming { chunk_size } => {
 				all_headers.insert(
 					CONTENT_ENCODING,
 					HeaderValue::from_str("aws-chunked").unwrap(),
@@ -216,18 +213,59 @@ impl<'a> RequestBuilder<'a> {
 				// code.
 				all_headers.insert(
 					CONTENT_LENGTH,
-					to_streaming_body(&self.body, size, String::new(), signer.clone(), now, "")
-						.len()
-						.to_string()
-						.try_into()
-						.unwrap(),
+					to_streaming_body(
+						&self.body,
+						*chunk_size,
+						String::new(),
+						signer.clone(),
+						now,
+						"",
+					)
+					.len()
+					.to_string()
+					.try_into()
+					.unwrap(),
 				);
 
 				"STREAMING-AWS4-HMAC-SHA256-PAYLOAD".to_owned()
 			}
+			BodySignature::StreamingUnsignedTrailer {
+				chunk_size,
+				trailer_algorithm,
+				trailer_value,
+			} => {
+				all_headers.insert(
+					CONTENT_ENCODING,
+					HeaderValue::from_str("aws-chunked").unwrap(),
+				);
+				all_headers.insert(
+					HeaderName::from_static("x-amz-decoded-content-length"),
+					HeaderValue::from_str(&self.body.len().to_string()).unwrap(),
+				);
+				all_headers.insert(
+					HeaderName::from_static("x-amz-trailer"),
+					HeaderValue::from_str(&trailer_algorithm).unwrap(),
+				);
+
+				all_headers.insert(
+					CONTENT_LENGTH,
+					to_streaming_unsigned_trailer_body(
+						&self.body,
+						*chunk_size,
+						&trailer_algorithm,
+						&trailer_value,
+					)
+					.len()
+					.to_string()
+					.try_into()
+					.unwrap(),
+				);
+
+				"STREAMING-UNSIGNED-PAYLOAD-TRAILER".to_owned()
+			}
 		};
 		all_headers.insert(
-			signature::payload::X_AMZ_CONTENT_SH256,
+			signature::X_AMZ_CONTENT_SHA256,
 			HeaderValue::from_str(&body_sha).unwrap(),
 		);
 
@@ -276,10 +314,26 @@ impl<'a> RequestBuilder<'a> {
 		let mut request = Request::builder();
 		*request.headers_mut().unwrap() = all_headers;
 
-		let body = if let BodySignature::Streaming(size) = self.body_signature {
-			to_streaming_body(&self.body, size, signature, streaming_signer, now, &scope)
-		} else {
-			self.body.clone()
+		let body = match &self.body_signature {
+			BodySignature::Streaming { chunk_size } => to_streaming_body(
+				&self.body,
+				*chunk_size,
+				signature,
+				streaming_signer,
+				now,
+				&scope,
+			),
+			BodySignature::StreamingUnsignedTrailer {
+				chunk_size,
+				trailer_algorithm,
+				trailer_value,
+			} => to_streaming_unsigned_trailer_body(
+				&self.body,
+				*chunk_size,
+				&trailer_algorithm,
+				&trailer_value,
+			),
+			_ => self.body.clone(),
 		};
 		let request = request
 			.uri(uri)
@@ -308,7 +362,14 @@ impl<'a> RequestBuilder<'a> {
 pub enum BodySignature {
 	Unsigned,
 	Classic,
-	Streaming(usize),
+	Streaming {
+		chunk_size: usize,
+	},
+	StreamingUnsignedTrailer {
+		chunk_size: usize,
+		trailer_algorithm: String,
+		trailer_value: String,
+	},
 }
 
 fn query_param_to_string(params: &HashMap<String, Option<String>>) -> String {
@@ -360,6 +421,29 @@ fn to_streaming_body(
 		res.extend_from_slice(chunk);
 		res.extend_from_slice(b"\r\n");
 	}
+
+	res
+}
+
+fn to_streaming_unsigned_trailer_body(
+	body: &[u8],
+	chunk_size: usize,
+	trailer_algorithm: &str,
+	trailer_value: &str,
+) -> Vec<u8> {
+	let mut res = Vec::with_capacity(body.len());
+	for chunk in body.chunks(chunk_size) {
+		let header = format!("{:x}\r\n", chunk.len());
+		res.extend_from_slice(header.as_bytes());
+		res.extend_from_slice(chunk);
+		res.extend_from_slice(b"\r\n");
+	}
+
+	res.extend_from_slice(b"0\r\n");
+	res.extend_from_slice(trailer_algorithm.as_bytes());
+	res.extend_from_slice(b":");
+	res.extend_from_slice(trailer_value.as_bytes());
+	res.extend_from_slice(b"\n\r\n\r\n");
 
 	res
 }

@@ -2,15 +2,11 @@ use quick_xml::de::from_reader;
 
 use hyper::{header::HeaderName, Method, Request, Response, StatusCode};
 
-use http_body_util::BodyExt;
-
 use serde::{Deserialize, Serialize};
 
 use garage_model::bucket_table::{Bucket, CorsRule as GarageCorsRule};
-use garage_util::data::*;
 
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
@@ -59,7 +55,6 @@ pub async fn handle_delete_cors(ctx: ReqCtx) -> Result<Response<ResBody>, Error>
 pub async fn handle_put_cors(
 	ctx: ReqCtx,
 	req: Request<ReqBody>,
-	content_sha256: Option<Hash>,
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx {
 		garage,
@@ -68,11 +63,7 @@ pub async fn handle_put_cors(
 		..
 	} = ctx;
 
-	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
+	let body = req.into_body().collect().await?;
 
 	let conf: CorsConfiguration = from_reader(&body as &[u8])?;
 	conf.validate()?;

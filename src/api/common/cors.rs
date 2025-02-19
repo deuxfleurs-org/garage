@@ -14,9 +14,9 @@ use crate::common_error::{
 };
 use crate::helpers::*;
 
-pub fn find_matching_cors_rule<'a>(
+pub fn find_matching_cors_rule<'a, B>(
 	bucket_params: &'a BucketParams,
-	req: &Request<impl Body>,
+	req: &Request<B>,
 ) -> Result<Option<&'a GarageCorsRule>, CommonError> {
 	if let Some(cors_config) = bucket_params.cors_config.get() {
 		if let Some(origin) = req.headers().get("Origin") {
@@ -132,8 +132,8 @@ pub async fn handle_options_api(
 	}
 }
 
-pub fn handle_options_for_bucket(
-	req: &Request<IncomingBody>,
+pub fn handle_options_for_bucket<B>(
+	req: &Request<B>,
 	bucket_params: &BucketParams,
 ) -> Result<Response<EmptyBody>, CommonError> {
 	let origin = req

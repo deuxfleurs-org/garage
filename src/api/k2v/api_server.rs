@@ -81,7 +81,9 @@ impl ApiHandler for K2VApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let (req, api_key, _content_sha256) = verify_request(&garage, req, "k2v").await?;
+		let verified_request = verify_request(&garage, req, "k2v").await?;
+		let req = verified_request.request;
+		let api_key = verified_request.access_key;
 
 		let bucket_id = garage
 			.bucket_helper()

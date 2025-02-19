@@ -16,7 +16,6 @@ mod post_object;
 mod put;
 mod website;
 
-mod checksum;
 mod encryption;
 mod router;
 pub mod xml;

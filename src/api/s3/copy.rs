@@ -21,9 +21,9 @@ use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
 use garage_api_common::helpers::*;
+use garage_api_common::signature::checksum::*;
 
 use crate::api_server::{ReqBody, ResBody};
-use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
 use crate::get::full_object_byte_stream;

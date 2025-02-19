@@ -80,7 +80,7 @@ pub enum Error {
 	#[error(display = "Invalid encryption algorithm: {:?}, should be AES256", _0)]
 	InvalidEncryptionAlgorithm(String),
 
-	/// The client sent invalid XML data
+	/// The provided digest (checksum) value was invalid
 	#[error(display = "Invalid digest: {}", _0)]
 	InvalidDigest(String),
 
@@ -119,6 +119,7 @@ impl From<SignatureError> for Error {
 				Self::AuthorizationHeaderMalformed(c)
 			}
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
+			SignatureError::InvalidDigest(d) => Self::InvalidDigest(d),
 		}
 	}
 }
