@@ -9,8 +9,8 @@ use futures::future;
 use futures::stream::{self, Stream, StreamExt};
 use http::header::{
 	ACCEPT_RANGES, CACHE_CONTROL, CONTENT_DISPOSITION, CONTENT_ENCODING, CONTENT_LANGUAGE,
-	CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MODIFIED_SINCE, IF_NONE_MATCH,
-	LAST_MODIFIED, RANGE,
+	CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, ETAG, EXPIRES, IF_MATCH, IF_MODIFIED_SINCE,
+	IF_NONE_MATCH, IF_UNMODIFIED_SINCE, LAST_MODIFIED, RANGE,
 };
 use hyper::{Request, Response, StatusCode};
 use tokio::sync::mpsc;
@@ -115,42 +115,67 @@ fn getobject_override_headers(
 	Ok(())
 }
 
-fn try_answer_cached(
+fn handle_http_precondition(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
 	req: &Request<()>,
-) -> Option<Response<ResBody>> {
+) -> Result<Option<Response<ResBody>>, Error> {
+	if let Some(if_match) = req.headers().get(IF_MATCH) {
+		let if_match = if_match.to_str()?;
+		let expected = format!("\"{}\"", version_meta.etag);
+		let found = if_match
+			.split(',')
+			.map(str::trim)
+			.any(|etag| etag == expected || etag == "\"*\"");
+		if !found {
+			return Ok(Some(
+				Response::builder()
+					.status(StatusCode::PRECONDITION_FAILED)
+					.body(empty_body())
+					.unwrap(),
+			));
+		}
+	}
+
 	// <trinity> It is possible, and is even usually the case, [that both If-None-Match and
 	// If-Modified-Since] are present in a request. In this situation If-None-Match takes
 	// precedence and If-Modified-Since is ignored (as per 6.Precedence from rfc7232). The rational
 	// being that etag based matching is more accurate, it has no issue with sub-second precision
 	// for instance (in case of very fast updates)
+	let object_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
+
 	let cached = if let Some(none_match) = req.headers().get(IF_NONE_MATCH) {
-		let none_match = none_match.to_str().ok()?;
+		let none_match = none_match.to_str()?;
 		let expected = format!("\"{}\"", version_meta.etag);
 		let found = none_match
 			.split(',')
 			.map(str::trim)
 			.any(|etag| etag == expected || etag == "\"*\"");
 		found
+	} else if let Some(unmodified_since) = req.headers().get(IF_UNMODIFIED_SINCE) {
+		let unmodified_since = unmodified_since.to_str()?;
+		let unmodified_since =
+			httpdate::parse_http_date(unmodified_since).ok_or_bad_request("invalid http date")?;
+		object_date <= unmodified_since
 	} else if let Some(modified_since) = req.headers().get(IF_MODIFIED_SINCE) {
-		let modified_since = modified_since.to_str().ok()?;
-		let client_date = httpdate::parse_http_date(modified_since).ok()?;
-		let server_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
-		client_date >= server_date
+		let modified_since = modified_since.to_str()?;
+		let modified_since =
+			httpdate::parse_http_date(modified_since).ok_or_bad_request("invalid http date")?;
+		let object_date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
+		object_date > modified_since
 	} else {
 		false
 	};
 
 	if cached {
-		Some(
+		Ok(Some(
 			Response::builder()
 				.status(StatusCode::NOT_MODIFIED)
 				.body(empty_body())
 				.unwrap(),
-		)
+		))
 	} else {
-		None
+		Ok(None)
 	}
 }
 
@@ -196,8 +221,8 @@ pub async fn handle_head_without_ctx(
 		_ => unreachable!(),
 	};
 
-	if let Some(cached) = try_answer_cached(object_version, version_meta, req) {
-		return Ok(cached);
+	if let Some(res) = handle_http_precondition(object_version, version_meta, req)? {
+		return Ok(res);
 	}
 
 	let (encryption, headers) =
@@ -318,8 +343,8 @@ pub async fn handle_get_without_ctx(
 		ObjectVersionData::FirstBlock(meta, _) => meta,
 	};
 
-	if let Some(cached) = try_answer_cached(last_v, last_v_meta, req) {
-		return Ok(cached);
+	if let Some(res) = handle_http_precondition(last_v, last_v_meta, req)? {
+		return Ok(res);
 	}
 
 	let (enc, headers) =
