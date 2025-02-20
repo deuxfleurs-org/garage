@@ -70,7 +70,7 @@ Example response body:
 ```json
 {
   "node": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
-  "garageVersion": "v1.0.1",
+  "garageVersion": "v1.1.0",
   "garageFeatures": [
     "k2v",
     "lmdb",
