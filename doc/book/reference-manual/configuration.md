@@ -154,7 +154,7 @@ The `[admin]` section:
 The following configuration parameter must be specified as an environment
 variable, it does not exist in the configuration file:
 
-- `GARAGE_LOG_TO_SYSLOG` (since v0.9.4): set this to `1` or `true` to make the
+- `GARAGE_LOG_TO_SYSLOG` (since `v0.9.4`): set this to `1` or `true` to make the
   Garage daemon send its logs to `syslog` (using the libc `syslog` function)
   instead of printing to stderr.
 
@@ -300,7 +300,7 @@ data_dir = [
 See [the dedicated documentation page](@/documentation/operations/multi-hdd.md)
 on how to operate Garage in such a setup.
 
-#### `metadata_snapshots_dir` (since Garage `v1.0.2`) {#metadata_snapshots_dir}
+#### `metadata_snapshots_dir` (since `v1.1.0`) {#metadata_snapshots_dir}
 
 The directory in which Garage will store metadata snapshots when it
 performs a snapshot of the metadata database, either when instructed to do
@@ -416,7 +416,7 @@ at the cost of a moderate drop in write performance.
 Similarly to `metatada_fsync`, this is likely not necessary
 if geographical replication is used.
 
-#### `metadata_auto_snapshot_interval` (since Garage v0.9.4) {#metadata_auto_snapshot_interval}
+#### `metadata_auto_snapshot_interval` (since `v0.9.4`) {#metadata_auto_snapshot_interval}
 
 If this value is set, Garage will automatically take a snapshot of the metadata
 DB file at a regular interval and save it in the metadata directory.
@@ -453,7 +453,7 @@ you should delete it from the data directory and then call `garage repair
 blocks` on the node to ensure that it re-obtains a copy from another node on
 the network.
 
-#### `use_local_tz` {#use_local_tz}
+#### `use_local_tz` (since `v1.1.0`) {#use_local_tz}
 
 By default, Garage runs the lifecycle worker every day at midnight in UTC. Set the
 `use_local_tz` configuration value to `true` if you want Garage to run the
@@ -475,7 +475,7 @@ files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
 
-#### `block_ram_buffer_max` (since v0.9.4) {#block_ram_buffer_max}
+#### `block_ram_buffer_max` (since `v0.9.4`) {#block_ram_buffer_max}
 
 A limit on the total size of data blocks kept in RAM by S3 API nodes awaiting
 to be sent to storage nodes asynchronously.
@@ -562,7 +562,7 @@ the node, even in the case of a NAT: the NAT should be configured to forward the
 port number to the same internal port nubmer. This means that if you have several nodes running
 behind a NAT, they should each use a different RPC port number.
 
-#### `rpc_bind_outgoing`(since v0.9.2) {#rpc_bind_outgoing}
+#### `rpc_bind_outgoing` (since `v0.9.2`) {#rpc_bind_outgoing}
 
 If enabled, pre-bind all sockets for outgoing connections to the same IP address
 used for listening (the IP address specified in `rpc_bind_addr`) before
