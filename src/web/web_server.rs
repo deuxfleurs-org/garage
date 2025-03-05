@@ -1,14 +1,13 @@
 use std::fs::{self, Permissions};
 use std::os::unix::prelude::PermissionsExt;
-use std::{convert::Infallible, sync::Arc};
+use std::sync::Arc;
 
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
 use hyper::{
-	body::Body,
 	body::Incoming as IncomingBody,
-	header::{HeaderValue, HOST},
+	header::{HeaderValue, HOST, LOCATION},
 	Method, Request, Response, StatusCode,
 };
 
@@ -31,11 +30,13 @@ use garage_api_s3::error::{
 	CommonErrorDerivative, Error as ApiError, OkOrBadRequest, OkOrInternalError,
 };
 use garage_api_s3::get::{handle_get_without_ctx, handle_head_without_ctx};
+use garage_api_s3::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 
 use garage_model::bucket_table::{self, RoutingRule};
 use garage_model::garage::Garage;
 
 use garage_table::*;
+use garage_util::config::WebConfig;
 use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 use garage_util::forwarded_headers;
@@ -72,16 +73,18 @@ pub struct WebServer {
 	garage: Arc<Garage>,
 	metrics: Arc<WebMetrics>,
 	root_domain: String,
+	add_host_to_metrics: bool,
 }
 
 impl WebServer {
 	/// Run a web server
-	pub fn new(garage: Arc<Garage>, root_domain: String) -> Arc<Self> {
+	pub fn new(garage: Arc<Garage>, config: &WebConfig) -> Arc<Self> {
 		let metrics = Arc::new(WebMetrics::new());
 		Arc::new(WebServer {
 			garage,
 			metrics,
-			root_domain,
+			root_domain: config.root_domain.clone(),
+			add_host_to_metrics: config.add_host_to_metrics,
 		})
 	}
 
@@ -123,18 +126,27 @@ impl WebServer {
 		req: Request<IncomingBody>,
 		addr: String,
 	) -> Result<Response<BoxBody<Error>>, http::Error> {
+		let host_header = req
+			.headers()
+			.get(HOST)
+			.and_then(|x| x.to_str().ok())
+			.unwrap_or("<unknown>")
+			.to_string();
+
 		if let Ok(forwarded_for_ip_addr) =
 			forwarded_headers::handle_forwarded_for_headers(req.headers())
 		{
+			// uri() below has a preceding '/', so no space with host
 			info!(
-				"{} (via {}) {} {}",
+				"{} (via {}) {} {}{}",
 				forwarded_for_ip_addr,
 				addr,
 				req.method(),
+				host_header,
 				req.uri()
 			);
 		} else {
-			info!("{} {} {}", addr, req.method(), req.uri());
+			info!("{} {} {}{}", addr, req.method(), host_header, req.uri());
 		}
 
 		// Lots of instrumentation
@@ -143,12 +155,18 @@ impl WebServer {
 			.span_builder(format!("Web {} request", req.method()))
 			.with_trace_id(gen_trace_id())
 			.with_attributes(vec![
+				KeyValue::new("host", format!("{}", host_header.clone())),
 				KeyValue::new("method", format!("{}", req.method())),
 				KeyValue::new("uri", req.uri().to_string()),
 			])
 			.start(&tracer);
 
-		let metrics_tags = &[KeyValue::new("method", req.method().to_string())];
+		let mut metrics_tags = vec![KeyValue::new("method", req.method().to_string())];
+		if self.add_host_to_metrics {
+			metrics_tags.push(KeyValue::new("host", host_header.clone()));
+		}
+
+		let req = req.map(|_| ());
 
 		// The actual handler
 		let res = self
@@ -163,25 +181,30 @@ impl WebServer {
 		// Returning the result
 		match res {
 			Ok(res) => {
-				debug!("{} {} {}", req.method(), res.status(), req.uri());
+				debug!(
+					"{} {} {}{}",
+					req.method(),
+					res.status(),
+					host_header,
+					req.uri()
+				);
 				Ok(res
 					.map(|body| BoxBody::new(http_body_util::BodyExt::map_err(body, Error::from))))
 			}
 			Err(error) => {
 				info!(
-					"{} {} {} {}",
+					"{} {} {}{} {}",
 					req.method(),
 					error.http_status_code(),
+					host_header,
 					req.uri(),
 					error
 				);
-				self.metrics.error_counter.add(
-					1,
-					&[
-						metrics_tags[0].clone(),
-						KeyValue::new("status_code", error.http_status_code().to_string()),
-					],
-				);
+				metrics_tags.push(KeyValue::new(
+					"status_code",
+					error.http_status_code().to_string(),
+				));
+				self.metrics.error_counter.add(1, &metrics_tags);
 				Ok(error_to_res(error))
 			}
 		}
@@ -200,7 +223,7 @@ impl WebServer {
 
 	async fn serve_file(
 		self: &Arc<Self>,
-		req: &Request<IncomingBody>,
+		req: &Request<()>,
 	) -> Result<Response<BoxBody<ApiError>>, Error> {
 		// Get http authority string (eg. [::1]:3902 or garage.tld:80)
 		let authority = req
@@ -304,6 +327,14 @@ impl WebServer {
 				)
 				.await
 			}
+			(Ok(ret), _) if ret.headers().contains_key(X_AMZ_WEBSITE_REDIRECT_LOCATION) => {
+				let redirect_location = ret.headers().get(X_AMZ_WEBSITE_REDIRECT_LOCATION).unwrap();
+				Ok(Response::builder()
+					.status(StatusCode::MOVED_PERMANENTLY)
+					.header(LOCATION, redirect_location)
+					.body(empty_body())
+					.unwrap())
+			}
 			_ => ret_doc,
 		};
 
@@ -331,7 +362,7 @@ impl WebServer {
 				let req2 = Request::builder()
 					.method("GET")
 					.uri(format!("http://{}/{}", host, &error_document))
-					.body(empty_body::<Infallible>())
+					.body(())
 					.unwrap();
 
 				match handle_inner(
@@ -386,7 +417,7 @@ impl WebServer {
 
 async fn handle_inner(
 	garage: Arc<Garage>,
-	req: &Request<impl Body>,
+	req: &Request<()>,
 	bucket_id: Uuid,
 	key: &str,
 	status_code: StatusCode,
@@ -396,10 +427,7 @@ async fn handle_inner(
 		// the original request that would have influenced the result:
 		// - Range header, we don't want to return a subrange of the error document
 		// - Caching directives such as If-None-Match, etc, which are not relevant
-		let cleaned_req = Request::builder()
-			.uri(req.uri())
-			.body(empty_body::<Infallible>())
-			.unwrap();
+		let cleaned_req = Request::builder().uri(req.uri()).body(()).unwrap();
 
 		let mut ret = match req.method() {
 			&Method::HEAD => {

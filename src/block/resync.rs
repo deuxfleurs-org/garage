@@ -377,7 +377,10 @@ impl BlockResyncManager {
 			info!("Resync block {:?}: offloading and deleting", hash);
 			let existing_path = existing_path.unwrap();
 
-			let mut who = manager.replication.storage_nodes(hash);
+			let mut who = manager
+				.system
+				.cluster_layout()
+				.current_storage_nodes_of(hash);
 			if who.len() < manager.replication.write_quorum() {
 				return Err(Error::Message("Not trying to offload block because we don't have a quorum of nodes to write to".to_string()));
 			}
@@ -455,6 +458,25 @@ impl BlockResyncManager {
 		}
 
 		if rc.is_nonzero() && !exists {
+			// The refcount is > 0, and the block is not present locally.
+			// We might need to fetch it from another node.
+
+			// First, check whether we are still supposed to store that
+			// block in the latest cluster layout version.
+			let storage_nodes = manager
+				.system
+				.cluster_layout()
+				.current_storage_nodes_of(&hash);
+
+			if !storage_nodes.contains(&manager.system.id) {
+				info!(
+					"Resync block {:?}: block is absent with refcount > 0, but it will drop to zero after all metadata is synced. Not fetching the block.",
+					hash
+				);
+				return Ok(());
+			}
+
+			// We know we need the block. Fetch it.
 			info!(
 				"Resync block {:?}: fetching absent but needed block (refcount > 0)",
 				hash

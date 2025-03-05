@@ -183,6 +183,9 @@ pub struct WebConfig {
 	pub bind_addr: UnixOrTCPSocketAddress,
 	/// Suffix to remove from domain name to find bucket
 	pub root_domain: String,
+	/// Whether to add the requested domain to exported Prometheus metrics
+	#[serde(default)]
+	pub add_host_to_metrics: bool,
 }
 
 /// Configuration for the admin and monitoring HTTP API

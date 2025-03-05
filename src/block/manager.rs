@@ -370,7 +370,7 @@ impl BlockManager {
 		prevent_compression: bool,
 		order_tag: Option<OrderTag>,
 	) -> Result<(), Error> {
-		let who = self.replication.write_sets(&hash);
+		let who = self.system.cluster_layout().current_storage_nodes_of(&hash);
 
 		let compression_level = self.compression_level.filter(|_| !prevent_compression);
 		let (header, bytes) = DataBlock::from_buffer(data, compression_level)
@@ -396,7 +396,7 @@ impl BlockManager {
 			.rpc_helper()
 			.try_write_many_sets(
 				&self.endpoint,
-				who.as_ref(),
+				&[who],
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_drop_on_completion(permit)
@@ -668,10 +668,12 @@ impl BlockManager {
 		hash: &Hash,
 		wrong_path: DataBlockPath,
 	) -> Result<usize, Error> {
+		let data = self.read_block_from(hash, &wrong_path).await?;
 		self.lock_mutate(hash)
 			.await
-			.fix_block_location(hash, wrong_path, self)
-			.await
+			.write_block_inner(hash, &data, self, Some(wrong_path))
+			.await?;
+		Ok(data.as_parts_ref().1.len())
 	}
 
 	async fn lock_mutate(&self, hash: &Hash) -> MutexGuard<'_, BlockManagerLocked> {
@@ -826,18 +828,6 @@ impl BlockManagerLocked {
 			}
 		}
 		Ok(())
-	}
-
-	async fn fix_block_location(
-		&self,
-		hash: &Hash,
-		wrong_path: DataBlockPath,
-		mgr: &BlockManager,
-	) -> Result<usize, Error> {
-		let data = mgr.read_block_from(hash, &wrong_path).await?;
-		self.write_block_inner(hash, &data, mgr, Some(wrong_path))
-			.await?;
-		Ok(data.as_parts_ref().1.len())
 	}
 }
 

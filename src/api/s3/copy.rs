@@ -1,9 +1,9 @@
 use std::pin::Pin;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::{stream, stream::Stream, StreamExt, TryStreamExt};
 
 use bytes::Bytes;
+use http::header::HeaderName;
 use hyper::{Request, Response};
 use serde::Serialize;
 
@@ -21,15 +21,24 @@ use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
 use garage_api_common::helpers::*;
+use garage_api_common::signature::checksum::*;
 
 use crate::api_server::{ReqBody, ResBody};
-use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
-use crate::get::full_object_byte_stream;
+use crate::get::{full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
-use crate::put::{get_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
 use crate::xml::{self as s3_xml, xmlns_tag};
+
+pub const X_AMZ_COPY_SOURCE_IF_MATCH: HeaderName =
+	HeaderName::from_static("x-amz-copy-source-if-match");
+pub const X_AMZ_COPY_SOURCE_IF_NONE_MATCH: HeaderName =
+	HeaderName::from_static("x-amz-copy-source-if-none-match");
+pub const X_AMZ_COPY_SOURCE_IF_MODIFIED_SINCE: HeaderName =
+	HeaderName::from_static("x-amz-copy-source-if-modified-since");
+pub const X_AMZ_COPY_SOURCE_IF_UNMODIFIED_SINCE: HeaderName =
+	HeaderName::from_static("x-amz-copy-source-if-unmodified-since");
 
 // -------- CopyObject ---------
 
@@ -38,7 +47,7 @@ pub async fn handle_copy(
 	req: &Request<ReqBody>,
 	dest_key: &str,
 ) -> Result<Response<ResBody>, Error> {
-	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
+	let copy_precondition = PreconditionHeaders::parse_copy_source(req)?;
 
 	let checksum_algorithm = request_checksum_algorithm(req.headers())?;
 
@@ -48,7 +57,7 @@ pub async fn handle_copy(
 		extract_source_info(&source_object)?;
 
 	// Check precondition, e.g. x-amz-copy-source-if-match
-	copy_precondition.check(source_version, &source_version_meta.etag)?;
+	copy_precondition.check_copy_source(source_version, &source_version_meta.etag)?;
 
 	// Determine encryption parameters
 	let (source_encryption, source_object_meta_inner) =
@@ -73,7 +82,7 @@ pub async fn handle_copy(
 	let dest_object_meta = ObjectVersionMetaInner {
 		headers: match req.headers().get("x-amz-metadata-directive") {
 			Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => {
-				get_headers(req.headers())?
+				extract_metadata_headers(req.headers())?
 			}
 			_ => source_object_meta_inner.into_owned().headers,
 		},
@@ -335,7 +344,7 @@ pub async fn handle_upload_part_copy(
 	part_number: u64,
 	upload_id: &str,
 ) -> Result<Response<ResBody>, Error> {
-	let copy_precondition = CopyPreconditionHeaders::parse(req)?;
+	let copy_precondition = PreconditionHeaders::parse_copy_source(req)?;
 
 	let dest_upload_id = multipart::decode_upload_id(upload_id)?;
 
@@ -351,7 +360,7 @@ pub async fn handle_upload_part_copy(
 		extract_source_info(&source_object)?;
 
 	// Check precondition on source, e.g. x-amz-copy-source-if-match
-	copy_precondition.check(source_object_version, &source_version_meta.etag)?;
+	copy_precondition.check_copy_source(source_object_version, &source_version_meta.etag)?;
 
 	// Determine encryption parameters
 	let (source_encryption, _) = EncryptionParams::check_decrypt_for_copy_source(
@@ -701,97 +710,6 @@ fn extract_source_info(
 	};
 
 	Ok((source_version, source_version_data, source_version_meta))
-}
-
-struct CopyPreconditionHeaders {
-	copy_source_if_match: Option<Vec<String>>,
-	copy_source_if_modified_since: Option<SystemTime>,
-	copy_source_if_none_match: Option<Vec<String>>,
-	copy_source_if_unmodified_since: Option<SystemTime>,
-}
-
-impl CopyPreconditionHeaders {
-	fn parse(req: &Request<ReqBody>) -> Result<Self, Error> {
-		Ok(Self {
-			copy_source_if_match: req
-				.headers()
-				.get("x-amz-copy-source-if-match")
-				.map(|x| x.to_str())
-				.transpose()?
-				.map(|x| {
-					x.split(',')
-						.map(|m| m.trim().trim_matches('"').to_string())
-						.collect::<Vec<_>>()
-				}),
-			copy_source_if_modified_since: req
-				.headers()
-				.get("x-amz-copy-source-if-modified-since")
-				.map(|x| x.to_str())
-				.transpose()?
-				.map(httpdate::parse_http_date)
-				.transpose()
-				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-modified-since")?,
-			copy_source_if_none_match: req
-				.headers()
-				.get("x-amz-copy-source-if-none-match")
-				.map(|x| x.to_str())
-				.transpose()?
-				.map(|x| {
-					x.split(',')
-						.map(|m| m.trim().trim_matches('"').to_string())
-						.collect::<Vec<_>>()
-				}),
-			copy_source_if_unmodified_since: req
-				.headers()
-				.get("x-amz-copy-source-if-unmodified-since")
-				.map(|x| x.to_str())
-				.transpose()?
-				.map(httpdate::parse_http_date)
-				.transpose()
-				.ok_or_bad_request("Invalid date in x-amz-copy-source-if-unmodified-since")?,
-		})
-	}
-
-	fn check(&self, v: &ObjectVersion, etag: &str) -> Result<(), Error> {
-		let v_date = UNIX_EPOCH + Duration::from_millis(v.timestamp);
-
-		let ok = match (
-			&self.copy_source_if_match,
-			&self.copy_source_if_unmodified_since,
-			&self.copy_source_if_none_match,
-			&self.copy_source_if_modified_since,
-		) {
-			// TODO I'm not sure all of the conditions are evaluated correctly here
-
-			// If we have both if-match and if-unmodified-since,
-			// basically we don't care about if-unmodified-since,
-			// because in the spec it says that if if-match evaluates to
-			// true but if-unmodified-since evaluates to false,
-			// the copy is still done.
-			(Some(im), _, None, None) => im.iter().any(|x| x == etag || x == "*"),
-			(None, Some(ius), None, None) => v_date <= *ius,
-
-			// If we have both if-none-match and if-modified-since,
-			// then both of the two conditions must evaluate to true
-			(None, None, Some(inm), Some(ims)) => {
-				!inm.iter().any(|x| x == etag || x == "*") && v_date > *ims
-			}
-			(None, None, Some(inm), None) => !inm.iter().any(|x| x == etag || x == "*"),
-			(None, None, None, Some(ims)) => v_date > *ims,
-			(None, None, None, None) => true,
-			_ => {
-				return Err(Error::bad_request(
-					"Invalid combination of x-amz-copy-source-if-xxxxx headers",
-				))
-			}
-		};
-
-		if ok {
-			Ok(())
-		} else {
-			Err(Error::PreconditionFailed)
-		}
-	}
 }
 
 type BlockStreamItemOk = (Bytes, Option<Hash>);

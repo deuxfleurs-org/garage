@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use http_body_util::BodyExt;
 use hyper::{Request, Response, StatusCode};
 
 use garage_model::bucket_alias_table::*;
@@ -10,12 +9,10 @@ use garage_model::key_table::Key;
 use garage_model::permission::BucketKeyPerm;
 use garage_table::util::*;
 use garage_util::crdt::*;
-use garage_util::data::*;
 use garage_util::time::*;
 
 use garage_api_common::common_error::CommonError;
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_signed_content;
 
 use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
@@ -122,15 +119,10 @@ pub async fn handle_list_buckets(
 pub async fn handle_create_bucket(
 	garage: &Garage,
 	req: Request<ReqBody>,
-	content_sha256: Option<Hash>,
 	api_key_id: &String,
 	bucket_name: String,
 ) -> Result<Response<ResBody>, Error> {
-	let body = BodyExt::collect(req.into_body()).await?.to_bytes();
-
-	if let Some(content_sha256) = content_sha256 {
-		verify_signed_content(content_sha256, &body[..])?;
-	}
+	let body = req.into_body().collect().await?;
 
 	let cmd =
 		parse_create_bucket_xml(&body[..]).ok_or_bad_request("Invalid create bucket XML query")?;

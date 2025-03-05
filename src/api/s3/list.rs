@@ -54,7 +54,6 @@ pub struct ListMultipartUploadsQuery {
 #[derive(Debug)]
 pub struct ListPartsQuery {
 	pub bucket_name: String,
-	pub bucket_id: Uuid,
 	pub key: String,
 	pub upload_id: String,
 	pub part_number_marker: Option<u64>,
@@ -1245,10 +1244,8 @@ mod tests {
 
 	#[test]
 	fn test_fetch_part_info() -> Result<(), Error> {
-		let uuid = Uuid::from([0x08; 32]);
 		let mut query = ListPartsQuery {
 			bucket_name: "a".to_string(),
-			bucket_id: uuid,
 			key: "a".to_string(),
 			upload_id: "xx".to_string(),
 			part_number_marker: None,

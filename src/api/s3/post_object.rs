@@ -18,13 +18,13 @@ use garage_model::s3::object_table::*;
 
 use garage_api_common::cors::*;
 use garage_api_common::helpers::*;
+use garage_api_common::signature::checksum::*;
 use garage_api_common::signature::payload::{verify_v4, Authorization};
 
 use crate::api_server::ResBody;
-use crate::checksum::*;
 use crate::encryption::EncryptionParams;
 use crate::error::*;
-use crate::put::{get_headers, save_stream, ChecksumMode};
+use crate::put::{extract_metadata_headers, save_stream, ChecksumMode};
 use crate::xml as s3_xml;
 
 pub async fn handle_post_object(
@@ -216,8 +216,9 @@ pub async fn handle_post_object(
 
 	// if we ever start supporting ACLs, we likely want to map "acl" to x-amz-acl" somewhere
 	// around here to make sure the rest of the machinery takes our acl into account.
-	let headers = get_headers(&params)?;
+	let headers = extract_metadata_headers(&params)?;
 
+	let checksum_algorithm = request_checksum_algorithm(&params)?;
 	let expected_checksums = ExpectedChecksums {
 		md5: params
 			.get("content-md5")
@@ -225,7 +226,9 @@ pub async fn handle_post_object(
 			.transpose()?
 			.map(str::to_string),
 		sha256: None,
-		extra: request_checksum_algorithm_value(&params)?,
+		extra: checksum_algorithm
+			.map(|algo| extract_checksum_value(&params, algo))
+			.transpose()?,
 	};
 
 	let meta = ObjectVersionMetaInner {

@@ -144,9 +144,7 @@ pub async fn handle_insert_item(
 		.map(parse_causality_token)
 		.transpose()?;
 
-	let body = http_body_util::BodyExt::collect(req.into_body())
-		.await?
-		.to_bytes();
+	let body = req.into_body().collect().await?;
 
 	let value = DvvsValue::Value(body.to_vec());
 

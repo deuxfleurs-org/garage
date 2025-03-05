@@ -110,7 +110,7 @@ pub async fn run_server(config_file: PathBuf, secrets: Secrets) -> Result<(), Er
 
 	if let Some(web_config) = &config.s3_web {
 		info!("Initializing web server...");
-		let web_server = WebServer::new(garage.clone(), web_config.root_domain.clone());
+		let web_server = WebServer::new(garage.clone(), &web_config);
 		servers.push((
 			"Web",
 			tokio::spawn(web_server.run(web_config.bind_addr.clone(), watch_cancel.clone())),

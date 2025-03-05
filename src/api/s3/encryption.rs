@@ -29,8 +29,8 @@ use garage_model::garage::Garage;
 use garage_model::s3::object_table::{ObjectVersionEncryption, ObjectVersionMetaInner};
 
 use garage_api_common::common_error::*;
+use garage_api_common::signature::checksum::Md5Checksum;
 
-use crate::checksum::Md5Checksum;
 use crate::error::Error;
 
 const X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM: HeaderName =

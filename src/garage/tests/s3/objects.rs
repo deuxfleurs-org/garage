@@ -1,5 +1,6 @@
 use crate::common;
-use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::error::SdkError;
+use aws_sdk_s3::primitives::{ByteStream, DateTime};
 use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 
 const STD_KEY: &str = "hello world";
@@ -126,6 +127,129 @@ async fn test_putobject() {
 }
 
 #[tokio::test]
+async fn test_precondition() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("precondition");
+
+	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
+	let etag2 = "\"ae4984b984cd984fe98d4efa954dce98\"";
+	let data = ByteStream::from_static(BODY);
+
+	let r = ctx
+		.client
+		.put_object()
+		.bucket(&bucket)
+		.key(STD_KEY)
+		.body(data)
+		.send()
+		.await
+		.unwrap();
+
+	assert_eq!(r.e_tag.unwrap().as_str(), etag);
+
+	let last_modified;
+	{
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_match(etag)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+		last_modified = o.last_modified.unwrap();
+
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_match(etag2)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 412)
+		);
+	}
+	{
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_none_match(etag2)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_none_match(etag)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 304)
+		);
+	}
+	let older_date = DateTime::from_secs_f64(last_modified.as_secs_f64() - 10.0);
+	let newer_date = DateTime::from_secs_f64(last_modified.as_secs_f64() + 10.0);
+	{
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_modified_since(newer_date)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 304)
+		);
+
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_modified_since(older_date)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+	}
+	{
+		let err = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_unmodified_since(older_date)
+			.send()
+			.await;
+		assert!(
+			matches!(err, Err(SdkError::ServiceError(se)) if se.raw().status().as_u16() == 412)
+		);
+
+		let o = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key(STD_KEY)
+			.if_unmodified_since(newer_date)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(o.e_tag.as_ref().unwrap().as_str(), etag);
+	}
+}
+
+#[tokio::test]
 async fn test_getobject() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("getobject");
@@ -189,12 +313,14 @@ async fn test_getobject() {
 
 #[tokio::test]
 async fn test_metadata() {
+	use aws_sdk_s3::primitives::{DateTime, DateTimeFormat};
+
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("testmetadata");
 
 	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
-	let exp = aws_sdk_s3::primitives::DateTime::from_secs(10000000000);
-	let exp2 = aws_sdk_s3::primitives::DateTime::from_secs(10000500000);
+	let exp = DateTime::from_secs(10000000000);
+	let exp2 = DateTime::from_secs(10000500000);
 
 	{
 		// Note. The AWS client SDK adds a Content-Type header
@@ -227,7 +353,7 @@ async fn test_metadata() {
 		assert_eq!(o.content_disposition, None);
 		assert_eq!(o.content_encoding, None);
 		assert_eq!(o.content_language, None);
-		assert_eq!(o.expires, None);
+		assert_eq!(o.expires_string, None);
 		assert_eq!(o.metadata.unwrap_or_default().len(), 0);
 
 		let o = ctx
@@ -250,7 +376,10 @@ async fn test_metadata() {
 		assert_eq!(o.content_disposition.unwrap().as_str(), "cddummy");
 		assert_eq!(o.content_encoding.unwrap().as_str(), "cedummy");
 		assert_eq!(o.content_language.unwrap().as_str(), "cldummy");
-		assert_eq!(o.expires.unwrap(), exp);
+		assert_eq!(
+			o.expires_string.unwrap(),
+			exp.fmt(DateTimeFormat::HttpDate).unwrap()
+		);
 	}
 
 	{
@@ -288,7 +417,10 @@ async fn test_metadata() {
 		assert_eq!(o.content_disposition.unwrap().as_str(), "cdtest");
 		assert_eq!(o.content_encoding.unwrap().as_str(), "cetest");
 		assert_eq!(o.content_language.unwrap().as_str(), "cltest");
-		assert_eq!(o.expires.unwrap(), exp2);
+		assert_eq!(
+			o.expires_string.unwrap(),
+			exp2.fmt(DateTimeFormat::HttpDate).unwrap()
+		);
 		let mut meta = o.metadata.unwrap();
 		assert_eq!(meta.remove("testmeta").unwrap(), "hello people");
 		assert_eq!(meta.remove("nice-unicode-meta").unwrap(), "宅配便");
@@ -314,7 +446,10 @@ async fn test_metadata() {
 		assert_eq!(o.content_disposition.unwrap().as_str(), "cddummy");
 		assert_eq!(o.content_encoding.unwrap().as_str(), "cedummy");
 		assert_eq!(o.content_language.unwrap().as_str(), "cldummy");
-		assert_eq!(o.expires.unwrap(), exp);
+		assert_eq!(
+			o.expires_string.unwrap(),
+			exp.fmt(DateTimeFormat::HttpDate).unwrap()
+		);
 	}
 }
 
