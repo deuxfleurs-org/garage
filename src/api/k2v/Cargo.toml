@@ -6,7 +6,7 @@ edition = "2018"
 license = "AGPL-3.0"
 description = "K2V API server crate for the Garage object store"
 repository = "https://git.deuxfleurs.fr/Deuxfleurs/garage"
-readme = "../../README.md"
+readme = "../../../README.md"
 
 [lib]
 path = "lib.rs"
