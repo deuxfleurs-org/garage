@@ -10,12 +10,11 @@ spec:
       {{- include "garage.selectorLabels" . | nindent 6 }}
   {{- if eq .Values.deployment.kind "StatefulSet" }}
   replicas: {{ .Values.deployment.replicaCount }}
-  serviceName: {{ include "garage.fullname" . }}
+  serviceName: {{ include "garage.fullname" . }}-headless
   podManagementPolicy: {{ .Values.deployment.podManagementPolicy }}
   {{- end }}
   template:
     metadata:
-
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       {{- with .Values.podAnnotations }}
