@@ -687,7 +687,7 @@ paths:
       operationId: "GetBucketInfo"
       summary: "Get a bucket"
       description: |
-        Given a bucket identifier (`id`) or a global alias (`alias`), get its information.
+        Given a bucket identifier (`id`) or a global alias (`globalAlias`), get its information.
         It includes its aliases, its web configuration, keys that have some permissions
         on it, some statistics (number of objects, size), number of dangling multipart uploads,
         and its quotas (if any).
@@ -701,7 +701,7 @@ paths:
           example: "b4018dc61b27ccb5c64ec1b24f53454bbbd180697c758c4d47a22a8921864a87"
           schema:
             type: string
-        - name: alias
+        - name: globalAlias
           in: query
           description: |
             The exact global alias of one of the existing buckets.
