@@ -57,54 +57,6 @@ pub async fn cmd_show_layout(
 	Ok(())
 }
 
-pub async fn cmd_config_layout(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-	config_opt: ConfigLayoutOpt,
-) -> Result<(), Error> {
-	let mut layout = fetch_layout(rpc_cli, rpc_host).await?;
-
-	let mut did_something = false;
-	match config_opt.redundancy {
-		None => (),
-		Some(r_str) => {
-			let r = r_str
-				.parse::<ZoneRedundancy>()
-				.ok_or_message("invalid zone redundancy value")?;
-			if let ZoneRedundancy::AtLeast(r_int) = r {
-				if r_int > layout.current().replication_factor {
-					return Err(Error::Message(format!(
-						"The zone redundancy must be smaller or equal to the \
-                    replication factor ({}).",
-						layout.current().replication_factor
-					)));
-				} else if r_int < 1 {
-					return Err(Error::Message(
-						"The zone redundancy must be at least 1.".into(),
-					));
-				}
-			}
-
-			layout
-				.staging
-				.get_mut()
-				.parameters
-				.update(LayoutParameters { zone_redundancy: r });
-			println!("The zone redundancy parameter has been set to '{}'.", r);
-			did_something = true;
-		}
-	}
-
-	if !did_something {
-		return Err(Error::Message(
-			"Please specify an action for `garage layout config`".into(),
-		));
-	}
-
-	send_layout(rpc_cli, rpc_host, layout).await?;
-	Ok(())
-}
-
 pub async fn cmd_layout_history(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,

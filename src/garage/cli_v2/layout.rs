@@ -4,6 +4,7 @@ use format_table::format_table;
 use garage_util::error::*;
 
 use garage_api_admin::api::*;
+use garage_rpc::layout;
 
 use crate::cli::layout as cli_v1;
 use crate::cli::structs::*;
@@ -14,16 +15,13 @@ impl Cli {
 		match cmd {
 			LayoutOperation::Assign(assign_opt) => self.cmd_assign_role(assign_opt).await,
 			LayoutOperation::Remove(remove_opt) => self.cmd_remove_role(remove_opt).await,
+			LayoutOperation::Config(config_opt) => self.cmd_config_layout(config_opt).await,
 			LayoutOperation::Apply(apply_opt) => self.cmd_apply_layout(apply_opt).await,
 			LayoutOperation::Revert(revert_opt) => self.cmd_revert_layout(revert_opt).await,
 
 			// TODO
 			LayoutOperation::Show => {
 				cli_v1::cmd_show_layout(&self.system_rpc_endpoint, self.rpc_host).await
-			}
-			LayoutOperation::Config(config_opt) => {
-				cli_v1::cmd_config_layout(&self.system_rpc_endpoint, self.rpc_host, config_opt)
-					.await
 			}
 			LayoutOperation::History => {
 				cli_v1::cmd_layout_history(&self.system_rpc_endpoint, self.rpc_host).await
@@ -100,8 +98,11 @@ impl Cli {
 			});
 		}
 
-		self.api_request(UpdateClusterLayoutRequest(actions))
-			.await?;
+		self.api_request(UpdateClusterLayoutRequest {
+			roles: actions,
+			parameters: None,
+		})
+		.await?;
 
 		println!("Role changes are staged but not yet committed.");
 		println!("Use `garage layout show` to view staged role changes,");
@@ -126,12 +127,45 @@ impl Cli {
 			action: NodeRoleChangeEnum::Remove { remove: true },
 		}];
 
-		self.api_request(UpdateClusterLayoutRequest(actions))
-			.await?;
+		self.api_request(UpdateClusterLayoutRequest {
+			roles: actions,
+			parameters: None,
+		})
+		.await?;
 
 		println!("Role removal is staged but not yet committed.");
 		println!("Use `garage layout show` to view staged role changes,");
 		println!("and `garage layout apply` to enact staged changes.");
+		Ok(())
+	}
+
+	pub async fn cmd_config_layout(&self, config_opt: ConfigLayoutOpt) -> Result<(), Error> {
+		let mut did_something = false;
+		match config_opt.redundancy {
+			None => (),
+			Some(r_str) => {
+				let r = r_str
+					.parse::<layout::ZoneRedundancy>()
+					.ok_or_message("invalid zone redundancy value")?;
+
+				self.api_request(UpdateClusterLayoutRequest {
+					roles: vec![],
+					parameters: Some(LayoutParameters {
+						zone_redundancy: r.into(),
+					}),
+				})
+				.await?;
+				println!("The zone redundancy parameter has been set to '{}'.", r);
+				did_something = true;
+			}
+		}
+
+		if !did_something {
+			return Err(Error::Message(
+				"Please specify an action for `garage layout config`".into(),
+			));
+		}
+
 		Ok(())
 	}
 

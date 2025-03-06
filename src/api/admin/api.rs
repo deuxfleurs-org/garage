@@ -180,9 +180,9 @@ pub struct NodeResp {
 	pub is_up: bool,
 	pub last_seen_secs_ago: Option<u64>,
 	pub draining: bool,
-	#[serde(skip_serializing_if = "Option::is_none")]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub data_partition: Option<FreeSpaceResp>,
-	#[serde(skip_serializing_if = "Option::is_none")]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata_partition: Option<FreeSpaceResp>,
 }
 
@@ -272,7 +272,9 @@ pub struct GetClusterLayoutRequest;
 pub struct GetClusterLayoutResponse {
 	pub version: u64,
 	pub roles: Vec<NodeRoleResp>,
+	pub parameters: LayoutParameters,
 	pub staged_role_changes: Vec<NodeRoleChange>,
+	pub staged_parameters: Option<LayoutParameters>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -303,10 +305,28 @@ pub enum NodeRoleChangeEnum {
 	},
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutParameters {
+	pub zone_redundancy: ZoneRedundancy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ZoneRedundancy {
+	AtLeast(usize),
+	Maximum,
+}
+
 // ---- UpdateClusterLayout ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct UpdateClusterLayoutRequest(pub Vec<NodeRoleChange>);
+pub struct UpdateClusterLayoutRequest {
+	#[serde(default)]
+	pub roles: Vec<NodeRoleChange>,
+	#[serde(default)]
+	pub parameters: Option<LayoutParameters>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateClusterLayoutResponse(pub GetClusterLayoutResponse);
@@ -367,7 +387,7 @@ pub struct GetKeyInfoRequest {
 pub struct GetKeyInfoResponse {
 	pub name: String,
 	pub access_key_id: String,
-	#[serde(skip_serializing_if = "is_default")]
+	#[serde(default, skip_serializing_if = "is_default")]
 	pub secret_access_key: Option<String>,
 	pub permissions: KeyPerm,
 	pub buckets: Vec<KeyInfoBucketResponse>,

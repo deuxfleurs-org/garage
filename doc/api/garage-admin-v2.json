@@ -1875,14 +1875,28 @@
         "required": [
           "version",
           "roles",
+          "parameters",
           "stagedRoleChanges"
         ],
         "properties": {
+          "parameters": {
+            "$ref": "#/components/schemas/LayoutParameters"
+          },
           "roles": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NodeRoleResp"
             }
+          },
+          "stagedParameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LayoutParameters"
+              }
+            ]
           },
           "stagedRoleChanges": {
             "type": "array",
@@ -2018,6 +2032,17 @@
         "properties": {
           "createBucket": {
             "type": "boolean"
+          }
+        }
+      },
+      "LayoutParameters": {
+        "type": "object",
+        "required": [
+          "zoneRedundancy"
+        ],
+        "properties": {
+          "zoneRedundancy": {
+            "$ref": "#/components/schemas/ZoneRedundancy"
           }
         }
       },
@@ -3109,9 +3134,24 @@
         }
       },
       "UpdateClusterLayoutRequest": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/NodeRoleChange"
+        "type": "object",
+        "properties": {
+          "parameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LayoutParameters"
+              }
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRoleChange"
+            }
+          }
         }
       },
       "UpdateClusterLayoutResponse": {
@@ -3286,6 +3326,28 @@
             "type": "string",
             "enum": [
               "done"
+            ]
+          }
+        ]
+      },
+      "ZoneRedundancy": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "atLeast"
+            ],
+            "properties": {
+              "atLeast": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "maximum"
             ]
           }
         ]

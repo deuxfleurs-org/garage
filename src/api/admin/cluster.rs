@@ -218,10 +218,19 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 		})
 		.collect::<Vec<_>>();
 
+	let staged_parameters = if *layout.staging.get().parameters.get() != layout.current().parameters
+	{
+		Some((*layout.staging.get().parameters.get()).into())
+	} else {
+		None
+	};
+
 	GetClusterLayoutResponse {
 		version: layout.current().version,
 		roles,
+		parameters: layout.current().parameters.into(),
 		staged_role_changes,
+		staged_parameters,
 	}
 }
 
@@ -242,7 +251,7 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 		let mut roles = layout.current().roles.clone();
 		roles.merge(&layout.staging.get().roles);
 
-		for change in self.0 {
+		for change in self.roles {
 			let node = hex::decode(&change.id).ok_or_bad_request("Invalid node identifier")?;
 			let node = Uuid::try_from(&node).ok_or_bad_request("Invalid node identifier")?;
 
@@ -252,11 +261,16 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 					zone,
 					capacity,
 					tags,
-				} => Some(layout::NodeRole {
-					zone,
-					capacity,
-					tags,
-				}),
+				} => {
+					if matches!(capacity, Some(cap) if cap < 1024) {
+						return Err(Error::bad_request("Capacity should be at least 1K (1024)"));
+					}
+					Some(layout::NodeRole {
+						zone,
+						capacity,
+						tags,
+					})
+				}
 				_ => return Err(Error::bad_request("Invalid layout change")),
 			};
 
@@ -265,6 +279,22 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 				.get_mut()
 				.roles
 				.merge(&roles.update_mutator(node, layout::NodeRoleV(new_role)));
+		}
+
+		if let Some(param) = self.parameters {
+			if let ZoneRedundancy::AtLeast(r_int) = param.zone_redundancy {
+				if r_int > layout.current().replication_factor {
+					return Err(Error::bad_request(format!(
+						"The zone redundancy must be smaller or equal to the replication factor ({}).",
+						layout.current().replication_factor
+					)));
+				} else if r_int < 1 {
+					return Err(Error::bad_request(
+						"The zone redundancy must be at least 1.",
+					));
+				}
+			}
+			layout.staging.get_mut().parameters.update(param.into());
 		}
 
 		garage
@@ -320,5 +350,41 @@ impl RequestHandler for RevertClusterLayoutRequest {
 
 		let res = format_cluster_layout(&layout);
 		Ok(RevertClusterLayoutResponse(res))
+	}
+}
+
+// ----
+
+impl From<layout::ZoneRedundancy> for ZoneRedundancy {
+	fn from(x: layout::ZoneRedundancy) -> Self {
+		match x {
+			layout::ZoneRedundancy::Maximum => ZoneRedundancy::Maximum,
+			layout::ZoneRedundancy::AtLeast(x) => ZoneRedundancy::AtLeast(x),
+		}
+	}
+}
+
+impl Into<layout::ZoneRedundancy> for ZoneRedundancy {
+	fn into(self) -> layout::ZoneRedundancy {
+		match self {
+			ZoneRedundancy::Maximum => layout::ZoneRedundancy::Maximum,
+			ZoneRedundancy::AtLeast(x) => layout::ZoneRedundancy::AtLeast(x),
+		}
+	}
+}
+
+impl From<layout::LayoutParameters> for LayoutParameters {
+	fn from(x: layout::LayoutParameters) -> Self {
+		LayoutParameters {
+			zone_redundancy: x.zone_redundancy.into(),
+		}
+	}
+}
+
+impl Into<layout::LayoutParameters> for LayoutParameters {
+	fn into(self) -> layout::LayoutParameters {
+		layout::LayoutParameters {
+			zone_redundancy: self.zone_redundancy.into(),
+		}
 	}
 }

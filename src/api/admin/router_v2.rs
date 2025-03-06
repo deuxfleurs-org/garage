@@ -108,10 +108,7 @@ impl AdminApiRequest {
 			Endpoint::GetClusterLayout => {
 				Ok(AdminApiRequest::GetClusterLayout(GetClusterLayoutRequest))
 			}
-			Endpoint::UpdateClusterLayout => {
-				let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
-				Ok(AdminApiRequest::UpdateClusterLayout(updates))
-			}
+			// UpdateClusterLayout semantics changed
 			Endpoint::ApplyClusterLayout => {
 				let param = parse_json_body::<ApplyClusterLayoutRequest, _, Error>(req).await?;
 				Ok(AdminApiRequest::ApplyClusterLayout(param))
