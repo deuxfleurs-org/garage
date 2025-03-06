@@ -38,6 +38,7 @@ url.workspace = true
 
 serde.workspace = true
 serde_json.workspace = true
+utoipa.workspace = true
 
 opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }

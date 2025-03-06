@@ -58,6 +58,10 @@ pub enum Command {
 	/// Convert metadata db between database engine formats
 	#[structopt(name = "convert-db", version = garage_version())]
 	ConvertDb(convert_db::ConvertDbOpt),
+
+	/// Output openapi JSON schema for admin api
+	#[structopt(name = "admin-api-schema", version = garage_version(), setting(structopt::clap::AppSettings::Hidden))]
+	AdminApiSchema,
 }
 
 #[derive(StructOpt, Debug)]

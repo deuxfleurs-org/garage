@@ -1,0 +1,1734 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Garage administration API",
+    "description": "Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.\n\n*Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*",
+    "contact": {
+      "name": "The Garage team",
+      "url": "https://garagehq.deuxfleurs.fr/",
+      "email": "garagehq@deuxfleurs.fr"
+    },
+    "license": {
+      "name": "AGPL-3.0",
+      "identifier": "AGPL-3.0"
+    },
+    "version": "v2.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3903/",
+      "description": "A local server"
+    }
+  ],
+  "paths": {
+    "/v2/AddBucketAlias": {
+      "post": {
+        "tags": [
+          "Alias"
+        ],
+        "description": "Add an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+        "operationId": "AddBucketAlias",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBucketAliasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddBucketAliasResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/AllowBucketKey": {
+      "post": {
+        "tags": [
+          "Permission"
+        ],
+        "description": "\n⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.\n\nAllows a key to do read/write/owner operations on a bucket.\n\nFlags in permissions which have the value true will be activated. Other flags will remain unchanged (ie. they will keep their internal value).\n\nFor example, if you set read to true, the key will be allowed to read the bucket.\nIf you set it to false, the key will keeps its previous read permission.\nIf you want to disallow read for the key, check the DenyBucketKey operation.\n    ",
+        "operationId": "AllowBucketKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllowBucketKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowBucketKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ApplyClusterLayout": {
+      "post": {
+        "tags": [
+          "Layout"
+        ],
+        "description": "\nApplies to the cluster the layout changes currently registered as staged layout changes.\n\n*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*\n    ",
+        "operationId": "ApplyClusterLayout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyClusterLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The updated cluster layout has been applied in the cluster",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/CleanupIncompleteUploads": {
+      "post": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "Removes all incomplete multipart uploads that are older than the specified number of seconds.",
+        "operationId": "CleanupIncompleteUploads",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupIncompleteUploadsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The bucket was cleaned up successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupIncompleteUploadsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ConnectClusterNodes": {
+      "post": {
+        "tags": [
+          "Nodes"
+        ],
+        "description": "Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.",
+        "operationId": "ConnectClusterNodes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectClusterNodesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The request has been handled correctly but it does not mean that all connection requests succeeded; some might have fail, you need to check the body!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectClusterNodesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/CreateBucket": {
+      "post": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "\nCreates a new bucket, either with a global alias, a local one, or no alias at all.\nTechnically, you can also specify both `globalAlias` and `localAlias` and that would create two aliases.\n    ",
+        "operationId": "CreateBucket",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBucketRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateBucketResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/CreateKey": {
+      "post": {
+        "tags": [
+          "Key"
+        ],
+        "description": "Creates a new API access key.",
+        "operationId": "CreateKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Access key has been created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/DeleteBucket": {
+      "post": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "\nDeletes a storage bucket. A bucket cannot be deleted if it is not empty.\n\n**Warning:** this will delete all aliases associated with the bucket!\n    ",
+        "operationId": "DeleteBucket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the bucket to delete",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bucket has been deleted"
+          },
+          "400": {
+            "description": "Bucket is not empty"
+          },
+          "404": {
+            "description": "Bucket not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/DeleteKey": {
+      "post": {
+        "tags": [
+          "Key"
+        ],
+        "description": "Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. ",
+        "operationId": "DeleteKey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Access key ID",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access key has been deleted"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/DenyBucketKey": {
+      "post": {
+        "tags": [
+          "Permission"
+        ],
+        "description": "\n⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.\n\nDenies a key from doing read/write/owner operations on a bucket.\n\nFlags in permissions which have the value true will be deactivated. Other flags will remain unchanged.\n\nFor example, if you set read to true, the key will be denied from reading.\nIf you set read to false,  the key will keep its previous permissions.\nIf you want the key to have the reading permission, check the AllowBucketKey operation.\n    ",
+        "operationId": "DenyBucketKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyBucketKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DenyBucketKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetBucketInfo": {
+      "get": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "\nGiven a bucket identifier (`id`) or a global alias (`alias`), get its information.\nIt includes its aliases, its web configuration, keys that have some permissions\non it, some statistics (number of objects, size), number of dangling multipart uploads,\nand its quotas (if any).\n    ",
+        "operationId": "GetBucketInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Exact bucket ID to look up",
+            "required": true
+          },
+          {
+            "name": "globalAlias",
+            "in": "path",
+            "description": "Global alias of bucket to look up",
+            "required": true
+          },
+          {
+            "name": "search",
+            "in": "path",
+            "description": "Partial ID or alias to search for",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBucketInfoResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetClusterHealth": {
+      "get": {
+        "tags": [
+          "Nodes"
+        ],
+        "description": "Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).",
+        "operationId": "GetClusterHealth",
+        "responses": {
+          "200": {
+            "description": "Cluster health report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/GetClusterLayout": {
+      "get": {
+        "tags": [
+          "Layout"
+        ],
+        "description": "\nReturns the cluster's current layout, including:\n\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n*The info returned by this endpoint is a subset of the info returned by `GET /GetClusterStatus`.*\n    ",
+        "operationId": "GetClusterLayout",
+        "responses": {
+          "200": {
+            "description": "Current cluster layout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetClusterStatus": {
+      "get": {
+        "tags": [
+          "Nodes"
+        ],
+        "description": "\nReturns the cluster's current status, including:\n\n- ID of the node being queried and its version of the Garage daemon\n- Live nodes\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n    ",
+        "operationId": "GetClusterStatus",
+        "responses": {
+          "200": {
+            "description": "Cluster status report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetKeyInfo": {
+      "get": {
+        "tags": [
+          "Key"
+        ],
+        "description": "\nReturn information about a specific key like its identifiers, its permissions and buckets on which it has permissions.\nYou can search by specifying the exact key identifier (`id`) or by specifying a pattern (`search`).\n\nFor confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.\n    ",
+        "operationId": "GetKeyInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Access key ID",
+            "required": true
+          },
+          {
+            "name": "search",
+            "in": "path",
+            "description": "Partial key ID or name to search for",
+            "required": true
+          },
+          {
+            "name": "showSecretKey",
+            "in": "path",
+            "description": "Whether to return the secret access key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Information about the access key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetKeyInfoResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ImportKey": {
+      "post": {
+        "tags": [
+          "Key"
+        ],
+        "description": "\nImports an existing API key. This feature must only be used for migrations and backup restore.\n\n**Do not use it to generate custom key identifiers or you will break your Garage cluster.**\n    ",
+        "operationId": "ImportKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Access key has been imported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ListBuckets": {
+      "get": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "List all the buckets on the cluster with their UUID and their global and local aliases.",
+        "operationId": "ListBuckets",
+        "responses": {
+          "200": {
+            "description": "Returns the UUID of all the buckets and all their aliases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBucketsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ListKeys": {
+      "get": {
+        "tags": [
+          "Key"
+        ],
+        "description": "Returns all API access keys in the cluster.",
+        "operationId": "ListKeys",
+        "responses": {
+          "200": {
+            "description": "Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKeysResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/RemoveBucketAlias": {
+      "post": {
+        "tags": [
+          "Alias"
+        ],
+        "description": "Remove an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+        "operationId": "RemoveBucketAlias",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveBucketAliasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the bucket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveBucketAliasResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/RevertClusterLayout": {
+      "post": {
+        "tags": [
+          "Layout"
+        ],
+        "description": "Clear staged layout",
+        "operationId": "RevertClusterLayout",
+        "responses": {
+          "200": {
+            "description": "All pending changes to the cluster layout have been erased",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevertClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/UpdateBucket": {
+      "post": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "\nAll fields (`websiteAccess` and `quotas`) are optional.\nIf they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.\n\nIn `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.\nThe field `errorDocument` is optional, if no error document is set a generic\nerror message is displayed when errors happen. Conversely, if `enabled` is\n`false`, neither `indexDocument` nor `errorDocument` must be specified.\n\nIn `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`\nto remove the quotas. An absent value will be considered the same as a `null`. It is not possible\nto change only one of the two quotas.\n    ",
+        "operationId": "UpdateBucket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the bucket to update",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBucketRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Bucket has been updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateBucketResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bucket not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/UpdateClusterLayout": {
+      "post": {
+        "tags": [
+          "Layout"
+        ],
+        "description": "\nSend modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /GetClusterHealth`. Once the set of staged changes is satisfactory, the user may call `POST /ApplyClusterLayout` to apply the changed changes, or `POST /RevertClusterLayout` to clear all of the staged changes in the layout.\n\nSetting the capacity to `null` will configure the node as a gateway.\nOtherwise, capacity must be now set in bytes (before Garage 0.9 it was arbitrary weights).\nFor example to declare 100GB, you must set `capacity: 100000000000`.\n\nGarage uses internally the International System of Units (SI), it assumes that 1kB = 1000 bytes, and displays storage as kB, MB, GB (and not KiB, MiB, GiB that assume 1KiB = 1024 bytes).\n    ",
+        "operationId": "UpdateClusterLayout",
+        "requestBody": {
+          "description": "\nTo add a new node to the layout or to change the configuration of an existing node, simply set the values you want (`zone`, `capacity`, and `tags`).\nTo remove a node, simply pass the `remove: true` field.\nThis logic is represented in OpenAPI with a 'One Of' object.\n\nContrary to the CLI that may update only a subset of the fields capacity, zone and tags, when calling this API all of these values must be specified.\n        ",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClusterLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Proposed changes have been added to the list of pending changes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/UpdateKey": {
+      "post": {
+        "tags": [
+          "Key"
+        ],
+        "description": "\nUpdates information about the specified API access key.\n\n*Note: the secret key is not returned in the response, `null` is sent instead.*\n    ",
+        "operationId": "UpdateKey",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Access key ID",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateKeyRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Access key has been updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddBucketAliasRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BucketAliasEnum"
+          },
+          {
+            "type": "object",
+            "required": [
+              "bucketId"
+            ],
+            "properties": {
+              "bucketId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "AddBucketAliasResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "AllowBucketKeyRequest": {
+        "$ref": "#/components/schemas/BucketKeyPermChangeRequest"
+      },
+      "AllowBucketKeyResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "ApiBucketKeyPerm": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "boolean"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "write": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiBucketQuotas": {
+        "type": "object",
+        "properties": {
+          "maxObjects": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "maxSize": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ApplyClusterLayoutRequest": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ApplyClusterLayoutResponse": {
+        "type": "object",
+        "required": [
+          "message",
+          "layout"
+        ],
+        "properties": {
+          "layout": {
+            "$ref": "#/components/schemas/GetClusterLayoutResponse"
+          },
+          "message": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BucketAliasEnum": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "globalAlias"
+            ],
+            "properties": {
+              "globalAlias": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "localAlias",
+              "accessKeyId"
+            ],
+            "properties": {
+              "accessKeyId": {
+                "type": "string"
+              },
+              "localAlias": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "BucketKeyPermChangeRequest": {
+        "type": "object",
+        "required": [
+          "bucketId",
+          "accessKeyId",
+          "permissions"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "bucketId": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/ApiBucketKeyPerm"
+          }
+        }
+      },
+      "BucketLocalAlias": {
+        "type": "object",
+        "required": [
+          "accessKeyId",
+          "alias"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "alias": {
+            "type": "string"
+          }
+        }
+      },
+      "CleanupIncompleteUploadsRequest": {
+        "type": "object",
+        "required": [
+          "bucket_id",
+          "older_than_secs"
+        ],
+        "properties": {
+          "bucket_id": {
+            "type": "string"
+          },
+          "older_than_secs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "CleanupIncompleteUploadsResponse": {
+        "type": "object",
+        "required": [
+          "uploads_deleted"
+        ],
+        "properties": {
+          "uploads_deleted": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ConnectClusterNodesRequest": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "ConnectClusterNodesResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ConnectNodeResponse"
+        }
+      },
+      "ConnectNodeResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateBucketLocalAlias": {
+        "type": "object",
+        "required": [
+          "accessKeyId",
+          "alias"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "alias": {
+            "type": "string"
+          },
+          "allow": {
+            "$ref": "#/components/schemas/ApiBucketKeyPerm"
+          }
+        }
+      },
+      "CreateBucketRequest": {
+        "type": "object",
+        "properties": {
+          "globalAlias": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "localAlias": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CreateBucketLocalAlias"
+              }
+            ]
+          }
+        }
+      },
+      "CreateBucketResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "CreateKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CreateKeyResponse": {
+        "$ref": "#/components/schemas/GetKeyInfoResponse"
+      },
+      "DenyBucketKeyRequest": {
+        "$ref": "#/components/schemas/BucketKeyPermChangeRequest"
+      },
+      "DenyBucketKeyResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "FreeSpaceResp": {
+        "type": "object",
+        "required": [
+          "available",
+          "total"
+        ],
+        "properties": {
+          "available": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "GetBucketInfoKey": {
+        "type": "object",
+        "required": [
+          "accessKeyId",
+          "name",
+          "permissions",
+          "bucketLocalAliases"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "bucketLocalAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/ApiBucketKeyPerm"
+          }
+        }
+      },
+      "GetBucketInfoResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "globalAliases",
+          "websiteAccess",
+          "keys",
+          "objects",
+          "bytes",
+          "unfinishedUploads",
+          "unfinishedMultipartUploads",
+          "unfinishedMultipartUploadParts",
+          "unfinishedMultipartUploadBytes",
+          "quotas"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of bytes used by objects in this bucket"
+          },
+          "globalAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of global aliases for this bucket"
+          },
+          "id": {
+            "type": "string",
+            "description": "Identifier of the bucket"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetBucketInfoKey"
+            },
+            "description": "List of access keys that have permissions granted on this bucket"
+          },
+          "objects": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of objects in this bucket"
+          },
+          "quotas": {
+            "$ref": "#/components/schemas/ApiBucketQuotas",
+            "description": "Quotas that apply to this bucket"
+          },
+          "unfinishedMultipartUploadBytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of bytes used by unfinished multipart uploads in this bucket"
+          },
+          "unfinishedMultipartUploadParts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of parts in unfinished multipart uploads in this bucket"
+          },
+          "unfinishedMultipartUploads": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of unfinished multipart uploads in this bucket"
+          },
+          "unfinishedUploads": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of unfinished uploads in this bucket"
+          },
+          "websiteAccess": {
+            "type": "boolean",
+            "description": "Whether website acces is enabled for this bucket"
+          },
+          "websiteConfig": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GetBucketInfoWebsiteResponse",
+                "description": "Website configuration for this bucket"
+              }
+            ]
+          }
+        }
+      },
+      "GetBucketInfoWebsiteResponse": {
+        "type": "object",
+        "required": [
+          "indexDocument"
+        ],
+        "properties": {
+          "errorDocument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "indexDocument": {
+            "type": "string"
+          }
+        }
+      },
+      "GetClusterHealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "knownNodes",
+          "connectedNodes",
+          "storageNodes",
+          "storageNodesOk",
+          "partitions",
+          "partitionsQuorum",
+          "partitionsAllOk"
+        ],
+        "properties": {
+          "connectedNodes": {
+            "type": "integer",
+            "description": "the nubmer of nodes this Garage node currently has an open connection to",
+            "minimum": 0
+          },
+          "knownNodes": {
+            "type": "integer",
+            "description": "the number of nodes this Garage node has had a TCP connection to since the daemon started",
+            "minimum": 0
+          },
+          "partitions": {
+            "type": "integer",
+            "description": "the total number of partitions of the data (currently always 256)",
+            "minimum": 0
+          },
+          "partitionsAllOk": {
+            "type": "integer",
+            "description": "the number of partitions for which we are connected to all storage nodes responsible of storing it",
+            "minimum": 0
+          },
+          "partitionsQuorum": {
+            "type": "integer",
+            "description": "the number of partitions for which a quorum of write nodes is available",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "description": "One of `healthy`, `degraded` or `unavailable`:\n- healthy: Garage node is connected to all storage nodes\n- degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions\n- unavailable: a quorum of write nodes is not available for some partitions"
+          },
+          "storageNodes": {
+            "type": "integer",
+            "description": "the number of storage nodes currently registered in the cluster layout",
+            "minimum": 0
+          },
+          "storageNodesOk": {
+            "type": "integer",
+            "description": "the number of storage nodes to which a connection is currently open",
+            "minimum": 0
+          }
+        }
+      },
+      "GetClusterLayoutResponse": {
+        "type": "object",
+        "required": [
+          "version",
+          "roles",
+          "stagedRoleChanges"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRoleResp"
+            }
+          },
+          "stagedRoleChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRoleChange"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "GetClusterStatusResponse": {
+        "type": "object",
+        "required": [
+          "layoutVersion",
+          "nodes"
+        ],
+        "properties": {
+          "layoutVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeResp"
+            }
+          }
+        }
+      },
+      "GetKeyInfoResponse": {
+        "type": "object",
+        "required": [
+          "name",
+          "accessKeyId",
+          "permissions",
+          "buckets"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeyInfoBucketResponse"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/KeyPerm"
+          },
+          "secretAccessKey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ImportKeyRequest": {
+        "type": "object",
+        "required": [
+          "accessKeyId",
+          "secretAccessKey"
+        ],
+        "properties": {
+          "accessKeyId": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "secretAccessKey": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportKeyResponse": {
+        "$ref": "#/components/schemas/GetKeyInfoResponse"
+      },
+      "KeyInfoBucketResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "globalAliases",
+          "localAliases",
+          "permissions"
+        ],
+        "properties": {
+          "globalAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "localAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/ApiBucketKeyPerm"
+          }
+        }
+      },
+      "KeyPerm": {
+        "type": "object",
+        "properties": {
+          "createBucket": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ListBucketsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ListBucketsResponseItem"
+        }
+      },
+      "ListBucketsResponseItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "globalAliases",
+          "localAliases"
+        ],
+        "properties": {
+          "globalAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "localAliases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BucketLocalAlias"
+            }
+          }
+        }
+      },
+      "ListKeysResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ListKeysResponseItem"
+        }
+      },
+      "ListKeysResponseItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "NodeResp": {
+        "type": "object",
+        "required": [
+          "id",
+          "isUp",
+          "draining"
+        ],
+        "properties": {
+          "addr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dataPartition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FreeSpaceResp"
+              }
+            ]
+          },
+          "draining": {
+            "type": "boolean"
+          },
+          "hostname": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "isUp": {
+            "type": "boolean"
+          },
+          "lastSeenSecsAgo": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "metadataPartition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FreeSpaceResp"
+              }
+            ]
+          },
+          "role": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NodeRoleResp"
+              }
+            ]
+          }
+        }
+      },
+      "NodeRoleChange": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NodeRoleChangeEnum"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "NodeRoleChangeEnum": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "remove"
+            ],
+            "properties": {
+              "remove": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "zone",
+              "tags"
+            ],
+            "properties": {
+              "capacity": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "minimum": 0
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "zone": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "NodeRoleResp": {
+        "type": "object",
+        "required": [
+          "id",
+          "zone",
+          "tags"
+        ],
+        "properties": {
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "zone": {
+            "type": "string"
+          }
+        }
+      },
+      "RemoveBucketAliasRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BucketAliasEnum"
+          },
+          {
+            "type": "object",
+            "required": [
+              "bucketId"
+            ],
+            "properties": {
+              "bucketId": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "RemoveBucketAliasResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "RevertClusterLayoutResponse": {
+        "$ref": "#/components/schemas/GetClusterLayoutResponse"
+      },
+      "UpdateBucketRequestBody": {
+        "type": "object",
+        "properties": {
+          "quotas": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiBucketQuotas"
+              }
+            ]
+          },
+          "websiteAccess": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/UpdateBucketWebsiteAccess"
+              }
+            ]
+          }
+        }
+      },
+      "UpdateBucketResponse": {
+        "$ref": "#/components/schemas/GetBucketInfoResponse"
+      },
+      "UpdateBucketWebsiteAccess": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "errorDocument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "indexDocument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateClusterLayoutRequest": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/NodeRoleChange"
+        }
+      },
+      "UpdateClusterLayoutResponse": {
+        "$ref": "#/components/schemas/GetClusterLayoutResponse"
+      },
+      "UpdateKeyRequestBody": {
+        "type": "object",
+        "properties": {
+          "allow": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KeyPerm"
+              }
+            ]
+          },
+          "deny": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KeyPerm"
+              }
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateKeyResponse": {
+        "$ref": "#/components/schemas/GetKeyInfoResponse"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}
