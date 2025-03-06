@@ -24,7 +24,7 @@
     "/v2/AddBucketAlias": {
       "post": {
         "tags": [
-          "Alias"
+          "Bucket alias"
         ],
         "description": "Add an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
         "operationId": "AddBucketAlias",
@@ -92,7 +92,7 @@
     "/v2/ApplyClusterLayout": {
       "post": {
         "tags": [
-          "Layout"
+          "Cluster layout"
         ],
         "description": "\nApplies to the cluster the layout changes currently registered as staged layout changes.\n\n*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*\n    ",
         "operationId": "ApplyClusterLayout",
@@ -160,7 +160,7 @@
     "/v2/ConnectClusterNodes": {
       "post": {
         "tags": [
-          "Nodes"
+          "Cluster"
         ],
         "description": "Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.",
         "operationId": "ConnectClusterNodes",
@@ -228,7 +228,7 @@
     "/v2/CreateKey": {
       "post": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "Creates a new API access key.",
         "operationId": "CreateKey",
@@ -249,6 +249,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/CreateMetadataSnapshot": {
+      "post": {
+        "tags": [
+          "Node"
+        ],
+        "description": "\nInstruct one or several nodes to take a snapshot of their metadata databases.\n    ",
+        "operationId": "CreateMetadataSnapshot",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalCreateMetadataSnapshotResponse"
                 }
               }
             }
@@ -293,7 +325,7 @@
     "/v2/DeleteKey": {
       "post": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. ",
         "operationId": "DeleteKey",
@@ -339,6 +371,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DenyBucketKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetBlockInfo": {
+      "post": {
+        "tags": [
+          "Block"
+        ],
+        "description": "\nGet detailed information about a data block stored on a Garage node, including all object versions and in-progress multipart uploads that contain a reference to this block.\n    ",
+        "operationId": "GetBlockInfo",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalGetBlockInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Detailed block information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalGetBlockInfoResponse"
                 }
               }
             }
@@ -396,7 +470,7 @@
     "/v2/GetClusterHealth": {
       "get": {
         "tags": [
-          "Nodes"
+          "Cluster"
         ],
         "description": "Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).",
         "operationId": "GetClusterHealth",
@@ -417,7 +491,7 @@
     "/v2/GetClusterLayout": {
       "get": {
         "tags": [
-          "Layout"
+          "Cluster layout"
         ],
         "description": "\nReturns the cluster's current layout, including:\n\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n*The info returned by this endpoint is a subset of the info returned by `GET /GetClusterStatus`.*\n    ",
         "operationId": "GetClusterLayout",
@@ -438,10 +512,34 @@
         }
       }
     },
+    "/v2/GetClusterStatistics": {
+      "get": {
+        "tags": [
+          "Node"
+        ],
+        "description": "\nFetch global cluster statistics.\n    ",
+        "operationId": "GetClusterStatistics",
+        "responses": {
+          "200": {
+            "description": "Global cluster statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterStatisticsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/GetClusterStatus": {
       "get": {
         "tags": [
-          "Nodes"
+          "Cluster"
         ],
         "description": "\nReturns the cluster's current status, including:\n\n- ID of the node being queried and its version of the Garage daemon\n- Live nodes\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n    ",
         "operationId": "GetClusterStatus",
@@ -465,7 +563,7 @@
     "/v2/GetKeyInfo": {
       "get": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "\nReturn information about a specific key like its identifiers, its permissions and buckets on which it has permissions.\nYou can search by specifying the exact key identifier (`id`) or by specifying a pattern (`search`).\n\nFor confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.\n    ",
         "operationId": "GetKeyInfo",
@@ -506,10 +604,158 @@
         }
       }
     },
+    "/v2/GetNodeInfo": {
+      "get": {
+        "tags": [
+          "Node"
+        ],
+        "description": "\nReturn information about the Garage daemon running on one or several nodes.\n    ",
+        "operationId": "GetNodeInfo",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalGetNodeInfoResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetNodeStatistics": {
+      "get": {
+        "tags": [
+          "Node"
+        ],
+        "description": "\nFetch statistics for one or several Garage nodes.\n    ",
+        "operationId": "GetNodeStatistics",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalGetNodeStatisticsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetWorkerInfo": {
+      "post": {
+        "tags": [
+          "Worker"
+        ],
+        "description": "\nGet information about the specified background worker on one or several cluster nodes.\n    ",
+        "operationId": "GetWorkerInfo",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalGetWorkerInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalGetWorkerInfoResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetWorkerVariable": {
+      "post": {
+        "tags": [
+          "Worker"
+        ],
+        "description": "\nFetch values of one or several worker variables, from one or several cluster nodes.\n    ",
+        "operationId": "GetWorkerVariable",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalGetWorkerVariableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalGetWorkerVariableResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/ImportKey": {
       "post": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "\nImports an existing API key. This feature must only be used for migrations and backup restore.\n\n**Do not use it to generate custom key identifiers or you will break your Garage cluster.**\n    ",
         "operationId": "ImportKey",
@@ -530,6 +776,80 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/LaunchRepairOperation": {
+      "post": {
+        "tags": [
+          "Node"
+        ],
+        "description": "\nLaunch a repair operation on one or several cluster noes.\n    ",
+        "operationId": "LaunchRepairOperation",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalLaunchRepairOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalLaunchRepairOperationResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ListBlockErrors": {
+      "get": {
+        "tags": [
+          "Block"
+        ],
+        "description": "\nList data blocks that are currently in an errored state on one or several Garage nodes.\n    ",
+        "operationId": "ListBlockErrors",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalListBlockErrorsResponse"
                 }
               }
             }
@@ -567,7 +887,7 @@
     "/v2/ListKeys": {
       "get": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "Returns all API access keys in the cluster.",
         "operationId": "ListKeys",
@@ -588,10 +908,94 @@
         }
       }
     },
+    "/v2/ListWorkers": {
+      "post": {
+        "tags": [
+          "Worker"
+        ],
+        "description": "\nList background workers currently running on one or several cluster nodes.\n    ",
+        "operationId": "ListWorkers",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalListWorkersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalListWorkersResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/PurgeBlocks": {
+      "post": {
+        "tags": [
+          "Block"
+        ],
+        "description": "\nPurge references to one or several missing data blocks.\n\nThis will remove all objects and in-progress multipart uploads that contain the specified data block(s). The objects will be permanently deleted from the buckets in which they appear. Use with caution.\n    ",
+        "operationId": "PurgeBlocks",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalPurgeBlocksRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalPurgeBlocksResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/RemoveBucketAlias": {
       "post": {
         "tags": [
-          "Alias"
+          "Bucket alias"
         ],
         "description": "Remove an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
         "operationId": "RemoveBucketAlias",
@@ -622,10 +1026,52 @@
         }
       }
     },
+    "/v2/RetryBlockResync": {
+      "post": {
+        "tags": [
+          "Block"
+        ],
+        "description": "\nInstruct Garage node(s) to retry the resynchronization of one or several missing data block(s).\n    ",
+        "operationId": "RetryBlockResync",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalRetryBlockResyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalRetryBlockResyncResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/RevertClusterLayout": {
       "post": {
         "tags": [
-          "Layout"
+          "Cluster layout"
         ],
         "description": "Clear staged layout",
         "operationId": "RevertClusterLayout",
@@ -636,6 +1082,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RevertClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/SetWorkerVariable": {
+      "post": {
+        "tags": [
+          "Worker"
+        ],
+        "description": "\nSet the value for a worker variable, on one or several cluster nodes.\n    ",
+        "operationId": "SetWorkerVariable",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "path",
+            "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalSetWorkerVariableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Responses from individual cluster nodes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiResponse_LocalSetWorkerVariableResponse"
                 }
               }
             }
@@ -694,7 +1182,7 @@
     "/v2/UpdateClusterLayout": {
       "post": {
         "tags": [
-          "Layout"
+          "Cluster layout"
         ],
         "description": "\nSend modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /GetClusterHealth`. Once the set of staged changes is satisfactory, the user may call `POST /ApplyClusterLayout` to apply the changed changes, or `POST /RevertClusterLayout` to clear all of the staged changes in the layout.\n\nSetting the capacity to `null` will configure the node as a gateway.\nOtherwise, capacity must be now set in bytes (before Garage 0.9 it was arbitrary weights).\nFor example to declare 100GB, you must set `capacity: 100000000000`.\n\nGarage uses internally the International System of Units (SI), it assumes that 1kB = 1000 bytes, and displays storage as kB, MB, GB (and not KiB, MiB, GiB that assume 1KiB = 1024 bytes).\n    ",
         "operationId": "UpdateClusterLayout",
@@ -729,7 +1217,7 @@
     "/v2/UpdateKey": {
       "post": {
         "tags": [
-          "Key"
+          "Access key"
         ],
         "description": "\nUpdates information about the specified API access key.\n\n*Note: the secret key is not returned in the response, `null` is sent instead.*\n    ",
         "operationId": "UpdateKey",
@@ -864,6 +1352,136 @@
           }
         }
       },
+      "BlockError": {
+        "type": "object",
+        "required": [
+          "blockHash",
+          "refcount",
+          "errorCount",
+          "lastTrySecsAgo",
+          "nextTryInSecs"
+        ],
+        "properties": {
+          "blockHash": {
+            "type": "string"
+          },
+          "errorCount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "lastTrySecsAgo": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "nextTryInSecs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "refcount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "BlockVersion": {
+        "type": "object",
+        "required": [
+          "versionId",
+          "deleted",
+          "garbageCollected"
+        ],
+        "properties": {
+          "backlink": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BlockVersionBacklink"
+              }
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "garbageCollected": {
+            "type": "boolean"
+          },
+          "versionId": {
+            "type": "string"
+          }
+        }
+      },
+      "BlockVersionBacklink": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "object"
+            ],
+            "properties": {
+              "object": {
+                "type": "object",
+                "required": [
+                  "bucketId",
+                  "key"
+                ],
+                "properties": {
+                  "bucketId": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upload"
+            ],
+            "properties": {
+              "upload": {
+                "type": "object",
+                "required": [
+                  "uploadId",
+                  "uploadDeleted",
+                  "uploadGarbageCollected"
+                ],
+                "properties": {
+                  "bucketId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "key": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "uploadDeleted": {
+                    "type": "boolean"
+                  },
+                  "uploadGarbageCollected": {
+                    "type": "boolean"
+                  },
+                  "uploadId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BucketAliasEnum": {
         "oneOf": [
           {
@@ -931,14 +1549,14 @@
       "CleanupIncompleteUploadsRequest": {
         "type": "object",
         "required": [
-          "bucket_id",
-          "older_than_secs"
+          "bucketId",
+          "olderThanSecs"
         ],
         "properties": {
-          "bucket_id": {
+          "bucketId": {
             "type": "string"
           },
-          "older_than_secs": {
+          "olderThanSecs": {
             "type": "integer",
             "format": "int64",
             "minimum": 0
@@ -948,10 +1566,10 @@
       "CleanupIncompleteUploadsResponse": {
         "type": "object",
         "required": [
-          "uploads_deleted"
+          "uploadsDeleted"
         ],
         "properties": {
-          "uploads_deleted": {
+          "uploadsDeleted": {
             "type": "integer",
             "format": "int64",
             "minimum": 0
@@ -1277,6 +1895,17 @@
           }
         }
       },
+      "GetClusterStatisticsResponse": {
+        "type": "object",
+        "required": [
+          "freeform"
+        ],
+        "properties": {
+          "freeform": {
+            "type": "string"
+          }
+        }
+      },
       "GetClusterStatusResponse": {
         "type": "object",
         "required": [
@@ -1439,6 +2068,737 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "LocalCreateMetadataSnapshotResponse": {
+        "default": null
+      },
+      "LocalGetBlockInfoRequest": {
+        "type": "object",
+        "required": [
+          "blockHash"
+        ],
+        "properties": {
+          "blockHash": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalGetBlockInfoResponse": {
+        "type": "object",
+        "required": [
+          "blockHash",
+          "refcount",
+          "versions"
+        ],
+        "properties": {
+          "blockHash": {
+            "type": "string"
+          },
+          "refcount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlockVersion"
+            }
+          }
+        }
+      },
+      "LocalGetNodeInfoResponse": {
+        "type": "object",
+        "required": [
+          "nodeId",
+          "garageVersion",
+          "rustVersion",
+          "dbEngine"
+        ],
+        "properties": {
+          "dbEngine": {
+            "type": "string"
+          },
+          "garageFeatures": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "garageVersion": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "rustVersion": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalGetNodeStatisticsResponse": {
+        "type": "object",
+        "required": [
+          "freeform"
+        ],
+        "properties": {
+          "freeform": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalGetWorkerInfoRequest": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LocalGetWorkerInfoResponse": {
+        "$ref": "#/components/schemas/WorkerInfoResp"
+      },
+      "LocalGetWorkerVariableRequest": {
+        "type": "object",
+        "properties": {
+          "variable": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LocalGetWorkerVariableResponse": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "propertyNames": {
+          "type": "string"
+        }
+      },
+      "LocalLaunchRepairOperationRequest": {
+        "type": "object",
+        "required": [
+          "repairType"
+        ],
+        "properties": {
+          "repairType": {
+            "$ref": "#/components/schemas/RepairType"
+          }
+        }
+      },
+      "LocalLaunchRepairOperationResponse": {
+        "default": null
+      },
+      "LocalListBlockErrorsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/BlockError"
+        }
+      },
+      "LocalListWorkersRequest": {
+        "type": "object",
+        "properties": {
+          "busyOnly": {
+            "type": "boolean"
+          },
+          "errorOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LocalListWorkersResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/WorkerInfoResp"
+        }
+      },
+      "LocalPurgeBlocksRequest": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "LocalPurgeBlocksResponse": {
+        "type": "object",
+        "required": [
+          "blocksPurged",
+          "objectsDeleted",
+          "uploadsDeleted",
+          "versionsDeleted"
+        ],
+        "properties": {
+          "blocksPurged": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "objectsDeleted": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "uploadsDeleted": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "versionsDeleted": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LocalRetryBlockResyncRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "all"
+            ],
+            "properties": {
+              "all": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "blockHashes"
+            ],
+            "properties": {
+              "blockHashes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "LocalRetryBlockResyncResponse": {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LocalSetWorkerVariableRequest": {
+        "type": "object",
+        "required": [
+          "variable",
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "variable": {
+            "type": "string"
+          }
+        }
+      },
+      "LocalSetWorkerVariableResponse": {
+        "type": "object",
+        "required": [
+          "variable",
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "variable": {
+            "type": "string"
+          }
+        }
+      },
+      "MultiResponse_LocalCreateMetadataSnapshotResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "default": null
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalGetBlockInfoResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "blockHash",
+                "refcount",
+                "versions"
+              ],
+              "properties": {
+                "blockHash": {
+                  "type": "string"
+                },
+                "refcount": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "versions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlockVersion"
+                  }
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalGetNodeInfoResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "nodeId",
+                "garageVersion",
+                "rustVersion",
+                "dbEngine"
+              ],
+              "properties": {
+                "dbEngine": {
+                  "type": "string"
+                },
+                "garageFeatures": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "garageVersion": {
+                  "type": "string"
+                },
+                "nodeId": {
+                  "type": "string"
+                },
+                "rustVersion": {
+                  "type": "string"
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalGetNodeStatisticsResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "freeform"
+              ],
+              "properties": {
+                "freeform": {
+                  "type": "string"
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalGetWorkerInfoResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WorkerInfoResp"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalGetWorkerVariableResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalLaunchRepairOperationResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "default": null
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalListBlockErrorsResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/BlockError"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalListWorkersResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WorkerInfoResp"
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalPurgeBlocksResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "blocksPurged",
+                "objectsDeleted",
+                "uploadsDeleted",
+                "versionsDeleted"
+              ],
+              "properties": {
+                "blocksPurged": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "objectsDeleted": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "uploadsDeleted": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
+                "versionsDeleted": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalRetryBlockResyncResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "count"
+              ],
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MultiResponse_LocalSetWorkerVariableResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "description": "Map of node id to error message, for nodes that were unable to complete the API\ncall",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "success": {
+            "type": "object",
+            "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "variable",
+                "value"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "variable": {
+                  "type": "string"
+                }
+              }
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1621,8 +2981,74 @@
       "RemoveBucketAliasResponse": {
         "$ref": "#/components/schemas/GetBucketInfoResponse"
       },
+      "RepairType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "tables"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "blocks"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "versions"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "multipartUploads"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "blockRefs"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "blockRc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "rebalance"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "scrub"
+            ],
+            "properties": {
+              "scrub": {
+                "$ref": "#/components/schemas/ScrubCommand"
+              }
+            }
+          }
+        ]
+      },
       "RevertClusterLayoutResponse": {
         "$ref": "#/components/schemas/GetClusterLayoutResponse"
+      },
+      "ScrubCommand": {
+        "type": "string",
+        "enum": [
+          "start",
+          "pause",
+          "resume",
+          "cancel"
+        ]
       },
       "UpdateBucketRequestBody": {
         "type": "object",
@@ -1717,6 +3143,145 @@
       },
       "UpdateKeyResponse": {
         "$ref": "#/components/schemas/GetKeyInfoResponse"
+      },
+      "WorkerInfoResp": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "errors",
+          "consecutiveErrors",
+          "freeform"
+        ],
+        "properties": {
+          "consecutiveErrors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "errors": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "freeform": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "lastError": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerLastError"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "persistentErrors": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "progress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queueLength": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/WorkerStateResp"
+          },
+          "tranquility": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkerLastError": {
+        "type": "object",
+        "required": [
+          "message",
+          "secsAgo"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "secsAgo": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkerStateResp": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "busy"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "throttled"
+            ],
+            "properties": {
+              "throttled": {
+                "type": "object",
+                "required": [
+                  "durationSecs"
+                ],
+                "properties": {
+                  "durationSecs": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "idle"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "done"
+            ]
+          }
+        ]
       }
     },
     "securitySchemes": {

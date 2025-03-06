@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(non_snake_case)]
 
-use utoipa::{OpenApi, Modify};
+use utoipa::{Modify, OpenApi};
 
 use crate::api::*;
 
@@ -11,7 +11,7 @@ use crate::api::*;
 
 #[utoipa::path(get,
     path = "/v2/GetClusterStatus",
-    tag = "Nodes",
+    tag = "Cluster",
     description = "
 Returns the cluster's current status, including:
 
@@ -31,7 +31,7 @@ fn GetClusterStatus() -> () {}
 
 #[utoipa::path(get,
     path = "/v2/GetClusterHealth",
-    tag = "Nodes",
+    tag = "Cluster",
     description = "Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).",
 	responses(
             (status = 200, description = "Cluster health report", body = GetClusterHealthResponse),
@@ -41,7 +41,7 @@ fn GetClusterHealth() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/ConnectClusterNodes",
-    tag = "Nodes",
+    tag = "Cluster",
     description = "Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.",
     request_body=ConnectClusterNodesRequest,
 	responses(
@@ -53,7 +53,7 @@ fn ConnectClusterNodes() -> () {}
 
 #[utoipa::path(get,
     path = "/v2/GetClusterLayout",
-    tag = "Layout",
+    tag = "Cluster layout",
     description = "
 Returns the cluster's current layout, including:
 
@@ -72,7 +72,7 @@ fn GetClusterLayout() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/UpdateClusterLayout",
-    tag = "Layout",
+    tag = "Cluster layout",
     description = "
 Send modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /GetClusterHealth`. Once the set of staged changes is satisfactory, the user may call `POST /ApplyClusterLayout` to apply the changed changes, or `POST /RevertClusterLayout` to clear all of the staged changes in the layout.
 
@@ -101,7 +101,7 @@ fn UpdateClusterLayout() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/ApplyClusterLayout",
-    tag = "Layout",
+    tag = "Cluster layout",
     description = "
 Applies to the cluster the layout changes currently registered as staged layout changes.
 
@@ -117,7 +117,7 @@ fn ApplyClusterLayout() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/RevertClusterLayout",
-    tag = "Layout",
+    tag = "Cluster layout",
     description = "Clear staged layout",
 	responses(
             (status = 200, description = "All pending changes to the cluster layout have been erased", body = RevertClusterLayoutResponse),
@@ -132,7 +132,7 @@ fn RevertClusterLayout() -> () {}
 
 #[utoipa::path(get,
     path = "/v2/ListKeys",
-    tag = "Key",
+    tag = "Access key",
     description = "Returns all API access keys in the cluster.",
 	responses(
             (status = 200, description = "Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)", body = ListKeysResponse),
@@ -143,7 +143,7 @@ fn ListKeys() -> () {}
 
 #[utoipa::path(get,
     path = "/v2/GetKeyInfo",
-    tag = "Key",
+    tag = "Access key",
     description = "
 Return information about a specific key like its identifiers, its permissions and buckets on which it has permissions.
 You can search by specifying the exact key identifier (`id`) or by specifying a pattern (`search`).
@@ -164,7 +164,7 @@ fn GetKeyInfo() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/CreateKey",
-    tag = "Key",
+    tag = "Access key",
     description = "Creates a new API access key.",
     request_body = CreateKeyRequest,
 	responses(
@@ -176,7 +176,7 @@ fn CreateKey() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/ImportKey",
-    tag = "Key",
+    tag = "Access key",
     description = "
 Imports an existing API key. This feature must only be used for migrations and backup restore.
 
@@ -192,7 +192,7 @@ fn ImportKey() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/UpdateKey",
-    tag = "Key",
+    tag = "Access key",
     description = "
 Updates information about the specified API access key.
 
@@ -211,7 +211,7 @@ fn UpdateKey() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/DeleteKey",
-    tag = "Key",
+    tag = "Access key",
     description = "Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. ",
     params(
         ("id", description = "Access key ID"),
@@ -388,7 +388,7 @@ fn DenyBucketKey() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/AddBucketAlias",
-    tag = "Alias",
+    tag = "Bucket alias",
     description = "Add an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
     request_body = AddBucketAliasRequest,
 	responses(
@@ -400,7 +400,7 @@ fn AddBucketAlias() -> () {}
 
 #[utoipa::path(post,
     path = "/v2/RemoveBucketAlias",
-    tag = "Alias",
+    tag = "Bucket alias",
     description = "Remove an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
     request_body = RemoveBucketAliasRequest,
 	responses(
@@ -411,24 +411,248 @@ fn AddBucketAlias() -> () {}
 fn RemoveBucketAlias() -> () {}
 
 // **********************************************
+//      Node operations
+// **********************************************
+
+#[utoipa::path(get,
+    path = "/v2/GetNodeInfo",
+    tag = "Node",
+    description = "
+Return information about the Garage daemon running on one or several nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeInfoResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetNodeInfo() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/CreateMetadataSnapshot",
+    tag = "Node",
+    description = "
+Instruct one or several nodes to take a snapshot of their metadata databases.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalCreateMetadataSnapshotResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn CreateMetadataSnapshot() -> () {}
+
+#[utoipa::path(get,
+    path = "/v2/GetNodeStatistics",
+    tag = "Node",
+    description = "
+Fetch statistics for one or several Garage nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeStatisticsResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetNodeStatistics() -> () {}
+
+#[utoipa::path(get,
+    path = "/v2/GetClusterStatistics",
+    tag = "Node",
+    description = "
+Fetch global cluster statistics.
+    ",
+	responses(
+            (status = 200, description = "Global cluster statistics", body = GetClusterStatisticsResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetClusterStatistics() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/LaunchRepairOperation",
+    tag = "Node",
+    description = "
+Launch a repair operation on one or several cluster noes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalLaunchRepairOperationRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalLaunchRepairOperationResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn LaunchRepairOperation() -> () {}
+
+// **********************************************
+//      Worker operations
+// **********************************************
+
+#[utoipa::path(post,
+    path = "/v2/ListWorkers",
+    tag = "Worker",
+    description = "
+List background workers currently running on one or several cluster nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalListWorkersRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalListWorkersResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListWorkers() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/GetWorkerInfo",
+    tag = "Worker",
+    description = "
+Get information about the specified background worker on one or several cluster nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalGetWorkerInfoRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetWorkerInfoResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetWorkerInfo() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/GetWorkerVariable",
+    tag = "Worker",
+    description = "
+Fetch values of one or several worker variables, from one or several cluster nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalGetWorkerVariableRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetWorkerVariableResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetWorkerVariable() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/SetWorkerVariable",
+    tag = "Worker",
+    description = "
+Set the value for a worker variable, on one or several cluster nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalSetWorkerVariableRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalSetWorkerVariableResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn SetWorkerVariable() -> () {}
+
+// **********************************************
+//      Block operations
+// **********************************************
+
+#[utoipa::path(get,
+    path = "/v2/ListBlockErrors",
+    tag = "Block",
+    description = "
+List data blocks that are currently in an errored state on one or several Garage nodes.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalListBlockErrorsResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListBlockErrors() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/GetBlockInfo",
+    tag = "Block",
+    description = "
+Get detailed information about a data block stored on a Garage node, including all object versions and in-progress multipart uploads that contain a reference to this block.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalGetBlockInfoRequest,
+	responses(
+            (status = 200, description = "Detailed block information", body = MultiResponse<LocalGetBlockInfoResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetBlockInfo() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/RetryBlockResync",
+    tag = "Block",
+    description = "
+Instruct Garage node(s) to retry the resynchronization of one or several missing data block(s).
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalRetryBlockResyncRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalRetryBlockResyncResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn RetryBlockResync() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/PurgeBlocks",
+    tag = "Block",
+    description = "
+Purge references to one or several missing data blocks.
+
+This will remove all objects and in-progress multipart uploads that contain the specified data block(s). The objects will be permanently deleted from the buckets in which they appear. Use with caution.
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+    request_body = LocalPurgeBlocksRequest,
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalPurgeBlocksResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn PurgeBlocks() -> () {}
+
+// **********************************************
 // **********************************************
 // **********************************************
 
 struct SecurityAddon;
 
 impl Modify for SecurityAddon {
-    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        use utoipa::openapi::security::*;
-        let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
-        components.add_security_scheme(
-            "bearerAuth",
-            SecurityScheme::Http(Http::builder()
-                .scheme(HttpAuthScheme::Bearer)
-                .build()),
-        )
-    }
+	fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+		use utoipa::openapi::security::*;
+		let components = openapi.components.as_mut().unwrap(); // we can unwrap safely since there already is components registered.
+		components.add_security_scheme(
+			"bearerAuth",
+			SecurityScheme::Http(Http::builder().scheme(HttpAuthScheme::Bearer).build()),
+		)
+	}
 }
-
 
 #[derive(OpenApi)]
 #[openapi(
@@ -475,6 +699,22 @@ impl Modify for SecurityAddon {
         // Operations on aliases
         AddBucketAlias,
         RemoveBucketAlias,
+        // Node operations
+        GetNodeInfo,
+        CreateMetadataSnapshot,
+        GetNodeStatistics,
+        GetClusterStatistics,
+        LaunchRepairOperation,
+        // Worker operations
+        ListWorkers,
+        GetWorkerInfo,
+        GetWorkerVariable,
+        SetWorkerVariable,
+        // Block operations
+        ListBlockErrors,
+        GetBlockInfo,
+        RetryBlockResync,
+        PurgeBlocks,
     ),
     servers(
         (url = "http://localhost:3903/", description = "A local server")

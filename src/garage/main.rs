@@ -152,10 +152,15 @@ async fn main() {
 		Command::Node(NodeOperation::NodeId(node_id_opt)) => {
 			cli::init::node_id_command(opt.config_file, node_id_opt.quiet)
 		}
-        Command::AdminApiSchema => {
-            println!("{}", garage_api_admin::openapi::ApiDoc::openapi().to_pretty_json().unwrap());
-            Ok(())
-        }
+		Command::AdminApiSchema => {
+			println!(
+				"{}",
+				garage_api_admin::openapi::ApiDoc::openapi()
+					.to_pretty_json()
+					.unwrap()
+			);
+			Ok(())
+		}
 		_ => cli_command(opt).await,
 	};
 

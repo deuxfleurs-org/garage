@@ -120,9 +120,13 @@ pub struct MultiRequest<RB> {
 	pub body: RB,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MultiResponse<RB> {
+	/// Map of node id to response returned by this node, for nodes that were able to
+	/// successfully complete the API call
 	pub success: HashMap<String, RB>,
+	/// Map of node id to error message, for nodes that were unable to complete the API
+	/// call
 	pub error: HashMap<String, String>,
 }
 
@@ -168,7 +172,7 @@ pub struct GetClusterStatusResponse {
 pub struct NodeResp {
 	pub id: String,
 	pub role: Option<NodeRoleResp>,
-    #[schema(value_type = Option<String> )]
+	#[schema(value_type = Option<String> )]
 	pub addr: Option<SocketAddr>,
 	pub hostname: Option<String>,
 	pub is_up: bool,
@@ -204,24 +208,24 @@ pub struct GetClusterHealthRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterHealthResponse {
-    /// One of `healthy`, `degraded` or `unavailable`:
-    /// - healthy: Garage node is connected to all storage nodes
-    /// - degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
-    /// - unavailable: a quorum of write nodes is not available for some partitions
+	/// One of `healthy`, `degraded` or `unavailable`:
+	/// - healthy: Garage node is connected to all storage nodes
+	/// - degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
+	/// - unavailable: a quorum of write nodes is not available for some partitions
 	pub status: String,
-    /// the number of nodes this Garage node has had a TCP connection to since the daemon started
+	/// the number of nodes this Garage node has had a TCP connection to since the daemon started
 	pub known_nodes: usize,
-    /// the nubmer of nodes this Garage node currently has an open connection to
+	/// the nubmer of nodes this Garage node currently has an open connection to
 	pub connected_nodes: usize,
-    /// the number of storage nodes currently registered in the cluster layout
+	/// the number of storage nodes currently registered in the cluster layout
 	pub storage_nodes: usize,
-    /// the number of storage nodes to which a connection is currently open
+	/// the number of storage nodes to which a connection is currently open
 	pub storage_nodes_ok: usize,
-    /// the total number of partitions of the data (currently always 256)
+	/// the total number of partitions of the data (currently always 256)
 	pub partitions: usize,
-    /// the number of partitions for which a quorum of write nodes is available
+	/// the number of partitions for which a quorum of write nodes is available
 	pub partitions_quorum: usize,
-    /// the number of partitions for which we are connected to all storage nodes responsible of storing it
+	/// the number of partitions for which we are connected to all storage nodes responsible of storing it
 	pub partitions_all_ok: usize,
 }
 
@@ -463,30 +467,30 @@ pub struct GetBucketInfoRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoResponse {
-    /// Identifier of the bucket
+	/// Identifier of the bucket
 	pub id: String,
-    /// List of global aliases for this bucket
+	/// List of global aliases for this bucket
 	pub global_aliases: Vec<String>,
-    /// Whether website acces is enabled for this bucket
+	/// Whether website acces is enabled for this bucket
 	pub website_access: bool,
 	#[serde(default)]
-    /// Website configuration for this bucket
+	/// Website configuration for this bucket
 	pub website_config: Option<GetBucketInfoWebsiteResponse>,
-    /// List of access keys that have permissions granted on this bucket
+	/// List of access keys that have permissions granted on this bucket
 	pub keys: Vec<GetBucketInfoKey>,
-    /// Number of objects in this bucket
+	/// Number of objects in this bucket
 	pub objects: i64,
-    /// Total number of bytes used by objects in this bucket
+	/// Total number of bytes used by objects in this bucket
 	pub bytes: i64,
-    /// Number of unfinished uploads in this bucket
+	/// Number of unfinished uploads in this bucket
 	pub unfinished_uploads: i64,
-    /// Number of unfinished multipart uploads in this bucket
+	/// Number of unfinished multipart uploads in this bucket
 	pub unfinished_multipart_uploads: i64,
-    /// Number of parts in unfinished multipart uploads in this bucket
+	/// Number of parts in unfinished multipart uploads in this bucket
 	pub unfinished_multipart_upload_parts: i64,
-    /// Total number of bytes used by unfinished multipart uploads in this bucket
+	/// Total number of bytes used by unfinished multipart uploads in this bucket
 	pub unfinished_multipart_upload_bytes: i64,
-    /// Quotas that apply to this bucket
+	/// Quotas that apply to this bucket
 	pub quotas: ApiBucketQuotas,
 }
 
@@ -573,12 +577,14 @@ pub struct DeleteBucketResponse;
 // ---- CleanupIncompleteUploads ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanupIncompleteUploadsRequest {
 	pub bucket_id: String,
 	pub older_than_secs: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct CleanupIncompleteUploadsResponse {
 	pub uploads_deleted: u64,
 }
@@ -662,7 +668,7 @@ pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LocalGetNodeInfoRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalGetNodeInfoResponse {
 	pub node_id: String,
@@ -677,7 +683,7 @@ pub struct LocalGetNodeInfoResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LocalCreateMetadataSnapshotRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalCreateMetadataSnapshotResponse;
 
 // ---- GetNodeStatistics ----
@@ -685,7 +691,7 @@ pub struct LocalCreateMetadataSnapshotResponse;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LocalGetNodeStatisticsRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalGetNodeStatisticsResponse {
 	pub freeform: String,
 }
@@ -695,19 +701,20 @@ pub struct LocalGetNodeStatisticsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GetClusterStatisticsRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetClusterStatisticsResponse {
 	pub freeform: String,
 }
 
 // ---- LaunchRepairOperation ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalLaunchRepairOperationRequest {
 	pub repair_type: RepairType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum RepairType {
 	Tables,
@@ -720,7 +727,7 @@ pub enum RepairType {
 	Scrub(ScrubCommand),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ScrubCommand {
 	Start,
@@ -729,16 +736,16 @@ pub enum ScrubCommand {
 	Cancel,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalLaunchRepairOperationResponse;
 
 // **********************************************
 //      Worker operations
 // **********************************************
 
-// ---- GetWorkerList ----
+// ---- ListWorkers ----
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalListWorkersRequest {
 	#[serde(default)]
@@ -747,10 +754,10 @@ pub struct LocalListWorkersRequest {
 	pub error_only: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalListWorkersResponse(pub Vec<WorkerInfoResp>);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkerInfoResp {
 	pub id: u64,
@@ -766,51 +773,54 @@ pub struct WorkerInfoResp {
 	pub freeform: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum WorkerStateResp {
 	Busy,
-	Throttled { duration_secs: f32 },
+	#[serde(rename_all = "camelCase")]
+	Throttled {
+		duration_secs: f32,
+	},
 	Idle,
 	Done,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkerLastError {
 	pub message: String,
 	pub secs_ago: u64,
 }
 
-// ---- GetWorkerList ----
+// ---- GetWorkerInfo ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalGetWorkerInfoRequest {
 	pub id: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalGetWorkerInfoResponse(pub WorkerInfoResp);
 
 // ---- GetWorkerVariable ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalGetWorkerVariableRequest {
 	pub variable: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalGetWorkerVariableResponse(pub HashMap<String, String>);
 
 // ---- SetWorkerVariable ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalSetWorkerVariableRequest {
 	pub variable: String,
 	pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalSetWorkerVariableResponse {
 	pub variable: String,
 	pub value: String,
@@ -825,10 +835,10 @@ pub struct LocalSetWorkerVariableResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LocalListBlockErrorsRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct LocalListBlockErrorsResponse(pub Vec<BlockError>);
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockError {
 	pub block_hash: String,
@@ -840,13 +850,13 @@ pub struct BlockError {
 
 // ---- GetBlockInfo ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalGetBlockInfoRequest {
 	pub block_hash: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalGetBlockInfoResponse {
 	pub block_hash: String,
@@ -854,7 +864,7 @@ pub struct LocalGetBlockInfoResponse {
 	pub versions: Vec<BlockVersion>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockVersion {
 	pub version_id: String,
@@ -863,13 +873,12 @@ pub struct BlockVersion {
 	pub backlink: Option<BlockVersionBacklink>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum BlockVersionBacklink {
-	Object {
-		bucket_id: String,
-		key: String,
-	},
+	#[serde(rename_all = "camelCase")]
+	Object { bucket_id: String, key: String },
+	#[serde(rename_all = "camelCase")]
 	Upload {
 		upload_id: String,
 		upload_deleted: bool,
@@ -881,7 +890,7 @@ pub enum BlockVersionBacklink {
 
 // ---- RetryBlockResync ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum LocalRetryBlockResyncRequest {
 	#[serde(rename_all = "camelCase")]
@@ -890,7 +899,7 @@ pub enum LocalRetryBlockResyncRequest {
 	Blocks { block_hashes: Vec<String> },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalRetryBlockResyncResponse {
 	pub count: u64,
@@ -898,11 +907,11 @@ pub struct LocalRetryBlockResyncResponse {
 
 // ---- PurgeBlocks ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalPurgeBlocksRequest(pub Vec<String>);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalPurgeBlocksResponse {
 	pub blocks_purged: u64,
