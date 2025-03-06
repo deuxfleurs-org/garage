@@ -105,12 +105,6 @@ impl RequestHandler for GetClusterStatusRequest {
 		nodes.sort_by(|x, y| x.id.cmp(&y.id));
 
 		Ok(GetClusterStatusResponse {
-			node: hex::encode(garage.system.id),
-			garage_version: garage_util::version::garage_version().to_string(),
-			garage_features: garage_util::version::garage_features()
-				.map(|features| features.iter().map(ToString::to_string).collect()),
-			rust_version: garage_util::version::rust_version().to_string(),
-			db_engine: garage.db.engine(),
 			layout_version: layout.current().version,
 			nodes,
 		})

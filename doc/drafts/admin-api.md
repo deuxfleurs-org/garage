@@ -68,26 +68,13 @@ Returns HTTP 200 Ok if yes, or HTTP 4xx if no website is available for this doma
 
 Returns the cluster's current status in JSON, including:
 
-- ID of the node being queried and its version of the Garage daemon
 - Live nodes
 - Currently configured cluster layout
-- Staged changes to the cluster layout
 
 Example response body:
 
 ```json
 {
-  "node": "b10c110e4e854e5aa3f4637681befac755154b20059ec163254ddbfae86b09df",
-  "garageVersion": "v2.0.0",
-  "garageFeatures": [
-    "k2v",
-    "lmdb",
-    "sqlite",
-    "metrics",
-    "bundled-libs"
-  ],
-  "rustVersion": "1.68.0",
-  "dbEngine": "LMDB (using Heed crate)",
   "layoutVersion": 5,
   "nodes": [
     {
@@ -362,19 +349,7 @@ layout, as well as the description of the layout as returned by GetClusterLayout
 
 Clears all of the staged layout changes.
 
-Request body format:
-
-```json
-{
-  "version": 13
-}
-```
-
-Reverting the staged changes is done by incrementing the version number
-and clearing the contents of the staged change list.
-Similarly to the CLI, the body must include the incremented
-version number, which MUST be 1 + the value of the currently
-existing layout in the cluster.
+This requests contains an empty body.
 
 This returns the new cluster layout with all changes reverted,
 as returned by GetClusterLayout.

@@ -10,10 +10,9 @@ use garage_rpc::*;
 
 use garage_model::garage::Garage;
 
-use garage_api_common::common_error::CommonErrorDerivative;
 use garage_api_common::helpers::is_default;
 
-use crate::api_server::{AdminRpc, AdminRpcResponse};
+use crate::api_server::{find_matching_nodes, AdminRpc, AdminRpcResponse};
 use crate::error::Error;
 use crate::macros::*;
 use crate::{Admin, RequestHandler};
@@ -77,6 +76,7 @@ admin_endpoints![
 	RemoveBucketAlias,
 
 	// Node operations
+	GetNodeInfo,
 	CreateMetadataSnapshot,
 	GetNodeStatistics,
 	GetClusterStatistics,
@@ -97,6 +97,7 @@ admin_endpoints![
 
 local_admin_endpoints![
 	// Node operations
+	GetNodeInfo,
 	CreateMetadataSnapshot,
 	GetNodeStatistics,
 	LaunchRepairOperation,
@@ -157,11 +158,6 @@ pub struct GetClusterStatusRequest;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterStatusResponse {
-	pub node: String,
-	pub garage_version: String,
-	pub garage_features: Option<Vec<String>>,
-	pub rust_version: String,
-	pub db_engine: String,
 	pub layout_version: u64,
 	pub nodes: Vec<NodeResp>,
 }
@@ -635,6 +631,21 @@ pub struct RemoveBucketAliasResponse(pub GetBucketInfoResponse);
 // **********************************************
 //      Node operations
 // **********************************************
+
+// ---- GetNodeInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalGetNodeInfoRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalGetNodeInfoResponse {
+	pub node_id: String,
+	pub garage_version: String,
+	pub garage_features: Option<Vec<String>>,
+	pub rust_version: String,
+	pub db_engine: String,
+}
 
 // ---- CreateMetadataSnapshot ----
 
