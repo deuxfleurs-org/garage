@@ -60,6 +60,7 @@ impl AdminApiRequest {
 			POST AddBucketAlias (body),
 			POST RemoveBucketAlias (body),
 			// Node APIs
+			GET GetNodeInfo (default::body, query::node),
 			POST CreateMetadataSnapshot (default::body, query::node),
 			GET GetNodeStatistics (default::body, query::node),
 			GET GetClusterStatistics (),
@@ -93,9 +94,8 @@ impl AdminApiRequest {
 		use router_v1::Endpoint;
 
 		match v1_endpoint {
-			Endpoint::GetClusterStatus => {
-				Ok(AdminApiRequest::GetClusterStatus(GetClusterStatusRequest))
-			}
+			// GetClusterStatus semantics changed:
+			// info about local node is no longer returned
 			Endpoint::GetClusterHealth => {
 				Ok(AdminApiRequest::GetClusterHealth(GetClusterHealthRequest))
 			}

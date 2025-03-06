@@ -136,20 +136,7 @@ macro_rules! local_admin_endpoints {
                     type Response = [< $endpoint Response >];
 
 	                async fn handle(self, garage: &Arc<Garage>, admin: &Admin) -> Result<Self::Response, Error> {
-				        let to = match self.node.as_str() {
-                            "*" => garage.system.cluster_layout().all_nodes().to_vec(),
-                            id => {
-                                let nodes = garage.system.cluster_layout().all_nodes()
-                                    .iter()
-                                    .filter(|x| hex::encode(x).starts_with(id))
-                                    .cloned()
-                                    .collect::<Vec<_>>();
-                                if nodes.len() != 1 {
-                                    return Err(Error::bad_request(format!("Zero or multiple nodes matching {}: {:?}", id, nodes)));
-                                }
-                                nodes
-                            }
-                        };
+                        let to = find_matching_nodes(garage, self.node.as_str())?;
 
                         let resps = garage.system.rpc_helper().call_many(&admin.endpoint,
                             &to,

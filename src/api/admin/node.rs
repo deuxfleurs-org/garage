@@ -18,6 +18,25 @@ use crate::api::*;
 use crate::error::Error;
 use crate::{Admin, RequestHandler};
 
+impl RequestHandler for LocalGetNodeInfoRequest {
+	type Response = LocalGetNodeInfoResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<LocalGetNodeInfoResponse, Error> {
+		Ok(LocalGetNodeInfoResponse {
+			node_id: hex::encode(garage.system.id),
+			garage_version: garage_util::version::garage_version().to_string(),
+			garage_features: garage_util::version::garage_features()
+				.map(|features| features.iter().map(ToString::to_string).collect()),
+			rust_version: garage_util::version::rust_version().to_string(),
+			db_engine: garage.db.engine(),
+		})
+	}
+}
+
 impl RequestHandler for LocalCreateMetadataSnapshotRequest {
 	type Response = LocalCreateMetadataSnapshotResponse;
 
