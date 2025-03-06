@@ -240,6 +240,89 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 	}
 }
 
+impl RequestHandler for GetClusterLayoutHistoryRequest {
+	type Response = GetClusterLayoutHistoryResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<GetClusterLayoutHistoryResponse, Error> {
+		let layout = garage.system.cluster_layout();
+		let layout = layout.inner();
+		let min_stored = layout.min_stored();
+
+		let versions = layout
+			.versions
+			.iter()
+			.rev()
+			.chain(layout.old_versions.iter().rev())
+			.map(|ver| {
+				let status = if ver.version == layout.current().version {
+					ClusterLayoutVersionStatus::Current
+				} else if ver.version >= min_stored {
+					ClusterLayoutVersionStatus::Draining
+				} else {
+					ClusterLayoutVersionStatus::Historical
+				};
+				ClusterLayoutVersion {
+					version: ver.version,
+					status,
+					storage_nodes: ver
+						.roles
+						.items()
+						.iter()
+						.filter(
+							|(_, _, x)| matches!(x, layout::NodeRoleV(Some(c)) if c.capacity.is_some()),
+						)
+						.count() as u64,
+					gateway_nodes: ver
+						.roles
+						.items()
+						.iter()
+						.filter(
+							|(_, _, x)| matches!(x, layout::NodeRoleV(Some(c)) if c.capacity.is_none()),
+						)
+						.count() as u64,
+				}
+			})
+			.collect::<Vec<_>>();
+
+		let all_nodes = layout.get_all_nodes();
+		let min_ack = layout
+			.update_trackers
+			.ack_map
+			.min_among(&all_nodes, layout.min_stored());
+
+		let update_trackers = if layout.versions.len() > 1 {
+			Some(
+				all_nodes
+					.iter()
+					.map(|node| {
+						(
+							hex::encode(&node),
+							NodeUpdateTrackers {
+								ack: layout.update_trackers.ack_map.get(node, min_stored),
+								sync: layout.update_trackers.sync_map.get(node, min_stored),
+								sync_ack: layout.update_trackers.sync_ack_map.get(node, min_stored),
+							},
+						)
+					})
+					.collect(),
+			)
+		} else {
+			None
+		};
+
+		Ok(GetClusterLayoutHistoryResponse {
+			current_version: layout.current().version,
+			min_ack,
+			versions,
+			update_trackers,
+		})
+	}
+}
+
 // ----
 
 // ---- update functions ----

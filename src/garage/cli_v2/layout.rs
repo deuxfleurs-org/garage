@@ -19,11 +19,9 @@ impl Cli {
 			LayoutOperation::Config(config_opt) => self.cmd_config_layout(config_opt).await,
 			LayoutOperation::Apply(apply_opt) => self.cmd_apply_layout(apply_opt).await,
 			LayoutOperation::Revert(revert_opt) => self.cmd_revert_layout(revert_opt).await,
+			LayoutOperation::History => self.cmd_layout_history().await,
 
 			// TODO
-			LayoutOperation::History => {
-				cli_v1::cmd_layout_history(&self.system_rpc_endpoint, self.rpc_host).await
-			}
 			LayoutOperation::SkipDeadNodes(assume_sync_opt) => {
 				cli_v1::cmd_layout_skip_dead_nodes(
 					&self.system_rpc_endpoint,
@@ -242,6 +240,68 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		self.api_request(RevertClusterLayoutRequest).await?;
 
 		println!("All proposed role changes in cluster layout have been canceled.");
+		Ok(())
+	}
+
+	pub async fn cmd_layout_history(&self) -> Result<(), Error> {
+		let history = self.api_request(GetClusterLayoutHistoryRequest).await?;
+
+		println!("==== LAYOUT HISTORY ====");
+		let mut table = vec!["Version\tStatus\tStorage nodes\tGateway nodes".to_string()];
+		for ver in history.versions.iter() {
+			table.push(format!(
+				"#{}\t{:?}\t{}\t{}",
+				ver.version, ver.status, ver.storage_nodes, ver.gateway_nodes,
+			));
+		}
+		format_table(table);
+		println!();
+
+		if let Some(update_trackers) = history.update_trackers {
+			println!("==== UPDATE TRACKERS ====");
+			println!("Several layout versions are currently live in the cluster, and data is being migrated.");
+			println!(
+				"This is the internal data that Garage stores to know which nodes have what data."
+			);
+			println!();
+			let mut table = vec!["Node\tAck\tSync\tSync_ack".to_string()];
+			for (node, trackers) in update_trackers.iter() {
+				table.push(format!(
+					"{:.16}\t#{}\t#{}\t#{}",
+					node, trackers.ack, trackers.sync, trackers.sync_ack,
+				));
+			}
+			table[1..].sort();
+			format_table(table);
+
+			println!();
+			println!(
+                "If some nodes are not catching up to the latest layout version in the update trackers,"
+            );
+			println!(
+				"it might be because they are offline or unable to complete a sync successfully."
+			);
+			if history.min_ack < history.current_version {
+				println!(
+					"You may force progress using `garage layout skip-dead-nodes --version {}`",
+					history.current_version
+				);
+			} else {
+				println!(
+                    "You may force progress using `garage layout skip-dead-nodes --version {} --allow-missing-data`.",
+                    history.current_version
+                );
+			}
+		} else {
+			println!(
+				"Your cluster is currently in a stable state with a single live layout version."
+			);
+			println!("No metadata migration is in progress. Note that the migration of data blocks is not tracked,");
+			println!(
+                "so you might want to keep old nodes online until their data directories become empty."
+            );
+		}
+
 		Ok(())
 	}
 }

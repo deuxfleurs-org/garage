@@ -512,6 +512,30 @@
         }
       }
     },
+    "/v2/GetClusterLayoutHistory": {
+      "get": {
+        "tags": [
+          "Cluster layout"
+        ],
+        "description": "\nReturns the history of layouts in the cluster\n    ",
+        "operationId": "GetClusterLayoutHistory",
+        "responses": {
+          "200": {
+            "description": "Cluster layout history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterLayoutHistoryResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/GetClusterStatistics": {
       "get": {
         "tags": [
@@ -1600,6 +1624,43 @@
           }
         }
       },
+      "ClusterLayoutVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "storageNodes",
+          "gatewayNodes"
+        ],
+        "properties": {
+          "gatewayNodes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClusterLayoutVersionStatus"
+          },
+          "storageNodes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ClusterLayoutVersionStatus": {
+        "type": "string",
+        "enum": [
+          "Current",
+          "Draining",
+          "Historical"
+        ]
+      },
       "ConnectClusterNodesRequest": {
         "type": "array",
         "items": {
@@ -1891,6 +1952,44 @@
             "type": "integer",
             "description": "the number of storage nodes to which a connection is currently open",
             "minimum": 0
+          }
+        }
+      },
+      "GetClusterLayoutHistoryResponse": {
+        "type": "object",
+        "required": [
+          "currentVersion",
+          "minAck",
+          "versions"
+        ],
+        "properties": {
+          "currentVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "minAck": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "updateTrackers": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NodeUpdateTrackers"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterLayoutVersion"
+            }
           }
         }
       },
@@ -3059,6 +3158,31 @@
             }
           }
         ]
+      },
+      "NodeUpdateTrackers": {
+        "type": "object",
+        "required": [
+          "ack",
+          "sync",
+          "syncAck"
+        ],
+        "properties": {
+          "ack": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sync": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "syncAck": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
       },
       "PreviewClusterLayoutChangesResponse": {
         "oneOf": [

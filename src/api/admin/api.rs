@@ -51,6 +51,7 @@ admin_endpoints![
 
 	// Layout operations
 	GetClusterLayout,
+	GetClusterLayoutHistory,
 	UpdateClusterLayout,
 	PreviewClusterLayoutChanges,
 	ApplyClusterLayout,
@@ -330,6 +331,57 @@ pub enum ZoneRedundancy {
 	Maximum,
 }
 
+// ---- GetClusterLayoutHistory ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetClusterLayoutHistoryRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GetClusterLayoutHistoryResponse {
+	pub current_version: u64,
+	pub min_ack: u64,
+	pub versions: Vec<ClusterLayoutVersion>,
+	pub update_trackers: Option<HashMap<String, NodeUpdateTrackers>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutVersion {
+	pub version: u64,
+	pub status: ClusterLayoutVersionStatus,
+	pub storage_nodes: u64,
+	pub gateway_nodes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum ClusterLayoutVersionStatus {
+	Current,
+	Draining,
+	Historical,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeUpdateTrackers {
+	pub ack: u64,
+	pub sync: u64,
+	pub sync_ack: u64,
+}
+
+// ---- UpdateClusterLayout ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateClusterLayoutRequest {
+	#[serde(default)]
+	pub roles: Vec<NodeRoleChange>,
+	#[serde(default)]
+	pub parameters: Option<LayoutParameters>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateClusterLayoutResponse(pub GetClusterLayoutResponse);
+
 // ---- PreviewClusterLayoutChanges ----
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -346,19 +398,6 @@ pub enum PreviewClusterLayoutChangesResponse {
 		new_layout: GetClusterLayoutResponse,
 	},
 }
-
-// ---- UpdateClusterLayout ----
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct UpdateClusterLayoutRequest {
-	#[serde(default)]
-	pub roles: Vec<NodeRoleChange>,
-	#[serde(default)]
-	pub parameters: Option<LayoutParameters>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct UpdateClusterLayoutResponse(pub GetClusterLayoutResponse);
 
 // ---- ApplyClusterLayout ----
 

@@ -1,4 +1,3 @@
-use format_table::format_table;
 use garage_util::error::*;
 
 use garage_rpc::layout::*;
@@ -6,100 +5,6 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use crate::cli::structs::*;
-
-pub async fn cmd_layout_history(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-) -> Result<(), Error> {
-	let layout = fetch_layout(rpc_cli, rpc_host).await?;
-	let min_stored = layout.min_stored();
-
-	println!("==== LAYOUT HISTORY ====");
-	let mut table = vec!["Version\tStatus\tStorage nodes\tGateway nodes".to_string()];
-	for ver in layout
-		.versions
-		.iter()
-		.rev()
-		.chain(layout.old_versions.iter().rev())
-	{
-		let status = if ver.version == layout.current().version {
-			"current"
-		} else if ver.version >= min_stored {
-			"draining"
-		} else {
-			"historical"
-		};
-		table.push(format!(
-			"#{}\t{}\t{}\t{}",
-			ver.version,
-			status,
-			ver.roles
-				.items()
-				.iter()
-				.filter(|(_, _, x)| matches!(x, NodeRoleV(Some(c)) if c.capacity.is_some()))
-				.count(),
-			ver.roles
-				.items()
-				.iter()
-				.filter(|(_, _, x)| matches!(x, NodeRoleV(Some(c)) if c.capacity.is_none()))
-				.count(),
-		));
-	}
-	format_table(table);
-	println!();
-
-	if layout.versions.len() > 1 {
-		println!("==== UPDATE TRACKERS ====");
-		println!("Several layout versions are currently live in the cluster, and data is being migrated.");
-		println!(
-			"This is the internal data that Garage stores to know which nodes have what data."
-		);
-		println!();
-		let mut table = vec!["Node\tAck\tSync\tSync_ack".to_string()];
-		let all_nodes = layout.get_all_nodes();
-		for node in all_nodes.iter() {
-			table.push(format!(
-				"{:?}\t#{}\t#{}\t#{}",
-				node,
-				layout.update_trackers.ack_map.get(node, min_stored),
-				layout.update_trackers.sync_map.get(node, min_stored),
-				layout.update_trackers.sync_ack_map.get(node, min_stored),
-			));
-		}
-		table[1..].sort();
-		format_table(table);
-
-		let min_ack = layout
-			.update_trackers
-			.ack_map
-			.min_among(&all_nodes, layout.min_stored());
-
-		println!();
-		println!(
-			"If some nodes are not catching up to the latest layout version in the update trackers,"
-		);
-		println!("it might be because they are offline or unable to complete a sync successfully.");
-		if min_ack < layout.current().version {
-			println!(
-				"You may force progress using `garage layout skip-dead-nodes --version {}`",
-				layout.current().version
-			);
-		} else {
-			println!(
-				"You may force progress using `garage layout skip-dead-nodes --version {} --allow-missing-data`.",
-				layout.current().version
-			);
-		}
-	} else {
-		println!("Your cluster is currently in a stable state with a single live layout version.");
-		println!("No metadata migration is in progress. Note that the migration of data blocks is not tracked,");
-		println!(
-			"so you might want to keep old nodes online until their data directories become empty."
-		);
-	}
-
-	Ok(())
-}
 
 pub async fn cmd_layout_skip_dead_nodes(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
@@ -162,7 +67,7 @@ pub async fn cmd_layout_skip_dead_nodes(
 
 // --- utility ---
 
-pub async fn fetch_status(
+async fn fetch_status(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
 ) -> Result<Vec<KnownNodeInfo>, Error> {
@@ -175,7 +80,7 @@ pub async fn fetch_status(
 	}
 }
 
-pub async fn fetch_layout(
+async fn fetch_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
 ) -> Result<LayoutHistory, Error> {
@@ -188,7 +93,7 @@ pub async fn fetch_layout(
 	}
 }
 
-pub async fn send_layout(
+async fn send_layout(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
 	rpc_host: NodeID,
 	layout: LayoutHistory,

@@ -36,6 +36,7 @@ impl AdminApiRequest {
 			POST ConnectClusterNodes (body),
 			// Layout endpoints
 			GET GetClusterLayout (),
+			GET GetClusterLayoutHistory (),
 			POST UpdateClusterLayout (body),
 			POST PreviewClusterLayoutChanges (),
 			POST ApplyClusterLayout (body),

@@ -88,6 +88,19 @@ Returns the cluster's current layout, including:
 )]
 fn GetClusterLayout() -> () {}
 
+#[utoipa::path(get,
+    path = "/v2/GetClusterLayoutHistory",
+    tag = "Cluster layout",
+    description = "
+Returns the history of layouts in the cluster
+    ",
+	responses(
+            (status = 200, description = "Cluster layout history", body = GetClusterLayoutHistoryResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetClusterLayoutHistory() -> () {}
+
 #[utoipa::path(post,
     path = "/v2/UpdateClusterLayout",
     tag = "Cluster layout",
@@ -700,6 +713,7 @@ impl Modify for SecurityAddon {
         ConnectClusterNodes,
         // Layout operations
         GetClusterLayout,
+        GetClusterLayoutHistory,
         UpdateClusterLayout,
         PreviewClusterLayoutChanges,
         ApplyClusterLayout,
