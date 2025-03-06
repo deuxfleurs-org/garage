@@ -6,6 +6,7 @@ mod error;
 mod macros;
 
 pub mod api;
+pub mod openapi;
 mod router_v0;
 mod router_v1;
 mod router_v2;
