@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Garage administration API",
-    "description": "Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.\n\n*Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*",
+    "description": "Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.\n\n*Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is early stage and can contain bugs, so be careful and please report any issues on our issue tracker.*",
     "contact": {
       "name": "The Garage team",
       "url": "https://garagehq.deuxfleurs.fr/",
@@ -26,7 +26,7 @@
         "tags": [
           "Bucket alias"
         ],
-        "description": "Add an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+        "description": "Add an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
         "operationId": "AddBucketAlias",
         "requestBody": {
           "content": {
@@ -493,7 +493,7 @@
         "tags": [
           "Cluster layout"
         ],
-        "description": "\nReturns the cluster's current layout, including:\n\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n*The info returned by this endpoint is a subset of the info returned by `GET /GetClusterStatus`.*\n    ",
+        "description": "\nReturns the cluster's current layout, including:\n\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n    ",
         "operationId": "GetClusterLayout",
         "responses": {
           "200": {
@@ -515,9 +515,9 @@
     "/v2/GetClusterStatistics": {
       "get": {
         "tags": [
-          "Node"
+          "Cluster"
         ],
-        "description": "\nFetch global cluster statistics.\n    ",
+        "description": "\nFetch global cluster statistics.\n\n*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*\n    ",
         "operationId": "GetClusterStatistics",
         "responses": {
           "200": {
@@ -641,7 +641,7 @@
         "tags": [
           "Node"
         ],
-        "description": "\nFetch statistics for one or several Garage nodes.\n    ",
+        "description": "\nFetch statistics for one or several Garage nodes.\n\n*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*\n    ",
         "operationId": "GetNodeStatistics",
         "parameters": [
           {
@@ -791,7 +791,7 @@
         "tags": [
           "Node"
         ],
-        "description": "\nLaunch a repair operation on one or several cluster noes.\n    ",
+        "description": "\nLaunch a repair operation on one or several cluster nodes.\n    ",
         "operationId": "LaunchRepairOperation",
         "parameters": [
           {
@@ -997,7 +997,7 @@
         "tags": [
           "Bucket alias"
         ],
-        "description": "Remove an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+        "description": "Remove an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
         "operationId": "RemoveBucketAlias",
         "requestBody": {
           "content": {
@@ -1073,7 +1073,7 @@
         "tags": [
           "Cluster layout"
         ],
-        "description": "Clear staged layout",
+        "description": "Clear staged layout changes",
         "operationId": "RevertClusterLayout",
         "responses": {
           "200": {
@@ -1598,10 +1598,12 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "An error message if Garage did not manage to connect to this node"
           },
           "success": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "`true` if Garage managed to connect to this node"
           }
         }
       },
@@ -1854,7 +1856,7 @@
           },
           "status": {
             "type": "string",
-            "description": "One of `healthy`, `degraded` or `unavailable`:\n- healthy: Garage node is connected to all storage nodes\n- degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions\n- unavailable: a quorum of write nodes is not available for some partitions"
+            "description": "One of `healthy`, `degraded` or `unavailable`:\n- `healthy`: Garage node is connected to all storage nodes\n- `degraded`: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions\n- `unavailable`: a quorum of write nodes is not available for some partitions"
           },
           "storageNodes": {
             "type": "integer",
@@ -2883,7 +2885,8 @@
             ],
             "properties": {
               "id": {
-                "type": "string"
+                "type": "string",
+                "description": "ID of the node for which this change applies"
               }
             }
           }
@@ -2898,7 +2901,8 @@
             ],
             "properties": {
               "remove": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "Set `remove` to `true` to remove the node from the layout"
               }
             }
           },
@@ -2915,16 +2919,19 @@
                   "null"
                 ],
                 "format": "int64",
+                "description": "New capacity (in bytes) of the node",
                 "minimum": 0
               },
               "tags": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "description": "New tags of the node"
               },
               "zone": {
-                "type": "string"
+                "type": "string",
+                "description": "New zone of the node"
               }
             }
           }

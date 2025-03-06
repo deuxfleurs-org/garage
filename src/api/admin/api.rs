@@ -46,7 +46,10 @@ admin_endpoints![
 	// Cluster operations
 	GetClusterStatus,
 	GetClusterHealth,
+	GetClusterStatistics,
 	ConnectClusterNodes,
+
+	// Layout operations
 	GetClusterLayout,
 	UpdateClusterLayout,
 	ApplyClusterLayout,
@@ -78,9 +81,8 @@ admin_endpoints![
 
 	// Node operations
 	GetNodeInfo,
-	CreateMetadataSnapshot,
 	GetNodeStatistics,
-	GetClusterStatistics,
+	CreateMetadataSnapshot,
 	LaunchRepairOperation,
 
 	// Worker operations
@@ -99,8 +101,8 @@ admin_endpoints![
 local_admin_endpoints![
 	// Node operations
 	GetNodeInfo,
-	CreateMetadataSnapshot,
 	GetNodeStatistics,
+	CreateMetadataSnapshot,
 	LaunchRepairOperation,
 	// Background workers
 	ListWorkers,
@@ -209,9 +211,9 @@ pub struct GetClusterHealthRequest;
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterHealthResponse {
 	/// One of `healthy`, `degraded` or `unavailable`:
-	/// - healthy: Garage node is connected to all storage nodes
-	/// - degraded: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
-	/// - unavailable: a quorum of write nodes is not available for some partitions
+	/// - `healthy`: Garage node is connected to all storage nodes
+	/// - `degraded`: Garage node is not connected to all storage nodes, but a quorum of write nodes is available for all partitions
+	/// - `unavailable`: a quorum of write nodes is not available for some partitions
 	pub status: String,
 	/// the number of nodes this Garage node has had a TCP connection to since the daemon started
 	pub known_nodes: usize,
@@ -229,6 +231,16 @@ pub struct GetClusterHealthResponse {
 	pub partitions_all_ok: usize,
 }
 
+// ---- GetClusterStatistics ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GetClusterStatisticsRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct GetClusterStatisticsResponse {
+	pub freeform: String,
+}
+
 // ---- ConnectClusterNodes ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -240,9 +252,15 @@ pub struct ConnectClusterNodesResponse(pub Vec<ConnectNodeResponse>);
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectNodeResponse {
+	/// `true` if Garage managed to connect to this node
 	pub success: bool,
+	/// An error message if Garage did not manage to connect to this node
 	pub error: Option<String>,
 }
+
+// **********************************************
+//      Layout operations
+// **********************************************
 
 // ---- GetClusterLayout ----
 
@@ -260,6 +278,7 @@ pub struct GetClusterLayoutResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeRoleChange {
+	/// ID of the node for which this change applies
 	pub id: String,
 	#[serde(flatten)]
 	pub action: NodeRoleChangeEnum,
@@ -269,11 +288,17 @@ pub struct NodeRoleChange {
 #[serde(untagged)]
 pub enum NodeRoleChangeEnum {
 	#[serde(rename_all = "camelCase")]
-	Remove { remove: bool },
+	Remove {
+		/// Set `remove` to `true` to remove the node from the layout
+		remove: bool,
+	},
 	#[serde(rename_all = "camelCase")]
 	Update {
+		/// New zone of the node
 		zone: String,
+		/// New capacity (in bytes) of the node
 		capacity: Option<u64>,
+		/// New tags of the node
 		tags: Vec<String>,
 	},
 }
@@ -678,14 +703,6 @@ pub struct LocalGetNodeInfoResponse {
 	pub db_engine: String,
 }
 
-// ---- CreateMetadataSnapshot ----
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct LocalCreateMetadataSnapshotRequest;
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct LocalCreateMetadataSnapshotResponse;
-
 // ---- GetNodeStatistics ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -696,15 +713,13 @@ pub struct LocalGetNodeStatisticsResponse {
 	pub freeform: String,
 }
 
-// ---- GetClusterStatistics ----
+// ---- CreateMetadataSnapshot ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GetClusterStatisticsRequest;
+pub struct LocalCreateMetadataSnapshotRequest;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct GetClusterStatisticsResponse {
-	pub freeform: String,
-}
+pub struct LocalCreateMetadataSnapshotResponse;
 
 // ---- LaunchRepairOperation ----
 

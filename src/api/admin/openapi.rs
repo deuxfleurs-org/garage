@@ -39,6 +39,21 @@ fn GetClusterStatus() -> () {}
 )]
 fn GetClusterHealth() -> () {}
 
+#[utoipa::path(get,
+    path = "/v2/GetClusterStatistics",
+    tag = "Cluster",
+    description = "
+Fetch global cluster statistics.
+
+*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*
+    ",
+	responses(
+            (status = 200, description = "Global cluster statistics", body = GetClusterStatisticsResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetClusterStatistics() -> () {}
+
 #[utoipa::path(post,
     path = "/v2/ConnectClusterNodes",
     tag = "Cluster",
@@ -51,6 +66,10 @@ fn GetClusterHealth() -> () {}
 )]
 fn ConnectClusterNodes() -> () {}
 
+// **********************************************
+//      Layout operations
+// **********************************************
+
 #[utoipa::path(get,
     path = "/v2/GetClusterLayout",
     tag = "Cluster layout",
@@ -61,7 +80,6 @@ Returns the cluster's current layout, including:
 - Staged changes to the cluster layout
 
 *Capacity is given in bytes*
-*The info returned by this endpoint is a subset of the info returned by `GET /GetClusterStatus`.*
     ",
 	responses(
             (status = 200, description = "Current cluster layout", body = GetClusterLayoutResponse),
@@ -118,7 +136,7 @@ fn ApplyClusterLayout() -> () {}
 #[utoipa::path(post,
     path = "/v2/RevertClusterLayout",
     tag = "Cluster layout",
-    description = "Clear staged layout",
+    description = "Clear staged layout changes",
 	responses(
             (status = 200, description = "All pending changes to the cluster layout have been erased", body = RevertClusterLayoutResponse),
             (status = 500, description = "Internal server error")
@@ -389,7 +407,7 @@ fn DenyBucketKey() -> () {}
 #[utoipa::path(post,
     path = "/v2/AddBucketAlias",
     tag = "Bucket alias",
-    description = "Add an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+    description = "Add an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
     request_body = AddBucketAliasRequest,
 	responses(
             (status = 200, description = "Returns exhaustive information about the bucket", body = AddBucketAliasResponse),
@@ -401,7 +419,7 @@ fn AddBucketAlias() -> () {}
 #[utoipa::path(post,
     path = "/v2/RemoveBucketAlias",
     tag = "Bucket alias",
-    description = "Remove an alias for the target bucket.  This can be a local alias if `accessKeyId` is specified, or a global alias otherwise.",
+    description = "Remove an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
     request_body = RemoveBucketAliasRequest,
 	responses(
             (status = 200, description = "Returns exhaustive information about the bucket", body = RemoveBucketAliasResponse),
@@ -430,6 +448,24 @@ Return information about the Garage daemon running on one or several nodes.
 )]
 fn GetNodeInfo() -> () {}
 
+#[utoipa::path(get,
+    path = "/v2/GetNodeStatistics",
+    tag = "Node",
+    description = "
+Fetch statistics for one or several Garage nodes.
+
+*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*
+    ",
+    params(
+        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+    ),
+	responses(
+            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeStatisticsResponse>),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetNodeStatistics() -> () {}
+
 #[utoipa::path(post,
     path = "/v2/CreateMetadataSnapshot",
     tag = "Node",
@@ -446,40 +482,11 @@ Instruct one or several nodes to take a snapshot of their metadata databases.
 )]
 fn CreateMetadataSnapshot() -> () {}
 
-#[utoipa::path(get,
-    path = "/v2/GetNodeStatistics",
-    tag = "Node",
-    description = "
-Fetch statistics for one or several Garage nodes.
-    ",
-    params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
-    ),
-	responses(
-            (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeStatisticsResponse>),
-            (status = 500, description = "Internal server error")
-        ),
-)]
-fn GetNodeStatistics() -> () {}
-
-#[utoipa::path(get,
-    path = "/v2/GetClusterStatistics",
-    tag = "Node",
-    description = "
-Fetch global cluster statistics.
-    ",
-	responses(
-            (status = 200, description = "Global cluster statistics", body = GetClusterStatisticsResponse),
-            (status = 500, description = "Internal server error")
-        ),
-)]
-fn GetClusterStatistics() -> () {}
-
 #[utoipa::path(post,
     path = "/v2/LaunchRepairOperation",
     tag = "Node",
     description = "
-Launch a repair operation on one or several cluster noes.
+Launch a repair operation on one or several cluster nodes.
     ",
     params(
         ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
@@ -661,7 +668,7 @@ impl Modify for SecurityAddon {
         title = "Garage administration API",
         description = "Administrate your Garage cluster programatically, including status, layout, keys, buckets, and maintainance tasks.
 
-*Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is very early stage and can contain bugs, especially on error return codes/types that are not tested yet. Do not expect a well finished and polished product!*",
+*Disclaimer: This API may change in future Garage versions. Read the changelog and upgrade your scripts before upgrading. Additionnaly, this specification is early stage and can contain bugs, so be careful and please report any issues on our issue tracker.*",
         contact(
             name = "The Garage team",
             email = "garagehq@deuxfleurs.fr",
@@ -674,7 +681,9 @@ impl Modify for SecurityAddon {
         // Cluster operations
         GetClusterHealth,
         GetClusterStatus,
+        GetClusterStatistics,
         ConnectClusterNodes,
+        // Layout operations
         GetClusterLayout,
         UpdateClusterLayout,
         ApplyClusterLayout,
@@ -701,9 +710,8 @@ impl Modify for SecurityAddon {
         RemoveBucketAlias,
         // Node operations
         GetNodeInfo,
-        CreateMetadataSnapshot,
         GetNodeStatistics,
-        GetClusterStatistics,
+        CreateMetadataSnapshot,
         LaunchRepairOperation,
         // Worker operations
         ListWorkers,
