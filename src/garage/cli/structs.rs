@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 use garage_util::version::garage_version;
 
-use crate::cli::convert_db;
+use crate::cli::local::convert_db;
 
 #[derive(StructOpt, Debug)]
 pub enum Command {
