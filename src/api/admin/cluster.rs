@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
+use garage_util::error::Error as GarageError;
 
 use garage_rpc::layout;
 
@@ -305,6 +306,29 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 
 		let res = format_cluster_layout(&layout);
 		Ok(UpdateClusterLayoutResponse(res))
+	}
+}
+
+impl RequestHandler for PreviewClusterLayoutChangesRequest {
+	type Response = PreviewClusterLayoutChangesResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<PreviewClusterLayoutChangesResponse, Error> {
+		let layout = garage.system.cluster_layout().inner().clone();
+		let new_ver = layout.current().version + 1;
+		match layout.apply_staged_changes(Some(new_ver)) {
+			Err(GarageError::Message(error)) => {
+				Ok(PreviewClusterLayoutChangesResponse::Error { error })
+			}
+			Err(e) => Err(e.into()),
+			Ok((new_layout, msg)) => Ok(PreviewClusterLayoutChangesResponse::Success {
+				message: msg,
+				new_layout: format_cluster_layout(&new_layout),
+			}),
+		}
 	}
 }
 

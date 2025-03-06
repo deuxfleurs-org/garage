@@ -52,6 +52,7 @@ admin_endpoints![
 	// Layout operations
 	GetClusterLayout,
 	UpdateClusterLayout,
+	PreviewClusterLayoutChanges,
 	ApplyClusterLayout,
 	RevertClusterLayout,
 
@@ -316,6 +317,23 @@ pub struct LayoutParameters {
 pub enum ZoneRedundancy {
 	AtLeast(usize),
 	Maximum,
+}
+
+// ---- PreviewClusterLayoutChanges ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreviewClusterLayoutChangesRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum PreviewClusterLayoutChangesResponse {
+	#[serde(rename_all = "camelCase")]
+	Error { error: String },
+	#[serde(rename_all = "camelCase")]
+	Success {
+		message: Vec<String>,
+		new_layout: GetClusterLayoutResponse,
+	},
 }
 
 // ---- UpdateClusterLayout ----

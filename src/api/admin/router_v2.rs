@@ -37,6 +37,7 @@ impl AdminApiRequest {
 			// Layout endpoints
 			GET GetClusterLayout (),
 			POST UpdateClusterLayout (body),
+			POST PreviewClusterLayoutChanges (),
 			POST ApplyClusterLayout (body),
 			POST RevertClusterLayout (),
 			// API key endpoints
