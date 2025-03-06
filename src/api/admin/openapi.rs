@@ -172,6 +172,18 @@ fn ApplyClusterLayout() -> () {}
 )]
 fn RevertClusterLayout() -> () {}
 
+#[utoipa::path(post,
+    path = "/v2/ClusterLayoutSkipDeadNodes",
+    tag = "Cluster layout",
+    description = "Force progress in layout update trackers",
+    request_body = ClusterLayoutSkipDeadNodesRequest,
+	responses(
+            (status = 200, description = "Request has been taken into account", body = ClusterLayoutSkipDeadNodesResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ClusterLayoutSkipDeadNodes() -> () {}
+
 // **********************************************
 //      Access key operations
 // **********************************************
@@ -718,6 +730,7 @@ impl Modify for SecurityAddon {
         PreviewClusterLayoutChanges,
         ApplyClusterLayout,
         RevertClusterLayout,
+        ClusterLayoutSkipDeadNodes,
         // Key operations
         ListKeys,
         GetKeyInfo,

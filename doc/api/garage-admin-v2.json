@@ -157,6 +157,40 @@
         }
       }
     },
+    "/v2/ClusterLayoutSkipDeadNodes": {
+      "post": {
+        "tags": [
+          "Cluster layout"
+        ],
+        "description": "Force progress in layout update trackers",
+        "operationId": "ClusterLayoutSkipDeadNodes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterLayoutSkipDeadNodesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Request has been taken into account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterLayoutSkipDeadNodesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/ConnectClusterNodes": {
       "post": {
         "tags": [
@@ -1621,6 +1655,44 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0
+          }
+        }
+      },
+      "ClusterLayoutSkipDeadNodesRequest": {
+        "type": "object",
+        "required": [
+          "version",
+          "allowMissingData"
+        ],
+        "properties": {
+          "allowMissingData": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ClusterLayoutSkipDeadNodesResponse": {
+        "type": "object",
+        "required": [
+          "ackUpdated",
+          "syncUpdated"
+        ],
+        "properties": {
+          "ackUpdated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "syncUpdated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

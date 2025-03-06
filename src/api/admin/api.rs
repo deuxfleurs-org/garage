@@ -56,6 +56,7 @@ admin_endpoints![
 	PreviewClusterLayoutChanges,
 	ApplyClusterLayout,
 	RevertClusterLayout,
+	ClusterLayoutSkipDeadNodes,
 
 	// Access key operations
 	ListKeys,
@@ -421,6 +422,22 @@ pub struct RevertClusterLayoutRequest;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RevertClusterLayoutResponse(pub GetClusterLayoutResponse);
+
+// ---- ClusterLayoutSkipDeadNodes ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutSkipDeadNodesRequest {
+	pub version: u64,
+	pub allow_missing_data: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutSkipDeadNodesResponse {
+	pub ack_updated: Vec<String>,
+	pub sync_updated: Vec<String>,
+}
 
 // **********************************************
 //      Access key operations

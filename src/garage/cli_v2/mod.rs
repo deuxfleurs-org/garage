@@ -13,7 +13,6 @@ use std::time::Duration;
 
 use garage_util::error::*;
 
-use garage_rpc::system::*;
 use garage_rpc::*;
 
 use garage_api_admin::api::*;
@@ -23,7 +22,6 @@ use garage_api_admin::RequestHandler;
 use crate::cli::structs::*;
 
 pub struct Cli {
-	pub system_rpc_endpoint: Arc<Endpoint<SystemRpc, ()>>,
 	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
 	pub rpc_host: NodeID,
 }

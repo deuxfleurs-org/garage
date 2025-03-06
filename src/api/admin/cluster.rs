@@ -465,6 +465,67 @@ impl RequestHandler for RevertClusterLayoutRequest {
 	}
 }
 
+impl RequestHandler for ClusterLayoutSkipDeadNodesRequest {
+	type Response = ClusterLayoutSkipDeadNodesResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ClusterLayoutSkipDeadNodesResponse, Error> {
+		let status = garage.system.get_known_nodes();
+
+		let mut layout = garage.system.cluster_layout().inner().clone();
+		let mut ack_updated = vec![];
+		let mut sync_updated = vec![];
+
+		if layout.versions.len() == 1 {
+			return Err(Error::bad_request(
+				"This command cannot be called when there is only one live cluster layout version",
+			));
+		}
+
+		let min_v = layout.min_stored();
+		if self.version <= min_v || self.version > layout.current().version {
+			return Err(Error::bad_request(format!(
+				"Invalid version, you may use the following version numbers: {}",
+				(min_v + 1..=layout.current().version)
+					.map(|x| x.to_string())
+					.collect::<Vec<_>>()
+					.join(" ")
+			)));
+		}
+
+		let all_nodes = layout.get_all_nodes();
+		for node in all_nodes.iter() {
+			// Update ACK tracker for dead nodes or for all nodes if --allow-missing-data
+			if self.allow_missing_data || !status.iter().any(|x| x.id == *node && x.is_up) {
+				if layout.update_trackers.ack_map.set_max(*node, self.version) {
+					ack_updated.push(hex::encode(node));
+				}
+			}
+
+			// If --allow-missing-data, update SYNC tracker for all nodes.
+			if self.allow_missing_data {
+				if layout.update_trackers.sync_map.set_max(*node, self.version) {
+					sync_updated.push(hex::encode(node));
+				}
+			}
+		}
+
+		garage
+			.system
+			.layout_manager
+			.update_cluster_layout(&layout)
+			.await?;
+
+		Ok(ClusterLayoutSkipDeadNodesResponse {
+			ack_updated,
+			sync_updated,
+		})
+	}
+}
+
 // ----
 
 impl From<layout::ZoneRedundancy> for ZoneRedundancy {

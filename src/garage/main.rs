@@ -289,11 +289,9 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 		Err(e).err_context("Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct full-length node ID (public key).")?;
 	}
 
-	let system_rpc_endpoint = netapp.endpoint::<SystemRpc, ()>(SYSTEM_RPC_PATH.into());
 	let proxy_rpc_endpoint = netapp.endpoint::<ProxyRpc, ()>(PROXY_RPC_PATH.into());
 
 	let cli = cli_v2::Cli {
-		system_rpc_endpoint,
 		proxy_rpc_endpoint,
 		rpc_host: id,
 	};

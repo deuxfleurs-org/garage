@@ -41,6 +41,7 @@ impl AdminApiRequest {
 			POST PreviewClusterLayoutChanges (),
 			POST ApplyClusterLayout (body),
 			POST RevertClusterLayout (),
+			POST ClusterLayoutSkipDeadNodes (body),
 			// API key endpoints
 			GET GetKeyInfo (query_opt::id, query_opt::search, parse_default(false)::show_secret_key),
 			POST UpdateKey (body_field, query::id),

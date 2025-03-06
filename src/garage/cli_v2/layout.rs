@@ -6,7 +6,6 @@ use garage_util::error::*;
 use garage_api_admin::api::*;
 use garage_rpc::layout;
 
-use crate::cli::layout as cli_v1;
 use crate::cli::structs::*;
 use crate::cli_v2::*;
 
@@ -20,16 +19,7 @@ impl Cli {
 			LayoutOperation::Apply(apply_opt) => self.cmd_apply_layout(apply_opt).await,
 			LayoutOperation::Revert(revert_opt) => self.cmd_revert_layout(revert_opt).await,
 			LayoutOperation::History => self.cmd_layout_history().await,
-
-			// TODO
-			LayoutOperation::SkipDeadNodes(assume_sync_opt) => {
-				cli_v1::cmd_layout_skip_dead_nodes(
-					&self.system_rpc_endpoint,
-					self.rpc_host,
-					assume_sync_opt,
-				)
-				.await
-			}
+			LayoutOperation::SkipDeadNodes(opt) => self.cmd_skip_dead_nodes(opt).await,
 		}
 	}
 
@@ -303,6 +293,31 @@ To know the correct value of the new layout version, invoke `garage layout show`
 		}
 
 		Ok(())
+	}
+
+	pub async fn cmd_skip_dead_nodes(&self, opt: SkipDeadNodesOpt) -> Result<(), Error> {
+		let res = self
+			.api_request(ClusterLayoutSkipDeadNodesRequest {
+				version: opt.version,
+				allow_missing_data: opt.allow_missing_data,
+			})
+			.await?;
+
+		if !res.sync_updated.is_empty() || !res.ack_updated.is_empty() {
+			for node in res.ack_updated.iter() {
+				println!("Increased the ACK tracker for node {:.16}", node);
+			}
+			for node in res.sync_updated.iter() {
+				println!("Increased the SYNC tracker for node {:.16}", node);
+			}
+			Ok(())
+		} else if !opt.allow_missing_data {
+			Err(Error::Message("Nothing was done, try passing the `--allow-missing-data` flag to force progress even when not enough nodes can complete a metadata sync.".into()))
+		} else {
+			Err(Error::Message(
+                "Sorry, there is nothing I can do for you. Please wait patiently. If you ask for help, please send the output of the `garage layout history` command.".into(),
+            ))
+		}
 	}
 }
 
