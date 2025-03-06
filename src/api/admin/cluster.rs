@@ -55,7 +55,7 @@ impl RequestHandler for GetClusterStatusRequest {
 
 		for (id, _, role) in layout.current().roles.items().iter() {
 			if let layout::NodeRoleV(Some(r)) = role {
-				let role = NodeRoleResp {
+				let role = NodeAssignedRole {
 					id: hex::encode(id),
 					zone: r.zone.to_string(),
 					capacity: r.capacity,
@@ -182,16 +182,21 @@ impl RequestHandler for GetClusterLayoutRequest {
 }
 
 fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResponse {
-	let roles = layout
-		.current()
+	let current = layout.current();
+
+	let roles = current
 		.roles
 		.items()
 		.iter()
 		.filter_map(|(k, _, v)| v.0.clone().map(|x| (k, x)))
-		.map(|(k, v)| NodeRoleResp {
+		.map(|(k, v)| LayoutNodeRole {
 			id: hex::encode(k),
 			zone: v.zone.clone(),
 			capacity: v.capacity,
+			usable_capacity: current
+				.get_node_usage(k)
+				.ok()
+				.map(|x| x as u64 * current.partition_size),
 			tags: v.tags.clone(),
 		})
 		.collect::<Vec<_>>();
@@ -202,7 +207,7 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 		.roles
 		.items()
 		.iter()
-		.filter(|(k, _, v)| layout.current().roles.get(k) != Some(v))
+		.filter(|(k, _, v)| current.roles.get(k) != Some(v))
 		.map(|(k, _, v)| match &v.0 {
 			None => NodeRoleChange {
 				id: hex::encode(k),
@@ -219,17 +224,17 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 		})
 		.collect::<Vec<_>>();
 
-	let staged_parameters = if *layout.staging.get().parameters.get() != layout.current().parameters
-	{
+	let staged_parameters = if *layout.staging.get().parameters.get() != current.parameters {
 		Some((*layout.staging.get().parameters.get()).into())
 	} else {
 		None
 	};
 
 	GetClusterLayoutResponse {
-		version: layout.current().version,
+		version: current.version,
 		roles,
-		parameters: layout.current().parameters.into(),
+		partition_size: current.partition_size,
+		parameters: current.parameters.into(),
 		staged_role_changes,
 		staged_parameters,
 	}

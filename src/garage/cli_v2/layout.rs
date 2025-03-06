@@ -13,6 +13,7 @@ use crate::cli_v2::*;
 impl Cli {
 	pub async fn layout_command_dispatch(&self, cmd: LayoutOperation) -> Result<(), Error> {
 		match cmd {
+			LayoutOperation::Show => self.cmd_show_layout().await,
 			LayoutOperation::Assign(assign_opt) => self.cmd_assign_role(assign_opt).await,
 			LayoutOperation::Remove(remove_opt) => self.cmd_remove_role(remove_opt).await,
 			LayoutOperation::Config(config_opt) => self.cmd_config_layout(config_opt).await,
@@ -20,9 +21,6 @@ impl Cli {
 			LayoutOperation::Revert(revert_opt) => self.cmd_revert_layout(revert_opt).await,
 
 			// TODO
-			LayoutOperation::Show => {
-				cli_v1::cmd_show_layout(&self.system_rpc_endpoint, self.rpc_host).await
-			}
 			LayoutOperation::History => {
 				cli_v1::cmd_layout_history(&self.system_rpc_endpoint, self.rpc_host).await
 			}
@@ -35,6 +33,50 @@ impl Cli {
 				.await
 			}
 		}
+	}
+
+	pub async fn cmd_show_layout(&self) -> Result<(), Error> {
+		let layout = self.api_request(GetClusterLayoutRequest).await?;
+
+		println!("==== CURRENT CLUSTER LAYOUT ====");
+		print_cluster_layout(&layout, "No nodes currently have a role in the cluster.\nSee `garage status` to view available nodes.");
+		println!();
+		println!("Current cluster layout version: {}", layout.version);
+
+		let has_role_changes = print_staging_role_changes(&layout);
+		if has_role_changes {
+			let res_apply = self.api_request(PreviewClusterLayoutChangesRequest).await?;
+
+			// this will print the stats of what partitions
+			// will move around when we apply
+			match res_apply {
+				PreviewClusterLayoutChangesResponse::Success {
+					message,
+					new_layout,
+				} => {
+					println!();
+					println!("==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====");
+					print_cluster_layout(&new_layout, "No nodes have a role in the new layout.");
+					println!();
+
+					for line in message.iter() {
+						println!("{}", line);
+					}
+					println!("To enact the staged role changes, type:");
+					println!();
+					println!("    garage layout apply --version {}", new_layout.version);
+					println!();
+					println!("You can also revert all proposed changes with: garage layout revert");
+				}
+				PreviewClusterLayoutChangesResponse::Error { error } => {
+					println!("Error while trying to compute the assignment: {}", error);
+					println!("This new layout cannot yet be applied.");
+					println!("You can also revert all proposed changes with: garage layout revert");
+				}
+			}
+		}
+
+		Ok(())
 	}
 
 	pub async fn cmd_assign_role(&self, opt: AssignRoleOpt) -> Result<(), Error> {
@@ -218,7 +260,7 @@ pub fn capacity_string(v: Option<u64>) -> String {
 pub fn get_staged_or_current_role(
 	id: &str,
 	layout: &GetClusterLayoutResponse,
-) -> Option<NodeRoleResp> {
+) -> Option<NodeAssignedRole> {
 	for node in layout.staged_role_changes.iter() {
 		if node.id == id {
 			return match &node.action {
@@ -227,7 +269,7 @@ pub fn get_staged_or_current_role(
 					zone,
 					capacity,
 					tags,
-				} => Some(NodeRoleResp {
+				} => Some(NodeAssignedRole {
 					id: id.to_string(),
 					zone: zone.to_string(),
 					capacity: *capacity,
@@ -239,7 +281,12 @@ pub fn get_staged_or_current_role(
 
 	for node in layout.roles.iter() {
 		if node.id == id {
-			return Some(node.clone());
+			return Some(NodeAssignedRole {
+				id: node.id.clone(),
+				zone: node.zone.clone(),
+				capacity: node.capacity,
+				tags: node.tags.clone(),
+			});
 		}
 	}
 
@@ -267,11 +314,46 @@ pub fn find_matching_node<'a>(
 	}
 }
 
+pub fn print_cluster_layout(layout: &GetClusterLayoutResponse, empty_msg: &str) {
+	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable capacity".to_string()];
+	for role in layout.roles.iter() {
+		let tags = role.tags.join(",");
+		if let (Some(capacity), Some(usable_capacity)) = (role.capacity, role.usable_capacity) {
+			table.push(format!(
+				"{:.16}\t{}\t{}\t{}\t{} ({:.1}%)",
+				role.id,
+				tags,
+				role.zone,
+				capacity_string(role.capacity),
+				ByteSize::b(usable_capacity).to_string_as(false),
+				(100.0 * usable_capacity as f32) / (capacity as f32)
+			));
+		} else {
+			table.push(format!(
+				"{:.16}\t{}\t{}\t{}",
+				role.id,
+				tags,
+				role.zone,
+				capacity_string(role.capacity),
+			));
+		};
+	}
+	if table.len() > 1 {
+		format_table(table);
+		println!();
+		println!(
+			"Zone redundancy: {}",
+			Into::<layout::ZoneRedundancy>::into(layout.parameters.zone_redundancy)
+		);
+	} else {
+		println!("{}", empty_msg);
+	}
+}
+
 pub fn print_staging_role_changes(layout: &GetClusterLayoutResponse) -> bool {
 	let has_role_changes = !layout.staged_role_changes.is_empty();
 
-	// TODO!! Layout parameters
-	let has_layout_changes = false;
+	let has_layout_changes = layout.staged_parameters.is_some();
 
 	if has_role_changes || has_layout_changes {
 		println!();
@@ -302,15 +384,12 @@ pub fn print_staging_role_changes(layout: &GetClusterLayoutResponse) -> bool {
 			format_table(table);
 			println!();
 		}
-		//TODO
-		/*
-		if has_layout_changes {
+		if let Some(p) = layout.staged_parameters.as_ref() {
 			println!(
 				"Zone redundancy: {}",
-				staging.parameters.get().zone_redundancy
+				Into::<layout::ZoneRedundancy>::into(p.zone_redundancy)
 			);
 		}
-		*/
 		true
 	} else {
 		false

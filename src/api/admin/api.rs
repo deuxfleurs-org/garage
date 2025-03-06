@@ -174,7 +174,7 @@ pub struct GetClusterStatusResponse {
 #[serde(rename_all = "camelCase")]
 pub struct NodeResp {
 	pub id: String,
-	pub role: Option<NodeRoleResp>,
+	pub role: Option<NodeAssignedRole>,
 	#[schema(value_type = Option<String> )]
 	pub addr: Option<SocketAddr>,
 	pub hostname: Option<String>,
@@ -189,7 +189,7 @@ pub struct NodeResp {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NodeRoleResp {
+pub struct NodeAssignedRole {
 	pub id: String,
 	pub zone: String,
 	pub capacity: Option<u64>,
@@ -272,10 +272,21 @@ pub struct GetClusterLayoutRequest;
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterLayoutResponse {
 	pub version: u64,
-	pub roles: Vec<NodeRoleResp>,
+	pub roles: Vec<LayoutNodeRole>,
+	pub partition_size: u64,
 	pub parameters: LayoutParameters,
 	pub staged_role_changes: Vec<NodeRoleChange>,
 	pub staged_parameters: Option<LayoutParameters>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutNodeRole {
+	pub id: String,
+	pub zone: String,
+	pub capacity: Option<u64>,
+	pub usable_capacity: Option<u64>,
+	pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -306,13 +317,13 @@ pub enum NodeRoleChangeEnum {
 	},
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LayoutParameters {
 	pub zone_redundancy: ZoneRedundancy,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ZoneRedundancy {
 	AtLeast(usize),

@@ -1899,6 +1899,7 @@
         "required": [
           "version",
           "roles",
+          "partitionSize",
           "parameters",
           "stagedRoleChanges"
         ],
@@ -1906,10 +1907,15 @@
           "parameters": {
             "$ref": "#/components/schemas/LayoutParameters"
           },
+          "partitionSize": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
           "roles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/NodeRoleResp"
+              "$ref": "#/components/schemas/LayoutNodeRole"
             }
           },
           "stagedParameters": {
@@ -2056,6 +2062,44 @@
         "properties": {
           "createBucket": {
             "type": "boolean"
+          }
+        }
+      },
+      "LayoutNodeRole": {
+        "type": "object",
+        "required": [
+          "id",
+          "zone",
+          "tags"
+        ],
+        "properties": {
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "usableCapacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "zone": {
+            "type": "string"
           }
         }
       },
@@ -2853,6 +2897,36 @@
           }
         }
       },
+      "NodeAssignedRole": {
+        "type": "object",
+        "required": [
+          "id",
+          "zone",
+          "tags"
+        ],
+        "properties": {
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "zone": {
+            "type": "string"
+          }
+        }
+      },
       "NodeResp": {
         "type": "object",
         "required": [
@@ -2916,7 +2990,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/NodeRoleResp"
+                "$ref": "#/components/schemas/NodeAssignedRole"
               }
             ]
           }
@@ -2985,36 +3059,6 @@
             }
           }
         ]
-      },
-      "NodeRoleResp": {
-        "type": "object",
-        "required": [
-          "id",
-          "zone",
-          "tags"
-        ],
-        "properties": {
-          "capacity": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "minimum": 0
-          },
-          "id": {
-            "type": "string"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "zone": {
-            "type": "string"
-          }
-        }
       },
       "PreviewClusterLayoutChangesResponse": {
         "oneOf": [

@@ -1,5 +1,3 @@
-use bytesize::ByteSize;
-
 use format_table::format_table;
 use garage_util::error::*;
 
@@ -8,54 +6,6 @@ use garage_rpc::system::*;
 use garage_rpc::*;
 
 use crate::cli::structs::*;
-
-pub async fn cmd_show_layout(
-	rpc_cli: &Endpoint<SystemRpc, ()>,
-	rpc_host: NodeID,
-) -> Result<(), Error> {
-	let layout = fetch_layout(rpc_cli, rpc_host).await?;
-
-	println!("==== CURRENT CLUSTER LAYOUT ====");
-	print_cluster_layout(layout.current(), "No nodes currently have a role in the cluster.\nSee `garage status` to view available nodes.");
-	println!();
-	println!(
-		"Current cluster layout version: {}",
-		layout.current().version
-	);
-
-	let has_role_changes = print_staging_role_changes(&layout);
-	if has_role_changes {
-		let v = layout.current().version;
-		let res_apply = layout.apply_staged_changes(Some(v + 1));
-
-		// this will print the stats of what partitions
-		// will move around when we apply
-		match res_apply {
-			Ok((layout, msg)) => {
-				println!();
-				println!("==== NEW CLUSTER LAYOUT AFTER APPLYING CHANGES ====");
-				print_cluster_layout(layout.current(), "No nodes have a role in the new layout.");
-				println!();
-
-				for line in msg.iter() {
-					println!("{}", line);
-				}
-				println!("To enact the staged role changes, type:");
-				println!();
-				println!("    garage layout apply --version {}", v + 1);
-				println!();
-				println!("You can also revert all proposed changes with: garage layout revert");
-			}
-			Err(e) => {
-				println!("Error while trying to compute the assignment: {}", e);
-				println!("This new layout cannot yet be applied.");
-				println!("You can also revert all proposed changes with: garage layout revert");
-			}
-		}
-	}
-
-	Ok(())
-}
 
 pub async fn cmd_layout_history(
 	rpc_cli: &Endpoint<SystemRpc, ()>,
@@ -251,89 +201,4 @@ pub async fn send_layout(
 		)
 		.await??;
 	Ok(())
-}
-
-pub fn print_cluster_layout(layout: &LayoutVersion, empty_msg: &str) {
-	let mut table = vec!["ID\tTags\tZone\tCapacity\tUsable capacity".to_string()];
-	for (id, _, role) in layout.roles.items().iter() {
-		let role = match &role.0 {
-			Some(r) => r,
-			_ => continue,
-		};
-		let tags = role.tags.join(",");
-		let usage = layout.get_node_usage(id).unwrap_or(0);
-		let capacity = layout.get_node_capacity(id).unwrap_or(0);
-		if capacity > 0 {
-			table.push(format!(
-				"{:?}\t{}\t{}\t{}\t{} ({:.1}%)",
-				id,
-				tags,
-				role.zone,
-				role.capacity_string(),
-				ByteSize::b(usage as u64 * layout.partition_size).to_string_as(false),
-				(100.0 * usage as f32 * layout.partition_size as f32) / (capacity as f32)
-			));
-		} else {
-			table.push(format!(
-				"{:?}\t{}\t{}\t{}",
-				id,
-				tags,
-				role.zone,
-				role.capacity_string()
-			));
-		};
-	}
-	if table.len() > 1 {
-		format_table(table);
-		println!();
-		println!("Zone redundancy: {}", layout.parameters.zone_redundancy);
-	} else {
-		println!("{}", empty_msg);
-	}
-}
-
-pub fn print_staging_role_changes(layout: &LayoutHistory) -> bool {
-	let staging = layout.staging.get();
-	let has_role_changes = staging
-		.roles
-		.items()
-		.iter()
-		.any(|(k, _, v)| layout.current().roles.get(k) != Some(v));
-	let has_layout_changes = *staging.parameters.get() != layout.current().parameters;
-
-	if has_role_changes || has_layout_changes {
-		println!();
-		println!("==== STAGED ROLE CHANGES ====");
-		if has_role_changes {
-			let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
-			for (id, _, role) in staging.roles.items().iter() {
-				if layout.current().roles.get(id) == Some(role) {
-					continue;
-				}
-				if let Some(role) = &role.0 {
-					let tags = role.tags.join(",");
-					table.push(format!(
-						"{:?}\t{}\t{}\t{}",
-						id,
-						tags,
-						role.zone,
-						role.capacity_string()
-					));
-				} else {
-					table.push(format!("{:?}\tREMOVED", id));
-				}
-			}
-			format_table(table);
-			println!();
-		}
-		if has_layout_changes {
-			println!(
-				"Zone redundancy: {}",
-				staging.parameters.get().zone_redundancy
-			);
-		}
-		true
-	} else {
-		false
-	}
 }
