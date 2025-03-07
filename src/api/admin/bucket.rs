@@ -371,13 +371,17 @@ impl RequestHandler for UpdateBucketRequest {
 
 		if let Some(wa) = self.body.website_access {
 			if wa.enabled {
+				let (redirect_all, routing_rules) = match state.website_config.get() {
+					Some(wc) => (wc.redirect_all.clone(), wc.routing_rules.clone()),
+					None => (None, Vec::new()),
+				};
 				state.website_config.update(Some(WebsiteConfig {
 					index_document: wa.index_document.ok_or_bad_request(
 						"Please specify indexDocument when enabling website access.",
 					)?,
 					error_document: wa.error_document,
-					redirect_all: None,
-					routing_rules: Vec::new(),
+					redirect_all,
+					routing_rules,
 				}));
 			} else {
 				if wa.index_document.is_some() || wa.error_document.is_some() {
