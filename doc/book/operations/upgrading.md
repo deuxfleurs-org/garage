@@ -71,7 +71,7 @@ The entire procedure would look something like this:
 
 2. Take each node offline individually to back up its metadata folder, bring them back online once the backup is done.
   You can do all of the nodes in a single zone at once as that won't impact global cluster availability.
-  Do not try to make a backup of the metadata folder of a running node.
+  Do not try to manually copy the metadata folder of a running node.
 
   **Since Garage v0.9.4,** you can use the `garage meta snapshot --all` command
   to take a simultaneous snapshot of the metadata database files of all your
