@@ -4,9 +4,9 @@ use garage_util::error::*;
 
 use garage_api_admin::api::*;
 
+use crate::cli::remote::layout::*;
+use crate::cli::remote::*;
 use crate::cli::structs::*;
-use crate::cli_v2::layout::*;
-use crate::cli_v2::*;
 
 impl Cli {
 	pub async fn cmd_status(&self) -> Result<(), Error> {

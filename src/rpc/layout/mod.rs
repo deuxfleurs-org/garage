@@ -1,5 +1,3 @@
-use std::fmt;
-
 use bytesize::ByteSize;
 
 use garage_util::crdt::{AutoCrdt, Crdt};
@@ -397,30 +395,6 @@ impl NodeRole {
 	}
 }
 
-impl fmt::Display for ZoneRedundancy {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			ZoneRedundancy::Maximum => write!(f, "maximum"),
-			ZoneRedundancy::AtLeast(x) => write!(f, "{}", x),
-		}
-	}
-}
-
-impl core::str::FromStr for ZoneRedundancy {
-	type Err = &'static str;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"none" | "max" | "maximum" => Ok(ZoneRedundancy::Maximum),
-			x => {
-				let v = x
-					.parse::<usize>()
-					.map_err(|_| "zone redundancy must be 'none'/'max' or an integer")?;
-				Ok(ZoneRedundancy::AtLeast(v))
-			}
-		}
-	}
-}
-
 impl UpdateTracker {
 	fn merge(&mut self, other: &UpdateTracker) -> bool {
 		let mut changed = false;
@@ -455,7 +429,7 @@ impl UpdateTracker {
 		}
 	}
 
-	pub fn min_among(&self, storage_nodes: &[Uuid], min_version: u64) -> u64 {
+	fn min_among(&self, storage_nodes: &[Uuid], min_version: u64) -> u64 {
 		storage_nodes
 			.iter()
 			.map(|x| self.get(x, min_version))

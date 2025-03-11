@@ -157,6 +157,40 @@
         }
       }
     },
+    "/v2/ClusterLayoutSkipDeadNodes": {
+      "post": {
+        "tags": [
+          "Cluster layout"
+        ],
+        "description": "Force progress in layout update trackers",
+        "operationId": "ClusterLayoutSkipDeadNodes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterLayoutSkipDeadNodesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Request has been taken into account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterLayoutSkipDeadNodesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/ConnectClusterNodes": {
       "post": {
         "tags": [
@@ -502,6 +536,30 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetClusterLayoutResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetClusterLayoutHistory": {
+      "get": {
+        "tags": [
+          "Cluster layout"
+        ],
+        "description": "\nReturns the history of layouts in the cluster\n    ",
+        "operationId": "GetClusterLayoutHistory",
+        "responses": {
+          "200": {
+            "description": "Cluster layout history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClusterLayoutHistoryResponse"
                 }
               }
             }
@@ -950,6 +1008,30 @@
         }
       }
     },
+    "/v2/PreviewClusterLayoutChanges": {
+      "post": {
+        "tags": [
+          "Cluster layout"
+        ],
+        "description": "\nComputes a new layout taking into account the staged parameters, and returns it with detailed statistics. The new layout is not applied in the cluster.\n\n*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*\n    ",
+        "operationId": "PreviewClusterLayoutChanges",
+        "responses": {
+          "200": {
+            "description": "Information about the new layout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewClusterLayoutChangesResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/PurgeBlocks": {
       "post": {
         "tags": [
@@ -1330,6 +1412,7 @@
           "version": {
             "type": "integer",
             "format": "int64",
+            "description": "As a safety measure, the new version number of the layout must\nbe specified here",
             "minimum": 0
           }
         }
@@ -1342,13 +1425,15 @@
         ],
         "properties": {
           "layout": {
-            "$ref": "#/components/schemas/GetClusterLayoutResponse"
+            "$ref": "#/components/schemas/GetClusterLayoutResponse",
+            "description": "Details about the new cluster layout"
           },
           "message": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Plain-text information about the layout computation\n(do not try to parse this)"
           }
         }
       },
@@ -1576,6 +1661,89 @@
           }
         }
       },
+      "ClusterLayoutSkipDeadNodesRequest": {
+        "type": "object",
+        "required": [
+          "version",
+          "allowMissingData"
+        ],
+        "properties": {
+          "allowMissingData": {
+            "type": "boolean",
+            "description": "Allow the skip even if a quorum of nodes could not be found for\nthe data among the remaining nodes"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Version number of the layout to assume is currently up-to-date.\nThis will generally be the current layout version.",
+            "minimum": 0
+          }
+        }
+      },
+      "ClusterLayoutSkipDeadNodesResponse": {
+        "type": "object",
+        "required": [
+          "ackUpdated",
+          "syncUpdated"
+        ],
+        "properties": {
+          "ackUpdated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Nodes for which the ACK update tracker has been updated to `version`"
+          },
+          "syncUpdated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "If `allow_missing_data` is set,\nnodes for which the SYNC update tracker has been updated to `version`"
+          }
+        }
+      },
+      "ClusterLayoutVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "status",
+          "storageNodes",
+          "gatewayNodes"
+        ],
+        "properties": {
+          "gatewayNodes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of nodes with a gateway role in this layout version",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClusterLayoutVersionStatus",
+            "description": "Status of this layout version"
+          },
+          "storageNodes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Number of nodes with an assigned storage capacity in this layout version",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Version number of this layout version",
+            "minimum": 0
+          }
+        }
+      },
+      "ClusterLayoutVersionStatus": {
+        "type": "string",
+        "enum": [
+          "Current",
+          "Draining",
+          "Historical"
+        ]
+      },
       "ConnectClusterNodesRequest": {
         "type": "array",
         "items": {
@@ -1679,11 +1847,13 @@
           "available": {
             "type": "integer",
             "format": "int64",
+            "description": "Number of bytes available",
             "minimum": 0
           },
           "total": {
             "type": "integer",
             "format": "int64",
+            "description": "Total number of bytes",
             "minimum": 0
           }
         }
@@ -1870,29 +2040,97 @@
           }
         }
       },
+      "GetClusterLayoutHistoryResponse": {
+        "type": "object",
+        "required": [
+          "currentVersion",
+          "minAck",
+          "versions"
+        ],
+        "properties": {
+          "currentVersion": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The current version number of the cluster layout",
+            "minimum": 0
+          },
+          "minAck": {
+            "type": "integer",
+            "format": "int64",
+            "description": "All nodes in the cluster are aware of layout versions up to\nthis version number (at least)",
+            "minimum": 0
+          },
+          "updateTrackers": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Detailed update trackers for nodes (see\n`https://garagehq.deuxfleurs.fr/blog/2023-12-preserving-read-after-write-consistency/`)",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NodeUpdateTrackers"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterLayoutVersion"
+            },
+            "description": "Layout version history"
+          }
+        }
+      },
       "GetClusterLayoutResponse": {
         "type": "object",
         "required": [
           "version",
           "roles",
+          "parameters",
+          "partitionSize",
           "stagedRoleChanges"
         ],
         "properties": {
+          "parameters": {
+            "$ref": "#/components/schemas/LayoutParameters",
+            "description": "Layout parameters used when the current layout was computed"
+          },
+          "partitionSize": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The size, in bytes, of one Garage partition (= a shard)",
+            "minimum": 0
+          },
           "roles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/NodeRoleResp"
-            }
+              "$ref": "#/components/schemas/LayoutNodeRole"
+            },
+            "description": "List of nodes that currently have a role in the cluster layout"
+          },
+          "stagedParameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LayoutParameters",
+                "description": "Layout parameters to use when computing the next version of\nthe cluster layout"
+              }
+            ]
           },
           "stagedRoleChanges": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NodeRoleChange"
-            }
+            },
+            "description": "List of nodes that will have a new role or whose role will be\nremoved in the next version of the cluster layout"
           },
           "version": {
             "type": "integer",
             "format": "int64",
+            "description": "The current version number of the cluster layout",
             "minimum": 0
           }
         }
@@ -1918,13 +2156,15 @@
           "layoutVersion": {
             "type": "integer",
             "format": "int64",
+            "description": "Current version number of the cluster layout",
             "minimum": 0
           },
           "nodes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NodeResp"
-            }
+            },
+            "description": "List of nodes that are either currently connected, part of the\ncurrent cluster layout, or part of an older cluster layout that\nis still active in the cluster (being drained)."
           }
         }
       },
@@ -2018,6 +2258,70 @@
         "properties": {
           "createBucket": {
             "type": "boolean"
+          }
+        }
+      },
+      "LayoutNodeRole": {
+        "type": "object",
+        "required": [
+          "id",
+          "zone",
+          "tags"
+        ],
+        "properties": {
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Capacity (in bytes) assigned by the cluster administrator,\nabsent for gateway nodes",
+            "minimum": 0
+          },
+          "id": {
+            "type": "string",
+            "description": "Identifier of the node"
+          },
+          "storedPartitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Number of partitions stored on this node\n(a result of the layout computation)",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of tags assigned by the cluster administrator"
+          },
+          "usableCapacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Capacity (in bytes) that is actually usable on this node in the current\nlayout, which is equal to `stored_partitions` × `partition_size`",
+            "minimum": 0
+          },
+          "zone": {
+            "type": "string",
+            "description": "Zone name assigned by the cluster administrator"
+          }
+        }
+      },
+      "LayoutParameters": {
+        "type": "object",
+        "required": [
+          "zoneRedundancy"
+        ],
+        "properties": {
+          "zoneRedundancy": {
+            "$ref": "#/components/schemas/ZoneRedundancy",
+            "description": "Minimum number of zones in which a data partition must be replicated"
           }
         }
       },
@@ -2804,6 +3108,35 @@
           }
         }
       },
+      "NodeAssignedRole": {
+        "type": "object",
+        "required": [
+          "zone",
+          "tags"
+        ],
+        "properties": {
+          "capacity": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Capacity (in bytes) assigned by the cluster administrator,\nabsent for gateway nodes",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of tags assigned by the cluster administrator"
+          },
+          "zone": {
+            "type": "string",
+            "description": "Zone name assigned by the cluster administrator"
+          }
+        }
+      },
       "NodeResp": {
         "type": "object",
         "required": [
@@ -2816,7 +3149,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Socket address used by other nodes to connect to this node for RPC"
           },
           "dataPartition": {
             "oneOf": [
@@ -2824,24 +3158,29 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FreeSpaceResp"
+                "$ref": "#/components/schemas/FreeSpaceResp",
+                "description": "Total and available space on the disk partition(s) containing the data\ndirectory(ies)"
               }
             ]
           },
           "draining": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this node is part of an older layout version and is draining data."
           },
           "hostname": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Hostname of the node"
           },
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Full-length node identifier"
           },
           "isUp": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this node is connected in the cluster"
           },
           "lastSeenSecsAgo": {
             "type": [
@@ -2849,6 +3188,7 @@
               "null"
             ],
             "format": "int64",
+            "description": "For disconnected nodes, the number of seconds since last contact,\nor `null` if no contact was established since Garage restarted.",
             "minimum": 0
           },
           "metadataPartition": {
@@ -2857,7 +3197,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/FreeSpaceResp"
+                "$ref": "#/components/schemas/FreeSpaceResp",
+                "description": "Total and available space on the disk partition containing the\nmetadata directory"
               }
             ]
           },
@@ -2867,7 +3208,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/NodeRoleResp"
+                "$ref": "#/components/schemas/NodeAssignedRole",
+                "description": "Role assigned to this node in the current cluster layout"
               }
             ]
           }
@@ -2907,65 +3249,70 @@
             }
           },
           {
+            "$ref": "#/components/schemas/NodeAssignedRole"
+          }
+        ]
+      },
+      "NodeUpdateTrackers": {
+        "type": "object",
+        "required": [
+          "ack",
+          "sync",
+          "syncAck"
+        ],
+        "properties": {
+          "ack": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sync": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "syncAck": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "PreviewClusterLayoutChangesResponse": {
+        "oneOf": [
+          {
             "type": "object",
             "required": [
-              "zone",
-              "tags"
+              "error"
             ],
             "properties": {
-              "capacity": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "int64",
-                "description": "New capacity (in bytes) of the node",
-                "minimum": 0
-              },
-              "tags": {
+              "error": {
+                "type": "string",
+                "description": "Error message indicating that the layout could not be computed\nwith the provided configuration"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "newLayout"
+            ],
+            "properties": {
+              "message": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "New tags of the node"
+                "description": "Plain-text information about the layout computation\n(do not try to parse this)"
               },
-              "zone": {
-                "type": "string",
-                "description": "New zone of the node"
+              "newLayout": {
+                "$ref": "#/components/schemas/GetClusterLayoutResponse",
+                "description": "Details about the new cluster layout"
               }
             }
           }
         ]
-      },
-      "NodeRoleResp": {
-        "type": "object",
-        "required": [
-          "id",
-          "zone",
-          "tags"
-        ],
-        "properties": {
-          "capacity": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "format": "int64",
-            "minimum": 0
-          },
-          "id": {
-            "type": "string"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "zone": {
-            "type": "string"
-          }
-        }
       },
       "RemoveBucketAliasRequest": {
         "allOf": [
@@ -3109,9 +3456,26 @@
         }
       },
       "UpdateClusterLayoutRequest": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/NodeRoleChange"
+        "type": "object",
+        "properties": {
+          "parameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LayoutParameters",
+                "description": "New layout computation parameters to use"
+              }
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRoleChange"
+            },
+            "description": "New node roles to assign or remove in the cluster layout"
+          }
         }
       },
       "UpdateClusterLayoutResponse": {
@@ -3286,6 +3650,31 @@
             "type": "string",
             "enum": [
               "done"
+            ]
+          }
+        ]
+      },
+      "ZoneRedundancy": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Partitions must be replicated in at least this number of\ndistinct zones.",
+            "required": [
+              "atLeast"
+            ],
+            "properties": {
+              "atLeast": {
+                "type": "integer",
+                "description": "Partitions must be replicated in at least this number of\ndistinct zones.",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "string",
+            "description": "Partitions must be replicated in as many zones as possible:\nas many zones as there are replicas, if there are enough distinct\nzones, or at least one in each zone otherwise.",
+            "enum": [
+              "maximum"
             ]
           }
         ]

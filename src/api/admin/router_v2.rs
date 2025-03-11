@@ -36,9 +36,12 @@ impl AdminApiRequest {
 			POST ConnectClusterNodes (body),
 			// Layout endpoints
 			GET GetClusterLayout (),
+			GET GetClusterLayoutHistory (),
 			POST UpdateClusterLayout (body),
+			POST PreviewClusterLayoutChanges (),
 			POST ApplyClusterLayout (body),
 			POST RevertClusterLayout (),
+			POST ClusterLayoutSkipDeadNodes (body),
 			// API key endpoints
 			GET GetKeyInfo (query_opt::id, query_opt::search, parse_default(false)::show_secret_key),
 			POST UpdateKey (body_field, query::id),
@@ -108,10 +111,7 @@ impl AdminApiRequest {
 			Endpoint::GetClusterLayout => {
 				Ok(AdminApiRequest::GetClusterLayout(GetClusterLayoutRequest))
 			}
-			Endpoint::UpdateClusterLayout => {
-				let updates = parse_json_body::<UpdateClusterLayoutRequest, _, Error>(req).await?;
-				Ok(AdminApiRequest::UpdateClusterLayout(updates))
-			}
+			// UpdateClusterLayout semantics changed
 			Endpoint::ApplyClusterLayout => {
 				let param = parse_json_body::<ApplyClusterLayoutRequest, _, Error>(req).await?;
 				Ok(AdminApiRequest::ApplyClusterLayout(param))

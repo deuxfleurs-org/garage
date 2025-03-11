@@ -88,6 +88,19 @@ Returns the cluster's current layout, including:
 )]
 fn GetClusterLayout() -> () {}
 
+#[utoipa::path(get,
+    path = "/v2/GetClusterLayoutHistory",
+    tag = "Cluster layout",
+    description = "
+Returns the history of layouts in the cluster
+    ",
+	responses(
+            (status = 200, description = "Cluster layout history", body = GetClusterLayoutHistoryResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetClusterLayoutHistory() -> () {}
+
 #[utoipa::path(post,
     path = "/v2/UpdateClusterLayout",
     tag = "Cluster layout",
@@ -118,6 +131,21 @@ Contrary to the CLI that may update only a subset of the fields capacity, zone a
 fn UpdateClusterLayout() -> () {}
 
 #[utoipa::path(post,
+    path = "/v2/PreviewClusterLayoutChanges",
+    tag = "Cluster layout",
+    description = "
+Computes a new layout taking into account the staged parameters, and returns it with detailed statistics. The new layout is not applied in the cluster.
+
+*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*
+    ",
+	responses(
+            (status = 200, description = "Information about the new layout", body = PreviewClusterLayoutChangesResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn PreviewClusterLayoutChanges() -> () {}
+
+#[utoipa::path(post,
     path = "/v2/ApplyClusterLayout",
     tag = "Cluster layout",
     description = "
@@ -143,6 +171,18 @@ fn ApplyClusterLayout() -> () {}
         ),
 )]
 fn RevertClusterLayout() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/ClusterLayoutSkipDeadNodes",
+    tag = "Cluster layout",
+    description = "Force progress in layout update trackers",
+    request_body = ClusterLayoutSkipDeadNodesRequest,
+	responses(
+            (status = 200, description = "Request has been taken into account", body = ClusterLayoutSkipDeadNodesResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ClusterLayoutSkipDeadNodes() -> () {}
 
 // **********************************************
 //      Access key operations
@@ -685,9 +725,12 @@ impl Modify for SecurityAddon {
         ConnectClusterNodes,
         // Layout operations
         GetClusterLayout,
+        GetClusterLayoutHistory,
         UpdateClusterLayout,
+        PreviewClusterLayoutChanges,
         ApplyClusterLayout,
         RevertClusterLayout,
+        ClusterLayoutSkipDeadNodes,
         // Key operations
         ListKeys,
         GetKeyInfo,

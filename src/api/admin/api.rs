@@ -51,9 +51,12 @@ admin_endpoints![
 
 	// Layout operations
 	GetClusterLayout,
+	GetClusterLayoutHistory,
 	UpdateClusterLayout,
+	PreviewClusterLayoutChanges,
 	ApplyClusterLayout,
 	RevertClusterLayout,
+	ClusterLayoutSkipDeadNodes,
 
 	// Access key operations
 	ListKeys,
@@ -165,40 +168,61 @@ pub struct GetClusterStatusRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterStatusResponse {
+	/// Current version number of the cluster layout
 	pub layout_version: u64,
+	/// List of nodes that are either currently connected, part of the
+	/// current cluster layout, or part of an older cluster layout that
+	/// is still active in the cluster (being drained).
 	pub nodes: Vec<NodeResp>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeResp {
+	/// Full-length node identifier
 	pub id: String,
-	pub role: Option<NodeRoleResp>,
-	#[schema(value_type = Option<String> )]
+	/// Role assigned to this node in the current cluster layout
+	pub role: Option<NodeAssignedRole>,
+	/// Socket address used by other nodes to connect to this node for RPC
+	#[schema(value_type = Option<String>)]
 	pub addr: Option<SocketAddr>,
+	/// Hostname of the node
 	pub hostname: Option<String>,
+	/// Whether this node is connected in the cluster
 	pub is_up: bool,
+	/// For disconnected nodes, the number of seconds since last contact,
+	/// or `null` if no contact was established since Garage restarted.
 	pub last_seen_secs_ago: Option<u64>,
+	/// Whether this node is part of an older layout version and is draining data.
 	pub draining: bool,
-	#[serde(skip_serializing_if = "Option::is_none")]
+	/// Total and available space on the disk partition(s) containing the data
+	/// directory(ies)
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub data_partition: Option<FreeSpaceResp>,
-	#[serde(skip_serializing_if = "Option::is_none")]
+	/// Total and available space on the disk partition containing the
+	/// metadata directory
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata_partition: Option<FreeSpaceResp>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct NodeRoleResp {
-	pub id: String,
+pub struct NodeAssignedRole {
+	/// Zone name assigned by the cluster administrator
 	pub zone: String,
-	pub capacity: Option<u64>,
+	/// List of tags assigned by the cluster administrator
 	pub tags: Vec<String>,
+	/// Capacity (in bytes) assigned by the cluster administrator,
+	/// absent for gateway nodes
+	pub capacity: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FreeSpaceResp {
+	/// Number of bytes available
 	pub available: u64,
+	/// Total number of bytes
 	pub total: u64,
 }
 
@@ -270,9 +294,40 @@ pub struct GetClusterLayoutRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterLayoutResponse {
+	/// The current version number of the cluster layout
 	pub version: u64,
-	pub roles: Vec<NodeRoleResp>,
+	/// List of nodes that currently have a role in the cluster layout
+	pub roles: Vec<LayoutNodeRole>,
+	/// Layout parameters used when the current layout was computed
+	pub parameters: LayoutParameters,
+	/// The size, in bytes, of one Garage partition (= a shard)
+	pub partition_size: u64,
+	/// List of nodes that will have a new role or whose role will be
+	/// removed in the next version of the cluster layout
 	pub staged_role_changes: Vec<NodeRoleChange>,
+	/// Layout parameters to use when computing the next version of
+	/// the cluster layout
+	pub staged_parameters: Option<LayoutParameters>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutNodeRole {
+	/// Identifier of the node
+	pub id: String,
+	/// Zone name assigned by the cluster administrator
+	pub zone: String,
+	/// List of tags assigned by the cluster administrator
+	pub tags: Vec<String>,
+	/// Capacity (in bytes) assigned by the cluster administrator,
+	/// absent for gateway nodes
+	pub capacity: Option<u64>,
+	/// Number of partitions stored on this node
+	/// (a result of the layout computation)
+	pub stored_partitions: Option<u64>,
+	/// Capacity (in bytes) that is actually usable on this node in the current
+	/// layout, which is equal to `stored_partitions` × `partition_size`
+	pub usable_capacity: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -293,36 +348,139 @@ pub enum NodeRoleChangeEnum {
 		remove: bool,
 	},
 	#[serde(rename_all = "camelCase")]
-	Update {
-		/// New zone of the node
-		zone: String,
-		/// New capacity (in bytes) of the node
-		capacity: Option<u64>,
-		/// New tags of the node
-		tags: Vec<String>,
-	},
+	Update(NodeAssignedRole),
+}
+
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutParameters {
+	/// Minimum number of zones in which a data partition must be replicated
+	pub zone_redundancy: ZoneRedundancy,
+}
+
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ZoneRedundancy {
+	/// Partitions must be replicated in at least this number of
+	/// distinct zones.
+	AtLeast(usize),
+	/// Partitions must be replicated in as many zones as possible:
+	/// as many zones as there are replicas, if there are enough distinct
+	/// zones, or at least one in each zone otherwise.
+	Maximum,
+}
+
+// ---- GetClusterLayoutHistory ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetClusterLayoutHistoryRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GetClusterLayoutHistoryResponse {
+	/// The current version number of the cluster layout
+	pub current_version: u64,
+	/// All nodes in the cluster are aware of layout versions up to
+	/// this version number (at least)
+	pub min_ack: u64,
+	/// Layout version history
+	pub versions: Vec<ClusterLayoutVersion>,
+	/// Detailed update trackers for nodes (see
+	/// `https://garagehq.deuxfleurs.fr/blog/2023-12-preserving-read-after-write-consistency/`)
+	pub update_trackers: Option<HashMap<String, NodeUpdateTrackers>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutVersion {
+	/// Version number of this layout version
+	pub version: u64,
+	/// Status of this layout version
+	pub status: ClusterLayoutVersionStatus,
+	/// Number of nodes with an assigned storage capacity in this layout version
+	pub storage_nodes: u64,
+	/// Number of nodes with a gateway role in this layout version
+	pub gateway_nodes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum ClusterLayoutVersionStatus {
+	/// This is the most up-to-date layout version
+	Current,
+	/// This version is still active in the cluster because metadata
+	/// is being rebalanced or migrated from old nodes
+	Draining,
+	/// This version is no longer active in the cluster for metadata
+	/// reads and writes. Note that there is still the possibility
+	/// that data blocks are being migrated away from nodes in this
+	/// layout version.
+	Historical,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeUpdateTrackers {
+	pub ack: u64,
+	pub sync: u64,
+	pub sync_ack: u64,
 }
 
 // ---- UpdateClusterLayout ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct UpdateClusterLayoutRequest(pub Vec<NodeRoleChange>);
+pub struct UpdateClusterLayoutRequest {
+	/// New node roles to assign or remove in the cluster layout
+	#[serde(default)]
+	pub roles: Vec<NodeRoleChange>,
+	/// New layout computation parameters to use
+	#[serde(default)]
+	pub parameters: Option<LayoutParameters>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateClusterLayoutResponse(pub GetClusterLayoutResponse);
+
+// ---- PreviewClusterLayoutChanges ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreviewClusterLayoutChangesRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum PreviewClusterLayoutChangesResponse {
+	#[serde(rename_all = "camelCase")]
+	Error {
+		/// Error message indicating that the layout could not be computed
+		/// with the provided configuration
+		error: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	Success {
+		/// Plain-text information about the layout computation
+		/// (do not try to parse this)
+		message: Vec<String>,
+		/// Details about the new cluster layout
+		new_layout: GetClusterLayoutResponse,
+	},
+}
 
 // ---- ApplyClusterLayout ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyClusterLayoutRequest {
+	/// As a safety measure, the new version number of the layout must
+	/// be specified here
 	pub version: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyClusterLayoutResponse {
+	/// Plain-text information about the layout computation
+	/// (do not try to parse this)
 	pub message: Vec<String>,
+	/// Details about the new cluster layout
 	pub layout: GetClusterLayoutResponse,
 }
 
@@ -333,6 +491,29 @@ pub struct RevertClusterLayoutRequest;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RevertClusterLayoutResponse(pub GetClusterLayoutResponse);
+
+// ---- ClusterLayoutSkipDeadNodes ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutSkipDeadNodesRequest {
+	/// Version number of the layout to assume is currently up-to-date.
+	/// This will generally be the current layout version.
+	pub version: u64,
+	/// Allow the skip even if a quorum of nodes could not be found for
+	/// the data among the remaining nodes
+	pub allow_missing_data: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ClusterLayoutSkipDeadNodesResponse {
+	/// Nodes for which the ACK update tracker has been updated to `version`
+	pub ack_updated: Vec<String>,
+	/// If `allow_missing_data` is set,
+	/// nodes for which the SYNC update tracker has been updated to `version`
+	pub sync_updated: Vec<String>,
+}
 
 // **********************************************
 //      Access key operations
@@ -367,7 +548,7 @@ pub struct GetKeyInfoRequest {
 pub struct GetKeyInfoResponse {
 	pub name: String,
 	pub access_key_id: String,
-	#[serde(skip_serializing_if = "is_default")]
+	#[serde(default, skip_serializing_if = "is_default")]
 	pub secret_access_key: Option<String>,
 	pub permissions: KeyPerm,
 	pub buckets: Vec<KeyInfoBucketResponse>,
