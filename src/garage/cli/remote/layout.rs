@@ -4,7 +4,6 @@ use format_table::format_table;
 use garage_util::error::*;
 
 use garage_api_admin::api::*;
-use garage_rpc::layout;
 
 use crate::cli::remote::*;
 use crate::cli::structs::*;
@@ -162,18 +161,17 @@ impl Cli {
 		match config_opt.redundancy {
 			None => (),
 			Some(r_str) => {
-				let r = r_str
-					.parse::<layout::ZoneRedundancy>()
-					.ok_or_message("invalid zone redundancy value")?;
+				let r = parse_zone_redundancy(&r_str)?;
 
 				self.api_request(UpdateClusterLayoutRequest {
 					roles: vec![],
-					parameters: Some(LayoutParameters {
-						zone_redundancy: r.into(),
-					}),
+					parameters: Some(LayoutParameters { zone_redundancy: r }),
 				})
 				.await?;
-				println!("The zone redundancy parameter has been set to '{}'.", r);
+				println!(
+					"The zone redundancy parameter has been set to '{}'.",
+					display_zone_redundancy(r)
+				);
 				did_something = true;
 			}
 		}
@@ -403,7 +401,7 @@ pub fn print_cluster_layout(layout: &GetClusterLayoutResponse, empty_msg: &str) 
 		println!();
 		println!(
 			"Zone redundancy: {}",
-			Into::<layout::ZoneRedundancy>::into(layout.parameters.zone_redundancy)
+			display_zone_redundancy(layout.parameters.zone_redundancy),
 		);
 	} else {
 		println!("{}", empty_msg);
@@ -447,11 +445,30 @@ pub fn print_staging_role_changes(layout: &GetClusterLayoutResponse) -> bool {
 		if let Some(p) = layout.staged_parameters.as_ref() {
 			println!(
 				"Zone redundancy: {}",
-				Into::<layout::ZoneRedundancy>::into(p.zone_redundancy)
+				display_zone_redundancy(p.zone_redundancy)
 			);
 		}
 		true
 	} else {
 		false
+	}
+}
+
+pub fn display_zone_redundancy(z: ZoneRedundancy) -> String {
+	match z {
+		ZoneRedundancy::Maximum => "maximum".into(),
+		ZoneRedundancy::AtLeast(x) => x.to_string(),
+	}
+}
+
+pub fn parse_zone_redundancy(s: &str) -> Result<ZoneRedundancy, Error> {
+	match s {
+		"none" | "max" | "maximum" => Ok(ZoneRedundancy::Maximum),
+		x => {
+			let v = x.parse::<usize>().map_err(|_| {
+				Error::Message("zone redundancy must be 'none'/'max' or an integer".into())
+			})?;
+			Ok(ZoneRedundancy::AtLeast(v))
+		}
 	}
 }

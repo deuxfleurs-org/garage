@@ -1,5 +1,3 @@
-use std::fmt;
-
 use bytesize::ByteSize;
 
 use garage_util::crdt::{AutoCrdt, Crdt};
@@ -394,30 +392,6 @@ impl NodeRole {
 
 	pub fn tags_string(&self) -> String {
 		self.tags.join(",")
-	}
-}
-
-impl fmt::Display for ZoneRedundancy {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			ZoneRedundancy::Maximum => write!(f, "maximum"),
-			ZoneRedundancy::AtLeast(x) => write!(f, "{}", x),
-		}
-	}
-}
-
-impl core::str::FromStr for ZoneRedundancy {
-	type Err = &'static str;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"none" | "max" | "maximum" => Ok(ZoneRedundancy::Maximum),
-			x => {
-				let v = x
-					.parse::<usize>()
-					.map_err(|_| "zone redundancy must be 'none'/'max' or an integer")?;
-				Ok(ZoneRedundancy::AtLeast(v))
-			}
-		}
 	}
 }
 
