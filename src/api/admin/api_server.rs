@@ -99,6 +99,7 @@ pub struct AdminApiServer {
 	#[cfg(feature = "metrics")]
 	pub(crate) exporter: PrometheusExporter,
 	metrics_token: Option<String>,
+	metrics_require_token: bool,
 	admin_token: Option<String>,
 	pub(crate) background: Arc<BackgroundRunner>,
 	pub(crate) endpoint: Arc<RpcEndpoint<AdminRpc, Self>>,
@@ -118,6 +119,7 @@ impl AdminApiServer {
 		let cfg = &garage.config.admin;
 		let metrics_token = cfg.metrics_token.as_deref().map(hash_bearer_token);
 		let admin_token = cfg.admin_token.as_deref().map(hash_bearer_token);
+		let metrics_require_token = cfg.metrics_require_token;
 
 		let endpoint = garage.system.netapp.endpoint(ADMIN_RPC_PATH.into());
 		let admin = Arc::new(Self {
@@ -125,6 +127,7 @@ impl AdminApiServer {
 			#[cfg(feature = "metrics")]
 			exporter,
 			metrics_token,
+			metrics_require_token,
 			admin_token,
 			background,
 			endpoint,
@@ -156,25 +159,19 @@ impl AdminApiServer {
 			HttpEndpoint::New(_) => AdminApiRequest::from_request(req).await?,
 		};
 
-		let required_auth_hash =
-			match request.authorization_type() {
-				Authorization::None => None,
-				Authorization::MetricsToken => self.metrics_token.as_deref(),
-				Authorization::AdminToken => match self.admin_token.as_deref() {
-					None => return Err(Error::forbidden(
-						"Admin token isn't configured, admin API access is disabled for security.",
-					)),
-					Some(t) => Some(t),
-				},
-			};
+		let (global_token_hash, token_required) = match request.authorization_type() {
+			Authorization::None => (None, false),
+			Authorization::MetricsToken => (
+				self.metrics_token.as_deref(),
+				self.metrics_token.is_some() || self.metrics_require_token,
+			),
+			Authorization::AdminToken => (self.admin_token.as_deref(), true),
+		};
 
-		verify_authorization(
-			&self.garage,
-			required_auth_hash,
-			auth_header,
-			request.name(),
-		)
-		.await?;
+		if token_required {
+			verify_authorization(&self.garage, global_token_hash, auth_header, request.name())
+				.await?;
+		}
 
 		match request {
 			AdminApiRequest::Options(req) => req.handle(&self.garage, &self).await,
@@ -250,7 +247,7 @@ fn hash_bearer_token(token: &str) -> String {
 
 async fn verify_authorization(
 	garage: &Garage,
-	required_token_hash: Option<&str>,
+	global_token_hash: Option<&str>,
 	auth_header: Option<hyper::http::HeaderValue>,
 	endpoint_name: &str,
 ) -> Result<(), Error> {
@@ -258,55 +255,52 @@ async fn verify_authorization(
 
 	let invalid_msg = "Invalid bearer token";
 
-	if let Some(token_hash_str) = required_token_hash {
-		let token = match &auth_header {
-			None => {
-				return Err(Error::forbidden(
-					"Bearer token must be provided in Authorization header",
-				))
-			}
-			Some(authorization) => authorization
-				.to_str()?
-				.strip_prefix("Bearer ")
-				.ok_or_else(|| Error::forbidden("Invalid Authorization header"))?
-				.trim(),
-		};
-
-		let token_hash_string = if let Some((prefix, _)) = token.split_once('.') {
-			garage
-				.admin_token_table
-				.get(&EmptyKey, &prefix.to_string())
-				.await?
-				.and_then(|k| k.state.into_option())
-				.filter(|p| {
-					p.expiration
-						.get()
-						.map(|exp| now_msec() < exp)
-						.unwrap_or(true)
-				})
-				.filter(|p| {
-					p.scope
-						.get()
-						.0
-						.iter()
-						.any(|x| x == "*" || x == endpoint_name)
-				})
-				.ok_or_else(|| Error::forbidden(invalid_msg))?
-				.token_hash
-		} else {
-			token_hash_str.to_string()
-		};
-
-		let token_hash = PasswordHash::new(&token_hash_string)
-			.ok_or_internal_error("Could not parse token hash")?;
-
-		if Argon2::default()
-			.verify_password(token.as_bytes(), &token_hash)
-			.is_err()
-		{
-			return Err(Error::forbidden(invalid_msg));
+	let token = match &auth_header {
+		None => {
+			return Err(Error::forbidden(
+				"Bearer token must be provided in Authorization header",
+			))
 		}
-	}
+		Some(authorization) => authorization
+			.to_str()?
+			.strip_prefix("Bearer ")
+			.ok_or_else(|| Error::forbidden("Invalid Authorization header"))?
+			.trim(),
+	};
+
+	let token_hash_string = if let Some((prefix, _)) = token.split_once('.') {
+		garage
+			.admin_token_table
+			.get(&EmptyKey, &prefix.to_string())
+			.await?
+			.and_then(|k| k.state.into_option())
+			.filter(|p| {
+				p.expiration
+					.get()
+					.map(|exp| now_msec() < exp)
+					.unwrap_or(true)
+			})
+			.filter(|p| {
+				p.scope
+					.get()
+					.0
+					.iter()
+					.any(|x| x == "*" || x == endpoint_name)
+			})
+			.ok_or_else(|| Error::forbidden(invalid_msg))?
+			.token_hash
+	} else {
+		global_token_hash
+			.ok_or_else(|| Error::forbidden(invalid_msg))?
+			.to_string()
+	};
+
+	let token_hash =
+		PasswordHash::new(&token_hash_string).ok_or_internal_error("Could not parse token hash")?;
+
+	Argon2::default()
+		.verify_password(token.as_bytes(), &token_hash)
+		.map_err(|_| Error::forbidden(invalid_msg))?;
 
 	Ok(())
 }
