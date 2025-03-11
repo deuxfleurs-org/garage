@@ -298,14 +298,8 @@ pub struct ConnectNodeResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListAdminTokensRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ListAdminTokensResponse(pub Vec<GetAdminTokenInfoResponse>);
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListAdminTokensResponseItem {
-	pub id: String,
-	pub name: String,
-}
 
 // ---- GetAdminTokenInfo ----
 
@@ -315,13 +309,21 @@ pub struct GetAdminTokenInfoRequest {
 	pub search: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAdminTokenInfoResponse {
+	/// Identifier of the admin token (which is also a prefix of the full bearer token)
 	pub id: String,
+	/// Name of the admin API token
 	pub name: String,
+	/// Expiration time and date, formatted according to RFC 3339
+	#[schema(value_type = Option<String>)]
 	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	/// Whether this admin token is expired already
 	pub expired: bool,
+	/// Scope of the admin API token, a list of admin endpoint names (such as
+	/// `GetClusterStatus`, etc), or the special value `*` to allow all
+	/// admin endpoints
 	pub scope: Vec<String>,
 }
 
@@ -330,9 +332,12 @@ pub struct GetAdminTokenInfoResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateAdminTokenRequest(pub UpdateAdminTokenRequestBody);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateAdminTokenResponse {
+	/// The secret bearer token. **CAUTION:** This token will be shown only
+	/// ONCE, so this value MUST be remembered somewhere, or the token
+	/// will be unusable.
 	pub secret_token: String,
 	#[serde(flatten)]
 	pub info: GetAdminTokenInfoResponse,
@@ -346,15 +351,23 @@ pub struct UpdateAdminTokenRequest {
 	pub body: UpdateAdminTokenRequestBody,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateAdminTokenRequestBody {
+	/// Name of the admin API token
 	pub name: Option<String>,
+	/// Expiration time and date, formatted according to RFC 3339
+	#[schema(value_type = Option<String>)]
 	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	/// Scope of the admin API token, a list of admin endpoint names (such as
+	/// `GetClusterStatus`, etc), or the special value `*` to allow all
+	/// admin endpoints. **WARNING:** Granting a scope of `CreateAdminToken` or
+	/// `UpdateAdminToken` trivially allows for privilege escalation, and is thus
+	/// functionnally equivalent to granting a scope of `*`.
 	pub scope: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateAdminTokenResponse(pub GetAdminTokenInfoResponse);
 
 // ---- DeleteAdminToken ----

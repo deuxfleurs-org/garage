@@ -67,6 +67,82 @@ fn GetClusterStatistics() -> () {}
 fn ConnectClusterNodes() -> () {}
 
 // **********************************************
+//      Admin API token operations
+// **********************************************
+
+#[utoipa::path(get,
+    path = "/v2/ListAdminTokens",
+    tag = "Admin API token",
+    description = "Returns all admin API tokens in the cluster.",
+	responses(
+            (status = 200, description = "Returns info about all admin API tokens", body = ListAdminTokensResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListAdminTokens() -> () {}
+
+#[utoipa::path(get,
+    path = "/v2/GetAdminTokenInfo",
+    tag = "Admin API token",
+    description = "
+Return information about a specific admin API token.
+You can search by specifying the exact token identifier (`id`) or by specifying a pattern (`search`).
+    ",
+    params(
+        ("id", description = "Admin API token ID"),
+        ("search", description = "Partial token ID or name to search for"),
+    ),
+	responses(
+            (status = 200, description = "Information about the admin token", body = GetAdminTokenInfoResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn GetAdminTokenInfo() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/CreateAdminToken",
+    tag = "Admin API token",
+    description = "Creates a new admin API token",
+    request_body = UpdateAdminTokenRequestBody,
+	responses(
+            (status = 200, description = "Admin token has been created", body = CreateAdminTokenResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn CreateAdminToken() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/UpdateAdminToken",
+    tag = "Admin API token",
+    description = "
+Updates information about the specified admin API token.
+    ",
+    request_body = UpdateAdminTokenRequestBody,
+    params(
+        ("id", description = "Admin API token ID"),
+    ),
+	responses(
+            (status = 200, description = "Admin token has been updated", body = UpdateAdminTokenResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn UpdateAdminToken() -> () {}
+
+#[utoipa::path(post,
+    path = "/v2/DeleteAdminToken",
+    tag = "Admin API token",
+    description = "Delete an admin API token from the cluster, revoking all its permissions.",
+    params(
+        ("id", description = "Admin API token ID"),
+    ),
+	responses(
+            (status = 200, description = "Admin token has been deleted"),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn DeleteAdminToken() -> () {}
+
+// **********************************************
 //      Layout operations
 // **********************************************
 
@@ -723,6 +799,12 @@ impl Modify for SecurityAddon {
         GetClusterStatus,
         GetClusterStatistics,
         ConnectClusterNodes,
+        // Admin token operations
+        ListAdminTokens,
+        GetAdminTokenInfo,
+        CreateAdminToken,
+        UpdateAdminToken,
+        DeleteAdminToken,
         // Layout operations
         GetClusterLayout,
         GetClusterLayoutHistory,

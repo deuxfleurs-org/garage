@@ -225,6 +225,40 @@
         }
       }
     },
+    "/v2/CreateAdminToken": {
+      "post": {
+        "tags": [
+          "Admin API token"
+        ],
+        "description": "Creates a new admin API token",
+        "operationId": "CreateAdminToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminTokenRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Admin token has been created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateAdminTokenResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/CreateBucket": {
       "post": {
         "tags": [
@@ -325,6 +359,31 @@
         }
       }
     },
+    "/v2/DeleteAdminToken": {
+      "post": {
+        "tags": [
+          "Admin API token"
+        ],
+        "description": "Delete an admin API token from the cluster, revoking all its permissions.",
+        "operationId": "DeleteAdminToken",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Admin API token ID",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin token has been deleted"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/DeleteBucket": {
       "post": {
         "tags": [
@@ -405,6 +464,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DenyBucketKeyResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/GetAdminTokenInfo": {
+      "get": {
+        "tags": [
+          "Admin API token"
+        ],
+        "description": "\nReturn information about a specific admin API token.\nYou can search by specifying the exact token identifier (`id`) or by specifying a pattern (`search`).\n    ",
+        "operationId": "GetAdminTokenInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Admin API token ID",
+            "required": true
+          },
+          {
+            "name": "search",
+            "in": "path",
+            "description": "Partial token ID or name to search for",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Information about the admin token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAdminTokenInfoResponse"
                 }
               }
             }
@@ -886,6 +983,30 @@
         }
       }
     },
+    "/v2/ListAdminTokens": {
+      "get": {
+        "tags": [
+          "Admin API token"
+        ],
+        "description": "Returns all admin API tokens in the cluster.",
+        "operationId": "ListAdminTokens",
+        "responses": {
+          "200": {
+            "description": "Returns info about all admin API tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListAdminTokensResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/ListBlockErrors": {
       "get": {
         "tags": [
@@ -1206,6 +1327,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MultiResponse_LocalSetWorkerVariableResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/UpdateAdminToken": {
+      "post": {
+        "tags": [
+          "Admin API token"
+        ],
+        "description": "\nUpdates information about the specified admin API token.\n    ",
+        "operationId": "UpdateAdminToken",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Admin API token ID",
+            "required": true
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminTokenRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Admin token has been updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateAdminTokenResponse"
                 }
               }
             }
@@ -1775,6 +1938,25 @@
           }
         }
       },
+      "CreateAdminTokenResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/GetAdminTokenInfoResponse"
+          },
+          {
+            "type": "object",
+            "required": [
+              "secretToken"
+            ],
+            "properties": {
+              "secretToken": {
+                "type": "string",
+                "description": "The secret bearer token. **CAUTION:** This token will be shown only\nONCE, so this value MUST be remembered somewhere, or the token\nwill be unusable."
+              }
+            }
+          }
+        ]
+      },
       "CreateBucketLocalAlias": {
         "type": "object",
         "required": [
@@ -1855,6 +2037,43 @@
             "format": "int64",
             "description": "Total number of bytes",
             "minimum": 0
+          }
+        }
+      },
+      "GetAdminTokenInfoResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "expired",
+          "scope"
+        ],
+        "properties": {
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expiration time and date, formatted according to RFC 3339"
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "Whether this admin token is expired already"
+          },
+          "id": {
+            "type": "string",
+            "description": "Identifier of the admin token (which is also a prefix of the full bearer token)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the admin API token"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scope of the admin API token, a list of admin endpoint names (such as\n`GetClusterStatus`, etc), or the special value `*` to allow all\nadmin endpoints"
           }
         }
       },
@@ -2323,6 +2542,12 @@
             "$ref": "#/components/schemas/ZoneRedundancy",
             "description": "Minimum number of zones in which a data partition must be replicated"
           }
+        }
+      },
+      "ListAdminTokensResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GetAdminTokenInfoResponse"
         }
       },
       "ListBucketsResponse": {
@@ -3403,6 +3628,38 @@
           "resume",
           "cancel"
         ]
+      },
+      "UpdateAdminTokenRequestBody": {
+        "type": "object",
+        "properties": {
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Expiration time and date, formatted according to RFC 3339"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the admin API token"
+          },
+          "scope": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Scope of the admin API token, a list of admin endpoint names (such as\n`GetClusterStatus`, etc), or the special value `*` to allow all\nadmin endpoints. **WARNING:** Granting a scope of `CreateAdminToken` or\n`UpdateAdminToken` trivially allows for privilege escalation, and is thus\nfunctionnally equivalent to granting a scope of `*`."
+          }
+        }
+      },
+      "UpdateAdminTokenResponse": {
+        "$ref": "#/components/schemas/GetAdminTokenInfoResponse"
       },
       "UpdateBucketRequestBody": {
         "type": "object",
