@@ -14,6 +14,7 @@ mod router_v2;
 mod bucket;
 mod cluster;
 mod key;
+mod layout;
 mod special;
 
 mod block;

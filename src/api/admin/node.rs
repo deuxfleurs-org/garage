@@ -1,16 +1,12 @@
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
 use format_table::format_table_to_string;
 
-use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 
 use garage_table::replication::*;
 use garage_table::*;
-
-use garage_rpc::layout::PARTITION_BITS;
 
 use garage_model::garage::Garage;
 
@@ -111,108 +107,6 @@ impl RequestHandler for LocalGetNodeStatisticsRequest {
 		.unwrap();
 
 		Ok(LocalGetNodeStatisticsResponse { freeform: ret })
-	}
-}
-
-impl RequestHandler for GetClusterStatisticsRequest {
-	type Response = GetClusterStatisticsResponse;
-
-	// FIXME: return this as a JSON struct instead of text
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<GetClusterStatisticsResponse, Error> {
-		let mut ret = String::new();
-
-		// Gather storage node and free space statistics for current nodes
-		let layout = &garage.system.cluster_layout();
-		let mut node_partition_count = HashMap::<Uuid, u64>::new();
-		for short_id in layout.current().ring_assignment_data.iter() {
-			let id = layout.current().node_id_vec[*short_id as usize];
-			*node_partition_count.entry(id).or_default() += 1;
-		}
-		let node_info = garage
-			.system
-			.get_known_nodes()
-			.into_iter()
-			.map(|n| (n.id, n))
-			.collect::<HashMap<_, _>>();
-
-		let mut table = vec!["  ID\tHostname\tZone\tCapacity\tPart.\tDataAvail\tMetaAvail".into()];
-		for (id, parts) in node_partition_count.iter() {
-			let info = node_info.get(id);
-			let status = info.map(|x| &x.status);
-			let role = layout.current().roles.get(id).and_then(|x| x.0.as_ref());
-			let hostname = status.and_then(|x| x.hostname.as_deref()).unwrap_or("?");
-			let zone = role.map(|x| x.zone.as_str()).unwrap_or("?");
-			let capacity = role
-				.map(|x| x.capacity_string())
-				.unwrap_or_else(|| "?".into());
-			let avail_str = |x| match x {
-				Some((avail, total)) => {
-					let pct = (avail as f64) / (total as f64) * 100.;
-					let avail = bytesize::ByteSize::b(avail);
-					let total = bytesize::ByteSize::b(total);
-					format!("{}/{} ({:.1}%)", avail, total, pct)
-				}
-				None => "?".into(),
-			};
-			let data_avail = avail_str(status.and_then(|x| x.data_disk_avail));
-			let meta_avail = avail_str(status.and_then(|x| x.meta_disk_avail));
-			table.push(format!(
-				"  {:?}\t{}\t{}\t{}\t{}\t{}\t{}",
-				id, hostname, zone, capacity, parts, data_avail, meta_avail
-			));
-		}
-		write!(
-			&mut ret,
-			"Storage nodes:\n{}",
-			format_table_to_string(table)
-		)
-		.unwrap();
-
-		let meta_part_avail = node_partition_count
-			.iter()
-			.filter_map(|(id, parts)| {
-				node_info
-					.get(id)
-					.and_then(|x| x.status.meta_disk_avail)
-					.map(|c| c.0 / *parts)
-			})
-			.collect::<Vec<_>>();
-		let data_part_avail = node_partition_count
-			.iter()
-			.filter_map(|(id, parts)| {
-				node_info
-					.get(id)
-					.and_then(|x| x.status.data_disk_avail)
-					.map(|c| c.0 / *parts)
-			})
-			.collect::<Vec<_>>();
-		if !meta_part_avail.is_empty() && !data_part_avail.is_empty() {
-			let meta_avail =
-				bytesize::ByteSize(meta_part_avail.iter().min().unwrap() * (1 << PARTITION_BITS));
-			let data_avail =
-				bytesize::ByteSize(data_part_avail.iter().min().unwrap() * (1 << PARTITION_BITS));
-			writeln!(
-				&mut ret,
-				"\nEstimated available storage space cluster-wide (might be lower in practice):"
-			)
-			.unwrap();
-			if meta_part_avail.len() < node_partition_count.len()
-				|| data_part_avail.len() < node_partition_count.len()
-			{
-				writeln!(&mut ret, "  data: < {}", data_avail).unwrap();
-				writeln!(&mut ret, "  metadata: < {}", meta_avail).unwrap();
-				writeln!(&mut ret, "A precise estimate could not be given as information is missing for some storage nodes.").unwrap();
-			} else {
-				writeln!(&mut ret, "  data: {}", data_avail).unwrap();
-				writeln!(&mut ret, "  metadata: {}", meta_avail).unwrap();
-			}
-		}
-
-		Ok(GetClusterStatisticsResponse { freeform: ret })
 	}
 }
 
