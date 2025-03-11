@@ -2043,7 +2043,6 @@
       "GetAdminTokenInfoResponse": {
         "type": "object",
         "required": [
-          "id",
           "name",
           "expired",
           "scope"
@@ -2061,7 +2060,10 @@
             "description": "Whether this admin token is expired already"
           },
           "id": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Identifier of the admin token (which is also a prefix of the full bearer token)"
           },
           "name": {

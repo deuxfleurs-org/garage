@@ -313,7 +313,7 @@ pub struct GetAdminTokenInfoRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GetAdminTokenInfoResponse {
 	/// Identifier of the admin token (which is also a prefix of the full bearer token)
-	pub id: String,
+	pub id: Option<String>,
 	/// Name of the admin API token
 	pub name: String,
 	/// Expiration time and date, formatted according to RFC 3339

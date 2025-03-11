@@ -22,7 +22,7 @@ impl RequestHandler for ListAdminTokensRequest {
 	) -> Result<ListAdminTokensResponse, Error> {
 		let now = now_msec();
 
-		let res = garage
+		let mut res = garage
 			.admin_token_table
 			.get_range(
 				&EmptyKey,
@@ -35,6 +35,32 @@ impl RequestHandler for ListAdminTokensRequest {
 			.iter()
 			.map(|t| admin_token_info_results(t, now))
 			.collect::<Vec<_>>();
+
+		if garage.config.admin.admin_token.is_some() {
+			res.insert(
+				0,
+				GetAdminTokenInfoResponse {
+					id: None,
+					name: "admin_token (from daemon configuration)".into(),
+					expiration: None,
+					expired: false,
+					scope: vec!["*".into()],
+				},
+			);
+		}
+
+		if garage.config.admin.metrics_token.is_some() {
+			res.insert(
+				1,
+				GetAdminTokenInfoResponse {
+					id: None,
+					name: "metrics_token (from daemon configuration)".into(),
+					expiration: None,
+					expired: false,
+					scope: vec!["Metrics".into()],
+				},
+			);
+		}
 
 		Ok(ListAdminTokensResponse(res))
 	}
@@ -153,7 +179,7 @@ fn admin_token_info_results(token: &AdminApiToken, now: u64) -> GetAdminTokenInf
 	let params = token.params().unwrap();
 
 	GetAdminTokenInfoResponse {
-		id: token.prefix.clone(),
+		id: Some(token.prefix.clone()),
 		name: params.name.get().to_string(),
 		expiration: params.expiration.get().map(|x| {
 			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")
