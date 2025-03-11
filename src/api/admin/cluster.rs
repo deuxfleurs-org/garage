@@ -248,8 +248,8 @@ impl RequestHandler for GetClusterLayoutHistoryRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<GetClusterLayoutHistoryResponse, Error> {
-		let layout = garage.system.cluster_layout();
-		let layout = layout.inner();
+		let layout_helper = garage.system.cluster_layout();
+		let layout = layout_helper.inner();
 		let min_stored = layout.min_stored();
 
 		let versions = layout
@@ -289,10 +289,7 @@ impl RequestHandler for GetClusterLayoutHistoryRequest {
 			.collect::<Vec<_>>();
 
 		let all_nodes = layout.get_all_nodes();
-		let min_ack = layout
-			.update_trackers
-			.ack_map
-			.min_among(&all_nodes, layout.min_stored());
+		let min_ack = layout_helper.ack_map_min();
 
 		let update_trackers = if layout.versions.len() > 1 {
 			Some(
