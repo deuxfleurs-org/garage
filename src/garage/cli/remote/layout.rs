@@ -120,11 +120,11 @@ impl Cli {
 
 			actions.push(NodeRoleChange {
 				id,
-				action: NodeRoleChangeEnum::Update {
+				action: NodeRoleChangeEnum::Update(NodeAssignedRole {
 					zone,
 					capacity,
 					tags,
-				},
+				}),
 			});
 		}
 
@@ -340,16 +340,7 @@ pub fn get_staged_or_current_role(
 		if node.id == id {
 			return match &node.action {
 				NodeRoleChangeEnum::Remove { .. } => None,
-				NodeRoleChangeEnum::Update {
-					zone,
-					capacity,
-					tags,
-				} => Some(NodeAssignedRole {
-					id: id.to_string(),
-					zone: zone.to_string(),
-					capacity: *capacity,
-					tags: tags.clone(),
-				}),
+				NodeRoleChangeEnum::Update(role) => Some(role.clone()),
 			};
 		}
 	}
@@ -357,7 +348,6 @@ pub fn get_staged_or_current_role(
 	for node in layout.roles.iter() {
 		if node.id == id {
 			return Some(NodeAssignedRole {
-				id: node.id.clone(),
 				zone: node.zone.clone(),
 				capacity: node.capacity,
 				tags: node.tags.clone(),
@@ -437,11 +427,11 @@ pub fn print_staging_role_changes(layout: &GetClusterLayoutResponse) -> bool {
 			let mut table = vec!["ID\tTags\tZone\tCapacity".to_string()];
 			for change in layout.staged_role_changes.iter() {
 				match &change.action {
-					NodeRoleChangeEnum::Update {
+					NodeRoleChangeEnum::Update(NodeAssignedRole {
 						tags,
 						zone,
 						capacity,
-					} => {
+					}) => {
 						let tags = tags.join(",");
 						table.push(format!(
 							"{:.16}\t{}\t{}\t{}",

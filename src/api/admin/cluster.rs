@@ -56,7 +56,6 @@ impl RequestHandler for GetClusterStatusRequest {
 		for (id, _, role) in layout.current().roles.items().iter() {
 			if let layout::NodeRoleV(Some(r)) = role {
 				let role = NodeAssignedRole {
-					id: hex::encode(id),
 					zone: r.zone.to_string(),
 					capacity: r.capacity,
 					tags: r.tags.clone(),
@@ -189,15 +188,16 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 		.items()
 		.iter()
 		.filter_map(|(k, _, v)| v.0.clone().map(|x| (k, x)))
-		.map(|(k, v)| LayoutNodeRole {
-			id: hex::encode(k),
-			zone: v.zone.clone(),
-			capacity: v.capacity,
-			usable_capacity: current
-				.get_node_usage(k)
-				.ok()
-				.map(|x| x as u64 * current.partition_size),
-			tags: v.tags.clone(),
+		.map(|(k, v)| {
+			let stored_partitions = current.get_node_usage(k).ok().map(|x| x as u64);
+			LayoutNodeRole {
+				id: hex::encode(k),
+				zone: v.zone.clone(),
+				capacity: v.capacity,
+				stored_partitions,
+				usable_capacity: stored_partitions.map(|x| x * current.partition_size),
+				tags: v.tags.clone(),
+			}
 		})
 		.collect::<Vec<_>>();
 
@@ -215,11 +215,11 @@ fn format_cluster_layout(layout: &layout::LayoutHistory) -> GetClusterLayoutResp
 			},
 			Some(r) => NodeRoleChange {
 				id: hex::encode(k),
-				action: NodeRoleChangeEnum::Update {
+				action: NodeRoleChangeEnum::Update(NodeAssignedRole {
 					zone: r.zone.clone(),
 					capacity: r.capacity,
 					tags: r.tags.clone(),
-				},
+				}),
 			},
 		})
 		.collect::<Vec<_>>();
@@ -346,11 +346,11 @@ impl RequestHandler for UpdateClusterLayoutRequest {
 
 			let new_role = match change.action {
 				NodeRoleChangeEnum::Remove { remove: true } => None,
-				NodeRoleChangeEnum::Update {
+				NodeRoleChangeEnum::Update(NodeAssignedRole {
 					zone,
 					capacity,
 					tags,
-				} => {
+				}) => {
 					if matches!(capacity, Some(cap) if cap < 1024) {
 						return Err(Error::bad_request("Capacity should be at least 1K (1024)"));
 					}
