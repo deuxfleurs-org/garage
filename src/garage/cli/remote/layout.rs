@@ -71,16 +71,10 @@ impl Cli {
 		let status = self.api_request(GetClusterStatusRequest).await?;
 		let layout = self.api_request(GetClusterLayoutRequest).await?;
 
-		let all_node_ids_iter = status
-			.nodes
-			.iter()
-			.map(|x| x.id.as_str())
-			.chain(layout.roles.iter().map(|x| x.id.as_str()));
-
 		let mut actions = vec![];
 
 		for node in opt.replace.iter() {
-			let id = find_matching_node(all_node_ids_iter.clone(), &node)?;
+			let id = find_matching_node(&status, &layout, &node)?;
 
 			actions.push(NodeRoleChange {
 				id,
@@ -89,7 +83,7 @@ impl Cli {
 		}
 
 		for node in opt.node_ids.iter() {
-			let id = find_matching_node(all_node_ids_iter.clone(), &node)?;
+			let id = find_matching_node(&status, &layout, &node)?;
 
 			let current = get_staged_or_current_role(&id, &layout);
 
@@ -144,13 +138,7 @@ impl Cli {
 		let status = self.api_request(GetClusterStatusRequest).await?;
 		let layout = self.api_request(GetClusterLayoutRequest).await?;
 
-		let all_node_ids_iter = status
-			.nodes
-			.iter()
-			.map(|x| x.id.as_str())
-			.chain(layout.roles.iter().map(|x| x.id.as_str()));
-
-		let id = find_matching_node(all_node_ids_iter.clone(), &opt.node_id)?;
+		let id = find_matching_node(&status, &layout, &opt.node_id)?;
 
 		let actions = vec![NodeRoleChange {
 			id,
@@ -359,11 +347,18 @@ pub fn get_staged_or_current_role(
 }
 
 pub fn find_matching_node<'a>(
-	cand: impl std::iter::Iterator<Item = &'a str>,
+	status: &GetClusterStatusResponse,
+	layout: &GetClusterLayoutResponse,
 	pattern: &'a str,
 ) -> Result<String, Error> {
+	let all_node_ids_iter = status
+		.nodes
+		.iter()
+		.map(|x| x.id.as_str())
+		.chain(layout.roles.iter().map(|x| x.id.as_str()));
+
 	let mut candidates = vec![];
-	for c in cand {
+	for c in all_node_ids_iter {
 		if c.starts_with(pattern) && !candidates.contains(&c) {
 			candidates.push(c);
 		}
