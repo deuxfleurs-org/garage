@@ -404,7 +404,7 @@ impl RequestHandler for PreviewClusterLayoutChangesRequest {
 	) -> Result<PreviewClusterLayoutChangesResponse, Error> {
 		let layout = garage.system.cluster_layout().inner().clone();
 		let new_ver = layout.current().version + 1;
-		match layout.apply_staged_changes(Some(new_ver)) {
+		match layout.apply_staged_changes(new_ver) {
 			Err(GarageError::Message(error)) => {
 				Ok(PreviewClusterLayoutChangesResponse::Error { error })
 			}
@@ -426,7 +426,7 @@ impl RequestHandler for ApplyClusterLayoutRequest {
 		_admin: &Admin,
 	) -> Result<ApplyClusterLayoutResponse, Error> {
 		let layout = garage.system.cluster_layout().inner().clone();
-		let (layout, msg) = layout.apply_staged_changes(Some(self.version))?;
+		let (layout, msg) = layout.apply_staged_changes(self.version)?;
 
 		garage
 			.system

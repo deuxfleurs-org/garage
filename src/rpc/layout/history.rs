@@ -267,20 +267,9 @@ impl LayoutHistory {
 		changed
 	}
 
-	pub fn apply_staged_changes(mut self, version: Option<u64>) -> Result<(Self, Message), Error> {
-		match version {
-			None => {
-				let error = r#"
-Please pass the new layout version number to ensure that you are writing the correct version of the cluster layout.
-To know the correct value of the new layout version, invoke `garage layout show` and review the proposed changes.
-				"#;
-				return Err(Error::Message(error.into()));
-			}
-			Some(v) => {
-				if v != self.current().version + 1 {
-					return Err(Error::Message("Invalid new layout version".into()));
-				}
-			}
+	pub fn apply_staged_changes(mut self, version: u64) -> Result<(Self, Message), Error> {
+		if version != self.current().version + 1 {
+			return Err(Error::Message("Invalid new layout version".into()));
 		}
 
 		// Compute new version and add it to history

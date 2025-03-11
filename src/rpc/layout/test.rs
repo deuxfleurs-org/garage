@@ -124,7 +124,7 @@ fn test_assignment() {
 	let mut cl = LayoutHistory::new(ReplicationFactor::new(3).unwrap());
 	update_layout(&mut cl, &node_capacity_vec, &node_zone_vec, 3);
 	let v = cl.current().version;
-	let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
+	let (mut cl, msg) = cl.apply_staged_changes(v + 1).unwrap();
 	show_msg(&msg);
 	assert_eq!(cl.check(), Ok(()));
 	assert!(check_against_naive(cl.current()).unwrap());
@@ -133,7 +133,7 @@ fn test_assignment() {
 	node_zone_vec = vec!["A", "B", "C", "C", "C", "B", "G", "H", "I"];
 	update_layout(&mut cl, &node_capacity_vec, &node_zone_vec, 2);
 	let v = cl.current().version;
-	let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
+	let (mut cl, msg) = cl.apply_staged_changes(v + 1).unwrap();
 	show_msg(&msg);
 	assert_eq!(cl.check(), Ok(()));
 	assert!(check_against_naive(cl.current()).unwrap());
@@ -141,7 +141,7 @@ fn test_assignment() {
 	node_capacity_vec = vec![4000, 1000, 2000, 7000, 1000, 1000, 2000, 10000, 2000];
 	update_layout(&mut cl, &node_capacity_vec, &node_zone_vec, 3);
 	let v = cl.current().version;
-	let (mut cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
+	let (mut cl, msg) = cl.apply_staged_changes(v + 1).unwrap();
 	show_msg(&msg);
 	assert_eq!(cl.check(), Ok(()));
 	assert!(check_against_naive(cl.current()).unwrap());
@@ -151,7 +151,7 @@ fn test_assignment() {
 	];
 	update_layout(&mut cl, &node_capacity_vec, &node_zone_vec, 1);
 	let v = cl.current().version;
-	let (cl, msg) = cl.apply_staged_changes(Some(v + 1)).unwrap();
+	let (cl, msg) = cl.apply_staged_changes(v + 1).unwrap();
 	show_msg(&msg);
 	assert_eq!(cl.check(), Ok(()));
 	assert!(check_against_naive(cl.current()).unwrap());
