@@ -2053,6 +2053,7 @@
               "string",
               "null"
             ],
+            "format": "date-time",
             "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "expired": {
@@ -3639,6 +3640,7 @@
               "string",
               "null"
             ],
+            "format": "date-time",
             "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "name": {

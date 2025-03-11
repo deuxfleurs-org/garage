@@ -101,7 +101,7 @@ serde = { version = "1.0", default-features = false, features = ["derive", "rc"]
 serde_bytes = "0.11"
 serde_json = "1.0"
 toml = { version = "0.8", default-features = false, features = ["parse"] }
-utoipa = "5.3.1"
+utoipa = { version = "5.3.1", features = ["chrono"] }
 
 # newer version requires rust edition 2021
 k8s-openapi = { version = "0.21", features = ["v1_24"] }

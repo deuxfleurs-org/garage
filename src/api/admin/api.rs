@@ -317,7 +317,6 @@ pub struct GetAdminTokenInfoResponse {
 	/// Name of the admin API token
 	pub name: String,
 	/// Expiration time and date, formatted according to RFC 3339
-	#[schema(value_type = Option<String>)]
 	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
 	/// Whether this admin token is expired already
 	pub expired: bool,
@@ -357,7 +356,6 @@ pub struct UpdateAdminTokenRequestBody {
 	/// Name of the admin API token
 	pub name: Option<String>,
 	/// Expiration time and date, formatted according to RFC 3339
-	#[schema(value_type = Option<String>)]
 	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
 	/// Scope of the admin API token, a list of admin endpoint names (such as
 	/// `GetClusterStatus`, etc), or the special value `*` to allow all
