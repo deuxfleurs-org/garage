@@ -49,6 +49,13 @@ admin_endpoints![
 	GetClusterStatistics,
 	ConnectClusterNodes,
 
+	// Admin tokens operations
+	ListAdminTokens,
+	GetAdminTokenInfo,
+	CreateAdminToken,
+	UpdateAdminToken,
+	DeleteAdminToken,
+
 	// Layout operations
 	GetClusterLayout,
 	GetClusterLayoutHistory,
@@ -281,6 +288,84 @@ pub struct ConnectNodeResponse {
 	/// An error message if Garage did not manage to connect to this node
 	pub error: Option<String>,
 }
+
+// **********************************************
+//      Admin token operations
+// **********************************************
+
+// ---- ListAdminTokens ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListAdminTokensRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListAdminTokensResponse(pub Vec<GetAdminTokenInfoResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListAdminTokensResponseItem {
+	pub id: String,
+	pub name: String,
+}
+
+// ---- GetAdminTokenInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetAdminTokenInfoRequest {
+	pub id: Option<String>,
+	pub search: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAdminTokenInfoResponse {
+	pub id: String,
+	pub name: String,
+	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	pub expired: bool,
+	pub scope: Vec<String>,
+}
+
+// ---- CreateAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAdminTokenRequest(pub UpdateAdminTokenRequestBody);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateAdminTokenResponse {
+	pub secret_token: String,
+	#[serde(flatten)]
+	pub info: GetAdminTokenInfoResponse,
+}
+
+// ---- UpdateAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAdminTokenRequest {
+	pub id: String,
+	pub body: UpdateAdminTokenRequestBody,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateAdminTokenRequestBody {
+	pub name: Option<String>,
+	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	pub scope: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAdminTokenResponse(pub GetAdminTokenInfoResponse);
+
+// ---- DeleteAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteAdminTokenRequest {
+	pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteAdminTokenResponse;
 
 // **********************************************
 //      Layout operations

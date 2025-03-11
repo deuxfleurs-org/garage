@@ -11,6 +11,7 @@ mod router_v0;
 mod router_v1;
 mod router_v2;
 
+mod admin_token;
 mod bucket;
 mod cluster;
 mod key;

@@ -34,6 +34,12 @@ impl AdminApiRequest {
 			GET GetClusterStatus (),
 			GET GetClusterHealth (),
 			POST ConnectClusterNodes (body),
+			// Admin token endpoints
+			GET ListAdminTokens (),
+			GET GetAdminTokenInfo (query_opt::id, query_opt::search),
+			POST CreateAdminToken (body),
+			POST UpdateAdminToken (body_field, query::id),
+			POST DeleteAdminToken (query::id),
 			// Layout endpoints
 			GET GetClusterLayout (),
 			GET GetClusterLayoutHistory (),

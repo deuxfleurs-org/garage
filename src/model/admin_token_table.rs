@@ -1,3 +1,5 @@
+use base64::prelude::*;
+
 use garage_util::crdt::{self, Crdt};
 
 use garage_table::{EmptyKey, Entry, TableSchema};
@@ -76,7 +78,7 @@ impl AdminApiToken {
 		};
 
 		let prefix = hex::encode(&rand::random::<[u8; 12]>()[..]);
-		let secret = hex::encode(&rand::random::<[u8; 32]>()[..]);
+		let secret = BASE64_URL_SAFE_NO_PAD.encode(&rand::random::<[u8; 32]>()[..]);
 		let token = format!("{}.{}", prefix, secret);
 
 		let salt = SaltString::generate(&mut OsRng);

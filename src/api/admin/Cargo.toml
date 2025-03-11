@@ -25,6 +25,7 @@ garage_api_common.workspace = true
 argon2.workspace = true
 async-trait.workspace = true
 bytesize.workspace = true
+chrono.workspace = true
 err-derive.workspace = true
 hex.workspace = true
 paste.workspace = true

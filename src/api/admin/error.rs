@@ -21,6 +21,10 @@ pub enum Error {
 	Common(#[error(source)] CommonError),
 
 	// Category: cannot process
+	/// The admin API token does not exist
+	#[error(display = "Admin token not found: {}", _0)]
+	NoSuchAdminToken(String),
+
 	/// The API access key does not exist
 	#[error(display = "Access key not found: {}", _0)]
 	NoSuchAccessKey(String),
@@ -60,6 +64,7 @@ impl Error {
 	pub fn code(&self) -> &'static str {
 		match self {
 			Error::Common(c) => c.aws_code(),
+			Error::NoSuchAdminToken(_) => "NoSuchAdminToken",
 			Error::NoSuchAccessKey(_) => "NoSuchAccessKey",
 			Error::NoSuchWorker(_) => "NoSuchWorker",
 			Error::NoSuchBlock(_) => "NoSuchBlock",
@@ -73,9 +78,10 @@ impl ApiError for Error {
 	fn http_status_code(&self) -> StatusCode {
 		match self {
 			Error::Common(c) => c.http_status_code(),
-			Error::NoSuchAccessKey(_) | Error::NoSuchWorker(_) | Error::NoSuchBlock(_) => {
-				StatusCode::NOT_FOUND
-			}
+			Error::NoSuchAdminToken(_)
+			| Error::NoSuchAccessKey(_)
+			| Error::NoSuchWorker(_)
+			| Error::NoSuchBlock(_) => StatusCode::NOT_FOUND,
 			Error::KeyAlreadyExists(_) => StatusCode::CONFLICT,
 		}
 	}

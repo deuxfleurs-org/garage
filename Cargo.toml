@@ -48,7 +48,7 @@ blake2 = "0.10"
 bytes = "1.0"
 bytesize = "1.1"
 cfg-if = "1.0"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 crc32fast = "1.4"
 crc32c = "0.6"
 crypto-common = "0.1"

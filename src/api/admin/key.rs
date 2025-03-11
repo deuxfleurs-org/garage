@@ -46,10 +46,25 @@ impl RequestHandler for GetKeyInfoRequest {
 		let key = match (self.id, self.search) {
 			(Some(id), None) => garage.key_helper().get_existing_key(&id).await?,
 			(None, Some(search)) => {
-				garage
-					.key_helper()
-					.get_existing_matching_key(&search)
+				let candidates = garage
+					.key_table
+					.get_range(
+						&EmptyKey,
+						None,
+						Some(KeyFilter::MatchesAndNotDeleted(search.to_string())),
+						10,
+						EnumerationOrder::Forward,
+					)
 					.await?
+					.into_iter()
+					.collect::<Vec<_>>();
+				if candidates.len() != 1 {
+					return Err(Error::bad_request(format!(
+						"{} matching keys",
+						candidates.len()
+					)));
+				}
+				candidates.into_iter().next().unwrap()
 			}
 			_ => {
 				return Err(Error::bad_request(
