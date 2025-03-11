@@ -1,8 +1,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use argon2::password_hash::PasswordHash;
-
 use http::header::{HeaderValue, ACCESS_CONTROL_ALLOW_ORIGIN, AUTHORIZATION};
 use hyper::{body::Incoming as IncomingBody, Request, Response};
 use serde::{Deserialize, Serialize};
@@ -15,10 +13,12 @@ use opentelemetry_prometheus::PrometheusExporter;
 
 use garage_model::garage::Garage;
 use garage_rpc::{Endpoint as RpcEndpoint, *};
+use garage_table::EmptyKey;
 use garage_util::background::BackgroundRunner;
 use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
+use garage_util::time::now_msec;
 
 use garage_api_common::generic_server::*;
 use garage_api_common::helpers::*;
@@ -168,14 +168,13 @@ impl AdminApiServer {
 				},
 			};
 
-		if let Some(password_hash) = required_auth_hash {
-			match auth_header {
-				None => return Err(Error::forbidden("Authorization token must be provided")),
-				Some(authorization) => {
-					verify_bearer_token(&authorization, password_hash)?;
-				}
-			}
-		}
+		verify_authorization(
+			&self.garage,
+			required_auth_hash,
+			auth_header,
+			request.name(),
+		)
+		.await?;
 
 		match request {
 			AdminApiRequest::Options(req) => req.handle(&self.garage, &self).await,
@@ -249,20 +248,65 @@ fn hash_bearer_token(token: &str) -> String {
 		.to_string()
 }
 
-fn verify_bearer_token(token: &hyper::http::HeaderValue, password_hash: &str) -> Result<(), Error> {
-	use argon2::{password_hash::PasswordVerifier, Argon2};
+async fn verify_authorization(
+	garage: &Garage,
+	required_token_hash: Option<&str>,
+	auth_header: Option<hyper::http::HeaderValue>,
+	endpoint_name: &str,
+) -> Result<(), Error> {
+	use argon2::{password_hash::PasswordHash, password_hash::PasswordVerifier, Argon2};
 
-	let parsed_hash = PasswordHash::new(&password_hash).unwrap();
+	let invalid_msg = "Invalid bearer token";
 
-	token
-		.to_str()?
-		.strip_prefix("Bearer ")
-		.and_then(|token| {
-			Argon2::default()
-				.verify_password(token.trim().as_bytes(), &parsed_hash)
-				.ok()
-		})
-		.ok_or_else(|| Error::forbidden("Invalid authorization token"))?;
+	if let Some(token_hash_str) = required_token_hash {
+		let token = match &auth_header {
+			None => {
+				return Err(Error::forbidden(
+					"Bearer token must be provided in Authorization header",
+				))
+			}
+			Some(authorization) => authorization
+				.to_str()?
+				.strip_prefix("Bearer ")
+				.ok_or_else(|| Error::forbidden("Invalid Authorization header"))?
+				.trim(),
+		};
+
+		let token_hash_string = if let Some((prefix, _)) = token.split_once('.') {
+			garage
+				.admin_token_table
+				.get(&EmptyKey, &prefix.to_string())
+				.await?
+				.and_then(|k| k.state.into_option())
+				.filter(|p| {
+					p.expiration
+						.get()
+						.map(|exp| now_msec() < exp)
+						.unwrap_or(true)
+				})
+				.filter(|p| {
+					p.scope
+						.get()
+						.0
+						.iter()
+						.any(|x| x == "*" || x == endpoint_name)
+				})
+				.ok_or_else(|| Error::forbidden(invalid_msg))?
+				.token_hash
+		} else {
+			token_hash_str.to_string()
+		};
+
+		let token_hash = PasswordHash::new(&token_hash_string)
+			.ok_or_internal_error("Could not parse token hash")?;
+
+		if Argon2::default()
+			.verify_password(token.as_bytes(), &token_hash)
+			.is_err()
+		{
+			return Err(Error::forbidden(invalid_msg));
+		}
+	}
 
 	Ok(())
 }
