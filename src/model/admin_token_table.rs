@@ -139,6 +139,9 @@ impl Entry<EmptyKey, String> for AdminApiToken {
 	fn sort_key(&self) -> &String {
 		&self.prefix
 	}
+	fn is_tombstone(&self) -> bool {
+		self.is_deleted()
+	}
 }
 
 pub struct AdminApiTokenTable;
