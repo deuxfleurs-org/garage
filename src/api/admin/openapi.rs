@@ -6,6 +6,58 @@ use utoipa::{Modify, OpenApi};
 use crate::api::*;
 
 // **********************************************
+//      Special endpoints
+// **********************************************
+
+#[utoipa::path(get,
+    path = "/metrics",
+    tag = "Special endpoints",
+    description = "Prometheus metrics endpoint",
+    security((), ("bearerAuth" = [])),
+	responses(
+            (status = 200, description = "Garage daemon metrics exported in Prometheus format"),
+        ),
+)]
+fn Metrics() -> () {}
+
+#[utoipa::path(get,
+    path = "/health",
+    tag = "Special endpoints",
+    description = "
+Check cluster health. The status code returned by this function indicates
+whether this Garage daemon can answer API requests.
+Garage will return `200 OK` even if some storage nodes are disconnected,
+as long as it is able to have a quorum of nodes for read and write operations.
+    ",
+    security(()),
+	responses(
+            (status = 200, description = "Garage is able to answer requests"),
+            (status = 503, description = "This Garage daemon is not able to handle requests")
+        ),
+)]
+fn Health() -> () {}
+
+#[utoipa::path(get,
+    path = "/check",
+    tag = "Special endpoints",
+    description = "
+Static website domain name check. Checks whether a bucket is configured to serve
+a static website for the requested domain. This is used by reverse proxies such
+as Caddy or Tricot, to avoid requesting TLS certificates for domain names that
+do not correspond to an actual website.
+    ",
+    params(
+        ("domain", description = "The domain name to check for"),
+    ),
+    security(()),
+	responses(
+            (status = 200, description = "The domain name redirects to a static website bucket"),
+            (status = 400, description = "No static website bucket exists for this domain")
+        ),
+)]
+fn CheckDomain() -> () {}
+
+// **********************************************
 //      Cluster operations
 // **********************************************
 
@@ -88,10 +140,7 @@ fn ListAdminTokens() -> () {}
 Return information about a specific admin API token.
 You can search by specifying the exact token identifier (`id`) or by specifying a pattern (`search`).
     ",
-    params(
-        ("id", description = "Admin API token ID"),
-        ("search", description = "Partial token ID or name to search for"),
-    ),
+    params(GetAdminTokenInfoRequest),
 	responses(
             (status = 200, description = "Information about the admin token", body = GetAdminTokenInfoResponse),
             (status = 500, description = "Internal server error")
@@ -284,11 +333,7 @@ You can search by specifying the exact key identifier (`id`) or by specifying a 
 
 For confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.
     ",
-    params(
-        ("id", description = "Access key ID"),
-        ("search", description = "Partial key ID or name to search for"),
-        ("showSecretKey", description = "Whether to return the secret access key"),
-    ),
+    params(GetKeyInfoRequest),
 	responses(
             (status = 200, description = "Information about the access key", body = GetKeyInfoResponse),
             (status = 500, description = "Internal server error")
@@ -381,11 +426,7 @@ It includes its aliases, its web configuration, keys that have some permissions
 on it, some statistics (number of objects, size), number of dangling multipart uploads,
 and its quotas (if any).
     ",
-    params(
-        ("id", description = "Exact bucket ID to look up"),
-        ("globalAlias", description = "Global alias of bucket to look up"),
-        ("search", description = "Partial ID or alias to search for"),
-    ),
+    params(GetBucketInfoRequest),
 	responses(
             (status = 200, description = "Returns exhaustive information about the bucket", body = GetBucketInfoResponse),
             (status = 500, description = "Internal server error")
@@ -794,6 +835,10 @@ impl Modify for SecurityAddon {
     modifiers(&SecurityAddon),
     security(("bearerAuth" = [])),
     paths(
+        // Special ops
+        Metrics,
+        Health,
+        CheckDomain,
         // Cluster operations
         GetClusterHealth,
         GetClusterStatus,

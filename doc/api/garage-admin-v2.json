@@ -21,6 +21,74 @@
     }
   ],
   "paths": {
+    "/check": {
+      "get": {
+        "tags": [
+          "Special endpoints"
+        ],
+        "description": "\nStatic website domain name check. Checks whether a bucket is configured to serve\na static website for the requested domain. This is used by reverse proxies such\nas Caddy or Tricot, to avoid requesting TLS certificates for domain names that\ndo not correspond to an actual website.\n    ",
+        "operationId": "CheckDomain",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "description": "The domain name to check for",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domain name redirects to a static website bucket"
+          },
+          "400": {
+            "description": "No static website bucket exists for this domain"
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Special endpoints"
+        ],
+        "description": "\nCheck cluster health. The status code returned by this function indicates\nwhether this Garage daemon can answer API requests.\nGarage will return `200 OK` even if some storage nodes are disconnected,\nas long as it is able to have a quorum of nodes for read and write operations.\n    ",
+        "operationId": "Health",
+        "responses": {
+          "200": {
+            "description": "Garage is able to answer requests"
+          },
+          "503": {
+            "description": "This Garage daemon is not able to handle requests"
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Special endpoints"
+        ],
+        "description": "Prometheus metrics endpoint",
+        "operationId": "Metrics",
+        "responses": {
+          "200": {
+            "description": "Garage daemon metrics exported in Prometheus format"
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v2/AddBucketAlias": {
       "post": {
         "tags": [
@@ -486,13 +554,25 @@
             "name": "id",
             "in": "path",
             "description": "Admin API token ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial token ID or name to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -566,19 +646,37 @@
             "name": "id",
             "in": "path",
             "description": "Exact bucket ID to look up",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "globalAlias",
             "in": "path",
             "description": "Global alias of bucket to look up",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial ID or alias to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -727,19 +825,34 @@
             "name": "id",
             "in": "path",
             "description": "Access key ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial key ID or name to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "showSecretKey",
             "in": "path",
             "description": "Whether to return the secret access key",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
