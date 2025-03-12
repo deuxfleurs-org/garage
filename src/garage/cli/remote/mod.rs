@@ -43,6 +43,7 @@ impl Cli {
 			Command::Meta(mo) => self.cmd_meta(mo).await,
 			Command::Stats(so) => self.cmd_stats(so).await,
 			Command::Repair(ro) => self.cmd_repair(ro).await,
+			Command::JsonApi { endpoint, payload } => self.cmd_json_api(endpoint, payload).await,
 
 			_ => unreachable!(),
 		}
@@ -104,6 +105,49 @@ impl Cli {
 			)));
 		}
 		Ok(resp.success.into_iter().next().unwrap().1)
+	}
+
+	pub async fn cmd_json_api(&self, endpoint: String, payload: String) -> Result<(), Error> {
+		let payload: serde_json::Value = if payload == "-" {
+			serde_json::from_reader(&std::io::stdin())?
+		} else {
+			serde_json::from_str(&payload)?
+		};
+
+		let request: AdminApiRequest = serde_json::from_value(serde_json::json!({
+			endpoint.clone(): payload,
+		}))?;
+
+		let resp = match self
+			.proxy_rpc_endpoint
+			.call(&self.rpc_host, ProxyRpc::Proxy(request), PRIO_NORMAL)
+			.await??
+		{
+			ProxyRpcResponse::ProxyApiOkResponse(resp) => resp,
+			ProxyRpcResponse::ApiErrorResponse {
+				http_code,
+				error_code,
+				message,
+			} => {
+				return Err(Error::Message(format!(
+					"{} ({}): {}",
+					error_code, http_code, message
+				)))
+			}
+			m => return Err(Error::unexpected_rpc_message(m)),
+		};
+
+		if let serde_json::Value::Object(map) = serde_json::to_value(&resp)? {
+			if let Some(inner) = map.get(&endpoint) {
+				serde_json::to_writer_pretty(std::io::stdout(), &inner)?;
+				return Ok(());
+			}
+		}
+
+		Err(Error::Message(format!(
+			"Invalid response: {}",
+			serde_json::to_string(&resp)?
+		)))
 	}
 }
 
