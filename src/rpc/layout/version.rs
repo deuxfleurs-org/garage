@@ -823,7 +823,7 @@ impl LayoutVersion {
 				let total_cap_n = self.expect_get_node_capacity(&self.node_id_vec[*n]);
 				let tags_n = (self.node_role(&self.node_id_vec[*n]).ok_or("<??>"))?.tags_string();
 				table.push(format!(
-					"  {:?}\t{}\t{} ({} new)\t{}\t{} ({:.1}%)",
+					"  {:?}\t[{}]\t{} ({} new)\t{}\t{} ({:.1}%)",
 					self.node_id_vec[*n],
 					tags_n,
 					stored_partitions[*n],

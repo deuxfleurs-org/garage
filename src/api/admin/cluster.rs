@@ -33,6 +33,7 @@ impl RequestHandler for GetClusterStatusRequest {
 					i.id,
 					NodeResp {
 						id: hex::encode(i.id),
+						garage_version: i.status.garage_version,
 						addr: i.addr,
 						hostname: i.status.hostname,
 						is_up: i.is_up,
@@ -231,12 +232,16 @@ impl RequestHandler for GetClusterStatisticsRequest {
 			if meta_part_avail.len() < node_partition_count.len()
 				|| data_part_avail.len() < node_partition_count.len()
 			{
-				writeln!(&mut ret, "  data: < {}", data_avail).unwrap();
-				writeln!(&mut ret, "  metadata: < {}", meta_avail).unwrap();
+				ret += &format_table_to_string(vec![
+					format!("  data: < {}", data_avail),
+					format!("  metadata: < {}", meta_avail),
+				]);
 				writeln!(&mut ret, "A precise estimate could not be given as information is missing for some storage nodes.").unwrap();
 			} else {
-				writeln!(&mut ret, "  data: {}", data_avail).unwrap();
-				writeln!(&mut ret, "  metadata: {}", meta_avail).unwrap();
+				ret += &format_table_to_string(vec![
+					format!("  data: {}", data_avail),
+					format!("  metadata: {}", meta_avail),
+				]);
 			}
 		}
 

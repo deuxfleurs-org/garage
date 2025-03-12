@@ -29,7 +29,7 @@ until $GARAGE_BIN -c /tmp/config.1.toml status 2>&1|grep -q HEALTHY ; do
 	sleep 1
 done
 
-if [ "$GARAGE_08" = "1" ]; then
+if [ "$GARAGE_OLDVER" = "v08" ]; then
 	$GARAGE_BIN -c /tmp/config.1.toml status \
 		| grep 'NO ROLE' \
 		| grep -Po '^[0-9a-f]+' \

@@ -124,6 +124,9 @@ pub struct NodeStatus {
 	/// Hostname of the node
 	pub hostname: Option<String>,
 
+	/// Garage version of the node
+	pub garage_version: Option<String>,
+
 	/// Replication factor configured on the node
 	pub replication_factor: usize,
 
@@ -367,6 +370,10 @@ impl System {
 
 	pub fn rpc_helper(&self) -> &RpcHelper {
 		&self.layout_manager.rpc_helper
+	}
+
+	pub fn local_status(&self) -> NodeStatus {
+		self.local_status.read().unwrap().clone()
 	}
 
 	// ---- Administrative operations (directly available and
@@ -786,6 +793,7 @@ impl NodeStatus {
 					.into_string()
 					.unwrap_or_else(|_| "<invalid utf-8>".to_string()),
 			),
+			garage_version: Some(garage_util::version::garage_version().to_string()),
 			replication_factor: replication_factor.into(),
 			layout_digest: layout_manager.layout().digest(),
 			meta_disk_avail: None,
@@ -796,6 +804,7 @@ impl NodeStatus {
 	fn unknown() -> Self {
 		NodeStatus {
 			hostname: None,
+			garage_version: None,
 			replication_factor: 0,
 			layout_digest: Default::default(),
 			meta_disk_avail: None,

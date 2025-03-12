@@ -50,6 +50,7 @@ sodiumoxide.workspace = true
 structopt.workspace = true
 git-version.workspace = true
 utoipa.workspace = true
+serde_json.workspace = true
 
 futures.workspace = true
 tokio.workspace = true
@@ -85,7 +86,7 @@ k2v-client.workspace = true
 [features]
 default = [ "bundled-libs", "metrics", "lmdb", "sqlite", "k2v" ]
 
-k2v = [ "garage_util/k2v", "garage_api_k2v" ]
+k2v = [ "garage_util/k2v", "garage_api_k2v", "garage_api_admin/k2v" ]
 
 # Database engines
 lmdb = [ "garage_model/lmdb" ]

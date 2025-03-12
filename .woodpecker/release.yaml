@@ -35,7 +35,15 @@ steps:
       - matrix:
           ARCH: i386
 
-  - name: upgrade tests
+  - name: upgrade tests from v1.0.0
+    image: nixpkgs/nix:nixos-22.05
+    commands:
+      - nix-shell --attr ci --run "./script/test-upgrade.sh v1.0.0 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)
+    when:
+      - matrix:
+          ARCH: amd64
+
+  - name: upgrade tests from v0.8.4
     image: nixpkgs/nix:nixos-22.05
     commands:
       - nix-shell --attr ci --run "./script/test-upgrade.sh v0.8.4 x86_64-unknown-linux-musl" || (cat /tmp/garage.log; false)

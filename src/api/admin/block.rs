@@ -84,14 +84,16 @@ impl RequestHandler for LocalGetBlockInfoRequest {
 				};
 				versions.push(BlockVersion {
 					version_id: hex::encode(&br.version),
-					deleted: v.deleted.get(),
+					ref_deleted: br.deleted.get(),
+					version_deleted: v.deleted.get(),
 					garbage_collected: false,
 					backlink: Some(bl),
 				});
 			} else {
 				versions.push(BlockVersion {
 					version_id: hex::encode(&br.version),
-					deleted: true,
+					ref_deleted: br.deleted.get(),
+					version_deleted: true,
 					garbage_collected: true,
 					backlink: None,
 				});

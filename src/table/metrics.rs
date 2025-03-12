@@ -7,6 +7,7 @@ pub struct TableMetrics {
 	pub(crate) _table_size: ValueObserver<u64>,
 	pub(crate) _merkle_tree_size: ValueObserver<u64>,
 	pub(crate) _merkle_todo_len: ValueObserver<u64>,
+	pub(crate) _insert_queue_len: ValueObserver<u64>,
 	pub(crate) _gc_todo_len: ValueObserver<u64>,
 
 	pub(crate) get_request_counter: BoundCounter<u64>,
@@ -26,6 +27,7 @@ impl TableMetrics {
 		store: db::Tree,
 		merkle_tree: db::Tree,
 		merkle_todo: db::Tree,
+		insert_queue: db::Tree,
 		gc_todo: db::Tree,
 	) -> Self {
 		let meter = global::meter(table_name);
@@ -71,6 +73,20 @@ impl TableMetrics {
 					},
 				)
 				.with_description("Merkle tree updater TODO queue length")
+				.init(),
+			_insert_queue_len: meter
+				.u64_value_observer(
+					"table.insert_queue_length",
+					move |observer| {
+						if let Ok(v) = insert_queue.len() {
+							observer.observe(
+								v as u64,
+								&[KeyValue::new("table_name", table_name)],
+							);
+						}
+					},
+				)
+				.with_description("Table insert queue length")
 				.init(),
 			_gc_todo_len: meter
 				.u64_value_observer(

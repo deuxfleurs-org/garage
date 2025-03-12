@@ -24,7 +24,10 @@ echo "============= insert data into old version cluster ================="
 export GARAGE_BIN=/tmp/old_garage
 if echo $OLD_VERSION | grep 'v0\.8\.'; then
 	echo "Detected Garage v0.8.x"
-	export GARAGE_08=1
+	export GARAGE_OLDVER=v08
+elif (echo $OLD_VERSION | grep 'v0\.9\.') || (echo $OLD_VERSION | grep 'v1\.'); then
+	echo "Detected Garage v0.9.x / v1.x"
+	export GARAGE_OLDVER=v1
 fi
 
 echo "⏳ Setup cluster using old version"
@@ -47,7 +50,7 @@ killall -9 old_garage || true
 echo "🏁 Removing old garage version"
 rm -rv $GARAGE_BIN
 export -n GARAGE_BIN
-export -n GARAGE_08
+export -n GARAGE_OLDVER
 
 echo "================ read data from new cluster ==================="
 

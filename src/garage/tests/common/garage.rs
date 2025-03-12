@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::Once;
 
+use serde_json::json;
+
 use super::ext::*;
 
 // https://xkcd.com/221/
@@ -193,27 +195,17 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		let mut key = Key::default();
 
 		let mut cmd = self.command();
-		let base = cmd.args(["key", "create"]);
+		let base = cmd.args(["json-api", "CreateKey"]);
 		let with_name = match maybe_name {
-			Some(name) => base.args([name]),
-			None => base,
+			Some(name) => base.args([serde_json::to_string(&json!({"name": name})).unwrap()]),
+			None => base.args(["{}"]),
 		};
 
 		let output = with_name.expect_success_output("Could not create key");
-		let stdout = String::from_utf8(output.stdout).unwrap();
+		let stdout: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
 
-		for line in stdout.lines() {
-			if let Some(key_id) = line.strip_prefix("Key ID: ") {
-				key.id = key_id.to_owned();
-				continue;
-			}
-			if let Some(key_secret) = line.strip_prefix("Secret key: ") {
-				key.secret = key_secret.to_owned();
-				continue;
-			}
-		}
-		assert!(!key.id.is_empty(), "Invalid key: Key ID is empty");
-		assert!(!key.secret.is_empty(), "Invalid key: Key secret is empty");
+		key.id = stdout["accessKeyId"].as_str().unwrap().to_string();
+		key.secret = stdout["secretAccessKey"].as_str().unwrap().to_string();
 
 		key
 	}

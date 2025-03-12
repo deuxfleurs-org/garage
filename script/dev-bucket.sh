@@ -17,13 +17,19 @@ else
 fi
 
 $GARAGE_BIN -c /tmp/config.1.toml bucket create eprouvette
-if [ "$GARAGE_08" = "1" ]; then
+if [ "$GARAGE_OLDVER" = "v08" ]; then
 	KEY_INFO=$($GARAGE_BIN -c /tmp/config.1.toml key new --name opérateur)
-else
+	ACCESS_KEY=`echo $KEY_INFO|grep -Po 'GK[a-f0-9]+'`
+	SECRET_KEY=`echo $KEY_INFO|grep -Po 'Secret key: [a-f0-9]+'|grep -Po '[a-f0-9]+$'`
+elif [ "$GARAGE_OLDVER" = "v1" ]; then
 	KEY_INFO=$($GARAGE_BIN -c /tmp/config.1.toml key create opérateur)
+	ACCESS_KEY=`echo $KEY_INFO|grep -Po 'GK[a-f0-9]+'`
+	SECRET_KEY=`echo $KEY_INFO|grep -Po 'Secret key: [a-f0-9]+'|grep -Po '[a-f0-9]+$'`
+else
+	KEY_INFO=$($GARAGE_BIN -c /tmp/config.1.toml json-api CreateKey '{"name":"opérateur"}')
+	ACCESS_KEY=`echo $KEY_INFO|jq -r .accessKeyId`
+	SECRET_KEY=`echo $KEY_INFO|jq -r .secretAccessKey`
 fi
-ACCESS_KEY=`echo $KEY_INFO|grep -Po 'GK[a-f0-9]+'`
-SECRET_KEY=`echo $KEY_INFO|grep -Po 'Secret key: [a-f0-9]+'|grep -Po '[a-f0-9]+$'`
 $GARAGE_BIN -c /tmp/config.1.toml bucket allow eprouvette --read --write --owner --key $ACCESS_KEY
 echo "$ACCESS_KEY $SECRET_KEY" > /tmp/garage.s3
 

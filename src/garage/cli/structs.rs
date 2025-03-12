@@ -66,6 +66,17 @@ pub enum Command {
 	/// Output openapi JSON schema for admin api
 	#[structopt(name = "admin-api-schema", version = garage_version(), setting(structopt::clap::AppSettings::Hidden))]
 	AdminApiSchema,
+
+	/// Directly invoke the admin API using a JSON payload.
+	/// The result is printed to `stdout` in JSON format.
+	#[structopt(name = "json-api", version = garage_version())]
+	JsonApi {
+		/// The admin API endpoint to invoke, e.g. GetClusterStatus
+		endpoint: String,
+		/// The JSON payload, or `-` to read from `stdin`
+		#[structopt(default_value = "null")]
+		payload: String,
+	},
 }
 
 // -------------------------

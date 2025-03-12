@@ -51,45 +51,69 @@ impl Cli {
 			.local_api_request(LocalGetBlockInfoRequest { block_hash: hash })
 			.await?;
 
-		println!("Block hash: {}", info.block_hash);
-		println!("Refcount: {}", info.refcount);
+		println!("==== BLOCK INFORMATION ====");
+		format_table(vec![
+			format!("Block hash:\t{}", info.block_hash),
+			format!("Refcount:\t{}", info.refcount),
+		]);
 		println!();
 
-		let mut table = vec!["Version\tBucket\tKey\tMPU\tDeleted".into()];
+		println!("==== REFERENCES TO THIS BLOCK ====");
+		let mut table = vec!["Status\tVersion\tBucket\tKey\tMPU".into()];
 		let mut nondeleted_count = 0;
+		let mut inconsistent_refs = false;
 		for ver in info.versions.iter() {
 			match &ver.backlink {
 				Some(BlockVersionBacklink::Object { bucket_id, key }) => {
 					table.push(format!(
-						"{:.16}\t{:.16}\t{}\t\t{:?}",
-						ver.version_id, bucket_id, key, ver.deleted
+						"{}\t{:.16}{}\t{:.16}\t{}",
+						ver.ref_deleted.then_some("deleted").unwrap_or("active"),
+						ver.version_id,
+						ver.version_deleted
+							.then_some(" (deleted)")
+							.unwrap_or_default(),
+						bucket_id,
+						key
 					));
 				}
 				Some(BlockVersionBacklink::Upload {
 					upload_id,
-					upload_deleted: _,
+					upload_deleted,
 					upload_garbage_collected: _,
 					bucket_id,
 					key,
 				}) => {
 					table.push(format!(
-						"{:.16}\t{:.16}\t{}\t{:.16}\t{:.16}",
+						"{}\t{:.16}{}\t{:.16}\t{}\t{:.16}{}",
+						ver.ref_deleted.then_some("deleted").unwrap_or("active"),
 						ver.version_id,
+						ver.version_deleted
+							.then_some(" (deleted)")
+							.unwrap_or_default(),
 						bucket_id.as_deref().unwrap_or(""),
 						key.as_deref().unwrap_or(""),
 						upload_id,
-						ver.deleted
+						upload_deleted.then_some(" (deleted)").unwrap_or_default(),
 					));
 				}
 				None => {
 					table.push(format!("{:.16}\t\t\tyes", ver.version_id));
 				}
 			}
-			if !ver.deleted {
+			if ver.ref_deleted != ver.version_deleted {
+				inconsistent_refs = true;
+			}
+			if !ver.ref_deleted {
 				nondeleted_count += 1;
 			}
 		}
 		format_table(table);
+
+		if inconsistent_refs {
+			println!();
+			println!("There are inconsistencies between the block_ref and the version tables.");
+			println!("Fix them by running `garage repair block-refs`");
+		}
 
 		if info.refcount != nondeleted_count {
 			println!();

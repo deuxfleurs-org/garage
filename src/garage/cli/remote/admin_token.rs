@@ -34,14 +34,12 @@ impl Cli {
 
 		list.0.sort_by_key(|x| x.created);
 
-		let mut table = vec!["ID\tCREATED\tNAME\tEXPIRATION\tSCOPE".to_string()];
+		let mut table = vec!["ID\tCreated\tName\tExpiration\tScope".to_string()];
 		for tok in list.0.iter() {
 			let scope = if tok.expired {
 				String::new()
-			} else if tok.scope.len() > 1 {
-				format!("[{}]", tok.scope.len())
 			} else {
-				tok.scope.get(0).cloned().unwrap_or_default()
+				table_list_abbr(&tok.scope)
 			};
 			let exp = if tok.expired {
 				"expired".to_string()
@@ -233,7 +231,7 @@ impl Cli {
 }
 
 fn print_token_info(token: &GetAdminTokenInfoResponse) {
-	format_table(vec![
+	let mut table = vec![
 		format!("ID:\t{}", token.id.as_ref().unwrap()),
 		format!("Name:\t{}", token.name),
 		format!("Created:\t{}", token.created.unwrap().with_timezone(&Local)),
@@ -248,6 +246,16 @@ fn print_token_info(token: &GetAdminTokenInfoResponse) {
 				.map(|x| x.with_timezone(&Local).to_string())
 				.unwrap_or("never".into())
 		),
-		format!("Scope:\t{}", token.scope.to_vec().join(", ")),
-	]);
+		String::new(),
+	];
+
+	for (i, scope) in token.scope.iter().enumerate() {
+		if i == 0 {
+			table.push(format!("Scope:\t{}", scope));
+		} else {
+			table.push(format!("\t{}", scope));
+		}
+	}
+
+	format_table(table);
 }
