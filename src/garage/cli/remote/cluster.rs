@@ -16,7 +16,7 @@ impl Cli {
 		println!("==== HEALTHY NODES ====");
 
 		let mut healthy_nodes =
-			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail".to_string()];
+			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail\tVersion".to_string()];
 
 		for adv in status.nodes.iter().filter(|adv| adv.is_up) {
 			let host = adv.hostname.as_deref().unwrap_or("?");
@@ -35,7 +35,7 @@ impl Cli {
 					None => "?".into(),
 				};
 				healthy_nodes.push(format!(
-					"{id:.16}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}",
+					"{id:.16}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}\t{version}",
 					id = adv.id,
 					host = host,
 					addr = addr,
@@ -43,6 +43,7 @@ impl Cli {
 					zone = cfg.zone,
 					capacity = capacity_string(cfg.capacity),
 					data_avail = data_avail,
+                    version = adv.garage_version.as_deref().unwrap_or_default(),
 				));
 			} else {
 				let status = match layout.staged_role_changes.iter().find(|x| x.id == adv.id) {
@@ -54,11 +55,12 @@ impl Cli {
 					_ => "NO ROLE ASSIGNED",
 				};
 				healthy_nodes.push(format!(
-					"{id:.16}\t{h}\t{addr}\t\t\t{status}",
+					"{id:.16}\t{h}\t{addr}\t\t\t{status}\t\t{version}",
 					id = adv.id,
 					h = host,
 					addr = addr,
 					status = status,
+					version = adv.garage_version.as_deref().unwrap_or_default(),
 				));
 			}
 		}

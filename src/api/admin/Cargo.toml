@@ -47,3 +47,4 @@ prometheus = { workspace = true, optional = true }
 
 [features]
 metrics = [ "opentelemetry-prometheus", "prometheus" ]
+k2v = [ "garage_model/k2v" ]

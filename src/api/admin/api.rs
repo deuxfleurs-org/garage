@@ -188,8 +188,8 @@ pub struct GetClusterStatusResponse {
 pub struct NodeResp {
 	/// Full-length node identifier
 	pub id: String,
-	/// Role assigned to this node in the current cluster layout
-	pub role: Option<NodeAssignedRole>,
+	/// Garage version
+	pub garage_version: Option<String>,
 	/// Socket address used by other nodes to connect to this node for RPC
 	#[schema(value_type = Option<String>)]
 	pub addr: Option<SocketAddr>,
@@ -200,6 +200,8 @@ pub struct NodeResp {
 	/// For disconnected nodes, the number of seconds since last contact,
 	/// or `null` if no contact was established since Garage restarted.
 	pub last_seen_secs_ago: Option<u64>,
+	/// Role assigned to this node in the current cluster layout
+	pub role: Option<NodeAssignedRole>,
 	/// Whether this node is part of an older layout version and is draining data.
 	pub draining: bool,
 	/// Total and available space on the disk partition(s) containing the data
@@ -1174,7 +1176,8 @@ pub struct LocalGetBlockInfoResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BlockVersion {
 	pub version_id: String,
-	pub deleted: bool,
+	pub ref_deleted: bool,
+	pub version_deleted: bool,
 	pub garbage_collected: bool,
 	pub backlink: Option<BlockVersionBacklink>,
 }

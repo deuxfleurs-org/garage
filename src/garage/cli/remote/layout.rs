@@ -378,7 +378,7 @@ pub fn print_cluster_layout(layout: &GetClusterLayoutResponse, empty_msg: &str) 
 		let tags = role.tags.join(",");
 		if let (Some(capacity), Some(usable_capacity)) = (role.capacity, role.usable_capacity) {
 			table.push(format!(
-				"{:.16}\t{}\t{}\t{}\t{} ({:.1}%)",
+				"{:.16}\t[{}]\t{}\t{}\t{} ({:.1}%)",
 				role.id,
 				tags,
 				role.zone,
@@ -388,7 +388,7 @@ pub fn print_cluster_layout(layout: &GetClusterLayoutResponse, empty_msg: &str) 
 			));
 		} else {
 			table.push(format!(
-				"{:.16}\t{}\t{}\t{}",
+				"{:.16}\t[{}]\t{}\t{}",
 				role.id,
 				tags,
 				role.zone,
@@ -427,7 +427,7 @@ pub fn print_staging_role_changes(layout: &GetClusterLayoutResponse) -> bool {
 					}) => {
 						let tags = tags.join(",");
 						table.push(format!(
-							"{:.16}\t{}\t{}\t{}",
+							"{:.16}\t[{}]\t{}\t{}",
 							change.id,
 							tags,
 							zone,

@@ -22,14 +22,21 @@ impl Cli {
 			})
 			.await?;
 
-		let mut table = vec![];
-		for (node, err) in res.error.iter() {
-			table.push(format!("{:.16}\tError: {}", node, err));
-		}
+		let mut table = vec!["Node\tResult".to_string()];
 		for (node, _) in res.success.iter() {
 			table.push(format!("{:.16}\tSnapshot created", node));
 		}
+		for (node, err) in res.error.iter() {
+			table.push(format!("{:.16}\tError: {}", node, err));
+		}
 		format_table(table);
+
+		if !res.error.is_empty() {
+			return Err(Error::Message(format!(
+				"{} nodes returned an error",
+				res.error.len()
+			)));
+		}
 
 		Ok(())
 	}
@@ -47,19 +54,17 @@ impl Cli {
 			.await?;
 
 		for (node, res) in res.success.iter() {
-			println!("======================");
-			println!("Stats for node {:.16}:\n", node);
+			println!("==== NODE [{:.16}] ====", node);
 			println!("{}\n", res.freeform);
 		}
 
 		for (node, err) in res.error.iter() {
-			println!("======================");
-			println!("Node {:.16}: error: {}\n", node, err);
+			println!("==== NODE [{:.16}] ====", node);
+			println!("Error: {}\n", err);
 		}
 
 		let res = self.api_request(GetClusterStatisticsRequest).await?;
-		println!("======================");
-		println!("Cluster statistics:\n");
+		println!("==== CLUSTER STATISTICS ====");
 		println!("{}\n", res.freeform);
 
 		Ok(())

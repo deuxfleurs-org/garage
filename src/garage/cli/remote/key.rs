@@ -24,10 +24,9 @@ impl Cli {
 	pub async fn cmd_list_keys(&self) -> Result<(), Error> {
 		let keys = self.api_request(ListKeysRequest).await?;
 
-		println!("List of keys:");
-		let mut table = vec![];
+		let mut table = vec!["ID\tName".to_string()];
 		for key in keys.0.iter() {
-			table.push(format!("\t{}\t{}", key.id, key.name));
+			table.push(format!("{}\t{}", key.id, key.name));
 		}
 		format_table(table);
 
@@ -185,43 +184,35 @@ impl Cli {
 }
 
 fn print_key_info(key: &GetKeyInfoResponse) {
-	println!("Key name: {}", key.name);
-	println!("Key ID: {}", key.access_key_id);
-	println!(
-		"Secret key: {}",
-		key.secret_access_key.as_deref().unwrap_or("(redacted)")
-	);
-	println!("Can create buckets: {}", key.permissions.create_bucket);
+	println!("==== ACCESS KEY INFORMATION ====");
 
-	println!("\nKey-specific bucket aliases:");
-	let mut table = vec![];
-	for bucket in key.buckets.iter() {
-		for la in bucket.local_aliases.iter() {
-			table.push(format!(
-				"\t{}\t{}\t{}",
-				la,
-				bucket.global_aliases.join(","),
-				bucket.id
-			));
-		}
-	}
-	format_table(table);
+	format_table(vec![
+		format!("Key name:\t{}", key.name),
+		format!("Key ID:\t{}", key.access_key_id),
+		format!(
+			"Secret key:\t{}",
+			key.secret_access_key.as_deref().unwrap_or("(redacted)")
+		),
+		format!("Can create buckets:\t{}", key.permissions.create_bucket),
+	]);
 
-	println!("\nAuthorized buckets:");
-	let mut table = vec![];
-	for bucket in key.buckets.iter() {
+	println!("");
+	println!("==== BUCKETS FOR THIS KEY ====");
+	let mut bucket_info = vec!["Permissions\tID\tGlobal aliases\tLocal aliases".to_string()];
+	bucket_info.extend(key.buckets.iter().map(|bucket| {
 		let rflag = if bucket.permissions.read { "R" } else { " " };
 		let wflag = if bucket.permissions.write { "W" } else { " " };
 		let oflag = if bucket.permissions.owner { "O" } else { " " };
-		table.push(format!(
-			"\t{}{}{}\t{}\t{}\t{:.16}",
+		format!(
+			"{}{}{}\t{:.16}\t{}\t{}",
 			rflag,
 			wflag,
 			oflag,
-			bucket.global_aliases.join(","),
+			bucket.id,
+			table_list_abbr(&bucket.global_aliases),
 			bucket.local_aliases.join(","),
-			bucket.id
-		));
-	}
-	format_table(table);
+		)
+	}));
+
+	format_table(bucket_info);
 }

@@ -30,21 +30,18 @@ impl Cli {
 	pub async fn cmd_list_buckets(&self) -> Result<(), Error> {
 		let buckets = self.api_request(ListBucketsRequest).await?;
 
-		println!("List of buckets:");
-
-		let mut table = vec![];
+		let mut table = vec!["ID\tGlobal aliases\tLocal aliases".to_string()];
 		for bucket in buckets.0.iter() {
-			let local_aliases_n = match &bucket.local_aliases[..] {
-				[] => "".into(),
-				[alias] => format!("{}:{}", alias.access_key_id, alias.alias),
-				s => format!("[{} local aliases]", s.len()),
-			};
-
 			table.push(format!(
-				"\t{}\t{}\t{}",
-				bucket.global_aliases.join(","),
-				local_aliases_n,
+				"{:.16}\t{}\t{}",
 				bucket.id,
+				table_list_abbr(&bucket.global_aliases),
+				table_list_abbr(
+					bucket
+						.local_aliases
+						.iter()
+						.map(|x| format!("{}:{}", x.access_key_id, x.alias))
+				),
 			));
 		}
 		format_table(table);
@@ -61,88 +58,20 @@ impl Cli {
 			})
 			.await?;
 
-		println!("Bucket: {}", bucket.id);
-
-		let size = bytesize::ByteSize::b(bucket.bytes as u64);
-		println!(
-			"\nSize: {} ({})",
-			size.to_string_as(true),
-			size.to_string_as(false)
-		);
-		println!("Objects: {}", bucket.objects);
-		println!(
-			"Unfinished uploads (multipart and non-multipart): {}",
-			bucket.unfinished_uploads,
-		);
-		println!(
-			"Unfinished multipart uploads: {}",
-			bucket.unfinished_multipart_uploads
-		);
-		let mpu_size = bytesize::ByteSize::b(bucket.unfinished_multipart_uploads as u64);
-		println!(
-			"Size of unfinished multipart uploads: {} ({})",
-			mpu_size.to_string_as(true),
-			mpu_size.to_string_as(false),
-		);
-
-		println!("\nWebsite access: {}", bucket.website_access);
-
-		if bucket.quotas.max_size.is_some() || bucket.quotas.max_objects.is_some() {
-			println!("\nQuotas:");
-			if let Some(ms) = bucket.quotas.max_size {
-				let ms = bytesize::ByteSize::b(ms);
-				println!(
-					" maximum size: {} ({})",
-					ms.to_string_as(true),
-					ms.to_string_as(false)
-				);
-			}
-			if let Some(mo) = bucket.quotas.max_objects {
-				println!(" maximum number of objects: {}", mo);
-			}
-		}
-
-		println!("\nGlobal aliases:");
-		for alias in bucket.global_aliases {
-			println!("  {}", alias);
-		}
-
-		println!("\nKey-specific aliases:");
-		let mut table = vec![];
-		for key in bucket.keys.iter() {
-			for alias in key.bucket_local_aliases.iter() {
-				table.push(format!("\t{} ({})\t{}", key.access_key_id, key.name, alias));
-			}
-		}
-		format_table(table);
-
-		println!("\nAuthorized keys:");
-		let mut table = vec![];
-		for key in bucket.keys.iter() {
-			if !(key.permissions.read || key.permissions.write || key.permissions.owner) {
-				continue;
-			}
-			let rflag = if key.permissions.read { "R" } else { " " };
-			let wflag = if key.permissions.write { "W" } else { " " };
-			let oflag = if key.permissions.owner { "O" } else { " " };
-			table.push(format!(
-				"\t{}{}{}\t{}\t{}",
-				rflag, wflag, oflag, key.access_key_id, key.name
-			));
-		}
-		format_table(table);
+		print_bucket_info(&bucket);
 
 		Ok(())
 	}
 
 	pub async fn cmd_create_bucket(&self, opt: BucketOpt) -> Result<(), Error> {
-		self.api_request(CreateBucketRequest {
-			global_alias: Some(opt.name.clone()),
-			local_alias: None,
-		})
-		.await?;
+		let bucket = self
+			.api_request(CreateBucketRequest {
+				global_alias: Some(opt.name.clone()),
+				local_alias: None,
+			})
+			.await?;
 
-		println!("Bucket {} was created.", opt.name);
+		print_bucket_info(&bucket.0);
 
 		Ok(())
 	}
@@ -200,7 +129,7 @@ impl Cli {
 			})
 			.await?;
 
-		if let Some(key_pat) = &opt.local {
+		let res = if let Some(key_pat) = &opt.local {
 			let key = self
 				.api_request(GetKeyInfoRequest {
 					search: Some(key_pat.clone()),
@@ -216,12 +145,7 @@ impl Cli {
 					access_key_id: key.access_key_id.clone(),
 				},
 			})
-			.await?;
-
-			println!(
-				"Alias {} now points to bucket {:.16} in namespace of key {}",
-				opt.new_name, bucket.id, key.access_key_id
-			)
+			.await?
 		} else {
 			self.api_request(AddBucketAliasRequest {
 				bucket_id: bucket.id.clone(),
@@ -229,19 +153,16 @@ impl Cli {
 					global_alias: opt.new_name.clone(),
 				},
 			})
-			.await?;
+			.await?
+		};
 
-			println!(
-				"Alias {} now points to bucket {:.16}",
-				opt.new_name, bucket.id
-			)
-		}
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
 
 	pub async fn cmd_unalias_bucket(&self, opt: UnaliasBucketOpt) -> Result<(), Error> {
-		if let Some(key_pat) = &opt.local {
+		let res = if let Some(key_pat) = &opt.local {
 			let key = self
 				.api_request(GetKeyInfoRequest {
 					search: Some(key_pat.clone()),
@@ -266,12 +187,7 @@ impl Cli {
 					local_alias: opt.name.clone(),
 				},
 			})
-			.await?;
-
-			println!(
-				"Alias {} no longer points to bucket {:.16} in namespace of key {}",
-				&opt.name, bucket.id, key.access_key_id
-			)
+			.await?
 		} else {
 			let bucket = self
 				.api_request(GetBucketInfoRequest {
@@ -287,13 +203,10 @@ impl Cli {
 					global_alias: opt.name.clone(),
 				},
 			})
-			.await?;
+			.await?
+		};
 
-			println!(
-				"Alias {} no longer points to bucket {:.16}",
-				opt.name, bucket.id
-			)
-		}
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
@@ -315,44 +228,19 @@ impl Cli {
 			})
 			.await?;
 
-		self.api_request(AllowBucketKeyRequest(BucketKeyPermChangeRequest {
-			bucket_id: bucket.id.clone(),
-			access_key_id: key.access_key_id.clone(),
-			permissions: ApiBucketKeyPerm {
-				read: opt.read,
-				write: opt.write,
-				owner: opt.owner,
-			},
-		}))
-		.await?;
-
-		let new_bucket = self
-			.api_request(GetBucketInfoRequest {
-				id: Some(bucket.id),
-				global_alias: None,
-				search: None,
-			})
+		let res = self
+			.api_request(AllowBucketKeyRequest(BucketKeyPermChangeRequest {
+				bucket_id: bucket.id.clone(),
+				access_key_id: key.access_key_id.clone(),
+				permissions: ApiBucketKeyPerm {
+					read: opt.read,
+					write: opt.write,
+					owner: opt.owner,
+				},
+			}))
 			.await?;
 
-		if let Some(new_key) = new_bucket
-			.keys
-			.iter()
-			.find(|k| k.access_key_id == key.access_key_id)
-		{
-			println!(
-				"New permissions for key {} on bucket {:.16}:\n  read {}\n  write {}\n  owner {}",
-				key.access_key_id,
-				new_bucket.id,
-				new_key.permissions.read,
-				new_key.permissions.write,
-				new_key.permissions.owner
-			);
-		} else {
-			println!(
-				"Access key {} has no permissions on bucket {:.16}",
-				key.access_key_id, new_bucket.id
-			);
-		}
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
@@ -374,44 +262,19 @@ impl Cli {
 			})
 			.await?;
 
-		self.api_request(DenyBucketKeyRequest(BucketKeyPermChangeRequest {
-			bucket_id: bucket.id.clone(),
-			access_key_id: key.access_key_id.clone(),
-			permissions: ApiBucketKeyPerm {
-				read: opt.read,
-				write: opt.write,
-				owner: opt.owner,
-			},
-		}))
-		.await?;
-
-		let new_bucket = self
-			.api_request(GetBucketInfoRequest {
-				id: Some(bucket.id),
-				global_alias: None,
-				search: None,
-			})
+		let res = self
+			.api_request(DenyBucketKeyRequest(BucketKeyPermChangeRequest {
+				bucket_id: bucket.id.clone(),
+				access_key_id: key.access_key_id.clone(),
+				permissions: ApiBucketKeyPerm {
+					read: opt.read,
+					write: opt.write,
+					owner: opt.owner,
+				},
+			}))
 			.await?;
 
-		if let Some(new_key) = new_bucket
-			.keys
-			.iter()
-			.find(|k| k.access_key_id == key.access_key_id)
-		{
-			println!(
-				"New permissions for key {} on bucket {:.16}:\n  read {}\n  write {}\n  owner {}",
-				key.access_key_id,
-				new_bucket.id,
-				new_key.permissions.read,
-				new_key.permissions.write,
-				new_key.permissions.owner
-			);
-		} else {
-			println!(
-				"Access key {} no longer has permissions on bucket {:.16}",
-				key.access_key_id, new_bucket.id
-			);
-		}
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
@@ -447,20 +310,17 @@ impl Cli {
 			}
 		};
 
-		self.api_request(UpdateBucketRequest {
-			id: bucket.id,
-			body: UpdateBucketRequestBody {
-				website_access: Some(wa),
-				quotas: None,
-			},
-		})
-		.await?;
+		let res = self
+			.api_request(UpdateBucketRequest {
+				id: bucket.id,
+				body: UpdateBucketRequestBody {
+					website_access: Some(wa),
+					quotas: None,
+				},
+			})
+			.await?;
 
-		if opt.allow {
-			println!("Website access allowed for {}", &opt.bucket);
-		} else {
-			println!("Website access denied for {}", &opt.bucket);
-		}
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
@@ -500,16 +360,17 @@ impl Cli {
 			},
 		};
 
-		self.api_request(UpdateBucketRequest {
-			id: bucket.id.clone(),
-			body: UpdateBucketRequestBody {
-				website_access: None,
-				quotas: Some(new_quotas),
-			},
-		})
-		.await?;
+		let res = self
+			.api_request(UpdateBucketRequest {
+				id: bucket.id.clone(),
+				body: UpdateBucketRequestBody {
+					website_access: None,
+					quotas: Some(new_quotas),
+				},
+			})
+			.await?;
 
-		println!("Quotas updated for bucket {:.16}", bucket.id);
+		print_bucket_info(&res.0);
 
 		Ok(())
 	}
@@ -546,4 +407,106 @@ impl Cli {
 
 		Ok(())
 	}
+}
+
+fn print_bucket_info(bucket: &GetBucketInfoResponse) {
+	println!("==== BUCKET INFORMATION ====");
+
+	let mut info = vec![
+		format!("Bucket:\t{}", bucket.id),
+		String::new(),
+		{
+			let size = bytesize::ByteSize::b(bucket.bytes as u64);
+			format!(
+				"Size:\t{} ({})",
+				size.to_string_as(true),
+				size.to_string_as(false)
+			)
+		},
+		format!("Objects:\t{}", bucket.objects),
+	];
+
+	if bucket.unfinished_uploads > 0 {
+		info.extend([
+			format!(
+				"Unfinished uploads:\t{} multipart uploads",
+				bucket.unfinished_multipart_uploads
+			),
+			format!("\t{} including regular uploads", bucket.unfinished_uploads),
+			{
+				let mpu_size =
+					bytesize::ByteSize::b(bucket.unfinished_multipart_upload_bytes as u64);
+				format!(
+					"Size of unfinished multipart uploads:\t{} ({})",
+					mpu_size.to_string_as(true),
+					mpu_size.to_string_as(false),
+				)
+			},
+		]);
+	}
+
+	info.extend([
+		String::new(),
+		format!("Website access:\t{}", bucket.website_access),
+	]);
+
+	if let Some(wc) = &bucket.website_config {
+		info.extend([
+			format!("  index document:\t{}", wc.index_document),
+			format!(
+				"  error document:\t{}",
+				wc.error_document.as_deref().unwrap_or("(not defined)")
+			),
+		]);
+	}
+
+	if bucket.quotas.max_size.is_some() || bucket.quotas.max_objects.is_some() {
+		info.push(String::new());
+		info.push("Quotas:\tenabled".into());
+		if let Some(ms) = bucket.quotas.max_size {
+			let ms = bytesize::ByteSize::b(ms);
+			info.push(format!(
+				"  maximum size:\t{} ({})",
+				ms.to_string_as(true),
+				ms.to_string_as(false)
+			));
+		}
+		if let Some(mo) = bucket.quotas.max_objects {
+			info.push(format!("  maximum number of objects:\t{}", mo));
+		}
+	}
+
+	if !bucket.global_aliases.is_empty() {
+		info.push(String::new());
+		for (i, alias) in bucket.global_aliases.iter().enumerate() {
+			if i == 0 && bucket.global_aliases.len() > 1 {
+				info.push(format!("Global aliases:\t{}", alias));
+			} else if i == 0 {
+				info.push(format!("Global alias:\t{}", alias));
+			} else {
+				info.push(format!("\t{}", alias));
+			}
+		}
+	}
+
+	format_table(info);
+
+	println!("");
+	println!("==== KEYS FOR THIS BUCKET ====");
+	let mut key_info = vec!["Permissions\tAccess key\t\tLocal aliases".to_string()];
+	key_info.extend(bucket.keys.iter().map(|key| {
+		let rflag = if key.permissions.read { "R" } else { " " };
+		let wflag = if key.permissions.write { "W" } else { " " };
+		let oflag = if key.permissions.owner { "O" } else { " " };
+		format!(
+			"{}{}{}\t{}\t{}\t{}",
+			rflag,
+			wflag,
+			oflag,
+			key.access_key_id,
+			key.name,
+			key.bucket_local_aliases.to_vec().join(","),
+		)
+	}));
+	format_table(key_info);
 }

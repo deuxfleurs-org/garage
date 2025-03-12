@@ -36,16 +36,6 @@ pub fn node_id_command(config_file: PathBuf, quiet: bool) -> Result<(), Error> {
 		);
 		eprintln!("    garage [-c <config file path>] node connect {}", idstr);
 		eprintln!();
-		eprintln!("Or instruct them to connect from here by running:");
-		eprintln!(
-			"    garage -c {} -h <remote node> node connect {}",
-			config_file.to_string_lossy(),
-			idstr
-		);
-		eprintln!(
-			"where <remote_node> is their own node identifier in the format: <full-node-id>@<ip>:<port>"
-		);
-		eprintln!();
 		eprintln!("This node identifier can also be added as a bootstrap node in other node's garage.toml files:");
 		eprintln!("    bootstrap_peers = [");
 		eprintln!("        \"{}\",", idstr);

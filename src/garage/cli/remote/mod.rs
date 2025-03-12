@@ -106,3 +106,15 @@ impl Cli {
 		Ok(resp.success.into_iter().next().unwrap().1)
 	}
 }
+
+pub fn table_list_abbr<T: IntoIterator<Item = S>, S: AsRef<str>>(values: T) -> String {
+	let mut iter = values.into_iter();
+
+	match iter.next() {
+		Some(first) => match iter.count() {
+			0 => first.as_ref().to_string(),
+			n => format!("{}, ... ({})", first.as_ref(), n + 1),
+		},
+		None => String::new(),
+	}
+}

@@ -66,6 +66,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			store.clone(),
 			merkle_tree.clone(),
 			merkle_todo.clone(),
+			insert_queue.clone(),
 			gc_todo.clone(),
 		);
 
@@ -365,6 +366,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				)))
 			}
 		}
+	}
+
+	pub fn insert_queue_len(&self) -> Result<usize, Error> {
+		Ok(self.insert_queue.len()?)
 	}
 
 	pub fn gc_todo_len(&self) -> Result<usize, Error> {

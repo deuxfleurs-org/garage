@@ -1752,7 +1752,8 @@
         "type": "object",
         "required": [
           "versionId",
-          "deleted",
+          "refDeleted",
+          "versionDeleted",
           "garbageCollected"
         ],
         "properties": {
@@ -1766,10 +1767,13 @@
               }
             ]
           },
-          "deleted": {
+          "garbageCollected": {
             "type": "boolean"
           },
-          "garbageCollected": {
+          "refDeleted": {
+            "type": "boolean"
+          },
+          "versionDeleted": {
             "type": "boolean"
           },
           "versionId": {
@@ -3515,6 +3519,13 @@
           "draining": {
             "type": "boolean",
             "description": "Whether this node is part of an older layout version and is draining data."
+          },
+          "garageVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Garage version"
           },
           "hostname": {
             "type": [

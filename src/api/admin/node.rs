@@ -55,27 +55,48 @@ impl RequestHandler for LocalGetNodeStatisticsRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<LocalGetNodeStatisticsResponse, Error> {
-		let mut ret = String::new();
-		writeln!(
-			&mut ret,
-			"Garage version: {} [features: {}]\nRust compiler version: {}",
-			garage_util::version::garage_version(),
-			garage_util::version::garage_features()
-				.map(|list| list.join(", "))
-				.unwrap_or_else(|| "(unknown)".into()),
-			garage_util::version::rust_version(),
-		)
-		.unwrap();
+		let sys_status = garage.system.local_status();
 
-		writeln!(&mut ret, "\nDatabase engine: {}", garage.db.engine()).unwrap();
+		let mut ret = format_table_to_string(vec![
+			format!("Node ID:\t{:?}", garage.system.id),
+			format!("Hostname:\t{}", sys_status.hostname.unwrap_or_default(),),
+			format!(
+				"Garage version:\t{}",
+				garage_util::version::garage_version(),
+			),
+			format!(
+				"Garage features:\t{}",
+				garage_util::version::garage_features()
+					.map(|list| list.join(", "))
+					.unwrap_or_else(|| "(unknown)".into()),
+			),
+			format!(
+				"Rust compiler version:\t{}",
+				garage_util::version::rust_version(),
+			),
+			format!("Database engine:\t{}", garage.db.engine()),
+		]);
 
 		// Gather table statistics
-		let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tGcTodo".into()];
+		let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tInsQueue\tGcTodo".into()];
+		table.push(gather_table_stats(&garage.admin_token_table)?);
 		table.push(gather_table_stats(&garage.bucket_table)?);
+		table.push(gather_table_stats(&garage.bucket_alias_table)?);
 		table.push(gather_table_stats(&garage.key_table)?);
+
 		table.push(gather_table_stats(&garage.object_table)?);
+		table.push(gather_table_stats(&garage.object_counter_table.table)?);
+		table.push(gather_table_stats(&garage.mpu_table)?);
+		table.push(gather_table_stats(&garage.mpu_counter_table.table)?);
 		table.push(gather_table_stats(&garage.version_table)?);
 		table.push(gather_table_stats(&garage.block_ref_table)?);
+
+		#[cfg(feature = "k2v")]
+		{
+			table.push(gather_table_stats(&garage.k2v.item_table)?);
+			table.push(gather_table_stats(&garage.k2v.counter_table.table)?);
+		}
+
 		write!(
 			&mut ret,
 			"\nTable stats:\n{}",
@@ -87,24 +108,17 @@ impl RequestHandler for LocalGetNodeStatisticsRequest {
 		writeln!(&mut ret, "\nBlock manager stats:").unwrap();
 		let rc_len = garage.block_manager.rc_len()?.to_string();
 
-		writeln!(
-			&mut ret,
-			"  number of RC entries (~= number of blocks): {}",
-			rc_len
-		)
-		.unwrap();
-		writeln!(
-			&mut ret,
-			"  resync queue length: {}",
-			garage.block_manager.resync.queue_len()?
-		)
-		.unwrap();
-		writeln!(
-			&mut ret,
-			"  blocks with resync errors: {}",
-			garage.block_manager.resync.errors_len()?
-		)
-		.unwrap();
+		ret += &format_table_to_string(vec![
+			format!("  number of RC entries:\t{} (~= number of blocks)", rc_len),
+			format!(
+				"  resync queue length:\t{}",
+				garage.block_manager.resync.queue_len()?
+			),
+			format!(
+				"  blocks with resync errors:\t{}",
+				garage.block_manager.resync.errors_len()?
+			),
+		]);
 
 		Ok(LocalGetNodeStatisticsResponse { freeform: ret })
 	}
@@ -119,11 +133,12 @@ where
 	let mkl_len = t.merkle_updater.merkle_tree_len()?.to_string();
 
 	Ok(format!(
-		"  {}\t{}\t{}\t{}\t{}",
+		"  {}\t{}\t{}\t{}\t{}\t{}",
 		F::TABLE_NAME,
 		data_len,
 		mkl_len,
 		t.merkle_updater.todo_len()?,
+		t.data.insert_queue_len()?,
 		t.data.gc_todo_len()?
 	))
 }
