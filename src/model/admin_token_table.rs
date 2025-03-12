@@ -1,6 +1,7 @@
 use base64::prelude::*;
 
 use garage_util::crdt::{self, Crdt};
+use garage_util::time::now_msec;
 
 use garage_table::{EmptyKey, Entry, TableSchema};
 
@@ -24,6 +25,9 @@ mod v2 {
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct AdminApiTokenParams {
+		/// Creation date
+		pub created: u64,
+
 		/// The entire API token hashed as a password
 		pub token_hash: String,
 
@@ -91,6 +95,7 @@ impl AdminApiToken {
 		let ret = AdminApiToken {
 			prefix,
 			state: crdt::Deletable::present(AdminApiTokenParams {
+				created: now_msec(),
 				token_hash: hashed_token,
 				name: crdt::Lww::new(name.to_string()),
 				expiration: crdt::Lww::new(None),

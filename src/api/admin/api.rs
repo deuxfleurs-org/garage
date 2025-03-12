@@ -314,6 +314,8 @@ pub struct GetAdminTokenInfoRequest {
 pub struct GetAdminTokenInfoResponse {
 	/// Identifier of the admin token (which is also a prefix of the full bearer token)
 	pub id: Option<String>,
+	/// Creation date
+	pub created: Option<chrono::DateTime<chrono::Utc>>,
 	/// Name of the admin API token
 	pub name: String,
 	/// Expiration time and date, formatted according to RFC 3339

@@ -41,6 +41,7 @@ impl RequestHandler for ListAdminTokensRequest {
 				0,
 				GetAdminTokenInfoResponse {
 					id: None,
+					created: None,
 					name: "admin_token (from daemon configuration)".into(),
 					expiration: None,
 					expired: false,
@@ -54,6 +55,7 @@ impl RequestHandler for ListAdminTokensRequest {
 				1,
 				GetAdminTokenInfoResponse {
 					id: None,
+					created: None,
 					name: "metrics_token (from daemon configuration)".into(),
 					expiration: None,
 					expired: false,
@@ -180,6 +182,10 @@ fn admin_token_info_results(token: &AdminApiToken, now: u64) -> GetAdminTokenInf
 
 	GetAdminTokenInfoResponse {
 		id: Some(token.prefix.clone()),
+		created: Some(
+			DateTime::from_timestamp_millis(params.created as i64)
+				.expect("invalid timestamp stored in db"),
+		),
 		name: params.name.get().to_string(),
 		expiration: params.expiration.get().map(|x| {
 			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")

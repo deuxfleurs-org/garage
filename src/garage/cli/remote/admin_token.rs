@@ -1,6 +1,6 @@
 use format_table::format_table;
 
-use chrono::Utc;
+use chrono::{Local, Utc};
 
 use garage_util::error::*;
 
@@ -30,11 +30,15 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_admin_tokens(&self) -> Result<(), Error> {
-		let list = self.api_request(ListAdminTokensRequest).await?;
+		let mut list = self.api_request(ListAdminTokensRequest).await?;
 
-		let mut table = vec!["ID\tNAME\tEXPIRATION\tSCOPE".to_string()];
+		list.0.sort_by_key(|x| x.created);
+
+		let mut table = vec!["ID\tCREATED\tNAME\tEXPIRATION\tSCOPE".to_string()];
 		for tok in list.0.iter() {
-			let scope = if tok.scope.len() > 1 {
+			let scope = if tok.expired {
+				String::new()
+			} else if tok.scope.len() > 1 {
 				format!("[{}]", tok.scope.len())
 			} else {
 				tok.scope.get(0).cloned().unwrap_or_default()
@@ -43,12 +47,15 @@ impl Cli {
 				"expired".to_string()
 			} else {
 				tok.expiration
-					.map(|x| x.to_string())
+					.map(|x| x.with_timezone(&Local).to_string())
 					.unwrap_or("never".into())
 			};
 			table.push(format!(
-				"{}\t{}\t{}\t{}\t",
+				"{}\t{}\t{}\t{}\t{}",
 				tok.id.as_deref().unwrap_or("-"),
+				tok.created
+					.map(|x| x.with_timezone(&Local).date_naive().to_string())
+					.unwrap_or("-".into()),
 				tok.name,
 				exp,
 				scope,
@@ -209,8 +216,9 @@ impl Cli {
 
 fn print_token_info(token: &GetAdminTokenInfoResponse) {
 	format_table(vec![
-		format!("ID:\t{}", token.id.as_deref().unwrap_or("-")),
+		format!("ID:\t{}", token.id.as_ref().unwrap()),
 		format!("Name:\t{}", token.name),
+		format!("Created:\t{}", token.created.unwrap().with_timezone(&Local)),
 		format!(
 			"Validity:\t{}",
 			token.expired.then_some("EXPIRED").unwrap_or("valid")
@@ -219,7 +227,7 @@ fn print_token_info(token: &GetAdminTokenInfoResponse) {
 			"Expiration:\t{}",
 			token
 				.expiration
-				.map(|x| x.to_string())
+				.map(|x| x.with_timezone(&Local).to_string())
 				.unwrap_or("never".into())
 		),
 		format!("Scope:\t{}", token.scope.to_vec().join(", ")),

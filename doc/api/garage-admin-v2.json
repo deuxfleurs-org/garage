@@ -2048,6 +2048,14 @@
           "scope"
         ],
         "properties": {
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Creation date"
+          },
           "expiration": {
             "type": [
               "string",
