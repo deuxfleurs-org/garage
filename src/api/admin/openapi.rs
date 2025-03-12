@@ -6,6 +6,59 @@ use utoipa::{Modify, OpenApi};
 use crate::api::*;
 
 // **********************************************
+//      Special endpoints
+// **********************************************
+
+#[utoipa::path(get,
+    path = "/metrics",
+    tag = "Special endpoints",
+    description = "Prometheus metrics endpoint",
+    security((), ("bearerAuth" = [])),
+	responses(
+            (status = 200, description = "Garage daemon metrics exported in Prometheus format"),
+        ),
+)]
+fn Metrics() -> () {}
+
+#[utoipa::path(get,
+    path = "/health",
+    tag = "Special endpoints",
+    description = "
+Check cluster health. The status code returned by this function indicates
+whether this Garage daemon can answer API requests.
+Garage will return `200 OK` even if some storage nodes are disconnected,
+as long as it is able to have a quorum of nodes for read and write operations.
+    ",
+    security(()),
+	responses(
+            (status = 200, description = "Garage is able to answer requests"),
+            (status = 503, description = "This Garage daemon is not able to handle requests")
+        ),
+)]
+fn Health() -> () {}
+
+#[utoipa::path(get,
+    path = "/check",
+    tag = "Special endpoints",
+    description = "
+Static website domain name check. Checks whether a bucket is configured to serve
+a static website for the requested domain. This is used by reverse proxies such
+as Caddy or Tricot, to avoid requesting TLS certificates for domain names that
+do not correspond to an actual website.
+    ",
+    params(
+        ("domain", description = "The domain name to check for"),
+    ),
+    security(()),
+	responses(
+            (status = 200, description = "The domain name redirects to a static website bucket"),
+            (status = 400, description = "No static website bucket exists for this domain")
+        ),
+)]
+fn CheckDomain() -> () {}
+
+
+// **********************************************
 //      Cluster operations
 // **********************************************
 
@@ -794,6 +847,10 @@ impl Modify for SecurityAddon {
     modifiers(&SecurityAddon),
     security(("bearerAuth" = [])),
     paths(
+        // Special ops
+        Metrics,
+        Health,
+        CheckDomain,
         // Cluster operations
         GetClusterHealth,
         GetClusterStatus,
