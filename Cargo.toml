@@ -48,7 +48,7 @@ blake2 = "0.10"
 bytes = "1.0"
 bytesize = "1.1"
 cfg-if = "1.0"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 crc32fast = "1.4"
 crc32c = "0.6"
 crypto-common = "0.1"
@@ -101,7 +101,7 @@ serde = { version = "1.0", default-features = false, features = ["derive", "rc"]
 serde_bytes = "0.11"
 serde_json = "1.0"
 toml = { version = "0.8", default-features = false, features = ["parse"] }
-utoipa = "5.3.1"
+utoipa = { version = "5.3.1", features = ["chrono"] }
 
 # newer version requires rust edition 2021
 k8s-openapi = { version = "0.21", features = ["v1_24"] }

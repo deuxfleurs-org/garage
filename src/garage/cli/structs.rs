@@ -30,6 +30,10 @@ pub enum Command {
 	#[structopt(name = "key", version = garage_version())]
 	Key(KeyOperation),
 
+	/// Operations on admin API tokens
+	#[structopt(name = "admin-token", version = garage_version())]
+	AdminToken(AdminTokenOperation),
+
 	/// Start repair of node data on remote node
 	#[structopt(name = "repair", version = garage_version())]
 	Repair(RepairOpt),
@@ -64,6 +68,10 @@ pub enum Command {
 	AdminApiSchema,
 }
 
+// -------------------------
+// ---- garage node ... ----
+// -------------------------
+
 #[derive(StructOpt, Debug)]
 pub enum NodeOperation {
 	/// Print the full node ID (public key) of this Garage node, and its publicly reachable IP
@@ -90,6 +98,10 @@ pub struct ConnectNodeOpt {
 	/// You can retrieve this information on the target node using `garage node id`.
 	pub(crate) node: String,
 }
+
+// ---------------------------
+// ---- garage layout ... ----
+// ---------------------------
 
 #[derive(StructOpt, Debug)]
 pub enum LayoutOperation {
@@ -192,6 +204,10 @@ pub struct SkipDeadNodesOpt {
 	#[structopt(long = "allow-missing-data")]
 	pub(crate) allow_missing_data: bool,
 }
+
+// ---------------------------
+// ---- garage bucket ... ----
+// ---------------------------
 
 #[derive(StructOpt, Debug)]
 pub enum BucketOperation {
@@ -350,6 +366,10 @@ pub struct CleanupIncompleteUploadsOpt {
 	pub buckets: Vec<String>,
 }
 
+// ------------------------
+// ---- garage key ... ----
+// ------------------------
+
 #[derive(StructOpt, Debug)]
 pub enum KeyOperation {
 	/// List keys
@@ -447,6 +467,104 @@ pub struct KeyImportOpt {
 	pub yes: bool,
 }
 
+// --------------------------------
+// ---- garage admin-token ... ----
+// --------------------------------
+
+#[derive(StructOpt, Debug)]
+pub enum AdminTokenOperation {
+	/// List all admin API tokens
+	#[structopt(name = "list", version = garage_version())]
+	List,
+
+	/// Fetch info about a specific admin API token
+	#[structopt(name = "info", version = garage_version())]
+	Info {
+		/// Name or prefix of the ID of the token to look up
+		api_token: String,
+	},
+
+	/// Create new admin API token
+	#[structopt(name = "create", version = garage_version())]
+	Create(AdminTokenCreateOp),
+
+	/// Rename an admin API token
+	#[structopt(name = "rename", version = garage_version())]
+	Rename {
+		/// Name or prefix of the ID of the token to rename
+		api_token: String,
+		/// New name of the admintoken
+		new_name: String,
+	},
+
+	/// Set parameters for an admin API token
+	#[structopt(name = "set", version = garage_version())]
+	Set(AdminTokenSetOp),
+
+	/// Delete an admin API token
+	#[structopt(name = "delete", version = garage_version())]
+	Delete {
+		/// Name or prefix of the ID of the token to delete
+		api_token: String,
+		/// Confirm deletion
+		#[structopt(long = "yes")]
+		yes: bool,
+	},
+
+	/// Delete all expired admin API tokens
+	#[structopt(name = "delete-expired", version = garage_version())]
+	DeleteExpired {
+		/// Confirm deletion
+		#[structopt(long = "yes")]
+		yes: bool,
+	},
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct AdminTokenCreateOp {
+	/// Set a name for the token
+	pub name: Option<String>,
+	/// Set an expiration time for the token (see docs.rs/parse_duration for date
+	/// format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
+	/// Set a limited scope for the token, as a comma-separated list of
+	/// admin API functions (e.g. GetClusterStatus, etc.). The default scope
+	/// is `*`, which allows access to all admin API functions.
+	/// Note that granting a scope that allows `CreateAdminToken` or
+	/// `UpdateAdminToken` allows for privilege escalation, and is therefore
+	/// equivalent to `*`.
+	#[structopt(long = "scope")]
+	pub scope: Option<String>,
+	/// Print only the newly generated API token to stdout
+	#[structopt(short = "q", long = "quiet")]
+	pub quiet: bool,
+}
+
+#[derive(StructOpt, Debug, Clone)]
+pub struct AdminTokenSetOp {
+	/// Name or prefix of the ID of the token to modify
+	pub api_token: String,
+	/// Set an expiration time for the token (see docs.rs/parse_duration for date
+	/// format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
+	/// Set a limited scope for the token, as a comma-separated list of
+	/// admin API functions (e.g. GetClusterStatus, etc.), or `*` to allow
+	/// all admin API functions.
+	/// Use `--scope=+Scope1,Scope2` to add scopes to the existing list,
+	/// and `--scope=-Scope1,Scope2` to remove scopes from the existing list.
+	/// Note that granting a scope that allows `CreateAdminToken` or
+	/// `UpdateAdminToken` allows for privilege escalation, and is therefore
+	/// equivalent to `*`.
+	#[structopt(long = "scope")]
+	pub scope: Option<String>,
+}
+
+// ---------------------------
+// ---- garage repair ... ----
+// ---------------------------
+
 #[derive(StructOpt, Debug, Clone)]
 pub struct RepairOpt {
 	/// Launch repair operation on all nodes
@@ -508,6 +626,10 @@ pub enum ScrubCmd {
 	Cancel,
 }
 
+// -----------------------------------
+// ---- garage offline-repair ... ----
+// -----------------------------------
+
 #[derive(StructOpt, Debug, Clone)]
 pub struct OfflineRepairOpt {
 	/// Confirm the launch of the repair operation
@@ -529,12 +651,20 @@ pub enum OfflineRepairWhat {
 	ObjectCounters,
 }
 
+// --------------------------
+// ---- garage stats ... ----
+// --------------------------
+
 #[derive(StructOpt, Debug, Clone)]
 pub struct StatsOpt {
 	/// Gather statistics from all nodes
 	#[structopt(short = "a", long = "all-nodes")]
 	pub all_nodes: bool,
 }
+
+// ---------------------------
+// ---- garage worker ... ----
+// ---------------------------
 
 #[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum WorkerOperation {
@@ -579,6 +709,10 @@ pub struct WorkerListOpt {
 	pub errors: bool,
 }
 
+// --------------------------
+// ---- garage block ... ----
+// --------------------------
+
 #[derive(StructOpt, Debug, Eq, PartialEq, Clone)]
 pub enum BlockOperation {
 	/// List all blocks that currently have a resync error
@@ -610,6 +744,10 @@ pub enum BlockOperation {
 		blocks: Vec<String>,
 	},
 }
+
+// -------------------------
+// ---- garage meta ... ----
+// -------------------------
 
 #[derive(StructOpt, Debug, Eq, PartialEq, Clone, Copy)]
 pub enum MetaOperation {

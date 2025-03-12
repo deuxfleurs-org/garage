@@ -21,6 +21,7 @@ garage_block.workspace = true
 garage_util.workspace = true
 garage_net.workspace = true
 
+argon2.workspace = true
 async-trait.workspace = true
 blake2.workspace = true
 chrono.workspace = true

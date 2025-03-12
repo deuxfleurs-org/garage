@@ -198,6 +198,9 @@ pub struct AdminConfig {
 	pub metrics_token: Option<String>,
 	/// File to read metrics token from
 	pub metrics_token_file: Option<PathBuf>,
+	/// Whether to require an access token for accessing the metrics endpoint
+	#[serde(default)]
+	pub metrics_require_token: bool,
 
 	/// Bearer token to use to access Admin API endpoints
 	pub admin_token: Option<String>,

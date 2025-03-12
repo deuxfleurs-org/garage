@@ -34,6 +34,12 @@ impl AdminApiRequest {
 			GET GetClusterStatus (),
 			GET GetClusterHealth (),
 			POST ConnectClusterNodes (body),
+			// Admin token endpoints
+			GET ListAdminTokens (),
+			GET GetAdminTokenInfo (query_opt::id, query_opt::search),
+			POST CreateAdminToken (body),
+			POST UpdateAdminToken (body_field, query::id),
+			POST DeleteAdminToken (query::id),
 			// Layout endpoints
 			GET GetClusterLayout (),
 			GET GetClusterLayoutHistory (),
@@ -243,9 +249,7 @@ impl AdminApiRequest {
 	/// Get the kind of authorization which is required to perform the operation.
 	pub fn authorization_type(&self) -> Authorization {
 		match self {
-			Self::Options(_) => Authorization::None,
-			Self::Health(_) => Authorization::None,
-			Self::CheckDomain(_) => Authorization::None,
+			Self::Options(_) | Self::Health(_) | Self::CheckDomain(_) => Authorization::None,
 			Self::Metrics(_) => Authorization::MetricsToken,
 			_ => Authorization::AdminToken,
 		}

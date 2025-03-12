@@ -49,6 +49,13 @@ admin_endpoints![
 	GetClusterStatistics,
 	ConnectClusterNodes,
 
+	// Admin tokens operations
+	ListAdminTokens,
+	GetAdminTokenInfo,
+	CreateAdminToken,
+	UpdateAdminToken,
+	DeleteAdminToken,
+
 	// Layout operations
 	GetClusterLayout,
 	GetClusterLayoutHistory,
@@ -281,6 +288,97 @@ pub struct ConnectNodeResponse {
 	/// An error message if Garage did not manage to connect to this node
 	pub error: Option<String>,
 }
+
+// **********************************************
+//      Admin token operations
+// **********************************************
+
+// ---- ListAdminTokens ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListAdminTokensRequest;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ListAdminTokensResponse(pub Vec<GetAdminTokenInfoResponse>);
+
+// ---- GetAdminTokenInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetAdminTokenInfoRequest {
+	pub id: Option<String>,
+	pub search: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAdminTokenInfoResponse {
+	/// Identifier of the admin token (which is also a prefix of the full bearer token)
+	pub id: Option<String>,
+	/// Creation date
+	pub created: Option<chrono::DateTime<chrono::Utc>>,
+	/// Name of the admin API token
+	pub name: String,
+	/// Expiration time and date, formatted according to RFC 3339
+	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	/// Whether this admin token is expired already
+	pub expired: bool,
+	/// Scope of the admin API token, a list of admin endpoint names (such as
+	/// `GetClusterStatus`, etc), or the special value `*` to allow all
+	/// admin endpoints
+	pub scope: Vec<String>,
+}
+
+// ---- CreateAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAdminTokenRequest(pub UpdateAdminTokenRequestBody);
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateAdminTokenResponse {
+	/// The secret bearer token. **CAUTION:** This token will be shown only
+	/// ONCE, so this value MUST be remembered somewhere, or the token
+	/// will be unusable.
+	pub secret_token: String,
+	#[serde(flatten)]
+	pub info: GetAdminTokenInfoResponse,
+}
+
+// ---- UpdateAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateAdminTokenRequest {
+	pub id: String,
+	pub body: UpdateAdminTokenRequestBody,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateAdminTokenRequestBody {
+	/// Name of the admin API token
+	pub name: Option<String>,
+	/// Expiration time and date, formatted according to RFC 3339
+	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	/// Scope of the admin API token, a list of admin endpoint names (such as
+	/// `GetClusterStatus`, etc), or the special value `*` to allow all
+	/// admin endpoints. **WARNING:** Granting a scope of `CreateAdminToken` or
+	/// `UpdateAdminToken` trivially allows for privilege escalation, and is thus
+	/// functionnally equivalent to granting a scope of `*`.
+	pub scope: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct UpdateAdminTokenResponse(pub GetAdminTokenInfoResponse);
+
+// ---- DeleteAdminToken ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteAdminTokenRequest {
+	pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteAdminTokenResponse;
 
 // **********************************************
 //      Layout operations

@@ -80,6 +80,7 @@ add_host_to_metrics = true
 [admin]
 api_bind_addr = "0.0.0.0:3903"
 metrics_token = "BCAdFjoa9G0KJR0WXnHHm7fs1ZAbfpI8iIZ+Z/a2NgI="
+metrics_require_token = true
 admin_token = "UkLeGWEvHnXBqnueR3ISEMWpOnm40jH2tM2HnnL/0F4="
 trace_sink = "http://localhost:4317"
 ```
@@ -145,6 +146,7 @@ The `[s3_web]` section:
 
 The `[admin]` section:
 [`api_bind_addr`](#admin_api_bind_addr),
+[`metrics_require_token`](#admin_metrics_require_token),
 [`metrics_token`/`metrics_token_file`](#admin_metrics_token),
 [`admin_token`/`admin_token_file`](#admin_token),
 [`trace_sink`](#admin_trace_sink),
@@ -767,10 +769,34 @@ See [administration API reference](@/documentation/reference-manual/admin-api.md
 Alternatively, since `v0.8.5`, a path can be used to create a unix socket. Note that for security reasons,
 the socket will have 0220 mode. Make sure to set user and group permissions accordingly.
 
+#### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN`, `GARAGE_ADMIN_TOKEN_FILE` (env) {#admin_token}
+
+The token for accessing all administration functions on the admin endpoint,
+with the exception of the metrics endpoint (see `metrics_token`).
+
+You can use any random string for this value. We recommend generating a random
+token with `openssl rand -base64 32`.
+
+For Garage version earlier than `v2.0`, if this token is not set,
+access to these endpoints is disabled entirely.
+
+Since Garage `v2.0`, additional admin API tokens can be defined dynamically
+in your Garage cluster using administration commands. This new admin token system
+is more flexible since it allows admin tokens to have an expiration date,
+and to have a scope restricted to certain admin API functions. If `admin_token`
+is set, it behaves as an admin token without expiration and with full scope.
+Otherwise, only admin API tokens defined dynamically can be used.
+
+`admin_token` was introduced in Garage `v0.7.2`.
+`admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
+
+`GARAGE_ADMIN_TOKEN_FILE` is supported since `v0.8.5` / `v0.9.1`.
+
 #### `metrics_token`, `metrics_token_file` or `GARAGE_METRICS_TOKEN`, `GARAGE_METRICS_TOKEN_FILE` (env) {#admin_metrics_token}
 
-The token for accessing the Metrics endpoint. If this token is not set, the
-Metrics endpoint can be accessed without access control.
+The token for accessing the Prometheus metrics endpoint (`/metrics`).
+If this token is not set, and unless `metrics_require_token` is set to `true`,
+the metrics endpoint can be accessed without access control.
 
 You can use any random string for this value. We recommend generating a random token with `openssl rand -base64 32`.
 
@@ -779,17 +805,12 @@ You can use any random string for this value. We recommend generating a random t
 
 `GARAGE_METRICS_TOKEN_FILE` is supported since `v0.8.5` / `v0.9.1`.
 
-#### `admin_token`, `admin_token_file` or `GARAGE_ADMIN_TOKEN`, `GARAGE_ADMIN_TOKEN_FILE` (env) {#admin_token}
+#### `metrics_require_token` (since `v2.0.0`) {#admin_metrics_require_token}
 
-The token for accessing all of the other administration endpoints.  If this
-token is not set, access to these endpoints is disabled entirely.
-
-You can use any random string for this value. We recommend generating a random token with `openssl rand -base64 32`.
-
-`admin_token` was introduced in Garage `v0.7.2`.
-`admin_token_file` and the `GARAGE_ADMIN_TOKEN` environment variable are supported since Garage `v0.8.2`.
-
-`GARAGE_ADMIN_TOKEN_FILE` is supported since `v0.8.5` / `v0.9.1`.
+If this is set to `true`, accessing the metrics endpoint will always require
+an access token. Valid tokens include the `metrics_token` if it is set,
+and admin API token defined dynamicaly in Garage which have
+the `Metrics` endpoint in their scope.
 
 #### `trace_sink` {#admin_trace_sink}
 

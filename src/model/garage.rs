@@ -24,6 +24,7 @@ use crate::s3::mpu_table::*;
 use crate::s3::object_table::*;
 use crate::s3::version_table::*;
 
+use crate::admin_token_table::*;
 use crate::bucket_alias_table::*;
 use crate::bucket_table::*;
 use crate::helper;
@@ -50,6 +51,8 @@ pub struct Garage {
 	/// The block manager
 	pub block_manager: Arc<BlockManager>,
 
+	/// Table containing admin API keys
+	pub admin_token_table: Arc<Table<AdminApiTokenTable, TableFullReplication>>,
 	/// Table containing buckets
 	pub bucket_table: Arc<Table<BucketTable, TableFullReplication>>,
 	/// Table containing bucket aliases
@@ -174,6 +177,14 @@ impl Garage {
 		block_manager.register_bg_vars(&mut bg_vars);
 
 		// ---- admin tables ----
+		info!("Initialize admin_token_table...");
+		let admin_token_table = Table::new(
+			AdminApiTokenTable,
+			control_rep_param.clone(),
+			system.clone(),
+			&db,
+		);
+
 		info!("Initialize bucket_table...");
 		let bucket_table = Table::new(BucketTable, control_rep_param.clone(), system.clone(), &db);
 
@@ -263,6 +274,7 @@ impl Garage {
 			db,
 			system,
 			block_manager,
+			admin_token_table,
 			bucket_table,
 			bucket_alias_table,
 			key_table,
@@ -282,6 +294,7 @@ impl Garage {
 	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) -> Result<(), Error> {
 		self.block_manager.spawn_workers(bg);
 
+		self.admin_token_table.spawn_workers(bg);
 		self.bucket_table.spawn_workers(bg);
 		self.bucket_alias_table.spawn_workers(bg);
 		self.key_table.spawn_workers(bg);

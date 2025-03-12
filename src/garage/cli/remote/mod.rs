@@ -1,3 +1,4 @@
+pub mod admin_token;
 pub mod bucket;
 pub mod cluster;
 pub mod key;
@@ -35,6 +36,7 @@ impl Cli {
 			}
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
 			Command::Bucket(bo) => self.cmd_bucket(bo).await,
+			Command::AdminToken(to) => self.cmd_admin_token(to).await,
 			Command::Key(ko) => self.cmd_key(ko).await,
 			Command::Worker(wo) => self.cmd_worker(wo).await,
 			Command::Block(bo) => self.cmd_block(bo).await,

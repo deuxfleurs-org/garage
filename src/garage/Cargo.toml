@@ -38,6 +38,7 @@ garage_web.workspace = true
 backtrace.workspace = true
 bytes.workspace = true
 bytesize.workspace = true
+chrono.workspace = true
 timeago.workspace = true
 parse_duration.workspace = true
 hex.workspace = true
