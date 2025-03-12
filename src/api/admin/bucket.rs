@@ -82,15 +82,56 @@ impl RequestHandler for GetBucketInfoRequest {
 		let bucket_id = match (self.id, self.global_alias, self.search) {
 			(Some(id), None, None) => parse_bucket_id(&id)?,
 			(None, Some(ga), None) => garage
-				.bucket_helper()
-				.resolve_global_bucket_name(&ga)
+				.bucket_alias_table
+				.get(&EmptyKey, &ga)
 				.await?
+				.and_then(|x| *x.state.get())
 				.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
 			(None, None, Some(search)) => {
-				garage
-					.bucket_helper()
-					.admin_get_existing_matching_bucket(&search)
-					.await?
+				let helper = garage.bucket_helper();
+				if let Some(uuid) = helper.resolve_global_bucket_name(&search).await? {
+					uuid
+				} else {
+					let hexdec = if search.len() >= 2 {
+						search
+							.get(..search.len() & !1)
+							.and_then(|x| hex::decode(x).ok())
+					} else {
+						None
+					};
+					let hex = hexdec
+						.ok_or_else(|| Error::Common(CommonError::NoSuchBucket(search.clone())))?;
+
+					let mut start = [0u8; 32];
+					start
+						.as_mut_slice()
+						.get_mut(..hex.len())
+						.ok_or_bad_request("invalid length")?
+						.copy_from_slice(&hex);
+					let mut candidates = garage
+						.bucket_table
+						.get_range(
+							&EmptyKey,
+							Some(start.into()),
+							Some(DeletedFilter::NotDeleted),
+							10,
+							EnumerationOrder::Forward,
+						)
+						.await?
+						.into_iter()
+						.collect::<Vec<_>>();
+					candidates.retain(|x| hex::encode(x.id).starts_with(&search));
+					if candidates.is_empty() {
+						return Err(Error::Common(CommonError::NoSuchBucket(search.clone())));
+					} else if candidates.len() == 1 {
+						candidates.into_iter().next().unwrap().id
+					} else {
+						return Err(Error::bad_request(format!(
+							"Several matching buckets: {}",
+							search
+						)));
+					}
+				}
 			}
 			_ => {
 				return Err(Error::bad_request(
