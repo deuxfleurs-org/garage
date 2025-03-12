@@ -152,10 +152,28 @@ impl Cli {
 						.transpose()
 						.ok_or_message("Invalid duration passed for --expires-in parameter")?
 						.map(|dur| Utc::now() + dur),
-					scope: opt.scope.map(|s| {
-						s.split(",")
-							.map(|x| x.trim().to_string())
-							.collect::<Vec<_>>()
+					scope: opt.scope.map({
+						let mut new_scope = token.scope;
+						|scope_str| {
+							if let Some(add) = scope_str.strip_prefix("+") {
+								for a in add.split(",").map(|x| x.trim().to_string()) {
+									if !new_scope.contains(&a) {
+										new_scope.push(a);
+									}
+								}
+								new_scope
+							} else if let Some(sub) = scope_str.strip_prefix("-") {
+								for r in sub.split(",").map(|x| x.trim()) {
+									new_scope.retain(|x| x != r);
+								}
+								new_scope
+							} else {
+								scope_str
+									.split(",")
+									.map(|x| x.trim().to_string())
+									.collect::<Vec<_>>()
+							}
+						}
 					}),
 				},
 			})

@@ -528,7 +528,12 @@ pub struct AdminTokenCreateOp {
 	/// format)
 	#[structopt(long = "expires-in")]
 	pub expires_in: Option<String>,
-	/// Set a limited scope for the token (by default, `*`)
+	/// Set a limited scope for the token, as a comma-separated list of
+	/// admin API functions (e.g. GetClusterStatus, etc.). The default scope
+	/// is `*`, which allows access to all admin API functions.
+	/// Note that granting a scope that allows `CreateAdminToken` or
+	/// `UpdateAdminToken` allows for privilege escalation, and is therefore
+	/// equivalent to `*`.
 	#[structopt(long = "scope")]
 	pub scope: Option<String>,
 	/// Print only the newly generated API token to stdout
@@ -544,7 +549,14 @@ pub struct AdminTokenSetOp {
 	/// format)
 	#[structopt(long = "expires-in")]
 	pub expires_in: Option<String>,
-	/// Set a limited scope for the token
+	/// Set a limited scope for the token, as a comma-separated list of
+	/// admin API functions (e.g. GetClusterStatus, etc.), or `*` to allow
+	/// all admin API functions.
+	/// Use `--scope=+Scope1,Scope2` to add scopes to the existing list,
+	/// and `--scope=-Scope1,Scope2` to remove scopes from the existing list.
+	/// Note that granting a scope that allows `CreateAdminToken` or
+	/// `UpdateAdminToken` allows for privilege escalation, and is therefore
+	/// equivalent to `*`.
 	#[structopt(long = "scope")]
 	pub scope: Option<String>,
 }
