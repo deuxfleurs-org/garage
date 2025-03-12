@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use paste::paste;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 use garage_rpc::*;
 
@@ -303,9 +303,12 @@ pub struct ListAdminTokensResponse(pub Vec<GetAdminTokenInfoResponse>);
 
 // ---- GetAdminTokenInfo ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct GetAdminTokenInfoRequest {
+	/// Admin API token ID
 	pub id: Option<String>,
+	/// Partial token ID or name to search for
 	pub search: Option<String>,
 }
 
@@ -634,10 +637,15 @@ pub struct ListKeysResponseItem {
 
 // ---- GetKeyInfo ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct GetKeyInfoRequest {
+	/// Access key ID
 	pub id: Option<String>,
+	/// Partial key ID or name to search for
 	pub search: Option<String>,
+	/// Whether to return the secret access key
+	#[serde(default)]
 	pub show_secret_key: bool,
 }
 
@@ -761,10 +769,14 @@ pub struct BucketLocalAlias {
 
 // ---- GetBucketInfo ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoRequest {
+	/// Exact bucket ID to look up
 	pub id: Option<String>,
+	/// Global alias of bucket to look up
 	pub global_alias: Option<String>,
+	/// Partial ID or alias to search for
 	pub search: Option<String>,
 }
 

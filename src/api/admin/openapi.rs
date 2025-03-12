@@ -57,7 +57,6 @@ do not correspond to an actual website.
 )]
 fn CheckDomain() -> () {}
 
-
 // **********************************************
 //      Cluster operations
 // **********************************************
@@ -141,10 +140,7 @@ fn ListAdminTokens() -> () {}
 Return information about a specific admin API token.
 You can search by specifying the exact token identifier (`id`) or by specifying a pattern (`search`).
     ",
-    params(
-        ("id", description = "Admin API token ID"),
-        ("search", description = "Partial token ID or name to search for"),
-    ),
+    params(GetAdminTokenInfoRequest),
 	responses(
             (status = 200, description = "Information about the admin token", body = GetAdminTokenInfoResponse),
             (status = 500, description = "Internal server error")
@@ -337,11 +333,7 @@ You can search by specifying the exact key identifier (`id`) or by specifying a 
 
 For confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.
     ",
-    params(
-        ("id", description = "Access key ID"),
-        ("search", description = "Partial key ID or name to search for"),
-        ("showSecretKey", description = "Whether to return the secret access key"),
-    ),
+    params(GetKeyInfoRequest),
 	responses(
             (status = 200, description = "Information about the access key", body = GetKeyInfoResponse),
             (status = 500, description = "Internal server error")
@@ -434,11 +426,7 @@ It includes its aliases, its web configuration, keys that have some permissions
 on it, some statistics (number of objects, size), number of dangling multipart uploads,
 and its quotas (if any).
     ",
-    params(
-        ("id", description = "Exact bucket ID to look up"),
-        ("globalAlias", description = "Global alias of bucket to look up"),
-        ("search", description = "Partial ID or alias to search for"),
-    ),
+    params(GetBucketInfoRequest),
 	responses(
             (status = 200, description = "Returns exhaustive information about the bucket", body = GetBucketInfoResponse),
             (status = 500, description = "Internal server error")

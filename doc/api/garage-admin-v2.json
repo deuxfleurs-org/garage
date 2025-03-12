@@ -554,13 +554,25 @@
             "name": "id",
             "in": "path",
             "description": "Admin API token ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial token ID or name to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -634,19 +646,37 @@
             "name": "id",
             "in": "path",
             "description": "Exact bucket ID to look up",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "globalAlias",
             "in": "path",
             "description": "Global alias of bucket to look up",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial ID or alias to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "responses": {
@@ -795,19 +825,34 @@
             "name": "id",
             "in": "path",
             "description": "Access key ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "search",
             "in": "path",
             "description": "Partial key ID or name to search for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           },
           {
             "name": "showSecretKey",
             "in": "path",
             "description": "Whether to return the secret access key",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
