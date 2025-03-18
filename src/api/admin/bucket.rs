@@ -382,7 +382,7 @@ pub async fn handle_delete_bucket(
 	for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
 		if *active {
 			helper
-				.unset_local_bucket_alias(bucket.id, key_id, alias)
+				.purge_local_bucket_alias(bucket.id, key_id, alias)
 				.await?;
 		}
 	}

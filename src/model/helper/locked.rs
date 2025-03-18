@@ -47,6 +47,10 @@ impl<'a> LockedHelper<'a> {
 		KeyHelper(self.0)
 	}
 
+	// ================================================
+	//      global bucket aliases
+	// ================================================
+
 	/// Sets a new alias for a bucket in global namespace.
 	/// This function fails if:
 	/// - alias name is not valid according to S3 spec
@@ -179,13 +183,14 @@ impl<'a> LockedHelper<'a> {
 			.ok_or_else(|| Error::NoSuchBucket(alias_name.to_string()))?;
 
 		// Checks ok, remove alias
-		let alias_ts = match bucket.state.as_option() {
-			Some(bucket_state) => increment_logical_clock_2(
-				alias.state.timestamp(),
-				bucket_state.aliases.get_timestamp(alias_name),
-			),
-			None => increment_logical_clock(alias.state.timestamp()),
-		};
+		let alias_ts = increment_logical_clock_2(
+			alias.state.timestamp(),
+			bucket
+				.state
+				.as_option()
+				.map(|p| p.aliases.get_timestamp(alias_name))
+				.unwrap_or(0),
+		);
 
 		// ---- timestamp-ensured causality barrier ----
 		// writes are now done and all writes use timestamp alias_ts
@@ -203,6 +208,10 @@ impl<'a> LockedHelper<'a> {
 		Ok(())
 	}
 
+	// ================================================
+	//      local bucket aliases
+	// ================================================
+
 	/// Sets a new alias for a bucket in the local namespace of a key.
 	/// This function fails if:
 	/// - alias name is not valid according to S3 spec
@@ -215,14 +224,12 @@ impl<'a> LockedHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
-		let key_helper = KeyHelper(self.0);
-
 		if !is_valid_bucket_name(alias_name, self.0.config.allow_punycode) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
 		let mut bucket = self.bucket().get_existing_bucket(bucket_id).await?;
-		let mut key = key_helper.get_existing_key(key_id).await?;
+		let mut key = self.key().get_existing_key(key_id).await?;
 
 		let key_param = key.state.as_option_mut().unwrap();
 
@@ -271,23 +278,13 @@ impl<'a> LockedHelper<'a> {
 		key_id: &String,
 		alias_name: &String,
 	) -> Result<(), Error> {
-		let key_helper = KeyHelper(self.0);
-
 		let mut bucket = self.bucket().get_existing_bucket(bucket_id).await?;
-		let mut key = key_helper.get_existing_key(key_id).await?;
+		let mut key = self.key().get_existing_key(key_id).await?;
 
+		let key_p = key.state.as_option().unwrap();
 		let bucket_p = bucket.state.as_option_mut().unwrap();
 
-		if key
-			.state
-			.as_option()
-			.unwrap()
-			.local_aliases
-			.get(alias_name)
-			.cloned()
-			.flatten()
-			!= Some(bucket_id)
-		{
+		if key_p.local_aliases.get(alias_name).cloned().flatten() != Some(bucket_id) {
 			return Err(GarageError::Message(format!(
 				"Bucket {:?} does not have alias {} in namespace of key {}",
 				bucket_id, alias_name, key_id
@@ -304,17 +301,17 @@ impl<'a> LockedHelper<'a> {
 			.local_aliases
 			.items()
 			.iter()
-			.any(|((k, n), _, active)| *k == key.key_id && n == alias_name && *active);
+			.any(|((k, n), _, active)| (*k != key.key_id || n != alias_name) && *active);
+
 		if !has_other_global_aliases && !has_other_local_aliases {
 			return Err(Error::BadRequest(format!("Bucket {} doesn't have other aliases, please delete it instead of just unaliasing.", alias_name)));
 		}
 
 		// Checks ok, remove alias
-		let key_param = key.state.as_option_mut().unwrap();
 		let bucket_p_local_alias_key = (key.key_id.clone(), alias_name.clone());
 
 		let alias_ts = increment_logical_clock_2(
-			key_param.local_aliases.get_timestamp(alias_name),
+			key_p.local_aliases.get_timestamp(alias_name),
 			bucket_p
 				.local_aliases
 				.get_timestamp(&bucket_p_local_alias_key),
@@ -323,7 +320,8 @@ impl<'a> LockedHelper<'a> {
 		// ---- timestamp-ensured causality barrier ----
 		// writes are now done and all writes use timestamp alias_ts
 
-		key_param.local_aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, None);
+		key.state.as_option_mut().unwrap().local_aliases =
+			LwwMap::raw_item(alias_name.clone(), alias_ts, None);
 		self.0.key_table.insert(&key).await?;
 
 		bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, false);
@@ -332,21 +330,68 @@ impl<'a> LockedHelper<'a> {
 		Ok(())
 	}
 
+	/// Ensures a bucket does not have a certain local alias.
+	/// Contrarily to unset_local_bucket_alias, this does not
+	/// fail on any condition other than:
+	/// - bucket cannot be found (its fine if it is in deleted state)
+	/// - key cannot be found (its fine if alias in key points to nothing
+	///   or to another bucket)
+	pub async fn purge_local_bucket_alias(
+		&self,
+		bucket_id: Uuid,
+		key_id: &String,
+		alias_name: &String,
+	) -> Result<(), Error> {
+		let mut bucket = self.bucket().get_internal_bucket(bucket_id).await?;
+		let mut key = self.key().get_internal_key(key_id).await?;
+
+		let bucket_p_local_alias_key = (key.key_id.clone(), alias_name.clone());
+
+		let alias_ts = increment_logical_clock_2(
+			key.state
+				.as_option()
+				.map(|p| p.local_aliases.get_timestamp(alias_name))
+				.unwrap_or(0),
+			bucket
+				.state
+				.as_option()
+				.map(|p| p.local_aliases.get_timestamp(&bucket_p_local_alias_key))
+				.unwrap_or(0),
+		);
+
+		// ---- timestamp-ensured causality barrier ----
+		// writes are now done and all writes use timestamp alias_ts
+
+		if let Some(kp) = key.state.as_option_mut() {
+			kp.local_aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, None);
+			self.0.key_table.insert(&key).await?;
+		}
+
+		if let Some(bp) = bucket.state.as_option_mut() {
+			bp.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, false);
+			self.0.bucket_table.insert(&bucket).await?;
+		}
+
+		Ok(())
+	}
+
+	// ================================================
+	//      permissions
+	// ================================================
+
 	/// Sets permissions for a key on a bucket.
 	/// This function fails if:
 	/// - bucket or key cannot be found at all (its ok if they are in deleted state)
-	/// - bucket or key is in deleted state and we are trying to set permissions other than "deny
-	/// all"
+	/// - bucket or key is in deleted state and we are trying to set
+	///   permissions other than "deny all"
 	pub async fn set_bucket_key_permissions(
 		&self,
 		bucket_id: Uuid,
 		key_id: &String,
 		mut perm: BucketKeyPerm,
 	) -> Result<(), Error> {
-		let key_helper = KeyHelper(self.0);
-
 		let mut bucket = self.bucket().get_internal_bucket(bucket_id).await?;
-		let mut key = key_helper.get_internal_key(key_id).await?;
+		let mut key = self.key().get_internal_key(key_id).await?;
 
 		if let Some(bstate) = bucket.state.as_option() {
 			if let Some(kp) = bstate.authorized_keys.get(key_id) {
@@ -383,21 +428,20 @@ impl<'a> LockedHelper<'a> {
 		Ok(())
 	}
 
-	// ----
+	// ================================================
+	//      keys
+	// ================================================
 
 	/// Deletes an API access key
 	pub async fn delete_key(&self, key: &mut Key) -> Result<(), Error> {
 		let state = key.state.as_option_mut().unwrap();
 
 		// --- done checking, now commit ---
-		// (the step at unset_local_bucket_alias will fail if a bucket
-		// does not have another alias, the deletion will be
-		// interrupted in the middle if that happens)
 
 		// 1. Delete local aliases
 		for (alias, _, to) in state.local_aliases.items().iter() {
 			if let Some(bucket_id) = to {
-				self.unset_local_bucket_alias(*bucket_id, &key.key_id, alias)
+				self.purge_local_bucket_alias(*bucket_id, &key.key_id, alias)
 					.await?;
 			}
 		}

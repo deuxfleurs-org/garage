@@ -241,11 +241,11 @@ pub async fn handle_delete_bucket(ctx: ReqCtx) -> Result<Response<ResBody>, Erro
 		// 1. delete bucket alias
 		if is_local_alias {
 			helper
-				.unset_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
+				.purge_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
 				.await?;
 		} else {
 			helper
-				.unset_global_bucket_alias(*bucket_id, bucket_name)
+				.purge_global_bucket_alias(*bucket_id, bucket_name)
 				.await?;
 		}
 
