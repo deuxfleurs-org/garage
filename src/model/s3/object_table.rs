@@ -257,6 +257,11 @@ mod v010 {
 			/// (compression happens before encryption, whereas for non-encrypted
 			/// objects, compression is handled at the level of the block manager)
 			compressed: bool,
+			/// Whether the encryption uses an Object Encryption Key derived
+			/// from the master SSE-C key, instead of the master SSE-C key itself.
+			/// This is the case of objects created in Garage v2+
+			#[serde(default)]
+			use_oek: bool,
 		},
 		Plaintext {
 			/// Plain-text headers

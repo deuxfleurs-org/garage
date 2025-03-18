@@ -1403,6 +1403,7 @@ dependencies = [
  "garage_table",
  "garage_util",
  "hex",
+ "hmac",
  "http 1.2.0",
  "http-body-util",
  "http-range",

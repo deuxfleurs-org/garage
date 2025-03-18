@@ -31,6 +31,7 @@ crc32fast.workspace = true
 crc32c.workspace = true
 err-derive.workspace = true
 hex.workspace = true
+hmac.workspace = true
 tracing.workspace = true
 md-5.workspace = true
 pin-project.workspace = true

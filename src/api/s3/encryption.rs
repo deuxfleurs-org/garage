@@ -11,6 +11,7 @@ use aes_gcm::{
 };
 use base64::prelude::*;
 use bytes::Bytes;
+use sha2::Sha256;
 
 use futures::stream::Stream;
 use futures::task;
@@ -21,12 +22,12 @@ use http::header::{HeaderMap, HeaderName, HeaderValue};
 use garage_net::bytes_buf::BytesBuf;
 use garage_net::stream::{stream_asyncread, ByteStream};
 use garage_rpc::rpc_helper::OrderTag;
-use garage_util::data::Hash;
+use garage_util::data::{Hash, Uuid};
 use garage_util::error::Error as GarageError;
 use garage_util::migrate::Migrate;
 
 use garage_model::garage::Garage;
-use garage_model::s3::object_table::{ObjectVersionEncryption, ObjectVersionMetaInner};
+use garage_model::s3::object_table::*;
 
 use garage_api_common::common_error::*;
 use garage_api_common::signature::checksum::Md5Checksum;
@@ -64,10 +65,22 @@ const STREAM_ENC_CYPER_CHUNK_SIZE: usize = STREAM_ENC_PLAIN_CHUNK_SIZE + 16;
 pub enum EncryptionParams {
 	Plaintext,
 	SseC {
+		/// the value of x-amz-server-side-encryption-customer-key
 		client_key: Key<Aes256Gcm>,
+		/// the value of x-amz-server-side-encryption-customer-key-md5
 		client_key_md5: Md5Output,
+		/// the object encryption key, for uploads created in garage v2+
+		object_key: Option<Key<Aes256Gcm>>,
+		/// the compression level used for compressing data blocks
 		compression_level: Option<i32>,
 	},
+}
+
+#[derive(Clone, Copy)]
+pub struct OekDerivationInfo<'a> {
+	pub bucket_id: Uuid,
+	pub version_id: Uuid,
+	pub object_key: &'a str,
 }
 
 impl EncryptionParams {
@@ -76,20 +89,21 @@ impl EncryptionParams {
 	}
 
 	pub fn is_same(a: &Self, b: &Self) -> bool {
-		let relevant_info = |x: &Self| match x {
-			Self::Plaintext => None,
-			Self::SseC {
-				client_key,
-				compression_level,
-				..
-			} => Some((*client_key, compression_level.is_some())),
-		};
-		relevant_info(a) == relevant_info(b)
+		// This function is used in CopyObject and UploadPartCopy to determine
+		// whether the object must be re-encrypted. If this returns true,
+		// data blocks are reused as-is. Since Garage v2, we are using
+		// object-specific encryption keys, so we know that if both source
+		// and destination are encrypted, it can't be with the same key.
+		match (a, b) {
+			(Self::Plaintext, Self::Plaintext) => true,
+			_ => false,
+		}
 	}
 
 	pub fn new_from_headers(
 		garage: &Garage,
 		headers: &HeaderMap,
+		oek_info: OekDerivationInfo<'_>,
 	) -> Result<EncryptionParams, Error> {
 		let key = parse_request_headers(
 			headers,
@@ -101,6 +115,7 @@ impl EncryptionParams {
 			Some((client_key, client_key_md5)) => Ok(EncryptionParams::SseC {
 				client_key,
 				client_key_md5,
+				object_key: Some(oek_info.derive_oek(&client_key)),
 				compression_level: garage.config.compression_level,
 			}),
 			None => Ok(EncryptionParams::Plaintext),
@@ -126,6 +141,7 @@ impl EncryptionParams {
 		garage: &Garage,
 		headers: &HeaderMap,
 		obj_enc: &'a ObjectVersionEncryption,
+		oek_info: OekDerivationInfo<'_>,
 	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		let key = parse_request_headers(
 			headers,
@@ -133,13 +149,14 @@ impl EncryptionParams {
 			&X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY,
 			&X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5,
 		)?;
-		Self::check_decrypt_common(garage, key, obj_enc)
+		Self::check_decrypt_common(garage, key, obj_enc, oek_info)
 	}
 
 	pub fn check_decrypt_for_copy_source<'a>(
 		garage: &Garage,
 		headers: &HeaderMap,
 		obj_enc: &'a ObjectVersionEncryption,
+		oek_info: OekDerivationInfo<'_>,
 	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		let key = parse_request_headers(
 			headers,
@@ -147,22 +164,32 @@ impl EncryptionParams {
 			&X_AMZ_COPY_SOURCE_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY,
 			&X_AMZ_COPY_SOURCE_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5,
 		)?;
-		Self::check_decrypt_common(garage, key, obj_enc)
+		Self::check_decrypt_common(garage, key, obj_enc, oek_info)
 	}
 
 	fn check_decrypt_common<'a>(
 		garage: &Garage,
 		key: Option<(Key<Aes256Gcm>, Md5Output)>,
 		obj_enc: &'a ObjectVersionEncryption,
+		oek_info: OekDerivationInfo<'_>,
 	) -> Result<(Self, Cow<'a, ObjectVersionMetaInner>), Error> {
 		match (key, &obj_enc) {
 			(
 				Some((client_key, client_key_md5)),
-				ObjectVersionEncryption::SseC { inner, compressed },
+				ObjectVersionEncryption::SseC {
+					inner,
+					compressed,
+					use_oek,
+				},
 			) => {
 				let enc = Self::SseC {
 					client_key,
 					client_key_md5,
+					object_key: if *use_oek {
+						Some(oek_info.derive_oek(&client_key))
+					} else {
+						None
+					},
 					compression_level: if *compressed {
 						Some(garage.config.compression_level.unwrap_or(1))
 					} else {
@@ -193,13 +220,16 @@ impl EncryptionParams {
 	) -> Result<ObjectVersionEncryption, Error> {
 		match self {
 			Self::SseC {
-				compression_level, ..
+				compression_level,
+				object_key,
+				..
 			} => {
 				let plaintext = meta.encode().map_err(GarageError::from)?;
 				let ciphertext = self.encrypt_blob(&plaintext)?;
 				Ok(ObjectVersionEncryption::SseC {
 					inner: ciphertext.into_owned(),
 					compressed: compression_level.is_some(),
+					use_oek: object_key.is_some(),
 				})
 			}
 			Self::Plaintext => Ok(ObjectVersionEncryption::Plaintext { inner: meta }),
@@ -228,24 +258,37 @@ impl EncryptionParams {
 	// This is used for encrypting object metadata and inlined data for small objects.
 	// This does not compress anything.
 
-	pub fn encrypt_blob<'a>(&self, blob: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
+	fn cipher(&self) -> Option<Aes256Gcm> {
 		match self {
-			Self::SseC { client_key, .. } => {
-				let cipher = Aes256Gcm::new(&client_key);
+			Self::SseC {
+				object_key: Some(oek),
+				..
+			} => Some(Aes256Gcm::new(&oek)),
+			Self::SseC {
+				client_key,
+				object_key: None,
+				..
+			} => Some(Aes256Gcm::new(&client_key)),
+			Self::Plaintext => None,
+		}
+	}
+
+	pub fn encrypt_blob<'a>(&self, blob: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
+		match self.cipher() {
+			Some(cipher) => {
 				let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
 				let ciphertext = cipher
 					.encrypt(&nonce, blob)
 					.ok_or_internal_error("Encryption failed")?;
 				Ok(Cow::Owned([nonce.to_vec(), ciphertext].concat()))
 			}
-			Self::Plaintext => Ok(Cow::Borrowed(blob)),
+			None => Ok(Cow::Borrowed(blob)),
 		}
 	}
 
 	pub fn decrypt_blob<'a>(&self, blob: &'a [u8]) -> Result<Cow<'a, [u8]>, Error> {
-		match self {
-			Self::SseC { client_key, .. } => {
-				let cipher = Aes256Gcm::new(&client_key);
+		match self.cipher() {
+			Some(cipher) => {
 				let nonce_size = <Aes256Gcm as AeadCore>::NonceSize::to_usize();
 				let nonce = Nonce::from_slice(
 					blob.get(..nonce_size)
@@ -258,7 +301,7 @@ impl EncryptionParams {
 					)?;
 				Ok(Cow::Owned(plaintext))
 			}
-			Self::Plaintext => Ok(Cow::Borrowed(blob)),
+			None => Ok(Cow::Borrowed(blob)),
 		}
 	}
 
@@ -284,10 +327,12 @@ impl EncryptionParams {
 			Self::Plaintext => stream,
 			Self::SseC {
 				client_key,
+				object_key,
 				compression_level,
 				..
 			} => {
-				let plaintext = DecryptStream::new(stream, *client_key);
+				let key = object_key.as_ref().unwrap_or(client_key);
+				let plaintext = DecryptStream::new(stream, *key);
 				if compression_level.is_some() {
 					let reader = stream_asyncread(Box::pin(plaintext));
 					let reader = BufReader::new(reader);
@@ -307,9 +352,12 @@ impl EncryptionParams {
 			Self::Plaintext => Ok(block),
 			Self::SseC {
 				client_key,
+				object_key,
 				compression_level,
 				..
 			} => {
+				let key = object_key.as_ref().unwrap_or(client_key);
+
 				let block = if let Some(level) = compression_level {
 					Cow::Owned(
 						garage_block::zstd_encode(block.as_ref(), *level)
@@ -325,7 +373,7 @@ impl EncryptionParams {
 				OsRng.fill_bytes(&mut nonce);
 				ret.extend_from_slice(nonce.as_slice());
 
-				let mut cipher = EncryptorLE31::<Aes256Gcm>::new(&client_key, &nonce);
+				let mut cipher = EncryptorLE31::<Aes256Gcm>::new(key, &nonce);
 				let mut iter = block.chunks(STREAM_ENC_PLAIN_CHUNK_SIZE).peekable();
 
 				if iter.peek().is_none() {
@@ -358,6 +406,13 @@ impl EncryptionParams {
 				Ok(ret.into())
 			}
 		}
+	}
+}
+
+pub fn has_encryption_header(headers: &HeaderMap) -> bool {
+	match headers.get(X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM) {
+		Some(h) => h.as_bytes() == CUSTOMER_ALGORITHM_AES256,
+		None => false,
 	}
 }
 
@@ -417,6 +472,30 @@ fn parse_request_headers(
 				Ok(None)
 			}
 		}
+	}
+}
+
+impl<'a> OekDerivationInfo<'a> {
+	pub fn for_object<'b>(object: &'a Object, version: &'b ObjectVersion) -> Self {
+		Self {
+			bucket_id: object.bucket_id,
+			version_id: version.uuid,
+			object_key: &object.key,
+		}
+	}
+
+	fn derive_oek(&self, client_key: &Key<Aes256Gcm>) -> Key<Aes256Gcm> {
+		use hmac::{Hmac, Mac};
+
+		// info = bucket_id + object_name + version_uuid + "garage-object-encryption-key"
+		// oek = hmac_sha256(ssec_key, info)
+		let mut hmac = <Hmac<Sha256> as Mac>::new_from_slice(client_key.as_slice())
+			.expect("create hmac-sha256");
+		hmac.update(b"garage-object-encryption-key");
+		hmac.update(self.bucket_id.as_slice());
+		hmac.update(self.version_id.as_slice());
+		hmac.update(self.object_key.as_bytes());
+		hmac.finalize().into_bytes()
 	}
 }
 
@@ -569,6 +648,7 @@ mod tests {
 		let enc = EncryptionParams::SseC {
 			client_key: Aes256Gcm::generate_key(&mut OsRng),
 			client_key_md5: Default::default(), // not needed
+			object_key: Some(Aes256Gcm::generate_key(&mut OsRng)),
 			compression_level,
 		};
 
