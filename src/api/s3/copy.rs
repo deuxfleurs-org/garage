@@ -24,7 +24,7 @@ use garage_api_common::helpers::*;
 use garage_api_common::signature::checksum::*;
 
 use crate::api_server::{ReqBody, ResBody};
-use crate::encryption::EncryptionParams;
+use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::get::{full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
@@ -65,8 +65,18 @@ pub async fn handle_copy(
 			&ctx.garage,
 			req.headers(),
 			&source_version_meta.encryption,
+			OekDerivationInfo::for_object(&source_object, source_version),
 		)?;
-	let dest_encryption = EncryptionParams::new_from_headers(&ctx.garage, req.headers())?;
+	let dest_uuid = gen_uuid();
+	let dest_encryption = EncryptionParams::new_from_headers(
+		&ctx.garage,
+		req.headers(),
+		OekDerivationInfo {
+			bucket_id: ctx.bucket_id,
+			version_id: dest_uuid,
+			object_key: dest_key,
+		},
+	)?;
 
 	// Extract source checksum info before source_object_meta_inner is consumed
 	let source_checksum = source_object_meta_inner.checksum;
@@ -115,6 +125,7 @@ pub async fn handle_copy(
 		handle_copy_metaonly(
 			ctx,
 			dest_key,
+			dest_uuid,
 			dest_object_meta,
 			dest_encryption,
 			source_version,
@@ -138,6 +149,7 @@ pub async fn handle_copy(
 		handle_copy_reencrypt(
 			ctx,
 			dest_key,
+			dest_uuid,
 			dest_object_meta,
 			dest_encryption,
 			source_version,
@@ -169,6 +181,7 @@ pub async fn handle_copy(
 async fn handle_copy_metaonly(
 	ctx: ReqCtx,
 	dest_key: &str,
+	dest_uuid: Uuid,
 	dest_object_meta: ObjectVersionMetaInner,
 	dest_encryption: EncryptionParams,
 	source_version: &ObjectVersion,
@@ -182,7 +195,6 @@ async fn handle_copy_metaonly(
 	} = ctx;
 
 	// Generate parameters for copied object
-	let new_uuid = gen_uuid();
 	let new_timestamp = now_msec();
 
 	let new_meta = ObjectVersionMeta {
@@ -192,7 +204,7 @@ async fn handle_copy_metaonly(
 	};
 
 	let res = SaveStreamResult {
-		version_uuid: new_uuid,
+		version_uuid: dest_uuid,
 		version_timestamp: new_timestamp,
 		etag: new_meta.etag.clone(),
 	};
@@ -204,7 +216,7 @@ async fn handle_copy_metaonly(
 			// bytes is either plaintext before&after or encrypted with the
 			// same keys, so it's ok to just copy it as is
 			let dest_object_version = ObjectVersion {
-				uuid: new_uuid,
+				uuid: dest_uuid,
 				timestamp: new_timestamp,
 				state: ObjectVersionState::Complete(ObjectVersionData::Inline(
 					new_meta,
@@ -230,7 +242,7 @@ async fn handle_copy_metaonly(
 			// This holds a reference to the object in the Version table
 			// so that it won't be deleted, e.g. by repair_versions.
 			let tmp_dest_object_version = ObjectVersion {
-				uuid: new_uuid,
+				uuid: dest_uuid,
 				timestamp: new_timestamp,
 				state: ObjectVersionState::Uploading {
 					encryption: new_meta.encryption.clone(),
@@ -250,7 +262,7 @@ async fn handle_copy_metaonly(
 			// marked as deleted (they are marked as deleted only if the Version
 			// doesn't exist or is marked as deleted).
 			let mut dest_version = Version::new(
-				new_uuid,
+				dest_uuid,
 				VersionBacklink::Object {
 					bucket_id: dest_bucket_id,
 					key: dest_key.to_string(),
@@ -269,7 +281,7 @@ async fn handle_copy_metaonly(
 				.iter()
 				.map(|b| BlockRef {
 					block: b.1.hash,
-					version: new_uuid,
+					version: dest_uuid,
 					deleted: false.into(),
 				})
 				.collect::<Vec<_>>();
@@ -285,7 +297,7 @@ async fn handle_copy_metaonly(
 			// with the stuff before, the block's reference counts could be decremented before
 			// they are incremented again for the new version, leading to data being deleted.
 			let dest_object_version = ObjectVersion {
-				uuid: new_uuid,
+				uuid: dest_uuid,
 				timestamp: new_timestamp,
 				state: ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
 					new_meta,
@@ -307,6 +319,7 @@ async fn handle_copy_metaonly(
 async fn handle_copy_reencrypt(
 	ctx: ReqCtx,
 	dest_key: &str,
+	dest_uuid: Uuid,
 	dest_object_meta: ObjectVersionMetaInner,
 	dest_encryption: EncryptionParams,
 	source_version: &ObjectVersion,
@@ -326,6 +339,7 @@ async fn handle_copy_reencrypt(
 
 	save_stream(
 		&ctx,
+		dest_uuid,
 		dest_object_meta,
 		dest_encryption,
 		source_stream.map_err(|e| Error::from(GarageError::from(e))),
@@ -349,7 +363,7 @@ pub async fn handle_upload_part_copy(
 	let dest_upload_id = multipart::decode_upload_id(upload_id)?;
 
 	let dest_key = dest_key.to_string();
-	let (source_object, (_, dest_version, mut dest_mpu)) = futures::try_join!(
+	let (source_object, (dest_object, dest_version, mut dest_mpu)) = futures::try_join!(
 		get_copy_source(&ctx, req),
 		multipart::get_upload(&ctx, &dest_key, &dest_upload_id)
 	)?;
@@ -367,7 +381,10 @@ pub async fn handle_upload_part_copy(
 		&garage,
 		req.headers(),
 		&source_version_meta.encryption,
+		OekDerivationInfo::for_object(&source_object, source_object_version),
 	)?;
+
+	let dest_oek_params = OekDerivationInfo::for_object(&dest_object, &dest_version);
 	let (dest_object_encryption, dest_object_checksum_algorithm) = match dest_version.state {
 		ObjectVersionState::Uploading {
 			encryption,
@@ -376,8 +393,12 @@ pub async fn handle_upload_part_copy(
 		} => (encryption, checksum_algorithm),
 		_ => unreachable!(),
 	};
-	let (dest_encryption, _) =
-		EncryptionParams::check_decrypt(&garage, req.headers(), &dest_object_encryption)?;
+	let (dest_encryption, _) = EncryptionParams::check_decrypt(
+		&garage,
+		req.headers(),
+		&dest_object_encryption,
+		dest_oek_params,
+	)?;
 	let same_encryption = EncryptionParams::is_same(&source_encryption, &dest_encryption);
 
 	// Check source range is valid

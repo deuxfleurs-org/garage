@@ -26,7 +26,7 @@ use garage_api_common::helpers::*;
 use garage_api_common::signature::checksum::*;
 
 use crate::api_server::{ReqBody, ResBody};
-use crate::encryption::EncryptionParams;
+use crate::encryption::{has_encryption_header, EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::put::*;
 use crate::xml as s3_xml;
@@ -56,7 +56,15 @@ pub async fn handle_create_multipart_upload(
 	};
 
 	// Determine whether object should be encrypted, and if so the key
-	let encryption = EncryptionParams::new_from_headers(&garage, req.headers())?;
+	let encryption = EncryptionParams::new_from_headers(
+		&garage,
+		req.headers(),
+		OekDerivationInfo {
+			bucket_id: *bucket_id,
+			version_id: upload_id,
+			object_key: &key,
+		},
+	)?;
 	let object_encryption = encryption.encrypt_meta(meta)?;
 
 	let checksum_algorithm = request_checksum_algorithm(req.headers())?;
@@ -120,8 +128,7 @@ pub async fn handle_put_part(
 
 	// Before we stream the body, configure the needed checksums.
 	req_body.add_expected_checksums(expected_checksums.clone());
-	// TODO: avoid parsing encryption headers twice...
-	if !EncryptionParams::new_from_headers(&garage, &req_head.headers)?.is_encrypted() {
+	if !has_encryption_header(&req_head.headers) {
 		// For non-encrypted objects, we need to compute the md5sum in all cases
 		// (even if content-md5 is not set), because it is used as an etag of the
 		// part, which is in turn used in the etag computation of the whole object
@@ -134,10 +141,11 @@ pub async fn handle_put_part(
 	let mut chunker = StreamChunker::new(stream, garage.config.block_size);
 
 	// Read first chuck, and at the same time try to get object to see if it exists
-	let ((_, object_version, mut mpu), first_block) =
+	let ((object, object_version, mut mpu), first_block) =
 		futures::try_join!(get_upload(&ctx, &key, &upload_id), chunker.next(),)?;
 
 	// Check encryption params
+	let oek_params = OekDerivationInfo::for_object(&object, &object_version);
 	let (object_encryption, checksum_algorithm) = match object_version.state {
 		ObjectVersionState::Uploading {
 			encryption,
@@ -146,8 +154,12 @@ pub async fn handle_put_part(
 		} => (encryption, checksum_algorithm),
 		_ => unreachable!(),
 	};
-	let (encryption, _) =
-		EncryptionParams::check_decrypt(&garage, &req_head.headers, &object_encryption)?;
+	let (encryption, _) = EncryptionParams::check_decrypt(
+		&garage,
+		&req_head.headers,
+		&object_encryption,
+		oek_params,
+	)?;
 
 	// Check object is valid and part can be accepted
 	let first_block = first_block.ok_or_bad_request("Empty body")?;
@@ -297,6 +309,7 @@ pub async fn handle_complete_multipart_upload(
 		return Err(Error::bad_request("No data was uploaded"));
 	}
 
+	let oek_params = OekDerivationInfo::for_object(&object, &object_version);
 	let (object_encryption, checksum_algorithm) = match object_version.state {
 		ObjectVersionState::Uploading {
 			encryption,
@@ -417,8 +430,12 @@ pub async fn handle_complete_multipart_upload(
 	let object_encryption = match checksum_algorithm {
 		None => object_encryption,
 		Some(_) => {
-			let (encryption, meta) =
-				EncryptionParams::check_decrypt(&garage, &req_head.headers, &object_encryption)?;
+			let (encryption, meta) = EncryptionParams::check_decrypt(
+				&garage,
+				&req_head.headers,
+				&object_encryption,
+				oek_params,
+			)?;
 			let new_meta = ObjectVersionMetaInner {
 				headers: meta.into_owned().headers,
 				checksum: checksum_extra,

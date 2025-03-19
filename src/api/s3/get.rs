@@ -30,7 +30,7 @@ use garage_api_common::signature::checksum::{add_checksum_response_headers, X_AM
 
 use crate::api_server::ResBody;
 use crate::copy::*;
-use crate::encryption::EncryptionParams;
+use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
@@ -181,8 +181,12 @@ pub async fn handle_head_without_ctx(
 		return Ok(res);
 	}
 
-	let (encryption, headers) =
-		EncryptionParams::check_decrypt(&garage, req.headers(), &version_meta.encryption)?;
+	let (encryption, headers) = EncryptionParams::check_decrypt(
+		&garage,
+		req.headers(),
+		&version_meta.encryption,
+		OekDerivationInfo::for_object(&object, object_version),
+	)?;
 
 	let checksum_mode = checksum_mode(&req);
 
@@ -303,8 +307,12 @@ pub async fn handle_get_without_ctx(
 		return Ok(res);
 	}
 
-	let (enc, headers) =
-		EncryptionParams::check_decrypt(&garage, req.headers(), &last_v_meta.encryption)?;
+	let (enc, headers) = EncryptionParams::check_decrypt(
+		&garage,
+		req.headers(),
+		&last_v_meta.encryption,
+		OekDerivationInfo::for_object(&object, last_v),
+	)?;
 
 	let checksum_mode = checksum_mode(&req);
 

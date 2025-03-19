@@ -15,6 +15,7 @@ use serde::Deserialize;
 
 use garage_model::garage::Garage;
 use garage_model::s3::object_table::*;
+use garage_util::data::gen_uuid;
 
 use garage_api_common::cors::*;
 use garage_api_common::helpers::*;
@@ -22,7 +23,7 @@ use garage_api_common::signature::checksum::*;
 use garage_api_common::signature::payload::{verify_v4, Authorization};
 
 use crate::api_server::ResBody;
-use crate::encryption::EncryptionParams;
+use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::put::{extract_metadata_headers, save_stream, ChecksumMode};
 use crate::xml as s3_xml;
@@ -231,12 +232,22 @@ pub async fn handle_post_object(
 			.transpose()?,
 	};
 
+	let version_uuid = gen_uuid();
+
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: expected_checksums.extra,
 	};
 
-	let encryption = EncryptionParams::new_from_headers(&garage, &params)?;
+	let encryption = EncryptionParams::new_from_headers(
+		&garage,
+		&params,
+		OekDerivationInfo {
+			bucket_id,
+			version_id: version_uuid,
+			object_key: &key,
+		},
+	)?;
 
 	let stream = file_field.map(|r| r.map_err(Into::into));
 	let ctx = ReqCtx {
@@ -249,6 +260,7 @@ pub async fn handle_post_object(
 
 	let res = save_stream(
 		&ctx,
+		version_uuid,
 		meta,
 		encryption,
 		StreamLimiter::new(stream, conditions.content_length),
