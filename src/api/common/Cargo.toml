@@ -23,6 +23,7 @@ bytes.workspace = true
 chrono.workspace = true
 crc32fast.workspace = true
 crc32c.workspace = true
+crc64fast-nvme.workspace = true
 crypto-common.workspace = true
 err-derive.workspace = true
 hex.workspace = true

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use base64::prelude::*;
 use crc32c::Crc32cHasher as Crc32c;
 use crc32fast::Hasher as Crc32;
+use crc64fast_nvme::Digest as Crc64Nvme;
 use futures::prelude::*;
 use hyper::{Request, Response};
 use md5::{Digest, Md5};
@@ -481,6 +482,10 @@ pub async fn handle_complete_multipart_upload(
 			Some(ChecksumValue::Crc32c(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(&x))),
 			_ => None,
 		},
+		checksum_crc64nvme: match &checksum_extra {
+			Some(ChecksumValue::Crc64Nvme(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(&x))),
+			_ => None,
+		},
 		checksum_sha1: match &checksum_extra {
 			Some(ChecksumValue::Sha1(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(&x))),
 			_ => None,
@@ -604,6 +609,15 @@ fn parse_complete_multipart_upload_body(
 						.try_into()
 						.ok()?,
 				))
+			} else if let Some(crc64nvme) = item
+				.children()
+				.find(|e| e.has_tag_name("ChecksumCRC64NVME"))
+			{
+				Some(ChecksumValue::Crc64Nvme(
+					BASE64_STANDARD.decode(crc64nvme.text()?).ok()?[..]
+						.try_into()
+						.ok()?,
+				))
 			} else if let Some(sha1) = item.children().find(|e| e.has_tag_name("ChecksumSHA1")) {
 				Some(ChecksumValue::Sha1(
 					BASE64_STANDARD.decode(sha1.text()?).ok()?[..]
@@ -644,6 +658,7 @@ pub(crate) struct MultipartChecksummer {
 pub(crate) enum MultipartExtraChecksummer {
 	Crc32(Crc32),
 	Crc32c(Crc32c),
+	Crc64Nvme(Crc64Nvme),
 	Sha1(Sha1),
 	Sha256(Sha256),
 }
@@ -659,6 +674,9 @@ impl MultipartChecksummer {
 				}
 				Some(ChecksumAlgorithm::Crc32c) => {
 					Some(MultipartExtraChecksummer::Crc32c(Crc32c::default()))
+				}
+				Some(ChecksumAlgorithm::Crc64Nvme) => {
+					Some(MultipartExtraChecksummer::Crc64Nvme(Crc64Nvme::default()))
 				}
 				Some(ChecksumAlgorithm::Sha1) => Some(MultipartExtraChecksummer::Sha1(Sha1::new())),
 				Some(ChecksumAlgorithm::Sha256) => {
@@ -689,6 +707,12 @@ impl MultipartChecksummer {
 			) => {
 				crc32c.write(&x);
 			}
+			(
+				Some(MultipartExtraChecksummer::Crc64Nvme(ref mut crc64nvme)),
+				Some(ChecksumValue::Crc64Nvme(x)),
+			) => {
+				crc64nvme.write(&x);
+			}
 			(Some(MultipartExtraChecksummer::Sha1(ref mut sha1)), Some(ChecksumValue::Sha1(x))) => {
 				sha1.update(&x);
 			}
@@ -718,6 +742,9 @@ impl MultipartChecksummer {
 			Some(MultipartExtraChecksummer::Crc32c(crc32c)) => Some(ChecksumValue::Crc32c(
 				u32::to_be_bytes(u32::try_from(crc32c.finish()).unwrap()),
 			)),
+			Some(MultipartExtraChecksummer::Crc64Nvme(crc64nvme)) => Some(
+				ChecksumValue::Crc64Nvme(u64::to_be_bytes(crc64nvme.sum64())),
+			),
 			Some(MultipartExtraChecksummer::Sha1(sha1)) => {
 				Some(ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap()))
 			}

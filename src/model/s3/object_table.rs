@@ -282,6 +282,7 @@ mod v010 {
 	pub enum ChecksumAlgorithm {
 		Crc32,
 		Crc32c,
+		Crc64Nvme,
 		Sha1,
 		Sha256,
 	}
@@ -291,6 +292,7 @@ mod v010 {
 	pub enum ChecksumValue {
 		Crc32(#[serde(with = "serde_bytes")] [u8; 4]),
 		Crc32c(#[serde(with = "serde_bytes")] [u8; 4]),
+		Crc64Nvme(#[serde(with = "serde_bytes")] [u8; 8]),
 		Sha1(#[serde(with = "serde_bytes")] [u8; 20]),
 		Sha256(#[serde(with = "serde_bytes")] [u8; 32]),
 	}
@@ -492,6 +494,7 @@ impl ChecksumValue {
 		match self {
 			ChecksumValue::Crc32(_) => ChecksumAlgorithm::Crc32,
 			ChecksumValue::Crc32c(_) => ChecksumAlgorithm::Crc32c,
+			ChecksumValue::Crc64Nvme(_) => ChecksumAlgorithm::Crc64Nvme,
 			ChecksumValue::Sha1(_) => ChecksumAlgorithm::Sha1,
 			ChecksumValue::Sha256(_) => ChecksumAlgorithm::Sha256,
 		}
