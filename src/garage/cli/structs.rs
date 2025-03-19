@@ -478,6 +478,9 @@ pub enum RepairWhat {
 	/// Recalculate block reference counters
 	#[structopt(name = "block-rc", version = garage_version())]
 	BlockRc,
+	/// Fix inconsistency in bucket aliases (WARNING: EXPERIMENTAL)
+	#[structopt(name = "aliases", version = garage_version())]
+	Aliases,
 	/// Verify integrity of all blocks on disc
 	#[structopt(name = "scrub", version = garage_version())]
 	Scrub {

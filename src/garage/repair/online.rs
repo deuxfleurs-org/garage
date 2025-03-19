@@ -88,6 +88,10 @@ pub async fn launch_online_repair(
 				garage.block_manager.clone(),
 			));
 		}
+		RepairWhat::Aliases => {
+			info!("Repairing bucket aliases (foreground)");
+			garage.locked_helper().await.repair_aliases().await?;
+		}
 	}
 	Ok(())
 }
