@@ -142,7 +142,7 @@ assert-json-diff = "2.0"
 rustc_version = "0.4.0"
 static_init = "1.0"
 aws-sdk-config = "1.62"
-aws-sdk-s3 = "=1.68"
+aws-sdk-s3 = "1.79"
 
 [profile.dev]
 #lto = "thin"	# disabled for now, adds 2-4 min to each CI build
