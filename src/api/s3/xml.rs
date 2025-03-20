@@ -135,6 +135,8 @@ pub struct CompleteMultipartUploadResult {
 	pub checksum_crc32: Option<Value>,
 	#[serde(rename = "ChecksumCRC32C")]
 	pub checksum_crc32c: Option<Value>,
+	#[serde(rename = "ChecksumCR64NVME")]
+	pub checksum_crc64nvme: Option<Value>,
 	#[serde(rename = "ChecksumSHA1")]
 	pub checksum_sha1: Option<Value>,
 	#[serde(rename = "ChecksumSHA256")]
@@ -209,6 +211,8 @@ pub struct PartItem {
 	pub checksum_crc32: Option<Value>,
 	#[serde(rename = "ChecksumCRC32C")]
 	pub checksum_crc32c: Option<Value>,
+	#[serde(rename = "ChecksumCRC64NVME")]
+	pub checksum_crc64nvme: Option<Value>,
 	#[serde(rename = "ChecksumSHA1")]
 	pub checksum_sha1: Option<Value>,
 	#[serde(rename = "ChecksumSHA256")]
@@ -518,6 +522,7 @@ mod tests {
 			etag: Value("\"3858f62230ac3c915f300c664312c11f-9\"".to_string()),
 			checksum_crc32: None,
 			checksum_crc32c: None,
+			checksum_crc64nvme: None,
 			checksum_sha1: Some(Value("ZJAnHyG8PeKz9tI8UTcHrJos39A=".into())),
 			checksum_sha256: None,
 		};
@@ -803,6 +808,7 @@ mod tests {
 					size: IntValue(10485760),
 					checksum_crc32: None,
 					checksum_crc32c: None,
+					checksum_crc64nvme: None,
 					checksum_sha256: Some(Value(
 						"5RQ3A5uk0w7ojNjvegohch4JRBBGN/cLhsNrPzfv/hA=".into(),
 					)),
@@ -816,6 +822,7 @@ mod tests {
 					checksum_sha256: None,
 					checksum_crc32c: None,
 					checksum_crc32: Some(Value("ZJAnHyG8=".into())),
+					checksum_crc64nvme: None,
 					checksum_sha1: None,
 				},
 			],
