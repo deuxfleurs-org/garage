@@ -132,8 +132,8 @@ opentelemetry-contrib = "0.9"
 prometheus = "0.13"
 
 # used by the k2v-client crate only
-aws-sigv4 = { version = "1.1" }
-hyper-rustls = { version = "0.26", features = ["http2"] }
+aws-sigv4 = { version = "1.1", default-features = false }
+hyper-rustls = { version = "0.26", default-features = false, features = ["http1", "http2", "ring", "rustls-native-certs"] }
 log = "0.4"
 thiserror = "1.0"
 
@@ -141,8 +141,9 @@ thiserror = "1.0"
 assert-json-diff = "2.0"
 rustc_version = "0.4.0"
 static_init = "1.0"
-aws-sdk-config = "1.62"
-aws-sdk-s3 = "1.79"
+aws-smithy-runtime = { version = "1.8", default-features = false, features = ["tls-rustls"] }
+aws-sdk-config = { version = "1.62", default-features = false }
+aws-sdk-s3 = { version = "1.79", default-features = false, features = ["rt-tokio"] }
 
 [profile.dev]
 #lto = "thin"	# disabled for now, adds 2-4 min to each CI build
