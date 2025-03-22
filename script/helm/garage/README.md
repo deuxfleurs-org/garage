@@ -1,6 +1,6 @@
 # garage
 
-![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.0.1](https://img.shields.io/badge/AppVersion-v1.0.1-informational?style=flat-square)
+![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.1.0](https://img.shields.io/badge/AppVersion-v1.1.0-informational?style=flat-square)
 
 S3-compatible object store for small self-hosted geo-distributed deployments
 
@@ -49,6 +49,7 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | initImage.pullPolicy | string | `"IfNotPresent"` |  |
 | initImage.repository | string | `"busybox"` |  |
 | initImage.tag | string | `"stable"` |  |
+| livenessProbe | object | `{}` | Specifies a livenessProbe |
 | monitoring.metrics.enabled | bool | `false` | If true, a service for monitoring is created with a prometheus.io/scrape annotation |
 | monitoring.metrics.serviceMonitor.enabled | bool | `false` | If true, a ServiceMonitor CRD is created for a prometheus operator https://github.com/coreos/prometheus-operator |
 | monitoring.metrics.serviceMonitor.interval | string | `"15s"` |  |
@@ -71,6 +72,7 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | podSecurityContext.runAsGroup | int | `1000` |  |
 | podSecurityContext.runAsNonRoot | bool | `true` |  |
 | podSecurityContext.runAsUser | int | `1000` |  |
+| readinessProbe | object | `{}` | Specifies a readinessProbe |
 | resources | object | `{}` |  |
 | securityContext.capabilities | object | `{"drop":["ALL"]}` | The default security context is heavily restricted, feel free to tune it to your requirements |
 | securityContext.readOnlyRootFilesystem | bool | `true` |  |

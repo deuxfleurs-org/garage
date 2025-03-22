@@ -191,6 +191,21 @@ resources: {}
   #   cpu: 100m
   #   memory: 512Mi
 
+# -- Specifies a livenessProbe
+livenessProbe: {}
+  #httpGet:
+  #  path: /health
+  #  port: 3903
+  #initialDelaySeconds: 5
+  #periodSeconds: 30
+# -- Specifies a readinessProbe
+readinessProbe: {}
+  #httpGet:
+  #  path: /health
+  #  port: 3903
+  #initialDelaySeconds: 5
+  #periodSeconds: 30
+
 nodeSelector: {}
 
 tolerations: []
