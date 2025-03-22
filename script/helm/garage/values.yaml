@@ -21,6 +21,10 @@ garage:
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression-level
   compressionLevel: "1"
 
+  # -- If this value is set, Garage will automatically take a snapshot of the metadata DB file at a regular interval and save it in the metadata directory.
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval
+  metadataAutoSnapshotInterval: ""
+
   rpcBindAddr: "[::]:3901"
   # -- If not given, a random secret will be generated and stored in a Secret object
   rpcSecret: ""
