@@ -33,8 +33,6 @@ use garage_rpc::rpc_helper::OrderTag;
 use garage_rpc::system::System;
 use garage_rpc::*;
 
-use garage_table::replication::{TableReplication, TableShardedReplication};
-
 use crate::block::*;
 use crate::layout::*;
 use crate::metrics::*;
@@ -74,8 +72,8 @@ impl Rpc for BlockRpc {
 
 /// The block manager, handling block exchange between nodes, and block storage on local node
 pub struct BlockManager {
-	/// Replication strategy, allowing to find on which node blocks should be located
-	pub replication: TableShardedReplication,
+	/// Quorum of nodes for write operations
+	pub write_quorum: usize,
 
 	/// Data layout
 	pub(crate) data_layout: ArcSwap<DataLayout>,
@@ -122,7 +120,7 @@ impl BlockManager {
 	pub fn new(
 		db: &db::Db,
 		config: &Config,
-		replication: TableShardedReplication,
+		write_quorum: usize,
 		system: Arc<System>,
 	) -> Result<Arc<Self>, Error> {
 		// Load or compute layout, i.e. assignment of data blocks to the different data directories
@@ -166,7 +164,7 @@ impl BlockManager {
 		let scrub_persister = PersisterShared::new(&system.metadata_dir, "scrub_info");
 
 		let block_manager = Arc::new(Self {
-			replication,
+			write_quorum,
 			data_layout: ArcSwap::new(Arc::new(data_layout)),
 			data_layout_persister,
 			data_fsync: config.data_fsync,
@@ -400,7 +398,7 @@ impl BlockManager {
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_drop_on_completion(permit)
-					.with_quorum(self.replication.write_quorum()),
+					.with_quorum(self.write_quorum),
 			)
 			.await?;
 

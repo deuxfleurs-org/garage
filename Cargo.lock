@@ -1404,7 +1404,6 @@ dependencies = [
  "garage_db",
  "garage_net",
  "garage_rpc",
- "garage_table",
  "garage_util",
  "hex",
  "opentelemetry",

@@ -27,8 +27,6 @@ use garage_util::tranquilizer::Tranquilizer;
 use garage_rpc::system::System;
 use garage_rpc::*;
 
-use garage_table::replication::TableReplication;
-
 use crate::manager::*;
 
 // The delay between the time where a resync operation fails
@@ -381,7 +379,7 @@ impl BlockResyncManager {
 				.system
 				.cluster_layout()
 				.current_storage_nodes_of(hash);
-			if who.len() < manager.replication.write_quorum() {
+			if who.len() < manager.write_quorum {
 				return Err(Error::Message("Not trying to offload block because we don't have a quorum of nodes to write to".to_string()));
 			}
 			who.retain(|id| *id != manager.system.id);
