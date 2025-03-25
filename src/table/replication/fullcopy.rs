@@ -25,7 +25,7 @@ pub struct TableFullReplication {
 }
 
 impl TableReplication for TableFullReplication {
-	type WriteSets = Vec<Vec<Uuid>>;
+	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
 
 	// Do anti-entropy every 10 seconds.
 	// Compared to sharded tables, anti-entropy is much less costly as there is
@@ -52,11 +52,8 @@ impl TableReplication for TableFullReplication {
 
 	fn write_sets(&self, _hash: &Hash) -> Self::WriteSets {
 		self.system
-			.cluster_layout()
-			.versions()
-			.iter()
-			.map(|ver| ver.all_nodes().to_vec())
-			.collect()
+			.layout_manager
+			.write_lock_with(|l| l.write_sets_of(None))
 	}
 	fn write_quorum(&self) -> usize {
 		let layout = self.system.cluster_layout();
@@ -92,7 +89,7 @@ impl TableReplication for TableFullReplication {
 			partition: 0u16,
 			first_hash: [0u8; 32].into(),
 			last_hash: [0xff; 32].into(),
-			storage_sets: self.write_sets(&[0u8; 32].into()),
+			storage_sets: layout.write_sets_of(None),
 		}];
 
 		SyncPartitions {
