@@ -6,7 +6,8 @@ metadata:
   labels:
     {{- include "garage.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
+  type: ClusterIP
+  clusterIP: None
   ports:
     - port: {{ .Values.service.s3.api.port }}
       targetPort: 3900
