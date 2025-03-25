@@ -114,9 +114,7 @@ impl LayoutVersion {
 	}
 
 	/// Return the n servers in which data for this hash should be replicated
-	pub fn nodes_of(&self, position: &Hash, n: usize) -> impl Iterator<Item = Uuid> + '_ {
-		assert_eq!(n, self.replication_factor);
-
+	pub fn nodes_of(&self, position: &Hash) -> impl Iterator<Item = Uuid> + '_ {
 		let data = &self.ring_assignment_data;
 
 		let partition_nodes = if data.len() == self.replication_factor * (1 << PARTITION_BITS) {

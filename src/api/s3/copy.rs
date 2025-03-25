@@ -683,16 +683,15 @@ async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object,
 	let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 
 	let (source_bucket, source_key) = parse_bucket_key(&copy_source, None)?;
-	let source_bucket_id = garage
+	let source_bucket = garage
 		.bucket_helper()
-		.resolve_bucket(&source_bucket.to_string(), api_key)
-		.await
+		.resolve_bucket_fast(&source_bucket.to_string(), api_key)
 		.map_err(pass_helper_error)?;
 
-	if !api_key.allow_read(&source_bucket_id) {
+	if !api_key.allow_read(&source_bucket.id) {
 		return Err(Error::forbidden(format!(
-			"Reading from bucket {} not allowed for this key",
-			source_bucket
+			"Reading from bucket {:?} not allowed for this key",
+			source_bucket.id
 		)));
 	}
 
@@ -700,7 +699,7 @@ async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object,
 
 	let source_object = garage
 		.object_table
-		.get(&source_bucket_id, &source_key.to_string())
+		.get(&source_bucket.id, &source_key.to_string())
 		.await?
 		.ok_or(Error::NoSuchKey)?;
 

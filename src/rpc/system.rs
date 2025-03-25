@@ -475,10 +475,7 @@ impl System {
 		let mut partitions_quorum = 0;
 		let mut partitions_all_ok = 0;
 		for (_, hash) in partitions.iter() {
-			let mut write_sets = layout
-				.versions()
-				.iter()
-				.map(|x| x.nodes_of(hash, x.replication_factor));
+			let mut write_sets = layout.versions().iter().map(|x| x.nodes_of(hash));
 			let has_quorum = write_sets
 				.clone()
 				.all(|set| set.filter(|x| node_up(x)).count() >= quorum);

@@ -180,9 +180,7 @@ impl LayoutHistory {
 
 				// Determine set of nodes for partition p in layout version v.
 				// Sort the node set to avoid duplicate computations.
-				let mut set = v
-					.nodes_of(&p_hash, v.replication_factor)
-					.collect::<Vec<Uuid>>();
+				let mut set = v.nodes_of(&p_hash).collect::<Vec<Uuid>>();
 				set.sort();
 
 				// If this set was already processed, skip it.

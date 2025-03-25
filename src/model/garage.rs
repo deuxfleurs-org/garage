@@ -154,13 +154,6 @@ impl Garage {
 		info!("Initialize membership management system...");
 		let system = System::new(network_key, replication_factor, consistency_mode, &config)?;
 
-		let data_rep_param = TableShardedReplication {
-			system: system.clone(),
-			replication_factor: replication_factor.into(),
-			write_quorum: replication_factor.write_quorum(consistency_mode),
-			read_quorum: 1,
-		};
-
 		let meta_rep_param = TableShardedReplication {
 			system: system.clone(),
 			replication_factor: replication_factor.into(),
@@ -173,7 +166,8 @@ impl Garage {
 		};
 
 		info!("Initialize block manager...");
-		let block_manager = BlockManager::new(&db, &config, data_rep_param, system.clone())?;
+		let block_write_quorum = replication_factor.write_quorum(consistency_mode);
+		let block_manager = BlockManager::new(&db, &config, block_write_quorum, system.clone())?;
 		block_manager.register_bg_vars(&mut bg_vars);
 
 		// ---- admin tables ----

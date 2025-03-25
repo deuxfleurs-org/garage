@@ -451,10 +451,7 @@ impl K2VRpcHandler {
 
 		let mut value = self
 			.item_table
-			.data
-			.read_entry(&key.partition, &key.sort_key)?
-			.map(|bytes| self.item_table.data.decode_entry(&bytes[..]))
-			.transpose()?
+			.get_local(&key.partition, &key.sort_key)?
 			.unwrap_or_else(|| {
 				K2VItem::new(
 					key.partition.bucket_id,

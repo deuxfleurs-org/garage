@@ -33,8 +33,6 @@ use garage_rpc::rpc_helper::OrderTag;
 use garage_rpc::system::System;
 use garage_rpc::*;
 
-use garage_table::replication::{TableReplication, TableShardedReplication};
-
 use crate::block::*;
 use crate::layout::*;
 use crate::metrics::*;
@@ -74,8 +72,8 @@ impl Rpc for BlockRpc {
 
 /// The block manager, handling block exchange between nodes, and block storage on local node
 pub struct BlockManager {
-	/// Replication strategy, allowing to find on which node blocks should be located
-	pub replication: TableShardedReplication,
+	/// Quorum of nodes for write operations
+	pub write_quorum: usize,
 
 	/// Data layout
 	pub(crate) data_layout: ArcSwap<DataLayout>,
@@ -122,7 +120,7 @@ impl BlockManager {
 	pub fn new(
 		db: &db::Db,
 		config: &Config,
-		replication: TableShardedReplication,
+		write_quorum: usize,
 		system: Arc<System>,
 	) -> Result<Arc<Self>, Error> {
 		// Load or compute layout, i.e. assignment of data blocks to the different data directories
@@ -166,7 +164,7 @@ impl BlockManager {
 		let scrub_persister = PersisterShared::new(&system.metadata_dir, "scrub_info");
 
 		let block_manager = Arc::new(Self {
-			replication,
+			write_quorum,
 			data_layout: ArcSwap::new(Arc::new(data_layout)),
 			data_layout_persister,
 			data_fsync: config.data_fsync,
@@ -338,6 +336,19 @@ impl BlockManager {
 		Err(err)
 	}
 
+	/// Returns the set of nodes that should store a copy of a given block.
+	/// These are the nodes assigned to the block's hash in the current
+	/// layout version only: since blocks are immutable, we don't need to
+	/// do complex logic when several layour versions are active at once,
+	/// just move them directly to the new nodes.
+	pub(crate) fn storage_nodes_of(&self, hash: &Hash) -> Vec<Uuid> {
+		self.system
+			.cluster_layout()
+			.current()
+			.nodes_of(hash)
+			.collect()
+	}
+
 	// ---- Public interface ----
 
 	/// Ask nodes that might have a block for it, return it as a stream
@@ -370,7 +381,7 @@ impl BlockManager {
 		prevent_compression: bool,
 		order_tag: Option<OrderTag>,
 	) -> Result<(), Error> {
-		let who = self.system.cluster_layout().current_storage_nodes_of(&hash);
+		let who = self.storage_nodes_of(&hash);
 
 		let compression_level = self.compression_level.filter(|_| !prevent_compression);
 		let (header, bytes) = DataBlock::from_buffer(data, compression_level)
@@ -400,7 +411,7 @@ impl BlockManager {
 				put_block_rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL | PRIO_SECONDARY)
 					.with_drop_on_completion(permit)
-					.with_quorum(self.replication.write_quorum()),
+					.with_quorum(self.write_quorum),
 			)
 			.await?;
 

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use garage_rpc::layout::*;
 use garage_rpc::system::System;
@@ -25,21 +26,37 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
+	// Do anti-entropy every 10 minutes
+	const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
+
 	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
 
 	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().storage_nodes_of(hash)
+		let layout = self.system.cluster_layout();
+		let mut ret = vec![];
+		for version in layout.versions().iter() {
+			ret.extend(version.nodes_of(hash));
+		}
+		ret.sort();
+		ret.dedup();
+		ret
 	}
 
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().read_nodes_of(hash)
+		self.system
+			.cluster_layout()
+			.read_version()
+			.nodes_of(hash)
+			.collect()
 	}
 	fn read_quorum(&self) -> usize {
 		self.read_quorum
 	}
 
 	fn write_sets(&self, hash: &Hash) -> Self::WriteSets {
-		self.system.layout_manager.write_sets_of(hash)
+		self.system
+			.layout_manager
+			.write_lock_with(|l| write_sets(l, hash))
 	}
 	fn write_quorum(&self) -> usize {
 		self.write_quorum
@@ -57,12 +74,11 @@ impl TableReplication for TableShardedReplication {
 			.current()
 			.partitions()
 			.map(|(partition, first_hash)| {
-				let storage_sets = layout.storage_sets_of(&first_hash);
 				SyncPartition {
 					partition,
 					first_hash,
 					last_hash: [0u8; 32].into(), // filled in just after
-					storage_sets,
+					storage_sets: write_sets(&layout, &first_hash),
 				}
 			})
 			.collect::<Vec<_>>();
@@ -80,4 +96,12 @@ impl TableReplication for TableShardedReplication {
 			partitions,
 		}
 	}
+}
+
+fn write_sets(layout: &LayoutHelper, hash: &Hash) -> Vec<Vec<Uuid>> {
+	layout
+		.versions()
+		.iter()
+		.map(|x| x.nodes_of(hash).collect())
+		.collect()
 }

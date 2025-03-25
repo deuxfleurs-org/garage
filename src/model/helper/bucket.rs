@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use garage_util::data::*;
-use garage_util::error::OkOrMessage;
+use garage_util::error::{Error as GarageError, OkOrMessage};
 use garage_util::time::*;
 
 use garage_table::util::*;
@@ -16,61 +16,172 @@ pub struct BucketHelper<'a>(pub(crate) &'a Garage);
 
 #[allow(clippy::ptr_arg)]
 impl<'a> BucketHelper<'a> {
-	pub async fn resolve_global_bucket_name(
+	// ================
+	//      Local functions to find buckets FAST.
+	//      This is only for the fast path in API requests.
+	//      They do not provide the read-after-write guarantee
+	//      when used in conjunction with other operations that
+	//      modify buckets and bucket aliases.
+	// ================
+
+	/// Return bucket corresponding to global bucket name, if it exists
+	/// (and is not a tombstone entry).
+	///
+	/// The name can be of two forms:
+	/// 1. A global bucket alias
+	/// 2. The full ID of a bucket encoded in hex
+	///
+	/// Note that there is no possible ambiguity between the two forms,
+	/// as the maximum length of a bucket name is 63 characters, and the full
+	/// hex id is 64 chars long.
+	///
+	/// This will not do any network interaction to check the alias and
+	/// bucket tables, it will only check the local copy of the table.
+	/// As a consequence, it does not provide read-after-write guarantees.
+	pub fn resolve_global_bucket_fast(
 		&self,
 		bucket_name: &String,
-	) -> Result<Option<Uuid>, Error> {
-		// Bucket names in Garage are aliases, true bucket identifiers
-		// are 32-byte UUIDs. This function resolves bucket names into
-		// their full identifier by looking up in the bucket_alias_table.
-		// This function also allows buckets to be identified by their
-		// full UUID (hex-encoded). Here, if the name to be resolved is a
-		// hex string of the correct length, it is directly parsed as a bucket
-		// identifier which is returned. There is no risk of this conflicting
-		// with an actual bucket name: bucket names are max 63 chars long by
-		// the AWS spec, and hex-encoded UUIDs are 64 chars long.
+	) -> Result<Option<Bucket>, GarageError> {
 		let hexbucket = hex::decode(bucket_name.as_str())
 			.ok()
 			.and_then(|by| Uuid::try_from(&by));
-		if let Some(bucket_id) = hexbucket {
-			Ok(self
-				.0
-				.bucket_table
-				.get(&EmptyKey, &bucket_id)
-				.await?
-				.filter(|x| !x.state.is_deleted())
-				.map(|_| bucket_id))
-		} else {
-			Ok(self
-				.0
-				.bucket_alias_table
-				.get(&EmptyKey, bucket_name)
-				.await?
-				.and_then(|x| *x.state.get()))
-		}
+		let bucket_id = match hexbucket {
+			Some(id) => id,
+			None => {
+				let alias = self
+					.0
+					.bucket_alias_table
+					.get_local(&EmptyKey, bucket_name)?
+					.and_then(|x| *x.state.get());
+				match alias {
+					Some(id) => id,
+					None => return Ok(None),
+				}
+			}
+		};
+		Ok(self
+			.0
+			.bucket_table
+			.get_local(&EmptyKey, &bucket_id)?
+			.filter(|x| !x.state.is_deleted()))
 	}
 
+	/// Return bucket corresponding to a bucket name from the perspective of
+	/// a given access key, if it exists (and is not a tombstone entry).
+	///
+	/// The name can be of three forms:
+	/// 1. A global bucket alias
+	/// 2. A local bucket alias
+	/// 3. The full ID of a bucket encoded in hex
+	///
+	/// This will not do any network interaction, it will only check the local
+	/// copy of the bucket and global alias table. It will also resolve local
+	/// aliases directly using the data provided in the `api_key` parameter.
+	/// As a consequence, it does not provide read-after-write guarantees.
+	///
+	/// In case no such bucket is found, this function returns a NoSuchBucket error.
 	#[allow(clippy::ptr_arg)]
-	pub async fn resolve_bucket(&self, bucket_name: &String, api_key: &Key) -> Result<Uuid, Error> {
+	pub fn resolve_bucket_fast(
+		&self,
+		bucket_name: &String,
+		api_key: &Key,
+	) -> Result<Bucket, Error> {
 		let api_key_params = api_key
 			.state
 			.as_option()
 			.ok_or_message("Key should not be deleted at this point")?;
 
-		if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
-			Ok(*bucket_id)
-		} else {
+		let bucket_opt =
+			if let Some(Some(bucket_id)) = api_key_params.local_aliases.get(bucket_name) {
+				self.0
+					.bucket_table
+					.get_local(&EmptyKey, &bucket_id)?
+					.filter(|x| !x.state.is_deleted())
+			} else {
+				self.resolve_global_bucket_fast(bucket_name)?
+			};
+		bucket_opt.ok_or_else(|| Error::NoSuchBucket(bucket_name.to_string()))
+	}
+
+	// ================
+	//      Global functions that do quorum reads/writes,
+	//      for admin operations.
+	// ================
+
+	/// This is the same as `resolve_global_bucket_fast`,
+	/// except that it does quorum reads to ensure consistency.
+	pub async fn resolve_global_bucket(
+		&self,
+		bucket_name: &String,
+	) -> Result<Option<Bucket>, GarageError> {
+		let hexbucket = hex::decode(bucket_name.as_str())
+			.ok()
+			.and_then(|by| Uuid::try_from(&by));
+		let bucket_id = match hexbucket {
+			Some(id) => id,
+			None => {
+				let alias = self
+					.0
+					.bucket_alias_table
+					.get(&EmptyKey, bucket_name)
+					.await?
+					.and_then(|x| *x.state.get());
+				match alias {
+					Some(id) => id,
+					None => return Ok(None),
+				}
+			}
+		};
+		Ok(self
+			.0
+			.bucket_table
+			.get(&EmptyKey, &bucket_id)
+			.await?
+			.filter(|x| !x.state.is_deleted()))
+	}
+
+	/// Return bucket corresponding to a bucket name from the perspective of
+	/// a given access key, if it exists (and is not a tombstone entry).
+	///
+	/// This is the same as `resolve_bucket_fast`, with the following differences:
+	///
+	/// - this function does quorum reads to ensure consistency.
+	/// - this function fetches the Key entry from the key table to ensure up-to-date data
+	/// - this function returns None if the bucket is not found, instead of HelperError::NoSuchBucket
+	#[allow(clippy::ptr_arg)]
+	pub async fn resolve_bucket(
+		&self,
+		bucket_name: &String,
+		key_id: &String,
+	) -> Result<Option<Bucket>, GarageError> {
+		let local_alias = self
+			.0
+			.key_table
+			.get(&EmptyKey, &key_id)
+			.await?
+			.and_then(|k| k.state.into_option())
+			.ok_or_else(|| GarageError::Message(format!("access key {} has been deleted", key_id)))?
+			.local_aliases
+			.get(bucket_name)
+			.copied()
+			.flatten();
+
+		if let Some(bucket_id) = local_alias {
 			Ok(self
-				.resolve_global_bucket_name(bucket_name)
+				.0
+				.bucket_table
+				.get(&EmptyKey, &bucket_id)
 				.await?
-				.ok_or_else(|| Error::NoSuchBucket(bucket_name.to_string()))?)
+				.filter(|x| !x.state.is_deleted()))
+		} else {
+			Ok(self.resolve_global_bucket(bucket_name).await?)
 		}
 	}
 
 	/// Returns a Bucket if it is present in bucket table,
 	/// even if it is in deleted state. Querying a non-existing
 	/// bucket ID returns an internal error.
-	pub async fn get_internal_bucket(&self, bucket_id: Uuid) -> Result<Bucket, Error> {
+	pub(crate) async fn get_internal_bucket(&self, bucket_id: Uuid) -> Result<Bucket, Error> {
 		Ok(self
 			.0
 			.bucket_table

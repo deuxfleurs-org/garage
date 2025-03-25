@@ -6,6 +6,7 @@ use garage_util::time::*;
 use garage_table::util::*;
 
 use crate::bucket_alias_table::*;
+use crate::bucket_table::*;
 use crate::garage::Garage;
 use crate::helper::bucket::BucketHelper;
 use crate::helper::error::*;
@@ -56,7 +57,7 @@ impl<'a> LockedHelper<'a> {
 		&self,
 		bucket_id: Uuid,
 		alias_name: &String,
-	) -> Result<(), Error> {
+	) -> Result<Bucket, Error> {
 		if !is_valid_bucket_name(alias_name) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
@@ -100,7 +101,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_p.aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, true);
 		self.0.bucket_table.insert(&bucket).await?;
 
-		Ok(())
+		Ok(bucket)
 	}
 
 	/// Unsets an alias for a bucket in global namespace.
@@ -112,7 +113,7 @@ impl<'a> LockedHelper<'a> {
 		&self,
 		bucket_id: Uuid,
 		alias_name: &String,
-	) -> Result<(), Error> {
+	) -> Result<Bucket, Error> {
 		let mut bucket = self.bucket().get_existing_bucket(bucket_id).await?;
 		let bucket_state = bucket.state.as_option_mut().unwrap();
 
@@ -156,7 +157,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_state.aliases = LwwMap::raw_item(alias_name.clone(), alias_ts, false);
 		self.0.bucket_table.insert(&bucket).await?;
 
-		Ok(())
+		Ok(bucket)
 	}
 
 	/// Ensures a bucket does not have a certain global alias.
@@ -215,7 +216,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_id: Uuid,
 		key_id: &String,
 		alias_name: &String,
-	) -> Result<(), Error> {
+	) -> Result<Bucket, Error> {
 		let key_helper = KeyHelper(self.0);
 
 		if !is_valid_bucket_name(alias_name) {
@@ -257,7 +258,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, true);
 		self.0.bucket_table.insert(&bucket).await?;
 
-		Ok(())
+		Ok(bucket)
 	}
 
 	/// Unsets an alias for a bucket in the local namespace of a key.
@@ -271,7 +272,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_id: Uuid,
 		key_id: &String,
 		alias_name: &String,
-	) -> Result<(), Error> {
+	) -> Result<Bucket, Error> {
 		let key_helper = KeyHelper(self.0);
 
 		let mut bucket = self.bucket().get_existing_bucket(bucket_id).await?;
@@ -330,7 +331,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_p.local_aliases = LwwMap::raw_item(bucket_p_local_alias_key, alias_ts, false);
 		self.0.bucket_table.insert(&bucket).await?;
 
-		Ok(())
+		Ok(bucket)
 	}
 
 	/// Sets permissions for a key on a bucket.
