@@ -2,8 +2,8 @@ use err_derive::Error;
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, StatusCode};
 
+pub(crate) use garage_api_common::common_error::pass_helper_error;
 use garage_api_common::common_error::{commonErrorDerivative, CommonError};
-pub(crate) use garage_api_common::common_error::{helper_error_as_internal, pass_helper_error};
 pub use garage_api_common::common_error::{
 	CommonErrorDerivative, OkOrBadRequest, OkOrInternalError,
 };

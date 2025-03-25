@@ -77,25 +77,19 @@ impl ApiHandler for K2VApiServer {
 		// The OPTIONS method is processed early, before we even check for an API key
 		if let Endpoint::Options = endpoint {
 			let options_res = handle_options_api(garage, &req, Some(bucket_name))
-				.await
 				.ok_or_bad_request("Error handling OPTIONS")?;
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let verified_request = verify_request(&garage, req, "k2v").await?;
+		let verified_request = verify_request(&garage, req, "k2v")?;
 		let req = verified_request.request;
 		let api_key = verified_request.access_key;
 
-		let bucket_id = garage
-			.bucket_helper()
-			.resolve_bucket(&bucket_name, &api_key)
-			.await
-			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
-			.get_existing_bucket(bucket_id)
-			.await
-			.map_err(helper_error_as_internal)?;
+			.resolve_bucket_fast(&bucket_name, &api_key)
+			.map_err(pass_helper_error)?;
+		let bucket_id = bucket.id;
 		let bucket_params = bucket.state.into_option().unwrap();
 
 		let allowed = match endpoint.authorization_type() {

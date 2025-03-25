@@ -143,21 +143,16 @@ pub async fn handle_create_bucket(
 	let api_key = helper.key().get_existing_key(api_key_id).await?;
 	let key_params = api_key.params().unwrap();
 
-	let existing_bucket = if let Some(Some(bucket_id)) = key_params.local_aliases.get(&bucket_name)
-	{
-		Some(*bucket_id)
-	} else {
-		helper
-			.bucket()
-			.resolve_global_bucket_name(&bucket_name)
-			.await?
-	};
+	let existing_bucket = helper
+		.bucket()
+		.resolve_bucket(&bucket_name, &api_key.key_id)
+		.await?;
 
-	if let Some(bucket_id) = existing_bucket {
+	if let Some(bucket) = existing_bucket {
 		// Check we have write or owner permission on the bucket,
 		// in that case it's fine, return 200 OK, bucket exists;
 		// otherwise return a forbidden error.
-		let kp = api_key.bucket_permissions(&bucket_id);
+		let kp = api_key.bucket_permissions(&bucket.id);
 		if !(kp.allow_write || kp.allow_owner) {
 			return Err(CommonError::BucketAlreadyExists.into());
 		}

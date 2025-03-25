@@ -9,9 +9,7 @@ use hyper::{body::Body, body::Incoming as IncomingBody, Request, Response, Statu
 use garage_model::bucket_table::{BucketParams, CorsRule as GarageCorsRule};
 use garage_model::garage::Garage;
 
-use crate::common_error::{
-	helper_error_as_internal, CommonError, OkOrBadRequest, OkOrInternalError,
-};
+use crate::common_error::{CommonError, OkOrBadRequest, OkOrInternalError};
 use crate::helpers::*;
 
 pub fn find_matching_cors_rule<'a, B>(
@@ -76,7 +74,7 @@ pub fn add_cors_headers(
 	Ok(())
 }
 
-pub async fn handle_options_api(
+pub fn handle_options_api(
 	garage: Arc<Garage>,
 	req: &Request<IncomingBody>,
 	bucket_name: Option<String>,
@@ -93,16 +91,8 @@ pub async fn handle_options_api(
 	// OPTIONS calls are not auhtenticated).
 	if let Some(bn) = bucket_name {
 		let helper = garage.bucket_helper();
-		let bucket_id = helper
-			.resolve_global_bucket_name(&bn)
-			.await
-			.map_err(helper_error_as_internal)?;
-		if let Some(id) = bucket_id {
-			let bucket = garage
-				.bucket_helper()
-				.get_existing_bucket(id)
-				.await
-				.map_err(helper_error_as_internal)?;
+		let bucket_opt = helper.resolve_global_bucket_fast(&bn)?;
+		if let Some(bucket) = bucket_opt {
 			let bucket_params = bucket.state.into_option().unwrap();
 			handle_options_for_bucket(req, &bucket_params)
 		} else {

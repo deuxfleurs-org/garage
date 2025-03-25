@@ -79,18 +79,24 @@ impl RequestHandler for GetBucketInfoRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<GetBucketInfoResponse, Error> {
-		let bucket_id = match (self.id, self.global_alias, self.search) {
-			(Some(id), None, None) => parse_bucket_id(&id)?,
-			(None, Some(ga), None) => garage
-				.bucket_alias_table
-				.get(&EmptyKey, &ga)
-				.await?
-				.and_then(|x| *x.state.get())
-				.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
+		let bucket = match (self.id, self.global_alias, self.search) {
+			(Some(id), None, None) => {
+				let id = parse_bucket_id(&id)?;
+				garage.bucket_helper().get_existing_bucket(id).await?
+			}
+			(None, Some(ga), None) => {
+				let id = garage
+					.bucket_alias_table
+					.get(&EmptyKey, &ga)
+					.await?
+					.and_then(|x| *x.state.get())
+					.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?;
+				garage.bucket_helper().get_existing_bucket(id).await?
+			}
 			(None, None, Some(search)) => {
 				let helper = garage.bucket_helper();
-				if let Some(uuid) = helper.resolve_global_bucket_name(&search).await? {
-					uuid
+				if let Some(bucket) = helper.resolve_global_bucket(&search).await? {
+					bucket
 				} else {
 					let hexdec = if search.len() >= 2 {
 						search
@@ -124,7 +130,7 @@ impl RequestHandler for GetBucketInfoRequest {
 					if candidates.is_empty() {
 						return Err(Error::Common(CommonError::NoSuchBucket(search.clone())));
 					} else if candidates.len() == 1 {
-						candidates.into_iter().next().unwrap().id
+						candidates.into_iter().next().unwrap()
 					} else {
 						return Err(Error::bad_request(format!(
 							"Several matching buckets: {}",
@@ -140,23 +146,18 @@ impl RequestHandler for GetBucketInfoRequest {
 			}
 		};
 
-		bucket_info_results(garage, bucket_id).await
+		bucket_info_results(garage, bucket).await
 	}
 }
 
 async fn bucket_info_results(
 	garage: &Arc<Garage>,
-	bucket_id: Uuid,
+	bucket: Bucket,
 ) -> Result<GetBucketInfoResponse, Error> {
-	let bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
-
 	let counters = garage
 		.object_counter_table
 		.table
-		.get(&bucket_id, &EmptyKey)
+		.get(&bucket.id, &EmptyKey)
 		.await?
 		.map(|x| x.filtered_values(&garage.system.cluster_layout()))
 		.unwrap_or_default();
@@ -164,7 +165,7 @@ async fn bucket_info_results(
 	let mpu_counters = garage
 		.mpu_counter_table
 		.table
-		.get(&bucket_id, &EmptyKey)
+		.get(&bucket.id, &EmptyKey)
 		.await?
 		.map(|x| x.filtered_values(&garage.system.cluster_layout()))
 		.unwrap_or_default();
@@ -336,7 +337,7 @@ impl RequestHandler for CreateBucketRequest {
 		}
 
 		Ok(CreateBucketResponse(
-			bucket_info_results(garage, bucket.id).await?,
+			bucket_info_results(garage, bucket).await?,
 		))
 	}
 }
@@ -444,7 +445,7 @@ impl RequestHandler for UpdateBucketRequest {
 		garage.bucket_table.insert(&bucket).await?;
 
 		Ok(UpdateBucketResponse(
-			bucket_info_results(garage, bucket_id).await?,
+			bucket_info_results(garage, bucket).await?,
 		))
 	}
 }
@@ -534,7 +535,7 @@ pub async fn handle_bucket_change_key_perm(
 		.set_bucket_key_permissions(bucket.id, &key.key_id, perm)
 		.await?;
 
-	bucket_info_results(garage, bucket.id).await
+	bucket_info_results(garage, bucket).await
 }
 
 // ---- BUCKET ALIASES ----
@@ -551,11 +552,11 @@ impl RequestHandler for AddBucketAliasRequest {
 
 		let helper = garage.locked_helper().await;
 
-		match self.alias {
+		let bucket = match self.alias {
 			BucketAliasEnum::Global { global_alias } => {
 				helper
 					.set_global_bucket_alias(bucket_id, &global_alias)
-					.await?;
+					.await?
 			}
 			BucketAliasEnum::Local {
 				local_alias,
@@ -563,12 +564,12 @@ impl RequestHandler for AddBucketAliasRequest {
 			} => {
 				helper
 					.set_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
-					.await?;
+					.await?
 			}
-		}
+		};
 
 		Ok(AddBucketAliasResponse(
-			bucket_info_results(garage, bucket_id).await?,
+			bucket_info_results(garage, bucket).await?,
 		))
 	}
 }
@@ -585,11 +586,11 @@ impl RequestHandler for RemoveBucketAliasRequest {
 
 		let helper = garage.locked_helper().await;
 
-		match self.alias {
+		let bucket = match self.alias {
 			BucketAliasEnum::Global { global_alias } => {
 				helper
 					.unset_global_bucket_alias(bucket_id, &global_alias)
-					.await?;
+					.await?
 			}
 			BucketAliasEnum::Local {
 				local_alias,
@@ -597,12 +598,12 @@ impl RequestHandler for RemoveBucketAliasRequest {
 			} => {
 				helper
 					.unset_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
-					.await?;
+					.await?
 			}
-		}
+		};
 
 		Ok(RemoveBucketAliasResponse(
-			bucket_info_results(garage, bucket_id).await?,
+			bucket_info_results(garage, bucket).await?,
 		))
 	}
 }

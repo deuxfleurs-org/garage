@@ -64,12 +64,12 @@ pub struct VerifiedRequest {
 	pub content_sha256_header: ContentSha256Header,
 }
 
-pub async fn verify_request(
+pub fn verify_request(
 	garage: &Garage,
 	mut req: Request<IncomingBody>,
 	service: &'static str,
 ) -> Result<VerifiedRequest, Error> {
-	let checked_signature = payload::check_payload_signature(&garage, &mut req, service).await?;
+	let checked_signature = payload::check_payload_signature(&garage, &mut req, service)?;
 
 	let request = streaming::parse_streaming_body(
 		req,

@@ -482,6 +482,15 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		Ok(ret_vec)
 	}
 
+	pub fn get_local(
+		self: &Arc<Self>,
+		partition_key: &F::P,
+		sort_key: &F::S,
+	) -> Result<Option<F::E>, Error> {
+		let bytes = self.data.read_entry(partition_key, sort_key)?;
+		bytes.map(|b| self.data.decode_entry(&b)).transpose()
+	}
+
 	// =============== UTILITY FUNCTION FOR CLIENT OPERATIONS ===============
 
 	async fn repair_on_read(&self, who: &[Uuid], what: F::E) -> Result<(), Error> {

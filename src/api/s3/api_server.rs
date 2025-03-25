@@ -118,11 +118,11 @@ impl ApiHandler for S3ApiServer {
 			return handle_post_object(garage, req, bucket_name.unwrap()).await;
 		}
 		if let Endpoint::Options = endpoint {
-			let options_res = handle_options_api(garage, &req, bucket_name).await?;
+			let options_res = handle_options_api(garage, &req, bucket_name)?;
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		let verified_request = verify_request(&garage, req, "s3").await?;
+		let verified_request = verify_request(&garage, req, "s3")?;
 		let req = verified_request.request;
 		let api_key = verified_request.access_key;
 
@@ -140,15 +140,11 @@ impl ApiHandler for S3ApiServer {
 			return handle_create_bucket(&garage, req, &api_key.key_id, bucket_name).await;
 		}
 
-		let bucket_id = garage
-			.bucket_helper()
-			.resolve_bucket(&bucket_name, &api_key)
-			.await
-			.map_err(pass_helper_error)?;
 		let bucket = garage
 			.bucket_helper()
-			.get_existing_bucket(bucket_id)
-			.await?;
+			.resolve_bucket_fast(&bucket_name, &api_key)
+			.map_err(pass_helper_error)?;
+		let bucket_id = bucket.id;
 		let bucket_params = bucket.state.into_option().unwrap();
 
 		let allowed = match endpoint.authorization_type() {

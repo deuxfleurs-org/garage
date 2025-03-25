@@ -151,23 +151,17 @@ async fn check_domain(garage: &Arc<Garage>, domain: &str) -> Result<bool, Error>
 		(domain.to_string(), true)
 	};
 
-	let bucket_id = match garage
+	let bucket = match garage
 		.bucket_helper()
-		.resolve_global_bucket_name(&bucket_name)
-		.await?
+		.resolve_global_bucket_fast(&bucket_name)?
 	{
-		Some(bucket_id) => bucket_id,
+		Some(b) => b,
 		None => return Ok(false),
 	};
 
 	if !must_check_website {
 		return Ok(true);
 	}
-
-	let bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
 
 	let bucket_state = bucket.state.as_option().unwrap();
 	let bucket_website_config = bucket_state.website_config.get();

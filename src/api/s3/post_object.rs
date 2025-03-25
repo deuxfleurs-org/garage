@@ -104,22 +104,18 @@ pub async fn handle_post_object(
 		key.to_owned()
 	};
 
-	let api_key = verify_v4(&garage, "s3", &authorization, policy.as_bytes()).await?;
+	let api_key = verify_v4(&garage, "s3", &authorization, policy.as_bytes())?;
 
-	let bucket_id = garage
+	let bucket = garage
 		.bucket_helper()
-		.resolve_bucket(&bucket_name, &api_key)
-		.await
+		.resolve_bucket_fast(&bucket_name, &api_key)
 		.map_err(pass_helper_error)?;
+	let bucket_id = bucket.id;
 
 	if !api_key.allow_write(&bucket_id) {
 		return Err(Error::forbidden("Operation is not allowed for this key."));
 	}
 
-	let bucket = garage
-		.bucket_helper()
-		.get_existing_bucket(bucket_id)
-		.await?;
 	let bucket_params = bucket.state.into_option().unwrap();
 	let matching_cors_rule = find_matching_cors_rule(
 		&bucket_params,
