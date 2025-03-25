@@ -28,11 +28,22 @@ impl TableReplication for TableShardedReplication {
 	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
 
 	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().storage_nodes_of(hash)
+		let layout = self.system.cluster_layout();
+		let mut ret = vec![];
+		for version in layout.versions().iter() {
+			ret.extend(version.nodes_of(hash));
+		}
+		ret.sort();
+		ret.dedup();
+		ret
 	}
 
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system.cluster_layout().read_nodes_of(hash)
+		self.system
+			.cluster_layout()
+			.read_version()
+			.nodes_of(hash)
+			.collect()
 	}
 	fn read_quorum(&self) -> usize {
 		self.read_quorum
@@ -57,7 +68,11 @@ impl TableReplication for TableShardedReplication {
 			.current()
 			.partitions()
 			.map(|(partition, first_hash)| {
-				let storage_sets = layout.storage_sets_of(&first_hash);
+				let storage_sets = layout
+					.versions()
+					.iter()
+					.map(|x| x.nodes_of(&first_hash).collect())
+					.collect();
 				SyncPartition {
 					partition,
 					first_hash,

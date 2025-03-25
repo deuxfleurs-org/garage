@@ -573,7 +573,7 @@ impl RpcHelper {
 		// Compute, for each layout version, the set of nodes that might store
 		// the block, and put them in their preferred order as of `request_order`.
 		let mut vernodes = layout.versions().iter().map(|ver| {
-			let nodes = ver.nodes_of(position, ver.replication_factor);
+			let nodes = ver.nodes_of(position);
 			rpc_helper.request_order(layout.current(), nodes)
 		});
 
@@ -607,7 +607,7 @@ impl RpcHelper {
 		// Second step: add nodes of older layout versions
 		let old_ver_iter = layout.inner().old_versions.iter().rev();
 		for ver in old_ver_iter {
-			let nodes = ver.nodes_of(position, ver.replication_factor);
+			let nodes = ver.nodes_of(position);
 			for node in rpc_helper.request_order(layout.current(), nodes) {
 				if !ret.contains(&node) {
 					ret.push(node);

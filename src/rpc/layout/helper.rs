@@ -149,12 +149,25 @@ impl LayoutHelper {
 		self.layout.as_ref().unwrap()
 	}
 
+	/// Returns the current layout version
 	pub fn current(&self) -> &LayoutVersion {
 		self.inner().current()
 	}
 
+	/// Returns all layout versions currently active in the cluster
 	pub fn versions(&self) -> &[LayoutVersion] {
 		&self.inner().versions
+	}
+
+	/// Returns the latest layout version for which it is safe to read data from,
+	/// i.e. the version whose version number is sync_map_min
+	pub fn read_version(&self) -> &LayoutVersion {
+		let sync_min = self.sync_map_min;
+		self.versions()
+			.iter()
+			.find(|x| x.version == sync_min)
+			.or(self.versions().last())
+			.unwrap()
 	}
 
 	pub fn is_check_ok(&self) -> bool {
@@ -173,6 +186,16 @@ impl LayoutHelper {
 		&self.all_nongateway_nodes
 	}
 
+	/// Returns the set of nodes for storing this hash in the current layout version.
+	///
+	/// Used by the block maanger only: data blocks are immutable, so we don't have
+	/// to coordinate between old set of nodes and new set of nodes when layout changes.
+	/// As soon as the layout change is effective, blocks can be moved to the new
+	/// set of nodes.
+	pub fn current_storage_nodes_of(&self, hash: &Hash) -> Vec<Uuid> {
+		self.current().nodes_of(hash).collect()
+	}
+
 	pub fn ack_map_min(&self) -> u64 {
 		self.ack_map_min
 	}
@@ -180,6 +203,8 @@ impl LayoutHelper {
 	pub fn sync_map_min(&self) -> u64 {
 		self.sync_map_min
 	}
+
+	// ---- helpers for layout synchronization ----
 
 	pub fn sync_digest(&self) -> SyncLayoutDigest {
 		SyncLayoutDigest {
@@ -189,50 +214,7 @@ impl LayoutHelper {
 		}
 	}
 
-	pub fn read_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
-		let sync_min = self.sync_map_min;
-		let version = self
-			.versions()
-			.iter()
-			.find(|x| x.version == sync_min)
-			.or(self.versions().last())
-			.unwrap();
-		version
-			.nodes_of(position, version.replication_factor)
-			.collect()
-	}
-
-	pub fn storage_sets_of(&self, position: &Hash) -> Vec<Vec<Uuid>> {
-		self.versions()
-			.iter()
-			.map(|x| x.nodes_of(position, x.replication_factor).collect())
-			.collect()
-	}
-
-	pub fn storage_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
-		let mut ret = vec![];
-		for version in self.versions().iter() {
-			ret.extend(version.nodes_of(position, version.replication_factor));
-		}
-		ret.sort();
-		ret.dedup();
-		ret
-	}
-
-	pub fn current_storage_nodes_of(&self, position: &Hash) -> Vec<Uuid> {
-		let ver = self.current();
-		ver.nodes_of(position, ver.replication_factor).collect()
-	}
-
-	pub fn trackers_hash(&self) -> Hash {
-		self.trackers_hash
-	}
-
-	pub fn staging_hash(&self) -> Hash {
-		self.staging_hash
-	}
-
-	pub fn digest(&self) -> RpcLayoutDigest {
+	pub(crate) fn digest(&self) -> RpcLayoutDigest {
 		RpcLayoutDigest {
 			current_version: self.current().version,
 			active_versions: self.versions().len(),
