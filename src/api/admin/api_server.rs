@@ -169,8 +169,7 @@ impl AdminApiServer {
 		};
 
 		if token_required {
-			verify_authorization(&self.garage, global_token_hash, auth_header, request.name())
-				.await?;
+			verify_authorization(&self.garage, global_token_hash, auth_header, request.name())?;
 		}
 
 		match request {
@@ -245,7 +244,7 @@ fn hash_bearer_token(token: &str) -> String {
 		.to_string()
 }
 
-async fn verify_authorization(
+fn verify_authorization(
 	garage: &Garage,
 	global_token_hash: Option<&str>,
 	auth_header: Option<hyper::http::HeaderValue>,
@@ -271,8 +270,7 @@ async fn verify_authorization(
 	let token_hash_string = if let Some((prefix, _)) = token.split_once('.') {
 		garage
 			.admin_token_table
-			.get(&EmptyKey, &prefix.to_string())
-			.await?
+			.get_local(&EmptyKey, &prefix.to_string())?
 			.and_then(|k| k.state.into_option())
 			.filter(|p| {
 				p.expiration
