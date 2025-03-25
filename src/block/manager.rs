@@ -336,6 +336,19 @@ impl BlockManager {
 		Err(err)
 	}
 
+	/// Returns the set of nodes that should store a copy of a given block.
+	/// These are the nodes assigned to the block's hash in the current
+	/// layout version only: since blocks are immutable, we don't need to
+	/// do complex logic when several layour versions are active at once,
+	/// just move them directly to the new nodes.
+	pub(crate) fn storage_nodes_of(&self, hash: &Hash) -> Vec<Uuid> {
+		self.system
+			.cluster_layout()
+			.current()
+			.nodes_of(hash)
+			.collect()
+	}
+
 	// ---- Public interface ----
 
 	/// Ask nodes that might have a block for it, return it as a stream
@@ -368,7 +381,7 @@ impl BlockManager {
 		prevent_compression: bool,
 		order_tag: Option<OrderTag>,
 	) -> Result<(), Error> {
-		let who = self.system.cluster_layout().current_storage_nodes_of(&hash);
+		let who = self.storage_nodes_of(&hash);
 
 		let compression_level = self.compression_level.filter(|_| !prevent_compression);
 		let (header, bytes) = DataBlock::from_buffer(data, compression_level)

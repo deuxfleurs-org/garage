@@ -186,16 +186,6 @@ impl LayoutHelper {
 		&self.all_nongateway_nodes
 	}
 
-	/// Returns the set of nodes for storing this hash in the current layout version.
-	///
-	/// Used by the block maanger only: data blocks are immutable, so we don't have
-	/// to coordinate between old set of nodes and new set of nodes when layout changes.
-	/// As soon as the layout change is effective, blocks can be moved to the new
-	/// set of nodes.
-	pub fn current_storage_nodes_of(&self, hash: &Hash) -> Vec<Uuid> {
-		self.current().nodes_of(hash).collect()
-	}
-
 	pub fn ack_map_min(&self) -> u64 {
 		self.ack_map_min
 	}
