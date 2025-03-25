@@ -56,7 +56,7 @@ impl TableReplication for TableShardedReplication {
 	fn write_sets(&self, hash: &Hash) -> Self::WriteSets {
 		self.system
 			.layout_manager
-			.write_lock_with(|l| l.write_sets_of(Some(hash)))
+			.write_lock_with(|l| write_sets(l, hash))
 	}
 	fn write_quorum(&self) -> usize {
 		self.write_quorum
@@ -78,7 +78,7 @@ impl TableReplication for TableShardedReplication {
 					partition,
 					first_hash,
 					last_hash: [0u8; 32].into(), // filled in just after
-					storage_sets: layout.write_sets_of(Some(&first_hash)),
+					storage_sets: write_sets(&layout, &first_hash),
 				}
 			})
 			.collect::<Vec<_>>();
@@ -96,4 +96,12 @@ impl TableReplication for TableShardedReplication {
 			partitions,
 		}
 	}
+}
+
+fn write_sets(layout: &LayoutHelper, hash: &Hash) -> Vec<Vec<Uuid>> {
+	layout
+		.versions()
+		.iter()
+		.map(|x| x.nodes_of(hash).collect())
+		.collect()
 }

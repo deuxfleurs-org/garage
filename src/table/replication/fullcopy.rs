@@ -51,9 +51,7 @@ impl TableReplication for TableFullReplication {
 	}
 
 	fn write_sets(&self, _hash: &Hash) -> Self::WriteSets {
-		self.system
-			.layout_manager
-			.write_lock_with(|l| l.write_sets_of(None))
+		self.system.layout_manager.write_lock_with(write_sets)
 	}
 	fn write_quorum(&self) -> usize {
 		let layout = self.system.cluster_layout();
@@ -89,7 +87,7 @@ impl TableReplication for TableFullReplication {
 			partition: 0u16,
 			first_hash: [0u8; 32].into(),
 			last_hash: [0xff; 32].into(),
-			storage_sets: layout.write_sets_of(None),
+			storage_sets: write_sets(&layout),
 		}];
 
 		SyncPartitions {
@@ -97,4 +95,12 @@ impl TableReplication for TableFullReplication {
 			partitions,
 		}
 	}
+}
+
+fn write_sets(layout: &LayoutHelper) -> Vec<Vec<Uuid>> {
+	layout
+		.versions()
+		.iter()
+		.map(|x| x.all_nodes().to_vec())
+		.collect()
 }

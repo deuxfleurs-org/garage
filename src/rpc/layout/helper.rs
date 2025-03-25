@@ -196,19 +196,6 @@ impl LayoutHelper {
 		self.current().nodes_of(hash).collect()
 	}
 
-	/// For a given hash, or for all cluster if no hash is given,
-	/// return for each layout version the set of nodes that writes should be sent to
-	/// and for which a quorum of OK responses should be awaited.
-	pub fn write_sets_of(&self, hash: Option<&Hash>) -> Vec<Vec<Uuid>> {
-		self.versions()
-			.iter()
-			.map(|x| match hash {
-				Some(h) => x.nodes_of(h).collect(),
-				None => x.all_nodes().to_vec(),
-			})
-			.collect()
-	}
-
 	pub fn ack_map_min(&self) -> u64 {
 		self.ack_map_min
 	}
