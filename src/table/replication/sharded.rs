@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use garage_rpc::layout::*;
 use garage_rpc::system::System;
@@ -25,6 +26,9 @@ pub struct TableShardedReplication {
 }
 
 impl TableReplication for TableShardedReplication {
+	// Do anti-entropy every 10 minutes
+	const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
+
 	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
 
 	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {

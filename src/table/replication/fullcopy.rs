@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use garage_rpc::layout::*;
 use garage_rpc::system::System;
@@ -25,6 +26,12 @@ pub struct TableFullReplication {
 
 impl TableReplication for TableFullReplication {
 	type WriteSets = Vec<Vec<Uuid>>;
+
+	// Do anti-entropy every 10 seconds.
+	// Compared to sharded tables, anti-entropy is much less costly as there is
+	// a single partition hash to exchange.
+	// Also, it's generally a much bigger problem for fullcopy tables to be out of sync.
+	const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10);
 
 	fn storage_nodes(&self, _hash: &Hash) -> Vec<Uuid> {
 		self.system.cluster_layout().all_nodes().to_vec()

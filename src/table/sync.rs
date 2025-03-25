@@ -27,9 +27,6 @@ use crate::merkle::*;
 use crate::replication::*;
 use crate::*;
 
-// Do anti-entropy every 10 minutes
-const ANTI_ENTROPY_INTERVAL: Duration = Duration::from_secs(10 * 60);
-
 pub struct TableSyncer<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 	data: Arc<TableData<F, R>>,
@@ -514,7 +511,7 @@ impl<F: TableSchema, R: TableReplication> SyncWorker<F, R> {
 
 		partitions.partitions.shuffle(&mut thread_rng());
 		self.todo = Some(partitions);
-		self.next_full_sync = Instant::now() + ANTI_ENTROPY_INTERVAL;
+		self.next_full_sync = Instant::now() + R::ANTI_ENTROPY_INTERVAL;
 	}
 }
 
