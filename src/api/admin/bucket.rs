@@ -365,7 +365,7 @@ impl RequestHandler for InspectObjectRequest {
 			.object_table
 			.get(&bucket_id, &self.key)
 			.await?
-			.ok_or_else(|| Error::bad_request("object not found"))?;
+			.ok_or_else(|| Error::NoSuchKey)?;
 
 		let mut versions = vec![];
 		for obj_ver in object.versions().iter() {

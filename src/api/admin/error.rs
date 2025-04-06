@@ -37,6 +37,10 @@ pub enum Error {
 	#[error(display = "Worker not found: {}", _0)]
 	NoSuchWorker(u64),
 
+	/// The object requested don't exists
+	#[error(display = "Key not found")]
+	NoSuchKey,
+
 	/// In Import key, the key already exists
 	#[error(
 		display = "Key {} already exists in data store. Even if it is deleted, we can't let you create a new key with the same ID. Sorry.",
@@ -69,6 +73,7 @@ impl Error {
 			Error::NoSuchWorker(_) => "NoSuchWorker",
 			Error::NoSuchBlock(_) => "NoSuchBlock",
 			Error::KeyAlreadyExists(_) => "KeyAlreadyExists",
+			Error::NoSuchKey => "NoSuchKey",
 		}
 	}
 }
@@ -81,7 +86,8 @@ impl ApiError for Error {
 			Error::NoSuchAdminToken(_)
 			| Error::NoSuchAccessKey(_)
 			| Error::NoSuchWorker(_)
-			| Error::NoSuchBlock(_) => StatusCode::NOT_FOUND,
+			| Error::NoSuchBlock(_)
+			| Error::NoSuchKey => StatusCode::NOT_FOUND,
 			Error::KeyAlreadyExists(_) => StatusCode::CONFLICT,
 		}
 	}

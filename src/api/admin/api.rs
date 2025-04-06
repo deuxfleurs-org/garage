@@ -918,25 +918,40 @@ pub struct InspectObjectRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct InspectObjectResponse {
+	/// ID of the bucket containing the inspected object
 	pub bucket_id: String,
+	/// Key of the inspected object
 	pub key: String,
+	/// List of versions currently stored for this object
 	pub versions: Vec<InspectObjectVersion>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InspectObjectVersion {
+	/// Version ID
 	pub uuid: String,
+	/// Creation timestamp of this object version
 	pub timestamp: chrono::DateTime<chrono::Utc>,
+	/// Whether this object version was created with SSE-C encryption
 	pub encrypted: bool,
+	/// Whether this object version is still uploading
 	pub uploading: bool,
+	/// Whether this is an aborted upload
 	pub aborted: bool,
+	/// Whether this version is a delete marker (a tombstone indicating that a previous version of
+	/// the object has been deleted)
 	pub delete_marker: bool,
+	/// Whether the object's data is stored inline (for small objects)
 	pub inline: bool,
+	/// Size of the object, in bytes
 	pub size: Option<u64>,
+	/// Etag of this object version
 	pub etag: Option<String>,
+	/// Metadata (HTTP headers) associated with this object version
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub headers: Vec<(String, String)>,
+	/// List of data blocks for this object version
 	#[serde(default, skip_serializing_if = "Vec::is_empty")]
 	pub blocks: Vec<InspectObjectBlock>,
 }
@@ -944,9 +959,13 @@ pub struct InspectObjectVersion {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct InspectObjectBlock {
+	/// Part number of the part containing this block, for multipart uploads
 	pub part_number: u64,
+	/// Offset of this block within the part
 	pub offset: u64,
+	/// Hash (blake2 sum) of the block's data
 	pub hash: String,
+	/// Length of the blocks's data
 	pub size: u64,
 }
 

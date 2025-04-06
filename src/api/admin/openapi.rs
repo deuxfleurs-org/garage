@@ -514,10 +514,18 @@ fn CleanupIncompleteUploads() -> () {}
     tag = "Bucket",
     description = "
 Returns detailed information about an object in a bucket, including its internal state in Garage.
+
+This API call can be used to list the data blocks referenced by an object,
+as well as to view metadata associated to the object.
+
+This call may return a list of more than one version for the object, for instance in the
+case where there is a currently stored version of the object, and a newer version whose
+upload is in progress and not yet finished.
     ",
     params(InspectObjectRequest),
 	responses(
             (status = 200, description = "Returns exhaustive information about the object", body = InspectObjectResponse),
+            (status = 404, description = "Object not found"),
             (status = 500, description = "Internal server error")
         ),
 )]

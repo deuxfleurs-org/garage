@@ -1059,7 +1059,7 @@
         "tags": [
           "Bucket"
         ],
-        "description": "\nReturns detailed information about an object in a bucket, including its internal state in Garage.\n    ",
+        "description": "\nReturns detailed information about an object in a bucket, including its internal state in Garage.\n\nThis API call can be used to list the data blocks referenced by an object,\nas well as to view metadata associated to the object.\n\nThis call may return a list of more than one version for the object, for instance in the\ncase where there is a currently stored version of the object, and a newer version whose\nupload is in progress and not yet finished.\n    ",
         "operationId": "InspectObject",
         "parameters": [
           {
@@ -1089,6 +1089,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Object not found"
           },
           "500": {
             "description": "Internal server error"
@@ -2623,21 +2626,25 @@
         ],
         "properties": {
           "hash": {
-            "type": "string"
+            "type": "string",
+            "description": "Hash (blake2 sum) of the block's data"
           },
           "offset": {
             "type": "integer",
             "format": "int64",
+            "description": "Offset of this block within the part",
             "minimum": 0
           },
           "partNumber": {
             "type": "integer",
             "format": "int64",
+            "description": "Part number of the part containing this block, for multipart uploads",
             "minimum": 0
           },
           "size": {
             "type": "integer",
             "format": "int64",
+            "description": "Length of the blocks's data",
             "minimum": 0
           }
         }
@@ -2651,16 +2658,19 @@
         ],
         "properties": {
           "bucketId": {
-            "type": "string"
+            "type": "string",
+            "description": "ID of the bucket containing the inspected object"
           },
           "key": {
-            "type": "string"
+            "type": "string",
+            "description": "Key of the inspected object"
           },
           "versions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/InspectObjectVersion"
-            }
+            },
+            "description": "List of versions currently stored for this object"
           }
         }
       },
@@ -2677,25 +2687,30 @@
         ],
         "properties": {
           "aborted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this is an aborted upload"
           },
           "blocks": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/InspectObjectBlock"
-            }
+            },
+            "description": "List of data blocks for this object version"
           },
           "deleteMarker": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this version is a delete marker (a tombstone indicating that a previous version of\nthe object has been deleted)"
           },
           "encrypted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this object version was created with SSE-C encryption"
           },
           "etag": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Etag of this object version"
           },
           "headers": {
             "type": "array",
@@ -2710,10 +2725,12 @@
                   "type": "string"
                 }
               ]
-            }
+            },
+            "description": "Metadata (HTTP headers) associated with this object version"
           },
           "inline": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the object's data is stored inline (for small objects)"
           },
           "size": {
             "type": [
@@ -2721,17 +2738,21 @@
               "null"
             ],
             "format": "int64",
+            "description": "Size of the object, in bytes",
             "minimum": 0
           },
           "timestamp": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Creation timestamp of this object version"
           },
           "uploading": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this object version is still uploading"
           },
           "uuid": {
-            "type": "string"
+            "type": "string",
+            "description": "Version ID"
           }
         }
       },
