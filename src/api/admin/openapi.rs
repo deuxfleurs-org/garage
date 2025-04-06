@@ -509,6 +509,20 @@ fn DeleteBucket() -> () {}
 )]
 fn CleanupIncompleteUploads() -> () {}
 
+#[utoipa::path(get,
+    path = "/v2/InspectObject",
+    tag = "Bucket",
+    description = "
+Returns detailed information about an object in a bucket, including its internal state in Garage.
+    ",
+    params(InspectObjectRequest),
+	responses(
+            (status = 200, description = "Returns exhaustive information about the object", body = InspectObjectResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn InspectObject() -> () {}
+
 // **********************************************
 //      Operations on permissions for keys on buckets
 // **********************************************
@@ -872,6 +886,7 @@ impl Modify for SecurityAddon {
         UpdateBucket,
         DeleteBucket,
         CleanupIncompleteUploads,
+        InspectObject,
         // Operations on permissions
         AllowBucketKey,
         DenyBucketKey,

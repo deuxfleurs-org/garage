@@ -1054,6 +1054,48 @@
         }
       }
     },
+    "/v2/InspectObject": {
+      "get": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "\nReturns detailed information about an object in a bucket, including its internal state in Garage.\n    ",
+        "operationId": "InspectObject",
+        "parameters": [
+          {
+            "name": "bucketId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns exhaustive information about the object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectObjectResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/LaunchRepairOperation": {
       "post": {
         "tags": [
@@ -2570,6 +2612,128 @@
       },
       "ImportKeyResponse": {
         "$ref": "#/components/schemas/GetKeyInfoResponse"
+      },
+      "InspectObjectBlock": {
+        "type": "object",
+        "required": [
+          "partNumber",
+          "offset",
+          "hash",
+          "size"
+        ],
+        "properties": {
+          "hash": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "partNumber": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "InspectObjectResponse": {
+        "type": "object",
+        "required": [
+          "bucketId",
+          "key",
+          "versions"
+        ],
+        "properties": {
+          "bucketId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InspectObjectVersion"
+            }
+          }
+        }
+      },
+      "InspectObjectVersion": {
+        "type": "object",
+        "required": [
+          "uuid",
+          "timestamp",
+          "encrypted",
+          "uploading",
+          "aborted",
+          "deleteMarker",
+          "inline"
+        ],
+        "properties": {
+          "aborted": {
+            "type": "boolean"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InspectObjectBlock"
+            }
+          },
+          "deleteMarker": {
+            "type": "boolean"
+          },
+          "encrypted": {
+            "type": "boolean"
+          },
+          "etag": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": false,
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "inline": {
+            "type": "boolean"
+          },
+          "size": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "uploading": {
+            "type": "boolean"
+          },
+          "uuid": {
+            "type": "string"
+          }
+        }
       },
       "KeyInfoBucketResponse": {
         "type": "object",

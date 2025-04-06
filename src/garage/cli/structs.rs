@@ -265,6 +265,10 @@ pub enum BucketOperation {
 	/// Clean up (abort) old incomplete multipart uploads
 	#[structopt(name = "cleanup-incomplete-uploads", version = garage_version())]
 	CleanupIncompleteUploads(CleanupIncompleteUploadsOpt),
+
+	/// Inspect an object in a bucket
+	#[structopt(name = "inspect-object", version = garage_version())]
+	InspectObject(InspectObjectOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -375,6 +379,14 @@ pub struct CleanupIncompleteUploadsOpt {
 	/// Name of bucket(s) to clean up
 	#[structopt(required = true)]
 	pub buckets: Vec<String>,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct InspectObjectOpt {
+	/// Name or ID of bucket
+	pub bucket: String,
+	/// Key of object to inspect
+	pub key: String,
 }
 
 // ------------------------

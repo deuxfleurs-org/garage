@@ -62,6 +62,7 @@ impl AdminApiRequest {
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),
 			POST CleanupIncompleteUploads (body),
+			GET InspectObject (query::bucket_id, query::key),
 			// Bucket-key permissions
 			POST AllowBucketKey (body),
 			POST DenyBucketKey (body),
@@ -267,6 +268,8 @@ generateQueryParameters! {
 		"globalAlias" => global_alias,
 		"alias" => alias,
 		"accessKeyId" => access_key_id,
-		"showSecretKey" => show_secret_key
+		"showSecretKey" => show_secret_key,
+		"bucketId" => bucket_id,
+		"key" => key
 	]
 }

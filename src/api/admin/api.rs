@@ -80,6 +80,7 @@ admin_endpoints![
 	UpdateBucket,
 	DeleteBucket,
 	CleanupIncompleteUploads,
+	InspectObject,
 
 	// Operations on permissions for keys on buckets
 	AllowBucketKey,
@@ -905,6 +906,48 @@ pub struct CleanupIncompleteUploadsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CleanupIncompleteUploadsResponse {
 	pub uploads_deleted: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[serde(rename_all = "camelCase")]
+pub struct InspectObjectRequest {
+	pub bucket_id: String,
+	pub key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InspectObjectResponse {
+	pub bucket_id: String,
+	pub key: String,
+	pub versions: Vec<InspectObjectVersion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InspectObjectVersion {
+	pub uuid: String,
+	pub timestamp: chrono::DateTime<chrono::Utc>,
+	pub encrypted: bool,
+	pub uploading: bool,
+	pub aborted: bool,
+	pub delete_marker: bool,
+	pub inline: bool,
+	pub size: Option<u64>,
+	pub etag: Option<String>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub headers: Vec<(String, String)>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub blocks: Vec<InspectObjectBlock>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InspectObjectBlock {
+	pub part_number: u64,
+	pub offset: u64,
+	pub hash: String,
+	pub size: u64,
 }
 
 // **********************************************

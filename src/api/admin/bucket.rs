@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::DateTime;
+
 use garage_util::crdt::*;
 use garage_util::data::*;
 use garage_util::time::*;
@@ -345,6 +347,127 @@ impl RequestHandler for CleanupIncompleteUploadsRequest {
 
 		Ok(CleanupIncompleteUploadsResponse {
 			uploads_deleted: count as u64,
+		})
+	}
+}
+
+impl RequestHandler for InspectObjectRequest {
+	type Response = InspectObjectResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<InspectObjectResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
+
+		let object = garage
+			.object_table
+			.get(&bucket_id, &self.key)
+			.await?
+			.ok_or_else(|| Error::bad_request("object not found"))?;
+
+		let mut versions = vec![];
+		for obj_ver in object.versions().iter() {
+			let ver = garage.version_table.get(&obj_ver.uuid, &EmptyKey).await?;
+			let blocks = ver
+				.map(|v| {
+					v.blocks
+						.items()
+						.iter()
+						.map(|(vk, vb)| InspectObjectBlock {
+							part_number: vk.part_number,
+							offset: vk.offset,
+							hash: hex::encode(&vb.hash),
+							size: vb.size,
+						})
+						.collect::<Vec<_>>()
+				})
+				.unwrap_or_default();
+			let uuid = hex::encode(&obj_ver.uuid);
+			let timestamp = DateTime::from_timestamp_millis(obj_ver.timestamp as i64)
+				.expect("invalid timestamp in db");
+			match &obj_ver.state {
+				ObjectVersionState::Uploading { encryption, .. } => {
+					versions.push(InspectObjectVersion {
+						uuid,
+						timestamp,
+						encrypted: !matches!(encryption, ObjectVersionEncryption::Plaintext { .. }),
+						uploading: true,
+						headers: match encryption {
+							ObjectVersionEncryption::Plaintext { inner } => inner.headers.clone(),
+							_ => vec![],
+						},
+						blocks,
+						..Default::default()
+					});
+				}
+				ObjectVersionState::Complete(data) => match data {
+					ObjectVersionData::DeleteMarker => {
+						versions.push(InspectObjectVersion {
+							uuid,
+							timestamp,
+							delete_marker: true,
+							..Default::default()
+						});
+					}
+					ObjectVersionData::Inline(meta, _) => {
+						versions.push(InspectObjectVersion {
+							uuid,
+							timestamp,
+							inline: true,
+							size: Some(meta.size),
+							etag: Some(meta.etag.clone()),
+							encrypted: !matches!(
+								meta.encryption,
+								ObjectVersionEncryption::Plaintext { .. }
+							),
+							headers: match &meta.encryption {
+								ObjectVersionEncryption::Plaintext { inner } => {
+									inner.headers.clone()
+								}
+								_ => vec![],
+							},
+							..Default::default()
+						});
+					}
+					ObjectVersionData::FirstBlock(meta, _) => {
+						versions.push(InspectObjectVersion {
+							uuid,
+							timestamp,
+							size: Some(meta.size),
+							etag: Some(meta.etag.clone()),
+							encrypted: !matches!(
+								meta.encryption,
+								ObjectVersionEncryption::Plaintext { .. }
+							),
+							headers: match &meta.encryption {
+								ObjectVersionEncryption::Plaintext { inner } => {
+									inner.headers.clone()
+								}
+								_ => vec![],
+							},
+							blocks,
+							..Default::default()
+						});
+					}
+				},
+				ObjectVersionState::Aborted => {
+					versions.push(InspectObjectVersion {
+						uuid,
+						timestamp,
+						aborted: true,
+						blocks,
+						..Default::default()
+					});
+				}
+			}
+		}
+
+		Ok(InspectObjectResponse {
+			bucket_id: hex::encode(&object.bucket_id),
+			key: object.key,
+			versions,
 		})
 	}
 }
