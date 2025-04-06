@@ -79,24 +79,18 @@ impl RequestHandler for GetBucketInfoRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<GetBucketInfoResponse, Error> {
-		let bucket = match (self.id, self.global_alias, self.search) {
-			(Some(id), None, None) => {
-				let id = parse_bucket_id(&id)?;
-				garage.bucket_helper().get_existing_bucket(id).await?
-			}
-			(None, Some(ga), None) => {
-				let id = garage
-					.bucket_alias_table
-					.get(&EmptyKey, &ga)
-					.await?
-					.and_then(|x| *x.state.get())
-					.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?;
-				garage.bucket_helper().get_existing_bucket(id).await?
-			}
+		let bucket_id = match (self.id, self.global_alias, self.search) {
+			(Some(id), None, None) => parse_bucket_id(&id)?,
+			(None, Some(ga), None) => garage
+				.bucket_alias_table
+				.get(&EmptyKey, &ga)
+				.await?
+				.and_then(|x| *x.state.get())
+				.ok_or_else(|| HelperError::NoSuchBucket(ga.to_string()))?,
 			(None, None, Some(search)) => {
 				let helper = garage.bucket_helper();
 				if let Some(bucket) = helper.resolve_global_bucket(&search).await? {
-					bucket
+					bucket.id
 				} else {
 					let hexdec = if search.len() >= 2 {
 						search
@@ -130,7 +124,7 @@ impl RequestHandler for GetBucketInfoRequest {
 					if candidates.is_empty() {
 						return Err(Error::Common(CommonError::NoSuchBucket(search.clone())));
 					} else if candidates.len() == 1 {
-						candidates.into_iter().next().unwrap()
+						candidates.into_iter().next().unwrap().id
 					} else {
 						return Err(Error::bad_request(format!(
 							"Several matching buckets: {}",
@@ -146,14 +140,361 @@ impl RequestHandler for GetBucketInfoRequest {
 			}
 		};
 
-		bucket_info_results(garage, bucket).await
+		bucket_info_results(garage, bucket_id).await
 	}
 }
 
+impl RequestHandler for CreateBucketRequest {
+	type Response = CreateBucketResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<CreateBucketResponse, Error> {
+		let helper = garage.locked_helper().await;
+
+		if let Some(ga) = &self.global_alias {
+			if !is_valid_bucket_name(ga) {
+				return Err(Error::bad_request(format!(
+					"{}: {}",
+					ga, INVALID_BUCKET_NAME_MESSAGE
+				)));
+			}
+
+			if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
+				if alias.state.get().is_some() {
+					return Err(CommonError::BucketAlreadyExists.into());
+				}
+			}
+		}
+
+		if let Some(la) = &self.local_alias {
+			if !is_valid_bucket_name(&la.alias) {
+				return Err(Error::bad_request(format!(
+					"{}: {}",
+					la.alias, INVALID_BUCKET_NAME_MESSAGE
+				)));
+			}
+
+			let key = helper.key().get_existing_key(&la.access_key_id).await?;
+			let state = key.state.as_option().unwrap();
+			if matches!(state.local_aliases.get(&la.alias), Some(_)) {
+				return Err(Error::bad_request("Local alias already exists"));
+			}
+		}
+
+		let bucket = Bucket::new();
+		garage.bucket_table.insert(&bucket).await?;
+
+		if let Some(ga) = &self.global_alias {
+			helper.set_global_bucket_alias(bucket.id, ga).await?;
+		}
+
+		if let Some(la) = &self.local_alias {
+			helper
+				.set_local_bucket_alias(bucket.id, &la.access_key_id, &la.alias)
+				.await?;
+
+			if la.allow.read || la.allow.write || la.allow.owner {
+				helper
+					.set_bucket_key_permissions(
+						bucket.id,
+						&la.access_key_id,
+						BucketKeyPerm {
+							timestamp: now_msec(),
+							allow_read: la.allow.read,
+							allow_write: la.allow.write,
+							allow_owner: la.allow.owner,
+						},
+					)
+					.await?;
+			}
+		}
+
+		Ok(CreateBucketResponse(
+			bucket_info_results(garage, bucket.id).await?,
+		))
+	}
+}
+
+impl RequestHandler for DeleteBucketRequest {
+	type Response = DeleteBucketResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<DeleteBucketResponse, Error> {
+		let helper = garage.locked_helper().await;
+
+		let bucket_id = parse_bucket_id(&self.id)?;
+
+		let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
+		let state = bucket.state.as_option().unwrap();
+
+		// Check bucket is empty
+		if !helper.bucket().is_bucket_empty(bucket_id).await? {
+			return Err(CommonError::BucketNotEmpty.into());
+		}
+
+		// --- done checking, now commit ---
+		// 1. delete authorization from keys that had access
+		for (key_id, perm) in bucket.authorized_keys() {
+			if perm.is_any() {
+				helper
+					.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
+					.await?;
+			}
+		}
+		// 2. delete all local aliases
+		for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
+			if *active {
+				helper
+					.unset_local_bucket_alias(bucket.id, key_id, alias)
+					.await?;
+			}
+		}
+		// 3. delete all global aliases
+		for (alias, _, active) in state.aliases.items().iter() {
+			if *active {
+				helper.purge_global_bucket_alias(bucket.id, alias).await?;
+			}
+		}
+
+		// 4. delete bucket
+		bucket.state = Deletable::delete();
+		garage.bucket_table.insert(&bucket).await?;
+
+		Ok(DeleteBucketResponse)
+	}
+}
+
+impl RequestHandler for UpdateBucketRequest {
+	type Response = UpdateBucketResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<UpdateBucketResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.id)?;
+
+		let mut bucket = garage
+			.bucket_helper()
+			.get_existing_bucket(bucket_id)
+			.await?;
+
+		let state = bucket.state.as_option_mut().unwrap();
+
+		if let Some(wa) = self.body.website_access {
+			if wa.enabled {
+				let (redirect_all, routing_rules) = match state.website_config.get() {
+					Some(wc) => (wc.redirect_all.clone(), wc.routing_rules.clone()),
+					None => (None, Vec::new()),
+				};
+				state.website_config.update(Some(WebsiteConfig {
+					index_document: wa.index_document.ok_or_bad_request(
+						"Please specify indexDocument when enabling website access.",
+					)?,
+					error_document: wa.error_document,
+					redirect_all,
+					routing_rules,
+				}));
+			} else {
+				if wa.index_document.is_some() || wa.error_document.is_some() {
+					return Err(Error::bad_request(
+                        "Cannot specify indexDocument or errorDocument when disabling website access.",
+                    ));
+				}
+				state.website_config.update(None);
+			}
+		}
+
+		if let Some(q) = self.body.quotas {
+			state.quotas.update(BucketQuotas {
+				max_size: q.max_size,
+				max_objects: q.max_objects,
+			});
+		}
+
+		garage.bucket_table.insert(&bucket).await?;
+
+		Ok(UpdateBucketResponse(
+			bucket_info_results(garage, bucket.id).await?,
+		))
+	}
+}
+
+impl RequestHandler for CleanupIncompleteUploadsRequest {
+	type Response = CleanupIncompleteUploadsResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<CleanupIncompleteUploadsResponse, Error> {
+		let duration = Duration::from_secs(self.older_than_secs);
+
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
+
+		let count = garage
+			.bucket_helper()
+			.cleanup_incomplete_uploads(&bucket_id, duration)
+			.await?;
+
+		Ok(CleanupIncompleteUploadsResponse {
+			uploads_deleted: count as u64,
+		})
+	}
+}
+
+// ---- BUCKET/KEY PERMISSIONS ----
+
+impl RequestHandler for AllowBucketKeyRequest {
+	type Response = AllowBucketKeyResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<AllowBucketKeyResponse, Error> {
+		let res = handle_bucket_change_key_perm(garage, self.0, true).await?;
+		Ok(AllowBucketKeyResponse(res))
+	}
+}
+
+impl RequestHandler for DenyBucketKeyRequest {
+	type Response = DenyBucketKeyResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<DenyBucketKeyResponse, Error> {
+		let res = handle_bucket_change_key_perm(garage, self.0, false).await?;
+		Ok(DenyBucketKeyResponse(res))
+	}
+}
+
+pub async fn handle_bucket_change_key_perm(
+	garage: &Arc<Garage>,
+	req: BucketKeyPermChangeRequest,
+	new_perm_flag: bool,
+) -> Result<GetBucketInfoResponse, Error> {
+	let helper = garage.locked_helper().await;
+
+	let bucket_id = parse_bucket_id(&req.bucket_id)?;
+
+	let bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
+	let state = bucket.state.as_option().unwrap();
+
+	let key = helper.key().get_existing_key(&req.access_key_id).await?;
+
+	let mut perm = state
+		.authorized_keys
+		.get(&key.key_id)
+		.cloned()
+		.unwrap_or(BucketKeyPerm::NO_PERMISSIONS);
+
+	if req.permissions.read {
+		perm.allow_read = new_perm_flag;
+	}
+	if req.permissions.write {
+		perm.allow_write = new_perm_flag;
+	}
+	if req.permissions.owner {
+		perm.allow_owner = new_perm_flag;
+	}
+
+	helper
+		.set_bucket_key_permissions(bucket.id, &key.key_id, perm)
+		.await?;
+
+	bucket_info_results(garage, bucket.id).await
+}
+
+// ---- BUCKET ALIASES ----
+
+impl RequestHandler for AddBucketAliasRequest {
+	type Response = AddBucketAliasResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<AddBucketAliasResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
+
+		let helper = garage.locked_helper().await;
+
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
+				helper
+					.set_global_bucket_alias(bucket_id, &global_alias)
+					.await?
+			}
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
+				helper
+					.set_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
+					.await?
+			}
+		}
+
+		Ok(AddBucketAliasResponse(
+			bucket_info_results(garage, bucket_id).await?,
+		))
+	}
+}
+
+impl RequestHandler for RemoveBucketAliasRequest {
+	type Response = RemoveBucketAliasResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<RemoveBucketAliasResponse, Error> {
+		let bucket_id = parse_bucket_id(&self.bucket_id)?;
+
+		let helper = garage.locked_helper().await;
+
+		match self.alias {
+			BucketAliasEnum::Global { global_alias } => {
+				helper
+					.unset_global_bucket_alias(bucket_id, &global_alias)
+					.await?
+			}
+			BucketAliasEnum::Local {
+				local_alias,
+				access_key_id,
+			} => {
+				helper
+					.unset_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
+					.await?
+			}
+		}
+
+		Ok(RemoveBucketAliasResponse(
+			bucket_info_results(garage, bucket_id).await?,
+		))
+	}
+}
+
+// ---- HELPER ----
+
 async fn bucket_info_results(
 	garage: &Arc<Garage>,
-	bucket: Bucket,
+	bucket_id: Uuid,
 ) -> Result<GetBucketInfoResponse, Error> {
+	let bucket = garage
+		.bucket_helper()
+		.get_existing_bucket(bucket_id)
+		.await?;
+
 	let counters = garage
 		.object_counter_table
 		.table
@@ -267,348 +608,6 @@ async fn bucket_info_results(
 
 	Ok(res)
 }
-
-impl RequestHandler for CreateBucketRequest {
-	type Response = CreateBucketResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<CreateBucketResponse, Error> {
-		let helper = garage.locked_helper().await;
-
-		if let Some(ga) = &self.global_alias {
-			if !is_valid_bucket_name(ga) {
-				return Err(Error::bad_request(format!(
-					"{}: {}",
-					ga, INVALID_BUCKET_NAME_MESSAGE
-				)));
-			}
-
-			if let Some(alias) = garage.bucket_alias_table.get(&EmptyKey, ga).await? {
-				if alias.state.get().is_some() {
-					return Err(CommonError::BucketAlreadyExists.into());
-				}
-			}
-		}
-
-		if let Some(la) = &self.local_alias {
-			if !is_valid_bucket_name(&la.alias) {
-				return Err(Error::bad_request(format!(
-					"{}: {}",
-					la.alias, INVALID_BUCKET_NAME_MESSAGE
-				)));
-			}
-
-			let key = helper.key().get_existing_key(&la.access_key_id).await?;
-			let state = key.state.as_option().unwrap();
-			if matches!(state.local_aliases.get(&la.alias), Some(_)) {
-				return Err(Error::bad_request("Local alias already exists"));
-			}
-		}
-
-		let bucket = Bucket::new();
-		garage.bucket_table.insert(&bucket).await?;
-
-		if let Some(ga) = &self.global_alias {
-			helper.set_global_bucket_alias(bucket.id, ga).await?;
-		}
-
-		if let Some(la) = &self.local_alias {
-			helper
-				.set_local_bucket_alias(bucket.id, &la.access_key_id, &la.alias)
-				.await?;
-
-			if la.allow.read || la.allow.write || la.allow.owner {
-				helper
-					.set_bucket_key_permissions(
-						bucket.id,
-						&la.access_key_id,
-						BucketKeyPerm {
-							timestamp: now_msec(),
-							allow_read: la.allow.read,
-							allow_write: la.allow.write,
-							allow_owner: la.allow.owner,
-						},
-					)
-					.await?;
-			}
-		}
-
-		Ok(CreateBucketResponse(
-			bucket_info_results(garage, bucket).await?,
-		))
-	}
-}
-
-impl RequestHandler for DeleteBucketRequest {
-	type Response = DeleteBucketResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<DeleteBucketResponse, Error> {
-		let helper = garage.locked_helper().await;
-
-		let bucket_id = parse_bucket_id(&self.id)?;
-
-		let mut bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
-		let state = bucket.state.as_option().unwrap();
-
-		// Check bucket is empty
-		if !helper.bucket().is_bucket_empty(bucket_id).await? {
-			return Err(CommonError::BucketNotEmpty.into());
-		}
-
-		// --- done checking, now commit ---
-		// 1. delete authorization from keys that had access
-		for (key_id, perm) in bucket.authorized_keys() {
-			if perm.is_any() {
-				helper
-					.set_bucket_key_permissions(bucket.id, key_id, BucketKeyPerm::NO_PERMISSIONS)
-					.await?;
-			}
-		}
-		// 2. delete all local aliases
-		for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
-			if *active {
-				helper
-					.unset_local_bucket_alias(bucket.id, key_id, alias)
-					.await?;
-			}
-		}
-		// 3. delete all global aliases
-		for (alias, _, active) in state.aliases.items().iter() {
-			if *active {
-				helper.purge_global_bucket_alias(bucket.id, alias).await?;
-			}
-		}
-
-		// 4. delete bucket
-		bucket.state = Deletable::delete();
-		garage.bucket_table.insert(&bucket).await?;
-
-		Ok(DeleteBucketResponse)
-	}
-}
-
-impl RequestHandler for UpdateBucketRequest {
-	type Response = UpdateBucketResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<UpdateBucketResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.id)?;
-
-		let mut bucket = garage
-			.bucket_helper()
-			.get_existing_bucket(bucket_id)
-			.await?;
-
-		let state = bucket.state.as_option_mut().unwrap();
-
-		if let Some(wa) = self.body.website_access {
-			if wa.enabled {
-				let (redirect_all, routing_rules) = match state.website_config.get() {
-					Some(wc) => (wc.redirect_all.clone(), wc.routing_rules.clone()),
-					None => (None, Vec::new()),
-				};
-				state.website_config.update(Some(WebsiteConfig {
-					index_document: wa.index_document.ok_or_bad_request(
-						"Please specify indexDocument when enabling website access.",
-					)?,
-					error_document: wa.error_document,
-					redirect_all,
-					routing_rules,
-				}));
-			} else {
-				if wa.index_document.is_some() || wa.error_document.is_some() {
-					return Err(Error::bad_request(
-                        "Cannot specify indexDocument or errorDocument when disabling website access.",
-                    ));
-				}
-				state.website_config.update(None);
-			}
-		}
-
-		if let Some(q) = self.body.quotas {
-			state.quotas.update(BucketQuotas {
-				max_size: q.max_size,
-				max_objects: q.max_objects,
-			});
-		}
-
-		garage.bucket_table.insert(&bucket).await?;
-
-		Ok(UpdateBucketResponse(
-			bucket_info_results(garage, bucket).await?,
-		))
-	}
-}
-
-impl RequestHandler for CleanupIncompleteUploadsRequest {
-	type Response = CleanupIncompleteUploadsResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<CleanupIncompleteUploadsResponse, Error> {
-		let duration = Duration::from_secs(self.older_than_secs);
-
-		let bucket_id = parse_bucket_id(&self.bucket_id)?;
-
-		let count = garage
-			.bucket_helper()
-			.cleanup_incomplete_uploads(&bucket_id, duration)
-			.await?;
-
-		Ok(CleanupIncompleteUploadsResponse {
-			uploads_deleted: count as u64,
-		})
-	}
-}
-
-// ---- BUCKET/KEY PERMISSIONS ----
-
-impl RequestHandler for AllowBucketKeyRequest {
-	type Response = AllowBucketKeyResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<AllowBucketKeyResponse, Error> {
-		let res = handle_bucket_change_key_perm(garage, self.0, true).await?;
-		Ok(AllowBucketKeyResponse(res))
-	}
-}
-
-impl RequestHandler for DenyBucketKeyRequest {
-	type Response = DenyBucketKeyResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<DenyBucketKeyResponse, Error> {
-		let res = handle_bucket_change_key_perm(garage, self.0, false).await?;
-		Ok(DenyBucketKeyResponse(res))
-	}
-}
-
-pub async fn handle_bucket_change_key_perm(
-	garage: &Arc<Garage>,
-	req: BucketKeyPermChangeRequest,
-	new_perm_flag: bool,
-) -> Result<GetBucketInfoResponse, Error> {
-	let helper = garage.locked_helper().await;
-
-	let bucket_id = parse_bucket_id(&req.bucket_id)?;
-
-	let bucket = helper.bucket().get_existing_bucket(bucket_id).await?;
-	let state = bucket.state.as_option().unwrap();
-
-	let key = helper.key().get_existing_key(&req.access_key_id).await?;
-
-	let mut perm = state
-		.authorized_keys
-		.get(&key.key_id)
-		.cloned()
-		.unwrap_or(BucketKeyPerm::NO_PERMISSIONS);
-
-	if req.permissions.read {
-		perm.allow_read = new_perm_flag;
-	}
-	if req.permissions.write {
-		perm.allow_write = new_perm_flag;
-	}
-	if req.permissions.owner {
-		perm.allow_owner = new_perm_flag;
-	}
-
-	helper
-		.set_bucket_key_permissions(bucket.id, &key.key_id, perm)
-		.await?;
-
-	bucket_info_results(garage, bucket).await
-}
-
-// ---- BUCKET ALIASES ----
-
-impl RequestHandler for AddBucketAliasRequest {
-	type Response = AddBucketAliasResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<AddBucketAliasResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.bucket_id)?;
-
-		let helper = garage.locked_helper().await;
-
-		let bucket = match self.alias {
-			BucketAliasEnum::Global { global_alias } => {
-				helper
-					.set_global_bucket_alias(bucket_id, &global_alias)
-					.await?
-			}
-			BucketAliasEnum::Local {
-				local_alias,
-				access_key_id,
-			} => {
-				helper
-					.set_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
-					.await?
-			}
-		};
-
-		Ok(AddBucketAliasResponse(
-			bucket_info_results(garage, bucket).await?,
-		))
-	}
-}
-
-impl RequestHandler for RemoveBucketAliasRequest {
-	type Response = RemoveBucketAliasResponse;
-
-	async fn handle(
-		self,
-		garage: &Arc<Garage>,
-		_admin: &Admin,
-	) -> Result<RemoveBucketAliasResponse, Error> {
-		let bucket_id = parse_bucket_id(&self.bucket_id)?;
-
-		let helper = garage.locked_helper().await;
-
-		let bucket = match self.alias {
-			BucketAliasEnum::Global { global_alias } => {
-				helper
-					.unset_global_bucket_alias(bucket_id, &global_alias)
-					.await?
-			}
-			BucketAliasEnum::Local {
-				local_alias,
-				access_key_id,
-			} => {
-				helper
-					.unset_local_bucket_alias(bucket_id, &access_key_id, &local_alias)
-					.await?
-			}
-		};
-
-		Ok(RemoveBucketAliasResponse(
-			bucket_info_results(garage, bucket).await?,
-		))
-	}
-}
-
-// ---- HELPER ----
 
 fn parse_bucket_id(id: &str) -> Result<Uuid, Error> {
 	let id_hex = hex::decode(id).ok_or_bad_request("Invalid bucket id")?;
