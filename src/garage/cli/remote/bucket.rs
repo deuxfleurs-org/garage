@@ -24,6 +24,7 @@ impl Cli {
 			BucketOperation::CleanupIncompleteUploads(query) => {
 				self.cmd_cleanup_incomplete_uploads(query).await
 			}
+			BucketOperation::InspectObject(query) => self.cmd_inspect_object(query).await,
 		}
 	}
 
@@ -403,6 +404,75 @@ impl Cli {
 			} else {
 				println!("{:.16}: no uploads deleted", bucket.id);
 			}
+		}
+
+		Ok(())
+	}
+
+	pub async fn cmd_inspect_object(&self, opt: InspectObjectOpt) -> Result<(), Error> {
+		let bucket = self
+			.api_request(GetBucketInfoRequest {
+				id: None,
+				global_alias: None,
+				search: Some(opt.bucket),
+			})
+			.await?;
+
+		let info = self
+			.api_request(InspectObjectRequest {
+				bucket_id: bucket.id,
+				key: opt.key,
+			})
+			.await?;
+
+		for ver in info.versions {
+			println!("==== OBJECT VERSION ====");
+			let mut tab = vec![
+				format!("Bucket ID:\t{}", info.bucket_id),
+				format!("Key:\t{}", info.key),
+				format!("Version ID:\t{}", ver.uuid),
+				format!("Timestamp:\t{}", ver.timestamp),
+			];
+			if let Some(size) = ver.size {
+				let bs = bytesize::ByteSize::b(size);
+				tab.push(format!(
+					"Size:\t{} ({})",
+					bs.to_string_as(true),
+					bs.to_string_as(false)
+				));
+				tab.push(format!("Size (exact):\t{}", size));
+				if !ver.blocks.is_empty() {
+					tab.push(format!("Number of blocks:\t{:?}", ver.blocks.len()));
+				}
+			}
+			if let Some(etag) = ver.etag {
+				tab.push(format!("Etag:\t{}", etag));
+			}
+			tab.extend([
+				format!("Encrypted:\t{}", ver.encrypted),
+				format!("Uploading:\t{}", ver.uploading),
+				format!("Aborted:\t{}", ver.aborted),
+				format!("Delete marker:\t{}", ver.delete_marker),
+				format!("Inline data:\t{}", ver.inline),
+			]);
+			if !ver.headers.is_empty() {
+				tab.push(String::new());
+				tab.extend(ver.headers.iter().map(|(k, v)| format!("{}\t{}", k, v)));
+			}
+			format_table(tab);
+
+			if !ver.blocks.is_empty() {
+				let mut tab = vec!["Part#\tOffset\tBlock hash\tSize".to_string()];
+				tab.extend(ver.blocks.iter().map(|b| {
+					format!(
+						"{:4}\t{:9}\t{}\t{:9}",
+						b.part_number, b.offset, b.hash, b.size
+					)
+				}));
+				println!();
+				format_table(tab);
+			}
+			println!();
 		}
 
 		Ok(())
