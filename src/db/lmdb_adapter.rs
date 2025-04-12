@@ -109,7 +109,7 @@ impl IDb for LmdbDb {
 		let mut path = to.clone();
 		path.push("data.mdb");
 		self.db
-			.copy_to_path(path, heed::CompactionOption::Disabled)?;
+			.copy_to_path(path, heed::CompactionOption::Enabled)?;
 		Ok(())
 	}
 
