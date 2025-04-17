@@ -36,6 +36,20 @@ impl RequestHandler for ListAdminTokensRequest {
 			.map(|t| admin_token_info_results(t, now))
 			.collect::<Vec<_>>();
 
+		if garage.config.admin.metrics_token.is_some() {
+			res.insert(
+				0,
+				GetAdminTokenInfoResponse {
+					id: None,
+					created: None,
+					name: "metrics_token (from daemon configuration)".into(),
+					expiration: None,
+					expired: false,
+					scope: vec!["Metrics".into()],
+				},
+			);
+		}
+
 		if garage.config.admin.admin_token.is_some() {
 			res.insert(
 				0,
@@ -46,20 +60,6 @@ impl RequestHandler for ListAdminTokensRequest {
 					expiration: None,
 					expired: false,
 					scope: vec!["*".into()],
-				},
-			);
-		}
-
-		if garage.config.admin.metrics_token.is_some() {
-			res.insert(
-				1,
-				GetAdminTokenInfoResponse {
-					id: None,
-					created: None,
-					name: "metrics_token (from daemon configuration)".into(),
-					expiration: None,
-					expired: false,
-					scope: vec!["Metrics".into()],
 				},
 			);
 		}
