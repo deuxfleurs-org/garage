@@ -124,7 +124,7 @@ impl RequestHandler for CreateAdminTokenRequest {
 			AdminApiToken::new(&format!("token_{}", Utc::now().format("%Y%m%d_%H%M")))
 		};
 
-		apply_token_updates(&mut token, self.0);
+		apply_token_updates(&mut token, self.0)?;
 
 		garage.admin_token_table.insert(&token).await?;
 
@@ -145,7 +145,7 @@ impl RequestHandler for UpdateAdminTokenRequest {
 	) -> Result<UpdateAdminTokenResponse, Error> {
 		let mut token = get_existing_admin_token(&garage, &self.id).await?;
 
-		apply_token_updates(&mut token, self.body);
+		apply_token_updates(&mut token, self.body)?;
 
 		garage.admin_token_table.insert(&token).await?;
 
@@ -190,11 +190,7 @@ fn admin_token_info_results(token: &AdminApiToken, now: u64) -> GetAdminTokenInf
 		expiration: params.expiration.get().map(|x| {
 			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")
 		}),
-		expired: params
-			.expiration
-			.get()
-			.map(|exp| now > exp)
-			.unwrap_or(false),
+		expired: params.is_expired(now),
 		scope: params.scope.get().0.clone(),
 	}
 }
@@ -208,7 +204,16 @@ async fn get_existing_admin_token(garage: &Garage, id: &String) -> Result<AdminA
 		.ok_or_else(|| Error::NoSuchAdminToken(id.to_string()))
 }
 
-fn apply_token_updates(token: &mut AdminApiToken, updates: UpdateAdminTokenRequestBody) {
+fn apply_token_updates(
+	token: &mut AdminApiToken,
+	updates: UpdateAdminTokenRequestBody,
+) -> Result<(), Error> {
+	if updates.never_expires && updates.expiration.is_some() {
+		return Err(Error::bad_request(
+			"cannot specify `expiration` and `never_expires`",
+		));
+	}
+
 	let params = token.params_mut().unwrap();
 
 	if let Some(name) = updates.name {
@@ -219,7 +224,12 @@ fn apply_token_updates(token: &mut AdminApiToken, updates: UpdateAdminTokenReque
 			.expiration
 			.update(Some(expiration.timestamp_millis() as u64));
 	}
+	if updates.never_expires {
+		params.expiration.update(None);
+	}
 	if let Some(scope) = updates.scope {
 		params.scope.update(AdminApiTokenScope(scope));
 	}
+
+	Ok(())
 }

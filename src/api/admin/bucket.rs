@@ -48,6 +48,8 @@ impl RequestHandler for ListBucketsRequest {
 				let state = b.state.as_option().unwrap();
 				ListBucketsResponseItem {
 					id: hex::encode(b.id),
+					created: DateTime::from_timestamp_millis(state.creation_date as i64)
+						.expect("invalid timestamp stored in db"),
 					global_aliases: state
 						.aliases
 						.items()
@@ -677,6 +679,8 @@ async fn bucket_info_results(
 	let quotas = state.quotas.get();
 	let res = GetBucketInfoResponse {
 		id: hex::encode(bucket.id),
+		created: DateTime::from_timestamp_millis(state.creation_date as i64)
+			.expect("invalid timestamp stored in db"),
 		global_aliases: state
 			.aliases
 			.items()

@@ -1,6 +1,6 @@
 use format_table::format_table;
 
-use chrono::{Local, Utc};
+use chrono::Local;
 
 use garage_util::error::*;
 
@@ -78,16 +78,11 @@ impl Cli {
 	}
 
 	pub async fn cmd_create_admin_token(&self, opt: AdminTokenCreateOp) -> Result<(), Error> {
-		// TODO
 		let res = self
 			.api_request(CreateAdminTokenRequest(UpdateAdminTokenRequestBody {
 				name: opt.name,
-				expiration: opt
-					.expires_in
-					.map(|x| parse_duration::parse::parse(&x))
-					.transpose()
-					.ok_or_message("Invalid duration passed for --expires-in parameter")?
-					.map(|dur| Utc::now() + dur),
+				expiration: parse_expires_in(&opt.expires_in)?,
+				never_expires: false,
 				scope: opt.scope.map(|s| {
 					s.split(",")
 						.map(|x| x.trim().to_string())
@@ -121,6 +116,7 @@ impl Cli {
 				body: UpdateAdminTokenRequestBody {
 					name: Some(new),
 					expiration: None,
+					never_expires: false,
 					scope: None,
 				},
 			})
@@ -144,12 +140,8 @@ impl Cli {
 				id: token.id.unwrap(),
 				body: UpdateAdminTokenRequestBody {
 					name: None,
-					expiration: opt
-						.expires_in
-						.map(|x| parse_duration::parse::parse(&x))
-						.transpose()
-						.ok_or_message("Invalid duration passed for --expires-in parameter")?
-						.map(|dur| Utc::now() + dur),
+					expiration: parse_expires_in(&opt.expires_in)?,
+					never_expires: opt.never_expires,
 					scope: opt.scope.map({
 						let mut new_scope = token.scope;
 						|scope_str| {
@@ -231,9 +223,10 @@ impl Cli {
 }
 
 fn print_token_info(token: &GetAdminTokenInfoResponse) {
+	println!("==== ADMINISTRATION TOKEN INFORMATION ====");
 	let mut table = vec![
-		format!("ID:\t{}", token.id.as_ref().unwrap()),
-		format!("Name:\t{}", token.name),
+		format!("Token ID:\t{}", token.id.as_ref().unwrap()),
+		format!("Token name:\t{}", token.name),
 		format!("Created:\t{}", token.created.unwrap().with_timezone(&Local)),
 		format!(
 			"Validity:\t{}",

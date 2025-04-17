@@ -12,6 +12,8 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
+
 use garage_util::error::*;
 
 use garage_rpc::*;
@@ -161,4 +163,12 @@ pub fn table_list_abbr<T: IntoIterator<Item = S>, S: AsRef<str>>(values: T) -> S
 		},
 		None => String::new(),
 	}
+}
+
+pub fn parse_expires_in(expires_in: &Option<String>) -> Result<Option<DateTime<Utc>>, Error> {
+	expires_in
+		.as_ref()
+		.map(|x| parse_duration::parse::parse(&x).map(|dur| Utc::now() + dur))
+		.transpose()
+		.ok_or_message("Invalid duration passed for --expires-in parameter")
 }

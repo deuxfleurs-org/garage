@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use garage_table::*;
 use garage_util::data::Hash;
+use garage_util::time::now_msec;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
@@ -395,6 +396,13 @@ pub fn verify_v4(
 		.filter(|k| !k.state.is_deleted())
 		.ok_or_else(|| Error::forbidden(format!("No such key: {}", &auth.key_id)))?;
 	let key_p = key.params().unwrap();
+
+	if key_p.is_expired(now_msec()) {
+		return Err(Error::forbidden(format!(
+			"Access key {} has expired",
+			key.key_id
+		)));
+	}
 
 	let mut hmac = signing_hmac(
 		&auth.date,

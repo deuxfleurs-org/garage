@@ -426,6 +426,18 @@ pub enum KeyOperation {
 	/// Import key
 	#[structopt(name = "import", version = garage_version())]
 	Import(KeyImportOpt),
+
+	/// Set parameters for an access key
+	#[structopt(name = "set", version = garage_version())]
+	Set(KeySetOpt),
+
+	/// Delete all expired access keys
+	#[structopt(name = "delete-expired", version = garage_version())]
+	DeleteExpired {
+		/// Confirm deletion
+		#[structopt(long = "yes")]
+		yes: bool,
+	},
 }
 
 #[derive(StructOpt, Debug)]
@@ -442,6 +454,24 @@ pub struct KeyNewOpt {
 	/// Name of the key
 	#[structopt(default_value = "Unnamed key")]
 	pub name: String,
+	/// Set an expiration time for the access key
+	/// (see docs.rs/parse_duration for date format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct KeySetOpt {
+	/// ID or name of the key
+	pub key_pattern: String,
+
+	/// Set an expiration time for the access key
+	/// (see docs.rs/parse_duration for date format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
+	/// Set the access key to never expire
+	#[structopt(long = "never-expires")]
+	pub never_expires: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -568,10 +598,15 @@ pub struct AdminTokenCreateOp {
 pub struct AdminTokenSetOp {
 	/// Name or prefix of the ID of the token to modify
 	pub api_token: String,
+
 	/// Set an expiration time for the token (see docs.rs/parse_duration for date
 	/// format)
 	#[structopt(long = "expires-in")]
 	pub expires_in: Option<String>,
+	/// Set the token to never expire
+	#[structopt(long = "never-expires")]
+	pub never_expires: bool,
+
 	/// Set a limited scope for the token, as a comma-separated list of
 	/// admin API functions (e.g. GetClusterStatus, etc.), or `*` to allow
 	/// all admin API functions.

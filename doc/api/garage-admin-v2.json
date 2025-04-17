@@ -2162,15 +2162,7 @@
         "$ref": "#/components/schemas/GetBucketInfoResponse"
       },
       "CreateKeyRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
+        "$ref": "#/components/schemas/UpdateKeyRequestBody"
       },
       "CreateKeyResponse": {
         "$ref": "#/components/schemas/GetKeyInfoResponse"
@@ -2280,6 +2272,7 @@
         "type": "object",
         "required": [
           "id",
+          "created",
           "globalAliases",
           "websiteAccess",
           "keys",
@@ -2296,6 +2289,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Total number of bytes used by objects in this bucket"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Bucket creation date"
           },
           "globalAliases": {
             "type": "array",
@@ -2563,8 +2561,9 @@
       "GetKeyInfoResponse": {
         "type": "object",
         "required": [
-          "name",
           "accessKeyId",
+          "name",
+          "expired",
           "permissions",
           "buckets"
         ],
@@ -2577,6 +2576,23 @@
             "items": {
               "$ref": "#/components/schemas/KeyInfoBucketResponse"
             }
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -2873,10 +2889,15 @@
         "type": "object",
         "required": [
           "id",
+          "created",
           "globalAliases",
           "localAliases"
         ],
         "properties": {
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
           "globalAliases": {
             "type": "array",
             "items": {
@@ -2904,9 +2925,27 @@
         "type": "object",
         "required": [
           "id",
-          "name"
+          "name",
+          "expired"
         ],
         "properties": {
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
+          },
           "id": {
             "type": "string"
           },
@@ -3967,6 +4006,10 @@
             ],
             "description": "Name of the admin API token"
           },
+          "neverExpires": {
+            "type": "boolean",
+            "description": "Set the admin token to never expire"
+          },
           "scope": {
             "type": [
               "array",
@@ -4068,7 +4111,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/KeyPerm"
+                "$ref": "#/components/schemas/KeyPerm",
+                "description": "Permissions to allow for the key"
               }
             ]
           },
@@ -4078,15 +4122,29 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/KeyPerm"
+                "$ref": "#/components/schemas/KeyPerm",
+                "description": "Permissions to deny for the key"
               }
             ]
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "name": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Name of the API key"
+          },
+          "neverExpires": {
+            "type": "boolean",
+            "description": "Set the access key to never expire"
           }
         }
       },
