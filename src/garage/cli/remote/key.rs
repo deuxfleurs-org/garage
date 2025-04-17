@@ -77,6 +77,7 @@ impl Cli {
 					.transpose()
 					.ok_or_message("Invalid duration passed for --expires-in parameter")?
 					.map(|dur| Utc::now() + dur),
+				never_expires: false,
 				allow: None,
 				deny: None,
 			}))
@@ -102,6 +103,7 @@ impl Cli {
 				body: UpdateKeyRequestBody {
 					name: Some(opt.new_name),
 					expiration: None,
+					never_expires: false,
 					allow: None,
 					deny: None,
 				},
@@ -133,6 +135,7 @@ impl Cli {
 						.transpose()
 						.ok_or_message("Invalid duration passed for --expires-in parameter")?
 						.map(|dur| Utc::now() + dur),
+					never_expires: opt.never_expires,
 					allow: None,
 					deny: None,
 				},
@@ -185,6 +188,7 @@ impl Cli {
 				body: UpdateKeyRequestBody {
 					name: None,
 					expiration: None,
+					never_expires: false,
 					allow: Some(KeyPerm {
 						create_bucket: opt.create_bucket,
 					}),
@@ -213,6 +217,7 @@ impl Cli {
 				body: UpdateKeyRequestBody {
 					name: None,
 					expiration: None,
+					never_expires: false,
 					allow: None,
 					deny: Some(KeyPerm {
 						create_bucket: opt.create_bucket,

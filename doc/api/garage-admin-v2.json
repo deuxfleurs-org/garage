@@ -4006,6 +4006,10 @@
             ],
             "description": "Name of the admin API token"
           },
+          "neverExpires": {
+            "type": "boolean",
+            "description": "Set the admin token to never expire"
+          },
           "scope": {
             "type": [
               "array",
@@ -4137,6 +4141,10 @@
               "null"
             ],
             "description": "Name of the API key"
+          },
+          "neverExpires": {
+            "type": "boolean",
+            "description": "Set the access key to never expire"
           }
         }
       },

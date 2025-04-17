@@ -366,6 +366,9 @@ pub struct UpdateAdminTokenRequestBody {
 	pub name: Option<String>,
 	/// Expiration time and date, formatted according to RFC 3339
 	pub expiration: Option<DateTime<Utc>>,
+	/// Set the admin token to never expire
+	#[serde(default)]
+	pub never_expires: bool,
 	/// Scope of the admin API token, a list of admin endpoint names (such as
 	/// `GetClusterStatus`, etc), or the special value `*` to allow all
 	/// admin endpoints. **WARNING:** Granting a scope of `CreateAdminToken` or
@@ -737,6 +740,9 @@ pub struct UpdateKeyRequestBody {
 	pub name: Option<String>,
 	/// Expiration time and date, formatted according to RFC 3339
 	pub expiration: Option<DateTime<Utc>>,
+	/// Set the access key to never expire
+	#[serde(default)]
+	pub never_expires: bool,
 	/// Permissions to allow for the key
 	pub allow: Option<KeyPerm>,
 	/// Permissions to deny for the key

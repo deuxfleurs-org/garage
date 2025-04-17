@@ -461,6 +461,9 @@ pub struct KeySetOpt {
 	/// (see docs.rs/parse_duration for date format)
 	#[structopt(long = "expires-in")]
 	pub expires_in: Option<String>,
+	/// Set the access key to never expire
+	#[structopt(long = "never-expires")]
+	pub never_expires: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -587,10 +590,15 @@ pub struct AdminTokenCreateOp {
 pub struct AdminTokenSetOp {
 	/// Name or prefix of the ID of the token to modify
 	pub api_token: String,
+
 	/// Set an expiration time for the token (see docs.rs/parse_duration for date
 	/// format)
 	#[structopt(long = "expires-in")]
 	pub expires_in: Option<String>,
+	/// Set the token to never expire
+	#[structopt(long = "never-expires")]
+	pub never_expires: bool,
+
 	/// Set a limited scope for the token, as a comma-separated list of
 	/// admin API functions (e.g. GetClusterStatus, etc.), or `*` to allow
 	/// all admin API functions.

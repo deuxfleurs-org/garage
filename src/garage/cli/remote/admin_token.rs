@@ -88,6 +88,7 @@ impl Cli {
 					.transpose()
 					.ok_or_message("Invalid duration passed for --expires-in parameter")?
 					.map(|dur| Utc::now() + dur),
+				never_expires: false,
 				scope: opt.scope.map(|s| {
 					s.split(",")
 						.map(|x| x.trim().to_string())
@@ -121,6 +122,7 @@ impl Cli {
 				body: UpdateAdminTokenRequestBody {
 					name: Some(new),
 					expiration: None,
+					never_expires: false,
 					scope: None,
 				},
 			})
@@ -150,6 +152,7 @@ impl Cli {
 						.transpose()
 						.ok_or_message("Invalid duration passed for --expires-in parameter")?
 						.map(|dur| Utc::now() + dur),
+					never_expires: opt.never_expires,
 					scope: opt.scope.map({
 						let mut new_scope = token.scope;
 						|scope_str| {

@@ -105,7 +105,7 @@ impl RequestHandler for CreateKeyRequest {
 	) -> Result<CreateKeyResponse, Error> {
 		let mut key = Key::new("Unnamed key");
 
-		apply_key_updates(&mut key, self.0);
+		apply_key_updates(&mut key, self.0)?;
 
 		garage.key_table.insert(&key).await?;
 
@@ -152,7 +152,7 @@ impl RequestHandler for UpdateKeyRequest {
 	) -> Result<UpdateKeyResponse, Error> {
 		let mut key = garage.key_helper().get_existing_key(&self.id).await?;
 
-		apply_key_updates(&mut key, self.body);
+		apply_key_updates(&mut key, self.body)?;
 
 		garage.key_table.insert(&key).await?;
 
@@ -265,7 +265,13 @@ async fn key_info_results(
 	Ok(res)
 }
 
-fn apply_key_updates(key: &mut Key, updates: UpdateKeyRequestBody) {
+fn apply_key_updates(key: &mut Key, updates: UpdateKeyRequestBody) -> Result<(), Error> {
+	if updates.never_expires && updates.expiration.is_some() {
+		return Err(Error::bad_request(
+			"cannot specify `expiration` and `never_expires`",
+		));
+	}
+
 	let key_state = key.state.as_option_mut().unwrap();
 
 	if let Some(new_name) = updates.name {
@@ -275,6 +281,9 @@ fn apply_key_updates(key: &mut Key, updates: UpdateKeyRequestBody) {
 		key_state
 			.expiration
 			.update(Some(expiration.timestamp_millis() as u64));
+	}
+	if updates.never_expires {
+		key_state.expiration.update(None);
 	}
 	if let Some(allow) = updates.allow {
 		if allow.create_bucket {
@@ -286,4 +295,6 @@ fn apply_key_updates(key: &mut Key, updates: UpdateKeyRequestBody) {
 			key_state.allow_create_bucket.update(false);
 		}
 	}
+
+	Ok(())
 }
