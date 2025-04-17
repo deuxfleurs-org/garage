@@ -1,6 +1,6 @@
 use format_table::format_table;
 
-use chrono::{Local, Utc};
+use chrono::Local;
 
 use garage_util::error::*;
 
@@ -78,16 +78,10 @@ impl Cli {
 	}
 
 	pub async fn cmd_create_admin_token(&self, opt: AdminTokenCreateOp) -> Result<(), Error> {
-		// TODO
 		let res = self
 			.api_request(CreateAdminTokenRequest(UpdateAdminTokenRequestBody {
 				name: opt.name,
-				expiration: opt
-					.expires_in
-					.map(|x| parse_duration::parse::parse(&x))
-					.transpose()
-					.ok_or_message("Invalid duration passed for --expires-in parameter")?
-					.map(|dur| Utc::now() + dur),
+				expiration: parse_expires_in(&opt.expires_in)?,
 				never_expires: false,
 				scope: opt.scope.map(|s| {
 					s.split(",")
@@ -146,12 +140,7 @@ impl Cli {
 				id: token.id.unwrap(),
 				body: UpdateAdminTokenRequestBody {
 					name: None,
-					expiration: opt
-						.expires_in
-						.map(|x| parse_duration::parse::parse(&x))
-						.transpose()
-						.ok_or_message("Invalid duration passed for --expires-in parameter")?
-						.map(|dur| Utc::now() + dur),
+					expiration: parse_expires_in(&opt.expires_in)?,
 					never_expires: opt.never_expires,
 					scope: opt.scope.map({
 						let mut new_scope = token.scope;

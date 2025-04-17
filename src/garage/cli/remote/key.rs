@@ -1,6 +1,6 @@
 use format_table::format_table;
 
-use chrono::{Local, Utc};
+use chrono::Local;
 
 use garage_util::error::*;
 
@@ -72,12 +72,7 @@ impl Cli {
 		let key = self
 			.api_request(CreateKeyRequest(UpdateKeyRequestBody {
 				name: Some(opt.name),
-				expiration: opt
-					.expires_in
-					.map(|x| parse_duration::parse::parse(&x))
-					.transpose()
-					.ok_or_message("Invalid duration passed for --expires-in parameter")?
-					.map(|dur| Utc::now() + dur),
+				expiration: parse_expires_in(&opt.expires_in)?,
 				never_expires: false,
 				allow: None,
 				deny: None,
@@ -130,12 +125,7 @@ impl Cli {
 				id: key.access_key_id,
 				body: UpdateKeyRequestBody {
 					name: None,
-					expiration: opt
-						.expires_in
-						.map(|x| parse_duration::parse::parse(&x))
-						.transpose()
-						.ok_or_message("Invalid duration passed for --expires-in parameter")?
-						.map(|dur| Utc::now() + dur),
+					expiration: parse_expires_in(&opt.expires_in)?,
 					never_expires: opt.never_expires,
 					allow: None,
 					deny: None,
