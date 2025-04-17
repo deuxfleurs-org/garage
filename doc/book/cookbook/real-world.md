@@ -96,14 +96,14 @@ to store 2 TB of data in total.
 ## Get a Docker image
 
 Our docker image is currently named `dxflrs/garage` and is stored on the [Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
-We encourage you to use a fixed tag (eg. `v1.1.0`) and not the `latest` tag.
-For this example, we will use the latest published version at the time of the writing which is `v1.1.0` but it's up to you
+We encourage you to use a fixed tag (eg. `v2.0.0`) and not the `latest` tag.
+For this example, we will use the latest published version at the time of the writing which is `v2.0.0` but it's up to you
 to check [the most recent versions on the Docker Hub](https://hub.docker.com/r/dxflrs/garage/tags?page=1&ordering=last_updated).
 
 For example:
 
 ```
-sudo docker pull dxflrs/garage:v1.1.0
+sudo docker pull dxflrs/garage:v2.0.0
 ```
 
 ## Deploying and configuring Garage
@@ -171,7 +171,7 @@ docker run \
   -v /etc/garage.toml:/etc/garage.toml \
   -v /var/lib/garage/meta:/var/lib/garage/meta \
   -v /var/lib/garage/data:/var/lib/garage/data \
-  dxflrs/garage:v1.1.0
+  dxflrs/garage:v2.0.0
 ```
 
 With this command line, Garage should be started automatically at each boot.
@@ -185,7 +185,7 @@ If you want to use `docker-compose`, you may use the following `docker-compose.y
 version: "3"
 services:
   garage:
-    image: dxflrs/garage:v1.1.0
+    image: dxflrs/garage:v2.0.0
     network_mode: "host"
     restart: unless-stopped
     volumes:

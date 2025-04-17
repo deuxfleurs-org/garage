@@ -1,6 +1,6 @@
 [package]
 name = "garage"
-version = "1.1.0"
+version = "2.0.0"
 authors = ["Alex Auvolat <alex@adnab.me>"]
 edition = "2018"
 license = "AGPL-3.0"

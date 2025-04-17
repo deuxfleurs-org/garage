@@ -24,18 +24,18 @@ default-members = ["src/garage"]
 
 # Internal Garage crates
 format_table = { version = "0.1.1", path = "src/format-table" }
-garage_api_common = { version = "1.1.0", path = "src/api/common" }
-garage_api_admin = { version = "1.1.0", path = "src/api/admin" }
-garage_api_s3 = { version = "1.1.0", path = "src/api/s3" }
-garage_api_k2v = { version = "1.1.0", path = "src/api/k2v" }
-garage_block = { version = "1.1.0", path = "src/block" }
-garage_db = { version = "1.1.0", path = "src/db", default-features = false }
-garage_model = { version = "1.1.0", path = "src/model", default-features = false }
-garage_net = { version = "1.1.0", path = "src/net" }
-garage_rpc = { version = "1.1.0", path = "src/rpc" }
-garage_table = { version = "1.1.0", path = "src/table" }
-garage_util = { version = "1.1.0", path = "src/util" }
-garage_web = { version = "1.1.0", path = "src/web" }
+garage_api_common = { version = "2.0.0", path = "src/api/common" }
+garage_api_admin = { version = "2.0.0", path = "src/api/admin" }
+garage_api_s3 = { version = "2.0.0", path = "src/api/s3" }
+garage_api_k2v = { version = "2.0.0", path = "src/api/k2v" }
+garage_block = { version = "2.0.0", path = "src/block" }
+garage_db = { version = "2.0.0", path = "src/db", default-features = false }
+garage_model = { version = "2.0.0", path = "src/model", default-features = false }
+garage_net = { version = "2.0.0", path = "src/net" }
+garage_rpc = { version = "2.0.0", path = "src/rpc" }
+garage_table = { version = "2.0.0", path = "src/table" }
+garage_util = { version = "2.0.0", path = "src/util" }
+garage_web = { version = "2.0.0", path = "src/web" }
 k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 
 # External crates from crates.io
