@@ -272,19 +272,8 @@ fn verify_authorization(
 			.admin_token_table
 			.get_local(&EmptyKey, &prefix.to_string())?
 			.and_then(|k| k.state.into_option())
-			.filter(|p| {
-				p.expiration
-					.get()
-					.map(|exp| now_msec() < exp)
-					.unwrap_or(true)
-			})
-			.filter(|p| {
-				p.scope
-					.get()
-					.0
-					.iter()
-					.any(|x| x == "*" || x == endpoint_name)
-			})
+			.filter(|p| !p.is_expired(now_msec()))
+			.filter(|p| p.has_scope(endpoint_name))
 			.ok_or_else(|| Error::forbidden(invalid_msg))?
 			.token_hash
 	} else {

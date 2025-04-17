@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::DateTime;
+
 use garage_table::*;
+use garage_util::time::now_msec;
 
 use garage_model::garage::Garage;
 use garage_model::key_table::*;
@@ -14,6 +17,8 @@ impl RequestHandler for ListKeysRequest {
 	type Response = ListKeysResponse;
 
 	async fn handle(self, garage: &Arc<Garage>, _admin: &Admin) -> Result<ListKeysResponse, Error> {
+		let now = now_msec();
+
 		let res = garage
 			.key_table
 			.get_range(
@@ -25,9 +30,22 @@ impl RequestHandler for ListKeysRequest {
 			)
 			.await?
 			.iter()
-			.map(|k| ListKeysResponseItem {
-				id: k.key_id.to_string(),
-				name: k.params().unwrap().name.get().clone(),
+			.map(|k| {
+				let p = k.params().unwrap();
+
+				ListKeysResponseItem {
+					id: k.key_id.to_string(),
+					name: p.name.get().clone(),
+					created: p.created.map(|x| {
+						DateTime::from_timestamp_millis(x as i64)
+							.expect("invalid timestamp stored in db")
+					}),
+					expiration: p.expiration.get().map(|x| {
+						DateTime::from_timestamp_millis(x as i64)
+							.expect("invalid timestamp stored in db")
+					}),
+					expired: p.is_expired(now),
+				}
 			})
 			.collect::<Vec<_>>();
 
@@ -205,6 +223,13 @@ async fn key_info_results(
 
 	let res = GetKeyInfoResponse {
 		name: key_state.name.get().clone(),
+		created: key_state.created.map(|x| {
+			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")
+		}),
+		expiration: key_state.expiration.get().map(|x| {
+			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")
+		}),
+		expired: key_state.is_expired(now_msec()),
 		access_key_id: key.key_id.clone(),
 		secret_access_key: if show_secret {
 			Some(key_state.secret_key.clone())

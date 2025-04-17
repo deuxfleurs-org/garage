@@ -2569,8 +2569,9 @@
       "GetKeyInfoResponse": {
         "type": "object",
         "required": [
-          "name",
           "accessKeyId",
+          "name",
+          "expired",
           "permissions",
           "buckets"
         ],
@@ -2583,6 +2584,23 @@
             "items": {
               "$ref": "#/components/schemas/KeyInfoBucketResponse"
             }
+          },
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -2915,9 +2933,27 @@
         "type": "object",
         "required": [
           "id",
-          "name"
+          "name",
+          "expired"
         ],
         "properties": {
+          "created": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
+          },
           "id": {
             "type": "string"
           },

@@ -190,11 +190,7 @@ fn admin_token_info_results(token: &AdminApiToken, now: u64) -> GetAdminTokenInf
 		expiration: params.expiration.get().map(|x| {
 			DateTime::from_timestamp_millis(x as i64).expect("invalid timestamp stored in db")
 		}),
-		expired: params
-			.expiration
-			.get()
-			.map(|exp| now > exp)
-			.unwrap_or(false),
+		expired: params.is_expired(now),
 		scope: params.scope.get().0.clone(),
 	}
 }

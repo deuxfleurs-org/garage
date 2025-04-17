@@ -113,7 +113,7 @@ impl AdminApiToken {
 		}
 	}
 
-	/// Returns true if this represents a deleted bucket
+	/// Returns true if this represents a deleted admin token
 	pub fn is_deleted(&self) -> bool {
 		self.state.is_deleted()
 	}
@@ -134,6 +134,19 @@ impl AdminApiToken {
 			.as_option()
 			.map(|x| &x.scope.get().0[..])
 			.unwrap_or_default()
+	}
+}
+
+impl AdminApiTokenParams {
+	pub fn is_expired(&self, ts_now: u64) -> bool {
+		match *self.expiration.get() {
+			None => false,
+			Some(exp) => ts_now >= exp,
+		}
+	}
+
+	pub fn has_scope(&self, endpoint: &str) -> bool {
+		self.scope.get().0.iter().any(|x| x == "*" || x == endpoint)
 	}
 }
 

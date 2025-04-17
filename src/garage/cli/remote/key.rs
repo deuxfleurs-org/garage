@@ -1,5 +1,7 @@
 use format_table::format_table;
 
+use chrono::Local;
+
 use garage_util::error::*;
 
 use garage_api_admin::api::*;
@@ -22,11 +24,28 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_keys(&self) -> Result<(), Error> {
-		let keys = self.api_request(ListKeysRequest).await?;
+		let mut keys = self.api_request(ListKeysRequest).await?;
 
-		let mut table = vec!["ID\tName".to_string()];
+		keys.0.sort_by_key(|x| x.created);
+
+		let mut table = vec!["ID\tCreated\tName\tExpiration".to_string()];
 		for key in keys.0.iter() {
-			table.push(format!("{}\t{}", key.id, key.name));
+			let exp = if key.expired {
+				"expired".to_string()
+			} else {
+				key.expiration
+					.map(|x| x.with_timezone(&Local).to_string())
+					.unwrap_or("never".into())
+			};
+			table.push(format!(
+				"{}\t{}\t{}\t{}",
+				key.id,
+				key.created
+					.map(|x| x.with_timezone(&Local).date_naive().to_string())
+					.unwrap_or_default(),
+				key.name,
+				exp
+			));
 		}
 		format_table(table);
 
@@ -186,15 +205,34 @@ impl Cli {
 fn print_key_info(key: &GetKeyInfoResponse) {
 	println!("==== ACCESS KEY INFORMATION ====");
 
-	format_table(vec![
-		format!("Key name:\t{}", key.name),
+	let mut table = vec![
 		format!("Key ID:\t{}", key.access_key_id),
+		format!("Key name:\t{}", key.name),
 		format!(
 			"Secret key:\t{}",
 			key.secret_access_key.as_deref().unwrap_or("(redacted)")
 		),
+	];
+
+	if let Some(c) = key.created {
+		table.push(format!("Created:\t{}", c.with_timezone(&Local)));
+	}
+
+	table.extend([
+		format!(
+			"Validity:\t{}",
+			key.expired.then_some("EXPIRED").unwrap_or("valid")
+		),
+		format!(
+			"Expiration:\t{}",
+			key.expiration
+				.map(|x| x.with_timezone(&Local).to_string())
+				.unwrap_or("never".into())
+		),
+		String::new(),
 		format!("Can create buckets:\t{}", key.permissions.create_bucket),
 	]);
+	format_table(table);
 
 	println!("");
 	println!("==== BUCKETS FOR THIS KEY ====");

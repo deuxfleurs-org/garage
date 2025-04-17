@@ -637,6 +637,9 @@ pub struct ListKeysResponse(pub Vec<ListKeysResponseItem>);
 pub struct ListKeysResponseItem {
 	pub id: String,
 	pub name: String,
+	pub created: Option<DateTime<Utc>>,
+	pub expiration: Option<DateTime<Utc>>,
+	pub expired: bool,
 }
 
 // ---- GetKeyInfo ----
@@ -656,8 +659,11 @@ pub struct GetKeyInfoRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetKeyInfoResponse {
-	pub name: String,
 	pub access_key_id: String,
+	pub created: Option<DateTime<Utc>>,
+	pub name: String,
+	pub expiration: Option<DateTime<Utc>>,
+	pub expired: bool,
 	#[serde(default, skip_serializing_if = "is_default")]
 	pub secret_access_key: Option<String>,
 	pub permissions: KeyPerm,

@@ -231,9 +231,10 @@ impl Cli {
 }
 
 fn print_token_info(token: &GetAdminTokenInfoResponse) {
+	println!("==== ADMINISTRATION TOKEN INFORMATION ====");
 	let mut table = vec![
-		format!("ID:\t{}", token.id.as_ref().unwrap()),
-		format!("Name:\t{}", token.name),
+		format!("Token ID:\t{}", token.id.as_ref().unwrap()),
+		format!("Token name:\t{}", token.name),
 		format!("Created:\t{}", token.created.unwrap().with_timezone(&Local)),
 		format!(
 			"Validity:\t{}",
