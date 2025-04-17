@@ -430,6 +430,14 @@ pub enum KeyOperation {
 	/// Set parameters for an access key
 	#[structopt(name = "set", version = garage_version())]
 	Set(KeySetOpt),
+
+	/// Delete all expired access keys
+	#[structopt(name = "delete-expired", version = garage_version())]
+	DeleteExpired {
+		/// Confirm deletion
+		#[structopt(long = "yes")]
+		yes: bool,
+	},
 }
 
 #[derive(StructOpt, Debug)]

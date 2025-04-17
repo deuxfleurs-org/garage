@@ -21,6 +21,7 @@ impl Cli {
 			KeyOperation::Allow(query) => self.cmd_allow_key(query).await,
 			KeyOperation::Deny(query) => self.cmd_deny_key(query).await,
 			KeyOperation::Import(query) => self.cmd_import_key(query).await,
+			KeyOperation::DeleteExpired { yes } => self.cmd_delete_expired_keys(yes).await,
 		}
 	}
 
@@ -245,6 +246,29 @@ impl Cli {
 			.await?;
 
 		print_key_info(&new_key.0);
+
+		Ok(())
+	}
+
+	pub async fn cmd_delete_expired_keys(&self, yes: bool) -> Result<(), Error> {
+		let mut list = self.api_request(ListKeysRequest).await?.0;
+
+		list.retain(|key| key.expired);
+
+		if !yes {
+			return Err(Error::Message(format!(
+				"This would delete {} access keys, add the --yes flag to proceed.",
+				list.len(),
+			)));
+		}
+
+		for key in list.iter() {
+			let id = key.id.clone();
+			println!("Deleting access key `{}` ({})", key.name, id);
+			self.api_request(DeleteKeyRequest { id }).await?;
+		}
+
+		println!("{} access keys have been deleted.", list.len());
 
 		Ok(())
 	}
