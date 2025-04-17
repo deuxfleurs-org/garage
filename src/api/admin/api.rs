@@ -701,9 +701,7 @@ pub struct ApiBucketKeyPerm {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateKeyRequest {
-	pub name: Option<String>,
-}
+pub struct CreateKeyRequest(pub UpdateKeyRequestBody);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateKeyResponse(pub GetKeyInfoResponse);
@@ -735,8 +733,13 @@ pub struct UpdateKeyResponse(pub GetKeyInfoResponse);
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateKeyRequestBody {
+	/// Name of the API key
 	pub name: Option<String>,
+	/// Expiration time and date, formatted according to RFC 3339
+	pub expiration: Option<DateTime<Utc>>,
+	/// Permissions to allow for the key
 	pub allow: Option<KeyPerm>,
+	/// Permissions to deny for the key
 	pub deny: Option<KeyPerm>,
 }
 

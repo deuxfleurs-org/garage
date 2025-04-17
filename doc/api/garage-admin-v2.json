@@ -2162,15 +2162,7 @@
         "$ref": "#/components/schemas/GetBucketInfoResponse"
       },
       "CreateKeyRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        }
+        "$ref": "#/components/schemas/UpdateKeyRequestBody"
       },
       "CreateKeyResponse": {
         "$ref": "#/components/schemas/GetKeyInfoResponse"
@@ -4115,7 +4107,8 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/KeyPerm"
+                "$ref": "#/components/schemas/KeyPerm",
+                "description": "Permissions to allow for the key"
               }
             ]
           },
@@ -4125,15 +4118,25 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/KeyPerm"
+                "$ref": "#/components/schemas/KeyPerm",
+                "description": "Permissions to deny for the key"
               }
             ]
+          },
+          "expiration": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "name": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Name of the API key"
           }
         }
       },

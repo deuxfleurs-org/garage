@@ -426,6 +426,10 @@ pub enum KeyOperation {
 	/// Import key
 	#[structopt(name = "import", version = garage_version())]
 	Import(KeyImportOpt),
+
+	/// Set parameters for an access key
+	#[structopt(name = "set", version = garage_version())]
+	Set(KeySetOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -442,6 +446,21 @@ pub struct KeyNewOpt {
 	/// Name of the key
 	#[structopt(default_value = "Unnamed key")]
 	pub name: String,
+	/// Set an expiration time for the access key
+	/// (see docs.rs/parse_duration for date format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct KeySetOpt {
+	/// ID or name of the key
+	pub key_pattern: String,
+
+	/// Set an expiration time for the access key
+	/// (see docs.rs/parse_duration for date format)
+	#[structopt(long = "expires-in")]
+	pub expires_in: Option<String>,
 }
 
 #[derive(StructOpt, Debug)]

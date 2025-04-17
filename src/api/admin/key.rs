@@ -103,7 +103,10 @@ impl RequestHandler for CreateKeyRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<CreateKeyResponse, Error> {
-		let key = Key::new(self.name.as_deref().unwrap_or("Unnamed key"));
+		let mut key = Key::new("Unnamed key");
+
+		apply_key_updates(&mut key, self.0);
+
 		garage.key_table.insert(&key).await?;
 
 		Ok(CreateKeyResponse(
@@ -149,21 +152,7 @@ impl RequestHandler for UpdateKeyRequest {
 	) -> Result<UpdateKeyResponse, Error> {
 		let mut key = garage.key_helper().get_existing_key(&self.id).await?;
 
-		let key_state = key.state.as_option_mut().unwrap();
-
-		if let Some(new_name) = self.body.name {
-			key_state.name.update(new_name);
-		}
-		if let Some(allow) = self.body.allow {
-			if allow.create_bucket {
-				key_state.allow_create_bucket.update(true);
-			}
-		}
-		if let Some(deny) = self.body.deny {
-			if deny.create_bucket {
-				key_state.allow_create_bucket.update(false);
-			}
-		}
+		apply_key_updates(&mut key, self.body);
 
 		garage.key_table.insert(&key).await?;
 
@@ -274,4 +263,27 @@ async fn key_info_results(
 	};
 
 	Ok(res)
+}
+
+fn apply_key_updates(key: &mut Key, updates: UpdateKeyRequestBody) {
+	let key_state = key.state.as_option_mut().unwrap();
+
+	if let Some(new_name) = updates.name {
+		key_state.name.update(new_name);
+	}
+	if let Some(expiration) = updates.expiration {
+		key_state
+			.expiration
+			.update(Some(expiration.timestamp_millis() as u64));
+	}
+	if let Some(allow) = updates.allow {
+		if allow.create_bucket {
+			key_state.allow_create_bucket.update(true);
+		}
+	}
+	if let Some(deny) = updates.deny {
+		if deny.create_bucket {
+			key_state.allow_create_bucket.update(false);
+		}
+	}
 }

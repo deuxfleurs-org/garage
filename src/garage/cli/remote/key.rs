@@ -1,6 +1,6 @@
 use format_table::format_table;
 
-use chrono::Local;
+use chrono::{Local, Utc};
 
 use garage_util::error::*;
 
@@ -16,6 +16,7 @@ impl Cli {
 			KeyOperation::Info(query) => self.cmd_key_info(query).await,
 			KeyOperation::Create(query) => self.cmd_create_key(query).await,
 			KeyOperation::Rename(query) => self.cmd_rename_key(query).await,
+			KeyOperation::Set(opt) => self.cmd_update_key(opt).await,
 			KeyOperation::Delete(query) => self.cmd_delete_key(query).await,
 			KeyOperation::Allow(query) => self.cmd_allow_key(query).await,
 			KeyOperation::Deny(query) => self.cmd_deny_key(query).await,
@@ -68,9 +69,17 @@ impl Cli {
 
 	pub async fn cmd_create_key(&self, opt: KeyNewOpt) -> Result<(), Error> {
 		let key = self
-			.api_request(CreateKeyRequest {
+			.api_request(CreateKeyRequest(UpdateKeyRequestBody {
 				name: Some(opt.name),
-			})
+				expiration: opt
+					.expires_in
+					.map(|x| parse_duration::parse::parse(&x))
+					.transpose()
+					.ok_or_message("Invalid duration passed for --expires-in parameter")?
+					.map(|dur| Utc::now() + dur),
+				allow: None,
+				deny: None,
+			}))
 			.await?;
 
 		print_key_info(&key.0);
@@ -92,6 +101,38 @@ impl Cli {
 				id: key.access_key_id,
 				body: UpdateKeyRequestBody {
 					name: Some(opt.new_name),
+					expiration: None,
+					allow: None,
+					deny: None,
+				},
+			})
+			.await?;
+
+		print_key_info(&new_key.0);
+
+		Ok(())
+	}
+
+	pub async fn cmd_update_key(&self, opt: KeySetOpt) -> Result<(), Error> {
+		let key = self
+			.api_request(GetKeyInfoRequest {
+				id: None,
+				search: Some(opt.key_pattern),
+				show_secret_key: false,
+			})
+			.await?;
+
+		let new_key = self
+			.api_request(UpdateKeyRequest {
+				id: key.access_key_id,
+				body: UpdateKeyRequestBody {
+					name: None,
+					expiration: opt
+						.expires_in
+						.map(|x| parse_duration::parse::parse(&x))
+						.transpose()
+						.ok_or_message("Invalid duration passed for --expires-in parameter")?
+						.map(|dur| Utc::now() + dur),
 					allow: None,
 					deny: None,
 				},
@@ -143,6 +184,7 @@ impl Cli {
 				id: key.access_key_id,
 				body: UpdateKeyRequestBody {
 					name: None,
+					expiration: None,
 					allow: Some(KeyPerm {
 						create_bucket: opt.create_bucket,
 					}),
@@ -170,6 +212,7 @@ impl Cli {
 				id: key.access_key_id,
 				body: UpdateKeyRequestBody {
 					name: None,
+					expiration: None,
 					allow: None,
 					deny: Some(KeyPerm {
 						create_bucket: opt.create_bucket,
