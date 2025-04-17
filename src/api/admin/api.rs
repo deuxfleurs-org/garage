@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use paste::paste;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -321,11 +322,11 @@ pub struct GetAdminTokenInfoResponse {
 	/// Identifier of the admin token (which is also a prefix of the full bearer token)
 	pub id: Option<String>,
 	/// Creation date
-	pub created: Option<chrono::DateTime<chrono::Utc>>,
+	pub created: Option<DateTime<Utc>>,
 	/// Name of the admin API token
 	pub name: String,
 	/// Expiration time and date, formatted according to RFC 3339
-	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	pub expiration: Option<DateTime<Utc>>,
 	/// Whether this admin token is expired already
 	pub expired: bool,
 	/// Scope of the admin API token, a list of admin endpoint names (such as
@@ -364,7 +365,7 @@ pub struct UpdateAdminTokenRequestBody {
 	/// Name of the admin API token
 	pub name: Option<String>,
 	/// Expiration time and date, formatted according to RFC 3339
-	pub expiration: Option<chrono::DateTime<chrono::Utc>>,
+	pub expiration: Option<DateTime<Utc>>,
 	/// Scope of the admin API token, a list of admin endpoint names (such as
 	/// `GetClusterStatus`, etc), or the special value `*` to allow all
 	/// admin endpoints. **WARNING:** Granting a scope of `CreateAdminToken` or
@@ -759,6 +760,7 @@ pub struct ListBucketsResponse(pub Vec<ListBucketsResponseItem>);
 #[serde(rename_all = "camelCase")]
 pub struct ListBucketsResponseItem {
 	pub id: String,
+	pub created: DateTime<Utc>,
 	pub global_aliases: Vec<String>,
 	pub local_aliases: Vec<BucketLocalAlias>,
 }
@@ -788,6 +790,8 @@ pub struct GetBucketInfoRequest {
 pub struct GetBucketInfoResponse {
 	/// Identifier of the bucket
 	pub id: String,
+	/// Bucket creation date
+	pub created: DateTime<Utc>,
 	/// List of global aliases for this bucket
 	pub global_aliases: Vec<String>,
 	/// Whether website acces is enabled for this bucket
@@ -932,7 +936,7 @@ pub struct InspectObjectVersion {
 	/// Version ID
 	pub uuid: String,
 	/// Creation timestamp of this object version
-	pub timestamp: chrono::DateTime<chrono::Utc>,
+	pub timestamp: DateTime<Utc>,
 	/// Whether this object version was created with SSE-C encryption
 	pub encrypted: bool,
 	/// Whether this object version is still uploading

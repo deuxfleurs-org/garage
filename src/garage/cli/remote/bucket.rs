@@ -1,6 +1,8 @@
 //use bytesize::ByteSize;
 use format_table::format_table;
 
+use chrono::Local;
+
 use garage_util::error::*;
 
 use garage_api_admin::api::*;
@@ -29,13 +31,16 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_buckets(&self) -> Result<(), Error> {
-		let buckets = self.api_request(ListBucketsRequest).await?;
+		let mut buckets = self.api_request(ListBucketsRequest).await?;
 
-		let mut table = vec!["ID\tGlobal aliases\tLocal aliases".to_string()];
+		buckets.0.sort_by_key(|x| x.created);
+
+		let mut table = vec!["ID\tCreated\tGlobal aliases\tLocal aliases".to_string()];
 		for bucket in buckets.0.iter() {
 			table.push(format!(
-				"{:.16}\t{}\t{}",
+				"{:.16}\t{}\t{}\t{}",
 				bucket.id,
+				bucket.created.with_timezone(&Local).date_naive(),
 				table_list_abbr(&bucket.global_aliases),
 				table_list_abbr(
 					bucket
@@ -484,6 +489,7 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 
 	let mut info = vec![
 		format!("Bucket:\t{}", bucket.id),
+		format!("Created:\t{}", bucket.created.with_timezone(&Local)),
 		String::new(),
 		{
 			let size = bytesize::ByteSize::b(bucket.bytes as u64);

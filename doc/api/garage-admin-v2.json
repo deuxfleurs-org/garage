@@ -2280,6 +2280,7 @@
         "type": "object",
         "required": [
           "id",
+          "created",
           "globalAliases",
           "websiteAccess",
           "keys",
@@ -2296,6 +2297,11 @@
             "type": "integer",
             "format": "int64",
             "description": "Total number of bytes used by objects in this bucket"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Bucket creation date"
           },
           "globalAliases": {
             "type": "array",
@@ -2873,10 +2879,15 @@
         "type": "object",
         "required": [
           "id",
+          "created",
           "globalAliases",
           "localAliases"
         ],
         "properties": {
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
           "globalAliases": {
             "type": "array",
             "items": {
