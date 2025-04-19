@@ -129,9 +129,9 @@ docker run \
   -d \
   --name garaged \
   -p 3900:3900 -p 3901:3901 -p 3902:3902 -p 3903:3903 \
-  -v /etc/garage.toml:/path/to/garage.toml \
-  -v /var/lib/garage/meta:/path/to/garage/meta \
-  -v /var/lib/garage/data:/path/to/garage/data \
+  -v /path/to/garage.toml:/etc/garage.toml \
+  -v /path/to/garage/meta:/var/lib/garage/meta \
+  -v /path/to/garage/data:/var/lib/garage/data \
   dxflrs/garage:v1.1.0
 ```
 
