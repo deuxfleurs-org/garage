@@ -64,12 +64,8 @@ impl LayoutManager {
 			}
 		};
 
-		let mut cluster_layout = LayoutHelper::new(
-			replication_factor,
-			consistency_mode,
-			cluster_layout,
-			Default::default(),
-		);
+		let mut cluster_layout =
+			LayoutHelper::new(consistency_mode, cluster_layout, Default::default());
 		cluster_layout.update_update_trackers(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
