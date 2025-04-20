@@ -38,14 +38,10 @@ impl ReplicationFactor {
 		}
 	}
 
-	pub fn replication_factor(&self) -> usize {
-		self.0
-	}
-
 	pub fn read_quorum(&self, consistency_mode: ConsistencyMode) -> usize {
 		match consistency_mode {
 			ConsistencyMode::Dangerous | ConsistencyMode::Degraded => 1,
-			ConsistencyMode::Consistent => self.replication_factor().div_ceil(2),
+			ConsistencyMode::Consistent => usize::from(*self).div_ceil(2),
 		}
 	}
 
@@ -53,7 +49,7 @@ impl ReplicationFactor {
 		match consistency_mode {
 			ConsistencyMode::Dangerous => 1,
 			ConsistencyMode::Degraded | ConsistencyMode::Consistent => {
-				(self.replication_factor() + 1) - self.read_quorum(ConsistencyMode::Consistent)
+				(usize::from(*self) + 1) - self.read_quorum(ConsistencyMode::Consistent)
 			}
 		}
 	}
@@ -62,6 +58,12 @@ impl ReplicationFactor {
 impl std::convert::From<ReplicationFactor> for usize {
 	fn from(replication_factor: ReplicationFactor) -> usize {
 		replication_factor.0
+	}
+}
+
+impl std::fmt::Display for ReplicationFactor {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		self.0.fmt(f)
 	}
 }
 

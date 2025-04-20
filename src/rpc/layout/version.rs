@@ -11,12 +11,13 @@ use garage_util::error::*;
 
 use super::graph_algo::*;
 use super::*;
+use crate::replication_mode::*;
 
 // The Message type will be used to collect information on the algorithm.
 pub type Message = Vec<String>;
 
 impl LayoutVersion {
-	pub fn new(replication_factor: usize) -> Self {
+	pub fn new(replication_factor: ReplicationFactor) -> Self {
 		// We set the default zone redundancy to be Maximum, meaning that the maximum
 		// possible value will be used depending on the cluster topology
 		let parameters = LayoutParameters {
@@ -25,7 +26,7 @@ impl LayoutVersion {
 
 		LayoutVersion {
 			version: 0,
-			replication_factor,
+			replication_factor: usize::from(replication_factor),
 			partition_size: 0,
 			roles: LwwMap::new(),
 			node_id_vec: Vec::new(),
@@ -130,6 +131,10 @@ impl LayoutVersion {
 		partition_nodes
 			.iter()
 			.map(move |i| self.node_id_vec[*i as usize])
+	}
+
+	pub fn replication_factor(&self) -> ReplicationFactor {
+		ReplicationFactor::new(self.replication_factor).unwrap()
 	}
 
 	// ===================== internal information extractors ======================
