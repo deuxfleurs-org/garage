@@ -137,6 +137,14 @@ impl LayoutVersion {
 		ReplicationFactor::new(self.replication_factor).unwrap()
 	}
 
+	pub fn read_quorum(&self, consistency_mode: ConsistencyMode) -> usize {
+		self.replication_factor().read_quorum(consistency_mode)
+	}
+
+	pub fn write_quorum(&self, consistency_mode: ConsistencyMode) -> usize {
+		self.replication_factor().write_quorum(consistency_mode)
+	}
+
 	// ===================== internal information extractors ======================
 
 	pub(crate) fn expect_get_node_capacity(&self, uuid: &Uuid) -> u64 {
