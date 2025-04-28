@@ -46,11 +46,11 @@ impl LayoutManager {
 
 		let cluster_layout = match persist_cluster_layout.load() {
 			Ok(x) => {
-				if x.current().replication_factor != replication_factor.replication_factor() {
+				if x.current().replication_factor() != replication_factor {
 					return Err(Error::Message(format!(
 						"Previous cluster layout has replication factor {}, which is different than the one specified in the config file ({}). The previous cluster layout can be purged, if you know what you are doing, simply by deleting the `cluster_layout` file in your metadata directory.",
-						x.current().replication_factor,
-						replication_factor.replication_factor()
+						x.current().replication_factor(),
+						replication_factor,
 					)));
 				}
 				x
@@ -64,12 +64,8 @@ impl LayoutManager {
 			}
 		};
 
-		let mut cluster_layout = LayoutHelper::new(
-			replication_factor,
-			consistency_mode,
-			cluster_layout,
-			Default::default(),
-		);
+		let mut cluster_layout =
+			LayoutHelper::new(consistency_mode, cluster_layout, Default::default());
 		cluster_layout.update_update_trackers(node_id.into());
 
 		let layout = Arc::new(RwLock::new(cluster_layout));
@@ -301,11 +297,11 @@ impl LayoutManager {
 			adv.update_trackers
 		);
 
-		if adv.current().replication_factor != self.replication_factor.replication_factor() {
+		if adv.current().replication_factor() != self.replication_factor {
 			let msg = format!(
 				"Received a cluster layout from another node with replication factor {}, which is different from what we have in our configuration ({}). Discarding the cluster layout we received.",
-				adv.current().replication_factor,
-				self.replication_factor.replication_factor()
+				adv.current().replication_factor(),
+				self.replication_factor,
 			);
 			error!("{}", msg);
 			return Err(Error::Message(msg));

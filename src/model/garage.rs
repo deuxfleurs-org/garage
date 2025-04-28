@@ -155,10 +155,8 @@ impl Garage {
 		let system = System::new(network_key, replication_factor, consistency_mode, &config)?;
 
 		let meta_rep_param = TableShardedReplication {
-			system: system.clone(),
-			replication_factor: replication_factor.into(),
-			write_quorum: replication_factor.write_quorum(consistency_mode),
-			read_quorum: replication_factor.read_quorum(consistency_mode),
+			layout_manager: system.layout_manager.clone(),
+			consistency_mode,
 		};
 
 		let control_rep_param = TableFullReplication {

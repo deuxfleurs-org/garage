@@ -123,13 +123,9 @@ impl LayoutHistory {
 		}
 	}
 
-	pub(crate) fn calculate_sync_map_min_with_quorum(
-		&self,
-		replication_factor: ReplicationFactor,
-		all_nongateway_nodes: &[Uuid],
-	) -> u64 {
-		// This function calculates the minimum layout version from which
-		// it is safe to read if we want to maintain read-after-write consistency.
+	/// This function calculates the minimum layout version from which
+	/// it is safe to read if we want to maintain read-after-write consistency.
+	pub(crate) fn calculate_sync_map_min_with_quorum(&self, all_nongateway_nodes: &[Uuid]) -> u64 {
 		// In the general case the computation can be a bit expensive so
 		// we try to optimize it in several ways.
 
@@ -138,8 +134,6 @@ impl LayoutHistory {
 		if self.versions.len() == 1 {
 			return self.current().version;
 		}
-
-		let quorum = replication_factor.write_quorum(ConsistencyMode::Consistent);
 
 		let min_version = self.min_stored();
 		let global_min = self
@@ -153,7 +147,16 @@ impl LayoutHistory {
 		// This is represented by reading from the layout with version
 		// number global_min, the smallest layout version for which all nodes
 		// have completed a sync.
-		if quorum == self.current().replication_factor {
+		//
+		// While we currently do not support changing the replication factor
+		// between layout versions, this calculation is future-proofing for the
+		// case where this might be possible.
+		if self
+			.versions
+			.iter()
+			.filter(|v| v.version >= global_min)
+			.all(|v| v.write_quorum(ConsistencyMode::Consistent) == v.replication_factor)
+		{
 			return global_min;
 		}
 
@@ -195,7 +198,8 @@ impl LayoutHistory {
 					.map(|x| self.update_trackers.sync_map.get(x, min_version))
 					.collect::<Vec<_>>();
 				sync_values.sort();
-				let set_min = sync_values[sync_values.len() - quorum];
+				let set_min =
+					sync_values[sync_values.len() - v.write_quorum(ConsistencyMode::Consistent)];
 				if set_min < current_min {
 					current_min = set_min;
 				}

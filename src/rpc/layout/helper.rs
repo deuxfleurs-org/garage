@@ -28,7 +28,6 @@ pub struct SyncLayoutDigest {
 }
 
 pub struct LayoutHelper {
-	replication_factor: ReplicationFactor,
 	consistency_mode: ConsistencyMode,
 	layout: Option<LayoutHistory>,
 
@@ -51,7 +50,6 @@ pub struct LayoutHelper {
 
 impl LayoutHelper {
 	pub fn new(
-		replication_factor: ReplicationFactor,
 		consistency_mode: ConsistencyMode,
 		mut layout: LayoutHistory,
 		mut ack_lock: HashMap<u64, AtomicUsize>,
@@ -97,8 +95,7 @@ impl LayoutHelper {
 		// consistency on those).
 		// This value is calculated using quorums to allow progress even
 		// if not all nodes have successfully completed a sync.
-		let sync_map_min =
-			layout.calculate_sync_map_min_with_quorum(replication_factor, &all_nongateway_nodes);
+		let sync_map_min = layout.calculate_sync_map_min_with_quorum(&all_nongateway_nodes);
 
 		let trackers_hash = layout.calculate_trackers_hash();
 		let staging_hash = layout.calculate_staging_hash();
@@ -111,7 +108,6 @@ impl LayoutHelper {
 		let is_check_ok = layout.check().is_ok();
 
 		LayoutHelper {
-			replication_factor,
 			consistency_mode,
 			layout: Some(layout),
 			ack_map_min,
@@ -134,7 +130,6 @@ impl LayoutHelper {
 		let changed = f(self.layout.as_mut().unwrap());
 		if changed {
 			*self = Self::new(
-				self.replication_factor,
 				self.consistency_mode,
 				self.layout.take().unwrap(),
 				std::mem::take(&mut self.ack_lock),

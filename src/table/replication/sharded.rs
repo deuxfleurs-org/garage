@@ -2,9 +2,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use garage_rpc::layout::*;
-use garage_rpc::system::System;
+use garage_rpc::replication_mode::ConsistencyMode;
 use garage_util::data::*;
 
+use crate::replication::sharded::manager::LayoutManager;
 use crate::replication::*;
 
 /// Sharded replication schema:
@@ -16,13 +17,8 @@ use crate::replication::*;
 #[derive(Clone)]
 pub struct TableShardedReplication {
 	/// The membership manager of this node
-	pub system: Arc<System>,
-	/// How many time each data should be replicated
-	pub replication_factor: usize,
-	/// How many nodes to contact for a read, should be at most `replication_factor`
-	pub read_quorum: usize,
-	/// How many nodes to contact for a write, should be at most `replication_factor`
-	pub write_quorum: usize,
+	pub layout_manager: Arc<LayoutManager>,
+	pub consistency_mode: ConsistencyMode,
 }
 
 impl TableReplication for TableShardedReplication {
@@ -32,9 +28,8 @@ impl TableReplication for TableShardedReplication {
 	type WriteSets = WriteLock<Vec<Vec<Uuid>>>;
 
 	fn storage_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		let layout = self.system.cluster_layout();
 		let mut ret = vec![];
-		for version in layout.versions().iter() {
+		for version in self.layout_manager.layout().versions().iter() {
 			ret.extend(version.nodes_of(hash));
 		}
 		ret.sort();
@@ -43,31 +38,37 @@ impl TableReplication for TableShardedReplication {
 	}
 
 	fn read_nodes(&self, hash: &Hash) -> Vec<Uuid> {
-		self.system
-			.cluster_layout()
+		self.layout_manager
+			.layout()
 			.read_version()
 			.nodes_of(hash)
 			.collect()
 	}
+
 	fn read_quorum(&self) -> usize {
-		self.read_quorum
+		self.layout_manager
+			.layout()
+			.read_version()
+			.read_quorum(self.consistency_mode)
 	}
 
 	fn write_sets(&self, hash: &Hash) -> Self::WriteSets {
-		self.system
-			.layout_manager
-			.write_lock_with(|l| write_sets(l, hash))
+		self.layout_manager.write_lock_with(|l| write_sets(l, hash))
 	}
+
 	fn write_quorum(&self) -> usize {
-		self.write_quorum
+		self.layout_manager
+			.layout()
+			.current()
+			.write_quorum(self.consistency_mode)
 	}
 
 	fn partition_of(&self, hash: &Hash) -> Partition {
-		self.system.cluster_layout().current().partition_of(hash)
+		self.layout_manager.layout().current().partition_of(hash)
 	}
 
 	fn sync_partitions(&self) -> SyncPartitions {
-		let layout = self.system.cluster_layout();
+		let layout = self.layout_manager.layout();
 		let layout_version = layout.ack_map_min();
 
 		let mut partitions = layout
