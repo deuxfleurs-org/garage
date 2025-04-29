@@ -1,6 +1,6 @@
 use core::borrow::Borrow;
 use std::convert::TryInto;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_bytes::ByteBuf;
@@ -21,6 +21,11 @@ use crate::replication::*;
 use crate::schema::*;
 use crate::util::*;
 
+pub(crate) const MERKLE_SLEEP_INITIAL: Duration = Duration::from_micros(100);
+pub(crate) const MERKLE_SLEEP_MAX: Duration = Duration::from_secs(30);
+pub(crate) const MERKLE_SLEEP_ADD_DECREASE: Duration = Duration::from_micros(100);
+pub(crate) const MERKLE_SLEEP_MULT_INCREASE: f32 = 1.2;
+
 pub struct TableData<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 
@@ -32,7 +37,8 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: db::Tree,
 	pub(crate) merkle_todo: db::Tree,
 	pub(crate) merkle_todo_notify: Notify,
-	pub(crate) merkle_todo_sleep: Duration,
+	// @FIXME: replace with a tokio::sync::watch ---V
+	pub(crate) merkle_todo_sleep: Arc<Mutex<Duration>>,
 
 	pub(crate) insert_queue: db::Tree,
 	pub(crate) insert_queue_notify: Arc<Notify>,
@@ -54,7 +60,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let merkle_todo = db
 			.open_tree(format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
-		let merkle_todo_sleep = Duration::from_secs(1);
+		let merkle_todo_sleep = Arc::new(Mutex::new(MERKLE_SLEEP_INITIAL));
 
 		let insert_queue = db
 			.open_tree(format!("{}:insert_queue", F::TABLE_NAME))
@@ -281,8 +287,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 
 		// Synchronize with the Merkle Worker
 		self.merkle_todo_notify.notify_one(); // Wake-up it
+		let backpressure = self.merkle_todo_sleep.clone().lock().unwrap().clone();
 
-		Ok(Some((new_entry, self.merkle_todo_sleep)))
+		Ok(Some((new_entry, backpressure)))
 	}
 
 	pub(crate) fn delete_if_equal(
@@ -312,7 +319,8 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 
 		self.metrics.internal_delete_counter.add(1);
 		self.merkle_todo_notify.notify_one();
-		Ok((removed, self.merkle_todo_sleep))
+		let backpressure = self.merkle_todo_sleep.clone().lock().unwrap().clone();
+		Ok((removed, backpressure))
 	}
 
 	pub(crate) fn delete_if_equal_hash(
@@ -343,7 +351,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		self.metrics.internal_delete_counter.add(1);
 		self.merkle_todo_notify.notify_one();
 
-		Ok((true, self.merkle_todo_sleep))
+		let bp = self.merkle_todo_sleep.clone().lock().unwrap().clone();
+
+		Ok((true, bp))
 	}
 
 	// ---- Insert queue functions ----

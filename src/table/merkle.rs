@@ -82,11 +82,36 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 
 	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
-			self.update_item(&key, &valhash)?;
+			self.adapt_backpressure(|| self.update_item(&key, &valhash))?;
 			Ok(WorkerState::Busy)
 		} else {
 			Ok(WorkerState::Idle)
 		}
+	}
+
+	fn adapt_backpressure<FX>(&self, func: FX) -> Result<(), Error>
+	where
+		FX: FnOnce() -> Result<(), Error>,
+	{
+		// Capture evolution of the merkle todo length
+		let qlen_before = self.data.merkle_todo.len()?;
+		let ret = func()?;
+		let qlen_after = self.data.merkle_todo.len()?;
+
+		// Algorithm inspired by Additive Increase Multiplicative Decrease (AIMD)
+		{
+			let a = self.data.merkle_todo_sleep.clone();
+			let mut v = a.lock().unwrap();
+			if qlen_after > qlen_before {
+				*v = v.mul_f32(MERKLE_SLEEP_MULT_INCREASE);
+			} else {
+				*v = v.saturating_sub(MERKLE_SLEEP_ADD_DECREASE);
+			}
+			*v = v.min(MERKLE_SLEEP_MAX);
+			*v = v.max(MERKLE_SLEEP_INITIAL);
+		}
+
+		Ok(ret)
 	}
 
 	fn update_item(&self, k: &[u8], vhash_by: &[u8]) -> Result<(), Error> {
