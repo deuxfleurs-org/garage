@@ -5,6 +5,7 @@ use std::sync::Arc;
 use futures::stream::*;
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
+use tokio::time::sleep;
 
 use opentelemetry::{
 	trace::{FutureExt, TraceContextExt, Tracer},
@@ -527,7 +528,8 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table
 				Ok(TableRpc::Update(values))
 			}
 			TableRpc::Update(pairs) => {
-				self.data.update_many(pairs)?;
+				let backpressure = self.data.update_many(pairs)?;
+				sleep(backpressure).await;
 				Ok(TableRpc::Ok)
 			}
 			m => Err(Error::unexpected_rpc_message(m)),

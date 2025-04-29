@@ -1,6 +1,7 @@
 use core::borrow::Borrow;
 use std::convert::TryInto;
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_bytes::ByteBuf;
 use tokio::sync::Notify;
@@ -31,6 +32,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: db::Tree,
 	pub(crate) merkle_todo: db::Tree,
 	pub(crate) merkle_todo_notify: Notify,
+	pub(crate) merkle_todo_sleep: Duration,
 
 	pub(crate) insert_queue: db::Tree,
 	pub(crate) insert_queue_notify: Arc<Notify>,
@@ -52,6 +54,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let merkle_todo = db
 			.open_tree(format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
+		let merkle_todo_sleep = Duration::from_secs(1);
 
 		let insert_queue = db
 			.open_tree(format!("{}:insert_queue", F::TABLE_NAME))
@@ -77,6 +80,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			merkle_tree,
 			merkle_todo,
 			merkle_todo_notify: Notify::new(),
+			merkle_todo_sleep,
 			insert_queue,
 			insert_queue_notify: Arc::new(Notify::new()),
 			gc_todo,
@@ -167,19 +171,22 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	// - When an entry is modified or deleted, add it to the merkle updater's todo list.
 	//   This has to be done atomically with the modification for the merkle updater
 	//   to maintain consistency. The merkle updater must then be notified with todo_notify.
+	//   Also to avoid overloading the merkle updater, you need to sleep a given amount of
+	//   time to enable backpressure (ie. slow down clients).
 	// - When an entry is updated to be a tombstone, add it to the gc_todo tree
 
-	pub(crate) fn update_many<T: Borrow<ByteBuf>>(&self, entries: &[T]) -> Result<(), Error> {
+	pub(crate) fn update_many<T: Borrow<ByteBuf>>(&self, entries: &[T]) -> Result<Duration, Error> {
+		let mut backpressure = Duration::ZERO;
 		for update_bytes in entries.iter() {
-			self.update_entry(update_bytes.borrow().as_slice())?;
+			backpressure += self.update_entry(update_bytes.borrow().as_slice())?;
 		}
-		Ok(())
+		Ok(backpressure)
 	}
 
-	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<(), Error> {
+	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<Duration, Error> {
 		let update = self.decode_entry(update_bytes)?;
 
-		self.update_entry_with(
+		let ret = self.update_entry_with(
 			update.partition_key(),
 			update.sort_key(),
 			|_tx, ent| match ent {
@@ -190,7 +197,12 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				None => Ok(update.clone()),
 			},
 		)?;
-		Ok(())
+		let backpressure = match ret {
+			Some((_, d)) => d,
+			_ => Duration::ZERO,
+		};
+
+		Ok(backpressure)
 	}
 
 	pub fn update_entry_with(
@@ -198,9 +210,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		partition_key: &F::P,
 		sort_key: &F::S,
 		update_fn: impl Fn(&mut db::Transaction, Option<F::E>) -> db::TxOpResult<F::E>,
-	) -> Result<Option<F::E>, Error> {
+	) -> Result<Option<(F::E, Duration)>, Error> {
 		let tree_key = self.tree_key(partition_key, sort_key);
 
+		// transaction begins
 		let changed = self.store.db().transaction(|tx| {
 			let (old_entry, old_bytes, new_entry) = match tx.get(&self.store, &tree_key)? {
 				Some(old_bytes) => {
@@ -238,34 +251,45 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				Ok(None)
 			}
 		})?;
+		// transaction ends
 
-		if let Some((new_entry, new_bytes_hash)) = changed {
-			self.metrics.internal_update_counter.add(1);
+		// early return if nothing changed
+		let (new_entry, new_bytes_hash) = match changed {
+			Some((e, b)) => (e, b),
+			None => return Ok(None),
+		};
 
-			let is_tombstone = new_entry.is_tombstone();
-			self.merkle_todo_notify.notify_one();
-			if is_tombstone {
-				// We are only responsible for GC'ing this item if we are the
-				// "leader" of the partition, i.e. the first node in the
-				// set of nodes that replicates this partition.
-				// This avoids GC loops and does not change the termination properties
-				// of the GC algorithm, as in all cases GC is suspended if
-				// any node of the partition is unavailable.
-				let pk_hash = Hash::try_from(&tree_key[..32]).unwrap();
-				// TODO: this probably breaks when the layout changes
-				let nodes = self.replication.storage_nodes(&pk_hash);
-				if nodes.first() == Some(&self.system.id) {
-					GcTodoEntry::new(tree_key, new_bytes_hash).save(&self.gc_todo)?;
-				}
+		// Handle GC in case of tombstone
+		let is_tombstone = new_entry.is_tombstone();
+		if is_tombstone {
+			// We are only responsible for GC'ing this item if we are the
+			// "leader" of the partition, i.e. the first node in the
+			// set of nodes that replicates this partition.
+			// This avoids GC loops and does not change the termination properties
+			// of the GC algorithm, as in all cases GC is suspended if
+			// any node of the partition is unavailable.
+			let pk_hash = Hash::try_from(&tree_key[..32]).unwrap();
+			// TODO: this probably breaks when the layout changes
+			let nodes = self.replication.storage_nodes(&pk_hash);
+			if nodes.first() == Some(&self.system.id) {
+				GcTodoEntry::new(tree_key, new_bytes_hash).save(&self.gc_todo)?;
 			}
-
-			Ok(Some(new_entry))
-		} else {
-			Ok(None)
 		}
+
+		// Collect metrics
+		self.metrics.internal_update_counter.add(1);
+
+		// Synchronize with the Merkle Worker
+		self.merkle_todo_notify.notify_one(); // Wake-up it
+
+		Ok(Some((new_entry, self.merkle_todo_sleep)))
 	}
 
-	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
+	pub(crate) fn delete_if_equal(
+		self: &Arc<Self>,
+		k: &[u8],
+		v: &[u8],
+	) -> Result<(bool, Duration), Error> {
 		let removed = self
 			.store
 			.db()
@@ -282,18 +306,20 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				_ => Ok(false),
 			})?;
 
-		if removed {
-			self.metrics.internal_delete_counter.add(1);
-			self.merkle_todo_notify.notify_one();
+		if !removed {
+			return Ok((false, Duration::ZERO));
 		}
-		Ok(removed)
+
+		self.metrics.internal_delete_counter.add(1);
+		self.merkle_todo_notify.notify_one();
+		Ok((removed, self.merkle_todo_sleep))
 	}
 
 	pub(crate) fn delete_if_equal_hash(
 		self: &Arc<Self>,
 		k: &[u8],
 		vhash: Hash,
-	) -> Result<bool, Error> {
+	) -> Result<(bool, Duration), Error> {
 		let removed = self
 			.store
 			.db()
@@ -310,11 +336,14 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				_ => Ok(false),
 			})?;
 
-		if removed {
-			self.metrics.internal_delete_counter.add(1);
-			self.merkle_todo_notify.notify_one();
+		if !removed {
+			return Ok((false, Duration::ZERO));
 		}
-		Ok(removed)
+
+		self.metrics.internal_delete_counter.add(1);
+		self.merkle_todo_notify.notify_one();
+
+		Ok((true, self.merkle_todo_sleep))
 	}
 
 	// ---- Insert queue functions ----

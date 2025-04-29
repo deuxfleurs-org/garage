@@ -10,6 +10,7 @@ use serde_bytes::ByteBuf;
 
 use futures::future::join_all;
 use tokio::sync::watch;
+use tokio::time::sleep;
 
 use garage_db as db;
 
@@ -261,12 +262,15 @@ impl<F: TableSchema, R: TableReplication> TableGc<F, R> {
 
 		// GC has been successful for all of these entries.
 		// We now remove them all from our local table and from the GC todo list.
+		let mut backpressure = Duration::ZERO;
 		for item in items {
-			self.data
+			let (_is_removed, add_bp) = self
+				.data
 				.delete_if_equal_hash(&item.key[..], item.value_hash)
 				.err_context("GC: local delete tombstones")?;
 			item.remove_if_equal(&self.data.gc_todo)
 				.err_context("GC: remove from todo list after successful GC")?;
+			backpressure += add_bp;
 		}
 
 		Ok(())
@@ -277,12 +281,15 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<GcRpc> for TableGc<F, 
 	async fn handle(self: &Arc<Self>, message: &GcRpc, _from: NodeID) -> Result<GcRpc, Error> {
 		match message {
 			GcRpc::Update(items) => {
-				self.data.update_many(items)?;
+				let backpressure = self.data.update_many(items)?;
+				sleep(backpressure).await;
 				Ok(GcRpc::Ok)
 			}
 			GcRpc::DeleteIfEqualHash(items) => {
+				let mut backpressure = Duration::ZERO;
 				for (key, vhash) in items.iter() {
-					self.data.delete_if_equal_hash(&key[..], *vhash)?;
+					let (_is_removed, add_bp) = self.data.delete_if_equal_hash(&key[..], *vhash)?;
+					backpressure += add_bp;
 				}
 				Ok(GcRpc::Ok)
 			}

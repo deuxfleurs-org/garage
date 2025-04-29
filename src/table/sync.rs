@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use tokio::select;
 use tokio::sync::{mpsc, watch, Notify};
+use tokio::time::sleep;
 
 use garage_util::background::*;
 use garage_util::data::*;
@@ -245,9 +246,11 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 		// All remote nodes have written those items, now we can delete them locally
 		let mut not_removed = 0;
 		for (k, v) in items.iter() {
-			if !self.data.delete_if_equal(&k[..], &v[..])? {
+			let (removed, backpressure) = self.data.delete_if_equal(&k[..], &v[..])?;
+			if !removed {
 				not_removed += 1;
 			}
+			sleep(backpressure).await;
 		}
 
 		if not_removed > 0 {
@@ -468,7 +471,8 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSync
 					],
 				);
 
-				self.data.update_many(items)?;
+				let backpressure = self.data.update_many(items)?;
+				sleep(backpressure).await;
 				Ok(SyncRpc::Ok)
 			}
 			m => Err(Error::unexpected_rpc_message(m)),
