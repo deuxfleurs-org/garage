@@ -22,7 +22,7 @@ use crate::schema::*;
 use crate::util::*;
 
 pub(crate) const MERKLE_SLEEP_INITIAL: Duration = Duration::from_micros(1);
-pub(crate) const MERKLE_SLEEP_MAX: Duration = Duration::from_secs(2);
+pub(crate) const MERKLE_SLEEP_MAX: Duration = Duration::from_secs(30);
 pub(crate) const MERKLE_SLEEP_ADD_DECREASE: Duration = Duration::from_micros(1);
 pub(crate) const MERKLE_SLEEP_MULT_INCREASE: f32 = 1.1;
 
