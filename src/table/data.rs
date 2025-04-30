@@ -8,6 +8,7 @@ use tokio::sync::Notify;
 
 use garage_db as db;
 
+use garage_util::config::MerkleBackpressureEnum;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::migrate::Migrate;
@@ -21,11 +22,6 @@ use crate::replication::*;
 use crate::schema::*;
 use crate::util::*;
 
-pub(crate) const MERKLE_SLEEP_INITIAL: Duration = Duration::from_micros(1);
-pub(crate) const MERKLE_SLEEP_MAX: Duration = Duration::from_secs(30);
-pub(crate) const MERKLE_SLEEP_ADD_DECREASE: Duration = Duration::from_micros(1);
-pub(crate) const MERKLE_SLEEP_MULT_INCREASE: f32 = 1.1;
-
 pub struct TableData<F: TableSchema, R: TableReplication> {
 	system: Arc<System>,
 
@@ -37,7 +33,6 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: db::Tree,
 	pub(crate) merkle_todo: db::Tree,
 	pub(crate) merkle_todo_notify: Notify,
-	// @FIXME: replace with a tokio::sync::watch ---V
 	pub(crate) merkle_todo_sleep: Arc<Mutex<Duration>>,
 
 	pub(crate) insert_queue: db::Tree,
@@ -46,10 +41,18 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) gc_todo: db::Tree,
 
 	pub(crate) metrics: TableMetrics,
+
+	pub(crate) config: MerkleBackpressureEnum,
 }
 
 impl<F: TableSchema, R: TableReplication> TableData<F, R> {
-	pub fn new(system: Arc<System>, instance: F, replication: R, db: &db::Db) -> Arc<Self> {
+	pub fn new(
+		system: Arc<System>,
+		instance: F,
+		replication: R,
+		db: &db::Db,
+		config: &MerkleBackpressureEnum,
+	) -> Arc<Self> {
 		let store = db
 			.open_tree(format!("{}:table", F::TABLE_NAME))
 			.expect("Unable to open DB tree");
@@ -60,7 +63,12 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		let merkle_todo = db
 			.open_tree(format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
-		let merkle_todo_sleep = Arc::new(Mutex::new(MERKLE_SLEEP_INITIAL));
+
+		let initial = match config {
+			MerkleBackpressureEnum::None => Duration::ZERO,
+			MerkleBackpressureEnum::Aimd(aimd) => Duration::from_micros(aimd.initial_us),
+		};
+		let merkle_todo_sleep = Arc::new(Mutex::new(initial));
 
 		let insert_queue = db
 			.open_tree(format!("{}:insert_queue", F::TABLE_NAME))
@@ -92,6 +100,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			insert_queue_notify: Arc::new(Notify::new()),
 			gc_todo,
 			metrics,
+			config: config.clone(),
 		})
 	}
 

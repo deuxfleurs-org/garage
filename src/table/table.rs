@@ -15,6 +15,7 @@ use opentelemetry::{
 use garage_db as db;
 
 use garage_util::background::BackgroundRunner;
+use garage_util::config::MerkleBackpressureEnum;
 use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
@@ -69,12 +70,18 @@ impl<F: TableSchema> Rpc for TableRpc<F> {
 impl<F: TableSchema, R: TableReplication> Table<F, R> {
 	// =============== PUBLIC INTERFACE FUNCTIONS (new, insert, get, etc) ===============
 
-	pub fn new(instance: F, replication: R, system: Arc<System>, db: &db::Db) -> Arc<Self> {
+	pub fn new(
+		instance: F,
+		replication: R,
+		system: Arc<System>,
+		db: &db::Db,
+		config: &MerkleBackpressureEnum,
+	) -> Arc<Self> {
 		let endpoint = system
 			.netapp
 			.endpoint(format!("garage_table/table.rs/Rpc:{}", F::TABLE_NAME));
 
-		let data = TableData::new(system.clone(), instance, replication, db);
+		let data = TableData::new(system.clone(), instance, replication, db, config);
 
 		let merkle_updater = MerkleUpdater::new(data.clone());
 

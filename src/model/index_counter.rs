@@ -10,6 +10,7 @@ use garage_db as db;
 use garage_rpc::layout::LayoutHelper;
 use garage_rpc::system::System;
 use garage_util::background::BackgroundRunner;
+use garage_util::config::Config;
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::migrate::Migrate;
@@ -173,6 +174,7 @@ impl<T: CountedItem> IndexCounter<T> {
 		system: Arc<System>,
 		replication: TableShardedReplication,
 		db: &db::Db,
+		config: &Config,
 	) -> Arc<Self> {
 		Arc::new(Self {
 			this_node: system.id,
@@ -186,6 +188,7 @@ impl<T: CountedItem> IndexCounter<T> {
 				replication,
 				system,
 				db,
+				&config.experimental.merkle_backpressure,
 			),
 		})
 	}

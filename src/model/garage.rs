@@ -175,7 +175,13 @@ impl Garage {
 
 		// ---- admin tables ----
 		info!("Initialize bucket_table...");
-		let bucket_table = Table::new(BucketTable, control_rep_param.clone(), system.clone(), &db);
+		let bucket_table = Table::new(
+			BucketTable,
+			control_rep_param.clone(),
+			system.clone(),
+			&db,
+			&config.experimental.merkle_backpressure,
+		);
 
 		info!("Initialize bucket_alias_table...");
 		let bucket_alias_table = Table::new(
@@ -183,9 +189,16 @@ impl Garage {
 			control_rep_param.clone(),
 			system.clone(),
 			&db,
+			&config.experimental.merkle_backpressure,
 		);
 		info!("Initialize key_table_table...");
-		let key_table = Table::new(KeyTable, control_rep_param, system.clone(), &db);
+		let key_table = Table::new(
+			KeyTable,
+			control_rep_param,
+			system.clone(),
+			&db,
+			&config.experimental.merkle_backpressure,
+		);
 
 		// ---- S3 tables ----
 		info!("Initialize block_ref_table...");
@@ -196,6 +209,7 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
+			&config.experimental.merkle_backpressure,
 		);
 
 		info!("Initialize version_table...");
@@ -206,10 +220,12 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
+			&config.experimental.merkle_backpressure,
 		);
 
 		info!("Initialize multipart upload counter table...");
-		let mpu_counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), &db);
+		let mpu_counter_table =
+			IndexCounter::new(system.clone(), meta_rep_param.clone(), &db, &config);
 
 		info!("Initialize multipart upload table...");
 		let mpu_table = Table::new(
@@ -220,10 +236,12 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
+			&config.experimental.merkle_backpressure,
 		);
 
 		info!("Initialize object counter table...");
-		let object_counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), &db);
+		let object_counter_table =
+			IndexCounter::new(system.clone(), meta_rep_param.clone(), &db, &config);
 
 		info!("Initialize object_table...");
 		#[allow(clippy::redundant_clone)]
@@ -236,6 +254,7 @@ impl Garage {
 			meta_rep_param.clone(),
 			system.clone(),
 			&db,
+			&config.experimental.merkle_backpressure,
 		);
 
 		info!("Load lifecycle worker state...");
@@ -245,7 +264,7 @@ impl Garage {
 
 		// ---- K2V ----
 		#[cfg(feature = "k2v")]
-		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param);
+		let k2v = GarageK2V::new(system.clone(), &db, meta_rep_param, &config);
 
 		// ---- setup block refcount recalculation ----
 		// this function can be used to fix inconsistencies in the RC table
@@ -335,9 +354,14 @@ impl Garage {
 
 #[cfg(feature = "k2v")]
 impl GarageK2V {
-	fn new(system: Arc<System>, db: &db::Db, meta_rep_param: TableShardedReplication) -> Self {
+	fn new(
+		system: Arc<System>,
+		db: &db::Db,
+		meta_rep_param: TableShardedReplication,
+		config: &Config,
+	) -> Self {
 		info!("Initialize K2V counter table...");
-		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db);
+		let counter_table = IndexCounter::new(system.clone(), meta_rep_param.clone(), db, config);
 
 		info!("Initialize K2V subscription manager...");
 		let subscriptions = Arc::new(SubscriptionManager::new());
@@ -351,6 +375,7 @@ impl GarageK2V {
 			meta_rep_param,
 			system.clone(),
 			db,
+			&config.experimental.merkle_backpressure,
 		);
 
 		info!("Initialize K2V RPC handler...");

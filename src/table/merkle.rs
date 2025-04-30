@@ -12,6 +12,7 @@ use tokio::sync::watch;
 use garage_db as db;
 
 use garage_util::background::*;
+use garage_util::config::{MerkleBackpressureAimd, MerkleBackpressureEnum};
 use garage_util::data::*;
 use garage_util::encode::{nonversioned_decode, nonversioned_encode};
 use garage_util::error::Error;
@@ -74,6 +75,11 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	pub(crate) fn new(data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&nonversioned_encode(&MerkleNode::Empty).unwrap()[..]);
 
+		match &data.config {
+                    MerkleBackpressureEnum::None => info!("Merkle Backpressure is not activated"),
+                    MerkleBackpressureEnum::Aimd(v) => info!("Merkle backpressure is activated (initial={}us, max={}us, underload={}us, overload={}x)", v.initial_us, v.max_us, v.underload_us, v.overload_mult),
+                }
+
 		Arc::new(Self {
 			data,
 			empty_node_hash,
@@ -88,14 +94,17 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
 			self.update_item(&key, &valhash)?;
-			self.adapt_backpressure()?;
+			match &self.data.config {
+				MerkleBackpressureEnum::None => (),
+				MerkleBackpressureEnum::Aimd(a) => self.adapt_aimd_backpressure(a)?,
+			};
 			Ok(WorkerState::Busy)
 		} else {
 			Ok(WorkerState::Idle)
 		}
 	}
 
-	fn adapt_backpressure(&self) -> Result<(), Error> {
+	fn adapt_aimd_backpressure(&self, config: &MerkleBackpressureAimd) -> Result<(), Error> {
 		// Capture evolution of the merkle todo length
 		let current_merkle_len = self.data.merkle_todo.len()?;
 
@@ -103,19 +112,15 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		{
 			let a = self.data.merkle_todo_sleep.clone();
 			let mut v = a.lock().unwrap();
-			if current_merkle_len == 0 {
-				// @FIXME not sure if it's correct
-				// If we have nothing in queue, we reset the backpressure
-				*v = MERKLE_SLEEP_INITIAL;
-			} else if current_merkle_len < self.previous_merkle_len.load(Ordering::Relaxed) {
+			if current_merkle_len < self.previous_merkle_len.load(Ordering::Relaxed) {
 				// If we decrease the queue size, we can decrease the sleep time
-				*v = v.saturating_sub(MERKLE_SLEEP_ADD_DECREASE);
+				*v = v.saturating_sub(Duration::from_micros(config.underload_us));
 			} else {
 				// If we are late, we increase the queue size
-				*v = v.mul_f32(MERKLE_SLEEP_MULT_INCREASE);
+				*v = v.mul_f64(config.overload_mult);
 			}
-			*v = v.min(MERKLE_SLEEP_MAX);
-			*v = v.max(MERKLE_SLEEP_INITIAL);
+			*v = v.min(Duration::from_micros(config.initial_us));
+			*v = v.max(Duration::from_micros(config.max_us));
 		}
 
 		self.previous_merkle_len

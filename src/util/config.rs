@@ -135,6 +135,10 @@ pub struct Config {
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
+
+	/// --- Experimental
+	#[serde(default = "Default::default")]
+	pub experimental: ExperimentalConfig,
 }
 
 /// Value for data_dir: either a single directory or a list of dirs with attributes
@@ -255,6 +259,31 @@ pub struct KubernetesDiscoveryConfig {
 	pub skip_crd: bool,
 }
 
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct ExperimentalConfig {
+	pub merkle_backpressure: MerkleBackpressureEnum,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "lowercase", tag = "kind")]
+pub enum MerkleBackpressureEnum {
+	#[default]
+	None,
+	Aimd(MerkleBackpressureAimd),
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct MerkleBackpressureAimd {
+	#[serde(default = "default_initial_us")]
+	pub initial_us: u64,
+	#[serde(default = "default_max_us")]
+	pub max_us: u64,
+	#[serde(default = "default_underload_us")]
+	pub underload_us: u64,
+	#[serde(default = "default_overload_mult")]
+	pub overload_mult: f64,
+}
+
 /// Read and parse configuration
 pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 	let config = std::fs::read_to_string(config_file)?;
@@ -279,6 +308,22 @@ fn default_consistency_mode() -> String {
 
 fn default_compression() -> Option<i32> {
 	Some(1)
+}
+
+fn default_initial_us() -> u64 {
+	10
+}
+
+fn default_max_us() -> u64 {
+	30 * 1000 * 1000
+}
+
+fn default_underload_us() -> u64 {
+	10
+}
+
+fn default_overload_mult() -> f64 {
+	1.01
 }
 
 fn deserialize_compression<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
