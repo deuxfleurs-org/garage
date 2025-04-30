@@ -25,6 +25,7 @@ use crate::schema::*;
 
 pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 	data: Arc<TableData<F, R>>,
+	previous_merkle_len: usize,
 
 	// Content of the todo tree: items where
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
@@ -73,6 +74,7 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		Arc::new(Self {
 			data,
 			empty_node_hash,
+			previous_merkle_len: 0,
 		})
 	}
 
@@ -80,38 +82,41 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		background.spawn_worker(MerkleWorker(self.clone()));
 	}
 
-	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
+	fn updater_loop_iter(&mut self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
-			self.adapt_backpressure(|| self.update_item(&key, &valhash))?;
+			self.update_item(&key, &valhash)?;
+			self.adapt_backpressure();
 			Ok(WorkerState::Busy)
 		} else {
 			Ok(WorkerState::Idle)
 		}
 	}
 
-	fn adapt_backpressure<FX>(&self, func: FX) -> Result<(), Error>
-	where
-		FX: FnOnce() -> Result<(), Error>,
-	{
+	fn adapt_backpressure(&mut self) -> Result<(), Error> {
 		// Capture evolution of the merkle todo length
-		let qlen_before = self.data.merkle_todo.len()?;
-		let ret = func()?;
-		let qlen_after = self.data.merkle_todo.len()?;
+		let current_merkle_len = self.data.merkle_todo.len()?;
 
 		// Algorithm inspired by Additive Increase Multiplicative Decrease (AIMD)
 		{
 			let a = self.data.merkle_todo_sleep.clone();
 			let mut v = a.lock().unwrap();
-			if qlen_after > qlen_before {
-				*v = v.mul_f32(MERKLE_SLEEP_MULT_INCREASE);
-			} else {
+			if current_merkle_len == 0 {
+				// @FIXME not sure if it's correct
+				// If we have nothing in queue, we reset the backpressure
+				*v = MERKLE_SLEEP_INITIAL;
+			} else if current_merkle_len < self.previous_merkle_len {
+				// If we decrease the queue size, we can decrease the sleep time
 				*v = v.saturating_sub(MERKLE_SLEEP_ADD_DECREASE);
+			} else {
+				// If we are late, we increase the queue size
+				*v = v.mul_f32(MERKLE_SLEEP_MULT_INCREASE);
 			}
 			*v = v.min(MERKLE_SLEEP_MAX);
 			*v = v.max(MERKLE_SLEEP_INITIAL);
 		}
 
-		Ok(ret)
+		self.previous_merkle_len = current_merkle_len;
+		Ok(())
 	}
 
 	fn update_item(&self, k: &[u8], vhash_by: &[u8]) -> Result<(), Error> {
