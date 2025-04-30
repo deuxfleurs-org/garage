@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::sync::{
+	atomic::{AtomicUsize, Ordering},
+	Arc,
+};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -25,7 +28,7 @@ use crate::schema::*;
 
 pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 	data: Arc<TableData<F, R>>,
-	previous_merkle_len: usize,
+	previous_merkle_len: AtomicUsize,
 
 	// Content of the todo tree: items where
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
@@ -74,7 +77,7 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		Arc::new(Self {
 			data,
 			empty_node_hash,
-			previous_merkle_len: 0,
+			previous_merkle_len: AtomicUsize::new(0),
 		})
 	}
 
@@ -82,17 +85,17 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		background.spawn_worker(MerkleWorker(self.clone()));
 	}
 
-	fn updater_loop_iter(&mut self) -> Result<WorkerState, Error> {
+	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
 			self.update_item(&key, &valhash)?;
-			self.adapt_backpressure();
+			self.adapt_backpressure()?;
 			Ok(WorkerState::Busy)
 		} else {
 			Ok(WorkerState::Idle)
 		}
 	}
 
-	fn adapt_backpressure(&mut self) -> Result<(), Error> {
+	fn adapt_backpressure(&self) -> Result<(), Error> {
 		// Capture evolution of the merkle todo length
 		let current_merkle_len = self.data.merkle_todo.len()?;
 
@@ -104,7 +107,7 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 				// @FIXME not sure if it's correct
 				// If we have nothing in queue, we reset the backpressure
 				*v = MERKLE_SLEEP_INITIAL;
-			} else if current_merkle_len < self.previous_merkle_len {
+			} else if current_merkle_len < self.previous_merkle_len.load(Ordering::Relaxed) {
 				// If we decrease the queue size, we can decrease the sleep time
 				*v = v.saturating_sub(MERKLE_SLEEP_ADD_DECREASE);
 			} else {
@@ -115,7 +118,8 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 			*v = v.max(MERKLE_SLEEP_INITIAL);
 		}
 
-		self.previous_merkle_len = current_merkle_len;
+		self.previous_merkle_len
+			.store(current_merkle_len, Ordering::Relaxed);
 		Ok(())
 	}
 
