@@ -1,4 +1,5 @@
 use opentelemetry::{global, metrics::*, KeyValue};
+use std::sync::{Arc, Mutex};
 
 use garage_db as db;
 
@@ -7,6 +8,7 @@ pub struct TableMetrics {
 	pub(crate) _table_size: ValueObserver<u64>,
 	pub(crate) _merkle_tree_size: ValueObserver<u64>,
 	pub(crate) _merkle_todo_len: ValueObserver<u64>,
+	pub(crate) _merkle_todo_sleep_ms: ValueObserver<f64>,
 	pub(crate) _gc_todo_len: ValueObserver<u64>,
 
 	pub(crate) get_request_counter: BoundCounter<u64>,
@@ -26,6 +28,7 @@ impl TableMetrics {
 		store: db::Tree,
 		merkle_tree: db::Tree,
 		merkle_todo: db::Tree,
+		merkle_todo_sleep: Arc<Mutex<std::time::Duration>>,
 		gc_todo: db::Tree,
 	) -> Self {
 		let meter = global::meter(table_name);
@@ -72,6 +75,18 @@ impl TableMetrics {
 				)
 				.with_description("Merkle tree updater TODO queue length")
 				.init(),
+                        _merkle_todo_sleep_ms: meter
+                            .f64_value_observer(
+                                "table.merkle_updater_todo_queue_backpressure_ms",
+                                move |observer| {
+                                    let bp_ref = merkle_todo_sleep.clone();
+                                    let bp_val = bp_ref.lock().unwrap();
+                                    let bp_millis: f64 = bp_val.as_micros() as f64 / 1000.0f64;
+                                    observer.observe(bp_millis, &[KeyValue::new("table_name", table_name)])
+                                }
+                            )
+			    .with_description("Merkle tree updater TODO sleep backpressure to apply in ms")
+			    .init(),
 			_gc_todo_len: meter
 				.u64_value_observer(
 					"table.gc_todo_queue_length",
