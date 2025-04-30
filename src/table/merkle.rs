@@ -106,21 +106,40 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 
 	fn adapt_aimd_backpressure(&self, config: &MerkleBackpressureAimd) -> Result<(), Error> {
 		// Capture evolution of the merkle todo length
+		let prev_merkle_len = self.previous_merkle_len.load(Ordering::Relaxed);
 		let current_merkle_len = self.data.merkle_todo.len()?;
+		debug!(
+			"prev merkle len: {}, new merkle len: {}",
+			prev_merkle_len, current_merkle_len
+		);
 
 		// Algorithm inspired by Additive Increase Multiplicative Decrease (AIMD)
 		{
 			let a = self.data.merkle_todo_sleep.clone();
 			let mut v = a.lock().unwrap();
-			if current_merkle_len < self.previous_merkle_len.load(Ordering::Relaxed) {
+			let mut b;
+			if current_merkle_len <= prev_merkle_len {
 				// If we decrease the queue size, we can decrease the sleep time
-				*v = v.saturating_sub(Duration::from_micros(config.underload_us));
+				b = v.saturating_sub(Duration::from_micros(config.underload_us));
 			} else {
 				// If we are late, we increase the queue size
-				*v = v.mul_f64(config.overload_mult);
+				b = v
+					.mul_f64(config.overload_mult)
+					.saturating_add(Duration::from_micros(1));
 			}
-			*v = v.min(Duration::from_micros(config.initial_us));
-			*v = v.max(Duration::from_micros(config.max_us));
+			debug!(
+				"raw sleep. before {} -> after {}",
+				v.as_micros(),
+				b.as_micros()
+			);
+			b = b.min(Duration::from_micros(config.max_us));
+			b = b.max(Duration::from_micros(config.initial_us));
+			debug!(
+				"cut sleep. before {} -> after {}",
+				v.as_micros(),
+				b.as_micros()
+			);
+			*v = b;
 		}
 
 		self.previous_merkle_len
