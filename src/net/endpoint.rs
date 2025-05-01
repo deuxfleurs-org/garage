@@ -57,6 +57,13 @@ where
 	}
 }
 
+#[derive(Debug, Copy, Clone, Default)]
+pub enum RpcInFlightLimiter {
+	#[default]
+	NoLimit,
+	TableWrite,
+}
+
 // ----
 
 /// This struct represents an endpoint for message of type `M`.
@@ -114,6 +121,7 @@ where
 		target: &NodeID,
 		req: T,
 		prio: RequestPriority,
+		limiter: RpcInFlightLimiter,
 	) -> Result<Resp<M>, Error>
 	where
 		T: IntoReq<M>,
@@ -136,7 +144,10 @@ where
 					"Not connected: {}",
 					hex::encode(&target[..8])
 				))),
-				Some(c) => c.call(req.into_req()?, self.path.as_str(), prio).await,
+				Some(c) => {
+					c.call(req.into_req()?, self.path.as_str(), prio, limiter)
+						.await
+				}
 			}
 		}
 	}
@@ -149,8 +160,12 @@ where
 		target: &NodeID,
 		req: M,
 		prio: RequestPriority,
+		limiter: RpcInFlightLimiter,
 	) -> Result<<M as Message>::Response, Error> {
-		Ok(self.call_streaming(target, req, prio).await?.into_msg())
+		Ok(self
+			.call_streaming(target, req, prio, limiter)
+			.await?
+			.into_msg())
 	}
 }
 

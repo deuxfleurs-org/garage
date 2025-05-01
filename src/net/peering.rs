@@ -406,7 +406,7 @@ impl PeeringManager {
 			ping_time
 		);
 		let ping_response = select! {
-			r = self.ping_endpoint.call(&id, ping_msg, PRIO_HIGH) => r,
+			r = self.ping_endpoint.call(&id, ping_msg, PRIO_HIGH, RpcInFlightLimiter::NoLimit) => r,
 			_ = tokio::time::sleep(ping_timeout) => Err(Error::Message("Ping timeout".into())),
 		};
 
@@ -458,7 +458,12 @@ impl PeeringManager {
 		let pex_message = PeerListMessage { list: peer_list };
 		match self
 			.peer_list_endpoint
-			.call(id, pex_message, PRIO_BACKGROUND)
+			.call(
+				id,
+				pex_message,
+				PRIO_BACKGROUND,
+				RpcInFlightLimiter::NoLimit,
+			)
 			.await
 		{
 			Err(e) => warn!("Error doing peer exchange: {}", e),

@@ -17,6 +17,7 @@ use opentelemetry::{
 	Context,
 };
 
+use garage_net::endpoint::RpcInFlightLimiter;
 use garage_net::stream::{read_stream_to_end, stream_asyncread, ByteStream};
 
 use garage_db as db;
@@ -295,6 +296,7 @@ impl BlockManager {
 				&node_id,
 				BlockRpc::GetBlock(*hash, order_tag),
 				priority,
+				RpcInFlightLimiter::TableWrite,
 			);
 			tokio::select! {
 				res = rpc => {

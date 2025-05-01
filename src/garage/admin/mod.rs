@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 use format_table::format_table_to_string;
 
+use garage_net::endpoint::RpcInFlightLimiter;
+
 use garage_util::background::BackgroundRunner;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
@@ -118,6 +120,7 @@ impl AdminRpcHandler {
 						&node,
 						AdminRpc::LaunchRepair(opt_to_send.clone()),
 						PRIO_NORMAL,
+						RpcInFlightLimiter::NoLimit,
 					)
 					.await;
 				if !matches!(resp, Ok(Ok(_))) {
@@ -164,7 +167,12 @@ impl AdminRpcHandler {
 				let node_id = (*node).into();
 				match self
 					.endpoint
-					.call(&node_id, AdminRpc::Stats(opt), PRIO_NORMAL)
+					.call(
+						&node_id,
+						AdminRpc::Stats(opt),
+						PRIO_NORMAL,
+						RpcInFlightLimiter::NoLimit,
+					)
 					.await
 				{
 					Ok(Ok(AdminRpc::Ok(s))) => writeln!(&mut ret, "{}", s).unwrap(),
@@ -407,6 +415,7 @@ impl AdminRpcHandler {
 							variable: variable.clone(),
 						}),
 						PRIO_NORMAL,
+						RpcInFlightLimiter::NoLimit,
 					)
 					.await??
 				{
@@ -456,6 +465,7 @@ impl AdminRpcHandler {
 							value: value.to_string(),
 						}),
 						PRIO_NORMAL,
+						RpcInFlightLimiter::NoLimit,
 					)
 					.await??
 				{
@@ -488,6 +498,7 @@ impl AdminRpcHandler {
 							&to,
 							AdminRpc::MetaOperation(MetaOperation::Snapshot { all: false }),
 							PRIO_NORMAL,
+							RpcInFlightLimiter::NoLimit,
 						)
 						.await?
 				}))

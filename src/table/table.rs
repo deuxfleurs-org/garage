@@ -139,7 +139,8 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 				who.as_ref(),
 				rpc,
 				RequestStrategy::with_priority(PRIO_NORMAL)
-					.with_quorum(self.data.replication.write_quorum()),
+					.with_quorum(self.data.replication.write_quorum())
+					.with_write_limiter(),
 			)
 			.await?;
 

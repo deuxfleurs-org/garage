@@ -6,6 +6,7 @@ use std::time::Duration;
 use futures::future::join_all;
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
+use garage_net::endpoint::RpcInFlightLimiter;
 use tokio::select;
 
 use opentelemetry::KeyValue;
@@ -44,6 +45,8 @@ pub struct RequestStrategy<T> {
 	rs_timeout: Timeout,
 	/// Data to drop when everything completes
 	rs_drop_on_complete: T,
+	/// RPC In Flight Limiter
+	rs_inflight_limiter: RpcInFlightLimiter,
 }
 
 #[derive(Copy, Clone)]
@@ -61,6 +64,7 @@ impl Clone for RequestStrategy<()> {
 			rs_priority: self.rs_priority,
 			rs_timeout: self.rs_timeout,
 			rs_drop_on_complete: (),
+			rs_inflight_limiter: self.rs_inflight_limiter,
 		}
 	}
 }
@@ -74,6 +78,7 @@ impl RequestStrategy<()> {
 			rs_priority: prio,
 			rs_timeout: Timeout::Default,
 			rs_drop_on_complete: (),
+			rs_inflight_limiter: RpcInFlightLimiter::NoLimit,
 		}
 	}
 	/// Add an item to be dropped on completion
@@ -84,6 +89,7 @@ impl RequestStrategy<()> {
 			rs_priority: self.rs_priority,
 			rs_timeout: self.rs_timeout,
 			rs_drop_on_complete: drop_on_complete,
+			rs_inflight_limiter: RpcInFlightLimiter::NoLimit,
 		}
 	}
 }
@@ -109,6 +115,10 @@ impl<T> RequestStrategy<T> {
 		self.rs_timeout = Timeout::Custom(timeout);
 		self
 	}
+	pub fn with_write_limiter(mut self) -> Self {
+		self.rs_inflight_limiter = RpcInFlightLimiter::TableWrite;
+		self
+	}
 	/// Extract drop_on_complete item
 	fn extract_drop_on_complete(self) -> (RequestStrategy<()>, T) {
 		(
@@ -118,6 +128,7 @@ impl<T> RequestStrategy<T> {
 				rs_priority: self.rs_priority,
 				rs_timeout: self.rs_timeout,
 				rs_drop_on_complete: (),
+				rs_inflight_limiter: self.rs_inflight_limiter,
 			},
 			self.rs_drop_on_complete,
 		)
@@ -185,7 +196,7 @@ impl RpcHelper {
 
 		let node_id = to.into();
 		let rpc_call = endpoint
-			.call_streaming(&node_id, msg, strat.rs_priority)
+			.call_streaming(&node_id, msg, strat.rs_priority, strat.rs_inflight_limiter)
 			.with_context(Context::current_with_span(span))
 			.record_duration(&self.0.metrics.rpc_duration, &metric_tags);
 

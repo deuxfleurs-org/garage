@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use format_table::format_table;
+use garage_net::endpoint::RpcInFlightLimiter;
 use garage_util::error::*;
 
 use garage_rpc::layout::*;
@@ -200,7 +201,12 @@ pub async fn cmd_connect(
 	args: ConnectNodeOpt,
 ) -> Result<(), Error> {
 	match rpc_cli
-		.call(&rpc_host, SystemRpc::Connect(args.node), PRIO_NORMAL)
+		.call(
+			&rpc_host,
+			SystemRpc::Connect(args.node),
+			PRIO_NORMAL,
+			RpcInFlightLimiter::NoLimit,
+		)
 		.await??
 	{
 		SystemRpc::Ok => {
@@ -216,7 +222,10 @@ pub async fn cmd_admin(
 	rpc_host: NodeID,
 	args: AdminRpc,
 ) -> Result<(), HelperError> {
-	match rpc_cli.call(&rpc_host, args, PRIO_NORMAL).await?? {
+	match rpc_cli
+		.call(&rpc_host, args, PRIO_NORMAL, RpcInFlightLimiter::NoLimit)
+		.await??
+	{
 		AdminRpc::Ok(msg) => {
 			println!("{}", msg);
 		}
@@ -271,7 +280,12 @@ pub async fn fetch_status(
 	rpc_host: NodeID,
 ) -> Result<Vec<KnownNodeInfo>, Error> {
 	match rpc_cli
-		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.call(
+			&rpc_host,
+			SystemRpc::GetKnownNodes,
+			PRIO_NORMAL,
+			RpcInFlightLimiter::NoLimit,
+		)
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => Ok(nodes),

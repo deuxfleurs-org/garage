@@ -282,6 +282,8 @@ pub struct MerkleBackpressureAimd {
 	pub underload_us: u64,
 	#[serde(default = "default_overload_mult")]
 	pub overload_mult: f64,
+	#[serde(default = "default_sample_us")]
+	pub sample_us: u64,
 }
 
 /// Read and parse configuration
@@ -323,7 +325,11 @@ fn default_underload_us() -> u64 {
 }
 
 fn default_overload_mult() -> f64 {
-	1.01
+	1.1
+}
+
+fn default_sample_us() -> u64 {
+	100 * 1000
 }
 
 fn deserialize_compression<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>

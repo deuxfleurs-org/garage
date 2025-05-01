@@ -1,6 +1,7 @@
 use bytesize::ByteSize;
 
 use format_table::format_table;
+use garage_net::endpoint::RpcInFlightLimiter;
 use garage_util::crdt::Crdt;
 use garage_util::error::*;
 
@@ -45,7 +46,12 @@ pub async fn cmd_assign_role(
 	args: AssignRoleOpt,
 ) -> Result<(), Error> {
 	let status = match rpc_cli
-		.call(&rpc_host, SystemRpc::GetKnownNodes, PRIO_NORMAL)
+		.call(
+			&rpc_host,
+			SystemRpc::GetKnownNodes,
+			PRIO_NORMAL,
+			RpcInFlightLimiter::NoLimit,
+		)
 		.await??
 	{
 		SystemRpc::ReturnKnownNodes(nodes) => nodes,
@@ -475,7 +481,12 @@ pub async fn fetch_layout(
 	rpc_host: NodeID,
 ) -> Result<LayoutHistory, Error> {
 	match rpc_cli
-		.call(&rpc_host, SystemRpc::PullClusterLayout, PRIO_NORMAL)
+		.call(
+			&rpc_host,
+			SystemRpc::PullClusterLayout,
+			PRIO_NORMAL,
+			RpcInFlightLimiter::NoLimit,
+		)
 		.await??
 	{
 		SystemRpc::AdvertiseClusterLayout(t) => Ok(t),
@@ -493,6 +504,7 @@ pub async fn send_layout(
 			&rpc_host,
 			SystemRpc::AdvertiseClusterLayout(layout),
 			PRIO_NORMAL,
+			RpcInFlightLimiter::NoLimit,
 		)
 		.await??;
 	Ok(())

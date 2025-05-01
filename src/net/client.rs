@@ -14,7 +14,7 @@ use futures::Stream;
 use kuska_handshake::async_std::{handshake_client, BoxStream};
 use tokio::net::TcpStream;
 use tokio::select;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{mpsc, oneshot, watch, Semaphore};
 use tokio_util::compat::*;
 
 #[cfg(feature = "telemetry")]
@@ -25,6 +25,7 @@ use opentelemetry::{
 #[cfg(feature = "telemetry")]
 use opentelemetry_contrib::trace::propagator::binary::*;
 
+use crate::endpoint::RpcInFlightLimiter;
 use crate::error::*;
 use crate::message::*;
 use crate::netapp::*;
@@ -41,6 +42,7 @@ pub(crate) struct ClientConn {
 
 	next_query_number: AtomicU32,
 	inflight: Mutex<HashMap<RequestID, oneshot::Sender<ByteStream>>>,
+	rpc_table_write_inflight_limiter: Semaphore,
 }
 
 impl ClientConn {
@@ -98,6 +100,7 @@ impl ClientConn {
 			next_query_number: AtomicU32::from(RequestID::default()),
 			query_send: ArcSwapOption::new(Some(Arc::new(query_send))),
 			inflight: Mutex::new(HashMap::new()),
+			rpc_table_write_inflight_limiter: Semaphore::new(64),
 		});
 
 		netapp.connected_as_client(peer_id, conn.clone());
@@ -144,10 +147,20 @@ impl ClientConn {
 		req: Req<T>,
 		path: &str,
 		prio: RequestPriority,
+		limiter: RpcInFlightLimiter,
 	) -> Result<Resp<T>, Error>
 	where
 		T: Message,
 	{
+		let _permit = match limiter {
+			RpcInFlightLimiter::NoLimit => None,
+			RpcInFlightLimiter::TableWrite => Some(
+				self.rpc_table_write_inflight_limiter
+					.acquire()
+					.await
+					.unwrap(),
+			),
+		};
 		let query_send = self.query_send.load_full().ok_or(Error::ConnectionClosed)?;
 
 		let id = self
@@ -212,6 +225,7 @@ impl ClientConn {
 		let stream = Box::pin(canceller.for_stream(stream));
 
 		let resp_enc = RespEnc::decode(stream).await?;
+		drop(_permit);
 		debug!("client: got response to request {} (path {})", id, path);
 		Resp::from_enc(resp_enc)
 	}

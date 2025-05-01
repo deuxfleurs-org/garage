@@ -1,8 +1,5 @@
-use std::sync::{
-	atomic::{AtomicUsize, Ordering},
-	Arc,
-};
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -29,7 +26,6 @@ use crate::schema::*;
 
 pub struct MerkleUpdater<F: TableSchema, R: TableReplication> {
 	data: Arc<TableData<F, R>>,
-	previous_merkle_len: AtomicUsize,
 
 	// Content of the todo tree: items where
 	// - key = the key of an item in the main table, ie hash(partition_key)+sort_key
@@ -75,6 +71,7 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	pub(crate) fn new(data: Arc<TableData<F, R>>) -> Arc<Self> {
 		let empty_node_hash = blake2sum(&nonversioned_encode(&MerkleNode::Empty).unwrap()[..]);
 
+		// @FIXME: move in worker
 		match &data.config {
                     MerkleBackpressureEnum::None => info!("Merkle Backpressure is not activated"),
                     MerkleBackpressureEnum::Aimd(v) => info!("Merkle backpressure is activated (initial={}us, max={}us, underload={}us, overload={}x)", v.initial_us, v.max_us, v.underload_us, v.overload_mult),
@@ -83,68 +80,20 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 		Arc::new(Self {
 			data,
 			empty_node_hash,
-			previous_merkle_len: AtomicUsize::new(0),
 		})
 	}
 
 	pub(crate) fn spawn_workers(self: &Arc<Self>, background: &BackgroundRunner) {
-		background.spawn_worker(MerkleWorker(self.clone()));
+		background.spawn_worker(MerkleWorker(self.clone(), MerkleWorkerStats::new()));
 	}
 
 	fn updater_loop_iter(&self) -> Result<WorkerState, Error> {
 		if let Some((key, valhash)) = self.data.merkle_todo.first()? {
 			self.update_item(&key, &valhash)?;
-			match &self.data.config {
-				MerkleBackpressureEnum::None => (),
-				MerkleBackpressureEnum::Aimd(a) => self.adapt_aimd_backpressure(a)?,
-			};
 			Ok(WorkerState::Busy)
 		} else {
 			Ok(WorkerState::Idle)
 		}
-	}
-
-	fn adapt_aimd_backpressure(&self, config: &MerkleBackpressureAimd) -> Result<(), Error> {
-		// Capture evolution of the merkle todo length
-		let prev_merkle_len = self.previous_merkle_len.load(Ordering::Relaxed);
-		let current_merkle_len = self.data.merkle_todo.len()?;
-		debug!(
-			"prev merkle len: {}, new merkle len: {}",
-			prev_merkle_len, current_merkle_len
-		);
-
-		// Algorithm inspired by Additive Increase Multiplicative Decrease (AIMD)
-		{
-			let a = self.data.merkle_todo_sleep.clone();
-			let mut v = a.lock().unwrap();
-			let mut b;
-			if current_merkle_len <= prev_merkle_len {
-				// If we decrease the queue size, we can decrease the sleep time
-				b = v.saturating_sub(Duration::from_micros(config.underload_us));
-			} else {
-				// If we are late, we increase the queue size
-				b = v
-					.mul_f64(config.overload_mult)
-					.saturating_add(Duration::from_micros(1));
-			}
-			debug!(
-				"raw sleep. before {} -> after {}",
-				v.as_micros(),
-				b.as_micros()
-			);
-			b = b.min(Duration::from_micros(config.max_us));
-			b = b.max(Duration::from_micros(config.initial_us));
-			debug!(
-				"cut sleep. before {} -> after {}",
-				v.as_micros(),
-				b.as_micros()
-			);
-			*v = b;
-		}
-
-		self.previous_merkle_len
-			.store(current_merkle_len, Ordering::Relaxed);
-		Ok(())
 	}
 
 	fn update_item(&self, k: &[u8], vhash_by: &[u8]) -> Result<(), Error> {
@@ -354,7 +303,65 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 	}
 }
 
-struct MerkleWorker<F: TableSchema, R: TableReplication>(Arc<MerkleUpdater<F, R>>);
+struct MerkleWorker<F: TableSchema, R: TableReplication>(
+	Arc<MerkleUpdater<F, R>>,
+	MerkleWorkerStats,
+);
+struct MerkleWorkerStats {
+	last_update: SystemTime,
+	previous_merkle_len: usize,
+}
+impl MerkleWorkerStats {
+	fn new() -> MerkleWorkerStats {
+		Self {
+			last_update: SystemTime::now(),
+			previous_merkle_len: 0,
+		}
+	}
+
+	fn adapt_aimd_backpressure<F: TableSchema, R: TableReplication>(
+		&mut self,
+		updater: &MerkleUpdater<F, R>,
+		config: &MerkleBackpressureAimd,
+	) -> Result<(), Error> {
+		// Must have some elapsed time between runs
+		if self.last_update.elapsed().unwrap() < Duration::from_micros(config.sample_us) {
+			return Ok(()); // skip update
+		}
+
+		// Capture evolution of the merkle todo length
+		let prev_merkle_len = self.previous_merkle_len;
+		let current_merkle_len = updater.data.merkle_todo.len()?;
+		debug!(
+			"prev merkle len: {}, new merkle len: {}",
+			prev_merkle_len, current_merkle_len
+		);
+
+		// Algorithm inspired by Additive Increase Multiplicative Decrease (AIMD)
+		{
+			let a = updater.data.merkle_todo_sleep.clone();
+			let mut v = a.lock().unwrap();
+			let mut b;
+			if current_merkle_len <= prev_merkle_len {
+				// If we decrease the queue size, we can decrease the sleep time
+				b = v.saturating_sub(Duration::from_micros(config.underload_us));
+			} else {
+				// If we are late, we increase the queue size
+				b = v
+					.mul_f64(config.overload_mult)
+					.saturating_add(Duration::from_micros(1));
+			}
+			b = b.min(Duration::from_micros(config.max_us));
+			b = b.max(Duration::from_micros(config.initial_us));
+			debug!("sleep. before {} -> after {}", v.as_micros(), b.as_micros());
+			*v = b;
+		}
+
+		self.last_update = SystemTime::now();
+		self.previous_merkle_len = current_merkle_len;
+		Ok(())
+	}
+}
 
 #[async_trait]
 impl<F: TableSchema, R: TableReplication> Worker for MerkleWorker<F, R> {
@@ -371,6 +378,10 @@ impl<F: TableSchema, R: TableReplication> Worker for MerkleWorker<F, R> {
 
 	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
 		let updater = self.0.clone();
+		match &updater.data.config {
+			MerkleBackpressureEnum::None => (),
+			MerkleBackpressureEnum::Aimd(a) => self.1.adapt_aimd_backpressure(&updater, a)?,
+		};
 		tokio::task::spawn_blocking(move || {
 			for _i in 0..100 {
 				let s = updater.updater_loop_iter();
