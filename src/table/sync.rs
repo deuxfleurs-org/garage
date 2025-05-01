@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use tokio::select;
 use tokio::sync::{mpsc, watch, Notify};
-use tokio::time::sleep;
 
 use garage_util::background::*;
 use garage_util::data::*;

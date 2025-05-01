@@ -89,7 +89,7 @@ impl TableMetrics {
                                     observer.observe(free, &[KeyValue::new("table_name", table_name)])
                                 }
                             )
-			    .with_description("Merkle tree updater TODO sleep backpressure to apply in ms")
+			    .with_description("Merkle TODO queue free slots")
 			    .init(),
 			_gc_todo_len: meter
 				.u64_value_observer(

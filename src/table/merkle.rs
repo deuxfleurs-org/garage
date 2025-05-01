@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use tokio::sync::watch;
 use garage_db as db;
 
 use garage_util::background::*;
-use garage_util::config::{MerkleBackpressureEnum, MerkleFixedQueue};
+use garage_util::config::MerkleBackpressureEnum;
 use garage_util::data::*;
 use garage_util::encode::{nonversioned_decode, nonversioned_encode};
 use garage_util::error::Error;
@@ -134,6 +134,11 @@ impl<F: TableSchema, R: TableReplication> MerkleUpdater<F, R> {
 				F::TABLE_NAME,
 				k
 			);
+		}
+
+		let maybe_bound = self.data.merkle_todo_bounded_queue.clone();
+		if let Some(b) = &maybe_bound {
+			b.add_permits(1);
 		}
 		Ok(())
 	}

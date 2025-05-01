@@ -266,7 +266,13 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		// early return if nothing changed
 		let (new_entry, new_bytes_hash) = match changed {
 			Some((e, b)) => (e, b),
-			None => return Ok(None),
+			None => {
+				let maybe_bound = self.merkle_todo_bounded_queue.clone();
+				if let Some(b) = &maybe_bound {
+					b.add_permits(1);
+				}
+				return Ok(None);
+			}
 		};
 
 		// Handle GC in case of tombstone
@@ -313,6 +319,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if !removed {
+			let maybe_bound = self.merkle_todo_bounded_queue.clone();
+			if let Some(b) = &maybe_bound {
+				b.add_permits(1);
+			}
 			return Ok(false);
 		}
 
@@ -343,6 +353,10 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if !removed {
+			let maybe_bound = self.merkle_todo_bounded_queue.clone();
+			if let Some(b) = &maybe_bound {
+				b.add_permits(1);
+			}
 			return Ok(false);
 		}
 
