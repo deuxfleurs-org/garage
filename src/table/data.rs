@@ -1,10 +1,9 @@
 use core::borrow::Borrow;
 use std::convert::TryInto;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::Arc;
 
 use serde_bytes::ByteBuf;
-use tokio::sync::Notify;
+use tokio::sync::{Notify, Semaphore};
 
 use garage_db as db;
 
@@ -33,7 +32,7 @@ pub struct TableData<F: TableSchema, R: TableReplication> {
 	pub(crate) merkle_tree: db::Tree,
 	pub(crate) merkle_todo: db::Tree,
 	pub(crate) merkle_todo_notify: Notify,
-	pub(crate) merkle_todo_sleep: Arc<Mutex<Duration>>,
+	pub(crate) merkle_todo_bounded_queue: Option<Arc<Semaphore>>,
 
 	pub(crate) insert_queue: db::Tree,
 	pub(crate) insert_queue_notify: Arc<Notify>,
@@ -64,11 +63,12 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			.open_tree(format!("{}:merkle_todo", F::TABLE_NAME))
 			.expect("Unable to open DB Merkle TODO tree");
 
-		let initial = match config {
-			MerkleBackpressureEnum::None => Duration::ZERO,
-			MerkleBackpressureEnum::Aimd(aimd) => Duration::from_micros(aimd.initial_us),
+		let merkle_todo_bounded_queue = match config {
+			MerkleBackpressureEnum::None => None,
+			MerkleBackpressureEnum::FixedQueue(p) => {
+				Some(Arc::new(Semaphore::new(p.max_queue_size)))
+			}
 		};
-		let merkle_todo_sleep = Arc::new(Mutex::new(initial));
 
 		let insert_queue = db
 			.open_tree(format!("{}:insert_queue", F::TABLE_NAME))
@@ -83,7 +83,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			store.clone(),
 			merkle_tree.clone(),
 			merkle_todo.clone(),
-			merkle_todo_sleep.clone(),
+			merkle_todo_bounded_queue.clone(),
 			gc_todo.clone(),
 		);
 
@@ -95,7 +95,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			merkle_tree,
 			merkle_todo,
 			merkle_todo_notify: Notify::new(),
-			merkle_todo_sleep,
+			merkle_todo_bounded_queue,
 			insert_queue,
 			insert_queue_notify: Arc::new(Notify::new()),
 			gc_todo,
@@ -191,18 +191,17 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 	//   time to enable backpressure (ie. slow down clients).
 	// - When an entry is updated to be a tombstone, add it to the gc_todo tree
 
-	pub(crate) fn update_many<T: Borrow<ByteBuf>>(&self, entries: &[T]) -> Result<Duration, Error> {
-		let mut backpressure = Duration::ZERO;
+	pub(crate) fn update_many<T: Borrow<ByteBuf>>(&self, entries: &[T]) -> Result<(), Error> {
 		for update_bytes in entries.iter() {
-			backpressure += self.update_entry(update_bytes.borrow().as_slice())?;
+			self.update_entry(update_bytes.borrow().as_slice())?;
 		}
-		Ok(backpressure)
+		Ok(())
 	}
 
-	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<Duration, Error> {
+	pub(crate) fn update_entry(&self, update_bytes: &[u8]) -> Result<(), Error> {
 		let update = self.decode_entry(update_bytes)?;
 
-		let ret = self.update_entry_with(
+		self.update_entry_with(
 			update.partition_key(),
 			update.sort_key(),
 			|_tx, ent| match ent {
@@ -213,12 +212,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 				None => Ok(update.clone()),
 			},
 		)?;
-		let backpressure = match ret {
-			Some((_, d)) => d,
-			_ => Duration::ZERO,
-		};
-
-		Ok(backpressure)
+		Ok(())
 	}
 
 	pub fn update_entry_with(
@@ -226,7 +220,7 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		partition_key: &F::P,
 		sort_key: &F::S,
 		update_fn: impl Fn(&mut db::Transaction, Option<F::E>) -> db::TxOpResult<F::E>,
-	) -> Result<Option<(F::E, Duration)>, Error> {
+	) -> Result<Option<F::E>, Error> {
 		let tree_key = self.tree_key(partition_key, sort_key);
 
 		// transaction begins
@@ -297,16 +291,11 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 
 		// Synchronize with the Merkle Worker
 		self.merkle_todo_notify.notify_one(); // Wake-up it
-		let backpressure = self.merkle_todo_sleep.clone().lock().unwrap().clone();
 
-		Ok(Some((new_entry, backpressure)))
+		Ok(Some(new_entry))
 	}
 
-	pub(crate) fn delete_if_equal(
-		self: &Arc<Self>,
-		k: &[u8],
-		v: &[u8],
-	) -> Result<(bool, Duration), Error> {
+	pub(crate) fn delete_if_equal(self: &Arc<Self>, k: &[u8], v: &[u8]) -> Result<bool, Error> {
 		let removed = self
 			.store
 			.db()
@@ -324,20 +313,19 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if !removed {
-			return Ok((false, Duration::ZERO));
+			return Ok(false);
 		}
 
 		self.metrics.internal_delete_counter.add(1);
 		self.merkle_todo_notify.notify_one();
-		let backpressure = self.merkle_todo_sleep.clone().lock().unwrap().clone();
-		Ok((removed, backpressure))
+		Ok(removed)
 	}
 
 	pub(crate) fn delete_if_equal_hash(
 		self: &Arc<Self>,
 		k: &[u8],
 		vhash: Hash,
-	) -> Result<(bool, Duration), Error> {
+	) -> Result<bool, Error> {
 		let removed = self
 			.store
 			.db()
@@ -355,15 +343,13 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if !removed {
-			return Ok((false, Duration::ZERO));
+			return Ok(false);
 		}
 
 		self.metrics.internal_delete_counter.add(1);
 		self.merkle_todo_notify.notify_one();
 
-		let bp = self.merkle_todo_sleep.clone().lock().unwrap().clone();
-
-		Ok((true, bp))
+		Ok(true)
 	}
 
 	// ---- Insert queue functions ----

@@ -245,12 +245,16 @@ impl<F: TableSchema, R: TableReplication> TableSyncer<F, R> {
 
 		// All remote nodes have written those items, now we can delete them locally
 		let mut not_removed = 0;
+		let maybe_bounded = self.data.merkle_todo_bounded_queue.clone();
+		if let Some(b) = maybe_bounded {
+			b.acquire_many(items.len() as u32).await.unwrap().forget();
+		}
+
 		for (k, v) in items.iter() {
-			let (removed, backpressure) = self.data.delete_if_equal(&k[..], &v[..])?;
+			let removed = self.data.delete_if_equal(&k[..], &v[..])?;
 			if !removed {
 				not_removed += 1;
 			}
-			sleep(backpressure).await;
 		}
 
 		if not_removed > 0 {
@@ -471,8 +475,7 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<SyncRpc> for TableSync
 					],
 				);
 
-				let backpressure = self.data.update_many(items)?;
-				sleep(backpressure).await;
+				self.data.update_many(items)?;
 				Ok(SyncRpc::Ok)
 			}
 			m => Err(Error::unexpected_rpc_message(m)),

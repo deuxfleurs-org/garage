@@ -262,6 +262,7 @@ pub struct KubernetesDiscoveryConfig {
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct ExperimentalConfig {
 	pub merkle_backpressure: MerkleBackpressureEnum,
+	pub rpc_in_flight_limiters: RpcInFlightLimiterEnum,
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]
@@ -269,21 +270,27 @@ pub struct ExperimentalConfig {
 pub enum MerkleBackpressureEnum {
 	#[default]
 	None,
-	Aimd(MerkleBackpressureAimd),
+	FixedQueue(MerkleFixedQueue),
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]
-pub struct MerkleBackpressureAimd {
-	#[serde(default = "default_initial_us")]
-	pub initial_us: u64,
-	#[serde(default = "default_max_us")]
-	pub max_us: u64,
-	#[serde(default = "default_underload_us")]
-	pub underload_us: u64,
-	#[serde(default = "default_overload_mult")]
-	pub overload_mult: f64,
-	#[serde(default = "default_sample_us")]
-	pub sample_us: u64,
+#[serde(rename_all = "lowercase", tag = "kind")]
+pub enum RpcInFlightLimiterEnum {
+	#[default]
+	None,
+	FixedSize(InFlightFixedSize),
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct InFlightFixedSize {
+	#[serde(default = "default_max_table_write")]
+	pub max_table_write: usize,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct MerkleFixedQueue {
+	#[serde(default = "default_max_queue_size")]
+	pub max_queue_size: usize,
 }
 
 /// Read and parse configuration
@@ -312,24 +319,12 @@ fn default_compression() -> Option<i32> {
 	Some(1)
 }
 
-fn default_initial_us() -> u64 {
-	10
+fn default_max_table_write() -> usize {
+	64
 }
 
-fn default_max_us() -> u64 {
-	30 * 1000 * 1000
-}
-
-fn default_underload_us() -> u64 {
-	10
-}
-
-fn default_overload_mult() -> f64 {
-	1.1
-}
-
-fn default_sample_us() -> u64 {
-	100 * 1000
+fn default_max_queue_size() -> usize {
+	256
 }
 
 fn deserialize_compression<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>

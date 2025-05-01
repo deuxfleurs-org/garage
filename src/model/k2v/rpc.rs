@@ -14,7 +14,6 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tokio::select;
-use tokio::time::sleep;
 
 use garage_db as db;
 
@@ -241,7 +240,7 @@ impl K2VRpcHandler {
 		let timeout_duration = Duration::from_millis(timeout_msec);
 		let resps = select! {
 			r = rpc => r?,
-			_ = sleep(timeout_duration) => return Ok(None),
+			_ = tokio::time::sleep(timeout_duration) => return Ok(None),
 		};
 
 		let mut resp: Option<K2VItem> = None;
@@ -378,9 +377,8 @@ impl K2VRpcHandler {
 		};
 
 		// Propagate to rest of network
-		if let Some((updated, backpressure)) = new {
+		if let Some(updated) = new {
 			self.item_table.insert(&updated).await?;
-			sleep(backpressure).await;
 		}
 
 		Ok(K2VRpc::Ok)
@@ -388,16 +386,14 @@ impl K2VRpcHandler {
 
 	async fn handle_insert_many(&self, items: &[InsertedItem]) -> Result<K2VRpc, Error> {
 		let mut updated_vec = vec![];
-		let mut backpressure = Duration::ZERO;
 
 		{
 			let local_timestamp_tree = self.local_timestamp_tree.lock().unwrap();
 			for item in items {
 				let new = self.local_insert(&local_timestamp_tree, item)?;
 
-				if let Some((updated, add_bp)) = new {
+				if let Some(updated) = new {
 					updated_vec.push(updated);
-					backpressure += add_bp;
 				}
 			}
 		}
@@ -406,7 +402,6 @@ impl K2VRpcHandler {
 		if !updated_vec.is_empty() {
 			self.item_table.insert_many(&updated_vec).await?;
 		}
-		sleep(backpressure).await;
 
 		Ok(K2VRpc::Ok)
 	}
@@ -415,7 +410,7 @@ impl K2VRpcHandler {
 		&self,
 		local_timestamp_tree: &MutexGuard<'_, db::Tree>,
 		item: &InsertedItem,
-	) -> Result<Option<(K2VItem, Duration)>, Error> {
+	) -> Result<Option<K2VItem>, Error> {
 		let now = now_msec();
 
 		self.item_table
