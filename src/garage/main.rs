@@ -244,7 +244,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	// Generate a temporary keypair for our RPC client
 	let (_pk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
 
-	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk, None);
+	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk, None, None);
 
 	// Find and parse the address of the target host
 	let (id, addr, is_default_addr) = if let Some(h) = opt.rpc_host {

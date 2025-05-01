@@ -74,6 +74,8 @@ pub struct NetApp {
 	pub id: NodeID,
 	/// Private key associated with our peer ID
 	pub privkey: ed25519::SecretKey,
+	/// Config related to netapp
+	pub(crate) max_in_flight_table_write: Option<usize>,
 
 	pub(crate) server_conns: RwLock<HashMap<NodeID, Arc<ServerConn>>>,
 	pub(crate) client_conns: RwLock<HashMap<NodeID, Arc<ClientConn>>>,
@@ -101,6 +103,7 @@ impl NetApp {
 		netid: auth::Key,
 		privkey: ed25519::SecretKey,
 		bind_outgoing_to: Option<IpAddr>,
+		max_in_flight_table_write: Option<usize>,
 	) -> Arc<Self> {
 		let mut version_tag = [0u8; 16];
 		version_tag[0..8].copy_from_slice(&u64::to_be_bytes(NETAPP_VERSION_TAG)[..]);
@@ -114,6 +117,7 @@ impl NetApp {
 			netid,
 			id,
 			privkey,
+			max_in_flight_table_write,
 			server_conns: RwLock::new(HashMap::new()),
 			client_conns: RwLock::new(HashMap::new()),
 			endpoints: RwLock::new(HashMap::new()),

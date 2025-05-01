@@ -39,6 +39,7 @@ kuska-handshake.workspace = true
 
 opentelemetry = { workspace = true, optional = true }
 opentelemetry-contrib = { workspace = true, optional = true }
+tracing.workspace = true
 
 [dev-dependencies]
 pretty_env_logger.workspace = true

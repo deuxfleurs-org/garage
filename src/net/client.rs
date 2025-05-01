@@ -4,6 +4,7 @@ use std::pin::Pin;
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
+use tracing::*;
 
 use arc_swap::ArcSwapOption;
 use bytes::Bytes;
@@ -42,7 +43,7 @@ pub(crate) struct ClientConn {
 
 	next_query_number: AtomicU32,
 	inflight: Mutex<HashMap<RequestID, oneshot::Sender<ByteStream>>>,
-	rpc_table_write_inflight_limiter: Semaphore,
+	rpc_table_write_inflight_limiter: Option<Semaphore>,
 }
 
 impl ClientConn {
@@ -100,8 +101,13 @@ impl ClientConn {
 			next_query_number: AtomicU32::from(RequestID::default()),
 			query_send: ArcSwapOption::new(Some(Arc::new(query_send))),
 			inflight: Mutex::new(HashMap::new()),
-			rpc_table_write_inflight_limiter: Semaphore::new(64),
+			rpc_table_write_inflight_limiter: netapp.max_in_flight_table_write.map(Semaphore::new),
 		});
+
+		info!(
+			"Created conn with table write limit set to {}",
+			netapp.max_in_flight_table_write.unwrap_or(0)
+		);
 
 		netapp.connected_as_client(peer_id, conn.clone());
 
@@ -152,14 +158,15 @@ impl ClientConn {
 	where
 		T: Message,
 	{
-		let _permit = match limiter {
-			RpcInFlightLimiter::NoLimit => None,
-			RpcInFlightLimiter::TableWrite => Some(
-				self.rpc_table_write_inflight_limiter
-					.acquire()
-					.await
-					.unwrap(),
-			),
+		let _permit = match (limiter, &self.rpc_table_write_inflight_limiter) {
+			(RpcInFlightLimiter::TableWrite, Some(sem)) => {
+				info!(
+					"Available RPC table write slots: {}",
+					sem.available_permits()
+				);
+				Some(sem.acquire().await.unwrap())
+			}
+			_ => None,
 		};
 		let query_send = self.query_send.load_full().ok_or(Error::ConnectionClosed)?;
 

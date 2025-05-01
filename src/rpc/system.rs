@@ -21,7 +21,7 @@ use garage_net::{NetApp, NetworkKey, NodeID, NodeKey};
 
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
-use garage_util::config::{Config, DataDirEnum};
+use garage_util::config::{Config, DataDirEnum, RpcInFlightLimiterEnum};
 use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
@@ -256,7 +256,17 @@ impl System {
 		let bind_outgoing_to = Some(config)
 			.filter(|x| x.rpc_bind_outgoing)
 			.map(|x| x.rpc_bind_addr.ip());
-		let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, node_key, bind_outgoing_to);
+		let maybe_max_table_write = match &config.experimental.rpc_in_flight_limiters {
+			RpcInFlightLimiterEnum::None => None,
+			RpcInFlightLimiterEnum::FixedSize(v) => Some(v.max_table_write),
+		};
+		let netapp = NetApp::new(
+			GARAGE_VERSION_TAG,
+			network_key,
+			node_key,
+			bind_outgoing_to,
+			maybe_max_table_write,
+		);
 		let system_endpoint = netapp.endpoint(SYSTEM_RPC_PATH.into());
 
 		// ---- setup netapp public listener and full mesh peering strategy ----
