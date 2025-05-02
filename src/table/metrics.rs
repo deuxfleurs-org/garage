@@ -1,9 +1,9 @@
 use opentelemetry::{global, metrics::*, KeyValue};
 use std::convert::TryInto;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
 
 use garage_db as db;
+
+use crate::data::MerkleTodo;
 
 /// TableMetrics reference all counter used for metrics
 pub struct TableMetrics {
@@ -29,8 +29,7 @@ impl TableMetrics {
 		table_name: &'static str,
 		store: db::Tree,
 		merkle_tree: db::Tree,
-		merkle_todo: db::Tree,
-		merkle_todo_bounded_queue: Option<Arc<Semaphore>>,
+		merkle_todo: MerkleTodo,
 		gc_todo: db::Tree,
 	) -> Self {
 		let meter = global::meter(table_name);
