@@ -71,26 +71,18 @@ pub fn parse_replication_mode(
 	config: &Config,
 ) -> Result<(ReplicationFactor, ConsistencyMode), Error> {
 	match (&config.replication_mode, config.replication_factor, config.consistency_mode.as_str()) {
-        (Some(replication_mode), None, "consistent") => {
-            tracing::warn!("Legacy config option replication_mode in use. Please migrate to replication_factor and consistency_mode");
-            let parsed_replication_mode = match replication_mode.as_str() {
-                "1" | "none"  => Some((ReplicationFactor(1), ConsistencyMode::Consistent)),
-                "2"           => Some((ReplicationFactor(2), ConsistencyMode::Consistent)),
-                "2-dangerous" => Some((ReplicationFactor(2), ConsistencyMode::Dangerous)),
-                "3"           => Some((ReplicationFactor(3), ConsistencyMode::Consistent)),
-                "3-degraded"  => Some((ReplicationFactor(3), ConsistencyMode::Degraded)),
-                "3-dangerous" => Some((ReplicationFactor(3), ConsistencyMode::Dangerous)),
-                _ => None,
-            };
-            Some(parsed_replication_mode.ok_or_message("Invalid replication_mode in config file.")?)
-        },
-        (None, Some(replication_factor), consistency_mode) => {
-            let replication_factor = ReplicationFactor::new(replication_factor)
-                .ok_or_message("Invalid replication_factor in config file.")?;
-            let consistency_mode = ConsistencyMode::parse(consistency_mode)
-                .ok_or_message("Invalid consistency_mode in config file.")?;
-            Some((replication_factor, consistency_mode))
-        }
-        _ => None,
-    }.ok_or_message("Either the legacy replication_mode or replication_level and consistency_mode can be set, not both.")
+		(Some(_replication_mode), _, _) => {
+			Err(Error::Message("The legacy replication_mode is no longer supported. Use replication_factor and consistency_mode instead.".into()))
+		}
+		(None, Some(replication_factor), consistency_mode) => {
+			let replication_factor = ReplicationFactor::new(replication_factor)
+				.ok_or_message("Invalid replication_factor in config file.")?;
+			let consistency_mode = ConsistencyMode::parse(consistency_mode)
+				.ok_or_message("Invalid consistency_mode in config file.")?;
+			Ok((replication_factor, consistency_mode))
+		}
+		(None, None, _) => {
+			Err(Error::Message("The option replication_factor is required.".into()))
+		}
+	}
 }
