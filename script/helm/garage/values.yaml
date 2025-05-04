@@ -5,20 +5,24 @@
 # Garage configuration. These values go to garage.toml
 garage:
   # -- Can be changed for better performance on certain systems
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db-engine-since-v0-8-0
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine
   dbEngine: "lmdb"
 
   # -- Defaults is 1MB
   # An increase can result in better performance in certain scenarios
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block-size
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block_size
   blockSize: "1048576"
 
-  # -- Default to 3 replicas, see the replication_mode section at
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication-mode
-  replicationMode: "3"
+  # -- Default to 3 replicas, see the replication_factor section at
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication_factor
+  replicationFactor: "3"
+
+  # -- By default, enable read-after-write consistency guarantees, see the consistency_mode section at
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#consistency_mode
+  consistencyMode: "consistent"
 
   # -- zstd compression level of stored blocks
-  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression-level
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression_level
   compressionLevel: "1"
 
   rpcBindAddr: "[::]:3901"

@@ -43,7 +43,7 @@
              "rpc_bind_addr = \"0.0.0.0:3901\"\n"
              "rpc_public_addr = \"" node ":3901\"\n"
              "db_engine = \"lmdb\"\n"
-             "replication_mode = \"3\"\n"
+             "replication_factor = 3\n"
              "data_dir = \"" data-dir "\"\n"
              "metadata_dir = \"" meta-dir "\"\n"
              "[s3_api]\n"
