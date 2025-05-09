@@ -78,8 +78,23 @@ pub async fn handle_copy(
 		},
 	)?;
 
+	let was_multipart = source_version_meta.etag.contains('-'); // HACK
+
 	// Extract source checksum info before source_object_meta_inner is consumed
 	let source_checksum = source_object_meta_inner.checksum;
+	let source_checksum_type = match (source_object_meta_inner.checksum_type, source_checksum) {
+		(Some(ct), _) => Some(ct),
+		(None, Some(_)) => {
+			// Migrated object from garage v1.x or older
+			// determine checksum type depending if this is a multipart upload or not
+			if was_multipart {
+				Some(ChecksumType::Composite)
+			} else {
+				Some(ChecksumType::FullObject)
+			}
+		}
+		(None, None) => None,
+	};
 	let source_checksum_algorithm = source_checksum.map(|x| x.algorithm());
 
 	// If source object has a checksum, the destination object must as well.
@@ -88,7 +103,6 @@ pub async fn handle_copy(
 	let checksum_algorithm = checksum_algorithm.or(source_checksum_algorithm);
 
 	// Determine metadata of destination object
-	let was_multipart = source_version_meta.etag.contains('-');
 	let dest_object_meta = ObjectVersionMetaInner {
 		headers: match req.headers().get("x-amz-metadata-directive") {
 			Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => {
@@ -97,6 +111,7 @@ pub async fn handle_copy(
 			_ => source_object_meta_inner.into_owned().headers,
 		},
 		checksum: source_checksum,
+		checksum_type: source_checksum_type,
 	};
 
 	// Do actual object copying
@@ -144,8 +159,12 @@ pub async fn handle_copy(
 		} else {
 			ChecksumMode::Verify(&expected_checksum)
 		};
-		// If source and dest encryption use different keys,
-		// we must decrypt content and re-encrypt, so rewrite all data blocks.
+		// For multipart uploads that had a composite checksum, set checksum type
+		// to full object as it will be recalculated.
+		let dest_object_meta = ObjectVersionMetaInner {
+			checksum_type: checksum_algorithm.map(|_| ChecksumType::FullObject),
+			..dest_object_meta
+		};
 		handle_copy_reencrypt(
 			ctx,
 			dest_key,
@@ -247,6 +266,7 @@ async fn handle_copy_metaonly(
 				state: ObjectVersionState::Uploading {
 					encryption: new_meta.encryption.clone(),
 					checksum_algorithm: None,
+					checksum_type: None,
 					multipart: false,
 				},
 			};

@@ -54,6 +54,7 @@ pub async fn handle_create_multipart_upload(
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: None,
+		checksum_type: None,
 	};
 
 	// Determine whether object should be encrypted, and if so the key
@@ -78,6 +79,8 @@ pub async fn handle_create_multipart_upload(
 			multipart: true,
 			encryption: object_encryption,
 			checksum_algorithm,
+			// TODO: add support for full-object checksums
+			checksum_type: checksum_algorithm.map(|_| ChecksumType::Composite),
 		},
 	};
 	let object = Object::new(*bucket_id, key.to_string(), vec![object_version]);
@@ -440,6 +443,8 @@ pub async fn handle_complete_multipart_upload(
 			let new_meta = ObjectVersionMetaInner {
 				headers: meta.into_owned().headers,
 				checksum: checksum_extra,
+				// TODO: add support for full-object checksums
+				checksum_type: checksum_extra.map(|_| ChecksumType::Composite),
 			};
 			encryption.encrypt_meta(new_meta)?
 		}
