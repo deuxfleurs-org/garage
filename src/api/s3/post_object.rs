@@ -262,7 +262,7 @@ pub async fn handle_post_object(
 		encryption,
 		StreamLimiter::new(stream, conditions.content_length),
 		&key,
-		ChecksumMode::Verify(&expected_checksums),
+		ChecksumMode::Verify(expected_checksums),
 	)
 	.await?;
 

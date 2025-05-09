@@ -149,15 +149,14 @@ pub async fn handle_copy(
 		)
 		.await?
 	} else {
-		let expected_checksum = ExpectedChecksums {
-			md5: None,
-			sha256: None,
-			extra: source_checksum,
-		};
 		let checksum_mode = if was_multipart || source_checksum_algorithm != checksum_algorithm {
 			ChecksumMode::Calculate(checksum_algorithm)
 		} else {
-			ChecksumMode::Verify(&expected_checksum)
+			ChecksumMode::Verify(ExpectedChecksums {
+				md5: None,
+				sha256: None,
+				extra: source_checksum,
+			})
 		};
 		// For multipart uploads that had a composite checksum, set checksum type
 		// to full object as it will be recalculated.
@@ -345,7 +344,7 @@ async fn handle_copy_reencrypt(
 	source_version: &ObjectVersion,
 	source_version_data: &ObjectVersionData,
 	source_encryption: EncryptionParams,
-	checksum_mode: ChecksumMode<'_>,
+	checksum_mode: ChecksumMode,
 ) -> Result<SaveStreamResult, Error> {
 	// basically we will read the source data (decrypt if necessary)
 	// and save that in a new object (encrypt if necessary),
