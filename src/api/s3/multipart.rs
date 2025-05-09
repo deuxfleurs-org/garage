@@ -8,7 +8,7 @@ use crc32c::Crc32cHasher as Crc32c;
 use crc32fast::Hasher as Crc32;
 use crc64fast_nvme::Digest as Crc64Nvme;
 use futures::prelude::*;
-use hyper::{Request, Response};
+use hyper::{header::HeaderValue, HeaderMap, Request, Response};
 use md5::{Digest, Md5};
 use sha1::Sha1;
 use sha2::Sha256;
@@ -70,6 +70,7 @@ pub async fn handle_create_multipart_upload(
 	let object_encryption = encryption.encrypt_meta(meta)?;
 
 	let checksum_algorithm = request_checksum_algorithm(req.headers())?;
+	let checksum_type = request_checksum_type(req.headers(), &checksum_algorithm)?;
 
 	// Create object in object table
 	let object_version = ObjectVersion {
@@ -79,8 +80,7 @@ pub async fn handle_create_multipart_upload(
 			multipart: true,
 			encryption: object_encryption,
 			checksum_algorithm,
-			// TODO: add support for full-object checksums
-			checksum_type: checksum_algorithm.map(|_| ChecksumType::Composite),
+			checksum_type,
 		},
 	};
 	let object = Object::new(*bucket_id, key.to_string(), vec![object_version]);
@@ -292,6 +292,8 @@ pub async fn handle_complete_multipart_upload(
 	let (req_head, req_body) = req.into_parts();
 
 	let expected_checksum = request_checksum_value(&req_head.headers)?;
+	let checksum_algorithm = expected_checksum.map(|x| x.algorithm());
+	let checksum_type = request_checksum_type(&req_head.headers, &checksum_algorithm)?;
 
 	let body = req_body.collect().await?;
 
@@ -347,8 +349,9 @@ pub async fn handle_complete_multipart_upload(
 	for req_part in body_list_of_parts.iter() {
 		match have_parts.get(&req_part.part_number) {
 			Some(part) if part.etag.as_ref() == Some(&req_part.etag) && part.size.is_some() => {
-				// alternative version: if req_part.checksum.is_some() && part.checksum != req_part.checksum {
-				if part.checksum != req_part.checksum {
+				if checksum_type == Some(ChecksumType::Composite)
+					&& part.checksum != req_part.checksum
+				{
 					return Err(Error::InvalidDigest(format!(
 						"Invalid checksum for part {}: in request = {:?}, uploaded part = {:?}",
 						req_part.part_number, req_part.checksum, part.checksum
@@ -405,7 +408,7 @@ pub async fn handle_complete_multipart_upload(
 	// To understand how etags are calculated, read more here:
 	// https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	// https://teppen.io/2018/06/23/aws_s3_etags/
-	let mut checksummer = MultipartChecksummer::init(checksum_algorithm);
+	let mut checksummer = MultipartChecksummer::init(checksum_algorithm, checksum_type);
 	for part in parts.iter() {
 		checksummer.update(part.etag.as_ref().unwrap(), part.checksum)?;
 	}
@@ -654,6 +657,36 @@ fn parse_complete_multipart_upload_body(
 
 // ====== checksummer ====
 
+pub fn request_checksum_type(
+	headers: &HeaderMap<HeaderValue>,
+	algo: &Option<ChecksumAlgorithm>,
+) -> Result<Option<ChecksumType>, Error> {
+	match (headers.get(X_AMZ_CHECKSUM_TYPE), algo) {
+		(None, None) => Ok(None),
+		(None, Some(ChecksumAlgorithm::Crc64Nvme)) => Ok(Some(ChecksumType::FullObject)),
+		(None, Some(_)) => Ok(Some(ChecksumType::Composite)),
+		(Some(_), None) => Err(Error::bad_request(
+			"Cannot specify x-amz-checksum-type when no checksum algorithm is in use.",
+		)),
+		(Some(x), Some(algo)) => {
+			let checksum_type = match x.as_bytes() {
+				COMPOSITE => ChecksumType::Composite,
+				FULL_OBJECT => ChecksumType::FullObject,
+				_ => return Err(Error::bad_request("Invalid x-amz-checksum-type value")),
+			};
+			match (checksum_type, algo) {
+				(ChecksumType::Composite, ChecksumAlgorithm::Crc64Nvme)
+				| (ChecksumType::FullObject, ChecksumAlgorithm::Sha1)
+				| (ChecksumType::FullObject, ChecksumAlgorithm::Sha256) => Err(Error::bad_request(format!(
+					"checksum type {:?} is not supported for algorithm {:?}",
+					checksum_type, algo
+				))),
+				_ => Ok(Some(checksum_type)),
+			}
+		}
+	}
+}
+
 #[derive(Default)]
 pub(crate) struct MultipartChecksummer {
 	pub md5: Md5,
@@ -669,7 +702,10 @@ pub(crate) enum MultipartExtraChecksummer {
 }
 
 impl MultipartChecksummer {
-	pub(crate) fn init(algo: Option<ChecksumAlgorithm>) -> Self {
+	pub(crate) fn init(algo: Option<ChecksumAlgorithm>, cktype: Option<ChecksumType>) -> Self {
+		if cktype == Some(ChecksumType::FullObject) {
+			todo!()
+		}
 		Self {
 			md5: Md5::new(),
 			extra: match algo {

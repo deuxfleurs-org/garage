@@ -22,12 +22,17 @@ pub const CONTENT_MD5: HeaderName = HeaderName::from_static("content-md5");
 pub const X_AMZ_CHECKSUM_ALGORITHM: HeaderName =
 	HeaderName::from_static("x-amz-checksum-algorithm");
 pub const X_AMZ_CHECKSUM_MODE: HeaderName = HeaderName::from_static("x-amz-checksum-mode");
+pub const X_AMZ_CHECKSUM_TYPE: HeaderName = HeaderName::from_static("x-amz-checksum-type");
 pub const X_AMZ_CHECKSUM_CRC32: HeaderName = HeaderName::from_static("x-amz-checksum-crc32");
 pub const X_AMZ_CHECKSUM_CRC32C: HeaderName = HeaderName::from_static("x-amz-checksum-crc32c");
 pub const X_AMZ_CHECKSUM_CRC64NVME: HeaderName =
 	HeaderName::from_static("x-amz-checksum-crc64nvme");
 pub const X_AMZ_CHECKSUM_SHA1: HeaderName = HeaderName::from_static("x-amz-checksum-sha1");
 pub const X_AMZ_CHECKSUM_SHA256: HeaderName = HeaderName::from_static("x-amz-checksum-sha256");
+
+// Values for x-amz-checksum-type
+pub const COMPOSITE: &[u8] = b"COMPOSITE";
+pub const FULL_OBJECT: &[u8] = b"FULL_OBJECT";
 
 pub type Crc32Checksum = [u8; 4];
 pub type Crc32cChecksum = [u8; 4];
