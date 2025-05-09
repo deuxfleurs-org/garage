@@ -1,12 +1,9 @@
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::hash::Hasher;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 use base64::prelude::*;
-use crc32c::Crc32cHasher as Crc32c;
-use crc32fast::Hasher as Crc32;
-use crc64fast_nvme::Digest as Crc64Nvme;
+use crc_fast::{CrcAlgorithm, Digest as CrcDigest};
 use futures::prelude::*;
 use hyper::{header::HeaderValue, HeaderMap, Request, Response};
 use md5::{Digest, Md5};
@@ -410,7 +407,11 @@ pub async fn handle_complete_multipart_upload(
 	// https://teppen.io/2018/06/23/aws_s3_etags/
 	let mut checksummer = MultipartChecksummer::init(checksum_algorithm, checksum_type);
 	for part in parts.iter() {
-		checksummer.update(part.etag.as_ref().unwrap(), part.checksum)?;
+		checksummer.update(
+			part.etag.as_ref().unwrap(),
+			part.checksum,
+			part.size.unwrap(),
+		)?;
 	}
 	let (checksum_md5, checksum_extra) = checksummer.finalize();
 
@@ -693,36 +694,14 @@ pub(crate) struct MultipartChecksummer {
 	pub extra: Option<MultipartExtraChecksummer>,
 }
 
-pub(crate) enum MultipartExtraChecksummer {
-	Crc32(Crc32),
-	Crc32c(Crc32c),
-	Crc64Nvme(Crc64Nvme),
-	Sha1(Sha1),
-	Sha256(Sha256),
-}
-
 impl MultipartChecksummer {
 	pub(crate) fn init(algo: Option<ChecksumAlgorithm>, cktype: Option<ChecksumType>) -> Self {
-		if cktype == Some(ChecksumType::FullObject) {
-			todo!()
-		}
 		Self {
 			md5: Md5::new(),
-			extra: match algo {
-				None => None,
-				Some(ChecksumAlgorithm::Crc32) => {
-					Some(MultipartExtraChecksummer::Crc32(Crc32::new()))
-				}
-				Some(ChecksumAlgorithm::Crc32c) => {
-					Some(MultipartExtraChecksummer::Crc32c(Crc32c::default()))
-				}
-				Some(ChecksumAlgorithm::Crc64Nvme) => {
-					Some(MultipartExtraChecksummer::Crc64Nvme(Crc64Nvme::default()))
-				}
-				Some(ChecksumAlgorithm::Sha1) => Some(MultipartExtraChecksummer::Sha1(Sha1::new())),
-				Some(ChecksumAlgorithm::Sha256) => {
-					Some(MultipartExtraChecksummer::Sha256(Sha256::new()))
-				}
+			extra: match (algo, cktype) {
+				(None, None) => None,
+				(Some(algo), Some(cktype)) => Some(MultipartExtraChecksummer::init(algo, cktype)),
+				_ => unreachable!(),
 			},
 		}
 	}
@@ -731,68 +710,130 @@ impl MultipartChecksummer {
 		&mut self,
 		etag: &str,
 		checksum: Option<ChecksumValue>,
+		part_len: u64,
 	) -> Result<(), Error> {
 		self.md5
 			.update(&hex::decode(&etag).ok_or_message("invalid etag hex")?);
-		match (&mut self.extra, checksum) {
-			(None, _) => (),
-			(
-				Some(MultipartExtraChecksummer::Crc32(ref mut crc32)),
-				Some(ChecksumValue::Crc32(x)),
-			) => {
-				crc32.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Crc32c(ref mut crc32c)),
-				Some(ChecksumValue::Crc32c(x)),
-			) => {
-				crc32c.write(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Crc64Nvme(ref mut crc64nvme)),
-				Some(ChecksumValue::Crc64Nvme(x)),
-			) => {
-				crc64nvme.write(&x);
-			}
-			(Some(MultipartExtraChecksummer::Sha1(ref mut sha1)), Some(ChecksumValue::Sha1(x))) => {
-				sha1.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Sha256(ref mut sha256)),
-				Some(ChecksumValue::Sha256(x)),
-			) => {
-				sha256.update(&x);
-			}
-			(Some(_), b) => {
-				return Err(Error::internal_error(format!(
-					"part checksum was not computed correctly, got: {:?}",
-					b
-				)))
-			}
+		if let Some(extra) = &mut self.extra {
+			extra.update(checksum, part_len)?;
 		}
 		Ok(())
 	}
 
 	pub(crate) fn finalize(self) -> (Md5Checksum, Option<ChecksumValue>) {
 		let md5 = self.md5.finalize()[..].try_into().unwrap();
-		let extra = match self.extra {
-			None => None,
-			Some(MultipartExtraChecksummer::Crc32(crc32)) => {
-				Some(ChecksumValue::Crc32(u32::to_be_bytes(crc32.finalize())))
-			}
-			Some(MultipartExtraChecksummer::Crc32c(crc32c)) => Some(ChecksumValue::Crc32c(
-				u32::to_be_bytes(u32::try_from(crc32c.finish()).unwrap()),
-			)),
-			Some(MultipartExtraChecksummer::Crc64Nvme(crc64nvme)) => Some(
-				ChecksumValue::Crc64Nvme(u64::to_be_bytes(crc64nvme.sum64())),
-			),
-			Some(MultipartExtraChecksummer::Sha1(sha1)) => {
-				Some(ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap()))
-			}
-			Some(MultipartExtraChecksummer::Sha256(sha256)) => Some(ChecksumValue::Sha256(
-				sha256.finalize()[..].try_into().unwrap(),
-			)),
-		};
+		let extra = self.extra.map(|c| c.finalize());
 		(md5, extra)
+	}
+}
+
+pub(crate) enum MultipartExtraChecksummer {
+	FullObjectCrc(CrcAlgorithm, Option<u64>),
+	CompositeCrc(ChecksumAlgorithm, CrcDigest),
+	CompositeSha1(Sha1),
+	CompositeSha256(Sha256),
+}
+
+impl MultipartExtraChecksummer {
+	fn init(algo: ChecksumAlgorithm, cktype: ChecksumType) -> Self {
+		match (algo, cktype) {
+			(algo, ChecksumType::FullObject) => {
+				let crc_type = match algo {
+					ChecksumAlgorithm::Crc32 => CrcAlgorithm::Crc32IsoHdlc,
+					ChecksumAlgorithm::Crc32c => CrcAlgorithm::Crc32Iscsi,
+					ChecksumAlgorithm::Crc64Nvme => CrcAlgorithm::Crc64Nvme,
+					_ => unreachable!(),
+				};
+				Self::FullObjectCrc(crc_type, None)
+			}
+			(ChecksumAlgorithm::Crc32, ChecksumType::Composite) => {
+				Self::CompositeCrc(ChecksumAlgorithm::Crc32, new_crc32())
+			}
+			(ChecksumAlgorithm::Crc32c, ChecksumType::Composite) => {
+				Self::CompositeCrc(ChecksumAlgorithm::Crc32c, new_crc32c())
+			}
+			(ChecksumAlgorithm::Sha1, ChecksumType::Composite) => Self::CompositeSha1(Sha1::new()),
+			(ChecksumAlgorithm::Sha256, ChecksumType::Composite) => {
+				Self::CompositeSha256(Sha256::new())
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn update(&mut self, checksum: Option<ChecksumValue>, part_len: u64) -> Result<(), Error> {
+		match (self, checksum) {
+			(Self::FullObjectCrc(crc_algo, crc_value), Some(ck)) => {
+				let ck_u64 = match ck {
+					ChecksumValue::Crc32(x) => u32::from_be_bytes(x) as u64,
+					ChecksumValue::Crc32c(x) => u32::from_be_bytes(x) as u64,
+					ChecksumValue::Crc64Nvme(x) => u64::from_be_bytes(x),
+					_ => {
+						return Err(Error::internal_error(format!(
+							"part checksum was not computed correctly, got: {:?}",
+							ck
+						)))
+					}
+				};
+				*crc_value = match *crc_value {
+					None => Some(ck_u64),
+					Some(prev) => Some(crc_fast::checksum_combine(
+						*crc_algo, prev, ck_u64, part_len,
+					)),
+				};
+			}
+			(Self::CompositeCrc(_, digest), Some(ck)) => match ck {
+				ChecksumValue::Crc32(x) => digest.update(&x),
+				ChecksumValue::Crc32c(x) => digest.update(&x),
+				ChecksumValue::Crc64Nvme(x) => digest.update(&x),
+				_ => {
+					return Err(Error::internal_error(format!(
+						"part checksum was not computed correctly, got: {:?}",
+						ck
+					)))
+				}
+			},
+			(Self::CompositeSha1(sha1), Some(ChecksumValue::Sha1(x))) => {
+				sha1.update(&x);
+			}
+			(Self::CompositeSha256(sha256), Some(ChecksumValue::Sha256(x))) => {
+				sha256.update(&x);
+			}
+			_ => {
+				return Err(Error::internal_error(format!(
+					"part checksum was not computed correctly, got: {:?}",
+					checksum
+				)))
+			}
+		}
+		Ok(())
+	}
+	fn finalize(self) -> ChecksumValue {
+		match self {
+			Self::FullObjectCrc(algo, value) => match (algo, value) {
+				(CrcAlgorithm::Crc32IsoHdlc, Some(v)) => {
+					ChecksumValue::Crc32(u32::to_be_bytes(v as u32))
+				}
+				(CrcAlgorithm::Crc32Iscsi, Some(v)) => {
+					ChecksumValue::Crc32c(u32::to_be_bytes(v as u32))
+				}
+				(CrcAlgorithm::Crc64Nvme, Some(v)) => ChecksumValue::Crc64Nvme(u64::to_be_bytes(v)),
+				_ => unreachable!(),
+			},
+			Self::CompositeCrc(algo, crc) => match algo {
+				ChecksumAlgorithm::Crc32 => {
+					ChecksumValue::Crc32(u32::to_be_bytes(crc.finalize() as u32))
+				}
+				ChecksumAlgorithm::Crc32c => {
+					ChecksumValue::Crc32c(u32::to_be_bytes(crc.finalize() as u32))
+				}
+				_ => unreachable!(),
+			},
+			Self::CompositeSha1(sha1) => {
+				ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap())
+			}
+			Self::CompositeSha256(sha256) => {
+				ChecksumValue::Sha256(sha256.finalize()[..].try_into().unwrap())
+			}
+		}
 	}
 }
