@@ -48,8 +48,8 @@ pub(crate) struct SaveStreamResult {
 	pub(crate) etag: String,
 }
 
-pub(crate) enum ChecksumMode<'a> {
-	Verify(&'a ExpectedChecksums),
+pub(crate) enum ChecksumMode {
+	Verify(ExpectedChecksums),
 	VerifyFrom {
 		checksummer: StreamingChecksumReceiver,
 		trailer_algo: Option<ChecksumAlgorithm>,
@@ -140,7 +140,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	encryption: EncryptionParams,
 	body: S,
 	key: &String,
-	checksum_mode: ChecksumMode<'_>,
+	checksum_mode: ChecksumMode,
 ) -> Result<SaveStreamResult, Error> {
 	let ReqCtx {
 		garage, bucket_id, ..
