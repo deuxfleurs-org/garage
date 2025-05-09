@@ -1002,9 +1002,11 @@ mod tests {
 					inner: ObjectVersionMetaInner {
 						headers: vec![],
 						checksum: None,
+						checksum_type: None,
 					},
 				},
 				checksum_algorithm: None,
+				checksum_type: None,
 			},
 		}
 	}

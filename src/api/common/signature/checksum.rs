@@ -39,12 +39,12 @@ pub type Sha1Checksum = [u8; 20];
 pub type Sha256Checksum = [u8; 32];
 
 // -- MAP OF CRC ALGORITHMS :
-// CRC32        -> CrcAlgorithm::Crc32Cksum
+// CRC32        -> CrcAlgorithm::Crc32IsoHdlc
 // CRC32C       -> CrcAlgorithm::Crc32Iscsi
 // CRC64NVME    -> CrcAlgorithm::Crc64Nvme
 
 pub fn new_crc32() -> CrcDigest {
-	CrcDigest::new(CrcAlgorithm::Crc32Cksum)
+	CrcDigest::new(CrcAlgorithm::Crc32IsoHdlc)
 }
 pub fn new_crc32c() -> CrcDigest {
 	CrcDigest::new(CrcAlgorithm::Crc32Iscsi)
@@ -207,10 +207,11 @@ impl Checksums {
 		}
 		if let Some(extra) = expected.extra {
 			let algo = extra.algorithm();
-			if self.extract(Some(algo)) != Some(extra) {
+			let calculated = self.extract(Some(algo));
+			if calculated != Some(extra) {
 				return Err(Error::InvalidDigest(format!(
-					"Failed to validate checksum for algorithm {:?}",
-					algo
+					"Failed to validate checksum for algorithm {:?}: calculated {:?}, expected {:?}",
+					algo, calculated, extra
 				)));
 			}
 		}

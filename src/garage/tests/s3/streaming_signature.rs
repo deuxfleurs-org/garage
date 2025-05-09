@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use base64::prelude::*;
-use crc32fast::Hasher as Crc32;
+use crc_fast::{checksum as crc_checksum, CrcAlgorithm};
 
 use crate::common;
 use crate::common::ext::CommandExt;
@@ -69,9 +69,8 @@ async fn test_putobject_streaming() {
 	{
 		let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
 
-		let mut crc32 = Crc32::new();
-		crc32.update(&BODY[..]);
-		let crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(crc32.finalize())[..]);
+		let crc32 = crc_checksum(CrcAlgorithm::Crc32IsoHdlc, &BODY[..]) as u32;
+		let crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(crc32)[..]);
 
 		let mut headers = HashMap::new();
 		headers.insert("x-amz-checksum-crc32".to_owned(), crc32.clone());
@@ -129,7 +128,8 @@ async fn test_putobject_streaming_unsigned_trailer() {
 		let mut headers = HashMap::new();
 		headers.insert("content-type".to_owned(), content_type.to_owned());
 
-		let empty_crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(Crc32::new().finalize())[..]);
+		let empty_crc32 = crc_checksum(CrcAlgorithm::Crc32IsoHdlc, &[]) as u32;
+		let empty_crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(empty_crc32)[..]);
 
 		let res = ctx
 			.custom_request
@@ -180,9 +180,8 @@ async fn test_putobject_streaming_unsigned_trailer() {
 	{
 		let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
 
-		let mut crc32 = Crc32::new();
-		crc32.update(&BODY[..]);
-		let crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(crc32.finalize())[..]);
+		let crc32 = crc_checksum(CrcAlgorithm::Crc32IsoHdlc, &BODY[..]) as u32;
+		let crc32 = BASE64_STANDARD.encode(&u32::to_be_bytes(crc32)[..]);
 
 		// try sending with wrong crc32, check that it fails
 		let err_res = ctx

@@ -739,7 +739,7 @@ impl MultipartExtraChecksummer {
 		match (algo, cktype) {
 			(algo, ChecksumType::FullObject) => {
 				let crc_type = match algo {
-					ChecksumAlgorithm::Crc32 => CrcAlgorithm::Crc32Cksum,
+					ChecksumAlgorithm::Crc32 => CrcAlgorithm::Crc32IsoHdlc,
 					ChecksumAlgorithm::Crc32c => CrcAlgorithm::Crc32Iscsi,
 					ChecksumAlgorithm::Crc64Nvme => CrcAlgorithm::Crc64Nvme,
 					_ => unreachable!(),
@@ -810,7 +810,7 @@ impl MultipartExtraChecksummer {
 	fn finalize(self) -> ChecksumValue {
 		match self {
 			Self::FullObjectCrc(algo, value) => match (algo, value) {
-				(CrcAlgorithm::Crc32Cksum, Some(v)) => {
+				(CrcAlgorithm::Crc32IsoHdlc, Some(v)) => {
 					ChecksumValue::Crc32(u32::to_be_bytes(v as u32))
 				}
 				(CrcAlgorithm::Crc32Iscsi, Some(v)) => {
