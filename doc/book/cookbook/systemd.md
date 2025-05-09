@@ -28,6 +28,7 @@ StateDirectory=garage
 DynamicUser=true
 ProtectHome=true
 NoNewPrivileges=true
+LimitNOFILE=42000
 
 [Install]
 WantedBy=multi-user.target
