@@ -83,6 +83,7 @@ pub async fn handle_put(
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: expected_checksums.extra,
+		checksum_type: expected_checksums.extra.map(|_| ChecksumType::FullObject),
 	};
 
 	// Determine whether object should be encrypted, and if so the key
@@ -243,6 +244,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		state: ObjectVersionState::Uploading {
 			encryption: encryption.encrypt_meta(meta.clone())?,
 			checksum_algorithm: None, // don't care; overwritten later
+			checksum_type: None,
 			multipart: false,
 		},
 	};
