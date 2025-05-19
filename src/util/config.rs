@@ -135,6 +135,10 @@ pub struct Config {
 	/// Configuration for the admin API endpoint
 	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
+
+	/// Allow punnycode in bucket names
+	#[serde(default)]
+	pub allow_punnycode: bool,
 }
 
 /// Value for data_dir: either a single directory or a list of dirs with attributes
