@@ -8,7 +8,6 @@ use hyper::{
 	body::{Body, Bytes},
 	Request, Response,
 };
-use idna::domain_to_unicode;
 use serde::{Deserialize, Serialize};
 
 use garage_model::bucket_table::BucketParams;
@@ -97,7 +96,7 @@ pub fn authority_to_host(authority: &str) -> Result<String, Error> {
 			authority
 		))),
 	};
-	authority.map(|h| domain_to_unicode(h).0)
+	authority.map(|h| h.to_ascii_lowercase())
 }
 
 /// Extract the bucket name and the key name from an HTTP path and possibly a bucket provided in
