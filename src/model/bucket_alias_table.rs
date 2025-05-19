@@ -76,7 +76,7 @@ impl TableSchema for BucketAliasTable {
 /// In the case of Garage, bucket names must not be hex-encoded
 /// 32 byte string, which is excluded thanks to the
 /// maximum length of 63 bytes given in the spec.
-pub fn is_valid_bucket_name(n: &str, punny: bool) -> bool {
+pub fn is_valid_bucket_name(n: &str, puny: bool) -> bool {
 	// Bucket names must be between 3 and 63 characters
 	n.len() >= 3 && n.len() <= 63
 	// Bucket names must be composed of lowercase letters, numbers,
@@ -88,9 +88,9 @@ pub fn is_valid_bucket_name(n: &str, punny: bool) -> bool {
 	// Bucket names must not be formatted as an IP address
 	&& n.parse::<std::net::IpAddr>().is_err()
 	// Bucket names must not start with "xn--"
-	&& (!n.starts_with("xn--") || punny)
-        // We are a bit stricter, to properly restrict punnycode in all labels
-	&& (!n.contains(".xn--") || punny)
+	&& (!n.starts_with("xn--") || puny)
+        // We are a bit stricter, to properly restrict punycode in all labels
+	&& (!n.contains(".xn--") || puny)
 	// Bucket names must not end with "-s3alias"
 	&& !n.ends_with("-s3alias")
 }

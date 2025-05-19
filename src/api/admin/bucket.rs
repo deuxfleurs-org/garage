@@ -277,7 +277,7 @@ pub async fn handle_create_bucket(
 	let helper = garage.locked_helper().await;
 
 	if let Some(ga) = &req.global_alias {
-		if !is_valid_bucket_name(ga, garage.config.allow_punnycode) {
+		if !is_valid_bucket_name(ga, garage.config.allow_punycode) {
 			return Err(Error::bad_request(format!(
 				"{}: {}",
 				ga, INVALID_BUCKET_NAME_MESSAGE
@@ -292,7 +292,7 @@ pub async fn handle_create_bucket(
 	}
 
 	if let Some(la) = &req.local_alias {
-		if !is_valid_bucket_name(&la.alias, garage.config.allow_punnycode) {
+		if !is_valid_bucket_name(&la.alias, garage.config.allow_punycode) {
 			return Err(Error::bad_request(format!(
 				"{}: {}",
 				la.alias, INVALID_BUCKET_NAME_MESSAGE

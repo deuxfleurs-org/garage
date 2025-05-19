@@ -57,7 +57,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_id: Uuid,
 		alias_name: &String,
 	) -> Result<(), Error> {
-		if !is_valid_bucket_name(alias_name, self.0.config.allow_punnycode) {
+		if !is_valid_bucket_name(alias_name, self.0.config.allow_punycode) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
@@ -217,7 +217,7 @@ impl<'a> LockedHelper<'a> {
 	) -> Result<(), Error> {
 		let key_helper = KeyHelper(self.0);
 
-		if !is_valid_bucket_name(alias_name, self.0.config.allow_punnycode) {
+		if !is_valid_bucket_name(alias_name, self.0.config.allow_punycode) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 

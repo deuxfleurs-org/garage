@@ -63,6 +63,8 @@ rpc_bind_addr = "127.0.0.1:{rpc_port}"
 rpc_public_addr = "127.0.0.1:{rpc_port}"
 rpc_secret = "{secret}"
 
+allow_punycode = true
+
 [s3_api]
 s3_region = "{region}"
 api_bind_addr = "127.0.0.1:{s3_port}"
