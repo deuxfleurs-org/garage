@@ -27,7 +27,7 @@ pub async fn handle_get_lifecycle(ctx: ReqCtx) -> Result<Response<ResBody>, Erro
 			.body(string_body(xml))?)
 	} else {
 		Ok(Response::builder()
-			.status(StatusCode::NO_CONTENT)
+			.status(StatusCode::NOT_FOUND)
 			.body(empty_body())?)
 	}
 }
