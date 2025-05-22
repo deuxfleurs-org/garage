@@ -29,6 +29,7 @@ use crate::error::*;
 use crate::get::{full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
 use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 use crate::xml::{self as s3_xml, xmlns_tag};
 
 pub const X_AMZ_COPY_SOURCE_IF_MATCH: HeaderName =
@@ -84,7 +85,18 @@ pub async fn handle_copy(
 			Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => {
 				extract_metadata_headers(req.headers())?
 			}
-			_ => source_object_meta_inner.into_owned().headers,
+			_ => {
+				// The x-amz-website-redirect-location header is not copied, instead
+				// it is replaced by the value from the request (or removed if no
+				// value was specified)
+				let is_redirect =
+					|(key, _): &(String, String)| key == X_AMZ_WEBSITE_REDIRECT_LOCATION.as_str();
+				let mut headers: Vec<_> = source_object_meta_inner.headers.clone();
+				headers.retain(|h| !is_redirect(h));
+				let new_headers = extract_metadata_headers(req.headers())?;
+				headers.extend(new_headers.into_iter().filter(is_redirect));
+				headers
+			}
 		},
 		checksum: source_checksum,
 	};
