@@ -30,6 +30,12 @@ for count in $(seq 1 3); do
 CONF_PATH="/tmp/config.$count.toml"
 LABEL="\e[${FANCYCOLORS[$count]}[$count]\e[49m"
 
+if [ "$GARAGE_OLDVER" == "v08" ]; then
+	REPLICATION_MODE="replication_mode = \"3\""
+else
+	REPLICATION_MODE="replication_factor = 3"
+fi
+
 cat > $CONF_PATH <<EOF
 block_size = 1048576			# objects are split in blocks of maximum this number of bytes
 metadata_dir = "/tmp/garage-meta-$count"
@@ -38,7 +44,7 @@ data_dir = "/tmp/garage-data-$count"
 rpc_bind_addr = "0.0.0.0:$((3900+$count))"		# the port other Garage nodes will use to talk to this node
 rpc_public_addr = "127.0.0.1:$((3900+$count))"
 bootstrap_peers = []
-replication_mode = "3"
+$REPLICATION_MODE
 rpc_secret = "$NETWORK_SECRET"
 
 [s3_api]

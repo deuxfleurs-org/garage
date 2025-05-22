@@ -15,7 +15,8 @@ data:
 
     block_size = {{ .Values.garage.blockSize }}
 
-    replication_mode = "{{ .Values.garage.replicationMode }}"
+    replication_factor = {{ .Values.garage.replicationFactor }}
+    consistency_mode = "{{ .Values.garage.consistencyMode }}"
 
     compression_level = {{ .Values.garage.compressionLevel }}
 
