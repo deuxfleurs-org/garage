@@ -1006,7 +1006,6 @@ mod tests {
 					},
 				},
 				checksum_algorithm: None,
-				checksum_type: None,
 			},
 		}
 	}

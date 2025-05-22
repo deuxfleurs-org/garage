@@ -265,7 +265,6 @@ async fn handle_copy_metaonly(
 				state: ObjectVersionState::Uploading {
 					encryption: new_meta.encryption.clone(),
 					checksum_algorithm: None,
-					checksum_type: None,
 					multipart: false,
 				},
 			};
@@ -531,7 +530,7 @@ pub async fn handle_upload_part_copy(
 
 	// Now, actually copy the blocks
 	let mut checksummer = Checksummer::init(&Default::default(), !dest_encryption.is_encrypted())
-		.add(dest_object_checksum_algorithm);
+		.add(dest_object_checksum_algorithm.map(|(algo, _)| algo));
 
 	// First, create a stream that is able to read the source blocks
 	// and extract the subrange if necessary.
@@ -662,7 +661,7 @@ pub async fn handle_upload_part_copy(
 
 	let checksums = checksummer.finalize();
 	let etag = dest_encryption.etag_from_md5(&checksums.md5);
-	let checksum = checksums.extract(dest_object_checksum_algorithm);
+	let checksum = checksums.extract(dest_object_checksum_algorithm.map(|(algo, _)| algo));
 
 	// Put the part's ETag in the Versiontable
 	dest_mpu.parts.put(

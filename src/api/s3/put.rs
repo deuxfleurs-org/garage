@@ -244,7 +244,6 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		state: ObjectVersionState::Uploading {
 			encryption: encryption.encrypt_meta(meta.clone())?,
 			checksum_algorithm: None, // don't care; overwritten later
-			checksum_type: None,
 			multipart: false,
 		},
 	};

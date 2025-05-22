@@ -419,10 +419,8 @@ mod v2 {
 		Uploading {
 			/// Indicates whether this is a multipart upload
 			multipart: bool,
-			/// Checksum algorithm to use
-			checksum_algorithm: Option<ChecksumAlgorithm>,
-			/// Checksum algorithm type (full object or composite)
-			checksum_type: Option<ChecksumType>,
+			/// Checksum algorithm and algorithm type to use
+			checksum_algorithm: Option<(ChecksumAlgorithm, ChecksumType)>,
 			/// Encryption params + headers to be included in the final object
 			encryption: ObjectVersionEncryption,
 		},
@@ -489,6 +487,10 @@ mod v2 {
 	pub struct ObjectVersionMetaInner {
 		pub headers: HeaderList,
 		pub checksum: Option<ChecksumValue>,
+		// checksum_type has to be stored separately, because when migrating
+		// from older versions of Garage, we can't know the correct value in
+		// ObjectVersionMetaInner::migrate (because it cannot take an argument
+		// that says whether the object was multipart or not)
 		pub checksum_type: Option<ChecksumType>,
 	}
 
@@ -525,10 +527,9 @@ mod v2 {
 					encryption,
 				} => ObjectVersionState::Uploading {
 					multipart,
-					checksum_algorithm,
-					checksum_type: Some(match multipart {
-						false => ChecksumType::FullObject,
-						true => ChecksumType::Composite,
+					checksum_algorithm: checksum_algorithm.map(|algo| match multipart {
+						false => (algo, ChecksumType::FullObject),
+						true => (algo, ChecksumType::Composite),
 					}),
 					encryption: migrate_encryption(encryption),
 				},
