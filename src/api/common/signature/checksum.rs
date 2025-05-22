@@ -28,8 +28,8 @@ pub const X_AMZ_CHECKSUM_SHA1: HeaderName = HeaderName::from_static("x-amz-check
 pub const X_AMZ_CHECKSUM_SHA256: HeaderName = HeaderName::from_static("x-amz-checksum-sha256");
 
 // Values for x-amz-checksum-type
-pub const COMPOSITE: &[u8] = b"COMPOSITE";
-pub const FULL_OBJECT: &[u8] = b"FULL_OBJECT";
+pub const COMPOSITE: &str = "COMPOSITE";
+pub const FULL_OBJECT: &str = "FULL_OBJECT";
 
 pub type Crc32Checksum = [u8; 4];
 pub type Crc32cChecksum = [u8; 4];

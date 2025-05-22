@@ -518,6 +518,11 @@ pub async fn handle_complete_multipart_upload(
 			Some(ChecksumValue::Sha256(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(&x))),
 			_ => None,
 		},
+		checksum_type: match checksum_algorithm {
+			Some((_, ChecksumType::Composite)) => Some(s3_xml::Value(COMPOSITE.into())),
+			Some((_, ChecksumType::FullObject)) => Some(s3_xml::Value(FULL_OBJECT.into())),
+			None => None,
+		},
 	};
 	let xml = s3_xml::to_xml_with_header(&result)?;
 
@@ -691,8 +696,8 @@ pub fn request_checksum_algorithm_and_type(
 		)),
 		(Some(x), Some(algo)) => {
 			let checksum_type = match x.as_bytes() {
-				COMPOSITE => ChecksumType::Composite,
-				FULL_OBJECT => ChecksumType::FullObject,
+				x if x == COMPOSITE.as_bytes() => ChecksumType::Composite,
+				x if x == FULL_OBJECT.as_bytes() => ChecksumType::FullObject,
 				_ => return Err(Error::bad_request("Invalid x-amz-checksum-type value")),
 			};
 			match (checksum_type, algo) {
