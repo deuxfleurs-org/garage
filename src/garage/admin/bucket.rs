@@ -126,7 +126,7 @@ impl AdminRpcHandler {
 
 	#[allow(clippy::ptr_arg)]
 	async fn handle_create_bucket(&self, name: &String) -> Result<AdminRpc, Error> {
-		if !is_valid_bucket_name(name) {
+		if !is_valid_bucket_name(name, self.garage.config.allow_punycode) {
 			return Err(Error::BadRequest(format!(
 				"{}: {}",
 				name, INVALID_BUCKET_NAME_MESSAGE

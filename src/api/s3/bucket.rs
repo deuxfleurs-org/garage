@@ -172,7 +172,7 @@ pub async fn handle_create_bucket(
 		}
 
 		// Create the bucket!
-		if !is_valid_bucket_name(&bucket_name) {
+		if !is_valid_bucket_name(&bucket_name, garage.config.allow_punycode) {
 			return Err(Error::bad_request(format!(
 				"{}: {}",
 				bucket_name, INVALID_BUCKET_NAME_MESSAGE

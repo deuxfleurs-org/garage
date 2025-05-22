@@ -57,7 +57,7 @@ impl<'a> LockedHelper<'a> {
 		bucket_id: Uuid,
 		alias_name: &String,
 	) -> Result<(), Error> {
-		if !is_valid_bucket_name(alias_name) {
+		if !is_valid_bucket_name(alias_name, self.0.config.allow_punycode) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
@@ -88,8 +88,7 @@ impl<'a> LockedHelper<'a> {
 		// writes are now done and all writes use timestamp alias_ts
 
 		let alias = match alias {
-			None => BucketAlias::new(alias_name.clone(), alias_ts, Some(bucket_id))
-				.ok_or_else(|| Error::InvalidBucketName(alias_name.clone()))?,
+			None => BucketAlias::new(alias_name.clone(), alias_ts, Some(bucket_id)),
 			Some(mut a) => {
 				a.state = Lww::raw(alias_ts, Some(bucket_id));
 				a
@@ -218,7 +217,7 @@ impl<'a> LockedHelper<'a> {
 	) -> Result<(), Error> {
 		let key_helper = KeyHelper(self.0);
 
-		if !is_valid_bucket_name(alias_name) {
+		if !is_valid_bucket_name(alias_name, self.0.config.allow_punycode) {
 			return Err(Error::InvalidBucketName(alias_name.to_string()));
 		}
 
