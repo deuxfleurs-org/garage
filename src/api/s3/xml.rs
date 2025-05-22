@@ -141,6 +141,8 @@ pub struct CompleteMultipartUploadResult {
 	pub checksum_sha1: Option<Value>,
 	#[serde(rename = "ChecksumSHA256")]
 	pub checksum_sha256: Option<Value>,
+	#[serde(rename = "ChecksumType")]
+	pub checksum_type: Option<Value>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -514,6 +516,7 @@ mod tests {
 
 	#[test]
 	fn complete_multipart_upload_result() -> Result<(), ApiError> {
+		use garage_api_common::signature::checksum::COMPOSITE;
 		let result = CompleteMultipartUploadResult {
 			xmlns: (),
 			location: Some(Value("https://garage.tld/mybucket/a/plop".to_string())),
@@ -525,6 +528,7 @@ mod tests {
 			checksum_crc64nvme: None,
 			checksum_sha1: Some(Value("ZJAnHyG8PeKz9tI8UTcHrJos39A=".into())),
 			checksum_sha256: None,
+			checksum_type: Some(Value(COMPOSITE.into())),
 		};
 		assert_eq!(
 			to_xml_with_header(&result)?,
@@ -535,6 +539,7 @@ mod tests {
 	<Key>a/plop</Key>\
 	<ETag>&quot;3858f62230ac3c915f300c664312c11f-9&quot;</ETag>\
     <ChecksumSHA1>ZJAnHyG8PeKz9tI8UTcHrJos39A=</ChecksumSHA1>\
+    <ChecksumType>COMPOSITE</ChecksumType>\
 </CompleteMultipartUploadResult>"
 		);
 		Ok(())

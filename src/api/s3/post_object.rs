@@ -233,6 +233,7 @@ pub async fn handle_post_object(
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: expected_checksums.extra,
+		checksum_type: expected_checksums.extra.map(|_| ChecksumType::FullObject),
 	};
 
 	let encryption = EncryptionParams::new_from_headers(
@@ -261,7 +262,7 @@ pub async fn handle_post_object(
 		encryption,
 		StreamLimiter::new(stream, conditions.content_length),
 		&key,
-		ChecksumMode::Verify(&expected_checksums),
+		ChecksumMode::Verify(expected_checksums),
 	)
 	.await?;
 

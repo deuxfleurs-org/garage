@@ -556,7 +556,7 @@ checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
 dependencies = [
  "getrandom 0.2.15",
  "instant",
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -839,6 +839,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
 
 [[package]]
+name = "crc-fast"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf0ab672ed7761a44410115d2e0e5ccd86b987ba186a78a4148fb02bb302a774"
+dependencies = [
+ "cc",
+ "crc",
+ "digest",
+ "libc",
+ "rand 0.9.1",
+ "regex",
+]
+
+[[package]]
 name = "crc32c"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -896,7 +910,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
  "generic-array",
- "rand_core",
+ "rand_core 0.6.4",
  "typenum",
 ]
 
@@ -1211,7 +1225,7 @@ dependencies = [
  "bytes",
  "bytesize",
  "chrono",
- "crc32fast",
+ "crc-fast",
  "format_table",
  "futures",
  "garage_api_admin",
@@ -1292,9 +1306,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "chrono",
- "crc32c",
- "crc32fast",
- "crc64fast-nvme",
+ "crc-fast",
  "crypto-common",
  "err-derive",
  "futures",
@@ -1353,9 +1365,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "chrono",
- "crc32c",
- "crc32fast",
- "crc64fast-nvme",
+ "crc-fast",
  "err-derive",
  "form_urlencoded",
  "futures",
@@ -1407,7 +1417,7 @@ dependencies = [
  "garage_util",
  "hex",
  "opentelemetry",
- "rand",
+ "rand 0.8.5",
  "serde",
  "tokio",
  "tokio-util 0.7.14",
@@ -1448,7 +1458,7 @@ dependencies = [
  "hex",
  "http 1.3.1",
  "parse_duration",
- "rand",
+ "rand 0.8.5",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1473,7 +1483,7 @@ dependencies = [
  "opentelemetry-contrib",
  "pin-project",
  "pretty_env_logger",
- "rand",
+ "rand 0.8.5",
  "rmp-serde",
  "serde",
  "tokio",
@@ -1503,7 +1513,7 @@ dependencies = [
  "nix",
  "opentelemetry",
  "pnet_datalink",
- "rand",
+ "rand 0.8.5",
  "reqwest",
  "schemars",
  "serde",
@@ -1527,7 +1537,7 @@ dependencies = [
  "hex",
  "hexdump",
  "opentelemetry",
- "rand",
+ "rand 0.8.5",
  "serde",
  "serde_bytes",
  "tokio",
@@ -1554,7 +1564,7 @@ dependencies = [
  "lazy_static",
  "mktemp",
  "opentelemetry",
- "rand",
+ "rand 0.8.5",
  "rmp-serde",
  "rustc_version",
  "serde",
@@ -2868,7 +2878,7 @@ dependencies = [
  "lazy_static",
  "percent-encoding",
  "pin-project",
- "rand",
+ "rand 0.8.5",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
@@ -3010,7 +3020,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
 dependencies = [
  "base64ct",
- "rand_core",
+ "rand_core 0.6.4",
  "subtle",
 ]
 
@@ -3359,8 +3369,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
- "rand_chacha",
- "rand_core",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fbfd9d094a40bf3ae768db9361049ace4c0e04a4fd6b359518bd7b73a73dd97"
+dependencies = [
+ "rand_chacha 0.9.0",
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -3370,7 +3390,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -3380,6 +3410,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.15",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
+dependencies = [
+ "getrandom 0.3.2",
 ]
 
 [[package]]
@@ -4465,7 +4504,7 @@ dependencies = [
  "indexmap 1.9.3",
  "pin-project",
  "pin-project-lite",
- "rand",
+ "rand 0.8.5",
  "slab",
  "tokio",
  "tokio-util 0.7.14",
@@ -4717,7 +4756,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
 dependencies = [
  "getrandom 0.2.15",
- "rand",
+ "rand 0.8.5",
 ]
 
 [[package]]

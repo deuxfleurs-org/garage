@@ -1,14 +1,11 @@
 use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::hash::Hasher;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 use base64::prelude::*;
-use crc32c::Crc32cHasher as Crc32c;
-use crc32fast::Hasher as Crc32;
-use crc64fast_nvme::Digest as Crc64Nvme;
+use crc_fast::{CrcAlgorithm, Digest as CrcDigest};
 use futures::prelude::*;
-use hyper::{Request, Response};
+use hyper::{header::HeaderValue, HeaderMap, Request, Response};
 use md5::{Digest, Md5};
 use sha1::Sha1;
 use sha2::Sha256;
@@ -54,6 +51,7 @@ pub async fn handle_create_multipart_upload(
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: None,
+		checksum_type: None,
 	};
 
 	// Determine whether object should be encrypted, and if so the key
@@ -68,7 +66,10 @@ pub async fn handle_create_multipart_upload(
 	)?;
 	let object_encryption = encryption.encrypt_meta(meta)?;
 
-	let checksum_algorithm = request_checksum_algorithm(req.headers())?;
+	let checksum_algorithm = request_checksum_algorithm_and_type(
+		req.headers(),
+		request_checksum_algorithm(req.headers())?,
+	)?;
 
 	// Create object in object table
 	let object_version = ObjectVersion {
@@ -227,7 +228,7 @@ pub async fn handle_put_part(
 		MpuPart {
 			version: version_uuid,
 			etag: Some(etag.clone()),
-			checksum: checksums.extract(checksum_algorithm),
+			checksum: checksums.extract(checksum_algorithm.map(|(algo, _)| algo)),
 			size: Some(total_size),
 		},
 	);
@@ -289,6 +290,14 @@ pub async fn handle_complete_multipart_upload(
 	let (req_head, req_body) = req.into_parts();
 
 	let expected_checksum = request_checksum_value(&req_head.headers)?;
+	let req_checksum_algorithm = request_checksum_algorithm_and_type(
+		&req_head.headers,
+		expected_checksum.map(|x| x.algorithm()),
+	)?;
+	debug!(
+		"CompleteMultipartUpload expected checksum: {:?}, request checksum type: {:?}",
+		expected_checksum, req_checksum_algorithm
+	);
 
 	let body = req_body.collect().await?;
 
@@ -319,6 +328,17 @@ pub async fn handle_complete_multipart_upload(
 		} => (encryption, checksum_algorithm),
 		_ => unreachable!(),
 	};
+	debug!(
+		"CompleteMultipartUpload object checksum_algorithm: {:?}",
+		checksum_algorithm
+	);
+	if req_checksum_algorithm.is_some() && req_checksum_algorithm != checksum_algorithm {
+		return Err(Error::InvalidDigest(format!(
+            "checksum algorithm {:?} does not correspond to algorithm specified in CreateMultipartUpload {:?}",
+            req_checksum_algorithm,
+            checksum_algorithm
+        )));
+	}
 
 	// Check that part numbers are an increasing sequence.
 	// (it doesn't need to start at 1 nor to be a continuous sequence,
@@ -344,8 +364,7 @@ pub async fn handle_complete_multipart_upload(
 	for req_part in body_list_of_parts.iter() {
 		match have_parts.get(&req_part.part_number) {
 			Some(part) if part.etag.as_ref() == Some(&req_part.etag) && part.size.is_some() => {
-				// alternative version: if req_part.checksum.is_some() && part.checksum != req_part.checksum {
-				if part.checksum != req_part.checksum {
+				if req_part.checksum.is_some() && part.checksum != req_part.checksum {
 					return Err(Error::InvalidDigest(format!(
 						"Invalid checksum for part {}: in request = {:?}, uploaded part = {:?}",
 						req_part.part_number, req_part.checksum, part.checksum
@@ -404,7 +423,11 @@ pub async fn handle_complete_multipart_upload(
 	// https://teppen.io/2018/06/23/aws_s3_etags/
 	let mut checksummer = MultipartChecksummer::init(checksum_algorithm);
 	for part in parts.iter() {
-		checksummer.update(part.etag.as_ref().unwrap(), part.checksum)?;
+		checksummer.update(
+			part.etag.as_ref().unwrap(),
+			part.checksum,
+			part.size.unwrap(),
+		)?;
 	}
 	let (checksum_md5, checksum_extra) = checksummer.finalize();
 
@@ -440,6 +463,7 @@ pub async fn handle_complete_multipart_upload(
 			let new_meta = ObjectVersionMetaInner {
 				headers: meta.into_owned().headers,
 				checksum: checksum_extra,
+				checksum_type: checksum_algorithm.map(|(_, ty)| ty),
 			};
 			encryption.encrypt_meta(new_meta)?
 		}
@@ -493,6 +517,11 @@ pub async fn handle_complete_multipart_upload(
 		checksum_sha256: match &checksum_extra {
 			Some(ChecksumValue::Sha256(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(&x))),
 			_ => None,
+		},
+		checksum_type: match checksum_algorithm {
+			Some((_, ChecksumType::Composite)) => Some(s3_xml::Value(COMPOSITE.into())),
+			Some((_, ChecksumType::FullObject)) => Some(s3_xml::Value(FULL_OBJECT.into())),
+			None => None,
 		},
 	};
 	let xml = s3_xml::to_xml_with_header(&result)?;
@@ -649,40 +678,52 @@ fn parse_complete_multipart_upload_body(
 
 // ====== checksummer ====
 
+pub fn request_checksum_algorithm_and_type(
+	headers: &HeaderMap<HeaderValue>,
+	algo: Option<ChecksumAlgorithm>,
+) -> Result<Option<(ChecksumAlgorithm, ChecksumType)>, Error> {
+	match (headers.get(X_AMZ_CHECKSUM_TYPE), algo) {
+		(None, None) => Ok(None),
+		(None, Some(algo)) => {
+			let ty = match algo {
+				ChecksumAlgorithm::Crc64Nvme => ChecksumType::FullObject,
+				_ => ChecksumType::Composite,
+			};
+			Ok(Some((algo, ty)))
+		}
+		(Some(_), None) => Err(Error::bad_request(
+			"Cannot specify x-amz-checksum-type when no checksum algorithm is in use.",
+		)),
+		(Some(x), Some(algo)) => {
+			let checksum_type = match x.as_bytes() {
+				x if x == COMPOSITE.as_bytes() => ChecksumType::Composite,
+				x if x == FULL_OBJECT.as_bytes() => ChecksumType::FullObject,
+				_ => return Err(Error::bad_request("Invalid x-amz-checksum-type value")),
+			};
+			match (checksum_type, algo) {
+				(ChecksumType::Composite, ChecksumAlgorithm::Crc64Nvme)
+				| (ChecksumType::FullObject, ChecksumAlgorithm::Sha1)
+				| (ChecksumType::FullObject, ChecksumAlgorithm::Sha256) => Err(Error::bad_request(format!(
+					"checksum type {:?} is not supported for algorithm {:?}",
+					checksum_type, algo
+				))),
+				(ty, algo) => Ok(Some((algo, ty))),
+			}
+		}
+	}
+}
+
 #[derive(Default)]
 pub(crate) struct MultipartChecksummer {
 	pub md5: Md5,
 	pub extra: Option<MultipartExtraChecksummer>,
 }
 
-pub(crate) enum MultipartExtraChecksummer {
-	Crc32(Crc32),
-	Crc32c(Crc32c),
-	Crc64Nvme(Crc64Nvme),
-	Sha1(Sha1),
-	Sha256(Sha256),
-}
-
 impl MultipartChecksummer {
-	pub(crate) fn init(algo: Option<ChecksumAlgorithm>) -> Self {
+	pub(crate) fn init(algo: Option<(ChecksumAlgorithm, ChecksumType)>) -> Self {
 		Self {
 			md5: Md5::new(),
-			extra: match algo {
-				None => None,
-				Some(ChecksumAlgorithm::Crc32) => {
-					Some(MultipartExtraChecksummer::Crc32(Crc32::new()))
-				}
-				Some(ChecksumAlgorithm::Crc32c) => {
-					Some(MultipartExtraChecksummer::Crc32c(Crc32c::default()))
-				}
-				Some(ChecksumAlgorithm::Crc64Nvme) => {
-					Some(MultipartExtraChecksummer::Crc64Nvme(Crc64Nvme::default()))
-				}
-				Some(ChecksumAlgorithm::Sha1) => Some(MultipartExtraChecksummer::Sha1(Sha1::new())),
-				Some(ChecksumAlgorithm::Sha256) => {
-					Some(MultipartExtraChecksummer::Sha256(Sha256::new()))
-				}
-			},
+			extra: algo.map(|(algo, cktype)| MultipartExtraChecksummer::init(algo, cktype)),
 		}
 	}
 
@@ -690,68 +731,130 @@ impl MultipartChecksummer {
 		&mut self,
 		etag: &str,
 		checksum: Option<ChecksumValue>,
+		part_len: u64,
 	) -> Result<(), Error> {
 		self.md5
 			.update(&hex::decode(&etag).ok_or_message("invalid etag hex")?);
-		match (&mut self.extra, checksum) {
-			(None, _) => (),
-			(
-				Some(MultipartExtraChecksummer::Crc32(ref mut crc32)),
-				Some(ChecksumValue::Crc32(x)),
-			) => {
-				crc32.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Crc32c(ref mut crc32c)),
-				Some(ChecksumValue::Crc32c(x)),
-			) => {
-				crc32c.write(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Crc64Nvme(ref mut crc64nvme)),
-				Some(ChecksumValue::Crc64Nvme(x)),
-			) => {
-				crc64nvme.write(&x);
-			}
-			(Some(MultipartExtraChecksummer::Sha1(ref mut sha1)), Some(ChecksumValue::Sha1(x))) => {
-				sha1.update(&x);
-			}
-			(
-				Some(MultipartExtraChecksummer::Sha256(ref mut sha256)),
-				Some(ChecksumValue::Sha256(x)),
-			) => {
-				sha256.update(&x);
-			}
-			(Some(_), b) => {
-				return Err(Error::internal_error(format!(
-					"part checksum was not computed correctly, got: {:?}",
-					b
-				)))
-			}
+		if let Some(extra) = &mut self.extra {
+			extra.update(checksum, part_len)?;
 		}
 		Ok(())
 	}
 
 	pub(crate) fn finalize(self) -> (Md5Checksum, Option<ChecksumValue>) {
 		let md5 = self.md5.finalize()[..].try_into().unwrap();
-		let extra = match self.extra {
-			None => None,
-			Some(MultipartExtraChecksummer::Crc32(crc32)) => {
-				Some(ChecksumValue::Crc32(u32::to_be_bytes(crc32.finalize())))
-			}
-			Some(MultipartExtraChecksummer::Crc32c(crc32c)) => Some(ChecksumValue::Crc32c(
-				u32::to_be_bytes(u32::try_from(crc32c.finish()).unwrap()),
-			)),
-			Some(MultipartExtraChecksummer::Crc64Nvme(crc64nvme)) => Some(
-				ChecksumValue::Crc64Nvme(u64::to_be_bytes(crc64nvme.sum64())),
-			),
-			Some(MultipartExtraChecksummer::Sha1(sha1)) => {
-				Some(ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap()))
-			}
-			Some(MultipartExtraChecksummer::Sha256(sha256)) => Some(ChecksumValue::Sha256(
-				sha256.finalize()[..].try_into().unwrap(),
-			)),
-		};
+		let extra = self.extra.map(|c| c.finalize());
 		(md5, extra)
+	}
+}
+
+pub(crate) enum MultipartExtraChecksummer {
+	FullObjectCrc(CrcAlgorithm, Option<u64>),
+	CompositeCrc(ChecksumAlgorithm, CrcDigest),
+	CompositeSha1(Sha1),
+	CompositeSha256(Sha256),
+}
+
+impl MultipartExtraChecksummer {
+	fn init(algo: ChecksumAlgorithm, cktype: ChecksumType) -> Self {
+		match (algo, cktype) {
+			(algo, ChecksumType::FullObject) => {
+				let crc_type = match algo {
+					ChecksumAlgorithm::Crc32 => CrcAlgorithm::Crc32IsoHdlc,
+					ChecksumAlgorithm::Crc32c => CrcAlgorithm::Crc32Iscsi,
+					ChecksumAlgorithm::Crc64Nvme => CrcAlgorithm::Crc64Nvme,
+					_ => unreachable!(),
+				};
+				Self::FullObjectCrc(crc_type, None)
+			}
+			(ChecksumAlgorithm::Crc32, ChecksumType::Composite) => {
+				Self::CompositeCrc(ChecksumAlgorithm::Crc32, new_crc32())
+			}
+			(ChecksumAlgorithm::Crc32c, ChecksumType::Composite) => {
+				Self::CompositeCrc(ChecksumAlgorithm::Crc32c, new_crc32c())
+			}
+			(ChecksumAlgorithm::Sha1, ChecksumType::Composite) => Self::CompositeSha1(Sha1::new()),
+			(ChecksumAlgorithm::Sha256, ChecksumType::Composite) => {
+				Self::CompositeSha256(Sha256::new())
+			}
+			_ => unreachable!(),
+		}
+	}
+
+	fn update(&mut self, checksum: Option<ChecksumValue>, part_len: u64) -> Result<(), Error> {
+		match (self, checksum) {
+			(Self::FullObjectCrc(crc_algo, crc_value), Some(ck)) => {
+				let ck_u64 = match ck {
+					ChecksumValue::Crc32(x) => u32::from_be_bytes(x) as u64,
+					ChecksumValue::Crc32c(x) => u32::from_be_bytes(x) as u64,
+					ChecksumValue::Crc64Nvme(x) => u64::from_be_bytes(x),
+					_ => {
+						return Err(Error::internal_error(format!(
+							"part checksum was not computed correctly, got: {:?}",
+							ck
+						)))
+					}
+				};
+				*crc_value = match *crc_value {
+					None => Some(ck_u64),
+					Some(prev) => Some(crc_fast::checksum_combine(
+						*crc_algo, prev, ck_u64, part_len,
+					)),
+				};
+			}
+			(Self::CompositeCrc(_, digest), Some(ck)) => match ck {
+				ChecksumValue::Crc32(x) => digest.update(&x),
+				ChecksumValue::Crc32c(x) => digest.update(&x),
+				ChecksumValue::Crc64Nvme(x) => digest.update(&x),
+				_ => {
+					return Err(Error::internal_error(format!(
+						"part checksum was not computed correctly, got: {:?}",
+						ck
+					)))
+				}
+			},
+			(Self::CompositeSha1(sha1), Some(ChecksumValue::Sha1(x))) => {
+				sha1.update(&x);
+			}
+			(Self::CompositeSha256(sha256), Some(ChecksumValue::Sha256(x))) => {
+				sha256.update(&x);
+			}
+			_ => {
+				return Err(Error::internal_error(format!(
+					"part checksum was not computed correctly, got: {:?}",
+					checksum
+				)))
+			}
+		}
+		Ok(())
+	}
+	fn finalize(self) -> ChecksumValue {
+		match self {
+			Self::FullObjectCrc(algo, value) => match (algo, value) {
+				(CrcAlgorithm::Crc32IsoHdlc, Some(v)) => {
+					ChecksumValue::Crc32(u32::to_be_bytes(v as u32))
+				}
+				(CrcAlgorithm::Crc32Iscsi, Some(v)) => {
+					ChecksumValue::Crc32c(u32::to_be_bytes(v as u32))
+				}
+				(CrcAlgorithm::Crc64Nvme, Some(v)) => ChecksumValue::Crc64Nvme(u64::to_be_bytes(v)),
+				_ => unreachable!(),
+			},
+			Self::CompositeCrc(algo, crc) => match algo {
+				ChecksumAlgorithm::Crc32 => {
+					ChecksumValue::Crc32(u32::to_be_bytes(crc.finalize() as u32))
+				}
+				ChecksumAlgorithm::Crc32c => {
+					ChecksumValue::Crc32c(u32::to_be_bytes(crc.finalize() as u32))
+				}
+				_ => unreachable!(),
+			},
+			Self::CompositeSha1(sha1) => {
+				ChecksumValue::Sha1(sha1.finalize()[..].try_into().unwrap())
+			}
+			Self::CompositeSha256(sha256) => {
+				ChecksumValue::Sha256(sha256.finalize()[..].try_into().unwrap())
+			}
+		}
 	}
 }
