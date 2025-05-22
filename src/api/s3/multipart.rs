@@ -294,6 +294,10 @@ pub async fn handle_complete_multipart_upload(
 		&req_head.headers,
 		expected_checksum.map(|x| x.algorithm()),
 	)?;
+	debug!(
+		"CompleteMultipartUpload expected checksum: {:?}, request checksum type: {:?}",
+		expected_checksum, req_checksum_algorithm
+	);
 
 	let body = req_body.collect().await?;
 
@@ -324,8 +328,16 @@ pub async fn handle_complete_multipart_upload(
 		} => (encryption, checksum_algorithm),
 		_ => unreachable!(),
 	};
-	if req_checksum_algorithm != checksum_algorithm {
-		return Err(Error::InvalidDigest("checksum algorithm does not correspond to algorithm specified in CreateMultipartUpload".into()));
+	debug!(
+		"CompleteMultipartUpload object checksum_algorithm: {:?}",
+		checksum_algorithm
+	);
+	if req_checksum_algorithm.is_some() && req_checksum_algorithm != checksum_algorithm {
+		return Err(Error::InvalidDigest(format!(
+            "checksum algorithm {:?} does not correspond to algorithm specified in CreateMultipartUpload {:?}",
+            req_checksum_algorithm,
+            checksum_algorithm
+        )));
 	}
 
 	// Check that part numbers are an increasing sequence.
@@ -352,9 +364,7 @@ pub async fn handle_complete_multipart_upload(
 	for req_part in body_list_of_parts.iter() {
 		match have_parts.get(&req_part.part_number) {
 			Some(part) if part.etag.as_ref() == Some(&req_part.etag) && part.size.is_some() => {
-				if checksum_algorithm.map(|(_, ty)| ty) == Some(ChecksumType::Composite)
-					&& part.checksum != req_part.checksum
-				{
+				if req_part.checksum.is_some() && part.checksum != req_part.checksum {
 					return Err(Error::InvalidDigest(format!(
 						"Invalid checksum for part {}: in request = {:?}, uploaded part = {:?}",
 						req_part.part_number, req_part.checksum, part.checksum
