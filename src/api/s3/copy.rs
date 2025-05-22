@@ -78,7 +78,8 @@ pub async fn handle_copy(
 		},
 	)?;
 
-	let was_multipart = source_version_meta.etag.contains('-'); // HACK
+	let was_multipart = source_version_meta.etag.contains('-') // HACK
+        || source_object_meta_inner.checksum_type == Some(ChecksumType::Composite);
 
 	// Extract source checksum info before source_object_meta_inner is consumed
 	let source_checksum = source_object_meta_inner.checksum;
@@ -131,8 +132,8 @@ pub async fn handle_copy(
 	// See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 
 	let must_recopy = !EncryptionParams::is_same(&source_encryption, &dest_encryption)
-		|| source_checksum_algorithm != checksum_algorithm
-		|| (was_multipart && checksum_algorithm.is_some());
+		|| (checksum_algorithm.is_some()
+			&& (was_multipart || checksum_algorithm != source_checksum_algorithm));
 
 	let res = if !must_recopy {
 		// In most cases, we can just copy the metadata and link blocks of the
