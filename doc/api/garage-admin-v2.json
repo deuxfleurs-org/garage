@@ -3973,6 +3973,12 @@
                 "$ref": "#/components/schemas/ScrubCommand"
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "aliases"
+            ]
           }
         ]
       },

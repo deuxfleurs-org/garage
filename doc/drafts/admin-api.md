@@ -15,7 +15,10 @@ when changes are introduced.
 
 The Garage administration API was introduced in version 0.7.2, and was
 changed several times.
-This document applies only to the Garage v2 API (starting with Garage v2.0.0).
+
+**THIS DOCUMENT IS DEPRECATED.** We now have an OpenAPI spec which is automatically generated
+from Garage's source code and is always up-to-date. See `doc/api/garage-admin-v2.html`.
+Text in this document is no longer kept in sync with the admin API's actual behavior.
 
 
 ## Access control
