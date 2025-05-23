@@ -37,6 +37,7 @@ in
     ];
     shellHook = ''
       function to_s3 {
+        AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED \
         aws \
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
@@ -93,6 +94,7 @@ in
 
         nix-build nix/build_index.nix
 
+        AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED \
         aws \
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
@@ -100,6 +102,7 @@ in
             result/share/_releases.json \
             s3://garagehq.deuxfleurs.fr/
 
+        AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED \
         aws \
             --endpoint-url https://garage.deuxfleurs.fr \
             --region garage \
