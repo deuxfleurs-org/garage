@@ -984,3 +984,76 @@ async fn test_website_invalid_redirect() {
 		.await
 		.unwrap_err();
 }
+
+#[tokio::test]
+async fn test_website_puny() {
+	const BCKT_NAME: &str = "xn--pda.eu";
+	let ctx = common::context();
+	let bucket = ctx.create_bucket(BCKT_NAME);
+
+	let data = ByteStream::from_static(BODY);
+
+	ctx.client
+		.put_object()
+		.bucket(&bucket)
+		.key("index.html")
+		.body(data)
+		.send()
+		.await
+		.unwrap();
+
+	let client = Client::builder(TokioExecutor::new()).build_http();
+
+	let req = |suffix| {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
+			.header("Host", format!("{}{}", BCKT_NAME, suffix))
+			.body(Body::new(Bytes::new()))
+			.unwrap()
+	};
+
+	ctx.garage
+		.command()
+		.args(["bucket", "website", "--allow", BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not allow website on bucket");
+
+	let mut resp = client.request(req("")).await.unwrap();
+	assert_eq!(resp.status(), StatusCode::OK);
+	assert_eq!(
+		resp.into_body().collect().await.unwrap().to_bytes(),
+		BODY.as_ref()
+	);
+
+	resp = client.request(req(".web.garage")).await.unwrap();
+	assert_eq!(resp.status(), StatusCode::OK);
+	assert_eq!(
+		resp.into_body().collect().await.unwrap().to_bytes(),
+		BODY.as_ref()
+	);
+
+	for bname in [
+		BCKT_NAME.to_string(),
+		format!("{BCKT_NAME}.web.garage"),
+		format!("{BCKT_NAME}.s3.garage"),
+	] {
+		let admin_req = || {
+			Request::builder()
+				.method("GET")
+				.uri(format!(
+					"http://127.0.0.1:{0}/check?domain={1}",
+					ctx.garage.admin_port, bname
+				))
+				.body(Body::new(Bytes::new()))
+				.unwrap()
+		};
+
+		let admin_resp = client.request(admin_req()).await.unwrap();
+		assert_eq!(admin_resp.status(), StatusCode::OK);
+		assert_eq!(
+			admin_resp.into_body().collect().await.unwrap().to_bytes(),
+			format!("Domain '{bname}' is managed by Garage").as_bytes()
+		);
+	}
+}

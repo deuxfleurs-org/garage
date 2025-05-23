@@ -78,15 +78,14 @@ spec:
           {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          # TODO
-          # livenessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: 3900
-          # readinessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: 3900
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:

@@ -89,6 +89,10 @@ impl RequestHandler for LocalLaunchRepairOperationRequest {
 					garage.block_manager.clone(),
 				));
 			}
+			RepairType::Aliases => {
+				info!("Repairing bucket aliases (foreground)");
+				garage.locked_helper().await.repair_aliases().await?;
+			}
 		}
 		Ok(LocalLaunchRepairOperationResponse)
 	}

@@ -20,6 +20,10 @@ data:
 
     compression_level = {{ .Values.garage.compressionLevel }}
 
+    {{- if .Values.garage.metadataAutoSnapshotInterval }}
+    metadata_auto_snapshot_interval = {{ .Values.garage.metadataAutoSnapshotInterval | quote }}
+    {{- end }}
+
     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
     # rpc_secret will be populated by the init container from a k8s secret object
     rpc_secret = "__RPC_SECRET_REPLACE__"

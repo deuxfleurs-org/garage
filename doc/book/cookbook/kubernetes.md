@@ -26,6 +26,13 @@ Or deploy with custom values:
 helm install --create-namespace --namespace garage garage ./garage -f values.override.yaml
 ```
 
+If you want to manage the CustomRessourceDefinition used by garage for its `kubernetes_discovery` outside of the helm chart, add `garage.kubernetesSkipCrd: true` to your custom values and use the kustomization before deploying the helm chart:
+
+```bash
+kubectl apply -k ../k8s/crd
+helm install --create-namespace --namespace garage garage ./garage -f values.override.yaml
+```
+
 After deploying, cluster layout must be configured manually as described in [Creating a cluster layout](@/documentation/quick-start/_index.md#creating-a-cluster-layout). Use the following command to access garage CLI:
 
 ```bash

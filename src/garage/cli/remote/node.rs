@@ -91,6 +91,7 @@ impl Cli {
 				ScrubCmd::Pause => ScrubCommand::Pause,
 				ScrubCmd::Resume => ScrubCommand::Resume,
 			}),
+			RepairWhat::Aliases => RepairType::Aliases,
 		};
 
 		let res = self

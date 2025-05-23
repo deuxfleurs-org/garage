@@ -1114,6 +1114,7 @@ pub enum RepairType {
 	BlockRc,
 	Rebalance,
 	Scrub(ScrubCommand),
+	Aliases,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

@@ -27,7 +27,6 @@ err-derive.workspace = true
 hex.workspace = true
 hmac.workspace = true
 md-5.workspace = true
-idna.workspace = true
 tracing.workspace = true
 nom.workspace = true
 pin-project.workspace = true

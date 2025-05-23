@@ -167,7 +167,7 @@ pub async fn handle_create_bucket(
 		}
 
 		// Create the bucket!
-		if !is_valid_bucket_name(&bucket_name) {
+		if !is_valid_bucket_name(&bucket_name, garage.config.allow_punycode) {
 			return Err(Error::bad_request(format!(
 				"{}: {}",
 				bucket_name, INVALID_BUCKET_NAME_MESSAGE
@@ -236,11 +236,11 @@ pub async fn handle_delete_bucket(ctx: ReqCtx) -> Result<Response<ResBody>, Erro
 		// 1. delete bucket alias
 		if is_local_alias {
 			helper
-				.unset_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
+				.purge_local_bucket_alias(*bucket_id, &api_key.key_id, bucket_name)
 				.await?;
 		} else {
 			helper
-				.unset_global_bucket_alias(*bucket_id, bucket_name)
+				.purge_global_bucket_alias(*bucket_id, bucket_name)
 				.await?;
 		}
 

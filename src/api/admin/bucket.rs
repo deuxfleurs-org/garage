@@ -159,7 +159,7 @@ impl RequestHandler for CreateBucketRequest {
 		let helper = garage.locked_helper().await;
 
 		if let Some(ga) = &self.global_alias {
-			if !is_valid_bucket_name(ga) {
+			if !is_valid_bucket_name(ga, garage.config.allow_punycode) {
 				return Err(Error::bad_request(format!(
 					"{}: {}",
 					ga, INVALID_BUCKET_NAME_MESSAGE
@@ -174,7 +174,7 @@ impl RequestHandler for CreateBucketRequest {
 		}
 
 		if let Some(la) = &self.local_alias {
-			if !is_valid_bucket_name(&la.alias) {
+			if !is_valid_bucket_name(&la.alias, garage.config.allow_punycode) {
 				return Err(Error::bad_request(format!(
 					"{}: {}",
 					la.alias, INVALID_BUCKET_NAME_MESSAGE
@@ -255,7 +255,7 @@ impl RequestHandler for DeleteBucketRequest {
 		for ((key_id, alias), _, active) in state.local_aliases.items().iter() {
 			if *active {
 				helper
-					.unset_local_bucket_alias(bucket.id, key_id, alias)
+					.purge_local_bucket_alias(bucket.id, key_id, alias)
 					.await?;
 			}
 		}

@@ -46,6 +46,7 @@ bootstrap_peers = [
     "212fd62eeaca72c122b45a7f4fa0f55e012aa5e24ac384a72a3016413fa724ff@[fc00:F::1]:3901",
 ]
 
+allow_punycode = false
 
 [consul_discovery]
 api = "catalog"
@@ -116,6 +117,7 @@ Top-level configuration options:
 [`rpc_public_addr`](#rpc_public_addr),
 [`rpc_public_addr_subnet`](#rpc_public_addr_subnet)
 [`rpc_secret`/`rpc_secret_file`](#rpc_secret).
+[`allow_punycode`](#allow_punycode).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
@@ -606,7 +608,7 @@ be obtained by running `garage node id` and then included directly in the
 key will be returned by `garage node id` and you will have to add the IP
 yourself.
 
-### `allow_world_readable_secrets` or `GARAGE_ALLOW_WORLD_READABLE_SECRETS` (env) {#allow_world_readable_secrets}
+#### `allow_world_readable_secrets` or `GARAGE_ALLOW_WORLD_READABLE_SECRETS` (env) {#allow_world_readable_secrets}
 
 Garage checks the permissions of your secret files to make sure they're not
 world-readable. In some cases, the check might fail and consider your files as
@@ -617,6 +619,13 @@ permission verification.
 
 Alternatively, you can set the `GARAGE_ALLOW_WORLD_READABLE_SECRETS`
 environment variable to `true` to bypass the permissions check.
+
+#### `allow_punycode` {#allow_punycode}
+
+Allow creating buckets with names containing punycode. When used for buckets served
+as websites, this allows using almost any unicode character in the domain name.
+
+Default to `false`.
 
 ### The `[consul_discovery]` section
 

@@ -69,7 +69,7 @@ $CONFIG = array(
         'hostname' => '127.0.0.1', // Can also be a domain name, eg. garage.example.com
         'port' => 3900,            // Put your reverse proxy port or your S3 API port
         'use_ssl' => false,        // Set it to true if you have a TLS enabled reverse proxy
-        'region' => 'garage',      // Garage has only one region named "garage"
+        'region' => 'garage',      // Garage default region is named "garage", edit according to your cluster config
         'use_path_style' => true   // Garage supports only path style, must be set to true
     ],
 ],
@@ -135,7 +135,7 @@ bucket but doesn't also know the secret encryption key.
 *Click on the picture to zoom*
 
 Add a new external storage. Put what you want in "folder name" (eg. "shared"). Select "Amazon S3". Keep "Access Key" for the Authentication field.
-In Configuration, put your bucket name (eg. nextcloud), the host (eg. 127.0.0.1), the port (eg. 3900 or 443), the region (garage). Tick the SSL box if you have put an HTTPS proxy in front of garage. You must tick the "Path access" box and you must leave the "Legacy authentication (v2)" box empty. Put your Key ID (eg. GK...) and your Secret Key in the last two input boxes. Finally click on the tick symbol on the right of your screen.
+In Configuration, put your bucket name (eg. nextcloud), the host (eg. 127.0.0.1), the port (eg. 3900 or 443), the region ("garage" if you use the default, or the one your configured in your `garage.toml`). Tick the SSL box if you have put an HTTPS proxy in front of garage. You must tick the "Path access" box and you must leave the "Legacy authentication (v2)" box empty. Put your Key ID (eg. GK...) and your Secret Key in the last two input boxes. Finally click on the tick symbol on the right of your screen.
 
 Now go to your "Files" app and a new "linked folder" has appeared with the name you chose earlier (eg. "shared").
 
@@ -238,7 +238,7 @@ object_storage:
   # Put localhost only if you have a garage instance running on that node
   endpoint: 'http://localhost:3900' # or "garage.example.com" if you have TLS on port 443
 
-  # Garage supports only one region for now, named garage
+  # Garage default region is named "garage", edit according to your config
   region: 'garage'
 
   credentials:
@@ -441,7 +441,7 @@ media_storage_providers:
   store_synchronous: True  # do we want to wait that the file has been written before returning?
   config:
     bucket: matrix       # the name of our bucket, we chose matrix earlier
-    region_name: garage  # only "garage" is supported for the region field
+    region_name: garage  # "garage" by default, edit according to your cluster config
     endpoint_url: http://localhost:3900 # the path to the S3 endpoint
     access_key_id: "GKxxx" # your Key ID
     secret_access_key: "xxxx" # your Secret Key

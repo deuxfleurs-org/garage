@@ -22,14 +22,10 @@ mod v08 {
 pub use v08::*;
 
 impl BucketAlias {
-	pub fn new(name: String, ts: u64, bucket_id: Option<Uuid>) -> Option<Self> {
-		if !is_valid_bucket_name(&name) {
-			None
-		} else {
-			Some(BucketAlias {
-				name,
-				state: crdt::Lww::raw(ts, bucket_id),
-			})
+	pub fn new(name: String, ts: u64, bucket_id: Option<Uuid>) -> Self {
+		BucketAlias {
+			name,
+			state: crdt::Lww::raw(ts, bucket_id),
 		}
 	}
 
@@ -80,7 +76,7 @@ impl TableSchema for BucketAliasTable {
 /// In the case of Garage, bucket names must not be hex-encoded
 /// 32 byte string, which is excluded thanks to the
 /// maximum length of 63 bytes given in the spec.
-pub fn is_valid_bucket_name(n: &str) -> bool {
+pub fn is_valid_bucket_name(n: &str, puny: bool) -> bool {
 	// Bucket names must be between 3 and 63 characters
 	n.len() >= 3 && n.len() <= 63
 	// Bucket names must be composed of lowercase letters, numbers,
@@ -92,7 +88,9 @@ pub fn is_valid_bucket_name(n: &str) -> bool {
 	// Bucket names must not be formatted as an IP address
 	&& n.parse::<std::net::IpAddr>().is_err()
 	// Bucket names must not start with "xn--"
-	&& !n.starts_with("xn--")
+	&& (!n.starts_with("xn--") || puny)
+        // We are a bit stricter, to properly restrict punycode in all labels
+	&& (!n.contains(".xn--") || puny)
 	// Bucket names must not end with "-s3alias"
 	&& !n.ends_with("-s3alias")
 }
