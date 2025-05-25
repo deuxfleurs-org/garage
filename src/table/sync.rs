@@ -503,7 +503,7 @@ impl<F: TableSchema, R: TableReplication> SyncWorker<F, R> {
 
 	fn add_full_sync(&mut self) {
 		let mut partitions = self.syncer.data.replication.sync_partitions();
-		info!(
+		debug!(
 			"{}: Adding full sync for ack layout version {}",
 			F::TABLE_NAME,
 			partitions.layout_version
@@ -553,7 +553,7 @@ impl<F: TableSchema, R: TableReplication> Worker for SyncWorker<F, R> {
 			}
 
 			if todo.partitions.is_empty() {
-				info!(
+				debug!(
 					"{}: Completed full sync for ack layout version {}",
 					F::TABLE_NAME,
 					todo.layout_version
