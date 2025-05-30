@@ -26,7 +26,7 @@ use garage_api_common::signature::checksum::*;
 use crate::api_server::{ReqBody, ResBody};
 use crate::encryption::EncryptionParams;
 use crate::error::*;
-use crate::get::{full_object_byte_stream, PreconditionHeaders};
+use crate::get::{check_version_not_deleted, full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
 use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
 use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
@@ -237,6 +237,7 @@ async fn handle_copy_metaonly(
 				.get(&source_version.uuid, &EmptyKey)
 				.await?;
 			let source_version = source_version.ok_or(Error::NoSuchKey)?;
+			check_version_not_deleted(&source_version)?;
 
 			// Write an "uploading" marker in Object table
 			// This holds a reference to the object in the Version table
@@ -428,6 +429,7 @@ pub async fn handle_upload_part_copy(
 		.get(&source_object_version.uuid, &EmptyKey)
 		.await?
 		.ok_or(Error::NoSuchKey)?;
+	check_version_not_deleted(&source_version)?;
 
 	// We want to reuse blocks from the source version as much as possible.
 	// However, we still need to get the data from these blocks
