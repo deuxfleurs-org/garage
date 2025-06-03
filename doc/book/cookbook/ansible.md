@@ -12,7 +12,7 @@ have published Ansible roles.  We list them and compare them below.
 |------------------------------------|---------------------------------------------|---------------------------------------------------------------|---------------------------------|
 | **Runtime**                        | Systemd                                     | Docker                                                        | Systemd                         |
 | **Target OS**                      | Any Linux                                   | Any Linux                                                     | Any Linux                       |
-| **Architecture**                   | amd64, arm64, i686                          | amd64, arm64                                                  | amd64                           |
+| **Architecture**                   | amd64, arm64, i686                          | amd64, arm64                                                  | arm64, arm, 386, amd64                            |
 | **Additional software**            | None                                        | Traefik                                                       | Ngnix and Keepalived (optional) |
 | **Automatic node connection**      | ❌                                          | ✅                                                            | ✅                              |
 | **Layout management**              | ❌                                          | ✅                                                            | ✅                              |
