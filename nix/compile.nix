@@ -74,6 +74,7 @@ let
       "metrics"
       "telemetry-otlp"
       "syslog"
+      "journald"
     ]));
 
   featuresStr = lib.concatStringsSep "," rootFeatures;
