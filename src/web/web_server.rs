@@ -397,10 +397,30 @@ fn error_to_res(e: Error) -> Response<BoxBody<Error>> {
 	//   was a HEAD request or we couldn't get the error document)
 	// We do NOT enter this code path when returning the bucket's
 	// error document (this is handled in serve_file)
-	let body = string_body(format!("{}\n", e));
-	let mut http_error = Response::new(body);
+	let mut body_str = format!(
+		r"<title>{http_code} {code_text}</title>
+<h1>{http_code} {code_text}</h1>",
+		http_code = e.http_status_code().as_u16(),
+		code_text = e.http_status_code().canonical_reason().unwrap_or("Unknown"),
+	);
+	if let Error::ApiError(ref err) = e {
+		body_str.push_str(&format!(
+			r"
+<ul>
+<li>Code: {s3_code}</li>
+<li>Message: {s3_message}.</li>
+</ul>",
+			s3_code = err.aws_code(),
+			s3_message = err,
+		));
+	}
+	let mut http_error = Response::new(string_body(body_str));
 	*http_error.status_mut() = e.http_status_code();
 	e.add_headers(http_error.headers_mut());
+	http_error.headers_mut().insert(
+		http::header::CONTENT_TYPE,
+		"text/html; charset=utf-8".parse().unwrap(),
+	);
 	http_error
 }
 

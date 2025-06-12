@@ -606,3 +606,45 @@ async fn test_website_puny() {
 		);
 	}
 }
+
+#[tokio::test]
+async fn test_website_object_not_found() {
+	const BCKT_NAME: &str = "not-found";
+	let ctx = common::context();
+	let _bucket = ctx.create_bucket(BCKT_NAME);
+
+	let client = Client::builder(TokioExecutor::new()).build_http();
+
+	let req = |suffix| {
+		Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
+			.header("Host", format!("{}{}", BCKT_NAME, suffix))
+			.body(Body::new(Bytes::new()))
+			.unwrap()
+	};
+
+	ctx.garage
+		.command()
+		.args(["bucket", "website", "--allow", BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not allow website on bucket");
+
+	let resp = client.request(req("")).await.unwrap();
+	assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+	// the error we return by default are *not* xml
+	assert_eq!(
+		resp.headers().get(http::header::CONTENT_TYPE).unwrap(),
+		"text/html; charset=utf-8"
+	);
+	let result = String::from_utf8(
+		resp.into_body()
+			.collect()
+			.await
+			.unwrap()
+			.to_bytes()
+			.to_vec(),
+	)
+	.unwrap();
+	assert!(result.contains("not found"));
+}
