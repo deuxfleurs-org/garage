@@ -151,6 +151,7 @@ impl RequestHandler for LocalPurgeBlocksRequest {
 		let mut obj_dels = 0;
 		let mut mpu_dels = 0;
 		let mut ver_dels = 0;
+		let mut br_dels = 0;
 
 		for hash in self.0.iter() {
 			let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
@@ -176,11 +177,18 @@ impl RequestHandler for LocalPurgeBlocksRequest {
 						ver_dels += 1;
 					}
 				}
+				if !br.deleted.get() {
+					let mut br = br;
+					br.deleted.set();
+					garage.block_ref_table.insert(&br).await?;
+					br_dels += 1;
+				}
 			}
 		}
 
 		Ok(LocalPurgeBlocksResponse {
 			blocks_purged: self.0.len() as u64,
+			block_refs_purged: br_dels,
 			versions_deleted: ver_dels,
 			objects_deleted: obj_dels,
 			uploads_deleted: mpu_dels,

@@ -94,30 +94,30 @@ The following gives details about each available configuration option.
 
 [Environment variables](#env_variables).
 
-Top-level configuration options:
+Top-level configuration options, in alphabetical order:
+[`allow_punycode`](#allow_punycode),
 [`allow_world_readable_secrets`](#allow_world_readable_secrets),
 [`block_ram_buffer_max`](#block_ram_buffer_max),
 [`block_size`](#block_size),
 [`bootstrap_peers`](#bootstrap_peers),
 [`compression_level`](#compression_level),
+[`consistency_mode`](#consistency_mode),
 [`data_dir`](#data_dir),
 [`data_fsync`](#data_fsync),
 [`db_engine`](#db_engine),
 [`disable_scrub`](#disable_scrub),
-[`use_local_tz`](#use_local_tz),
 [`lmdb_map_size`](#lmdb_map_size),
 [`metadata_auto_snapshot_interval`](#metadata_auto_snapshot_interval),
 [`metadata_dir`](#metadata_dir),
 [`metadata_fsync`](#metadata_fsync),
 [`metadata_snapshots_dir`](#metadata_snapshots_dir),
 [`replication_factor`](#replication_factor),
-[`consistency_mode`](#consistency_mode),
 [`rpc_bind_addr`](#rpc_bind_addr),
 [`rpc_bind_outgoing`](#rpc_bind_outgoing),
 [`rpc_public_addr`](#rpc_public_addr),
 [`rpc_public_addr_subnet`](#rpc_public_addr_subnet)
-[`rpc_secret`/`rpc_secret_file`](#rpc_secret).
-[`allow_punycode`](#allow_punycode).
+[`rpc_secret`/`rpc_secret_file`](#rpc_secret),
+[`use_local_tz`](#use_local_tz).
 
 The `[consul_discovery]` section:
 [`api`](#consul_api),
@@ -162,6 +162,10 @@ variable, it does not exist in the configuration file:
   Garage daemon send its logs to `syslog` (using the libc `syslog` function)
   instead of printing to stderr.
 
+- `GARAGE_LOG_TO_JOURNALD` (since `v2.0.0`): set this to `1` or `true` to make the
+  Garage daemon send its logs to `journald` (using the native protocol of `systemd-journald`)
+  instead of printing to stderr.
+
 The following environment variables can be used to override the corresponding
 values in the configuration file:
 
@@ -173,7 +177,7 @@ values in the configuration file:
 
 ### Top-level configuration options
 
-#### `replication_factor` {#replication_factor}
+#### `replication_factor` (since `v1.0.0`) {#replication_factor}
 
 The replication factor can be any positive integer smaller or equal the node count in your cluster.
 The chosen replication factor has a big impact on the cluster's failure tolerancy and performance characteristics.
@@ -221,7 +225,7 @@ is in progress.  In theory, no data should be lost as rebalancing is a
 routine operation for Garage, although we cannot guarantee you that everything
  will go right in such an extreme scenario.
 
-#### `consistency_mode` {#consistency_mode}
+#### `consistency_mode` (since `v1.0.0`) {#consistency_mode}
 
 The consistency mode setting determines the read and write behaviour of your cluster.
 

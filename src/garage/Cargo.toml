@@ -59,6 +59,7 @@ opentelemetry.workspace = true
 opentelemetry-prometheus = { workspace = true, optional = true }
 opentelemetry-otlp = { workspace = true, optional = true }
 syslog-tracing = { workspace = true, optional = true }
+tracing-journald = { workspace = true, optional = true }
 
 [dev-dependencies]
 garage_api_common.workspace = true
@@ -103,6 +104,8 @@ metrics = [ "garage_api_admin/metrics", "opentelemetry-prometheus" ]
 telemetry-otlp = [ "opentelemetry-otlp" ]
 # Logging to syslog
 syslog = [ "syslog-tracing" ]
+# Logging to journald
+journald = [ "tracing-journald" ]
 
 # NOTE: bundled-libs and system-libs should be treat as mutually exclusive;
 # exactly one of them should be enabled.

@@ -5,7 +5,7 @@ use hyper::{Request, Response, StatusCode};
 use garage_model::bucket_alias_table::*;
 use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
-use garage_model::key_table::Key;
+use garage_model::key_table::{Key, KeyParams};
 use garage_model::permission::BucketKeyPerm;
 use garage_table::util::*;
 use garage_util::crdt::*;
@@ -38,6 +38,55 @@ pub fn handle_get_bucket_versioning() -> Result<Response<ResBody>, Error> {
 	};
 
 	let xml = s3_xml::to_xml_with_header(&versioning)?;
+
+	Ok(Response::builder()
+		.header("Content-Type", "application/xml")
+		.body(string_body(xml))?)
+}
+
+pub fn handle_get_bucket_acl(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
+	let ReqCtx {
+		bucket_id, api_key, ..
+	} = ctx;
+	let key_p = api_key.params().ok_or_internal_error(
+		"Key should not be in deleted state at this point (in handle_get_bucket_acl)",
+	)?;
+
+	let mut grants: Vec<s3_xml::Grant> = vec![];
+	let kp = api_key.bucket_permissions(&bucket_id);
+
+	if kp.allow_owner {
+		grants.push(s3_xml::Grant {
+			grantee: create_grantee(&key_p, &api_key),
+			permission: s3_xml::Value("FULL_CONTROL".to_string()),
+		});
+	} else {
+		if kp.allow_read {
+			grants.push(s3_xml::Grant {
+				grantee: create_grantee(&key_p, &api_key),
+				permission: s3_xml::Value("READ".to_string()),
+			});
+			grants.push(s3_xml::Grant {
+				grantee: create_grantee(&key_p, &api_key),
+				permission: s3_xml::Value("READ_ACP".to_string()),
+			});
+		}
+		if kp.allow_write {
+			grants.push(s3_xml::Grant {
+				grantee: create_grantee(&key_p, &api_key),
+				permission: s3_xml::Value("WRITE".to_string()),
+			});
+		}
+	}
+
+	let access_control_policy = s3_xml::AccessControlPolicy {
+		xmlns: (),
+		owner: None,
+		acl: s3_xml::AccessControlList { entries: grants },
+	};
+
+	let xml = s3_xml::to_xml_with_header(&access_control_policy)?;
+	trace!("xml: {}", xml);
 
 	Ok(Response::builder()
 		.header("Content-Type", "application/xml")
@@ -304,6 +353,15 @@ fn parse_create_bucket_xml(xml_bytes: &[u8]) -> Option<Option<String>> {
 	}
 
 	Some(ret)
+}
+
+fn create_grantee(key_params: &KeyParams, api_key: &Key) -> s3_xml::Grantee {
+	s3_xml::Grantee {
+		xmlns_xsi: (),
+		typ: "CanonicalUser".to_string(),
+		display_name: Some(s3_xml::Value(key_params.name.get().to_string())),
+		id: Some(s3_xml::Value(api_key.key_id.to_string())),
+	}
 }
 
 #[cfg(test)]

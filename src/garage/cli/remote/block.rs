@@ -160,8 +160,8 @@ impl Cli {
 			.await?;
 
 		println!(
-			"Purged {} blocks: deleted {} versions, {} objects, {} multipart uploads",
-			res.blocks_purged, res.versions_deleted, res.objects_deleted, res.uploads_deleted,
+			"Purged {} blocks: deleted {} block refs, {} versions, {} objects, {} multipart uploads",
+			res.blocks_purged, res.block_refs_purged, res.versions_deleted, res.objects_deleted, res.uploads_deleted,
 		);
 
 		Ok(())

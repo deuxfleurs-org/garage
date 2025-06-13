@@ -182,11 +182,12 @@ ID                 Hostname  Address         Tag                   Zone  Capacit
 ## Creating a cluster layout
 
 Creating a cluster layout for a Garage deployment means informing Garage
-of the disk space available on each node of the cluster
-as well as the zone (e.g. datacenter) each machine is located in.
+of the disk space available on each node of the cluster, `-c`,
+as well as the name of the zone (e.g. datacenter), `-z`, each machine is located in.
 
-For our test deployment, we are using only one node. The way in which we configure
-it does not matter, you can simply write:
+For our test deployment, we are have only one node with zone named `dc1` and a
+capacity of `1G`, though the capacity is ignored for a single node deployment
+and can be changed later when adding new nodes.
 
 ```bash
 garage layout assign -z dc1 -c 1G <node_id>

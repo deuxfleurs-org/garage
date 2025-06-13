@@ -3120,9 +3120,15 @@
           "blocksPurged",
           "objectsDeleted",
           "uploadsDeleted",
-          "versionsDeleted"
+          "versionsDeleted",
+          "blockRefsPurged"
         ],
         "properties": {
+          "blockRefsPurged": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
           "blocksPurged": {
             "type": "integer",
             "format": "int64",
@@ -3574,9 +3580,15 @@
                 "blocksPurged",
                 "objectsDeleted",
                 "uploadsDeleted",
-                "versionsDeleted"
+                "versionsDeleted",
+                "blockRefsPurged"
               ],
               "properties": {
+                "blockRefsPurged": {
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
                 "blocksPurged": {
                   "type": "integer",
                   "format": "int64",

@@ -1309,4 +1309,5 @@ pub struct LocalPurgeBlocksResponse {
 	pub objects_deleted: u64,
 	pub uploads_deleted: u64,
 	pub versions_deleted: u64,
+	pub block_refs_purged: u64,
 }

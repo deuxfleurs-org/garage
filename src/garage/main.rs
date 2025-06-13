@@ -215,6 +215,43 @@ fn init_logging(opt: &Opt) {
 		}
 	}
 
+	if std::env::var("GARAGE_LOG_TO_JOURNALD")
+		.map(|x| x == "1" || x == "true")
+		.unwrap_or(false)
+	{
+		#[cfg(feature = "journald")]
+		{
+			use tracing_journald::{Priority, PriorityMappings};
+			use tracing_subscriber::layer::SubscriberExt;
+			use tracing_subscriber::util::SubscriberInitExt;
+
+			let registry = tracing_subscriber::registry()
+				.with(tracing_subscriber::fmt::layer().with_writer(std::io::sink))
+				.with(env_filter);
+			match tracing_journald::layer() {
+				Ok(layer) => {
+					registry
+						.with(layer.with_priority_mappings(PriorityMappings {
+							info: Priority::Informational,
+							debug: Priority::Debug,
+							..PriorityMappings::new()
+						}))
+						.init();
+				}
+				Err(e) => {
+					eprintln!("Couldn't connect to journald: {}.", e);
+					std::process::exit(1);
+				}
+			}
+			return;
+		}
+		#[cfg(not(feature = "journald"))]
+		{
+			eprintln!("Journald support is not enabled in this build.");
+			std::process::exit(1);
+		}
+	}
+
 	tracing_subscriber::fmt()
 		.with_writer(std::io::stderr)
 		.with_env_filter(env_filter)

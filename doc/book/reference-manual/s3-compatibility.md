@@ -23,7 +23,6 @@ Feel free to open a PR to suggest fixes this table. Minio is missing because the
 - 2022-05-25 - Many Ceph S3 endpoints are not documented but implemented. Following a notification from the Ceph community, we added them.
 
 
-
 ## High-level features
 
 | Feature                      | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |
@@ -34,6 +33,7 @@ Feel free to open a PR to suggest fixes this table. Minio is missing because the
 | [URL vhost-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#virtual-hosted-style-access) URL (eg. `bucket.host.tld/key`) |  ✅ Implemented | ❌| ✅| ✅ | ✅ |
 | [Presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html) |  ✅ Implemented | ❌|  ✅ | ✅ |  ✅(❓) |
 | [SSE-C encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html) |  ✅ Implemented | ❓ |  ✅ | ❌ |  ✅ |
+| [Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html) | ❌ Missing | ✅ |  ✅ | ❌ | ✅ |
 
 *Note:* OpenIO does not says if it supports presigned URLs. Because it is part
 of signature v4 and they claim they support it without additional precisions,

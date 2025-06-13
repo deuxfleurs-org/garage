@@ -223,6 +223,7 @@ impl ApiHandler for S3ApiServer {
 			Endpoint::DeleteBucket {} => handle_delete_bucket(ctx).await,
 			Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx),
 			Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
+			Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx),
 			Endpoint::ListObjects {
 				delimiter,
 				encoding_type,

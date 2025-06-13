@@ -13,6 +13,10 @@ pub fn xmlns_tag<S: Serializer>(_v: &(), s: S) -> Result<S::Ok, S::Error> {
 	s.serialize_str("http://s3.amazonaws.com/doc/2006-03-01/")
 }
 
+pub fn xmlns_xsi_tag<S: Serializer>(_v: &(), s: S) -> Result<S::Ok, S::Error> {
+	s.serialize_str("http://www.w3.org/2001/XMLSchema-instance")
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Value(#[serde(rename = "$value")] pub String);
 
@@ -325,6 +329,42 @@ pub struct PostObject {
 	pub etag: Value,
 }
 
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct Grantee {
+	#[serde(rename = "xmlns:xsi", serialize_with = "xmlns_xsi_tag")]
+	pub xmlns_xsi: (),
+	#[serde(rename = "xsi:type")]
+	pub typ: String,
+	#[serde(rename = "DisplayName")]
+	pub display_name: Option<Value>,
+	#[serde(rename = "ID")]
+	pub id: Option<Value>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct Grant {
+	#[serde(rename = "Grantee")]
+	pub grantee: Grantee,
+	#[serde(rename = "Permission")]
+	pub permission: Value,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct AccessControlList {
+	#[serde(rename = "Grant")]
+	pub entries: Vec<Grant>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct AccessControlPolicy {
+	#[serde(serialize_with = "xmlns_tag")]
+	pub xmlns: (),
+	#[serde(rename = "Owner")]
+	pub owner: Option<Owner>,
+	#[serde(rename = "AccessControlList")]
+	pub acl: AccessControlList,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -430,6 +470,43 @@ mod tests {
 <VersioningConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>Suspended</Status></VersioningConfiguration>"
 		);
 
+		Ok(())
+	}
+
+	#[test]
+	fn get_bucket_acl_result() -> Result<(), ApiError> {
+		let grant = Grant {
+			grantee: Grantee {
+				xmlns_xsi: (),
+				typ: "CanonicalUser".to_string(),
+				display_name: Some(Value("owner_name".to_string())),
+				id: Some(Value("qsdfjklm".to_string())),
+			},
+			permission: Value("FULL_CONTROL".to_string()),
+		};
+
+		let get_bucket_acl = AccessControlPolicy {
+			xmlns: (),
+			owner: None,
+			acl: AccessControlList {
+				entries: vec![grant],
+			},
+		};
+		assert_eq!(
+			to_xml_with_header(&get_bucket_acl)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<AccessControlPolicy xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\
+	<AccessControlList>\
+		<Grant>\
+			<Grantee xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"CanonicalUser\">\
+				<DisplayName>owner_name</DisplayName>\
+				<ID>qsdfjklm</ID>\
+			</Grantee>\
+			<Permission>FULL_CONTROL</Permission>\
+		</Grant>\
+	</AccessControlList>\
+</AccessControlPolicy>"
+		);
 		Ok(())
 	}
 
