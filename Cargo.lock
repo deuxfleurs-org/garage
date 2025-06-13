@@ -1200,7 +1200,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1256,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_admin"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_common"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "base64 0.21.7",
  "bytes",
@@ -1316,7 +1316,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_k2v"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "base64 0.21.7",
  "err-derive",
@@ -1339,7 +1339,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_s3"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "aes-gcm",
  "async-compression",
@@ -1384,7 +1384,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arc-swap",
  "async-compression",
@@ -1409,7 +1409,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "err-derive",
  "heed",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "garage_net"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arc-swap",
  "bytes",
@@ -1474,7 +1474,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1506,7 +1506,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1559,7 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "err-derive",
  "garage_api_common",

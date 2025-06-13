@@ -132,7 +132,7 @@ docker run \
   -v /path/to/garage.toml:/etc/garage.toml \
   -v /path/to/garage/meta:/var/lib/garage/meta \
   -v /path/to/garage/data:/var/lib/garage/data \
-  dxflrs/garage:v1.1.0
+  dxflrs/garage:v1.2.0
 ```
 
 Under Linux, you can substitute `--network host` for `-p 3900:3900 -p 3901:3901 -p 3902:3902 -p 3903:3903`
