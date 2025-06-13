@@ -101,6 +101,7 @@ impl AdminRpcHandler {
 		let mut obj_dels = 0;
 		let mut mpu_dels = 0;
 		let mut ver_dels = 0;
+		let mut br_dels = 0;
 
 		for hash in blocks {
 			let hash = hex::decode(hash).ok_or_bad_request("invalid hash")?;
@@ -131,12 +132,19 @@ impl AdminRpcHandler {
 						ver_dels += 1;
 					}
 				}
+				if !br.deleted.get() {
+					let mut br = br;
+					br.deleted.set();
+					self.garage.block_ref_table.insert(&br).await?;
+					br_dels += 1;
+				}
 			}
 		}
 
 		Ok(AdminRpc::Ok(format!(
-			"Purged {} blocks, {} versions, {} objects, {} multipart uploads",
+			"Purged {} blocks: marked {} block refs, {} versions, {} objects and {} multipart uploads as deleted",
 			blocks.len(),
+			br_dels,
 			ver_dels,
 			obj_dels,
 			mpu_dels,
