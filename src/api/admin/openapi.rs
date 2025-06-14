@@ -47,7 +47,7 @@ as Caddy or Tricot, to avoid requesting TLS certificates for domain names that
 do not correspond to an actual website.
     ",
     params(
-        ("domain", description = "The domain name to check for"),
+        ("domain" = String, description = "The domain name to check for"),
     ),
     security(()),
 	responses(
@@ -168,7 +168,7 @@ Updates information about the specified admin API token.
     ",
     request_body = UpdateAdminTokenRequestBody,
     params(
-        ("id", description = "Admin API token ID"),
+        ("id" = String, description = "Admin API token ID"),
     ),
 	responses(
             (status = 200, description = "Admin token has been updated", body = UpdateAdminTokenResponse),
@@ -182,7 +182,7 @@ fn UpdateAdminToken() -> () {}
     tag = "Admin API token",
     description = "Delete an admin API token from the cluster, revoking all its permissions.",
     params(
-        ("id", description = "Admin API token ID"),
+        ("id" = String, description = "Admin API token ID"),
     ),
 	responses(
             (status = 200, description = "Admin token has been deleted"),
@@ -379,7 +379,7 @@ Updates information about the specified API access key.
     ",
     request_body = UpdateKeyRequestBody,
     params(
-        ("id", description = "Access key ID"),
+        ("id" = String, description = "Access key ID"),
     ),
 	responses(
             (status = 200, description = "Access key has been updated", body = UpdateKeyResponse),
@@ -393,7 +393,7 @@ fn UpdateKey() -> () {}
     tag = "Access key",
     description = "Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. ",
     params(
-        ("id", description = "Access key ID"),
+        ("id" = String, description = "Access key ID"),
     ),
 	responses(
             (status = 200, description = "Access key has been deleted"),
@@ -466,7 +466,7 @@ to remove the quotas. An absent value will be considered the same as a `null`. I
 to change only one of the two quotas.
     ",
     params(
-        ("id", description = "ID of the bucket to update"),
+        ("id" = String, description = "ID of the bucket to update"),
     ),
     request_body = UpdateBucketRequestBody,
 	responses(
@@ -486,7 +486,7 @@ Deletes a storage bucket. A bucket cannot be deleted if it is not empty.
 **Warning:** this will delete all aliases associated with the bucket!
     ",
     params(
-        ("id", description = "ID of the bucket to delete"),
+        ("id" = String, description = "ID of the bucket to delete"),
     ),
 	responses(
             (status = 200, description = "Bucket has been deleted"),
@@ -618,7 +618,7 @@ fn RemoveBucketAlias() -> () {}
 Return information about the Garage daemon running on one or several nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
 	responses(
             (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeInfoResponse>),
@@ -636,7 +636,7 @@ Fetch statistics for one or several Garage nodes.
 *Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
 	responses(
             (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalGetNodeStatisticsResponse>),
@@ -652,7 +652,7 @@ fn GetNodeStatistics() -> () {}
 Instruct one or several nodes to take a snapshot of their metadata databases.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
 	responses(
             (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalCreateMetadataSnapshotResponse>),
@@ -668,7 +668,7 @@ fn CreateMetadataSnapshot() -> () {}
 Launch a repair operation on one or several cluster nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalLaunchRepairOperationRequest,
 	responses(
@@ -689,7 +689,7 @@ fn LaunchRepairOperation() -> () {}
 List background workers currently running on one or several cluster nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalListWorkersRequest,
 	responses(
@@ -706,7 +706,7 @@ fn ListWorkers() -> () {}
 Get information about the specified background worker on one or several cluster nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalGetWorkerInfoRequest,
 	responses(
@@ -723,7 +723,7 @@ fn GetWorkerInfo() -> () {}
 Fetch values of one or several worker variables, from one or several cluster nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalGetWorkerVariableRequest,
 	responses(
@@ -740,7 +740,7 @@ fn GetWorkerVariable() -> () {}
 Set the value for a worker variable, on one or several cluster nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalSetWorkerVariableRequest,
 	responses(
@@ -761,7 +761,7 @@ fn SetWorkerVariable() -> () {}
 List data blocks that are currently in an errored state on one or several Garage nodes.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
 	responses(
             (status = 200, description = "Responses from individual cluster nodes", body = MultiResponse<LocalListBlockErrorsResponse>),
@@ -777,7 +777,7 @@ fn ListBlockErrors() -> () {}
 Get detailed information about a data block stored on a Garage node, including all object versions and in-progress multipart uploads that contain a reference to this block.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalGetBlockInfoRequest,
 	responses(
@@ -794,7 +794,7 @@ fn GetBlockInfo() -> () {}
 Instruct Garage node(s) to retry the resynchronization of one or several missing data block(s).
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalRetryBlockResyncRequest,
 	responses(
@@ -813,7 +813,7 @@ Purge references to one or several missing data blocks.
 This will remove all objects and in-progress multipart uploads that contain the specified data block(s). The objects will be permanently deleted from the buckets in which they appear. Use with caution.
     ",
     params(
-        ("node", description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
+        ("node" = String, description = "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request"),
     ),
     request_body = LocalPurgeBlocksRequest,
 	responses(
