@@ -1,6 +1,6 @@
 +++
 title = "Migrating from 0.9 to 1.0"
-weight = 11
+weight = 71
 +++
 
 **This guide explains how to migrate to 1.0 if you have an existing 0.9 cluster.

@@ -1,6 +1,6 @@
 +++
 title = "Migrating from 0.3 to 0.4"
-weight = 20
+weight = 80
 +++
 
 **Migrating from 0.3 to 0.4 is unsupported. This document is only intended to

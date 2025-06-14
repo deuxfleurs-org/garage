@@ -1,6 +1,6 @@
 +++
 title = "Migrating from 0.7 to 0.8"
-weight = 13
+weight = 73
 +++
 
 **This guide explains how to migrate to 0.8 if you have an existing 0.7 cluster.

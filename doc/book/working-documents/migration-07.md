@@ -1,6 +1,6 @@
 +++
 title = "Migrating from 0.6 to 0.7"
-weight = 14
+weight = 74
 +++
 **This guide explains how to migrate to 0.7 if you have an existing 0.6 cluster.
 We don't recommend trying to migrate to 0.7 directly from 0.5 or older.**

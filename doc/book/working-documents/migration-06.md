@@ -1,6 +1,6 @@
 +++
 title = "Migrating from 0.5 to 0.6"
-weight = 15
+weight = 75
 +++
 
 **This guide explains how to migrate to 0.6 if you have an existing 0.5 cluster.
