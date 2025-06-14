@@ -155,14 +155,14 @@ The `[admin]` section:
 
 ### Environment variables {#env_variables}
 
-The following configuration parameter must be specified as an environment
-variable, it does not exist in the configuration file:
+The following configuration parameters must be specified as environment variables,
+they do not exist in the configuration file:
 
 - `GARAGE_LOG_TO_SYSLOG` (since `v0.9.4`): set this to `1` or `true` to make the
   Garage daemon send its logs to `syslog` (using the libc `syslog` function)
   instead of printing to stderr.
 
-- `GARAGE_LOG_TO_JOURNALD` (since `v2.0.0`): set this to `1` or `true` to make the
+- `GARAGE_LOG_TO_JOURNALD` (since `v1.2.0`): set this to `1` or `true` to make the
   Garage daemon send its logs to `journald` (using the native protocol of `systemd-journald`)
   instead of printing to stderr.
 
