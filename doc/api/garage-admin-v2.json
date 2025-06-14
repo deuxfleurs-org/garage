@@ -33,7 +33,10 @@
             "name": "domain",
             "in": "path",
             "description": "The domain name to check for",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -407,7 +410,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -439,7 +445,10 @@
             "name": "id",
             "in": "path",
             "description": "Admin API token ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -464,7 +473,10 @@
             "name": "id",
             "in": "path",
             "description": "ID of the bucket to delete",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -495,7 +507,10 @@
             "name": "id",
             "in": "path",
             "description": "Access key ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -604,7 +619,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -884,7 +902,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -916,7 +937,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -948,7 +972,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -990,7 +1017,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1111,7 +1141,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1177,7 +1210,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1257,7 +1293,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1323,7 +1362,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1399,7 +1441,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1465,7 +1510,10 @@
             "name": "node",
             "in": "path",
             "description": "Node ID to query, or `*` for all nodes, or `self` for the node responding to the request",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1507,7 +1555,10 @@
             "name": "id",
             "in": "path",
             "description": "Admin API token ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1549,7 +1600,10 @@
             "name": "id",
             "in": "path",
             "description": "ID of the bucket to update",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -1629,7 +1683,10 @@
             "name": "id",
             "in": "path",
             "description": "Access key ID",
-            "required": true
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
