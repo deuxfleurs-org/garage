@@ -6,41 +6,167 @@ weight = 40
 The Garage administration API is accessible through a dedicated server whose
 listen address is specified in the `[admin]` section of the configuration
 file (see [configuration file
-reference](@/documentation/reference-manual/configuration.md))
+reference](@/documentation/reference-manual/configuration.md)).
 
-**WARNING.** At this point, there is no commitment to the stability of the APIs described in this document.
-We will bump the version numbers prefixed to each API endpoint each time the syntax
-or semantics change, meaning that code that relies on these endpoint will break
-when changes are introduced.
+The current version of the admin API is v2.  No breaking changes to the Garage
+administration API will be published outside of a major release.
 
-Versions:
- - Before Garage 0.7.2 - no admin API
- - Garage 0.7.2 - admin APIv0
- - Garage 0.9.0 - admin APIv1, deprecate admin APIv0
+History of previous versions:
 
-
+ - Before Garage v0.7.2 - no admin API
+ - Garage v0.7.2 - admin API v0
+ - Garage v0.9.0 - admin API v1, deprecate admin API v0
+ - Garage v2.0.0 - admin API v2, deprecate admin API v1
 
 ## Access control
 
-The admin API uses two different tokens for access control, that are specified in the config file's `[admin]` section:
+### Using an API token
 
-- `metrics_token`: the token for accessing the Metrics endpoint (if this token
-  is not set in the config file, the Metrics endpoint can be accessed without
-  access control);
-
-- `admin_token`: the token for accessing all of the other administration
-  endpoints (if this token is not set in the config file, access to these
-  endpoints is disabled entirely).
-
-These tokens are used as simple HTTP bearer tokens. In other words, to
-authenticate access to an admin API endpoint, add the following HTTP header
-to your request:
+Administration API tokens tokens are used as simple HTTP bearer tokens. In
+other words, to authenticate access to an admin API endpoint, add the following
+HTTP header to your request:
 
 ```
 Authorization: Bearer <token>
 ```
 
-## Administration API endpoints
+### User-defined API tokens
+
+Cluster administrators may dynamically define administration tokens using the CLI commands under `garage admin-token`.
+Such tokens may be limited in scope, meaning that they may enable access to only a subset of API calls.
+They may also have an expiration date to limit their use in time.
+
+Here is an example to create an administration token that is valid for 30 days
+and gives access to only a subset of API calls, allowing it to create buckets
+and access keys and give keys permissions on buckets:
+
+```bash
+$ garage admin-token create --expires-in 30d \
+    --scope ListBuckets,GetBucketInfo,ListKeys,GetKeyInfo,CreateBucket,CreateKey,AllowBucketKey,DenyBucketKey \
+    my-token
+This is your secret bearer token, it will not be shown again by Garage:
+
+  8ed1830b10a276ff57061950.kOSIpxWK9zSGbTO9Xadpv3YndSFWma0_snXcYHaORXk
+
+==== ADMINISTRATION TOKEN INFORMATION ====
+Token ID:    8ed1830b10a276ff57061950
+Token name:  my-token
+Created:     2025-06-15 15:12:44.160 +02:00
+Validity:    valid
+Expiration:  2025-07-15 15:12:44.117 +02:00
+
+Scope:       ListBuckets
+             GetBucketInfo
+             ListKeys
+             GetKeyInfo
+             CreateBucket
+             CreateKey
+             AllowBucketKey
+             DenyBucketKey
+```
+
+When running this command, your token will be shown only once and **will never
+be shown again by Garage**, so make sure to save it directly.  The token is
+hashed internally, and is identified by its prefix (32 hex digits followed by a
+dot) which is saved in clear.
+
+When running `garage admin-token list`, you might see something like this:
+
+```
+ID                        Created     Name                                       Expiration                      Scope
+-                         -           metrics_token (from daemon configuration)  never                           Metrics
+8ed1830b10a276ff57061950  2025-06-15  my-token                                   2025-07-15 15:12:44.117 +02:00  ListBuckets, ... (8)
+```
+
+### Master API tokens
+
+The admin API can also use two different master tokens for access control,
+specified in the config file's `[admin]` section:
+
+- `metrics_token`: the token for accessing the Metrics endpoint. If this token
+  is not set in the config file, the Metrics endpoint can be accessed without
+  access control.
+
+- `admin_token`: the token for accessing all of the other administration
+  endpoints. If this token is not set in the config file, access to these
+  endpoints is only possible with a user-defined admin token.
+
+With the introduction of multiple user-defined admin tokens, the use of master
+API tokens is now discouraged.
+
+
+## Using the admin API
+
+All of the admin API endpoints are described in the OpenAPI specification:
+
+ - APIv2 - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v2.html) - [OpenAPI JSON](https://garagehq.deuxfleurs.fr/api/garage-admin-v2.json)
+ - APIv1 (deprecated) - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.yml)
+ - APIv0 (deprecated) - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.yml)
+
+Making a request to the API from the command line can be as simple as running:
+
+```bash
+curl -H 'Authorization: Bearer s3cr3t' http://localhost:3903/v2/GetClusterStatus | jq
+```
+
+For more advanced use cases, we recommend using an SDK.  
+[Go to the "Build your own app" section to know how to use our SDKs](@/documentation/build/_index.md)
+
+### Making API calls from the `garage` CLI
+
+Since v2.0.0, the `garage` binary provides a subcommand `garage json-api` that
+allows you to invoke the API without making an HTTP request.  This can be
+useful for scripting Garage deployments.
+
+`garage json-api` proxies API calls through Garage's internal RPC protocol,
+therefore it does not require any form of authentication: RPC connection
+parameters are discovered automatically to contact the locally-running Garage
+instance (as when running any other `garage` CLI command).
+
+For simple calls that take no parameters, usage is as follows:
+
+```
+$ garage json-api GetClusterHealth
+{
+  "connectedNodes": 3,
+  "knownNodes": 3,
+  "partitions": 256,
+  "partitionsAllOk": 256,
+  "partitionsQuorum": 256,
+  "status": "healthy",
+  "storageNodes": 3,
+  "storageNodesOk": 3
+}
+```
+
+If you need to specify a JSON body for your call, you can add it directly after
+the name of the function you are calling:
+
+```
+$ garage json-api CreateAdminToken '{"name": "test"}'
+```
+
+Or you can feed it through stdin by adding a `-` as the last command parameter:
+
+```
+$ garage json-api CreateAdminToken -
+{"name": "test"}
+<EOF>
+```
+
+For admin API calls that would have taken query parameters in their HTTP version, these parameters can be passed in the JSON body object:
+
+```
+$ garage json-api GetAdminTokenInfo '{"id":"b0e6e0ace2c0b2aca4cdb2de"}'
+```
+
+For admin API calls that take both query parameters and a JSON body, combine them in the following fashion:
+
+```
+$ garage json-api UpdateAdminToken '{"id":"b0e6e0ace2c0b2aca4cdb2de", "body":{"name":"not a test"}}'
+```
+
+## Special administration API endpoints
 
 ### Metrics `GET /metrics`
 
@@ -83,7 +209,7 @@ content-length: 102
 date: Tue, 08 Aug 2023 07:22:38 GMT
 
 Garage is fully operational
-Consult the full health check API endpoint at /v0/health for more details
+Consult the full health check API endpoint at /v2/GetClusterHealth for more details
 ```
 
 ### On-demand TLS `GET /check`
@@ -126,23 +252,7 @@ $ curl -so /dev/null -w "%{http_code}" http://localhost:3903/check?domain=exampl
 200
 ```
 
-
 **References:**
  - [Using On-Demand TLS](https://caddyserver.com/docs/automatic-https#using-on-demand-tls)
  - [Add option for a backend check to approve use of on-demand TLS](https://github.com/caddyserver/caddy/pull/1939)
  - [Serving tens of thousands of domains over HTTPS with Caddy](https://caddy.community/t/serving-tens-of-thousands-of-domains-over-https-with-caddy/11179)
-
-### Cluster operations
-
-These endpoints have a dedicated OpenAPI spec.
- - APIv1 - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v1.yml)
- - APIv0 (deprecated) - [HTML spec](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.html) - [OpenAPI YAML](https://garagehq.deuxfleurs.fr/api/garage-admin-v0.yml)
-
-Requesting the API from the command line can be as simple as running:
-
-```bash
-curl -H 'Authorization: Bearer s3cr3t' http://localhost:3903/v0/status | jq
-```
-
-For more advanced use cases, we recommend using a SDK.  
-[Go to the "Build your own app" section to know how to use our SDKs](@/documentation/build/_index.md)
