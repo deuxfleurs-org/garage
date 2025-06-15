@@ -53,7 +53,7 @@ The migration steps are as follows:
    - You may also make a back-up manually: turn off each node
      individually; back up its metadata folder (for instance, use the following
      command if your metadata directory is `/var/lib/garage/meta`: `cd
-     /var/lib/garage ; tar -acf meta-v0.9.tar.zst meta/`); turn it back on
+     /var/lib/garage ; tar -acf meta-v1.0.tar.zst meta/`); turn it back on
      again.  This will allow you to take a backup of all nodes without
      impacting global cluster availability.  You can do all nodes of a single
      zone at once as this does not impact the availability of Garage.

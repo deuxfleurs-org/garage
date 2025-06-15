@@ -8,7 +8,7 @@ have published Ansible roles.  We list them and compare them below.
 
 ## Comparison of Ansible roles
 
-| Feature                            | [ansible-role-garage](#zorun-ansible-role-garage) | [garage-docker-ansible-deploy](#moan0s-garage-docker-ansible-deploy) | [eddster ansible-role-garage](#eddster-ansible-role-garage) |
+| Feature                            | [ansible-role-garage](#zorun-ansible-role-garage) | [garage-docker-ansible-deploy](#moan0s-garage-docker-ansible-deploy) | [eddster2309 ansible-role-garage](#eddster2309-ansible-role-garage) |
 |------------------------------------|---------------------------------------------|---------------------------------------------------------------|---------------------------------|
 | **Runtime**                        | Systemd                                     | Docker                                                        | Systemd                         |
 | **Target OS**                      | Any Linux                                   | Any Linux                                                     | Any Linux                       |
