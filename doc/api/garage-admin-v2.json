@@ -567,26 +567,20 @@
         "parameters": [
           {
             "name": "id",
-            "in": "path",
+            "in": "query",
             "description": "Admin API token ID",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "search",
-            "in": "path",
+            "in": "query",
             "description": "Partial token ID or name to search for",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           }
         ],
@@ -662,38 +656,29 @@
         "parameters": [
           {
             "name": "id",
-            "in": "path",
+            "in": "query",
             "description": "Exact bucket ID to look up",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "globalAlias",
-            "in": "path",
+            "in": "query",
             "description": "Global alias of bucket to look up",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "search",
-            "in": "path",
+            "in": "query",
             "description": "Partial ID or alias to search for",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           }
         ],
@@ -841,33 +826,27 @@
         "parameters": [
           {
             "name": "id",
-            "in": "path",
+            "in": "query",
             "description": "Access key ID",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "search",
-            "in": "path",
+            "in": "query",
             "description": "Partial key ID or name to search for",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             }
           },
           {
             "name": "showSecretKey",
-            "in": "path",
+            "in": "query",
             "description": "Whether to return the secret access key",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "boolean"
             }
@@ -1094,7 +1073,7 @@
         "parameters": [
           {
             "name": "bucketId",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string"
@@ -1102,7 +1081,7 @@
           },
           {
             "name": "key",
-            "in": "path",
+            "in": "query",
             "required": true,
             "schema": {
               "type": "string"
