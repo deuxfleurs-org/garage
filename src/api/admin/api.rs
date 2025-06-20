@@ -308,6 +308,7 @@ pub struct ListAdminTokensResponse(pub Vec<GetAdminTokenInfoResponse>);
 // ---- GetAdminTokenInfo ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct GetAdminTokenInfoRequest {
 	/// Admin API token ID
@@ -648,6 +649,7 @@ pub struct ListKeysResponseItem {
 // ---- GetKeyInfo ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct GetKeyInfoRequest {
 	/// Access key ID
@@ -790,6 +792,7 @@ pub struct BucketLocalAlias {
 // ---- GetBucketInfo ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBucketInfoRequest {
 	/// Exact bucket ID to look up
@@ -928,6 +931,7 @@ pub struct CleanupIncompleteUploadsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(rename_all = "camelCase")]
 pub struct InspectObjectRequest {
 	pub bucket_id: String,
