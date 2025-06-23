@@ -97,7 +97,7 @@ server {
   location / {
     proxy_pass http://s3_backend;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
     # Disable buffering to a temporary file.
     proxy_max_temp_file_size 0;
   }
