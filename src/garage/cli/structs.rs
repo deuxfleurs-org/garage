@@ -71,6 +71,10 @@ pub enum NodeOperation {
 	/// Connect to Garage node that is currently isolated from the system
 	#[structopt(name = "connect", version = garage_version())]
 	Connect(ConnectNodeOpt),
+
+	/// Dump the content of a metadata table as JSON lines
+	#[structopt(name = "dump", version = garage_version())]
+	Dump(DumpNodeOpt),
 }
 
 #[derive(StructOpt, Debug)]
@@ -86,6 +90,12 @@ pub struct ConnectNodeOpt {
 	/// `<full node ID>@<ip or hostname>:<port>`.
 	/// You can retrieve this information on the target node using `garage node id`.
 	pub(crate) node: String,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct DumpNodeOpt {
+	/// Name of the data table to dump
+	pub(crate) what: String,
 }
 
 #[derive(StructOpt, Debug)]
