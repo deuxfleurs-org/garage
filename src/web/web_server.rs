@@ -559,7 +559,7 @@ fn path_to_keys(
 		};
 		if let Some(condition) = &routing_rule.condition {
 			let suffix = if let Some(prefix) = &condition.prefix {
-				let Some(suffix) = key.strip_prefix(prefix) else {
+				let Some(suffix) = base_key.strip_prefix(prefix) else {
 					continue;
 				};
 				Some(suffix)

@@ -566,24 +566,68 @@ async fn test_website_redirect_full_bucket() {
 		.await
 		.unwrap();
 
-	let req = Request::builder()
-		.method("GET")
-		.uri(format!("http://127.0.0.1:{}/my-path", ctx.garage.web_port))
-		.header("Host", format!("{}.web.garage", BCKT_NAME))
-		.body(Body::new(Bytes::new()))
-		.unwrap();
+	{
+		let req = Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/my-path", ctx.garage.web_port))
+			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.body(Body::new(Bytes::new()))
+			.unwrap();
 
-	let client = Client::builder(TokioExecutor::new()).build_http();
-	let resp = client.request(req).await.unwrap();
-	assert_eq!(resp.status(), StatusCode::FOUND);
-	assert_eq!(
-		resp.headers()
-			.get(hyper::header::LOCATION)
-			.unwrap()
-			.to_str()
-			.unwrap(),
-		"https://other.tld/my-path"
-	);
+		let client = Client::builder(TokioExecutor::new()).build_http();
+		let resp = client.request(req).await.unwrap();
+		assert_eq!(resp.status(), StatusCode::FOUND);
+		assert_eq!(
+			resp.headers()
+				.get(hyper::header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"https://other.tld/my-path"
+		);
+	}
+
+	{
+		let req = Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/my-path/", ctx.garage.web_port))
+			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.body(Body::new(Bytes::new()))
+			.unwrap();
+
+		let client = Client::builder(TokioExecutor::new()).build_http();
+		let resp = client.request(req).await.unwrap();
+		assert_eq!(resp.status(), StatusCode::FOUND);
+		assert_eq!(
+			resp.headers()
+				.get(hyper::header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"https://other.tld/my-path/"
+		);
+	}
+
+	{
+		let req = Request::builder()
+			.method("GET")
+			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
+			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.body(Body::new(Bytes::new()))
+			.unwrap();
+
+		let client = Client::builder(TokioExecutor::new()).build_http();
+		let resp = client.request(req).await.unwrap();
+		assert_eq!(resp.status(), StatusCode::FOUND);
+		assert_eq!(
+			resp.headers()
+				.get(hyper::header::LOCATION)
+				.unwrap()
+				.to_str()
+				.unwrap(),
+			"https://other.tld/"
+		);
+	}
 }
 
 #[tokio::test]
