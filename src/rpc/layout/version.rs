@@ -507,7 +507,7 @@ impl LayoutVersion {
 		g.compute_maximal_flow()?;
 		if g.get_flow_value()? < (NB_PARTITIONS * self.replication_factor) as i64 {
 			return Err(Error::Message(
-				"The storage capacity of he cluster is to small. It is \
+				"The storage capacity of the cluster is too small. It is \
                        impossible to store partitions of size 1."
 					.into(),
 			));
