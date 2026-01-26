@@ -34,6 +34,82 @@ If it hasn't seen that update, it saves the new element, and update its SV to in
 
 TODO: describe formaly the algorithm
 
+
+Algorithm 1, Seen Vector:
+```
+payload set S    -- S: set of triple (replica i, timestamp s, timestamp e)
+
+initial ∅
+query seen (replica i, timestamp c): boolean b
+  let b = (∃s <= c,e > c: (i,s,e) ∈ S)
+
+update increment ()
+  prepare ()
+    let r = myID()
+    let t = e|∀s,s', ∄e' > e: (r,s,e) ∈ S, (r,s',e') ∈ S    -- t is the maximum end bound for this replica
+  effect(r, t)
+    if ¬seen (r, t) then
+      if seen (r, t - 1) ∧ seen (r, t + 1) then
+        let R = {∃s: (r, s, t) ∈ S}
+        let R' = {∃e: (r, t + 1, e) ∈ S}
+        let M = S \ R
+        let M' = M \ R'
+        S := M' ∪ {(r, s, e)}
+      else if seen (r, t - 1)then
+        let R = {∃s: (r, s, t) ∈ S}
+        let M = S \ R
+        S := M ∪ {(r, s, t+1)}
+      else if seen (r, t + 1)then
+        let R = {∃e: (r, t + 1, e) ∈ S}
+        let M = S \ R
+        E := E ∪ {(r, t, e)}
+      else
+        E := E ∪ {(r, t, t+1)}
+
+merge (B)
+  # TODO this is correct, but largelly suboptimal. We should perform the increment.effect subroutine for all elements of B instead
+  S := S ∪ B.S
+```
+
+Algorithm 2, OptORSet with SV. This algorithm is largely copied and adapted from Figure 3 of [^1]
+```
+payload set E, SV sv  -- E: elements, set of triples (element e, timestamp c, replica i)
+                      -- sv: SeenVector of received triples
+
+initial ∅, ∅
+query contains (element e) : boolean b
+  let b = (∃c, i : (e, c, i) ∈ E)
+
+query elements () : set S
+  let S = {e|∃c, i : (e, c, i) ∈ E}
+
+update add (element e)
+  prepare (e)
+    let r = myID() -- r = source replica
+    let c = sv.increment.prepare().t
+  effect (e, c, r)
+    if ¬sv.seen(r, c) then
+    let O = {(e, c′, r) ∈ E|c′ < c}
+    sv.increment.effect(r, c)
+    E := E ∪ {(e, c, r)} \ O
+
+update remove (element e)
+  prepare (e) -- Collect all unique triples containing e
+    let R = {(e, c, i) ∈ E}
+  effect (R) -- Remove triples observed at source
+    pre causal delivery
+    E := E \ R
+
+merge (B)
+  let M = (E ∩ B.E)
+  let M ′ = {(e, c, i) ∈ E \ B.E| ¬B.sv.seen(i, c)}
+  let M ′′ = {(e, c, i) ∈ B.E \ E| ¬sv.seen(i, c)}
+  let U = M ∪ M ′ ∪ M ′′
+  let O = {(e, c, i) ∈ U |∃(e, c′, i) ∈ U : c < c′}
+  E := U \ O
+  sv := sv.merge(B.sv)
+```
+
 ## Storage evaluation
 
 As stated, if all updates are received, the SV is similar in size to that of a standard DVV. It may be however that a node create and
