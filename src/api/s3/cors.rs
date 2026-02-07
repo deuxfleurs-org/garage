@@ -88,7 +88,9 @@ pub async fn handle_put_cors(
 pub struct CorsConfiguration {
 	#[serde(serialize_with = "xmlns_tag", skip_deserializing)]
 	pub xmlns: (),
-	#[serde(rename = "CORSRule")]
+	// "default" is required to be able to parse an empty list of rules,
+	// cf https://docs.rs/quick-xml/latest/quick_xml/de/#sequences-xsall-and-xssequence-xml-schema-types
+	#[serde(rename = "CORSRule", default)]
 	pub cors_rules: Vec<CorsRule>,
 }
 
@@ -257,6 +259,28 @@ mod tests {
 					expose_headers: vec!["*".into()],
 				},
 			],
+		};
+		assert_eq! {
+			ref_value,
+			conf
+		};
+
+		let message2 = to_xml_with_header(&ref_value)?;
+
+		let cleanup = |c: &str| c.replace(char::is_whitespace, "");
+		assert_eq!(cleanup(message), cleanup(&message2));
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_deserialize_norules() -> Result<(), Error> {
+		let message = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/" />"#;
+		let conf: CorsConfiguration = from_str(message).unwrap();
+		let ref_value = CorsConfiguration {
+			xmlns: (),
+			cors_rules: vec![],
 		};
 		assert_eq! {
 			ref_value,
