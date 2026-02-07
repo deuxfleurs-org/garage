@@ -219,6 +219,7 @@ impl TableSchema for K2VItemTable {
 	type S = String;
 	type E = K2VItem;
 	type Filter = ItemFilter;
+        type Precondition = ();
 
 	fn updated(
 		&self,

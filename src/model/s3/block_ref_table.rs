@@ -65,6 +65,7 @@ impl TableSchema for BlockRefTable {
 	type S = Uuid;
 	type E = BlockRef;
 	type Filter = DeletedFilter;
+        type Precondition = ();
 
 	fn updated(
 		&self,

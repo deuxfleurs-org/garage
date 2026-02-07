@@ -205,6 +205,7 @@ impl TableSchema for VersionTable {
 	type S = EmptyKey;
 	type E = Version;
 	type Filter = DeletedFilter;
+        type Precondition = ();
 
 	fn updated(
 		&self,

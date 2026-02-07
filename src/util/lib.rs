@@ -10,6 +10,7 @@ pub mod data;
 pub mod encode;
 pub mod error;
 pub mod forwarded_headers;
+pub mod keyed_mutex;
 pub mod metrics;
 pub mod migrate;
 pub mod persister;

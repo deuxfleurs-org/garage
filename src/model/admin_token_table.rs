@@ -171,6 +171,7 @@ impl TableSchema for AdminApiTokenTable {
 	type S = String;
 	type E = AdminApiToken;
 	type Filter = KeyFilter;
+        type Precondition = ();
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		match filter {

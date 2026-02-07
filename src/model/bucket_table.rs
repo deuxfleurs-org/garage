@@ -371,6 +371,7 @@ impl TableSchema for BucketTable {
 	type S = Uuid;
 	type E = Bucket;
 	type Filter = DeletedFilter;
+        type Precondition = ();
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())

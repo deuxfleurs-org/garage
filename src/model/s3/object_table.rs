@@ -769,6 +769,16 @@ pub enum ObjectFilter {
 	IsUploading { check_multipart: Option<bool> },
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ObjectPrecondition {
+        /// Match if the object doesn't exist (or is a tombstone), and this "new"
+        /// version is newer than the local copy
+	IsAbsent,
+        /// Match if the object's last version has a matching etag, and this "new"
+        /// version is newer than the local copy
+	HasEtag(String),
+}
+
 impl TableSchema for ObjectTable {
 	const TABLE_NAME: &'static str = "object";
 
@@ -776,6 +786,7 @@ impl TableSchema for ObjectTable {
 	type S = String;
 	type E = Object;
 	type Filter = ObjectFilter;
+        type Precondition = ObjectPrecondition;
 
 	fn updated(
 		&self,
@@ -872,6 +883,47 @@ impl TableSchema for ObjectTable {
 				.any(|v| v.is_uploading(*check_multipart)),
 		}
 	}
+
+        fn matches_condition(local_entry: Option<&Self::E>, new_entry: &Self::E, condition: &Self::Precondition) -> bool {
+            let Some(last_new_version) = new_entry.versions().into_iter().rev().find(|version| version.is_complete()) else {
+                // transactional update must be made with a complete version
+                return false;
+            };
+
+            let last_stored_version = local_entry.and_then(|local_entry| local_entry.versions()
+                        .into_iter()
+                        .rev()
+                        .find(|version| version.is_complete()));
+
+            if last_stored_version.map_or(false, |last_stored_version| last_stored_version.cmp_key() > last_new_version.cmp_key()) {
+                // our update is older than the newest complete version, we can discard it
+                return false
+            }
+
+            match condition {
+	        ObjectPrecondition::IsAbsent => {
+                    let Some(last_stored_version) = last_stored_version else {
+                        // no version stored, the object doesn't exist
+                        return true
+                    };
+                    !last_stored_version.is_data()
+                }
+	        ObjectPrecondition::HasEtag(etag) => {
+                    let Some(last_stored_version) = last_stored_version else {
+                        // no version stored, the object doesn't exist
+                        return false
+                    };
+                    match &last_stored_version.state {
+                        ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _))
+                        | ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => {
+                            &meta.etag == etag
+                        },
+                        // last version was a tombstone
+                        _ => false
+                    }
+                }
+            }
+        }
 }
 
 impl CountedItem for Object {

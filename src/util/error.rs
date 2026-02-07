@@ -71,6 +71,9 @@ pub enum Error {
 
 	#[error("{0}")]
 	Message(String),
+
+        #[error("Precondition failed")]
+        PreconditionFailed,
 }
 
 impl Error {

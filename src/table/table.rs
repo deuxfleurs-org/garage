@@ -18,6 +18,7 @@ use garage_util::data::*;
 use garage_util::error::Error;
 use garage_util::metrics::RecordDuration;
 use garage_util::migrate::Migrate;
+use garage_util::keyed_mutex::KeyedMutex;
 
 use garage_rpc::rpc_helper::QuorumSetResultTracker;
 use garage_rpc::system::System;
@@ -40,6 +41,7 @@ pub struct Table<F: TableSchema, R: TableReplication> {
 	pub syncer: Arc<TableSyncer<F, R>>,
 	gc: Arc<TableGc<F, R>>,
 	endpoint: Arc<Endpoint<TableRpc<F>, Self>>,
+        keyed_mutex: KeyedMutex<(Hash, Vec<u8>)>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -59,6 +61,19 @@ pub(crate) enum TableRpc<F: TableSchema> {
 	},
 
 	Update(Vec<Arc<ByteBuf>>),
+        CompareUpdate(CompareUpdate<F::Precondition>)
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct CompareUpdate<Precondition> {
+    condition: Precondition,
+    /// Nodes that were not contacted yet, and should be
+    node_ids: Vec<Uuid>,
+    /// number of success still required, when this reach zero, enough nodes
+    /// agree that we can persist the transaction
+    success_required: usize,
+    /// Actual value to store
+    value: Arc<ByteBuf>,
 }
 
 impl<F: TableSchema> Rpc for TableRpc<F> {
@@ -89,6 +104,7 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 			gc,
 			syncer,
 			endpoint,
+                        keyed_mutex: KeyedMutex::new(),
 		});
 
 		table.endpoint.set_handler(table.clone());
@@ -491,6 +507,57 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		bytes.map(|b| self.data.decode_entry(&b)).transpose()
 	}
 
+        async fn handle_compare_update(self: &Arc<Self>, update: &CompareUpdate<F::Precondition>) -> Result<(), Error> {
+            let mut update = update.clone();
+
+            let new_entry = self.data.decode_entry(update.value.as_slice())?;
+            let mutex_handle = self.keyed_mutex.lock((new_entry.partition_key().hash(), new_entry.sort_key().sort_key().to_vec()));
+            let local_value = self.get_local(new_entry.partition_key(), new_entry.sort_key())?;
+            if F::matches_condition(local_value.as_ref(), &new_entry, &update.condition) {
+                update.success_required -= 1;
+            } else {
+                // there is no point in maintaining a lock, the condition didn't hold for us
+                // it might still hold for enough nodes that this is a valid update though 
+                drop(mutex_handle)
+            }
+            if update.success_required == 0 {
+                self.data.update_entry(update.value.as_slice())?;
+                let this = self.clone();
+                tokio::spawn(async move {
+                    this.system
+			.rpc_helper()
+			.try_call_many(
+				&this.endpoint,
+				&update.node_ids,
+				TableRpc::<F>::Update(vec![update.value]),
+				RequestStrategy::with_priority(PRIO_NORMAL),
+			).await
+                });
+                return Ok(())
+            } else {
+                // the node that called us thought this could succeed,
+                // the only way we don't do a single loop iteration
+                // is the condition was false for us, so set that as default
+                // exit condition
+                let mut last_error = Error::PreconditionFailed;
+                while update.node_ids.len() >= update.success_required {
+                    let next_node = update.node_ids.pop().unwrap(/* node_ids >= success_required > 0, pop always succeed*/);
+                    match self.system.rpc_helper().call(&self.endpoint, next_node, TableRpc::<F>::CompareUpdate(update.clone()), RequestStrategy::with_priority(PRIO_NORMAL)).await {
+                        Ok(_) => {
+                            self.data.update_entry(update.value.as_slice())?;
+                        },
+                        Err(Error::PreconditionFailed) => {
+                            return Err(Error::PreconditionFailed);
+                        }
+                        Err(e) => {
+                            last_error = e;
+                        },
+                    }
+                }
+                return Err(last_error)
+            }
+        }
+
 	// =============== UTILITY FUNCTION FOR CLIENT OPERATIONS ===============
 
 	async fn repair_on_read(&self, who: &[Uuid], what: F::E) -> Result<(), Error> {
@@ -539,6 +606,10 @@ impl<F: TableSchema, R: TableReplication> EndpointHandler<TableRpc<F>> for Table
 				self.data.update_many(pairs)?;
 				Ok(TableRpc::Ok)
 			}
+                        TableRpc::CompareUpdate(compare_update) => {
+                            self.handle_compare_update(compare_update).await?;
+                            Ok(TableRpc::Ok)
+                        }
 			m => Err(Error::unexpected_rpc_message(m)),
 		}
 	}

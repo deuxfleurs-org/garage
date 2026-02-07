@@ -179,6 +179,7 @@ impl TableSchema for MultipartUploadTable {
 	type S = EmptyKey;
 	type E = MultipartUpload;
 	type Filter = DeletedFilter;
+        type Precondition = ();
 
 	fn updated(
 		&self,

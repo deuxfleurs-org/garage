@@ -145,6 +145,7 @@ impl<T: CountedItem> TableSchema for CounterTable<T> {
 	type S = T::CS;
 	type E = CounterEntry<T>;
 	type Filter = (DeletedFilter, Vec<Uuid>);
+        type Precondition = ();
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		if filter.0 == DeletedFilter::Any {

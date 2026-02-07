@@ -61,6 +61,7 @@ impl TableSchema for BucketAliasTable {
 	type S = String;
 	type E = BucketAlias;
 	type Filter = DeletedFilter;
+        type Precondition = ();
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		filter.apply(entry.is_deleted())

@@ -85,6 +85,9 @@ pub trait TableSchema: Send + Sync + 'static {
 	/// (e.g. filter out deleted entries)
 	type Filter: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static;
 
+        /// A precondition that should be checked before some update operation
+	type Precondition: Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync + 'static;
+
 	/// Actions triggered by data changing in a table. If such actions
 	/// include updates to the local database that should be applied
 	/// atomically with the item update itself, a db transaction is
@@ -100,4 +103,9 @@ pub trait TableSchema: Send + Sync + 'static {
 	}
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool;
+
+	fn matches_condition(local_entry: Option<&Self::E>, new_entry: &Self::E, condition: &Self::Precondition) -> bool {
+            let _ = (local_entry, new_entry, condition);
+            false
+        }
 }

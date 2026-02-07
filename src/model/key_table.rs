@@ -255,6 +255,7 @@ impl TableSchema for KeyTable {
 	type S = String;
 	type E = Key;
 	type Filter = KeyFilter;
+        type Precondition = ();
 
 	fn matches_filter(entry: &Self::E, filter: &Self::Filter) -> bool {
 		match filter {
