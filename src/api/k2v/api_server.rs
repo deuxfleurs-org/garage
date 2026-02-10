@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use garage_api_common::signature::VerifiedRequest;
 use hyper::{body::Incoming as IncomingBody, Method, Request, Response};
 use tokio::sync::watch;
 
@@ -82,8 +83,15 @@ impl ApiHandler for K2VApiServer {
 		}
 
 		let verified_request = verify_request(&garage, req, "k2v")?;
-		let req = verified_request.request;
-		let api_key = verified_request.access_key;
+
+		let VerifiedRequest {
+			request: req,
+			access_key: Some(api_key),
+			..
+		} = verified_request
+		else {
+			return Err(Error::forbidden("Access denied".to_string()));
+		};
 
 		let bucket = garage
 			.bucket_helper()

@@ -339,11 +339,11 @@ pub struct WebsiteOpt {
 pub struct AnonymousAccessOpt {
 	/// Allow anonymous access to all files in the bucket
 	#[structopt(long = "allow")]
-	pub allow: bool,
+	pub allow: Vec<String>,
 
 	/// Deny anonymous access to any file in the bucket
-	#[structopt(long = "deny")]
-	pub deny: bool,
+	#[structopt(long = "revoke-all")]
+	pub revoke_all: bool,
 
 	/// Bucket name
 	pub bucket: String,

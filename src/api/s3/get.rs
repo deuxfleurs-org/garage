@@ -193,7 +193,7 @@ fn handle_http_precondition(
 
 /// Handle HEAD request
 pub async fn handle_head(
-	ctx: ReqCtx,
+	ctx: AnonReqCtx,
 	req: &Request<()>,
 	key: &str,
 	part_number: Option<u64>,
@@ -321,7 +321,7 @@ pub async fn handle_head_without_ctx(
 
 /// Handle GET request
 pub async fn handle_get(
-	ctx: ReqCtx,
+	ctx: AnonReqCtx,
 	req: &Request<()>,
 	key: &str,
 	part_number: Option<u64>,

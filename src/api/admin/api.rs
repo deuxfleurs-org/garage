@@ -940,8 +940,9 @@ pub struct GetBucketInfoResponse {
 	/// Object lifecycle rules for this bucket
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
+	/// List of methods that can be invoked anonymously
+	pub anonymous_access: Vec<String>,
 	/// List of access keys that have permissions granted on this bucket
-	pub anonymous_access: bool,
 	pub keys: Vec<GetBucketInfoKey>,
 	/// Number of objects in this bucket
 	pub objects: i64,
@@ -1047,7 +1048,7 @@ pub struct UpdateBucketWebsiteAccess {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketAnonymousAccess {
-	pub enabled: bool,
+	pub methods: Vec<String>,
 }
 
 // ---- DeleteBucket ----
