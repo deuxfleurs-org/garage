@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -381,7 +383,47 @@ impl RequestHandler for UpdateBucketRequest {
 		}
 
 		if let Some(aa) = self.body.anonymous_access {
-			state.anonymous_access.update(aa.enabled);
+			use AnonymousMethod::*;
+
+			#[inline]
+			fn invalid_method(name: &str) -> Error {
+				Error::bad_request(format!("invalid anonymous method: {name}"))
+			}
+
+			match aa.methods.as_slice() {
+				&[] => {
+					state.anonymous_access.update(None.into());
+				}
+
+				names => {
+					let methods = names.iter().try_fold(
+						HashSet::new(),
+						|mut acc, name| -> Result<_, Error> {
+							match name {
+								name if name.starts_with("garage:") => match name.as_str() {
+									"garage:ReadObject" => acc.extend([HeadObject, GetObject]),
+									_ => Err(invalid_method(name))?,
+								},
+
+								name if name.starts_with("s3:") => {
+									acc.insert(
+										AnonymousMethod::from_str(name)
+											.map_err(|_| invalid_method(name))?,
+									);
+								}
+
+								_ => Err(invalid_method(name))?,
+							}
+
+							Ok(acc)
+						},
+					)?;
+
+					state
+						.anonymous_access
+						.update(Some(methods.into_iter().collect()).into());
+				}
+			}
 		}
 
 		if let Some(q) = self.body.quotas {
@@ -812,7 +854,14 @@ async fn bucket_info_results(
 				.map(xml::lifecycle::LifecycleRule::from_garage_lifecycle_rule)
 				.collect::<Vec<_>>()
 		}),
-		anonymous_access: *state.anonymous_access.get(),
+		anonymous_access: state
+			.anonymous_access
+			.get()
+			.0
+			.iter()
+			.flatten()
+			.map(|m| m.as_ref().to_string())
+			.collect(),
 		keys: relevant_keys
 			.into_values()
 			.map(|key| {

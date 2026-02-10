@@ -328,6 +328,8 @@ impl Cli {
 				body: UpdateBucketRequestBody {
 					website_access: Some(wa),
 					anonymous_access: None,
+					cors_rules: None,
+					lifecycle_rules: None,
 					quotas: None,
 				},
 			})
@@ -347,13 +349,13 @@ impl Cli {
 			})
 			.await?;
 
-		if !(opt.allow ^ opt.deny) {
+		if !(!opt.allow.is_empty() ^ opt.revoke_all) {
 			return Err(Error::Message(
-				"You must specify exactly one flag, either --allow or --deny".to_string(),
+				"You must specify exactly one flag, either --allow or --revoke-all".to_string(),
 			));
 		}
 
-		let wa = UpdateBucketAnonymousAccess { enabled: opt.allow };
+		let wa = UpdateBucketAnonymousAccess { methods: opt.allow };
 
 		let res = self
 			.api_request(UpdateBucketRequest {
@@ -579,7 +581,14 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 
 	info.extend([
 		String::new(),
-		format!("Anonymous access:\t{}", bucket.anonymous_access),
+		format!(
+			"Anonymous access:\t{}",
+			if bucket.anonymous_access.is_empty() {
+				"-".to_string()
+			} else {
+				bucket.anonymous_access.join(", ")
+			}
+		),
 	]);
 
 	if bucket.quotas.max_size.is_some() || bucket.quotas.max_objects.is_some() {

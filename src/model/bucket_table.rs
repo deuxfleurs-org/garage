@@ -246,13 +246,14 @@ mod v2 {
 }
 
 mod v3 {
-	use crate::{bucket_table::v2, permission::BucketKeyPerm};
+	use crate::{bucket_table::v2, permission::BucketKeyPerm, s3::anonymous_access};
 	use garage_util::crdt;
 	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
 
 	use super::v08;
 
+	pub use anonymous_access::AnonymousMethod;
 	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
 	pub use v2::{Redirect, RedirectAll, RedirectCondition, RoutingRule, WebsiteConfig};
 
@@ -275,7 +276,7 @@ mod v3 {
 		/// Map of aliases that are or have been given to this bucket
 		/// in the global namespace
 		/// (not authoritative: this is just used as an indication to
-		/// map back to aliases when doing ListBuckets)
+		/// map back to aliases when doing `ListBuckets`)
 		pub aliases: crdt::LwwMap<String, bool>,
 		/// Map of aliases that are or have been given to this bucket
 		/// in namespaces local to keys
@@ -285,13 +286,13 @@ mod v3 {
 		/// Whether this bucket is allowed for website access
 		/// (under all of its global alias names),
 		/// and if so, the website configuration XML document
-		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+		pub website_config: crdt::Lww<crdt::CancelingOption<WebsiteConfig>>,
 		/// CORS rules
-		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
-        /// Whether to allow anonymous read-only access
-		pub anonymous_access: crdt::Lww<bool>,
+		pub cors_config: crdt::Lww<crdt::CancelingOption<Vec<CorsRule>>>,
+		/// Whether to allow anonymous read-only access
+		pub anonymous_access: crdt::Lww<crdt::CancelingOption<Vec<AnonymousMethod>>>,
 		/// Lifecycle configuration
-		pub lifecycle_config: crdt::Lww<Option<Vec<LifecycleRule>>>,
+		pub lifecycle_config: crdt::Lww<crdt::CancelingOption<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		pub quotas: crdt::Lww<BucketQuotas>,
 	}
@@ -318,10 +319,20 @@ mod v3 {
 						})
 					}),
 					cors_config: x.cors_config,
-					anonymous_access: crdt::Lww::new(false),
+					anonymous_access: crdt::Lww::new(None.into()),
 					lifecycle_config: x.lifecycle_config,
 					quotas: x.quotas,
 				}),
+			}
+		}
+	}
+
+	impl BucketParams {
+		/// Checks whether all anonymous access methods are allowed on the bucket
+		pub fn has_anonymous_methods(&self, methods: &[AnonymousMethod]) -> bool {
+			match self.anonymous_access.get().inner() {
+				None => false,
+				Some(allowed) => methods.iter().all(|m| allowed.contains(m)),
 			}
 		}
 	}
@@ -344,7 +355,7 @@ impl BucketParams {
 			website_config: crdt::Lww::new(None.into()),
 			cors_config: crdt::Lww::new(None.into()),
 			lifecycle_config: crdt::Lww::new(None.into()),
-			anonymous_access: crdt::Lww::new(false),
+			anonymous_access: crdt::Lww::new(None.into()),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}

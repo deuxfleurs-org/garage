@@ -60,7 +60,7 @@ pub enum ContentSha256Header {
 
 pub struct VerifiedRequest {
 	pub request: Request<streaming::ReqBody>,
-	pub access_key: Key,
+	pub access_key: Option<Key>,
 	pub content_sha256_header: ContentSha256Header,
 }
 
@@ -78,13 +78,12 @@ pub fn verify_request(
 		service,
 	)?;
 
-	let access_key = checked_signature
-		.key
-		.ok_or_else(|| Error::forbidden("Access Denied"))?;
-
+	// If the above did not short-circuit, it means we either have a properly
+	// signed request for the provided key, or an unauthenticated request,
+	// either way, return the Option<Key>.
 	Ok(VerifiedRequest {
 		request,
-		access_key,
+		access_key: checked_signature.key,
 		content_sha256_header: checked_signature.content_sha256_header,
 	})
 }

@@ -1589,6 +1589,7 @@ dependencies = [
  "format_table",
  "futures",
  "garage_api_common",
+ "garage_api_s3",
  "garage_block",
  "garage_model",
  "garage_rpc",

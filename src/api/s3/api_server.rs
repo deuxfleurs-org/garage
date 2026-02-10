@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::convert::TryInto;
 use std::sync::Arc;
 
 use hyper::header;
@@ -17,7 +18,7 @@ use garage_api_common::common_error::CommonError;
 use garage_api_common::cors::*;
 use garage_api_common::generic_server::*;
 use garage_api_common::helpers::*;
-use garage_api_common::signature::verify_request;
+use garage_api_common::signature::{verify_request, VerifiedRequest};
 
 use crate::bucket::*;
 use crate::copy::*;
@@ -67,94 +68,6 @@ impl S3ApiServer {
 			Endpoint::ListBuckets => handle_list_buckets(&self.garage, &api_key).await,
 			endpoint => Err(CommonError::NotImplemented(endpoint.name().to_owned()).into()),
 		}
-	}
-
-	/// This method checks if the called method and requested bucket can be used
-	/// together for anonymous access, to provide short-circuiting before
-	/// permissions are looked at.
-	///
-	/// It returns `None` if either the method is not usable anonymously, or if
-	/// the bucket does not have anonymous access enabled. Calling code can
-	/// understand it to mean other means of authentication should be performed.
-	///
-	/// If it returns `Some`, anonymous access was attemped, and can contain
-	/// either the response, or an error. In this case, processing it done and
-	/// calling code should return the response.
-	async fn try_handle_anonymous_request(
-		&self,
-		req: &Request<()>,
-		endpoint: Endpoint,
-		bucket_name: &String,
-	) -> Option<Result<Response<ResBody>, Error>> {
-		let bucket = self
-			.garage
-			.bucket_helper()
-			.resolve_global_bucket(bucket_name)
-			.await;
-
-		let bucket = match bucket {
-			Ok(Some(bucket)) => bucket,
-			Ok(None) => return Some(Err(Error::NoSuchKey)),
-			Err(err) => return Some(Err(err.into())),
-		};
-
-		let params = bucket.state.into_option().unwrap();
-
-		if *params.anonymous_access.get() {
-			match endpoint {
-				Endpoint::HeadObject {
-					key, part_number, ..
-				} => {
-					return Some(
-						handle_head_without_ctx(
-							self.garage.clone(),
-							req,
-							bucket.id,
-							&key,
-							part_number,
-						)
-						.await,
-					);
-				}
-
-				Endpoint::GetObject {
-					key,
-					part_number,
-					response_cache_control,
-					response_content_disposition,
-					response_content_encoding,
-					response_content_language,
-					response_content_type,
-					response_expires,
-					..
-				} => {
-					let overrides = GetObjectOverrides {
-						response_cache_control,
-						response_content_disposition,
-						response_content_encoding,
-						response_content_language,
-						response_content_type,
-						response_expires,
-					};
-
-					return Some(
-						handle_get_without_ctx(
-							self.garage.clone(),
-							req,
-							bucket.id,
-							&key,
-							part_number,
-							overrides,
-						)
-						.await,
-					);
-				}
-
-				_ => {}
-			}
-		}
-
-		None
 	}
 }
 
@@ -211,81 +124,97 @@ impl ApiHandler for S3ApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
-		// Split the request to prevent moving the body, which is required later.
-		let (parts, body) = req.into_parts();
-
-		// Try methods that can be used with anonymous access: HeadObject and
-		// GetObject. Both require a bucket name. If we get a response from
-		// this, return the content immediately. Otherwise, move on with
-		// processing.
-		if let Some(ref bucket_name) = bucket_name {
-			let req = Request::from_parts(parts.clone(), ());
-
-			if let Some(response) = self
-				.try_handle_anonymous_request(&req, endpoint.clone(), bucket_name)
-				.await
-			{
-				return response;
-			}
-		}
-
-		let req = Request::from_parts(parts, body);
 		let verified_request = verify_request(&garage, req, "s3")?;
-		let req = verified_request.request;
-		let api_key = verified_request.access_key;
 
-		let bucket_name = match bucket_name {
-			None => {
-				return self
-					.handle_request_without_bucket(req, api_key, endpoint)
-					.await
+		// Depending on whether we have an authenticated request, we are going
+		// to take two different paths to authorization:
+		//
+		//  1. If the request contained valid credentials, those need to go
+		//     through authorization (check that the API key have the necessary
+		//     access level for the requested method)
+		//
+		//  2. On the other hand, if we have an unauthenticated request, we
+		//     verify that the bucket has all the methods required by the endpoint
+		//     allowlisted.
+		let (ctx, req): (ReqCtxEnum, Request<ReqBody>) = match verified_request {
+			VerifiedRequest {
+				request: req,
+				access_key: Some(api_key),
+				..
+			} => {
+				let bucket_name = match bucket_name {
+					None => {
+						return self
+							.handle_request_without_bucket(req, api_key, endpoint)
+							.await
+					}
+					Some(bucket) => bucket,
+				};
+
+				// Special code path for CreateBucket API endpoint
+				if let Endpoint::CreateBucket {} = endpoint {
+					return handle_create_bucket(&garage, req, &api_key.key_id, bucket_name).await;
+				}
+
+				let bucket = garage
+					.bucket_helper()
+					.resolve_bucket_fast(&bucket_name, &api_key)
+					.map_err(pass_helper_error)?;
+				let bucket_id = bucket.id;
+
+				// Return HTTP 501 Not Implemented before permission check
+				if !endpoint.is_implemented() {
+					return Err(CommonError::NotImplemented(endpoint.name().to_owned()).into());
+				}
+
+				let allowed = match endpoint.authorization_type() {
+					Authorization::Read => api_key.allow_read(&bucket_id),
+					Authorization::Write => api_key.allow_write(&bucket_id),
+					Authorization::Owner => api_key.allow_owner(&bucket_id),
+					_ => unreachable!(),
+				};
+
+				if !allowed {
+					return Err(Error::forbidden("Operation is not allowed for this key."));
+				}
+
+				(
+					ReqCtxEnum::authenticated(garage, api_key, bucket, bucket_name),
+					req,
+				)
 			}
-			Some(bucket) => bucket.to_string(),
+
+			anonymous_request => {
+				let Some(bucket_name) = bucket_name else {
+					return Err(Error::forbidden("Access denied"));
+				};
+
+				// Let's not leak existence of a bucket on anonymous access, we return a generic Access denied.
+				let Ok(Some(bucket)) = garage
+					.bucket_helper()
+					.resolve_global_bucket_fast(&bucket_name)
+				else {
+					return Err(Error::forbidden("Access denied"));
+				};
+
+				if !endpoint.can_be_accessed_anonymously(&bucket) {
+					return Err(Error::forbidden("Access denied"));
+				}
+
+				(
+					ReqCtxEnum::anonymous(garage, bucket, bucket_name),
+					anonymous_request.request,
+				)
+			}
 		};
 
-		// Special code path for CreateBucket API endpoint
-		if let Endpoint::CreateBucket {} = endpoint {
-			return handle_create_bucket(&garage, req, &api_key.key_id, bucket_name).await;
-		}
-
-		let bucket = garage
-			.bucket_helper()
-			.resolve_bucket_fast(&bucket_name, &api_key)
-			.map_err(pass_helper_error)?;
-		let bucket_id = bucket.id;
-		let bucket_params = bucket.state.into_option().unwrap();
-
-		// Return HTTP 501 Not Implemented before permission check
-		if !endpoint.is_implemented() {
-			return Err(CommonError::NotImplemented(endpoint.name().to_owned()).into());
-		}
-
-		let allowed = match endpoint.authorization_type() {
-			Authorization::Read => api_key.allow_read(&bucket_id),
-			Authorization::Write => api_key.allow_write(&bucket_id),
-			Authorization::Owner => api_key.allow_owner(&bucket_id),
-			_ => unreachable!(),
-		};
-
-		if !allowed {
-			return Err(Error::forbidden("Operation is not allowed for this key."));
-		}
-
-		let matching_cors = find_matching_cors_rule(&bucket_params, &req)?
+		let matching_cors = find_matching_cors_rule(ctx.bucket_params(), &req)?
 			.map(|(rule, origin)| (rule.clone(), origin.to_string()));
-
-		let ctx = ReqCtx {
-			garage,
-			bucket_id,
-			bucket_name,
-			bucket_params,
-			api_key,
-		};
 
 		let resp = match endpoint {
 			Endpoint::HeadObject {
 				key, part_number, ..
-			} => handle_head(ctx, &req.map(|_| ()), &key, part_number).await,
+			} => handle_head(ctx.try_into()?, &req.map(|_| ()), &key, part_number).await,
 			Endpoint::GetObject {
 				key,
 				part_number,
@@ -305,38 +234,45 @@ impl ApiHandler for S3ApiServer {
 					response_content_type,
 					response_expires,
 				};
-				handle_get(ctx, &req.map(|_| ()), &key, part_number, overrides).await
+				handle_get(
+					ctx.try_into()?,
+					&req.map(|_| ()),
+					&key,
+					part_number,
+					overrides,
+				)
+				.await
 			}
 			Endpoint::UploadPart {
 				key,
 				part_number,
 				upload_id,
-			} => handle_put_part(ctx, req, &key, part_number, &upload_id).await,
-			Endpoint::CopyObject { key } => handle_copy(ctx, &req, &key).await,
+			} => handle_put_part(ctx.try_into()?, req, &key, part_number, &upload_id).await,
+			Endpoint::CopyObject { key } => handle_copy(ctx.try_into()?, &req, &key).await,
 			Endpoint::UploadPartCopy {
 				key,
 				part_number,
 				upload_id,
-			} => handle_upload_part_copy(ctx, &req, &key, part_number, &upload_id).await,
-			Endpoint::PutObject { key } => handle_put(ctx, req, &key).await,
+			} => handle_upload_part_copy(ctx.try_into()?, &req, &key, part_number, &upload_id).await,
+			Endpoint::PutObject { key } => handle_put(ctx.try_into()?, req, &key).await,
 			Endpoint::AbortMultipartUpload { key, upload_id } => {
-				handle_abort_multipart_upload(ctx, &key, &upload_id).await
+				handle_abort_multipart_upload(ctx.try_into()?, &key, &upload_id).await
 			}
-			Endpoint::DeleteObject { key, .. } => handle_delete(ctx, &key).await,
+			Endpoint::DeleteObject { key, .. } => handle_delete(ctx.try_into()?, &key).await,
 			Endpoint::CreateMultipartUpload { key } => {
-				handle_create_multipart_upload(ctx, &req, &key).await
+				handle_create_multipart_upload(ctx.try_into()?, &req, &key).await
 			}
 			Endpoint::CompleteMultipartUpload { key, upload_id } => {
-				handle_complete_multipart_upload(ctx, req, &key, &upload_id).await
+				handle_complete_multipart_upload(ctx.try_into()?, req, &key, &upload_id).await
 			}
 			Endpoint::HeadBucket {} => {
 				let response = Response::builder().body(empty_body()).unwrap();
 				Ok(response)
 			}
-			Endpoint::DeleteBucket {} => handle_delete_bucket(ctx).await,
-			Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx),
+			Endpoint::DeleteBucket {} => handle_delete_bucket(ctx.try_into()?).await,
+			Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx.try_into()?),
 			Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
-			Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx),
+			Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx.try_into()?),
 			Endpoint::ListObjects {
 				delimiter,
 				encoding_type,
@@ -346,8 +282,8 @@ impl ApiHandler for S3ApiServer {
 			} => {
 				let query = ListObjectsQuery {
 					common: ListQueryCommon {
-						bucket_name: ctx.bucket_name.clone(),
-						bucket_id,
+						bucket_name: ctx.bucket_name().clone(),
+						bucket_id: ctx.bucket_id(),
 						delimiter,
 						page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 						prefix: prefix.unwrap_or_default(),
@@ -358,7 +294,7 @@ impl ApiHandler for S3ApiServer {
 					continuation_token: None,
 					start_after: None,
 				};
-				handle_list(ctx, &query).await
+				handle_list(ctx.try_into()?, &query).await
 			}
 			Endpoint::ListObjectsV2 {
 				delimiter,
@@ -373,8 +309,8 @@ impl ApiHandler for S3ApiServer {
 				if list_type == "2" {
 					let query = ListObjectsQuery {
 						common: ListQueryCommon {
-							bucket_name: ctx.bucket_name.clone(),
-							bucket_id,
+							bucket_name: ctx.bucket_name().clone(),
+							bucket_id: ctx.bucket_id(),
 							delimiter,
 							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
 							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
@@ -385,7 +321,7 @@ impl ApiHandler for S3ApiServer {
 						continuation_token,
 						start_after,
 					};
-					handle_list(ctx, &query).await
+					handle_list(ctx.try_into()?, &query).await
 				} else {
 					Err(Error::bad_request(format!(
 						"Invalid endpoint: list-type={}",
@@ -403,8 +339,8 @@ impl ApiHandler for S3ApiServer {
 			} => {
 				let query = ListMultipartUploadsQuery {
 					common: ListQueryCommon {
-						bucket_name: ctx.bucket_name.clone(),
-						bucket_id,
+						bucket_name: ctx.bucket_name().clone(),
+						bucket_id: ctx.bucket_id(),
 						delimiter,
 						page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
 						prefix: prefix.unwrap_or_default(),
@@ -413,7 +349,7 @@ impl ApiHandler for S3ApiServer {
 					key_marker,
 					upload_id_marker,
 				};
-				handle_list_multipart_upload(ctx, &query).await
+				handle_list_multipart_upload(ctx.try_into()?, &query).await
 			}
 			Endpoint::ListParts {
 				key,
@@ -422,24 +358,28 @@ impl ApiHandler for S3ApiServer {
 				upload_id,
 			} => {
 				let query = ListPartsQuery {
-					bucket_name: ctx.bucket_name.clone(),
+					bucket_name: ctx.bucket_name().clone(),
 					key,
 					upload_id,
 					part_number_marker: part_number_marker.map(|p| p.min(10000)),
 					max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
 				};
-				handle_list_parts(ctx, req, &query).await
+				handle_list_parts(ctx.try_into()?, req, &query).await
 			}
-			Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req).await,
-			Endpoint::GetBucketWebsite {} => handle_get_website(ctx).await,
-			Endpoint::PutBucketWebsite {} => handle_put_website(ctx, req).await,
-			Endpoint::DeleteBucketWebsite {} => handle_delete_website(ctx).await,
-			Endpoint::GetBucketCors {} => handle_get_cors(ctx).await,
-			Endpoint::PutBucketCors {} => handle_put_cors(ctx, req).await,
-			Endpoint::DeleteBucketCors {} => handle_delete_cors(ctx).await,
-			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(ctx).await,
-			Endpoint::PutBucketLifecycleConfiguration {} => handle_put_lifecycle(ctx, req).await,
-			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx).await,
+			Endpoint::DeleteObjects {} => handle_delete_objects(ctx.try_into()?, req).await,
+			Endpoint::GetBucketWebsite {} => handle_get_website(ctx.try_into()?).await,
+			Endpoint::PutBucketWebsite {} => handle_put_website(ctx.try_into()?, req).await,
+			Endpoint::DeleteBucketWebsite {} => handle_delete_website(ctx.try_into()?).await,
+			Endpoint::GetBucketCors {} => handle_get_cors(ctx.try_into()?).await,
+			Endpoint::PutBucketCors {} => handle_put_cors(ctx.try_into()?, req).await,
+			Endpoint::DeleteBucketCors {} => handle_delete_cors(ctx.try_into()?).await,
+			Endpoint::GetBucketLifecycleConfiguration {} => {
+				handle_get_lifecycle(ctx.try_into()?).await
+			}
+			Endpoint::PutBucketLifecycleConfiguration {} => {
+				handle_put_lifecycle(ctx.try_into()?, req).await
+			}
+			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx.try_into()?).await,
 			_ => unreachable!(), // unimplemented check is earlier
 		};
 
