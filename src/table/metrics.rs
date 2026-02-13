@@ -34,7 +34,7 @@ impl TableMetrics {
 		TableMetrics {
 			_table_size: meter
 				.u64_value_observer(
-					"table.size",
+					"garage_table.size",
 					move |observer| {
 						if let Ok(value) = store.approximate_len() {
 							observer.observe(
@@ -48,7 +48,7 @@ impl TableMetrics {
 				.init(),
 			_merkle_tree_size: meter
 				.u64_value_observer(
-					"table.merkle_tree_size",
+					"garage_table.merkle_tree_size",
 					move |observer| {
 						if let Ok(value) = merkle_tree.approximate_len() {
 							observer.observe(
@@ -62,7 +62,7 @@ impl TableMetrics {
 				.init(),
 			_merkle_todo_len: meter
 				.u64_value_observer(
-					"table.merkle_updater_todo_queue_length",
+					"garage_table.merkle_updater_todo_queue_length",
 					move |observer| {
 						if let Ok(v) = merkle_todo.approximate_len() {
 							observer.observe(
@@ -76,7 +76,7 @@ impl TableMetrics {
 				.init(),
 			_insert_queue_len: meter
 				.u64_value_observer(
-					"table.insert_queue_length",
+					"garage_table.insert_queue_length",
 					move |observer| {
 						if let Ok(v) = insert_queue.approximate_len() {
 							observer.observe(
@@ -90,7 +90,7 @@ impl TableMetrics {
 				.init(),
 			_gc_todo_len: meter
 				.u64_value_observer(
-					"table.gc_todo_queue_length",
+					"garage_table.gc_todo_queue_length",
 					move |observer| {
                         if let Ok(value) = gc_todo.approximate_len() {
                             observer.observe(
@@ -104,43 +104,43 @@ impl TableMetrics {
 				.init(),
 
 			get_request_counter: meter
-				.u64_counter("table.get_request_counter")
+				.u64_counter("garage_table.get_request_counter")
 				.with_description("Number of get/get_range requests internally made on this table")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			get_request_duration: meter
-				.f64_value_recorder("table.get_request_duration")
+				.f64_value_recorder("garage_table.get_request_duration")
 				.with_description("Duration of get/get_range requests internally made on this table, in seconds")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			put_request_counter: meter
-				.u64_counter("table.put_request_counter")
+				.u64_counter("garage_table.put_request_counter")
 				.with_description("Number of insert/insert_many requests internally made on this table")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			put_request_duration: meter
-				.f64_value_recorder("table.put_request_duration")
+				.f64_value_recorder("garage_table.put_request_duration")
 				.with_description("Duration of insert/insert_many requests internally made on this table, in seconds")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 
 			internal_update_counter: meter
-				.u64_counter("table.internal_update_counter")
+				.u64_counter("garage_table.internal_update_counter")
 				.with_description("Number of value updates where the value actually changes (includes creation of new key and update of existing key)")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			internal_delete_counter: meter
-				.u64_counter("table.internal_delete_counter")
+				.u64_counter("garage_table.internal_delete_counter")
 				.with_description("Number of value deletions in the tree (due to GC or repartitioning)")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 
 			sync_items_sent: meter
-				.u64_counter("table.sync_items_sent")
+				.u64_counter("garage_table.sync_items_sent")
 				.with_description("Number of data items sent to other nodes during resync procedures")
 				.init(),
 			sync_items_received: meter
-				.u64_counter("table.sync_items_received")
+				.u64_counter("garage_table.sync_items_received")
 				.with_description("Number of data items received from other nodes during resync procedures")
 				.init(),
 		}

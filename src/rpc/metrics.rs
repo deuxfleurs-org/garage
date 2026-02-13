@@ -14,23 +14,23 @@ impl RpcMetrics {
 		let meter = global::meter("garage_rpc");
 		RpcMetrics {
 			rpc_counter: meter
-				.u64_counter("rpc.request_counter")
+				.u64_counter("garage_rpc.request_counter")
 				.with_description("Number of RPC requests emitted")
 				.init(),
 			rpc_timeout_counter: meter
-				.u64_counter("rpc.timeout_counter")
+				.u64_counter("garage_rpc.timeout_counter")
 				.with_description("Number of RPC timeouts")
 				.init(),
 			rpc_netapp_error_counter: meter
-				.u64_counter("rpc.netapp_error_counter")
+				.u64_counter("garage_rpc.netapp_error_counter")
 				.with_description("Number of communication errors (errors in the Netapp library)")
 				.init(),
 			rpc_garage_error_counter: meter
-				.u64_counter("rpc.garage_error_counter")
+				.u64_counter("garage_rpc.garage_error_counter")
 				.with_description("Number of RPC errors (errors happening when handling the RPC)")
 				.init(),
 			rpc_duration: meter
-				.f64_value_recorder("rpc.duration")
+				.f64_value_recorder("garage_rpc.duration")
 				.with_description("Duration of RPCs")
 				.init(),
 		}

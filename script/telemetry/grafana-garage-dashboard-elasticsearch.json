@@ -161,7 +161,7 @@
           },
           "metrics": [
             {
-              "field": "api_request_counter",
+              "field": "garage_api_request_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -284,7 +284,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "api_request_duration",
+              "field": "garage_api_request_duration",
               "id": "1",
               "type": "avg"
             }
@@ -412,7 +412,7 @@
           },
           "metrics": [
             {
-              "field": "api_error_counter",
+              "field": "garage_api_error_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -540,7 +540,7 @@
           },
           "metrics": [
             {
-              "field": "web_request_counter",
+              "field": "garage_web_request_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -666,7 +666,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "web_request_duration",
+              "field": "garage_web_request_duration",
               "id": "1",
               "type": "avg"
             }
@@ -794,7 +794,7 @@
           },
           "metrics": [
             {
-              "field": "web_error_counter",
+              "field": "garage_web_error_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -918,7 +918,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "table_get_request_counter",
+              "field": "garage_table_get_request_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1042,7 +1042,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "table_put_request_counter",
+              "field": "garage_table_put_request_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1154,7 +1154,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "block_bytes_read",
+              "field": "garage_block_bytes_read",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1270,7 +1270,7 @@
           },
           "metrics": [
             {
-              "field": "block_bytes_written",
+              "field": "garage_block_bytes_written",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1386,7 +1386,7 @@
           },
           "metrics": [
             {
-              "field": "block_resync_counter",
+              "field": "garage_block_resync_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1500,7 +1500,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "block_resync_queue_length",
+              "field": "garage_block_resync_queue_length",
               "id": "1",
               "type": "avg"
             }
@@ -1610,7 +1610,7 @@
           },
           "metrics": [
             {
-              "field": "table_merkle_updater_todo_queue_length",
+              "field": "garage_table_merkle_updater_todo_queue_length",
               "id": "1",
               "type": "avg"
             }
@@ -1724,7 +1724,7 @@
           },
           "metrics": [
             {
-              "field": "table_gc_todo_queue_length",
+              "field": "garage_table_gc_todo_queue_length",
               "id": "1",
               "type": "avg"
             }
@@ -1824,7 +1824,7 @@
           },
           "metrics": [
             {
-              "field": "block_resync_error_counter",
+              "field": "garage_block_resync_error_counter",
               "hide": true,
               "id": "1",
               "settings": {},
@@ -1938,7 +1938,7 @@
           },
           "metrics": [
             {
-              "field": "block_resync_errored_blocks",
+              "field": "garage_block_resync_errored_blocks",
               "hide": false,
               "id": "1",
               "type": "sum"
@@ -2041,7 +2041,7 @@
           },
           "metrics": [
             {
-              "field": "block_corruption_counter",
+              "field": "garage_block_corruption_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2165,7 +2165,7 @@
           },
           "metrics": [
             {
-              "field": "rpc_netapp_error_counter",
+              "field": "garage_rpc_netapp_error_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2292,7 +2292,7 @@
           },
           "metrics": [
             {
-              "field": "rpc_request_counter",
+              "field": "garage_rpc_request_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2418,7 +2418,7 @@
           },
           "metrics": [
             {
-              "field": "rpc_duration",
+              "field": "garage_rpc_duration",
               "id": "1",
               "type": "avg"
             }
@@ -2521,7 +2521,7 @@
           },
           "metrics": [
             {
-              "field": "admin_http_requests_total",
+              "field": "garage_admin_http_requests_total",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2654,7 +2654,7 @@
           },
           "metrics": [
             {
-              "field": "rpc_garage_error_counter",
+              "field": "garage_rpc_garage_error_counter",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2765,7 +2765,7 @@
           },
           "metrics": [
             {
-              "field": "rpc_duration",
+              "field": "garage_rpc_duration",
               "id": "1",
               "type": "avg"
             }
