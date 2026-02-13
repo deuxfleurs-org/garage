@@ -41,7 +41,7 @@ impl BlockManagerMetrics {
 		let meter = global::meter("garage_model/block");
 		Self {
 			_compression_level: meter
-				.u64_value_observer("block.compression_level", move |observer| {
+				.u64_value_observer("garage_block.compression_level", move |observer| {
 					match compression_level {
 						Some(v) => observer.observe(v as u64, &[]),
 						None => observer.observe(0_u64, &[]),
@@ -50,7 +50,7 @@ impl BlockManagerMetrics {
 				.with_description("Garage compression level for node")
 				.init(),
 			_rc_size: meter
-				.u64_value_observer("block.rc_size", move |observer| {
+				.u64_value_observer("garage_block.rc_size", move |observer| {
 					if let Ok(value) = rc_tree.approximate_len() {
 						observer.observe(value as u64, &[]);
 					}
@@ -58,7 +58,7 @@ impl BlockManagerMetrics {
 				.with_description("Number of blocks known to the reference counter")
 				.init(),
 			_resync_queue_len: meter
-				.u64_value_observer("block.resync_queue_length", move |observer| {
+				.u64_value_observer("garage_block.resync_queue_length", move |observer| {
 					if let Ok(value) = resync_queue.approximate_len() {
 						observer.observe(value as u64, &[]);
 					}
@@ -68,7 +68,7 @@ impl BlockManagerMetrics {
 				)
 				.init(),
 			_resync_errored_blocks: meter
-				.u64_value_observer("block.resync_errored_blocks", move |observer| {
+				.u64_value_observer("garage_block.resync_errored_blocks", move |observer| {
 					if let Ok(value) = resync_errors.approximate_len() {
 						observer.observe(value as u64, &[]);
 					}
@@ -77,7 +77,7 @@ impl BlockManagerMetrics {
 				.init(),
 
 			_buffer_free_kb: meter
-				.u64_value_observer("block.ram_buffer_free_kb", move |observer| {
+				.u64_value_observer("garage_block.ram_buffer_free_kb", move |observer| {
 					observer.observe(buffer_semaphore.available_permits() as u64, &[]);
 				})
 				.with_description(
@@ -86,63 +86,63 @@ impl BlockManagerMetrics {
 				.init(),
 
 			resync_counter: meter
-				.u64_counter("block.resync_counter")
+				.u64_counter("garage_block.resync_counter")
 				.with_description("Number of calls to resync_block")
 				.init()
 				.bind(&[]),
 			resync_error_counter: meter
-				.u64_counter("block.resync_error_counter")
+				.u64_counter("garage_block.resync_error_counter")
 				.with_description("Number of calls to resync_block that returned an error")
 				.init()
 				.bind(&[]),
 			resync_duration: meter
-				.f64_value_recorder("block.resync_duration")
+				.f64_value_recorder("garage_block.resync_duration")
 				.with_description("Duration of resync_block operations")
 				.init()
 				.bind(&[]),
 			resync_send_counter: meter
-				.u64_counter("block.resync_send_counter")
+				.u64_counter("garage_block.resync_send_counter")
 				.with_description("Number of blocks sent to another node in resync operations")
 				.init(),
 			resync_recv_counter: meter
-				.u64_counter("block.resync_recv_counter")
+				.u64_counter("garage_block.resync_recv_counter")
 				.with_description("Number of blocks received from other nodes in resync operations")
 				.init()
 				.bind(&[]),
 
 			bytes_read: meter
-				.u64_counter("block.bytes_read")
+				.u64_counter("garage_block.bytes_read")
 				.with_description("Number of bytes read from disk")
 				.init()
 				.bind(&[]),
 			block_read_duration: meter
-				.f64_value_recorder("block.read_duration")
+				.f64_value_recorder("garage_block.read_duration")
 				.with_description("Duration of block read operations")
 				.init()
 				.bind(&[]),
 			block_read_semaphore_timeouts: meter
-				.u64_counter("block.read_semaphore_timeouts")
+				.u64_counter("garage_block.read_semaphore_timeouts")
 				.with_description("Number of block reads that failed due to semaphore acquire timeout")
 				.init()
 				.bind(&[]),
 			bytes_written: meter
-				.u64_counter("block.bytes_written")
+				.u64_counter("garage_block.bytes_written")
 				.with_description("Number of bytes written to disk")
 				.init()
 				.bind(&[]),
 			block_write_duration: meter
-				.f64_value_recorder("block.write_duration")
+				.f64_value_recorder("garage_block.write_duration")
 				.with_description("Duration of block write operations")
 				.init()
 				.bind(&[]),
 			delete_counter: meter
-				.u64_counter("block.delete_counter")
+				.u64_counter("garage_block.delete_counter")
 				.with_description("Number of blocks deleted")
 				.init()
 				.bind(&[]),
 
 			corruption_counter: meter
-				.u64_counter("block.corruption_counter")
+				.u64_counter("garage_block.corruption_counter")
 				.with_description("Data corruptions detected on block reads")
 				.init()
 				.bind(&[]),

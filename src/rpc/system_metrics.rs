@@ -110,7 +110,7 @@ impl SystemMetrics {
 			_cluster_healthy: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_healthy", move |observer| {
+					.u64_value_observer("garage_cluster_healthy", move |observer| {
 						let h = get_health();
 						if h.status == ClusterHealthStatus::Healthy {
 							observer.observe(1, &[]);
@@ -123,7 +123,7 @@ impl SystemMetrics {
 			},
 			_cluster_available: {
 				let get_health = get_health.clone();
-				meter.u64_value_observer("cluster_available", move |observer| {
+				meter.u64_value_observer("garage_cluster_available", move |observer| {
 					let h = get_health();
 					if h.status != ClusterHealthStatus::Unavailable {
 						observer.observe(1, &[]);
@@ -137,7 +137,7 @@ impl SystemMetrics {
 			_known_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_known_nodes", move |observer| {
+					.u64_value_observer("garage_cluster_known_nodes", move |observer| {
 						let h = get_health();
 						observer.observe(h.known_nodes as u64, &[]);
 					})
@@ -147,7 +147,7 @@ impl SystemMetrics {
 			_connected_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_connected_nodes", move |observer| {
+					.u64_value_observer("garage_cluster_connected_nodes", move |observer| {
 						let h = get_health();
 						observer.observe(h.connected_nodes as u64, &[]);
 					})
@@ -157,7 +157,7 @@ impl SystemMetrics {
 			_storage_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_storage_nodes", move |observer| {
+					.u64_value_observer("garage_cluster_storage_nodes", move |observer| {
 						let h = get_health();
 						observer.observe(h.storage_nodes as u64, &[]);
 					})
@@ -167,7 +167,7 @@ impl SystemMetrics {
 			_storage_nodes_ok: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_storage_nodes_ok", move |observer| {
+					.u64_value_observer("garage_cluster_storage_nodes_ok", move |observer| {
 						let h = get_health();
 						observer.observe(h.storage_nodes_ok as u64, &[]);
 					})
@@ -177,7 +177,7 @@ impl SystemMetrics {
 			_partitions: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions", move |observer| {
+					.u64_value_observer("garage_cluster_partitions", move |observer| {
 						let h = get_health();
 						observer.observe(h.partitions as u64, &[]);
 					})
@@ -187,7 +187,7 @@ impl SystemMetrics {
 			_partitions_quorum: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions_quorum", move |observer| {
+					.u64_value_observer("garage_cluster_partitions_quorum", move |observer| {
 						let h = get_health();
 						observer.observe(h.partitions_quorum as u64, &[]);
 					})
@@ -199,7 +199,7 @@ impl SystemMetrics {
 			_partitions_all_ok: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions_all_ok", move |observer| {
+					.u64_value_observer("garage_cluster_partitions_all_ok", move |observer| {
 						let h = get_health();
 						observer.observe(h.partitions_all_ok as u64, &[]);
 					})
@@ -213,7 +213,7 @@ impl SystemMetrics {
 			_layout_node_connected: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("cluster_layout_node_connected", move |observer| {
+					.u64_value_observer("garage_cluster_layout_node_connected", move |observer| {
 						let layout = system.cluster_layout();
 						let nodes = system.get_known_nodes();
 						for id in layout.all_nodes().unwrap_or_default().iter() {
@@ -260,44 +260,47 @@ impl SystemMetrics {
 			_layout_node_disconnected_time: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("cluster_layout_node_disconnected_time", move |observer| {
-						let layout = system.cluster_layout();
-						let nodes = system.get_known_nodes();
-						for id in layout.all_nodes().unwrap_or_default().iter() {
-							let mut kv = vec![KeyValue::new("id", format!("{:?}", id))];
-							if let Some(role) = layout
-								.current()
-								.ok()
-								.and_then(|l| l.roles.get(id))
-								.and_then(|r| r.0.as_ref())
-							{
-								kv.push(KeyValue::new("role_zone", role.zone.clone()));
-								match role.capacity {
-									Some(cap) => {
-										kv.push(KeyValue::new("role_capacity", cap as i64));
-										kv.push(KeyValue::new("role_gateway", 0));
-									}
-									None => {
-										kv.push(KeyValue::new("role_gateway", 1));
+					.u64_value_observer(
+						"garage_cluster_layout_node_disconnected_time",
+						move |observer| {
+							let layout = system.cluster_layout();
+							let nodes = system.get_known_nodes();
+							for id in layout.all_nodes().unwrap_or_default().iter() {
+								let mut kv = vec![KeyValue::new("id", format!("{:?}", id))];
+								if let Some(role) = layout
+									.current()
+									.ok()
+									.and_then(|l| l.roles.get(id))
+									.and_then(|r| r.0.as_ref())
+								{
+									kv.push(KeyValue::new("role_zone", role.zone.clone()));
+									match role.capacity {
+										Some(cap) => {
+											kv.push(KeyValue::new("role_capacity", cap as i64));
+											kv.push(KeyValue::new("role_gateway", 0));
+										}
+										None => {
+											kv.push(KeyValue::new("role_gateway", 1));
+										}
 									}
 								}
-							}
 
-							if let Some(node) = nodes.iter().find(|n| n.id == *id) {
-								// TODO: see comment above
-								// kv.push(KeyValue::new("address", node.addr.to_string()));
-								// kv.push(KeyValue::new(
-								//	"hostname",
-								//	node.status.hostname.clone(),
-								// ));
-								if node.is_up {
-									observer.observe(0, &kv);
-								} else if let Some(secs) = node.last_seen_secs_ago {
-									observer.observe(secs, &kv);
+								if let Some(node) = nodes.iter().find(|n| n.id == *id) {
+									// TODO: see comment above
+									// kv.push(KeyValue::new("address", node.addr.to_string()));
+									// kv.push(KeyValue::new(
+									//	"hostname",
+									//	node.status.hostname.clone(),
+									// ));
+									if node.is_up {
+										observer.observe(0, &kv);
+									} else if let Some(secs) = node.last_seen_secs_ago {
+										observer.observe(secs, &kv);
+									}
 								}
 							}
-						}
-					})
+						},
+					)
 					.with_description(
 						"Time (in seconds) since last connection to nodes in the cluster layout",
 					)

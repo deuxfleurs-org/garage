@@ -182,15 +182,15 @@ content-type: text/plain; version=0.0.4
 content-length: 12145
 date: Tue, 08 Aug 2023 07:25:05 GMT
 
-# HELP api_admin_error_counter Number of API calls to the various Admin API endpoints that resulted in errors
-# TYPE api_admin_error_counter counter
-api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="400"} 1
-api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="404"} 3
-# HELP api_admin_request_counter Number of API calls to the various Admin API endpoints
-# TYPE api_admin_request_counter counter
-api_admin_request_counter{api_endpoint="CheckWebsiteEnabled"} 7
-api_admin_request_counter{api_endpoint="Health"} 3
-# HELP api_admin_request_duration Duration of API calls to the various Admin API endpoints
+# HELP garage_api_admin_error_counter Number of API calls to the various Admin API endpoints that resulted in errors
+# TYPE garage_api_admin_error_counter counter
+garage_api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="400"} 1
+garage_api_admin_error_counter{api_endpoint="CheckWebsiteEnabled",status_code="404"} 3
+# HELP garage_api_admin_request_counter Number of API calls to the various Admin API endpoints
+# TYPE garage_api_admin_request_counter counter
+garage_api_admin_request_counter{api_endpoint="CheckWebsiteEnabled"} 7
+garage_api_admin_request_counter{api_endpoint="Health"} 3
+# HELP garage_api_admin_request_duration Duration of API calls to the various Admin API endpoints
 ...
 ```
 
