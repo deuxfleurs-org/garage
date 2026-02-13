@@ -194,6 +194,15 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			.expect("Could not build garage endpoint URI")
 	}
 
+	pub fn admin_uri(&self, path: &str) -> http::Uri {
+		format!(
+			"http://127.0.0.1:{admin_port}/{path}",
+			admin_port = self.admin_port,
+		)
+		.parse()
+		.expect("Could not build garage endpoint URI")
+	}
+
 	pub fn key(&self, maybe_name: Option<&str>) -> Key {
 		let mut key = Key::default();
 
