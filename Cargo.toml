@@ -95,7 +95,7 @@ heed = { version = "0.22", default-features = false, features = [] }
 rusqlite = { version = "0.38", features = ["fallible_uint"] }
 r2d2 = "0.8"
 r2d2_sqlite = "0.32"
-fjall = "2.11"
+fjall = "3.0.2"
 
 async-compression = { version = "0.4", features = ["tokio", "zstd"] }
 zstd = { version = "0.13", default-features = false }
