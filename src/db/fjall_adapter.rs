@@ -200,17 +200,8 @@ impl IDb for FjallDb {
 	}
 
 	fn clear(&self, tree_idx: usize) -> DbResult<()> {
-		let mut trees = self.trees.write();
-
-		if tree_idx >= trees.len() {
-			return Err(DbError("invalid tree id".into()));
-		}
-		let (name, tree) = trees.remove(tree_idx);
-
-		self.db.inner().delete_keyspace(tree.inner().clone())?;
-		let tree = self.db.keyspace(&name, KeyspaceCreateOptions::default)?;
-		trees.insert(tree_idx, (name, tree));
-
+		let tree = self.get_tree(tree_idx)?;
+		tree.inner().clear()?;
 		Ok(())
 	}
 
