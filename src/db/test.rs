@@ -157,7 +157,7 @@ fn test_fjall_db() {
 	use crate::fjall_adapter::{fjall, FjallDb};
 
 	let path = mktemp::Temp::new_dir().unwrap();
-	let config = fjall::SingleWriterTxDatabase::builder(path).temporary(true);
+	let config = fjall::OptimisticTxDatabase::builder(path).temporary(true);
 	let keyspace = config.open().unwrap();
 	let db = FjallDb::init(keyspace, false);
 	test_suite(db);
