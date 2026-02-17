@@ -10,6 +10,8 @@ steps:
       chart_dir: script/helm/garage
       chart_name: garage
       registry_host: codeberg.org
+      registry_user: $CI_REPO_OWNER
+      registry_path: "${CI_REPO_OWNER}/${CI_REPO_NAME}"
 
       # To create registry_password:
       # 1. Go to https://codeberg.org/user/settings/applications.
@@ -29,14 +31,8 @@ steps:
 
     commands:
       - |
-        echo "$registry_password" | helm registry login -u "${CI_REPO_OWNER}" --password-stdin "${registry_host}"
-        helm lint "${chart_dir}"
-        chart_version=$(grep '^version: ' "${chart_dir}/Chart.yaml" | cut -d' ' -f 2)
-        helm package "${chart_dir}"
-        if helm pull "oci://${registry_host}/${CI_REPO_OWNER}/${CI_REPO_NAME}/${chart_name}" --version "${chart_version}" &> /dev/null; then
-          echo -e "\e[31mWARNING: Chart ${chart_name} version ${chart_version} already exists in the repository.\nThis means that the chart's code has not changed, or you forgot to update the version in Chart.yaml.\e[0m"
+        if [[ "$${CI_PIPELINE_EVENT}" == "push" && "$${CI_COMMIT_BRANCH}" == "$${CI_REPO_DEFAULT_BRANCH}" ]]; then
+          ./pipeline.sh push
         else
-          if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "${CI_REPO_DEFAULT_BRANCH}" ]]; then
-            helm push "${chart_name}-${chart_version}.tgz" "oci://${registry_host}/${CI_REPO_OWNER}/${git_repo_name}"
-          fi
+          ./pipeline.sh
         fi
