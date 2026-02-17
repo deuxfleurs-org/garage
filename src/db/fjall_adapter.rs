@@ -67,7 +67,7 @@ impl From<fjall::Error> for TxOpError {
 pub struct FjallDb {
 	db: SingleWriterTxDatabase,
 	trees: RwLock<Vec<(String, SingleWriterTxKeyspace)>>,
-	fsync: bool,
+	persist_mode: PersistMode,
 }
 
 type ByteRefRangeBound<'r> = (Bound<&'r [u8]>, Bound<&'r [u8]>);
@@ -77,7 +77,11 @@ impl FjallDb {
 		let s = Self {
 			db,
 			trees: RwLock::new(Vec::new()),
-			fsync,
+			persist_mode: if fsync {
+				PersistMode::SyncAll
+			} else {
+				PersistMode::Buffer
+			},
 		};
 		Db(Arc::new(s))
 	}
@@ -92,7 +96,7 @@ impl FjallDb {
 
 impl IDb for FjallDb {
 	fn engine(&self) -> String {
-		"Fjall (EXPERIMENTAL!)".into()
+		"Fjall 3 (EXPERIMENTAL!)".into()
 	}
 
 	fn open_tree(&self, name: &str) -> DbResult<usize> {
@@ -166,11 +170,7 @@ impl IDb for FjallDb {
 
 	fn insert(&self, tree_idx: usize, key: &[u8], value: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.db.write_tx().durability(Some(if self.fsync {
-			PersistMode::SyncAll
-		} else {
-			PersistMode::Buffer
-		}));
+		let mut tx = self.db.write_tx().durability(Some(self.persist_mode));
 		tx.insert(&tree, key, value);
 		tx.commit()?;
 		Ok(())
@@ -178,11 +178,7 @@ impl IDb for FjallDb {
 
 	fn remove(&self, tree_idx: usize, key: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.db.write_tx().durability(Some(if self.fsync {
-			PersistMode::SyncAll
-		} else {
-			PersistMode::Buffer
-		}));
+		let mut tx = self.db.write_tx().durability(Some(self.persist_mode));
 		tx.remove(&tree, key);
 		tx.commit()?;
 		Ok(())
@@ -249,11 +245,7 @@ impl IDb for FjallDb {
 		let trees = self.trees.read();
 		let mut tx = FjallTx {
 			trees: &trees[..],
-			tx: self.db.write_tx().durability(Some(if self.fsync {
-				PersistMode::SyncAll
-			} else {
-				PersistMode::Buffer
-			})),
+			tx: self.db.write_tx().durability(Some(self.persist_mode)),
 		};
 
 		let res = f.try_on(&mut tx);
