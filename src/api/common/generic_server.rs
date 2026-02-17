@@ -84,14 +84,14 @@ impl<A: ApiHandler> ApiServer<A> {
 			region,
 			api_handler,
 			request_counter: meter
-				.u64_counter(format!("garage_api.{}.request_counter", A::API_NAME))
+				.u64_counter(format!("garage_api.{}.request_count", A::API_NAME))
 				.with_description(format!(
 					"Number of API calls to the various {} API endpoints",
 					A::API_NAME_DISPLAY
 				))
 				.init(),
 			error_counter: meter
-				.u64_counter(format!("garage_api.{}.error_counter", A::API_NAME))
+				.u64_counter(format!("garage_api.{}.error_count", A::API_NAME))
 				.with_description(format!(
 					"Number of API calls to the various {} API endpoints that resulted in errors",
 					A::API_NAME_DISPLAY

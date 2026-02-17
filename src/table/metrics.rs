@@ -104,7 +104,7 @@ impl TableMetrics {
 				.init(),
 
 			get_request_counter: meter
-				.u64_counter("garage_table.get_request_counter")
+				.u64_counter("garage_table.get_request_count")
 				.with_description("Number of get/get_range requests internally made on this table")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
@@ -114,7 +114,7 @@ impl TableMetrics {
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			put_request_counter: meter
-				.u64_counter("garage_table.put_request_counter")
+				.u64_counter("garage_table.put_request_count")
 				.with_description("Number of insert/insert_many requests internally made on this table")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
@@ -125,12 +125,12 @@ impl TableMetrics {
 				.bind(&[KeyValue::new("table_name", table_name)]),
 
 			internal_update_counter: meter
-				.u64_counter("garage_table.internal_update_counter")
+				.u64_counter("garage_table.internal_update_count")
 				.with_description("Number of value updates where the value actually changes (includes creation of new key and update of existing key)")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),
 			internal_delete_counter: meter
-				.u64_counter("garage_table.internal_delete_counter")
+				.u64_counter("garage_table.internal_delete_count")
 				.with_description("Number of value deletions in the tree (due to GC or repartitioning)")
 				.init()
 				.bind(&[KeyValue::new("table_name", table_name)]),

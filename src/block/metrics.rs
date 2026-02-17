@@ -86,12 +86,12 @@ impl BlockManagerMetrics {
 				.init(),
 
 			resync_counter: meter
-				.u64_counter("garage_block.resync_counter")
+				.u64_counter("garage_block.resync_count")
 				.with_description("Number of calls to resync_block")
 				.init()
 				.bind(&[]),
 			resync_error_counter: meter
-				.u64_counter("garage_block.resync_error_counter")
+				.u64_counter("garage_block.resync_error_count")
 				.with_description("Number of calls to resync_block that returned an error")
 				.init()
 				.bind(&[]),
@@ -101,11 +101,11 @@ impl BlockManagerMetrics {
 				.init()
 				.bind(&[]),
 			resync_send_counter: meter
-				.u64_counter("garage_block.resync_send_counter")
+				.u64_counter("garage_block.resync_send_count")
 				.with_description("Number of blocks sent to another node in resync operations")
 				.init(),
 			resync_recv_counter: meter
-				.u64_counter("garage_block.resync_recv_counter")
+				.u64_counter("garage_block.resync_recv_count")
 				.with_description("Number of blocks received from other nodes in resync operations")
 				.init()
 				.bind(&[]),
@@ -136,13 +136,13 @@ impl BlockManagerMetrics {
 				.init()
 				.bind(&[]),
 			delete_counter: meter
-				.u64_counter("garage_block.delete_counter")
+				.u64_counter("garage_block.delete_count")
 				.with_description("Number of blocks deleted")
 				.init()
 				.bind(&[]),
 
 			corruption_counter: meter
-				.u64_counter("garage_block.corruption_counter")
+				.u64_counter("garage_block.corruption_count")
 				.with_description("Data corruptions detected on block reads")
 				.init()
 				.bind(&[]),

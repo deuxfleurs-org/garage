@@ -135,12 +135,12 @@ garage_cluster_partitions_quorum 256
 
 ### Metrics of the API endpoints
 
-#### `garage_api_admin_request_counter` (counter)
+#### `garage_api_admin_request_count` (counter)
 
 Counts the number of requests to a given endpoint of the administration API. Example:
 
 ```
-garage_api_admin_request_counter{api_endpoint="Metrics"} 127041
+garage_api_admin_request_count{api_endpoint="Metrics"} 127041
 ```
 
 #### `garage_api_admin_request_duration` (histogram)
@@ -153,20 +153,20 @@ garage_api_admin_request_duration_sum{api_endpoint="Metrics"} 605.250344830999
 garage_api_admin_request_duration_count{api_endpoint="Metrics"} 127041
 ```
 
-#### `garage_api_s3_request_counter` (counter)
+#### `garage_api_s3_request_count` (counter)
 
 Counts the number of requests to a given endpoint of the S3 API. Example:
 
 ```
-garage_api_s3_request_counter{api_endpoint="CreateMultipartUpload"} 1
+garage_api_s3_request_count{api_endpoint="CreateMultipartUpload"} 1
 ```
 
-#### `garage_api_s3_error_counter` (counter)
+#### `garage_api_s3_error_count` (counter)
 
 Counts the number of requests to a given endpoint of the S3 API that returned an error. Example:
 
 ```
-garage_api_s3_error_counter{api_endpoint="GetObject",status_code="404"} 39
+garage_api_s3_error_count{api_endpoint="GetObject",status_code="404"} 39
 ```
 
 #### `garage_api_s3_request_duration` (histogram)
@@ -179,7 +179,7 @@ garage_api_s3_request_duration_sum{api_endpoint="CreateMultipartUpload"} 0.04634
 garage_api_s3_request_duration_count{api_endpoint="CreateMultipartUpload"} 1
 ```
 
-#### `garage_api_k2v_request_counter` (counter), `garage_api_k2v_error_counter` (counter), `garage_api_k2v_error_duration` (histogram)
+#### `garage_api_k2v_request_count` (counter), `garage_api_k2v_error_count` (counter), `garage_api_k2v_error_duration` (histogram)
 
 Same as for S3, for the K2V API.
 
@@ -187,12 +187,12 @@ Same as for S3, for the K2V API.
 ### Metrics of the Web endpoint
 
 
-#### `garage_web_request_counter` (counter)
+#### `garage_web_request_count` (counter)
 
 Number of requests to the web endpoint
 
 ```
-garage_web_request_counter{method="GET"} 80
+garage_web_request_count{method="GET"} 80
 ```
 
 #### `garage_web_request_duration` (histogram)
@@ -205,12 +205,12 @@ garage_web_request_duration_sum{method="GET"} 1.0528433229999998
 garage_web_request_duration_count{method="GET"} 80
 ```
 
-#### `garage_web_error_counter` (counter)
+#### `garage_web_error_count` (counter)
 
 Number of requests to the web endpoint resulting in errors
 
 ```
-garage_web_error_counter{method="GET",status_code="404 Not Found"} 64
+garage_web_error_count{method="GET",status_code="404 Not Found"} 64
 ```
 
 
@@ -257,20 +257,20 @@ garage_block_write_duration_sum 195.59170078500006
 garage_block_write_duration_count 3571
 ```
 
-#### `garage_block_delete_counter` (counter)
+#### `garage_block_delete_count` (counter)
 
 Counts the number of data blocks that have been deleted from storage.
 
 ```
-garage_block_delete_counter 122
+garage_block_delete_count 122
 ```
 
-#### `garage_block_resync_counter` (counter), `garage_block_resync_duration` (histogram)
+#### `garage_block_resync_count` (counter), `garage_block_resync_duration` (histogram)
 
 Counts the number of resync operations the node has executed, and evaluates their duration.
 
 ```
-garage_block_resync_counter 308897
+garage_block_resync_count 308897
 garage_block_resync_duration_bucket{le="0.5"} 308892
 garage_block_resync_duration_sum 139.64204196100016
 garage_block_resync_duration_count 308897
@@ -298,28 +298,28 @@ garage_block_resync_errored_blocks 0
 
 ### Metrics related to RPCs (remote procedure calls) between nodes
 
-#### `garage_rpc_netapp_request_counter` (counter)
+#### `garage_rpc_netapp_request_count` (counter)
 
 Number of RPC requests emitted
 
 ```
-garage_rpc_request_counter{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc",to="<remote node>"} 176
+garage_rpc_request_count{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc",to="<remote node>"} 176
 ```
 
-#### `garage_rpc_netapp_error_counter` (counter)
+#### `garage_rpc_netapp_error_count` (counter)
 
 Number of communication errors (errors in the Netapp library, generally due to disconnected nodes)
 
 ```
-garage_rpc_netapp_error_counter{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc",to="<remote node>"} 354
+garage_rpc_netapp_error_count{from="<this node>",rpc_endpoint="garage_block/manager.rs/Rpc",to="<remote node>"} 354
 ```
 
-#### `garage_rpc_timeout_counter` (counter)
+#### `garage_rpc_timeout_count` (counter)
 
 Number of RPC timeouts, should be close to zero in a healthy cluster.
 
 ```
-garage_rpc_timeout_counter{from="<this node>",rpc_endpoint="garage_rpc/membership.rs/SystemRpc",to="<remote node>"} 1
+garage_rpc_timeout_count{from="<this node>",rpc_endpoint="garage_rpc/membership.rs/SystemRpc",to="<remote node>"} 1
 ```
 
 #### `garage_rpc_duration` (histogram)
@@ -343,43 +343,43 @@ Table garbage collector TODO queue length
 garage_table_gc_todo_queue_length{table_name="block_ref"} 0
 ```
 
-#### `garage_table_get_request_counter` (counter), `garage_table_get_request_duration` (histogram)
+#### `garage_table_get_request_count` (counter), `garage_table_get_request_duration` (histogram)
 
 Number of get/get_range requests internally made on each table, and their duration.
 
 ```
-garage_table_get_request_counter{table_name="bucket_alias"} 315
+garage_table_get_request_count{table_name="bucket_alias"} 315
 garage_table_get_request_duration_bucket{table_name="bucket_alias",le="0.5"} 315
 garage_table_get_request_duration_sum{table_name="bucket_alias"} 0.048509778000000024
 garage_table_get_request_duration_count{table_name="bucket_alias"} 315
 ```
 
 
-#### `garage_table_put_request_counter` (counter), `garage_table_put_request_duration` (histogram)
+#### `garage_table_put_request_count` (counter), `garage_table_put_request_duration` (histogram)
 
 Number of insert/insert_many requests internally made on this table, and their duration
 
 ```
-garage_table_put_request_counter{table_name="block_ref"} 677
+garage_table_put_request_count{table_name="block_ref"} 677
 garage_table_put_request_duration_bucket{table_name="block_ref",le="0.5"} 677
 garage_table_put_request_duration_sum{table_name="block_ref"} 61.617528636
 garage_table_put_request_duration_count{table_name="block_ref"} 677
 ```
 
-#### `garage_table_internal_delete_counter` (counter)
+#### `garage_table_internal_delete_count` (counter)
 
 Number of value deletions in the tree (due to GC or repartitioning)
 
 ```
-garage_table_internal_delete_counter{table_name="block_ref"} 2296
+garage_table_internal_delete_count{table_name="block_ref"} 2296
 ```
 
-#### `garage_table_internal_update_counter` (counter)
+#### `garage_table_internal_update_count` (counter)
 
 Number of value updates where the value actually changes (includes creation of new key and update of existing key)
 
 ```
-garage_table_internal_update_counter{table_name="block_ref"} 5996
+garage_table_internal_update_count{table_name="block_ref"} 5996
 ```
 
 #### `garage_table_merkle_updater_todo_queue_length` (gauge)
