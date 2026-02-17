@@ -2,7 +2,7 @@
 
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 # Not using "-x" because we aren't debugging.
-set -Eexuo pipefail
+set -Eeuo pipefail
 
 # We get unbound var err if we don't set arg
 arg="${1:-}"
