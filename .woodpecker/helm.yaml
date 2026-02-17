@@ -1,0 +1,36 @@
+steps:
+  helm:
+    when:
+      - event: pull_request
+        branch: main
+      - event: push
+        branch: main
+    image: alpine/helm:4.1.1
+    environment:
+      helm_registry: codeberg.org
+      helm_username: ${CI_REPO_OWNER}
+
+      # To create helm_password:
+      # 1. Go to https://codeberg.org/user/settings/applications.
+      # 2. Create a token with these settings:
+      #   - Token name: https://git.deuxfleurs.fr/3uzbcqje/garage/src/branch/main-v2/.woodpecker/helm.yaml
+      #   - Set package permission to "Read and write".
+      # 3. Click "Generate token".
+      # 4. Copy the token.
+      # 5. Log into https://ci.codeberg.org.
+      # 6. Find your repo, and add a secret with these settings:
+      #   - Name: helm_password
+      #   - Value: <the token you copied earlier>
+      # 7. Click "Add secret".
+
+      helm_password:
+        from_secret: helm_password
+
+      git_repo_owner: ${CI_REPO_OWNER}
+    commands:
+      - |
+        if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "main" ]]; then
+          ./pipeline.sh push
+        else
+          ./pipeline.sh
+        fi
