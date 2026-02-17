@@ -6,8 +6,8 @@ use std::sync::Arc;
 use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 
 use fjall::{
-	KeyspaceCreateOptions, PersistMode, Readable, SingleWriterTxDatabase, SingleWriterTxKeyspace,
-	SingleWriterWriteTx as WriteTransaction,
+	KeyspaceCreateOptions, OptimisticTxDatabase, OptimisticTxKeyspace,
+	OptimisticWriteTx as WriteTransaction, PersistMode, Readable,
 };
 
 use crate::{
@@ -27,7 +27,8 @@ pub(crate) fn open_db(path: &Path, opt: &OpenOpt) -> DbResult<Db> {
 			"metadata_fsync is not supported with the Fjall database engine".into(),
 		));
 	}
-	let mut config = SingleWriterTxDatabase::builder(path);
+
+	let mut config = OptimisticTxDatabase::builder(path);
 	if let Some(block_cache_size) = opt.fjall_block_cache_size {
 		config = config.cache_size(block_cache_size as u64);
 	}
@@ -65,15 +66,15 @@ impl From<fjall::Error> for TxOpError {
 // -- db
 
 pub struct FjallDb {
-	db: SingleWriterTxDatabase,
-	trees: RwLock<Vec<(String, SingleWriterTxKeyspace)>>,
+	db: OptimisticTxDatabase,
+	trees: RwLock<Vec<(String, OptimisticTxKeyspace)>>,
 	persist_mode: PersistMode,
 }
 
 type ByteRefRangeBound<'r> = (Bound<&'r [u8]>, Bound<&'r [u8]>);
 
 impl FjallDb {
-	pub fn init(db: SingleWriterTxDatabase, fsync: bool) -> Db {
+	pub fn init(db: OptimisticTxDatabase, fsync: bool) -> Db {
 		let s = Self {
 			db,
 			trees: RwLock::new(Vec::new()),
@@ -86,7 +87,7 @@ impl FjallDb {
 		Db(Arc::new(s))
 	}
 
-	fn get_tree(&self, i: usize) -> DbResult<MappedRwLockReadGuard<'_, SingleWriterTxKeyspace>> {
+	fn get_tree(&self, i: usize) -> DbResult<MappedRwLockReadGuard<'_, OptimisticTxKeyspace>> {
 		RwLockReadGuard::try_map(self.trees.read(), |trees: &Vec<_>| {
 			trees.get(i).map(|tup| &tup.1)
 		})
@@ -127,7 +128,7 @@ impl IDb for FjallDb {
 		let path = Engine::Fjall.db_path(base_path);
 
 		let source_state = self.db.read_tx();
-		let copy_keyspace = fjall::SingleWriterTxDatabase::builder(path).open()?;
+		let copy_keyspace = fjall::OptimisticTxDatabase::builder(path).open()?;
 
 		for tree_name in self.db.list_keyspace_names() {
 			let source_tree = self
@@ -170,17 +171,31 @@ impl IDb for FjallDb {
 
 	fn insert(&self, tree_idx: usize, key: &[u8], value: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.db.write_tx().durability(Some(self.persist_mode));
-		tx.insert(&tree, key, value);
-		tx.commit()?;
+
+		loop {
+			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
+			tx.insert(&*tree, key, value);
+
+			if tx.commit()?.is_ok() {
+				break;
+			}
+		}
+
 		Ok(())
 	}
 
 	fn remove(&self, tree_idx: usize, key: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.db.write_tx().durability(Some(self.persist_mode));
-		tx.remove(&tree, key);
-		tx.commit()?;
+
+		loop {
+			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
+			tx.remove(&*tree, key);
+
+			if tx.commit()?.is_ok() {
+				break;
+			}
+		}
+
 		Ok(())
 	}
 
@@ -243,26 +258,40 @@ impl IDb for FjallDb {
 
 	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		let trees = self.trees.read();
-		let mut tx = FjallTx {
-			trees: &trees[..],
-			tx: self.db.write_tx().durability(Some(self.persist_mode)),
-		};
 
-		let res = f.try_on(&mut tx);
-		match res {
-			TxFnResult::Ok(on_commit) => {
-				tx.tx.commit().map_err(Error::from).map_err(TxError::Db)?;
-				Ok(on_commit)
-			}
-			TxFnResult::Abort => {
-				tx.tx.rollback();
-				Err(TxError::Abort(()))
-			}
-			TxFnResult::DbErr => {
-				tx.tx.rollback();
-				Err(TxError::Db(
-					DbError("(this message will be discarded)".into()).into(),
-				))
+		loop {
+			let mut tx = FjallTx {
+				trees: &*trees,
+				tx: self
+					.db
+					.write_tx()
+					.map_err(Error::from)
+					.map_err(TxError::Db)?
+					.durability(Some(self.persist_mode)),
+			};
+
+			match f.try_on(&mut tx) {
+				TxFnResult::Ok(on_commit) => {
+					if tx
+						.tx
+						.commit()
+						.map_err(Error::from)
+						.map_err(TxError::Db)?
+						.is_ok()
+					{
+						return Ok(on_commit);
+					}
+				}
+				TxFnResult::Abort => {
+					tx.tx.rollback();
+					return Err(TxError::Abort(()));
+				}
+				TxFnResult::DbErr => {
+					tx.tx.rollback();
+					return Err(TxError::Db(Error::Db(DbError(
+						"(this message will be discarded)".into(),
+					))));
+				}
 			}
 		}
 	}
@@ -271,12 +300,12 @@ impl IDb for FjallDb {
 // ----
 
 struct FjallTx<'a> {
-	trees: &'a [(String, SingleWriterTxKeyspace)],
-	tx: WriteTransaction<'a>,
+	trees: &'a [(String, OptimisticTxKeyspace)],
+	tx: WriteTransaction,
 }
 
 impl<'a> FjallTx<'a> {
-	fn get_tree(&self, i: usize) -> DbResult<&SingleWriterTxKeyspace> {
+	fn get_tree(&self, i: usize) -> DbResult<&OptimisticTxKeyspace> {
 		self.trees.get(i).map(|tup| &tup.1).ok_or_else(|| {
 			DbError(
 				"invalid tree id (it might have been opened after the transaction started)".into(),
