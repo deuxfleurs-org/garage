@@ -10,8 +10,8 @@ steps:
       chart_dir: script/helm/garage
       chart_name: garage
       registry_host: codeberg.org
-      registry_user: $CI_REPO_OWNER
-      registry_path: $CI_REPO
+      registry_user: ${CI_REPO_OWNER}
+      registry_path: ${CI_REPO}
 
       # To create registry_password:
       # 1. Go to https://codeberg.org/user/settings/applications.
