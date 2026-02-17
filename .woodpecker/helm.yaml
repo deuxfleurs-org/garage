@@ -7,10 +7,11 @@ steps:
         branch: main-v2
     image: alpine/helm:4.1.1
     environment:
-      helm_registry: codeberg.org
-      helm_username: ${CI_REPO_OWNER}
+      chart_dir: script/helm/garage
+      chart_name: garage
+      registry_host: codeberg.org
 
-      # To create helm_password:
+      # To create registry_password:
       # 1. Go to https://codeberg.org/user/settings/applications.
       # 2. Create a token with these settings:
       #   - Token name: https://git.deuxfleurs.fr/3uzbcqje/garage/src/branch/main-v2/.woodpecker/helm.yaml
@@ -19,18 +20,23 @@ steps:
       # 4. Copy the token.
       # 5. Log into https://ci.codeberg.org.
       # 6. Find your repo, and add a secret with these settings:
-      #   - Name: helm_password
+      #   - Name: registry_password
       #   - Value: <the token you copied earlier>
       # 7. Click "Add secret".
 
-      helm_password:
-        from_secret: helm_password
+      registry_password:
+        from_secret: registry_password
 
-      git_repo_owner: ${CI_REPO_OWNER}
     commands:
       - |
-        if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "main-v2" ]]; then
-          ./pipeline.sh push
+        echo "$registry_password" | helm registry login -u "${CI_REPO_OWNER}" --password-stdin "${registry_host}"
+        helm lint "${chart_dir}"
+        chart_version=$(grep '^version: ' "${chart_dir}/Chart.yaml" | cut -d' ' -f 2)
+        helm package "${chart_dir}"
+        if helm pull "oci://${registry_host}/${CI_REPO_OWNER}/${CI_REPO_NAME}/${chart_name}" --version "${chart_version}" &> /dev/null; then
+          echo -e "\e[31mWARNING: Chart ${chart_name} version ${chart_version} already exists in the repository.\nThis means that the chart's code has not changed, or you forgot to update the version in Chart.yaml.\e[0m"
         else
-          ./pipeline.sh
+          if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "${CI_REPO_DEFAULT_BRANCH}" ]]; then
+            helm push "${chart_name}-${chart_version}.tgz" "oci://${registry_host}/${CI_REPO_OWNER}/${git_repo_name}"
+          fi
         fi
