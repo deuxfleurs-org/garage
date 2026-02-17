@@ -11,7 +11,7 @@ steps:
       chart_name: garage
       registry_host: codeberg.org
       registry_user: $CI_REPO_OWNER
-      registry_path: "${CI_REPO_OWNER}/${CI_REPO_NAME}"
+      registry_path: $CI_REPO
 
       # To create registry_password:
       # 1. Go to https://codeberg.org/user/settings/applications.
@@ -31,7 +31,7 @@ steps:
 
     commands:
       - |
-        if [[ "$${CI_PIPELINE_EVENT}" == "push" && "$${CI_COMMIT_BRANCH}" == "$${CI_REPO_DEFAULT_BRANCH}" ]]; then
+        if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "${CI_REPO_DEFAULT_BRANCH}" ]]; then
           ./pipeline.sh push
         else
           ./pipeline.sh
