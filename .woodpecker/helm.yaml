@@ -2,9 +2,9 @@ steps:
   helm:
     when:
       - event: pull_request
-        branch: main
+        branch: main-v2
       - event: push
-        branch: main
+        branch: main-v2
     image: alpine/helm:4.1.1
     environment:
       helm_registry: codeberg.org
@@ -29,7 +29,7 @@ steps:
       git_repo_owner: ${CI_REPO_OWNER}
     commands:
       - |
-        if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "main" ]]; then
+        if [[ "${CI_PIPELINE_EVENT}" == "push" && "${CI_COMMIT_BRANCH}" == "main-v2" ]]; then
           ./pipeline.sh push
         else
           ./pipeline.sh
