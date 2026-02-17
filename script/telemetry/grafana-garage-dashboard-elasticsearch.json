@@ -161,7 +161,7 @@
           },
           "metrics": [
             {
-              "field": "garage_api_request_counter",
+              "field": "garage_api_request_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -412,7 +412,7 @@
           },
           "metrics": [
             {
-              "field": "garage_api_error_counter",
+              "field": "garage_api_error_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -540,7 +540,7 @@
           },
           "metrics": [
             {
-              "field": "garage_web_request_counter",
+              "field": "garage_web_request_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -794,7 +794,7 @@
           },
           "metrics": [
             {
-              "field": "garage_web_error_counter",
+              "field": "garage_web_error_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -918,7 +918,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "garage_table_get_request_counter",
+              "field": "garage_table_get_request_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1042,7 +1042,7 @@
           "hide": false,
           "metrics": [
             {
-              "field": "garage_table_put_request_counter",
+              "field": "garage_table_put_request_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1386,7 +1386,7 @@
           },
           "metrics": [
             {
-              "field": "garage_block_resync_counter",
+              "field": "garage_block_resync_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -1824,7 +1824,7 @@
           },
           "metrics": [
             {
-              "field": "garage_block_resync_error_counter",
+              "field": "garage_block_resync_error_count",
               "hide": true,
               "id": "1",
               "settings": {},
@@ -2041,7 +2041,7 @@
           },
           "metrics": [
             {
-              "field": "garage_block_corruption_counter",
+              "field": "garage_block_corruption_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2165,7 +2165,7 @@
           },
           "metrics": [
             {
-              "field": "garage_rpc_netapp_error_counter",
+              "field": "garage_rpc_netapp_error_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2292,7 +2292,7 @@
           },
           "metrics": [
             {
-              "field": "garage_rpc_request_counter",
+              "field": "garage_rpc_request_count",
               "hide": true,
               "id": "1",
               "type": "sum"
@@ -2654,7 +2654,7 @@
           },
           "metrics": [
             {
-              "field": "garage_rpc_garage_error_counter",
+              "field": "garage_rpc_garage_error_count",
               "hide": true,
               "id": "1",
               "type": "sum"
