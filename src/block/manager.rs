@@ -783,6 +783,7 @@ impl BlockManagerLocked {
 
 		let mut f = fs::File::create(&path_tmp).await?;
 		f.write_all(data).await?;
+		f.flush().await?;
 		mgr.metrics.bytes_written.add(data.len() as u64);
 
 		if mgr.data_fsync {
