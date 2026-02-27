@@ -178,8 +178,11 @@ garage status
 
 If you are running Garage in a Docker container, you can use the following command instead:
 
+NOTE: Garage 3.x uses docker `ENTRYPOINT` and it's easier to use,
+while garage 2.x does not and you need to specify path `/garage`
+
 ```bash
-docker exec garage-container /garage status
+docker exec garage-container status
 ```
 
 This should show something like this:
@@ -320,7 +323,7 @@ If you are running Garage in a Docker container, you can set the following alias
 to provide a fake `garage`command that uses the Garage binary inside your container:
 
 ```bash
-alias garage="docker exec -ti <container name> /garage"
+alias garage="docker exec -ti <container name>"
 ```
 
 You can test that your `garage` CLI is configured correctly by running a basic command such as `garage status`.
