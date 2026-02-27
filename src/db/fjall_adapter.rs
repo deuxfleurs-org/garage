@@ -252,7 +252,7 @@ impl IDb for FjallDb {
 
 		loop {
 			let mut tx = FjallTx {
-				trees: &*trees,
+				trees: &trees,
 				tx: self
 					.db
 					.write_tx()
