@@ -212,7 +212,12 @@ If your configuration file is at `/etc/garage.toml`, the `garage` binary should 
 You can also use an alias as follows to use the Garage binary inside your docker container:
 
 ```bash
+# garage 3.x, we have an entrypoint and you can use
+alias garage="docker exec -ti <container name>"
+
+# For garage 2.x, you need to specify the absolute path to binary
 alias garage="docker exec -ti <container name> /garage"
+
 ```
 
 Note that our Docker image is built `FROM scratch` and does not contain a shell, so
