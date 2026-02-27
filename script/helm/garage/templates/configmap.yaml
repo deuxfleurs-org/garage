@@ -45,16 +45,16 @@ data:
 
     [s3_api]
     s3_region = "{{ .Values.garage.s3.api.region }}"
-    api_bind_addr = "[::]:3900"
+    api_bind_addr = "{{ .Values.garage.s3.api.bindAddr }}"
     root_domain = "{{ .Values.garage.s3.api.rootDomain }}"
 
     [s3_web]
-    bind_addr = "[::]:3902"
+    bind_addr = "{{ .Values.garage.s3.web.bindAddr }}"
     root_domain = "{{ .Values.garage.s3.web.rootDomain }}"
     index = "{{ .Values.garage.s3.web.index }}"
 
     [admin]
-    api_bind_addr = "[::]:3903"
+    api_bind_addr = "{{ .Values.garage.admin.apiBindAddr }}"
     {{- if .Values.monitoring.tracing.sink }}
     trace_sink = "{{ .Values.monitoring.tracing.sink }}"
     {{- end }}
