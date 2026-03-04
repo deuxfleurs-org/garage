@@ -3922,23 +3922,26 @@
             }
           },
           {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NodeAssignedRole"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "id"
-                ],
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "description": "ID of the node for which this change applies"
-                  }
-                }
+            "$ref": "#/components/schemas/NodeRoleUpdate"
+          }
+        ]
+      },
+      "NodeRoleUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NodeAssignedRole"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "ID of the node for which this change applies"
               }
-            ]
+            }
           }
         ]
       },

@@ -293,13 +293,16 @@ pub enum NodeRoleChangeOpenapi {
 		/// Set `remove` to `true` to remove the node from the layout
 		remove: bool,
 	},
-	#[serde(rename_all = "camelCase")]
-	Update {
-		/// ID of the node for which this change applies
-		id: String,
-		#[serde(flatten)]
-		role: NodeAssignedRole,
-	},
+	Update(NodeRoleUpdate),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeRoleUpdate {
+	/// ID of the node for which this change applies
+	id: String,
+	#[serde(flatten)]
+	role: NodeAssignedRole,
 }
 
 #[utoipa::path(post,
