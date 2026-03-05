@@ -4353,29 +4353,32 @@
       "WorkerStateResp": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "throttled"
-            ],
-            "properties": {
-              "throttled": {
-                "type": "object",
-                "required": [
-                  "durationSecs"
-                ],
-                "properties": {
-                  "durationSecs": {
-                    "type": "number",
-                    "format": "float"
-                  }
-                }
-              }
-            }
-          },
+            "$ref": "#/components/schemas/Yolo"
+	  },
           {
             "$ref": "#/components/schemas/WorkerStateRespStrs"
 	  }
         ]
+      },
+      "Yolo": {
+        "type": "object",
+        "required": [
+          "throttled"
+        ],
+        "properties": {
+          "throttled": {
+            "type": "object",
+            "required": [
+              "durationSecs"
+            ],
+            "properties": {
+              "durationSecs": {
+                "type": "number",
+                "format": "float"
+              }
+            }
+          }
+        }
       },
       "WorkerStateRespStrs": {
         "type": "string",
