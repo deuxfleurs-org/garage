@@ -4353,12 +4353,6 @@
       "WorkerStateResp": {
         "oneOf": [
           {
-            "type": "string",
-            "enum": [
-              "busy"
-            ]
-          },
-          {
             "type": "object",
             "required": [
               "throttled"
@@ -4381,12 +4375,8 @@
           {
             "type": "string",
             "enum": [
-              "idle"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
+              "busy",
+              "idle",
               "done"
             ]
           }
