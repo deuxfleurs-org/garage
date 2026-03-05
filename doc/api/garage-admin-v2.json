@@ -4351,6 +4351,33 @@
         }
       },
       "WorkerStateResp": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "throttled"
+            ],
+            "properties": {
+              "throttled": {
+                "type": "object",
+                "required": [
+                  "durationSecs"
+                ],
+                "properties": {
+                  "durationSecs": {
+                    "type": "number",
+                    "format": "float"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/WorkerStateRespStrs"
+	  }
+        ]
+      },
+      "WorkerStateRespStrs": {
         "type": "string",
         "enum": [
           "busy",
