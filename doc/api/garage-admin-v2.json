@@ -4351,36 +4351,14 @@
         }
       },
       "WorkerStateResp": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "throttled"
-            ],
-            "properties": {
-              "throttled": {
-                "type": "object",
-                "required": [
-                  "durationSecs"
-                ],
-                "properties": {
-                  "durationSecs": {
-                    "type": "number",
-                    "format": "float"
-                  }
-                }
-              }
-            }
-          },
-          {
-            "type": "string",
-            "enum": [
-              "busy",
-              "idle",
-              "done"
-            ]
-          }
-        ]
+        {
+          "type": "string",
+          "enum": [
+            "busy",
+            "idle",
+            "done"
+          ]
+        }
       },
       "ZoneRedundancy": {
         "oneOf": [
