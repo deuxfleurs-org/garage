@@ -4351,14 +4351,12 @@
         }
       },
       "WorkerStateResp": {
-        {
-          "type": "string",
-          "enum": [
-            "busy",
-            "idle",
-            "done"
-          ]
-        }
+        "type": "string",
+        "enum": [
+          "busy",
+          "idle",
+          "done"
+        ]
       },
       "ZoneRedundancy": {
         "oneOf": [
