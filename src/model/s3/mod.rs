@@ -4,3 +4,4 @@ pub mod object_table;
 pub mod version_table;
 
 pub mod lifecycle_worker;
+pub mod events;

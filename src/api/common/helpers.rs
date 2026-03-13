@@ -15,6 +15,7 @@ use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
+use garage_util::rabbitmq::RabbitClient;
 
 use crate::common_error::{CommonError as Error, *};
 
@@ -38,6 +39,8 @@ pub struct ReqCtx {
 	pub bucket_name: String,
 	pub bucket_params: BucketParams,
 	pub api_key: Key,
+	/// Optional RabbitMQ client used for publishing integration events related to this bucket.
+	pub object_events: Option<Arc<RabbitClient>>,
 }
 
 /// Host to bucket

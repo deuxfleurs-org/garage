@@ -44,6 +44,9 @@ hyper.workspace = true
 
 opentelemetry.workspace = true
 
+lapin.workspace = true
+tokio-amqp.workspace = true
+
 [build-dependencies]
 rustc_version.workspace = true
 

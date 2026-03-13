@@ -8,6 +8,7 @@ use tokio::sync::watch;
 use opentelemetry::{trace::SpanRef, KeyValue};
 
 use garage_util::error::Error as GarageError;
+use garage_util::rabbitmq::RabbitClient;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
 use garage_model::garage::Garage;
@@ -37,6 +38,7 @@ pub type ResBody = BoxBody<Error>;
 
 pub struct S3ApiServer {
 	garage: Arc<Garage>,
+	object_events: Option<Arc<RabbitClient>>,
 }
 
 pub struct S3ApiEndpoint {
@@ -49,9 +51,16 @@ impl S3ApiServer {
 		garage: Arc<Garage>,
 		addr: UnixOrTCPSocketAddress,
 		s3_region: String,
+		object_events: Option<Arc<RabbitClient>>,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), GarageError> {
-		ApiServer::new(s3_region, S3ApiServer { garage })
+		ApiServer::new(
+			s3_region,
+			S3ApiServer {
+				garage,
+				object_events,
+			},
+		)
 			.run_server(addr, None, must_exit)
 			.await
 	}
@@ -166,6 +175,7 @@ impl ApiHandler for S3ApiServer {
 			bucket_name,
 			bucket_params,
 			api_key,
+			object_events: self.object_events.clone(),
 		};
 
 		let resp = match endpoint {

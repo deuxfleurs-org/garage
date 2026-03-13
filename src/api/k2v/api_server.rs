@@ -122,6 +122,7 @@ impl ApiHandler for K2VApiServer {
 			bucket_name,
 			bucket_params,
 			api_key,
+			object_events: None,
 		};
 
 		let resp = match endpoint {

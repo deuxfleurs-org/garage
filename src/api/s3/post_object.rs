@@ -269,6 +269,7 @@ pub async fn handle_post_object(
 		bucket_name,
 		bucket_params,
 		api_key,
+		object_events: None,
 	};
 
 	let res = save_stream(

@@ -1,0 +1,59 @@
+############################
+# Base image - שינוי ל-bookworm כדי להתאים ל-Runtime
+############################
+FROM rust:1.90-bookworm AS base
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    libsodium-dev \
+    protobuf-compiler \
+    git \
+    file \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+WORKDIR /usr/src/garage
+
+############################
+# Planner (cargo-chef)
+############################
+FROM base AS planner
+RUN cargo install cargo-chef
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+############################
+# Dependencies build
+############################
+FROM base AS builder
+RUN cargo install cargo-chef
+COPY --from=planner /usr/src/garage/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+
+############################
+# Build Garage
+############################
+COPY . .
+# תיקון ה-Move error שקיבלת קודם (וודא שביצעת את ה-clone בקוד)
+RUN cargo build --release
+
+############################
+# Runtime image - כעת יש התאמה מלאה (Bookworm ל-Bookworm)
+############################
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libsodium23 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/src/garage/target/release/garage /usr/local/bin/garage
+
+ENV RUST_LOG=garage=info
+
+ENTRYPOINT ["garage"]
+CMD ["server"]

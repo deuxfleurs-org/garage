@@ -27,6 +27,7 @@ use garage_block::manager::INLINE_THRESHOLD;
 use garage_model::garage::Garage;
 use garage_model::index_counter::CountedItem;
 use garage_model::s3::block_ref_table::*;
+use garage_model::s3::events::ObjectCreatedEvent;
 use garage_model::s3::object_table::*;
 use garage_model::s3::version_table::*;
 
@@ -141,7 +142,11 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	checksum_mode: ChecksumMode,
 ) -> Result<SaveStreamResult, Error> {
 	let ReqCtx {
-		garage, bucket_id, ..
+		garage,
+		bucket_id,
+		bucket_name,
+		object_events,
+		..
 	} = ctx;
 
 	let mut chunker = StreamChunker::new(body, garage.config.block_size);
@@ -198,6 +203,11 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		check_quotas(ctx, size, existing_object.as_ref()).await?;
 
 		let etag = encryption.etag_from_md5(&checksums.md5);
+		let content_type = meta
+			.headers
+			.iter()
+			.find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+			.map(|(_, v)| v.clone());
 		let inline_data = encryption.encrypt_blob(&first_block)?.to_vec();
 
 		let object_version = ObjectVersion {
@@ -215,6 +225,23 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 
 		let object = Object::new(*bucket_id, key.into(), vec![object_version]);
 		garage.object_table.insert(&object).await?;
+
+		if let (Some(events), Some(rabbit_cfg)) = (&object_events, &garage.config.rabbitmq) {
+			if rabbit_cfg.publish_object_created && rabbit_cfg.should_publish_object_created(key) {
+				let event = ObjectCreatedEvent {
+					event_type: "object_created".to_string(),
+					event_id: gen_uuid(),
+					occurred_at: chrono::Utc::now(),
+					bucket_id: *bucket_id,
+					key: key.clone(),
+					version_id: version_uuid,
+					size,
+					content_type,
+				};
+
+				publish_object_created(events.clone(), rabbit_cfg.clone(), bucket_name, &event);
+			}
+		}
 
 		return Ok(SaveStreamResult {
 			version_uuid,
@@ -300,6 +327,11 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 
 	// Save final object state, marked as Complete
 	let etag = encryption.etag_from_md5(&checksums.md5);
+	let content_type = meta
+		.headers
+		.iter()
+		.find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+		.map(|(_, v)| v.clone());
 
 	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
 		ObjectVersionMeta {
@@ -312,6 +344,23 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	let object = Object::new(*bucket_id, key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 
+	if let (Some(events), Some(rabbit_cfg)) = (&object_events, &garage.config.rabbitmq) {
+		if rabbit_cfg.publish_object_created && rabbit_cfg.should_publish_object_created(key) {
+			let event = ObjectCreatedEvent {
+				event_type: "object_created".to_string(),
+				event_id: gen_uuid(),
+				occurred_at: chrono::Utc::now(),
+				bucket_id: *bucket_id,
+				key: key.clone(),
+				version_id: version_uuid,
+				size: total_size,
+				content_type,
+			};
+
+			publish_object_created(events.clone(), rabbit_cfg.clone(), bucket_name, &event);
+		}
+	}
+
 	// We were not interrupted, everything went fine.
 	// We won't have to clean up on drop.
 	interrupted_cleanup.cancel();
@@ -321,6 +370,43 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		version_timestamp,
 		etag,
 	})
+}
+
+fn publish_object_created(
+	client: Arc<garage_util::rabbitmq::RabbitClient>,
+	config: garage_util::config::RabbitConfig,
+	bucket_name: &str,
+	event: &ObjectCreatedEvent,
+) {
+	let routing_key = {
+		let ext = event
+			.key
+			.rsplit('.')
+			.next()
+			.filter(|part| !part.is_empty() && *part != &event.key)
+			.unwrap_or("none");
+		format!(
+			"{}.{}.{}",
+			config.routing_key_object_created, bucket_name, ext
+		)
+	};
+
+	let payload = match serde_json::to_vec(event) {
+		Ok(p) => p,
+		Err(e) => {
+			warn!("Failed to serialize ObjectCreatedEvent for RabbitMQ: {}", e);
+			return;
+		}
+	};
+
+	tokio::spawn(async move {
+		if let Err(e) = client.publish(&routing_key, &payload).await {
+			warn!(
+				"Failed to publish ObjectCreatedEvent to RabbitMQ (routing_key={}): {}",
+				routing_key, e
+			);
+		}
+	});
 }
 
 /// Check that inserting this object with this size doesn't exceed bucket quotas

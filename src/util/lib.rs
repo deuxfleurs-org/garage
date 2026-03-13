@@ -13,6 +13,7 @@ pub mod forwarded_headers;
 pub mod metrics;
 pub mod migrate;
 pub mod persister;
+pub mod rabbitmq;
 pub mod socket_address;
 pub mod time;
 pub mod tranquilizer;

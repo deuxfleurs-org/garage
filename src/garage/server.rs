@@ -6,6 +6,7 @@ use tokio::sync::watch;
 use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
+use garage_util::rabbitmq::RabbitClient;
 
 use garage_api_admin::api_server::AdminApiServer;
 use garage_api_s3::api_server::S3ApiServer;
@@ -34,6 +35,23 @@ pub async fn run_server(
 ) -> Result<(), Error> {
 	info!("Loading configuration from {}...", config_file.display());
 	let config = fill_secrets(read_config(config_file)?, secrets)?;
+
+	// Optional RabbitMQ client for integration events
+	let object_events = if let Some(rabbit_cfg) = &config.rabbitmq {
+		if rabbit_cfg.publish_object_created {
+			match RabbitClient::new(rabbit_cfg.clone()).await {
+				Ok(client) => Some(Arc::new(client)),
+				Err(e) => {
+					error!("Failed to initialize RabbitMQ client, integration events will be disabled: {}", e);
+					None
+				}
+			}
+		} else {
+			None
+		}
+	} else {
+		None
+	};
 
 	// ---- Initialize Garage internals ----
 
@@ -88,6 +106,7 @@ pub async fn run_server(
 				garage.clone(),
 				s3_bind_addr.clone(),
 				config.s3_api.s3_region.clone(),
+				object_events.clone(),
 				watch_cancel.clone(),
 			)),
 		));

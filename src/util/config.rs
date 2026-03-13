@@ -149,6 +149,10 @@ pub struct Config {
 	#[serde(default = "Default::default")]
 	pub admin: AdminConfig,
 
+	/// Configuration for RabbitMQ-based integration events
+	#[serde(default)]
+	pub rabbitmq: Option<RabbitConfig>,
+
 	/// Allow punycode in bucket names
 	#[serde(default)]
 	pub allow_punycode: bool,
@@ -226,6 +230,55 @@ pub struct AdminConfig {
 
 	/// OTLP server to where to export traces
 	pub trace_sink: Option<String>,
+}
+
+/// Configuration for RabbitMQ integration event publishing
+#[derive(Deserialize, Debug, Clone)]
+pub struct RabbitConfig {
+	/// AMQP URI, e.g. amqp://user:pass@host:5672/vhost
+	pub uri: String,
+	/// Exchange name to publish events to
+	pub exchange: String,
+	/// Base routing key used for ObjectCreated events
+	pub routing_key_object_created: String,
+	/// Global switch to enable/disable ObjectCreated publishing
+	#[serde(default)]
+	pub publish_object_created: bool,
+
+	/// Only publish events for keys ending with one of these extensions (if set)
+	#[serde(default)]
+	pub allowed_extensions: Option<Vec<String>>,
+	/// Never publish events for keys ending with one of these extensions
+	#[serde(default)]
+	pub ignored_extensions: Option<Vec<String>>,
+	/// Only publish events for keys starting with one of these prefixes (if set)
+	#[serde(default)]
+	pub filter_prefixes: Option<Vec<String>>,
+}
+
+impl RabbitConfig {
+	/// Decide whether an ObjectCreated event should be published for the given key.
+	pub fn should_publish_object_created(&self, key: &str) -> bool {
+		if let Some(prefixes) = &self.filter_prefixes {
+			if !prefixes.is_empty() && !prefixes.iter().any(|p| key.starts_with(p)) {
+				return false;
+			}
+		}
+
+		if let Some(ignored) = &self.ignored_extensions {
+			if !ignored.is_empty() && ignored.iter().any(|ext| key.ends_with(ext)) {
+				return false;
+			}
+		}
+
+		if let Some(allowed) = &self.allowed_extensions {
+			if !allowed.is_empty() && !allowed.iter().any(|ext| key.ends_with(ext)) {
+				return false;
+			}
+		}
+
+		true
+	}
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]
