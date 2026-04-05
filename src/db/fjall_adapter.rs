@@ -163,6 +163,7 @@ impl IDb for FjallDb {
 		let tree = self.get_tree(tree_idx)?;
 		Ok(tree.approximate_len())
 	}
+
 	fn is_empty(&self, tree_idx: usize) -> DbResult<bool> {
 		let tree = self.get_tree(tree_idx)?;
 		let tx = self.db.read_tx();
@@ -176,8 +177,9 @@ impl IDb for FjallDb {
 			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
 			tx.insert(&*tree, key, value);
 
-			if tx.commit()?.is_ok() {
-				break;
+			match tx.commit()? {
+				Ok(_) => break,
+				Err(fjall::Conflict) => continue,
 			}
 		}
 
@@ -191,8 +193,9 @@ impl IDb for FjallDb {
 			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
 			tx.remove(&*tree, key);
 
-			if tx.commit()?.is_ok() {
-				break;
+			match tx.commit()? {
+				Ok(_) => break,
+				Err(fjall::Conflict) => continue,
 			}
 		}
 
@@ -230,6 +233,7 @@ impl IDb for FjallDb {
 				.map(iterator_remap),
 		))
 	}
+
 	fn range_rev<'r>(
 		&self,
 		tree_idx: usize,
@@ -263,14 +267,9 @@ impl IDb for FjallDb {
 
 			match f.try_on(&mut tx) {
 				TxFnResult::Ok(on_commit) => {
-					if tx
-						.tx
-						.commit()
-						.map_err(Error::from)
-						.map_err(TxError::Db)?
-						.is_ok()
-					{
-						return Ok(on_commit);
+					match tx.tx.commit().map_err(Error::from).map_err(TxError::Db)? {
+						Ok(_) => return Ok(on_commit),
+						Err(fjall::Conflict) => continue,
 					}
 				}
 				TxFnResult::Abort => {
@@ -313,6 +312,7 @@ impl<'a> ITx for FjallTx<'a> {
 			None => Ok(None),
 		}
 	}
+
 	fn len(&self, tree_idx: usize) -> DbResult<usize> {
 		let tree = self.get_tree(tree_idx)?;
 		Ok(self.tx.len(tree)?)
@@ -323,11 +323,13 @@ impl<'a> ITx for FjallTx<'a> {
 		self.tx.insert(&tree, key, value);
 		Ok(())
 	}
+
 	fn remove(&mut self, tree_idx: usize, key: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?.clone();
 		self.tx.remove(&tree, key);
 		Ok(())
 	}
+
 	fn clear(&mut self, _tree_idx: usize) -> DbResult<()> {
 		unimplemented!("LSM tree clearing in cross-partition transaction is not supported")
 	}
@@ -336,6 +338,7 @@ impl<'a> ITx for FjallTx<'a> {
 		let tree = self.get_tree(tree_idx)?.clone();
 		Ok(Box::new(self.tx.iter(&tree).map(iterator_remap)))
 	}
+
 	fn iter_rev(&self, tree_idx: usize) -> DbResult<TxValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?.clone();
 		Ok(Box::new(self.tx.iter(&tree).rev().map(iterator_remap)))
@@ -356,6 +359,7 @@ impl<'a> ITx for FjallTx<'a> {
 				.map(iterator_remap),
 		))
 	}
+
 	fn range_rev<'r>(
 		&self,
 		tree_idx: usize,
