@@ -115,32 +115,39 @@ impl WorkerProcessor {
 						trace!("{} (TID {}): {:?}", worker.worker.name(), worker.task_id, worker.state);
 
 						// Save worker info
-						let mut wi = self.worker_info.lock().unwrap();
-						match wi.get_mut(&worker.task_id) {
-							Some(i) => {
-								i.state = worker.state;
-								i.status = worker.worker.status();
-								i.errors = worker.errors;
-								i.consecutive_errors = worker.consecutive_errors;
-								if worker.last_error.is_some() {
-									i.last_error = worker.last_error.take();
+						{
+							let mut wi = self.worker_info.lock().unwrap();
+							match wi.get_mut(&worker.task_id) {
+								Some(i) => {
+									i.state = worker.state;
+									i.status = worker.worker.status();
+									i.errors = worker.errors;
+									i.consecutive_errors = worker.consecutive_errors;
+									if worker.last_error.is_some() {
+										i.last_error = worker.last_error.take();
+									}
 								}
-							}
-							None => {
-								wi.insert(worker.task_id, WorkerInfo {
-									name: worker.worker.name(),
-									state: worker.state,
-									status: worker.worker.status(),
-									errors: worker.errors,
-									consecutive_errors: worker.consecutive_errors,
-									last_error: worker.last_error.take(),
-								});
+								None => {
+									wi.insert(worker.task_id, WorkerInfo {
+										name: worker.worker.name(),
+										state: worker.state,
+										status: worker.worker.status(),
+										errors: worker.errors,
+										consecutive_errors: worker.consecutive_errors,
+										last_error: worker.last_error.take(),
+									});
+								}
 							}
 						}
 
 						if worker.state == WorkerState::Done {
 							info!("Worker {} (TID {}) exited", worker.worker.name(), worker.task_id);
 						} else {
+							// Yield to the Tokio scheduler between consecutive Busy steps so
+							// that a worker which never suspends on its own cannot starve other tasks.
+							if worker.state == WorkerState::Busy {
+								tokio::task::yield_now().await;
+							}
 							workers.push(async move {
 								worker.step().await;
 								worker
