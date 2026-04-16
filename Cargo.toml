@@ -146,12 +146,8 @@ aws-smithy-runtime = { version = "1.8", default-features = false, features = ["t
 aws-sdk-config = { version = "1.62", default-features = false }
 aws-sdk-s3 = { version = "1.79", default-features = false, features = ["rt-tokio"] }
 
-[profile.dev]
-#lto = "thin"	# disabled for now, adds 2-4 min to each CI build
-lto = "off"
-
 [profile.release]
-lto = true
-codegen-units = 1
-opt-level = "s"
-strip = true
+lto = "thin"
+codegen-units = 16
+opt-level = 3
+strip = "debuginfo"
