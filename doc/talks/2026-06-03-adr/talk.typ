@@ -1,52 +1,89 @@
 #import "@preview/slydst:0.1.5": *
 
-#show: slides
+// some display rules
 
-#title-slide[
-  #image("../../sticker/Garage.png", width: 30%)
-  #v(1em)
-  #text(1.2em, weight: "bold")[Garage]
-  #v(1em)
-  Alex Auvolat, Deuxfleurs Association
+#set par(spacing: 2em)
+#set list(spacing: 1em)
 
-  #v(1em)
-  #link("https://garagehq.deuxfleurs.fr/")
-  #v(0.5em)
-  Matrix channel: `#garage:deuxfleurs.fr`
+#show link: set text(font: "DejaVu Sans Mono", size: 9pt)
+
+// some functions to customize styles
+
+#let vhcenter(content) = [
+  #v(1fr)
+  #align(center)[#content]
+  #v(1fr)
 ]
 
-== Who I am
+#let imgcenter(..args) = vhcenter(image(..args))
 
-#grid(
-  columns: (2fr, 6fr, 2fr),
-  [
-    #image("../assets/alex.jpg", width: 40%)
-  ],
-  [
-    #text(weight: "bold")[Alex Auvolat]\
-    PhD; co-founder of Deuxfleurs
-  ],
-  []
+#let mytable(..args) = {
+  show table.cell: set text(size: 9pt)
+  set table(stroke: 0.5pt + black)
+  grid(
+    columns: (1cm, 1fr, 1cm),
+    [], table(..args), []
+  )
+}
+
+// actual slides
+
+#show: slides.with(
+  //title: "Garage",
+  authors: ("Alex Auvolat",),
+  date: "2026-06-03",
+  layout: "large",
+  //ratio: 16/9,
+  ratio: 4/3,
+  title-color: rgb("#ff9329"),
 )
 
-#v(2em)
+#title-slide[
+  #align(center)[
+    #image("../../sticker/Garage.png", width: 20%)
+    #v(1em)
+    *An introduction to Garage*\
+    Alex Auvolat, Deuxfleurs
+
+    #v(1em)
+    #link("https://garagehq.deuxfleurs.fr/")\
+    Matrix channel: `#garage:deuxfleurs.fr`
+  ]
+]
+
+== A non-profit initiative
 
 #grid(
-  columns: (2fr, 6fr, 2fr),
+  columns: (2fr, 8fr),
+  [#v(2em)],[],
   [
     #image("../assets/logos/deuxfleurs.svg", width: 50%)
   ],
   [
-    #text(weight: "bold")[Deuxfleurs]\
-    A non-profit self-hosting collective,\
-    member of the CHATONS network
+    *Part of a degrowth initiative*\
+    Garage has been created at Deuxfleurs where we experiment running Internet services without datacenter on commodity and refurbished hardware.
+  ],
+  [#v(2em)],[],
+  [
+    #image("../assets/community.png", width: 50%)
   ],
   [
-    #image("../assets/logos/logo_chatons.png", width: 70%)
+    *Developed by a community*\
+    #text(size: 0.8em)[Some recent contributors: Arthur C, Charles H, dongdigua, Etienne L, Jonah A, Julien K, Lapineige, MagicRR, Milas B, Niklas M, RockWolf, Schwitzd, trinity-1686a, Xavier S, babykart, Baptiste J, eddster2309, James O'C, Joker9944, Maximilien R, Renjaya RZ, Yureka...]
+  ],
+  [#v(3em)],[],
+  [
+    #image("../assets/logos/AGPLv3_Logo.png", width: 50%)
+  ],
+  [
+    *Owned by nobody, open-core is impossible, zero VC money*\
+    AGPL + no Contributor License Agreement = Garage ownership spreads among hundredth of contributors.
   ]
 )
 
-== Our objective at Deuxfleurs
+== Our initial objective at Deuxfleurs
+
+#v(4em)
 
 #align(center)[
   #text(weight: "bold")[
@@ -67,71 +104,50 @@ Why is it hard?
 ]
 
 == Our very low-tech infrastructure
+//== Building a resilient system with cheap stuff
+//
+#v(4em)
 
-- Commodity hardware (e.g. old desktop PCs)\
-  #text(size: 0.8em)[(can die at any time)]
-- Regular Internet (e.g. FTTB, FTTH) and power grid connections\
-  #text(size: 0.8em)[(can be unavailable randomly)]
-- *Geographical redundancy* (multi-site replication)
-
-#v(1em)
-
-#image("../assets/neptune.jpg", width: 80%)
+#[
+  #set list(spacing: 2em)
+  - Commodity hardware (e.g. old desktop PCs)\
+    #text(size: 0.8em)[(can die at any time)]
+  - Regular Internet (e.g. FTTB, FTTH) and power grid connections\
+    #text(size: 0.8em)[(can be unavailable randomly)]
+  - *Geographical redundancy* (multi-site replication)
+]
 
 #pagebreak()
+#imgcenter("../assets/neptune.jpg", width: 100%)
 
-#image("../assets/inframap_jdll2023.pdf", width: 80%)
+#pagebreak()
+#imgcenter("../assets/atuin.jpg", width: 100%)
 
-== How to make this happen
+#pagebreak()
+#imgcenter("../assets/inframap_jdll2023.pdf", width: 100%)
 
-#image("../assets/intro/slide1.png", width: 80%)
-#image("../assets/intro/slide2.png", width: 80%)
-#image("../assets/intro/slide3.png", width: 80%)
+== Object storage: a crucial component
 
-== Distributed file systems are slow
-
-File systems are complex, for example:
-
-- Concurrent modification by several processes
-- Folder hierarchies
-- Other requirements of the POSIX spec (e.g. locks)
-
-Coordination in a distributed system is costly.
-
-Costs explode with commodity hardware / Internet connections\
-#text(size: 0.8em)[(we experienced this!)]
-
-== A simpler solution: object storage
-
-Only two operations:
-
-- Put an object at a key
-- Retrieve an object from its key
-
-#text(size: 0.8em)[(and a few others)]
-
-Sufficient for many applications!
-
-== A simpler solution: object storage
-
-#grid(
-  columns: (3fr, 3fr, 3fr),
-  [#image("../assets/logos/Amazon-S3.jpg", height: 6em)],
-  [#image("../assets/logos/minio.png", height: 5em)],
-  [#image("../../logo/garage_hires_crop.png", height: 6em)]
-)
+#vhcenter[
+  #grid(
+    columns: (3fr, 3fr, 3fr),
+    [#image("../assets/logos/Amazon-S3.jpg", height: 6em)],
+    [#image("../assets/logos/minio.png", height: 5em)],
+    [#image("../../logo/garage_hires_crop.png", height: 6em)]
+  )
+]
 
 S3: a de-facto standard, many compatible applications
 
-MinIO is self-hostable but not suited for geo-distributed deployments
+MinIO: not suited for geo-distributed deployments, becoming closed source
 
 *Garage is a self-hosted drop-in replacement for the Amazon S3 object store*
 
+#v(2em)
+
 == Principle 1: based on CRDTs
 
-//#section[Principle 1: based on CRDTs]
-
-== CRDTs / weak consistency instead of consensus
+#v(1cm)
 
 #underline[Internally, Garage uses only CRDTs] (conflict-free replicated data types)
 
@@ -143,176 +159,216 @@ Why not Raft, Paxos, ...? Issues of consensus algorithms:
   - *Sensitive to higher latency* between nodes
   - *Takes time to reconverge* when disrupted (e.g. node going down)
 
+
 == The data model of object storage
 
-Object storage is basically a *key-value store*:
+#[
+  #set list(spacing: 1em)
 
-#table(
-  columns: (2fr, 5fr),
-  align: left,
-  [*Key: file path + name*], [*Value: file data + metadata*],
-  [`index.html`], [
-    Content-Type: text/html; charset=utf-8\
-    Content-Length: 24929\
-    \<binary blob\>
-  ],
-  [`img/logo.svg`], [
-    Content-Type: text/svg+xml\
-    Content-Length: 13429\
-    \<binary blob\>
-  ],
-  [`download/index.html`], [
-    Content-Type: text/html; charset=utf-8\
-    Content-Length: 26563\
-    \<binary blob\>
-  ]
-)
+  Object storage is basically a *key-value store*:
+  
+  #mytable(
+    columns: (2fr, 5fr),
+    align: left,
+    [*Key: file path + name*], [*Value: file data + metadata*],
+    [`index.html`], text(size: 8pt)[
+      `Content-Type: text/html; charset=utf-8`\
+      `Content-Length: 24929`\
+      `<binary blob>`
+    ],
+    [`img/logo.svg`], text(size: 8pt)[
+      `Content-Type: text/svg+xml`\
+      `Content-Length: 13429`\
+      `<binary blob>`
+    ],
+    [`download/index.html`], text(size: 8pt)[
+      `Content-Type: text/html; charset=utf-8`\
+      `Content-Length: 26563`\
+      `<binary blob>`
+    ]
+  )
+  
+*Consistency model:*
 
-- Maps well to CRDT data types
-- Read-after-write consistency with quorums
-
-== Performance gains in practice
-
-#image("../assets/perf/endpoint_latency_0.7_0.8_minio.png", width: 80%)
+- Not ACID (not required by S3 spec) / not linearizable
+- *Read-after-write consistency*\
+  #text(size: 0.8em)[(stronger than eventual consistency)]
+]
 
 == Principle 2: geo-distributed data model
 
-//#section[Principle 2: geo-distributed data model]
-
-== Key-value stores, upgraded: the Dynamo model
-
-*Two keys:*
-
-- Partition key: used to divide data into partitions (a.k.a. shards)
-- Sort key: used to identify items inside a partition
-
-#table(
-  columns: (2fr, 2fr, 3fr),
-  align: left,
-  [*Partition key: bucket*], [*Sort key: filename*], [*Value*],
-  [`website`], [`index.html`], [(file data)],
-  [`website`], [`img/logo.svg`], [(file data)],
-  [`website`], [`download/index.html`], [(file data)],
-  [`backup`], [`borg/index.2822`], [(file data)],
-  [`backup`], [`borg/data/2/2329`], [(file data)],
-  [`backup`], [`borg/data/2/2680`], [(file data)],
-  [`private`], [`qq3a2nbe1qjq0ebbvo6ocsp6co`], [(file data)]
-)
-
-== Layout computation
-
-#image("../assets/screenshots/garage_status_0.9_prod_zonehl.png", width: 100%)
-#image("../assets/map.png", width: 70%)
+#imgcenter("../assets/map.png", width: 90%)
 
 Garage stores replicas on different zones when possible
 
-== What a "layout" is
+== Zone-aware cluster configuration
 
-*A layout is a precomputed index table:*
+#imgcenter("../assets/screenshots/garage_status_0.9_prod_zonehl.png", width: 100%)
 
-#table(
-  columns: (2fr, 2fr, 2fr, 2fr),
-  align: left,
-  [*Partition*], [*Node 1*], [*Node 2*], [*Node 3*],
-  [Partition 0], [df-ymk (bespin)], [Abricot (scorpio)], [Courgette (neptune)],
-  [Partition 1], [Ananas (scorpio)], [Courgette (neptune)], [df-ykl (bespin)],
-  [Partition 2], [df-ymf (bespin)], [Celeri (neptune)], [Abricot (scorpio)],
-  [⋮], [⋮], [⋮], [⋮],
-  [Partition 255], [Concombre (neptune)], [df-ykl (bespin)], [Abricot (scorpio)]
-)
 
-The index table is built centrally using an optimal algorithm, then propagated to all nodes
+== Performance evaluation
 
-#text(size: 0.8em)[
-  Oulamara, M., & Auvolat, A. (2023). _An algorithm for geo-distributed and redundant storage in Garage_. arXiv preprint arXiv:2302.13798.
+#imgcenter("../assets/perf/endpoint_latency_0.7_0.8_minio.png", width: 100%)
+#pagebreak()
+
+#imgcenter("../assets/perf/ttfb.png", width: 100%)
+#pagebreak()
+
+#imgcenter("../assets/perf/io-0.7-0.8-minio.png", width: 100%)
+
+
+= Deploying Garage
+
+== Garage in the wild
+
+#imgcenter("../assets/cluster_kind.png", width: 100%)
+
+== Size of known deployments
+
+#imgcenter("../assets/cluster_size.png", width: 100%)
+
+_"Petabyte storage setup for a video site. Nginx as CDN in-front using garage-s3-website feature. Each storage node has ~64TB storage with raid10, no replication within garage. 25gbit nic. haproxy to loadbalance across 5 nodes. mostly reads with very few writes."_
+
+_"We currently manage 7 Garage nodes, 28TB total storage, 6M blocks for 3M objects and 4TB of object data. We have been running Garage in production for 2.5 years."_
+
+== Setting up data and metadata storage
+
+#vhcenter[
+  #mytable(
+    columns: (0.7fr, 1fr, 1fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[][*Metadata storage*][*Data storage*],
+    [*Content*],[access keys, buckets\ index of objects],[raw data blocks],
+    [*Size*],[\< 10\% of data\ rarely over 100GB],[replication × dataset size\ *no erasure-coding*],
+    [*Constraints*],[latency sensitive\ write-intensive under load],[big\ many files],
+    [*Ideal hardware*],[entreprise-grade SSD],[HDD],
+    [*Recommended redundancy*],[RAID1],[none, use disks directly\ *avoid RAID if possible*],
+    [*Recommended filesystem*],[ZFS, Btrfs],[XFS on invidual disks],
+    [*Tunables in Garage*],[database engine\
+                            automatic snapshots],[block size\ compression],
+  )
 ]
 
-== The relationship between partition and partition key
+== Chosing a replication factor
 
-#table(
-  columns: (2fr, 2fr, 2fr, 3fr),
-  align: left,
-  [*Partition key*], [*Partition*], [*Sort key*], [*Value*],
-  [`website`], [Partition 12], [`index.html`], [(file data)],
-  [`website`], [Partition 12], [`img/logo.svg`], [(file data)],
-  [`website`], [Partition 12], [`download/index.html`], [(file data)],
-  [`backup`], [Partition 42], [`borg/index.2822`], [(file data)],
-  [`backup`], [Partition 42], [`borg/data/2/2329`], [(file data)],
-  [`backup`], [Partition 42], [`borg/data/2/2680`], [(file data)],
-  [`private`], [Partition 42], [`qq3a2nbe1qjq0ebbvo6ocsp6co`], [(file data)]
-)
+#vhcenter[
+  #mytable(
+    columns: (0.7fr, 1fr, 1.3fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[*Replication factor*][*Pro*][*Cons*],
+    [*1*], [easy single-node setup\ full space efficiency], [no metadata redundancy\ *vunlerable to hardware crash or data corruption*\ no high-availability],
+    [*2*], [redundancy\ limited storage overhead], [limited high-availability\ (read-only when one node is unavailable)],
+    [*3*], [high-availability setup\ best data resilience], [big storage overhead],
+    [*4, 5, ...*], [possible if needed], [...],
 
-To read or write an item: hash partition key → determine partition number (first 8 bits) → find associated nodes
+  )
 
-== Garage's internal data structures
+  #v(0.5cm)
+  *Important note:* metadata replication == data replication\
+  Choose well, this cannot be changed easily!
+]
 
-#image("../assets/garage_tables.pdf", width: 75%)
+== Picking a metadata engine
 
-== Operating Garage clusters
 
-//#section[Operating Garage clusters]
+#vhcenter[
+  All files-to-block mappings are stored in the metadata engine, including bucket and object metadata. Files below 3KB are stored directly in the metadata engine.
+  #v(0.5cm)
 
-== Operating Garage
+  #mytable(
+    columns: (0.7fr, 1fr, 1.3fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[*Metadata engine*][*Characteristics*][*Use case*],
+    [*SQlite*],[safer],[single node deployment\ small clusters\ clusters with infrequent access],
+    [*LMDB*],[faster\ sometimes has inexplicable corruptions],[larger clusters with metadata redundancy],
+    [*Fjall*],[experimental\ best of both worlds?],[help us test it!],
+  )
 
-#image("../assets/screenshots/garage_status_0.10.png", width: 90%)
-#image("../assets/screenshots/garage_status_unhealthy_0.10.png", width: 90%)
+  #v(0.5cm)
+  Metadata engine can be set node per-node, and changed later with a migration tool
+]
 
-== Background synchronization
+== Avoiding common issues as soon as possible
 
-#image("../assets/garage_sync.drawio.pdf", width: 60%)
+#vhcenter[
+  #mytable(
+    columns: (1fr, 1.4fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[*Risk*][*How to avoid*],
+    [*Metadata corruption*\ (esp. with LMDB)],[Configure automatic snapshots with\ `metadata_auto_snapshot_interval`\ Use replication factor 2 or 3],
+    [*Data not well balanced between nodes*],[Avoid clusters with too many nodes\ Target: \#nodes ≤ 10 × replication_factor],
+    [*Performance issues with many objects in one single bucket*],[Spread your data over multiple buckets],
+    [*Performance issues with big objects*],[Increase `block_size` configuration parameter\ Target: object size ≤ 1000 × `block_size`,\ `block_size` ≤ 100MB],
+    [*Performance issues with many small objects*],[Have enough RAM to fit the entire metadata DB],
+  )
+]
 
-== Digging deeper
+== Other things to consider during set-up
 
-#image("../assets/screenshots/garage_stats_0.10.png", width: 90%)
-#image("../assets/screenshots/garage_worker_list_0.10.png", width: 50%)
-#image("../assets/screenshots/garage_worker_param_0.10.png", width: 60%)
+#vhcenter[
+  #mytable(
+    columns: (1fr, 1.2fr),
+    inset: 0.8em,
+    align: center + horizon,
+    [*Tools for cluster deployment*],[Ansible + systemd\ NixOS\ Kubernetes or Nomad with Docker],
+    [*Initial cluster setup*],[Manual layout configuration\ Read the documentation!],
+    [*TLS support on public endpoints*],[Add an external reverse-proxy (Nginx, ...)],
+    [*S3 anonymous access*],[Not implemented, use website endpoint],
+    [*Monitoring*],[Prometheus + Grafana for Garage metrics\ External tool to monitor HDD health],
+  )
+]
 
 == Monitoring with Prometheus + Grafana
 
-#image("../assets/screenshots/grafana_dashboard.png", width: 90%)
+#imgcenter("../2026-01-31-fosdem/assets/garage-stats.png", width: 83%)
 
-== Debugging with traces
+== Common issues and their solutions
 
-#image("../assets/screenshots/jaeger_listobjects.png", width: 80%)
+#vhcenter[
+  #mytable(
+    columns: (1fr, 1.5fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[*Problem*][*Solution*],
+    table.cell(rowspan: 2)[*S3 access authorization issues*],[Correctly set the `region` parameter in your S3 client\ default = `garage`, not `us-east-1`],[Check your reverse proxy configuration],
+    [*Debugging other API issues*],[Set `RUST_LOG=garage=debug` to investigate],
+    [*Resync queue fills up*],[`garage worker set -a resync-worker-count 8`\ `garage worker set -a resync-tranquility 0`],
+    [*LMDB database too big*],[Stop garage and compact with `mdb_copy -c`],
+    [*Data recovery with dead/unavailable nodes*],[Consistency mode `degraded` allows to read data from an unhealthy cluster. *Do not use it for regular operation.*],
+    [*Other issues*],[Ask us on matrix `#garage:deuxfleurs.fr` or open an issue on `git.deuxfleurs.fr`\
+      Provide the output of `garage status`, `garage stats` and relevant metrics and logs],
 
-== Scaling Garage clusters
+  )
+]
 
-//#section[Scaling Garage clusters]
+== Future developments
 
-== Potential limitations and bottlenecks
+#imgcenter("../assets/survey_requested_features.png", width: 80%)
 
-- Global:
-  - Max. ~100 nodes per cluster (excluding gateways)
-- Metadata:
-  - One big bucket = bottleneck, object list on 3 nodes only
-- Block manager:
-  - Lots of small files on disk
-  - Processing the resync queue can be slow
+#pagebreak()
+#imgcenter("../2026-01-31-fosdem/assets/Garage Web Admin - Dashboard@2x.png", width: 100%)
 
-== Deployment advice for very large clusters
-
-- Metadata storage:
-  - ZFS mirror (x2) on fast NVMe
-  - Use LMDB storage engine
-- Data block storage:
-  - Use Garage's native multi-HDD support
-  - XFS on individual drives
-  - Increase block size (1MB → 10MB, requires more RAM and good networking)
-  - Tune `resync-tranquility` and `resync-worker-count` dynamically
-- Other:
-  - Split data over several buckets
-  - Use less than 100 storage nodes
-  - Use gateway nodes
-
-Our deployments: < 10 TB. Some people have done more!
+#pagebreak()
+#imgcenter("../2026-01-31-fosdem/assets/Garage Web Admin - Bucket details page@2x.png", width: 100%)
 
 == Where to find us
 
-#image("../../logo/garage_hires.png", width: 25%)
-#link("https://garagehq.deuxfleurs.fr/")
-#link("mailto:garagehq@deuxfleurs.fr")
-`#garage:deuxfleurs.fr` on Matrix
+#align(center)[
+  #v(1fr)
 
-#v(1.5em)
-#image("../assets/logos/rust_logo.png", width: 6%)
-#image("../assets/logos/AGPLv3_Logo.png", width: 13%)
+  #image("../../logo/garage_hires.png", width: 25%)
+  #link("https://garagehq.deuxfleurs.fr/")\
+  #link("mailto:garagehq@deuxfleurs.fr")\
+  `#garage:deuxfleurs.fr` on Matrix
+
+  #v(1fr)
+  #grid(columns: (6%,3%,13%),
+    image("../assets/logos/rust_logo.png"),
+    [],
+    image("../assets/logos/AGPLv3_Logo.png"),
+  )
+]
