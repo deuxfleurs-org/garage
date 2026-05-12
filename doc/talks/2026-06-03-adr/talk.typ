@@ -61,7 +61,7 @@
   ],
   [
     *Part of a degrowth initiative*\
-    Garage has been created at Deuxfleurs where we experiment running Internet services without datacenter on commodity and refurbished hardware.
+    Garage has been created at Deuxfleurs, where we experiment running Internet services without datacenter on commodity and refurbished hardware.
   ],
   [#v(2em)],[],
   [
@@ -76,8 +76,8 @@
     #image("../assets/logos/AGPLv3_Logo.png", width: 50%)
   ],
   [
-    *Owned by nobody, open-core is impossible, zero VC money*\
-    AGPL + no Contributor License Agreement = Garage ownership spreads among hundredth of contributors.
+    *Owned by nobody*\
+    AGPL + no Contributor License Agreement = Garage ownership spreads among dozens of contributors.
   ]
 )
 
@@ -145,7 +145,21 @@ MinIO: not suited for geo-distributed deployments, becoming closed source
 
 #v(2em)
 
-== Principle 1: based on CRDTs
+== Principle 1: geo-distributed data model
+
+#imgcenter("../assets/map.png", width: 90%)
+
+Garage stores replicas on different zones when possible
+
+== Zone-aware cluster configuration
+
+#imgcenter("../assets/screenshots/garage_status_0.9_prod_zonehl.png", width: 100%)
+
+Trust model: full trust between zones
+
+#v(5em)
+
+== Principle 2: based on CRDTs
 
 #v(1cm)
 
@@ -195,16 +209,6 @@ Why not Raft, Paxos, ...? Issues of consensus algorithms:
   #text(size: 0.8em)[(stronger than eventual consistency)]
 ]
 
-== Principle 2: geo-distributed data model
-
-#imgcenter("../assets/map.png", width: 90%)
-
-Garage stores replicas on different zones when possible
-
-== Zone-aware cluster configuration
-
-#imgcenter("../assets/screenshots/garage_status_0.9_prod_zonehl.png", width: 100%)
-
 
 == Performance evaluation
 
@@ -216,8 +220,6 @@ Garage stores replicas on different zones when possible
 
 #imgcenter("../assets/perf/io-0.7-0.8-minio.png", width: 100%)
 
-
-= Deploying Garage
 
 == Garage in the wild
 
@@ -231,24 +233,7 @@ _"Petabyte storage setup for a video site. Nginx as CDN in-front using garage-s3
 
 _"We currently manage 7 Garage nodes, 28TB total storage, 6M blocks for 3M objects and 4TB of object data. We have been running Garage in production for 2.5 years."_
 
-== Setting up data and metadata storage
-
-#vhcenter[
-  #mytable(
-    columns: (0.7fr, 1fr, 1fr),
-    inset: 0.8em,
-    align: center + horizon,
-    table.header[][*Metadata storage*][*Data storage*],
-    [*Content*],[access keys, buckets\ index of objects],[raw data blocks],
-    [*Size*],[\< 10\% of data\ rarely over 100GB],[replication × dataset size\ *no erasure-coding*],
-    [*Constraints*],[latency sensitive\ write-intensive under load],[big\ many files],
-    [*Ideal hardware*],[entreprise-grade SSD],[HDD],
-    [*Recommended redundancy*],[RAID1],[none, use disks directly\ *avoid RAID if possible*],
-    [*Recommended filesystem*],[ZFS, Btrfs],[XFS on invidual disks],
-    [*Tunables in Garage*],[database engine\
-                            automatic snapshots],[block size\ compression],
-  )
-]
+= Deploying Garage
 
 == Chosing a replication factor
 
@@ -268,6 +253,25 @@ _"We currently manage 7 Garage nodes, 28TB total storage, 6M blocks for 3M objec
   #v(0.5cm)
   *Important note:* metadata replication == data replication\
   Choose well, this cannot be changed easily!
+]
+
+== Setting up data and metadata storage
+
+#vhcenter[
+  #mytable(
+    columns: (0.7fr, 1fr, 1fr),
+    inset: 0.8em,
+    align: center + horizon,
+    table.header[][*Metadata storage*][*Data storage*],
+    [*Content*],[access keys, buckets\ index of objects],[raw data blocks],
+    [*Size*],[\< 10\% of data\ rarely over 100GB],[replication × dataset size\ *no erasure-coding*],
+    [*Constraints*],[latency sensitive\ write-intensive under load],[big\ many files],
+    [*Ideal hardware*],[entreprise-grade SSD],[HDD],
+    [*Recommended redundancy*],[RAID1],[none, use disks directly\ *avoid RAID if possible*],
+    [*Recommended filesystem*],[ZFS, Btrfs],[XFS on invidual disks],
+    [*Tunables in Garage*],[database engine\
+                            automatic snapshots],[block size\ compression],
+  )
 ]
 
 == Picking a metadata engine
