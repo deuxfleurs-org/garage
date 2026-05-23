@@ -15,6 +15,8 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| args | list | `[]` | Override the container arguments. |
+| command | list | `[]` | Override the container entrypoint. |
 | commonLabels  | object | `{}` | Extra labels for all resources |
 | deployment.kind | string | `"StatefulSet"` | Switchable to DaemonSet |
 | deployment.podManagementPolicy | string | `"OrderedReady"` | If using statefulset, allow Parallel or OrderedReady (default) |

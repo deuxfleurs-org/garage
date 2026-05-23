@@ -252,6 +252,12 @@ priorityClassName: ""
 # as a Pod container's env)
 environment: {}
 
+# -- Override the container entrypoint.
+command: []
+
+# -- Override the container arguments.
+args: []
+
 # -- Extra volumes, as a list of volume objects (same shape as a PodSpec's volumes)
 extraVolumes: {}
 
