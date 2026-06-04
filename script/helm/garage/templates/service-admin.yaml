@@ -1,0 +1,24 @@
+{{- if .Values.service.admin.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "garage.fullname" . }}-admin
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+  {{- with .Values.service.admin.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  {{- if .Values.service.admin.headless }}
+  clusterIP: None
+  {{- end }}
+  ports:
+    - port: {{ include "garage.portFromBindAddr" .Values.garage.admin.apiBindAddr | int }}
+      targetPort: {{ include "garage.portFromBindAddr" .Values.garage.admin.apiBindAddr | int }}
+      protocol: TCP
+      name: admin
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+{{- end }}
