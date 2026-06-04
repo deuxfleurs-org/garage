@@ -106,6 +106,9 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | service.s3.api.port | int | `3900` |  |
 | service.s3.web.port | int | `3902` |  |
 | service.type | string | `"ClusterIP"` | You can rely on any service to expose your cluster - ClusterIP (+ Ingress) - NodePort (+ Ingress) - LoadBalancer |
+| service.admin.enabled | bool | false | Create a separate Service for the admin API |
+| service.admin.headless | bool | false | Configure a headless service to disable load-balancing and address individual Garage nodes |
+| service.admin.annotations | object | `{}` | Annotations to add to the admin API service |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
 | serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template |
