@@ -11,9 +11,6 @@ metadata:
   {{- end }}
 spec:
   type: ClusterIP
-  {{- if .Values.service.admin.headless }}
-  clusterIP: None
-  {{- end }}
   ports:
     - port: {{ include "garage.portFromBindAddr" .Values.garage.admin.apiBindAddr | int }}
       targetPort: {{ include "garage.portFromBindAddr" .Values.garage.admin.apiBindAddr | int }}

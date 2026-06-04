@@ -165,7 +165,6 @@ service:
   # -- Expose admin API internally as a Kubernetes service.
   admin:
     enabled: false
-    headless: false
     annotations: {}
 
 ingress:
