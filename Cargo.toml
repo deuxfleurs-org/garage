@@ -121,6 +121,7 @@ reqwest = { version = "0.13", default-features = false, features = [
     "rustls-no-provider",
     "json",
 ] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 
 form_urlencoded = "1.2"
 http = "1.4"

@@ -80,6 +80,7 @@ pub struct ConsulDiscovery {
 
 impl ConsulDiscovery {
 	pub fn new(config: ConsulDiscoveryConfig) -> Result<Self, ConsulError> {
+		_ = rustls::crypto::ring::default_provider().install_default();
 		let mut builder: reqwest::ClientBuilder = reqwest::Client::builder().use_rustls_tls();
 		if config.tls_skip_verify {
 			builder = builder.danger_accept_invalid_certs(true);
