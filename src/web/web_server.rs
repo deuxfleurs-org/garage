@@ -411,7 +411,7 @@ fn error_to_res(e: Error) -> Response<BoxBody<Error>> {
 <li>Message: {s3_message}.</li>
 </ul>",
 			s3_code = err.aws_code(),
-			s3_message = err,
+			s3_message = html_escape::encode_text(&err.to_string()),
 		));
 	}
 	let mut http_error = Response::new(string_body(body_str));
