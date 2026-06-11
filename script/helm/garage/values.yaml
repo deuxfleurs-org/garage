@@ -7,7 +7,7 @@ commonLabels: {}
 #   app.kubernetes.io/part-of: storage
 #   team: platform
 
-# Garage configuration. These values go to garage.toml
+# Garage configuration. These values configure Garage and render to garage.toml unless noted otherwise.
 garage:
   # -- Can be changed for better performance on certain systems
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine
@@ -21,6 +21,10 @@ garage:
   # -- Default to 3 replicas, see the replication_factor section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication_factor
   replicationFactor: "3"
+
+  # -- Start Garage with --single-node, run one StatefulSet replica, and render replication_factor = 1 in the generated garage.toml.
+  # If using garageTomlString or existingConfigMap, set replication_factor = 1 yourself.
+  singleNode: false
 
   # -- By default, enable read-after-write consistency guarantees, see the consistency_mode section at
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#consistency_mode

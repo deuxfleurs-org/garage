@@ -9,7 +9,7 @@ spec:
     matchLabels:
       {{- include "garage.selectorLabels" . | nindent 6 }}
   {{- if eq .Values.deployment.kind "StatefulSet" }}
-  replicas: {{ .Values.deployment.replicaCount }}
+  replicas: {{ ternary 1 .Values.deployment.replicaCount .Values.garage.singleNode }}
   serviceName: {{ include "garage.fullname" . }}-headless
   podManagementPolicy: {{ .Values.deployment.podManagementPolicy }}
   {{- end }}
@@ -59,6 +59,13 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.garage.singleNode }}
+          command:
+            - /garage
+          args:
+            - server
+            - --single-node
+          {{- end }}
           ports:
             - containerPort: {{ include "garage.portFromBindAddr" .Values.garage.s3.api.bindAddr | int }}
               name: s3-api

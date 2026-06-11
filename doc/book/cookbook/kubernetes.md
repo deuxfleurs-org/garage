@@ -33,11 +33,26 @@ kubectl apply -k ../k8s/crd
 helm install --create-namespace --namespace garage garage ./garage -f values.override.yaml
 ```
 
-After deploying, cluster layout must be configured manually as described in [Creating a cluster layout](@/documentation/quick-start/_index.md#creating-a-cluster-layout). Use the following command to access garage CLI:
+For multi-node deployments, cluster layout must be configured manually after deploying, as described in [Creating a cluster layout](@/documentation/quick-start/_index.md#creating-a-cluster-layout). Use the following command to access garage CLI:
 
 ```bash
 kubectl exec --stdin --tty -n garage garage-0 -- ./garage status
 ```
+
+## Single-node deployments
+
+For a fresh single-node deployment, enable Garage's automatic single-node setup:
+
+```yaml
+garage:
+  singleNode: true
+```
+
+With the chart-generated `garage.toml`, this starts Garage with `--single-node`, runs one StatefulSet replica, and sets `replication_factor = 1`.
+
+If you use `garage.garageTomlString` or `garage.existingConfigMap`, the chart cannot update your configuration file. In that case, make sure your Garage configuration sets `replication_factor = 1`; otherwise Garage will refuse to start in single-node mode.
+
+Garage refuses to run with `--single-node` if the cluster already has a multi-node layout, so this option is intended for new single-node deployments.
 
 ## Overriding default values
 
