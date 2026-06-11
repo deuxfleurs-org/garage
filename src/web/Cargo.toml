@@ -20,6 +20,7 @@ garage_model.workspace = true
 garage_util.workspace = true
 garage_table.workspace = true
 
+html-escape.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 percent-encoding.workspace = true
