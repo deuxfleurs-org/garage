@@ -1,22 +1,17 @@
-{{- if eq .Values.garage.noClusterRole false }}
+{{- if eq .Values.garage.noClusterRole true }}
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: manage-crds-{{ .Release.Namespace }}-{{ .Release.Name }}
   labels:
     {{- include "garage.labels" . | nindent 4 }}
 rules:
-{{- if eq .Values.garage.kubernetesSkipCrd false }}
-- apiGroups: ["apiextensions.k8s.io"]
-  resources: ["customresourcedefinitions"]
-  verbs: ["get", "list", "watch", "create", "patch"]
-{{ end }}
 - apiGroups: ["deuxfleurs.fr"]
   resources: ["garagenodes"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: allow-crds-for-{{ .Release.Namespace }}-{{ .Release.Name }}
   labels:
@@ -26,7 +21,7 @@ subjects:
   name: {{ include "garage.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: ClusterRole
+  kind: Role
   name: manage-crds-{{ .Release.Namespace }}-{{ .Release.Name }}
   apiGroup: rbac.authorization.k8s.io
 {{ end }}

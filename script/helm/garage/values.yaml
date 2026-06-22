@@ -46,6 +46,8 @@ garage:
   # -- Set to true if you want to use k8s discovery but install the CRDs manually outside
   # of the helm chart, for example if you operate at namespace level without cluster resources
   kubernetesSkipCrd: false
+  # -- Set to true if you want to use roles instead of cluster roles
+  noClusterRole: false
   s3:
     api:
       bindAddr: "[::]:3900"
