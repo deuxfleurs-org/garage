@@ -148,7 +148,7 @@ impl BlockManager {
 			.expect("Unable to open block_local_rc tree");
 		let rc = BlockRc::new(rc);
 
-		let resync = BlockResyncManager::new(db, &system);
+		let resync = BlockResyncManager::new(db, &system)?;
 
 		let endpoint = system
 			.netapp

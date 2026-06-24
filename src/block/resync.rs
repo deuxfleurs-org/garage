@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -37,64 +37,194 @@ pub(crate) const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
 // The maximum retry delay is 60 seconds * 2^6 = 60 seconds << 6 = 64 minutes (~1 hour)
 pub(crate) const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
 
+fn retry_delay_ms(errors: u64) -> u64 {
+	(RESYNC_RETRY_DELAY.as_millis() as u64)
+		<< u64::min(errors, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
+}
+
 // No more than 4 resync workers can be running in the system
 pub(crate) const MAX_RESYNC_WORKERS: usize = 8;
 // Resync tranquility is initially set to 2, but can be changed in the CLI
 // and the updated version is persisted over Garage restarts
 const INITIAL_RESYNC_TRANQUILITY: u32 = 2;
 
-pub struct BlockResyncManager {
-	pub(crate) queue: db::TypedTree<ResyncQueueKey, Hash>,
-	pub(crate) notify: Arc<Notify>,
-	pub(crate) errors: db::TypedTree<Hash, ErrorCounter>,
-
-	busy_set: BusySet,
-
-	persister: PersisterShared<ResyncPersistedConfig>,
-}
-
-/// Key of the resync queue tree: blocks are resynced in order of increasing
-/// `when` (msec timestamp of the next try), with the block hash as tie-breaker.
+/// Counts the number of errors when resyncing a block,
+/// and the time of the last try.
 ///
-// CAREFUL: this type implements `DbOrdKey`, so its byte encoding must be
-// order-preserving.
-// The derived `Ord` compares fields in declaration order, which must match
-// the order in which `encode()` writes them; and `when` must remain an
-// *unsigned* integer, as the big-endian encoding is only order-preserving
-// for unsigned types.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ResyncQueueKey {
+/// Used to implement exponential backoff.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ResyncEntry {
 	pub(crate) when: u64,
-	pub(crate) hash: Hash,
+	pub(crate) errors: u64,
 }
 
-impl db::DbBytes for ResyncQueueKey {
+impl ResyncEntry {
+	const ENCODE_LEN: usize =
+		{
+			let res = 2 * size_of::<u64>();
+			if res != size_of::<Self>() {
+				panic!("Size of ResyncEntry has changed, you likely want to change the encoding as well")
+			}
+			res
+		};
+}
+
+impl db::DbBytes for ResyncEntry {
 	fn encode(&self) -> Vec<u8> {
-		let mut v = Vec::with_capacity(40);
-		v.extend_from_slice(&u64::to_be_bytes(self.when));
-		v.extend_from_slice(self.hash.as_slice());
-		v
+		let res = [u64::to_be_bytes(self.when), u64::to_be_bytes(self.errors)].concat();
+		assert_eq!(res.len(), Self::ENCODE_LEN);
+		res
 	}
 
 	fn decode(bytes: &[u8]) -> std::result::Result<Self, db::DecodeError> {
-		if bytes.len() != 40 {
+		if bytes.len() != Self::ENCODE_LEN {
 			return Err(db::DecodeError(
 				format!(
-					"invalid resync queue key: expected 40 bytes, got {}",
+					"invalid error counter: expected {}  bytes, got {}",
+					Self::ENCODE_LEN,
 					bytes.len()
 				)
 				.into(),
 			));
 		}
-		Ok(ResyncQueueKey {
-			when: u64::from_be_bytes(bytes[..8].try_into().unwrap()),
-			hash: Hash::try_from(&bytes[8..])
-				.ok_or_else(|| db::DecodeError("invalid resync queue key: bad hash".into()))?,
+		// Split the encoding as [when || errors || last_try]
+		let parts: [[u8; 8]; 2] = bytes.as_chunks().0.try_into().unwrap();
+		// Decode each word
+		let deser = parts.map(|serialized| u64::from_be_bytes(serialized));
+		Ok(Self {
+			when: deser[0],
+			errors: deser[1],
 		})
 	}
 }
 
-impl db::DbOrdKey for ResyncQueueKey {}
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+// /!\ Order of fields matter for the derivation of Ord!
+struct WhenIndexEntry {
+	when: u64,
+	hash: Hash,
+}
+
+struct BlockResyncManagerState {
+	queue: db::TypedTree<Hash, ResyncEntry>,
+	when_index: BTreeSet<WhenIndexEntry>,
+}
+
+impl BlockResyncManagerState {
+	fn entry(&mut self, hash: Hash) -> Result<BlockResyncManagerStateEntry<'_>, db::Error> {
+		Ok(match self.queue.get(&hash)? {
+			Some(value) => BlockResyncManagerStateEntry::Occupied(OccupiedEntry {
+				origin: self,
+				hash,
+				value,
+			}),
+			None => BlockResyncManagerStateEntry::Vacant(VacantEntry { origin: self, hash }),
+		})
+	}
+
+	fn clear(&mut self) -> Result<(), db::Error> {
+		self.queue.clear()?;
+		self.when_index.clear();
+		Ok(())
+	}
+
+	/// Ascending when
+	fn iter(&self) -> impl Iterator<Item = &WhenIndexEntry> {
+		self.when_index.iter()
+	}
+}
+
+struct OccupiedEntry<'brms> {
+	origin: &'brms mut BlockResyncManagerState,
+	hash: Hash,
+	value: ResyncEntry,
+}
+
+impl<'brms> OccupiedEntry<'brms> {
+	fn set_when_and_errors(&mut self, new_when: u64, new_errors: u64) -> Result<(), db::Error> {
+		self.origin.queue.insert(
+			&self.hash,
+			&ResyncEntry {
+				when: new_when,
+				errors: new_errors,
+			},
+		)?;
+		let was_there = self.origin.when_index.remove(&WhenIndexEntry {
+			when: self.value.when,
+			hash: self.hash,
+		});
+		debug_assert!(
+			was_there,
+			"The entry was not in the when index anymore (set_when_and_errors)"
+		);
+		self.origin.when_index.insert(WhenIndexEntry {
+			when: new_when,
+			hash: self.hash,
+		});
+		self.value.when = new_when;
+		self.value.errors = new_errors;
+		Ok(())
+	}
+
+	fn set_when(&mut self, new_when: u64) -> Result<(), db::Error> {
+		self.set_when_and_errors(new_when, self.errors())
+	}
+
+	fn remove(mut self) -> Result<(), db::Error> {
+		self.origin.queue.remove(&self.hash)?;
+		let was_there = self.origin.when_index.remove(&WhenIndexEntry {
+			when: self.when(),
+			hash: self.hash,
+		});
+		debug_assert!(
+			was_there,
+			"The entry was not in the when index anymore (remove)"
+		);
+		Ok(())
+	}
+
+	fn errors(&self) -> u64 {
+		self.value.errors
+	}
+
+	fn when(&self) -> u64 {
+		self.value.when
+	}
+}
+
+struct VacantEntry<'brms> {
+	origin: &'brms mut BlockResyncManagerState,
+	hash: Hash,
+}
+impl<'brms> VacantEntry<'brms> {
+	fn insert(&mut self, when: u64) -> Result<(), db::Error> {
+		self.origin
+			.queue
+			.insert(&self.hash, &ResyncEntry { when, errors: 0 })?;
+		self.origin.when_index.insert(WhenIndexEntry {
+			when,
+			hash: self.hash,
+		});
+		Ok(())
+	}
+}
+
+enum BlockResyncManagerStateEntry<'brms> {
+	Occupied(OccupiedEntry<'brms>),
+	Vacant(VacantEntry<'brms>),
+}
+
+// There is a possibility of deadlock between inner and busy set.
+// Avoid it by always locking busy_set first if you'll need it.
+// (Locking only inner is fine)
+pub struct BlockResyncManager {
+	brms: Mutex<BlockResyncManagerState>,
+	pub(crate) notify: Arc<Notify>,
+
+	busy_set: BusySet,
+
+	persister: PersisterShared<ResyncPersistedConfig>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 struct ResyncPersistedConfig {
@@ -117,52 +247,51 @@ enum ResyncIterResult {
 	IdleFor(Duration),
 }
 
-type BusySet = Arc<Mutex<HashSet<ResyncQueueKey>>>;
+type BusySet = Arc<Mutex<HashSet<Hash>>>;
 
 struct BusyBlock {
-	key: ResyncQueueKey,
+	when: u64,
+	hash: Hash,
 	busy_set: BusySet,
 }
 
 impl BlockResyncManager {
-	pub(crate) fn new(db: &db::Db, system: &System) -> Self {
+	pub(crate) fn new(db: &db::Db, system: &System) -> Result<Self, Error> {
 		let queue = db
-			.open_typed_tree("block_local_resync_queue")
+			.open_typed_tree::<Hash, ResyncEntry, _>("block_local_resync_queue_v2")
 			.expect("Unable to open block_local_resync_queue tree");
-
-		let errors = db
-			.open_typed_tree("block_local_resync_errors")
-			.expect("Unable to open block_local_resync_errors tree");
 
 		let persister = PersisterShared::new(&system.metadata_dir, "resync_cfg");
 
-		Self {
-			queue,
+		let when_index = queue
+			.iter()?
+			.try_fold(BTreeSet::new(), |mut index, tree_row| {
+				let (hash, ResyncEntry { when, .. }) = tree_row?;
+				index.insert(WhenIndexEntry { when, hash });
+				Ok::<_, Error>(index)
+			})?;
+
+		Ok(Self {
 			notify: Arc::new(Notify::new()),
-			errors,
 			busy_set: Arc::new(Mutex::new(HashSet::new())),
 			persister,
-		}
+			brms: Mutex::new(BlockResyncManagerState { queue, when_index }),
+		})
 	}
 
 	/// Get length of resync queue
 	pub fn queue_approximate_len(&self) -> Result<usize, Error> {
-		Ok(self.queue.approximate_len()?)
-	}
-
-	/// Get number of blocks that have an error
-	pub fn errors_approximate_len(&self) -> Result<usize, Error> {
-		Ok(self.errors.approximate_len()?)
+		let brms = self.brms.lock().unwrap();
+		Ok(brms.queue.approximate_len()?)
 	}
 
 	/// Clear the error counter for a block and put it in queue immediately
 	pub fn clear_backoff(&self, hash: &Hash) -> Result<(), Error> {
 		let now = now_msec();
-		if let Some(mut ec) = self.errors.get(hash)? {
-			if ec.errors > 0 {
-				ec.last_try = now - ec.delay_msec();
-				self.errors.insert(hash, &ec)?;
-				self.put_to_resync_at(hash, now)?;
+		let mut brms = self.brms.lock().unwrap();
+		if let BlockResyncManagerStateEntry::Occupied(mut resync_entry) = brms.entry(*hash)? {
+			if resync_entry.errors() > 0 {
+				resync_entry.set_when(now)?;
 				return Ok(());
 			}
 		}
@@ -175,8 +304,8 @@ impl BlockResyncManager {
 	/// Clear the entire resync queue and list of errored blocks
 	/// Corresponds to `garage repair clear-resync-queue`
 	pub fn clear_resync_queue(&self) -> Result<(), Error> {
-		self.queue.clear()?;
-		self.errors.clear()?;
+		let mut brms = self.brms.lock().unwrap();
+		brms.clear()?;
 		Ok(())
 	}
 
@@ -212,114 +341,35 @@ impl BlockResyncManager {
 		);
 	}
 
-	// ---- Resync loop ----
-
-	// This part manages a queue of blocks that need to be
-	// "resynchronized", i.e. that need to have a check that
-	// they are at present if we need them, or that they are
-	// deleted once the garbage collection delay has passed.
-	//
-	// Here are some explanations on how the resync queue works.
-	// There are two db trees that are used to have information
-	// about the status of blocks that need to be resynchronized:
-	//
-	// - resync.queue: a tree that is ordered first by a timestamp
-	//   (in milliseconds since Unix epoch) that is the time at which
-	//   the resync must be done, and second by block hash.
-	//   The key in this tree is just:
-	//       concat(timestamp (8 bytes), hash (32 bytes))
-	//   The value is the same 32-byte hash.
-	//
-	// - resync.errors: a tree that indicates for each block
-	//   if the last resync resulted in an error, and if so,
-	//   the following two information (see the ErrorCounter struct):
-	//   - how many consecutive resync errors for this block?
-	//   - when was the last try?
-	//   These two information are used to implement an
-	//   exponential backoff retry strategy.
-	//   The key in this tree is the 32-byte hash of the block,
-	//   and the value is the encoded ErrorCounter value.
-	//
-	// We need to have these two trees, because the resync queue
-	// is not just a queue of items to process, but a set of items
-	// that are waiting a specific delay until we can process them
-	// (the delay being necessary both internally for the exponential
-	// backoff strategy, and exposed as a parameter when adding items
-	// to the queue, e.g. to wait until the GC delay has passed).
-	// This is why we need one tree ordered by time, and one
-	// ordered by identifier of item to be processed (block hash).
-	//
-	// When the worker wants to process an item it takes from
-	// resync.queue, it checks in resync.errors that if there is an
-	// exponential back-off delay to await, it has passed before we
-	// process the item. If not, the item in the queue is skipped
-	// (but added back for later processing after the time of the
-	// delay).
-	//
-	// An alternative that would have seemed natural is to
-	// only add items to resync.queue with a processing time that is
-	// after the delay, but there are several issues with this:
-	// - This requires to synchronize updates to resync.queue and
-	//   resync.errors (with the current model, there is only one thread,
-	//   the worker thread, that accesses resync.errors,
-	//   so no need to synchronize) by putting them both in a lock.
-	//   This would mean that block_incref might need to take a lock
-	//   before doing its thing, meaning it has much more chances of
-	//   not completing successfully if something bad happens to Garage.
-	//   Currently Garage is not able to recover from block_incref that
-	//   doesn't complete successfully, because it is necessary to ensure
-	//   the consistency between the state of the block manager and
-	//   information in the BlockRef table.
-	// - If a resync fails, we put that block in the resync.errors table,
-	//   and also add it back to resync.queue to be processed after
-	//   the exponential back-off delay,
-	//   but maybe the block is already scheduled to be resynced again
-	//   at another time that is before the exponential back-off delay,
-	//   and we have no way to check that easily. This means that
-	//   in all cases, we need to check the resync.errors table
-	//   in the resync loop at the time when a block is popped from
-	//   the resync.queue.
-	// Overall, the current design is therefore simpler and more robust
-	// because it tolerates inconsistencies between the resync.queue
-	// and resync.errors table (items being scheduled in resync.queue
-	// for times that are earlier than the exponential back-off delay
-	// is a natural condition that is handled properly).
-
-	pub(crate) fn put_to_resync(&self, hash: &Hash, delay: Duration) -> db::Result<()> {
+	pub(crate) fn put_to_resync(&self, hash: &Hash, delay: Duration) -> Result<(), Error> {
 		let when = now_msec() + delay.as_millis() as u64;
 		self.put_to_resync_at(hash, when)
 	}
 
-	pub(crate) fn put_to_resync_at(&self, hash: &Hash, when: u64) -> db::Result<()> {
+	pub(crate) fn put_to_resync_at(&self, hash: &Hash, when: u64) -> Result<(), Error> {
 		trace!("Put resync_queue: {} {:?}", when, hash);
-		let qkey = ResyncQueueKey { when, hash: *hash };
-		self.queue.insert(&qkey, hash)?;
+		let mut brms = self.brms.lock().unwrap();
+		match brms.entry(*hash)? {
+			BlockResyncManagerStateEntry::Occupied(mut occupied_entry) => {
+				let old_when = occupied_entry.when();
+				// TODO(armael) : decide on a merge policy
+				occupied_entry.set_when(u64::min(old_when, when))?;
+			}
+			BlockResyncManagerStateEntry::Vacant(mut vacant_entry) => {
+				vacant_entry.insert(when)?;
+			}
+		}
 		self.notify.notify_waiters();
 		Ok(())
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
 		if let Some(block) = self.get_block_to_resync()? {
-			let time_msec = block.key.when;
+			let time_msec = block.when;
 			let now = now_msec();
 
 			if now >= time_msec {
-				let hash = block.key.hash;
-
-				if let Some(ec) = self.errors.get(&hash)? {
-					if now < ec.next_try() {
-						// if next retry after an error is not yet,
-						// don't do resync and return early, but still
-						// make sure the item is still in queue at expected time
-						self.put_to_resync_at(&hash, ec.next_try())?;
-						// ec.next_try() > now >= time_msec, so this remove
-						// is not removing the one we added just above
-						// (we want to do the remove after the insert to ensure
-						// that the item is not lost if we crash in-between)
-						self.queue.remove(&block.key)?;
-						return Ok(ResyncIterResult::BusyDidNothing);
-					}
-				}
+				let hash = block.hash;
 
 				let tracer = opentelemetry::global::tracer("garage");
 				let trace_id = gen_uuid();
@@ -342,25 +392,23 @@ impl BlockResyncManager {
 
 				manager.metrics.resync_counter.add(1);
 
+				let mut brms = self.brms.lock().unwrap();
+				let mut entry = match brms.entry(block.hash)? {
+					BlockResyncManagerStateEntry::Vacant(_) => {
+						unreachable!("We should be the sole processor of this block and we have not removed it yet")
+					}
+					BlockResyncManagerStateEntry::Occupied(occupied_entry) => occupied_entry,
+				};
 				if let Err(e) = &res {
 					manager.metrics.resync_error_counter.add(1);
 					error!("Error when resyncing {:?}: {}", hash, e);
 
-					let err_counter = match self.errors.get(&hash)? {
-						Some(ec) => ec.add1(now + 1),
-						None => ErrorCounter::new(now + 1),
-					};
-
-					self.errors.insert(&hash, &err_counter)?;
-
-					self.put_to_resync_at(&hash, err_counter.next_try())?;
-					// err_counter.next_try() >= now + 1 > now,
-					// the entry we remove from the queue is not
-					// the entry we inserted with put_to_resync_at
-					self.queue.remove(&block.key)?;
+					entry.set_when_and_errors(
+						now + retry_delay_ms(entry.errors()),
+						entry.errors() + 1,
+					)?;
 				} else {
-					self.errors.remove(&hash)?;
-					self.queue.remove(&block.key)?;
+					entry.remove()?;
 				}
 
 				Ok(ResyncIterResult::BusyDidSomething)
@@ -382,12 +430,13 @@ impl BlockResyncManager {
 
 	fn get_block_to_resync(&self) -> Result<Option<BusyBlock>, db::Error> {
 		let mut busy = self.busy_set.lock().unwrap();
-		for it in self.queue.iter()? {
-			let (key, _) = it?;
-			if !busy.contains(&key) {
-				busy.insert(key);
+		let brms = self.brms.lock().unwrap();
+		for &WhenIndexEntry { when, hash } in brms.iter() {
+			if !busy.contains(&hash) {
+				busy.insert(hash);
 				return Ok(Some(BusyBlock {
-					key,
+					when,
+					hash,
 					busy_set: self.busy_set.clone(),
 				}));
 			}
@@ -541,10 +590,11 @@ impl BlockResyncManager {
 	}
 }
 
+// TODO : potential dead lock here with the order ? To check and fix if needed
 impl Drop for BusyBlock {
 	fn drop(&mut self) {
 		let mut busy = self.busy_set.lock().unwrap();
-		busy.remove(&self.key);
+		busy.remove(&self.hash);
 	}
 }
 
@@ -647,65 +697,5 @@ impl Worker for ResyncWorker {
 		};
 
 		WorkerState::Busy
-	}
-}
-
-/// Counts the number of errors when resyncing a block,
-/// and the time of the last try.
-///
-/// Used to implement exponential backoff.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ErrorCounter {
-	pub(crate) errors: u64,
-	pub(crate) last_try: u64,
-}
-
-impl db::DbBytes for ErrorCounter {
-	fn encode(&self) -> Vec<u8> {
-		let mut v = Vec::with_capacity(16);
-		v.extend_from_slice(&u64::to_be_bytes(self.errors));
-		v.extend_from_slice(&u64::to_be_bytes(self.last_try));
-		v
-	}
-
-	fn decode(bytes: &[u8]) -> std::result::Result<Self, db::DecodeError> {
-		if bytes.len() != 16 {
-			return Err(db::DecodeError(
-				format!(
-					"invalid error counter: expected 16 bytes, got {}",
-					bytes.len()
-				)
-				.into(),
-			));
-		}
-		Ok(Self {
-			errors: u64::from_be_bytes(bytes[..8].try_into().unwrap()),
-			last_try: u64::from_be_bytes(bytes[8..].try_into().unwrap()),
-		})
-	}
-}
-
-impl ErrorCounter {
-	fn new(now: u64) -> Self {
-		Self {
-			errors: 1,
-			last_try: now,
-		}
-	}
-
-	fn add1(self, now: u64) -> Self {
-		Self {
-			errors: self.errors + 1,
-			last_try: now,
-		}
-	}
-
-	fn delay_msec(&self) -> u64 {
-		(RESYNC_RETRY_DELAY.as_millis() as u64)
-			<< std::cmp::min(self.errors - 1, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
-	}
-
-	pub(crate) fn next_try(&self) -> u64 {
-		self.last_try + self.delay_msec()
 	}
 }
