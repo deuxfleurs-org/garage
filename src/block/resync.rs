@@ -109,7 +109,7 @@ pub struct IndexedQueue {
 	queue: db::TypedTree<Hash, ResyncEntry>,
 	when_index: BTreeSet<WhenIndexEntry>,
 	errored: u64,
-	
+	busy_set: HashSet<Hash>,
 }
 
 impl IndexedQueue {
@@ -128,11 +128,6 @@ impl IndexedQueue {
 		self.queue.clear()?;
 		self.when_index.clear();
 		Ok(())
-	}
-
-	/// Ascending when
-	fn iter(&self) -> impl Iterator<Item = &WhenIndexEntry> {
-		self.when_index.iter()
 	}
 
 	/// Hash order
@@ -249,9 +244,6 @@ enum IndexedQueueEntry<'idxqueue> {
 pub struct BlockResyncManager {
 	pub(crate) idxqueue: Arc<Mutex<IndexedQueue>>,
 	pub(crate) notify: Arc<Notify>,
-
-	busy_set: BusySet,
-
 	persister: PersisterShared<ResyncPersistedConfig>,
 }
 
@@ -275,12 +267,9 @@ enum ResyncIterResult {
 	IdleFor(Duration),
 }
 
-type BusySet = Arc<Mutex<HashSet<Hash>>>;
-
 struct BusyBlock {
 	when: u64,
 	hash: Hash,
-	busy_set: BusySet,
 }
 
 impl BlockResyncManager {
@@ -300,13 +289,13 @@ impl BlockResyncManager {
 			})?;
 
 		Ok(Self {
-			notify: Arc::new(Notify::new()),
-			busy_set: Arc::new(Mutex::new(HashSet::new())),
 			persister,
+			notify: Arc::new(Notify::new()),
 			idxqueue: Arc::new(Mutex::new(IndexedQueue {
 				queue,
 				when_index,
 				errored: 0,
+				busy_set: HashSet::new(),
 			})),
 		})
 	}
@@ -402,59 +391,27 @@ impl BlockResyncManager {
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
-		if let Some(block) = self.get_block_to_resync()? {
-			let time_msec = block.when;
-			let now = now_msec();
-
-			if now >= time_msec {
-				let hash = block.hash;
-
-				let tracer = opentelemetry::global::tracer("garage");
-				let trace_id = gen_uuid();
-				let span = tracer
-					.span_builder("Resync block")
-					.with_trace_id(
-						opentelemetry::trace::TraceId::from_hex(&hex::encode(
-							&trace_id.as_slice()[..16],
-						))
-						.unwrap(),
-					)
-					.with_attributes(vec![KeyValue::new("block", format!("{:?}", hash))])
-					.start(&tracer);
-
-				let res = self
-					.resync_block(manager, &hash)
-					.with_context(Context::current_with_span(span))
-					.bound_record_duration(&manager.metrics.resync_duration)
-					.await;
-
-				manager.metrics.resync_counter.add(1);
-
-				let mut idxqueue = self.idxqueue.lock().unwrap();
-				let mut entry = match idxqueue.entry(block.hash)? {
-					IndexedQueueEntry::Vacant(_) => {
-						unreachable!("We should be the sole processor of this block and we have not removed it yet")
-					}
-					IndexedQueueEntry::Occupied(occupied_entry) => occupied_entry,
-				};
-				if let Err(e) = &res {
-					manager.metrics.resync_error_counter.add(1);
-					error!("Error when resyncing {:?}: {}", hash, e);
-
-					entry.set_when_and_errors(
-						now + retry_delay_ms(entry.errors()),
-						entry.errors() + 1,
-					)?;
-				} else {
-					entry.remove()?;
+		let mut block = None;
+		{
+			let idxqueue = &mut *self.idxqueue.lock().unwrap();
+			for &WhenIndexEntry { when, hash } in idxqueue.when_index.iter() {
+				if !idxqueue.busy_set.contains(&hash) {
+					idxqueue.busy_set.insert(hash);
+					block = Some(BusyBlock { when, hash });
 				}
-
-				Ok(ResyncIterResult::BusyDidSomething)
-			} else {
-				Ok(ResyncIterResult::IdleFor(Duration::from_millis(
-					time_msec - now,
-				)))
 			}
+		}
+		if let Some(BusyBlock { when, hash }) = block {
+			let res = self
+				.resync_iter_process_one_block(when, hash, manager)
+				.await;
+			let mut idxqueue = self.idxqueue.lock().unwrap();
+			// This "lock" (ie removing from the busy set) will not be
+			// released in case there is a panic in resync_iter_process_one_block
+			// that is later caught, but this is currently not an issue
+			let was_there = idxqueue.busy_set.remove(&hash);
+			debug_assert!(was_there);
+			res
 		} else {
 			// Here we wait either for a notification that an item has been
 			// added to the queue, or for a constant delay of 10 secs to expire.
@@ -466,20 +423,64 @@ impl BlockResyncManager {
 		}
 	}
 
-	fn get_block_to_resync(&self) -> Result<Option<BusyBlock>, db::Error> {
-		let mut busy = self.busy_set.lock().unwrap();
-		let idxqueue = self.idxqueue.lock().unwrap();
-		for &WhenIndexEntry { when, hash } in idxqueue.iter() {
-			if !busy.contains(&hash) {
-				busy.insert(hash);
-				return Ok(Some(BusyBlock {
-					when,
-					hash,
-					busy_set: self.busy_set.clone(),
-				}));
+	async fn resync_iter_process_one_block(
+		&self,
+		when: u64,
+		hash: FixedBytes32,
+		manager: &BlockManager,
+	) -> Result<ResyncIterResult, garage_db::Error> {
+		let time_msec = when;
+		let now = now_msec();
+
+		if now >= time_msec {
+			let hash = hash;
+
+			let tracer = opentelemetry::global::tracer("garage");
+			let trace_id = gen_uuid();
+			let span = tracer
+				.span_builder("Resync block")
+				.with_trace_id(
+					opentelemetry::trace::TraceId::from_hex(&hex::encode(
+						&trace_id.as_slice()[..16],
+					))
+					.unwrap(),
+				)
+				.with_attributes(vec![KeyValue::new("block", format!("{:?}", hash))])
+				.start(&tracer);
+
+			let res = self
+				.resync_block(manager, &hash)
+				.with_context(Context::current_with_span(span))
+				.bound_record_duration(&manager.metrics.resync_duration)
+				.await;
+
+			manager.metrics.resync_counter.add(1);
+
+			let mut idxqueue = self.idxqueue.lock().unwrap();
+			let mut entry = match idxqueue.entry(hash)? {
+				IndexedQueueEntry::Vacant(_) => {
+					unreachable!("We should be the sole processor of this block and we have not removed it yet")
+				}
+				IndexedQueueEntry::Occupied(occupied_entry) => occupied_entry,
+			};
+			if let Err(e) = &res {
+				manager.metrics.resync_error_counter.add(1);
+				error!("Error when resyncing {:?}: {}", hash, e);
+
+				entry.set_when_and_errors(
+					now + retry_delay_ms(entry.errors()),
+					entry.errors() + 1,
+				)?;
+			} else {
+				entry.remove()?;
 			}
+
+			Ok(ResyncIterResult::BusyDidSomething)
+		} else {
+			Ok(ResyncIterResult::IdleFor(Duration::from_millis(
+				time_msec - now,
+			)))
 		}
-		Ok(None)
 	}
 
 	async fn resync_block(&self, manager: &BlockManager, hash: &Hash) -> Result<(), Error> {
@@ -625,14 +626,6 @@ impl BlockResyncManager {
 		}
 
 		Ok(())
-	}
-}
-
-// TODO : potential dead lock here with the order ? To check and fix if needed
-impl Drop for BusyBlock {
-	fn drop(&mut self) {
-		let mut busy = self.busy_set.lock().unwrap();
-		busy.remove(&self.hash);
 	}
 }
 
