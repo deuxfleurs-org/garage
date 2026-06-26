@@ -37,7 +37,7 @@ pub(crate) const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
 // The maximum retry delay is 60 seconds * 2^6 = 60 seconds << 6 = 64 minutes (~1 hour)
 pub(crate) const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
 
-fn retry_delay_ms(errors: u64) -> u64 {
+pub(crate) fn retry_delay_ms(errors: u64) -> u64 {
 	(RESYNC_RETRY_DELAY.as_millis() as u64)
 		<< u64::min(errors, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
 }
@@ -105,20 +105,22 @@ struct WhenIndexEntry {
 	hash: Hash,
 }
 
-struct BlockResyncManagerState {
+pub struct IndexedQueue {
 	queue: db::TypedTree<Hash, ResyncEntry>,
 	when_index: BTreeSet<WhenIndexEntry>,
+	errored: u64,
+	
 }
 
-impl BlockResyncManagerState {
-	fn entry(&mut self, hash: Hash) -> Result<BlockResyncManagerStateEntry<'_>, db::Error> {
+impl IndexedQueue {
+	fn entry(&mut self, hash: Hash) -> Result<IndexedQueueEntry<'_>, db::Error> {
 		Ok(match self.queue.get(&hash)? {
-			Some(value) => BlockResyncManagerStateEntry::Occupied(OccupiedEntry {
+			Some(value) => IndexedQueueEntry::Occupied(OccupiedEntry {
 				origin: self,
 				hash,
 				value,
 			}),
-			None => BlockResyncManagerStateEntry::Vacant(VacantEntry { origin: self, hash }),
+			None => IndexedQueueEntry::Vacant(VacantEntry { origin: self, hash }),
 		})
 	}
 
@@ -132,15 +134,33 @@ impl BlockResyncManagerState {
 	fn iter(&self) -> impl Iterator<Item = &WhenIndexEntry> {
 		self.when_index.iter()
 	}
+
+	/// Hash order
+	pub(crate) fn iter_with_errors(
+		&self,
+	) -> Result<
+		impl Iterator<Item = Result<(FixedBytes32, ResyncEntry), db::Error>> + use<'_>,
+		db::Error,
+	> {
+		self.queue.iter()
+	}
+
+	pub fn errored(&self) -> u64 {
+		self.errored
+	}
+
+	pub fn approximate_len(&self) -> Result<usize, garage_db::DbError> {
+		self.queue.approximate_len()
+	}
 }
 
-struct OccupiedEntry<'brms> {
-	origin: &'brms mut BlockResyncManagerState,
+struct OccupiedEntry<'idxqueue> {
+	origin: &'idxqueue mut IndexedQueue,
 	hash: Hash,
 	value: ResyncEntry,
 }
 
-impl<'brms> OccupiedEntry<'brms> {
+impl<'idxqueue> OccupiedEntry<'idxqueue> {
 	fn set_when_and_errors(&mut self, new_when: u64, new_errors: u64) -> Result<(), db::Error> {
 		self.origin.queue.insert(
 			&self.hash,
@@ -161,6 +181,12 @@ impl<'brms> OccupiedEntry<'brms> {
 			when: new_when,
 			hash: self.hash,
 		});
+		match (self.value.errors, new_errors) {
+			(0, 0) => (),
+			(0, _) => self.origin.errored = self.origin.errored.checked_add(1).unwrap(),
+			(_, 0) => self.origin.errored = self.origin.errored.checked_sub(1).unwrap(),
+			(_, _) => (),
+		}
 		self.value.when = new_when;
 		self.value.errors = new_errors;
 		Ok(())
@@ -170,7 +196,7 @@ impl<'brms> OccupiedEntry<'brms> {
 		self.set_when_and_errors(new_when, self.errors())
 	}
 
-	fn remove(mut self) -> Result<(), db::Error> {
+	fn remove(self) -> Result<(), db::Error> {
 		self.origin.queue.remove(&self.hash)?;
 		let was_there = self.origin.when_index.remove(&WhenIndexEntry {
 			when: self.when(),
@@ -180,6 +206,9 @@ impl<'brms> OccupiedEntry<'brms> {
 			was_there,
 			"The entry was not in the when index anymore (remove)"
 		);
+		if self.value.errors > 0 {
+			self.origin.errored = self.origin.errored.checked_sub(1).unwrap()
+		}
 		Ok(())
 	}
 
@@ -192,11 +221,11 @@ impl<'brms> OccupiedEntry<'brms> {
 	}
 }
 
-struct VacantEntry<'brms> {
-	origin: &'brms mut BlockResyncManagerState,
+struct VacantEntry<'idxqueue> {
+	origin: &'idxqueue mut IndexedQueue,
 	hash: Hash,
 }
-impl<'brms> VacantEntry<'brms> {
+impl<'idxqueue> VacantEntry<'idxqueue> {
 	fn insert(&mut self, when: u64) -> Result<(), db::Error> {
 		self.origin
 			.queue
@@ -209,16 +238,16 @@ impl<'brms> VacantEntry<'brms> {
 	}
 }
 
-enum BlockResyncManagerStateEntry<'brms> {
-	Occupied(OccupiedEntry<'brms>),
-	Vacant(VacantEntry<'brms>),
+enum IndexedQueueEntry<'idxqueue> {
+	Occupied(OccupiedEntry<'idxqueue>),
+	Vacant(VacantEntry<'idxqueue>),
 }
 
 // There is a possibility of deadlock between inner and busy set.
 // Avoid it by always locking busy_set first if you'll need it.
 // (Locking only inner is fine)
 pub struct BlockResyncManager {
-	brms: Mutex<BlockResyncManagerState>,
+	pub(crate) idxqueue: Arc<Mutex<IndexedQueue>>,
 	pub(crate) notify: Arc<Notify>,
 
 	busy_set: BusySet,
@@ -243,7 +272,6 @@ impl Default for ResyncPersistedConfig {
 
 enum ResyncIterResult {
 	BusyDidSomething,
-	BusyDidNothing,
 	IdleFor(Duration),
 }
 
@@ -275,21 +303,31 @@ impl BlockResyncManager {
 			notify: Arc::new(Notify::new()),
 			busy_set: Arc::new(Mutex::new(HashSet::new())),
 			persister,
-			brms: Mutex::new(BlockResyncManagerState { queue, when_index }),
+			idxqueue: Arc::new(Mutex::new(IndexedQueue {
+				queue,
+				when_index,
+				errored: 0,
+			})),
 		})
 	}
 
 	/// Get length of resync queue
 	pub fn queue_approximate_len(&self) -> Result<usize, Error> {
-		let brms = self.brms.lock().unwrap();
-		Ok(brms.queue.approximate_len()?)
+		let idxqueue = self.idxqueue.lock().unwrap();
+		Ok(idxqueue.approximate_len()?)
+	}
+
+	/// Get length of resync queue
+	pub fn errored(&self) -> usize {
+		let idxqueue = self.idxqueue.lock().unwrap();
+		idxqueue.errored().try_into().unwrap()
 	}
 
 	/// Clear the error counter for a block and put it in queue immediately
 	pub fn clear_backoff(&self, hash: &Hash) -> Result<(), Error> {
 		let now = now_msec();
-		let mut brms = self.brms.lock().unwrap();
-		if let BlockResyncManagerStateEntry::Occupied(mut resync_entry) = brms.entry(*hash)? {
+		let mut idxqueue = self.idxqueue.lock().unwrap();
+		if let IndexedQueueEntry::Occupied(mut resync_entry) = idxqueue.entry(*hash)? {
 			if resync_entry.errors() > 0 {
 				resync_entry.set_when(now)?;
 				return Ok(());
@@ -304,8 +342,8 @@ impl BlockResyncManager {
 	/// Clear the entire resync queue and list of errored blocks
 	/// Corresponds to `garage repair clear-resync-queue`
 	pub fn clear_resync_queue(&self) -> Result<(), Error> {
-		let mut brms = self.brms.lock().unwrap();
-		brms.clear()?;
+		let mut idxqueue = self.idxqueue.lock().unwrap();
+		idxqueue.clear()?;
 		Ok(())
 	}
 
@@ -348,14 +386,14 @@ impl BlockResyncManager {
 
 	pub(crate) fn put_to_resync_at(&self, hash: &Hash, when: u64) -> Result<(), Error> {
 		trace!("Put resync_queue: {} {:?}", when, hash);
-		let mut brms = self.brms.lock().unwrap();
-		match brms.entry(*hash)? {
-			BlockResyncManagerStateEntry::Occupied(mut occupied_entry) => {
+		let mut idxqueue = self.idxqueue.lock().unwrap();
+		match idxqueue.entry(*hash)? {
+			IndexedQueueEntry::Occupied(mut occupied_entry) => {
 				let old_when = occupied_entry.when();
 				// TODO(armael) : decide on a merge policy
 				occupied_entry.set_when(u64::min(old_when, when))?;
 			}
-			BlockResyncManagerStateEntry::Vacant(mut vacant_entry) => {
+			IndexedQueueEntry::Vacant(mut vacant_entry) => {
 				vacant_entry.insert(when)?;
 			}
 		}
@@ -392,12 +430,12 @@ impl BlockResyncManager {
 
 				manager.metrics.resync_counter.add(1);
 
-				let mut brms = self.brms.lock().unwrap();
-				let mut entry = match brms.entry(block.hash)? {
-					BlockResyncManagerStateEntry::Vacant(_) => {
+				let mut idxqueue = self.idxqueue.lock().unwrap();
+				let mut entry = match idxqueue.entry(block.hash)? {
+					IndexedQueueEntry::Vacant(_) => {
 						unreachable!("We should be the sole processor of this block and we have not removed it yet")
 					}
-					BlockResyncManagerStateEntry::Occupied(occupied_entry) => occupied_entry,
+					IndexedQueueEntry::Occupied(occupied_entry) => occupied_entry,
 				};
 				if let Err(e) = &res {
 					manager.metrics.resync_error_counter.add(1);
@@ -430,8 +468,8 @@ impl BlockResyncManager {
 
 	fn get_block_to_resync(&self) -> Result<Option<BusyBlock>, db::Error> {
 		let mut busy = self.busy_set.lock().unwrap();
-		let brms = self.brms.lock().unwrap();
-		for &WhenIndexEntry { when, hash } in brms.iter() {
+		let idxqueue = self.idxqueue.lock().unwrap();
+		for &WhenIndexEntry { when, hash } in idxqueue.iter() {
 			if !busy.contains(&hash) {
 				busy.insert(hash);
 				return Ok(Some(BusyBlock {
@@ -640,9 +678,7 @@ impl Worker for ResyncWorker {
 		WorkerStatus {
 			queue_length: Some(self.manager.resync.queue_approximate_len().unwrap_or(0) as u64),
 			tranquility: Some(tranquility),
-			persistent_errors: Some(
-				self.manager.resync.errors_approximate_len().unwrap_or(0) as u64
-			),
+			persistent_errors: Some(self.manager.resync.errored().try_into().unwrap()),
 			..Default::default()
 		}
 	}
@@ -659,7 +695,6 @@ impl Worker for ResyncWorker {
 			Ok(ResyncIterResult::BusyDidSomething) => {
 				Ok(self.tranquilizer.tranquilize_worker(tranquility))
 			}
-			Ok(ResyncIterResult::BusyDidNothing) => Ok(WorkerState::Busy),
 			Ok(ResyncIterResult::IdleFor(delay)) => {
 				self.next_delay = delay;
 				Ok(WorkerState::Idle)

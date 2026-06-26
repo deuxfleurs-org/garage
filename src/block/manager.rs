@@ -159,8 +159,7 @@ impl BlockManager {
 		let metrics = BlockManagerMetrics::new(
 			config.compression_level,
 			rc.rc_table.untyped().clone(),
-			resync.queue.untyped().clone(),
-			resync.errors.untyped().clone(),
+			resync.idxqueue.clone(),
 			buffer_kb_semaphore.clone(),
 		);
 
@@ -446,15 +445,18 @@ impl BlockManager {
 
 	/// List all resync errors
 	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
-		let mut blocks = Vec::with_capacity(self.resync.errors.approximate_len()?);
-		for ent in self.resync.errors.iter()? {
-			let (hash, cnt) = ent?;
+		let mut blocks = Vec::with_capacity(self.resync.errored());
+		for ent in self.resync.idxqueue.lock().unwrap().iter_with_errors()? {
+			let (hash, ResyncEntry { when, errors }) = ent?;
+			if errors == 0 {
+				continue;
+			}
 			blocks.push(BlockResyncErrorInfo {
 				hash,
 				refcount: 0,
-				error_count: cnt.errors,
-				last_try: cnt.last_try,
-				next_try: cnt.next_try(),
+				error_count: errors,
+				last_try: when - retry_delay_ms(errors - 1),
+				next_try: when,
 			});
 		}
 		for block in blocks.iter_mut() {
