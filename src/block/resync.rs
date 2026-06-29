@@ -280,13 +280,15 @@ impl BlockResyncManager {
 
 		let persister = PersisterShared::new(&system.metadata_dir, "resync_cfg");
 
-		let when_index = queue
-			.iter()?
-			.try_fold(BTreeSet::new(), |mut index, tree_row| {
-				let (hash, ResyncEntry { when, .. }) = tree_row?;
-				index.insert(WhenIndexEntry { when, hash });
-				Ok::<_, Error>(index)
-			})?;
+		let (when_index, errored) =
+			queue
+				.iter()?
+				.try_fold((BTreeSet::new(), 0), |(mut index, errored), tree_row| {
+					let (hash, ResyncEntry { when, errors }) = tree_row?;
+					index.insert(WhenIndexEntry { when, hash });
+					let errored = errored + if errors > 0 { 1 } else { 0 };
+					Ok::<_, Error>((index, errored))
+				})?;
 
 		Ok(Self {
 			persister,
@@ -294,7 +296,7 @@ impl BlockResyncManager {
 			idxqueue: Arc::new(Mutex::new(IndexedQueue {
 				queue,
 				when_index,
-				errored: 0,
+				errored,
 				busy_set: HashSet::new(),
 			})),
 		})
