@@ -37,6 +37,9 @@ pub(crate) const RESYNC_RETRY_DELAY: Duration = Duration::from_secs(60);
 // The maximum retry delay is 60 seconds * 2^6 = 60 seconds << 6 = 64 minutes (~1 hour)
 pub(crate) const RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER: u64 = 6;
 
+// Double the retry delay for each error, but no more than
+// RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER times.
+// Used to implement exponential backoff
 pub(crate) fn retry_delay_ms(errors: u64) -> u64 {
 	(RESYNC_RETRY_DELAY.as_millis() as u64)
 		<< u64::min(errors, RESYNC_RETRY_DELAY_MAX_BACKOFF_POWER)
@@ -48,10 +51,6 @@ pub(crate) const MAX_RESYNC_WORKERS: usize = 8;
 // and the updated version is persisted over Garage restarts
 const INITIAL_RESYNC_TRANQUILITY: u32 = 2;
 
-/// Counts the number of errors when resyncing a block,
-/// and the time of the last try.
-///
-/// Used to implement exponential backoff.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ResyncEntry {
 	pub(crate) when: u64,
@@ -87,10 +86,10 @@ impl db::DbBytes for ResyncEntry {
 				.into(),
 			));
 		}
-		// Split the encoding as [when || errors || last_try]
+		// Split the encoding as [when || errors]
 		let parts: [[u8; 8]; 2] = bytes.as_chunks().0.try_into().unwrap();
 		// Decode each word
-		let deser = parts.map(|serialized| u64::from_be_bytes(serialized));
+		let deser: [u64; 2] = parts.map(|serialized| u64::from_be_bytes(serialized));
 		Ok(Self {
 			when: deser[0],
 			errors: deser[1],
@@ -269,11 +268,6 @@ enum ResyncIterResult {
 	IdleFor(Duration),
 }
 
-struct BusyBlock {
-	when: u64,
-	hash: Hash,
-}
-
 impl BlockResyncManager {
 	pub(crate) fn new(db: &db::Db, system: &System) -> Result<Self, Error> {
 		v1::migrate_resync_queue_v1_to_v2(db)?;
@@ -323,7 +317,7 @@ impl BlockResyncManager {
 		let mut idxqueue = self.idxqueue.lock().unwrap();
 		if let IndexedQueueEntry::Occupied(mut resync_entry) = idxqueue.entry(*hash)? {
 			if resync_entry.errors() > 0 {
-				resync_entry.set_when(now)?;
+				resync_entry.set_when_and_errors(now, 0)?;
 				return Ok(());
 			}
 		}
@@ -373,19 +367,22 @@ impl BlockResyncManager {
 		);
 	}
 
-	pub(crate) fn put_to_resync(&self, hash: &Hash, delay: Duration) -> Result<(), Error> {
+	pub(crate) fn put_to_resync_after(&self, hash: &Hash, delay: Duration) -> Result<(), Error> {
 		let when = now_msec() + delay.as_millis() as u64;
-		self.put_to_resync_at(hash, when)
+		self.put_to_resync_at_or_later(hash, when)
 	}
 
-	pub(crate) fn put_to_resync_at(&self, hash: &Hash, when: u64) -> Result<(), Error> {
+	pub(crate) fn put_to_resync_at_or_later(&self, hash: &Hash, when: u64) -> Result<(), Error> {
 		trace!("Put resync_queue: {} {:?}", when, hash);
 		let mut idxqueue = self.idxqueue.lock().unwrap();
 		match idxqueue.entry(*hash)? {
 			IndexedQueueEntry::Occupied(mut occupied_entry) => {
 				let old_when = occupied_entry.when();
-				// TODO(armael) : decide on a merge policy
-				occupied_entry.set_when(u64::min(old_when, when))?;
+				// TODO(alex): Is max the right choice here?
+				// We consider that `when` is a constraint indicating that a resync should be done
+				// but would lead to worth performance or maybe incorrect behavior if done before the given date,
+				// so we give precendence to the latest of the two.
+				occupied_entry.set_when(u64::max(old_when, when))?;
 			}
 			IndexedQueueEntry::Vacant(mut vacant_entry) => {
 				vacant_entry.insert(when)?;
@@ -404,13 +401,13 @@ impl BlockResyncManager {
 					None => break None,
 					Some(&WhenIndexEntry { when, hash }) if !idxqueue.busy_set.contains(&hash) => {
 						idxqueue.busy_set.insert(hash);
-						break Some(BusyBlock { when, hash });
+						break Some((when, hash));
 					}
 					Some(_) => continue,
 				}
 			}
 		};
-		if let Some(BusyBlock { when, hash }) = block {
+		if let Some((when, hash)) = block {
 			let res = self
 				.resync_iter_process_one_block(when, hash, manager)
 				.await;

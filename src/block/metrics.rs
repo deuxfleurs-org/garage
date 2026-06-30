@@ -58,7 +58,8 @@ impl BlockManagerMetrics {
 				})
 				.with_description("Number of blocks known to the reference counter")
 				.init(),
-			_resync_queue_len: {let resync_queue = resync_queue.clone();
+			_resync_queue_len: {
+				let resync_queue = resync_queue.clone();
 				meter
 				.u64_value_observer("block.resync_queue_length", move |observer| {
 					let len = resync_queue.lock().unwrap().approximate_len().unwrap_or_default();
@@ -67,7 +68,8 @@ impl BlockManagerMetrics {
 				.with_description(
 					"Number of block hashes queued for local check and possible resync",
 				)
-				.init()},
+				.init()
+			},
 			_resync_errored_blocks: meter
 				.u64_value_observer("block.resync_errored_blocks", move |observer| {
 					let errs = resync_queue.lock().unwrap().errored();

@@ -485,7 +485,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, 2 * this.system.rpc_helper().rpc_timeout())
+					.put_to_resync_after(&hash, 2 * this.system.rpc_helper().rpc_timeout())
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -510,7 +510,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, BLOCK_GC_DELAY + Duration::from_secs(10))
+					.put_to_resync_after(&hash, BLOCK_GC_DELAY + Duration::from_secs(10))
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -624,7 +624,7 @@ impl BlockManager {
 				.await
 				.move_block_to_corrupted(block_path)
 				.await?;
-			self.resync.put_to_resync(hash, Duration::from_millis(0))?;
+			self.resync.put_to_resync_after(hash, Duration::from_millis(0))?;
 
 			return Err(Error::CorruptData(*hash));
 		}
