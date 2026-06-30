@@ -63,7 +63,6 @@ impl BlockManagerMetrics {
 				.u64_value_observer("block.resync_queue_length", move |observer| {
 					let len = resync_queue.lock().unwrap().approximate_len().unwrap_or_default();
 						observer.observe(len.try_into().unwrap(), &[]);
-					
 				})
 				.with_description(
 					"Number of block hashes queued for local check and possible resync",
