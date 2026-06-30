@@ -73,7 +73,7 @@ impl BlockManagerMetrics {
 			_resync_errored_blocks: meter
 				.u64_value_observer("block.resync_errored_blocks", move |observer| {
 					let errs = resync_queue.lock().unwrap().errored();
-						observer.observe(errs.try_into().unwrap(), &[]);
+						observer.observe(errs, &[]);
 				})
 				.with_description("Number of block hashes whose last resync resulted in an error")
 				.init(),

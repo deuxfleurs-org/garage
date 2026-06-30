@@ -89,7 +89,7 @@ impl db::DbBytes for ResyncEntry {
 		// Split the encoding as [when || errors]
 		let parts: [[u8; 8]; 2] = bytes.as_chunks().0.try_into().unwrap();
 		// Decode each word
-		let deser: [u64; 2] = parts.map(|serialized| u64::from_be_bytes(serialized));
+		let deser: [u64; 2] = parts.map(u64::from_be_bytes);
 		Ok(Self {
 			when: deser[0],
 			errors: deser[1],
@@ -206,7 +206,7 @@ impl<'idxqueue> OccupiedEntry<'idxqueue> {
 			"The entry was not in the when index anymore (remove)"
 		);
 		if self.value.errors > 0 {
-			self.origin.errored = self.origin.errored.checked_sub(1).unwrap()
+			self.origin.errored = self.origin.errored.checked_sub(1).unwrap();
 		}
 		Ok(())
 	}
@@ -441,8 +441,6 @@ impl BlockResyncManager {
 		let now = now_msec();
 
 		if now >= time_msec {
-			let hash = hash;
-
 			let tracer = opentelemetry::global::tracer("garage");
 			let trace_id = gen_uuid();
 			let span = tracer
