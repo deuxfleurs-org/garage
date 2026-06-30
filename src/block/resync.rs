@@ -274,6 +274,7 @@ struct BusyBlock {
 
 impl BlockResyncManager {
 	pub(crate) fn new(db: &db::Db, system: &System) -> Result<Self, Error> {
+		v1::migrate_resync_queue_v1_to_v2(db)?;
 		let queue = db
 			.open_typed_tree::<Hash, ResyncEntry, _>("block_local_resync_queue_v2")
 			.expect("Unable to open block_local_resync_queue tree");
@@ -727,5 +728,132 @@ impl Worker for ResyncWorker {
 		};
 
 		WorkerState::Busy
+	}
+}
+
+mod v1 {
+	use std::convert::TryInto as _;
+
+	use garage_db::{self as db, Error};
+	use garage_util::data::Hash;
+
+	use super::ResyncEntry;
+
+	/// Key of the resync queue tree: blocks are resynced in order of increasing
+	/// `when` (msec timestamp of the next try), with the block hash as tie-breaker.
+	///
+	// CAREFUL: this type implements `DbOrdKey`, so its byte encoding must be
+	// order-preserving.
+	// The derived `Ord` compares fields in declaration order, which must match
+	// the order in which `encode()` writes them; and `when` must remain an
+	// *unsigned* integer, as the big-endian encoding is only order-preserving
+	// for unsigned types.
+	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	struct ResyncQueueKey {
+		when: u64,
+		hash: Hash,
+	}
+
+	impl db::DbBytes for ResyncQueueKey {
+		fn encode(&self) -> Vec<u8> {
+			let mut v = Vec::with_capacity(40);
+			v.extend_from_slice(&u64::to_be_bytes(self.when));
+			v.extend_from_slice(self.hash.as_slice());
+			v
+		}
+
+		fn decode(bytes: &[u8]) -> std::result::Result<Self, db::DecodeError> {
+			if bytes.len() != 40 {
+				return Err(db::DecodeError(
+					format!(
+						"invalid resync queue key: expected 40 bytes, got {}",
+						bytes.len()
+					)
+					.into(),
+				));
+			}
+			Ok(ResyncQueueKey {
+				when: u64::from_be_bytes(bytes[..8].try_into().unwrap()),
+				hash: Hash::try_from(&bytes[8..])
+					.ok_or_else(|| db::DecodeError("invalid resync queue key: bad hash".into()))?,
+			})
+		}
+	}
+
+	impl db::DbOrdKey for ResyncQueueKey {}
+
+	/// Counts the number of errors when resyncing a block,
+	/// and the time of the last try.
+	///
+	/// Used to implement exponential backoff.
+	#[derive(Clone, Copy, Debug)]
+	struct ErrorCounter {
+		errors: u64,
+		last_try: u64,
+	}
+
+	impl db::DbBytes for ErrorCounter {
+		fn encode(&self) -> Vec<u8> {
+			let mut v = Vec::with_capacity(16);
+			v.extend_from_slice(&u64::to_be_bytes(self.errors));
+			v.extend_from_slice(&u64::to_be_bytes(self.last_try));
+			v
+		}
+
+		fn decode(bytes: &[u8]) -> std::result::Result<Self, db::DecodeError> {
+			if bytes.len() != 16 {
+				return Err(db::DecodeError(
+					format!(
+						"invalid error counter: expected 16 bytes, got {}",
+						bytes.len()
+					)
+					.into(),
+				));
+			}
+			Ok(Self {
+				errors: u64::from_be_bytes(bytes[..8].try_into().unwrap()),
+				last_try: u64::from_be_bytes(bytes[8..].try_into().unwrap()),
+			})
+		}
+	}
+
+	/// Migrate resync queue and error table from v1 (two trees) to v2 (one merged tree).
+	///
+	/// v1 format:
+	///   `block_local_resync_queue`  — `TypedTree<ResyncQueueKey, Hash>`
+	///   `block_local_resync_errors` — `TypedTree<Hash, ErrorCounter>`
+	///
+	/// v2 format:
+	///   `block_local_resync_queue_v2` — `TypedTree<Hash, ResyncEntry>`
+	///
+	/// Safe to call again after an interrupted run. If the old queue is empty (either
+	/// never populated or already cleared by a prior completed migration) the function is a no-op.
+	/// The old trees are emptied rather than dropped because the `Db` API has no drop-tree primitive.
+	pub(crate) fn migrate_resync_queue_v1_to_v2(db: &db::Db) -> Result<(), Error> {
+		let old_queue =
+			db.open_typed_tree::<ResyncQueueKey, Hash, _>("block_local_resync_queue")?;
+		if old_queue.is_empty()? {
+			return Ok(());
+		}
+
+		let new_queue =
+			db.open_typed_tree::<Hash, ResyncEntry, _>("block_local_resync_queue_v2")?;
+		let old_errors =
+			db.open_typed_tree::<Hash, ErrorCounter, _>("block_local_resync_errors")?;
+
+		// The old queue is ordered by (when, hash); iterating it in order means the first time we
+		// see a given hash, that is its earliest scheduled `when` — which is the one we want.
+		for row in old_queue.iter()? {
+			let (ResyncQueueKey { when, hash }, _) = row?;
+			if new_queue.get(&hash)?.is_some() {
+				continue; // already inserted with an earlier `when`
+			}
+			let errors = old_errors.get(&hash)?.map(|ec| ec.errors).unwrap_or(0);
+			new_queue.insert(&hash, &ResyncEntry { when, errors })?;
+		}
+
+		old_queue.clear()?;
+		old_errors.clear()?;
+		Ok(())
 	}
 }
