@@ -446,7 +446,7 @@ impl BlockManager {
 	/// List all resync errors
 	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
 		let mut blocks = Vec::with_capacity(self.resync.errored());
-		for ent in self.resync.idxqueue.lock().unwrap().iter_with_errors()? {
+		for ent in self.resync.idxqueue.lock().unwrap().iter()? {
 			let (hash, ResyncEntry { when, errors }) = ent?;
 			if errors == 0 {
 				continue;

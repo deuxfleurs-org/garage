@@ -107,8 +107,12 @@ struct WhenIndexEntry {
 
 pub struct IndexedQueue {
 	queue: db::TypedTree<Hash, ResyncEntry>,
+	// Index by when in the queue (the same set of hashes is contained in both)
 	when_index: BTreeSet<WhenIndexEntry>,
+	// Numbers of elements of queue that have errors > 0
 	errored: u64,
+	// This is the set of blocks being resynced by one of the workers.
+	// All the hashes here must appear in queue as well.
 	busy_set: HashSet<Hash>,
 }
 
@@ -131,7 +135,7 @@ impl IndexedQueue {
 	}
 
 	/// Hash order
-	pub(crate) fn iter_with_errors(
+	pub(crate) fn iter(
 		&self,
 	) -> Result<
 		impl Iterator<Item = Result<(FixedBytes32, ResyncEntry), db::Error>> + use<'_>,
@@ -144,6 +148,7 @@ impl IndexedQueue {
 		self.errored
 	}
 
+	// May actually be exact in our case because of the mutex
 	pub fn approximate_len(&self) -> Result<usize, garage_db::DbError> {
 		self.queue.approximate_len()
 	}
@@ -238,9 +243,6 @@ enum IndexedQueueEntry<'idxqueue> {
 	Vacant(VacantEntry<'idxqueue>),
 }
 
-// There is a possibility of deadlock between inner and busy set.
-// Avoid it by always locking busy_set first if you'll need it.
-// (Locking only inner is fine)
 pub struct BlockResyncManager {
 	pub(crate) idxqueue: Arc<Mutex<IndexedQueue>>,
 	pub(crate) notify: Arc<Notify>,
@@ -394,24 +396,30 @@ impl BlockResyncManager {
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
-		let mut block = None;
-		{
+		let block = {
 			let idxqueue = &mut *self.idxqueue.lock().unwrap();
-			for &WhenIndexEntry { when, hash } in idxqueue.when_index.iter() {
-				if !idxqueue.busy_set.contains(&hash) {
-					idxqueue.busy_set.insert(hash);
-					block = Some(BusyBlock { when, hash });
+			let mut iter = idxqueue.when_index.iter();
+			loop {
+				match iter.next() {
+					None => break None,
+					Some(&WhenIndexEntry { when, hash }) if !idxqueue.busy_set.contains(&hash) => {
+						idxqueue.busy_set.insert(hash);
+						break Some(BusyBlock { when, hash });
+					}
+					Some(_) => continue,
 				}
 			}
-		}
+		};
 		if let Some(BusyBlock { when, hash }) = block {
 			let res = self
 				.resync_iter_process_one_block(when, hash, manager)
 				.await;
+			// Moving this line up will cause deadlock. (resync_iter_process_one_block takes
+			// the (non re entrant) lock as well and there is an await point)
 			let mut idxqueue = self.idxqueue.lock().unwrap();
-			// This "lock" (ie removing from the busy set) will not be
-			// released in case there is a panic in resync_iter_process_one_block
-			// that is later caught, but this is currently not an issue
+			// /!\ This "lock" (ie removing from the busy set) will not be
+			// released in case of early return in resync_iter.
+			// Be careful when adding `?` in this function ;)
 			let was_there = idxqueue.busy_set.remove(&hash);
 			debug_assert!(was_there);
 			res
