@@ -315,7 +315,11 @@ impl Endpoint {
 		bucket: Option<String>,
 	) -> Result<(Self, Option<String>), Error> {
 		let uri = req.uri();
-		let path = uri.path().trim_start_matches('/');
+		let path = uri.path().strip_prefix('/');
+		if path.is_none() {
+			return Err(Error::bad_request("URI path must start with a '/'"));
+		}
+		let path = path.unwrap();
 		let query = uri.query();
 		if bucket.is_none() && path.is_empty() {
 			if *req.method() == Method::OPTIONS {
@@ -329,7 +333,7 @@ impl Endpoint {
 			(bucket, path)
 		} else {
 			path.split_once('/')
-				.map(|(b, p)| (b.to_owned(), p.trim_start_matches('/')))
+				.map(|(b, p)| (b.to_owned(), p))
 				.unwrap_or_else(|| (path.to_owned(), ""))
 		};
 
@@ -843,6 +847,40 @@ mod tests {
 			"&+?%é/something"
 		);
 
+		// A double-slash in the URL means the key begins with '/'.
+		// path-style: HEAD /bucket// → key "/"
+		assert_eq!(
+			parse("HEAD", "/my_bucket//", None, None)
+				.0
+				.get_key()
+				.unwrap(),
+			"/"
+		);
+		// virtual-hosted-style: HEAD // → key "/"
+		assert_eq!(
+			parse("HEAD", "//", Some("my_bucket".to_owned()), None)
+				.0
+				.get_key()
+				.unwrap(),
+			"/"
+		);
+		// same for GET: path-style GET /bucket// → key "/"
+		assert_eq!(
+			parse("GET", "/my_bucket//", None, None)
+				.0
+				.get_key()
+				.unwrap(),
+			"/"
+		);
+		// virtual-hosted-style: GET // → key "/"
+		assert_eq!(
+			parse("GET", "//", Some("my_bucket".to_owned()), None)
+				.0
+				.get_key()
+				.unwrap(),
+			"/"
+		);
+
 		/*
 		 * this case is failing. We should verify how clients encode space in url
 		assert_eq!(
@@ -933,6 +971,7 @@ mod tests {
 			GET "/{Key+}?torrent" => GetObjectTorrent
 			GET "/?publicAccessBlock" => GetPublicAccessBlock
 			HEAD "/" => HeadBucket
+			HEAD "//" => HeadObject
 			HEAD "/my-image.jpg" => HeadObject
 			HEAD "/my-image.jpg?versionId=3HL4kqCxf3vjVBH40Nrjfkd" => HeadObject
 			HEAD "/Key+?partNumber=3&versionId=VersionId" => HeadObject
@@ -949,6 +988,7 @@ mod tests {
 			GET "/?uploads&delimiter=/&prefix=photos/2006/" => ListMultipartUploads
 			GET "/?uploads&delimiter=D&encoding-type=EncodingType&key-marker=KeyMarker&max-uploads=1&prefix=Prefix&upload-id-marker=UploadIdMarker" => ListMultipartUploads
 			GET "/" => ListObjects
+			GET "//" => GetObject
 			GET "/?prefix=N&marker=Need&max-keys=40" => ListObjects
 			GET "/?delimiter=/" => ListObjects
 			GET "/?prefix=photos/2006/&delimiter=/" => ListObjects
