@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::DateTime;
+use futures::StreamExt;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -32,47 +33,70 @@ impl RequestHandler for ListBucketsRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<ListBucketsResponse, Error> {
+		let limit = self
+			.limit
+			.unwrap_or_else(|| if self.details { 1000 } else { 10_000 });
+
+		let offset = match self.offset {
+			Some(id) => Some(parse_bucket_id(&id)?),
+			None => None,
+		};
+
 		let buckets = garage
 			.bucket_table
 			.get_range(
 				&EmptyKey,
-				None,
+				offset,
 				Some(DeletedFilter::NotDeleted),
-				1_000_000,
+				limit,
 				EnumerationOrder::Forward,
 			)
 			.await?;
 
-		let res = buckets
-			.into_iter()
-			.map(|b| {
-				let state = b.state.as_option().unwrap();
-				ListBucketsResponseItem {
-					id: hex::encode(b.id),
-					created: DateTime::from_timestamp_millis(state.creation_date as i64)
-						.expect("invalid timestamp stored in db"),
-					global_aliases: state
-						.aliases
-						.items()
-						.iter()
-						.filter(|(_, _, a)| *a)
-						.map(|(n, _, _)| n.to_string())
-						.collect::<Vec<_>>(),
-					local_aliases: state
-						.local_aliases
-						.items()
-						.iter()
-						.filter(|(_, _, a)| *a)
-						.map(|((k, n), _, _)| BucketLocalAlias {
-							access_key_id: k.to_string(),
-							alias: n.to_string(),
-						})
-						.collect::<Vec<_>>(),
-				}
-			})
-			.collect::<Vec<_>>();
+		if self.details {
+			let mut stream = buckets
+				.into_iter()
+				.map(|b| bucket_info_results(garage, b.id))
+				.collect::<futures::stream::FuturesOrdered<_>>();
 
-		Ok(ListBucketsResponse(res))
+			let mut res = vec![];
+			while let Some(next) = stream.next().await {
+				res.push(next?);
+			}
+
+			Ok(ListBucketsResponse::WithDetails(res))
+		} else {
+			let res = buckets
+				.into_iter()
+				.map(|b| {
+					let state = b.state.as_option().unwrap();
+					ListBucketsResponseItem {
+						id: hex::encode(b.id),
+						created: DateTime::from_timestamp_millis(state.creation_date as i64)
+							.expect("invalid timestamp stored in db"),
+						global_aliases: state
+							.aliases
+							.items()
+							.iter()
+							.filter(|(_, _, a)| *a)
+							.map(|(n, _, _)| n.to_string())
+							.collect::<Vec<_>>(),
+						local_aliases: state
+							.local_aliases
+							.items()
+							.iter()
+							.filter(|(_, _, a)| *a)
+							.map(|((k, n), _, _)| BucketLocalAlias {
+								access_key_id: k.to_string(),
+								alias: n.to_string(),
+							})
+							.collect::<Vec<_>>(),
+					}
+				})
+				.collect::<Vec<_>>();
+
+			Ok(ListBucketsResponse::WithoutDetails(res))
+		}
 	}
 }
 

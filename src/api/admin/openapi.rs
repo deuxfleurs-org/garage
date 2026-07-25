@@ -364,6 +364,7 @@ fn ClusterLayoutSkipDeadNodes() {}
     path = "/v2/ListKeys",
     tag = "Access key",
     description = "Returns all API access keys in the cluster.",
+    params(ListKeysRequest),
 	responses(
             (status = 200, description = "Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)", body = ListKeysResponse),
             (status = 500, description = "Internal server error")
@@ -453,6 +454,7 @@ fn DeleteKey() {}
     path = "/v2/ListBuckets",
     tag = "Bucket",
     description = "List all the buckets on the cluster with their UUID and their global and local aliases.",
+    params(ListBucketsRequest),
 	responses(
             (status = 200, description = "Returns the UUID of all the buckets and all their aliases", body = ListBucketsResponse),
             (status = 500, description = "Internal server error")
@@ -876,7 +878,7 @@ impl Modify for SecurityAddon {
 #[derive(OpenApi)]
 #[openapi(
     info(
-        version = "v2.3.0",
+        version = "v2.4.0",
         title = "Garage administration API",
         description = "Administrate your Garage cluster programmatically, including status, layout, keys, buckets, and maintenance tasks.
 

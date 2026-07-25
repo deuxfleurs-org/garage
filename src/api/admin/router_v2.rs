@@ -55,10 +55,10 @@ impl AdminApiRequest {
 			POST CreateKey (body),
 			POST ImportKey (body),
 			POST DeleteKey (query::id),
-			GET ListKeys (),
+			GET ListKeys (parse_default(false)::details, query_opt::offset, opt_parse::limit),
 			// Bucket endpoints
 			GET GetBucketInfo (query_opt::id, query_opt::global_alias, query_opt::search),
-			GET ListBuckets (),
+			GET ListBuckets (parse_default(false)::details, query_opt::offset, opt_parse::limit),
 			POST CreateBucket (body),
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),
@@ -129,7 +129,7 @@ impl AdminApiRequest {
 			)),
 
 			// Keys
-			Endpoint::ListKeys => Ok(AdminApiRequest::ListKeys(ListKeysRequest)),
+			Endpoint::ListKeys => Ok(AdminApiRequest::ListKeys(ListKeysRequest::default())),
 			Endpoint::GetKeyInfo {
 				id,
 				search,
@@ -161,7 +161,9 @@ impl AdminApiRequest {
 			// Endpoint::DeleteKey { id } => Ok(AdminApiRequest::DeleteKey(DeleteKeyRequest { id })),
 
 			// Buckets
-			Endpoint::ListBuckets => Ok(AdminApiRequest::ListBuckets(ListBucketsRequest)),
+			Endpoint::ListBuckets => {
+				Ok(AdminApiRequest::ListBuckets(ListBucketsRequest::default()))
+			}
 			Endpoint::GetBucketInfo { id, global_alias } => {
 				Ok(AdminApiRequest::GetBucketInfo(GetBucketInfoRequest {
 					id,
@@ -271,6 +273,9 @@ generateQueryParameters! {
 		"accessKeyId" => access_key_id,
 		"showSecretKey" => show_secret_key,
 		"bucketId" => bucket_id,
-		"key" => key
+		"key" => key,
+		"details" => details,
+		"offset" => offset,
+		"limit" => limit
 	]
 }

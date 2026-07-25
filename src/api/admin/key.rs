@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::DateTime;
+use futures::StreamExt;
 
 use garage_table::*;
 use garage_util::time::now_msec;
@@ -20,37 +21,57 @@ impl RequestHandler for ListKeysRequest {
 	async fn handle(self, garage: &Arc<Garage>, _admin: &Admin) -> Result<ListKeysResponse, Error> {
 		let now = now_msec();
 
-		let res = garage
+		let limit = self
+			.limit
+			.unwrap_or_else(|| if self.details { 1000 } else { 10_000 });
+
+		let keys = garage
 			.key_table
 			.get_range(
 				&EmptyKey,
-				None,
+				self.offset,
 				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
-				10000,
+				limit,
 				EnumerationOrder::Forward,
 			)
-			.await?
-			.iter()
-			.map(|k| {
-				let p = k.params().unwrap();
+			.await?;
 
-				ListKeysResponseItem {
-					id: k.key_id.to_string(),
-					name: p.name.get().clone(),
-					created: p.created.map(|x| {
-						DateTime::from_timestamp_millis(x as i64)
-							.expect("invalid timestamp stored in db")
-					}),
-					expiration: p.expiration.get().inner().map(|x| {
-						DateTime::from_timestamp_millis(x.0 as i64)
-							.expect("invalid timestamp stored in db")
-					}),
-					expired: p.is_expired(now),
-				}
-			})
-			.collect::<Vec<_>>();
+		if self.details {
+			let mut stream = keys
+				.into_iter()
+				.map(|k| key_info_results(garage, k, false))
+				.collect::<futures::stream::FuturesOrdered<_>>();
 
-		Ok(ListKeysResponse(res))
+			let mut res = vec![];
+			while let Some(next) = stream.next().await {
+				res.push(next?);
+			}
+
+			Ok(ListKeysResponse::WithDetails(res))
+		} else {
+			let res = keys
+				.iter()
+				.map(|k| {
+					let p = k.params().unwrap();
+
+					ListKeysResponseItem {
+						id: k.key_id.to_string(),
+						name: p.name.get().clone(),
+						created: p.created.map(|x| {
+							DateTime::from_timestamp_millis(x as i64)
+								.expect("invalid timestamp stored in db")
+						}),
+						expiration: p.expiration.get().inner().map(|x| {
+							DateTime::from_timestamp_millis(x.0 as i64)
+								.expect("invalid timestamp stored in db")
+						}),
+						expired: p.is_expired(now),
+					}
+				})
+				.collect::<Vec<_>>();
+
+			Ok(ListKeysResponse::WithoutDetails(res))
+		}
 	}
 }
 

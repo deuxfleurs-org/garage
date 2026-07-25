@@ -688,11 +688,26 @@ pub struct ClusterLayoutSkipDeadNodesResponse {
 
 // ---- ListKeys ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListKeysRequest;
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListKeysRequest {
+	/// Returned detailed informations in the same format as GetKeyInfo for each bucket
+	#[serde(default)]
+	pub details: bool,
+	/// Key ID of the first key to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of keys to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ListKeysResponse(pub Vec<ListKeysResponseItem>);
+#[serde(untagged)]
+pub enum ListKeysResponse {
+	WithoutDetails(Vec<ListKeysResponseItem>),
+	WithDetails(Vec<GetKeyInfoResponse>),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
@@ -830,11 +845,26 @@ pub struct DeleteKeyResponse;
 
 // ---- ListBuckets ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListBucketsRequest;
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListBucketsRequest {
+	/// Returned detailed informations in the same format as GetBucketInfo for each bucket
+	#[serde(default)]
+	pub details: bool,
+	/// Bucket ID of the first bucket to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of buckets to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ListBucketsResponse(pub Vec<ListBucketsResponseItem>);
+#[serde(untagged)]
+pub enum ListBucketsResponse {
+	WithoutDetails(Vec<ListBucketsResponseItem>),
+	WithDetails(Vec<GetBucketInfoResponse>),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
