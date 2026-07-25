@@ -28,12 +28,15 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_keys(&self) -> Result<(), Error> {
-		let mut keys = self.api_request(ListKeysRequest).await?;
+		let mut keys = match self.api_request(ListKeysRequest::default()).await? {
+			ListKeysResponse::WithoutDetails(list) => list,
+			_ => return Err(Error::Message("Unexpected ListKeys response format".into())),
+		};
 
-		keys.0.sort_by_key(|x| x.created);
+		keys.sort_by_key(|x| x.created);
 
 		let mut table = vec!["ID\tCreated\tName\tExpiration".to_string()];
-		for key in keys.0.iter() {
+		for key in keys.iter() {
 			let exp = if key.expired {
 				Cow::from("expired")
 			} else {
@@ -243,7 +246,10 @@ impl Cli {
 	}
 
 	pub async fn cmd_delete_expired_keys(&self, yes: bool) -> Result<(), Error> {
-		let mut list = self.api_request(ListKeysRequest).await?.0;
+		let mut list = match self.api_request(ListKeysRequest::default()).await? {
+			ListKeysResponse::WithoutDetails(list) => list,
+			_ => return Err(Error::Message("Unexpected ListKeys response format".into())),
+		};
 
 		list.retain(|key| key.expired);
 
