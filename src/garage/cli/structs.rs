@@ -78,8 +78,7 @@ pub enum Command {
 		/// The admin API endpoint to invoke, e.g. `GetClusterStatus`
 		endpoint: String,
 		/// The JSON payload, or `-` to read from `stdin`
-		#[structopt(default_value = "null")]
-		payload: String,
+		payload: Option<String>,
 	},
 
 	/// Generate completions for a shell
