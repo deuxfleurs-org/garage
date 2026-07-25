@@ -1243,6 +1243,36 @@
         ],
         "description": "List all the buckets on the cluster with their UUID and their global and local aliases.",
         "operationId": "ListBuckets",
+        "parameters": [
+          {
+            "name": "details",
+            "in": "query",
+            "description": "Returned detailed information in the same format as `GetBucketInfo` for each bucket",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Bucket ID of the first bucket to return",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of buckets to return in a single call",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Returns the UUID of all the buckets and all their aliases",
@@ -1267,6 +1297,36 @@
         ],
         "description": "Returns all API access keys in the cluster.",
         "operationId": "ListKeys",
+        "parameters": [
+          {
+            "name": "details",
+            "in": "query",
+            "description": "Returned detailed information in the same format as `GetKeyInfo` for each bucket",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Key ID of the first key to return",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of keys to return in a single call",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)",
@@ -3200,10 +3260,20 @@
         }
       },
       "ListBucketsResponse": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/ListBucketsResponseItem"
-        }
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListBucketsResponseItem"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetBucketInfoResponse"
+            }
+          }
+        ]
       },
       "ListBucketsResponseItem": {
         "type": "object",
@@ -3236,10 +3306,20 @@
         }
       },
       "ListKeysResponse": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/ListKeysResponseItem"
-        }
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListKeysResponseItem"
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetKeyInfoResponse"
+            }
+          }
+        ]
       },
       "ListKeysResponseItem": {
         "type": "object",
