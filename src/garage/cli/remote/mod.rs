@@ -110,16 +110,29 @@ impl Cli {
 		Ok(resp.success.into_iter().next().unwrap().1)
 	}
 
-	pub async fn cmd_json_api(&self, endpoint: String, payload: String) -> Result<(), Error> {
-		let payload: serde_json::Value = if payload == "-" {
-			serde_json::from_reader(&std::io::stdin())?
-		} else {
-			serde_json::from_str(&payload)?
-		};
+	pub async fn cmd_json_api(
+		&self,
+		endpoint: String,
+		payload: Option<String>,
+	) -> Result<(), Error> {
+		let request: AdminApiRequest = if let Some(payload) = payload {
+			let payload: serde_json::Value = if payload == "-" {
+				serde_json::from_reader(&std::io::stdin())?
+			} else {
+				serde_json::from_str(&payload)?
+			};
 
-		let request: AdminApiRequest = serde_json::from_value(serde_json::json!({
-			endpoint.clone(): payload,
-		}))?;
+			serde_json::from_value(serde_json::json!({
+				endpoint.clone(): payload,
+			}))?
+		} else {
+			serde_json::from_value(serde_json::json!({
+				endpoint.clone(): null,
+			}))
+			.or(serde_json::from_value(serde_json::json!({
+				endpoint.clone(): {},
+			})))?
+		};
 
 		let resp = match self
 			.proxy_rpc_endpoint
