@@ -115,7 +115,7 @@ pub struct CompleteMultipartUploadResult {
 	pub checksum_crc32: Option<Value>,
 	#[serde(rename = "ChecksumCRC32C", skip_serializing_if = "Option::is_none")]
 	pub checksum_crc32c: Option<Value>,
-	#[serde(rename = "ChecksumCR64NVME", skip_serializing_if = "Option::is_none")]
+	#[serde(rename = "ChecksumCRC64NVME", skip_serializing_if = "Option::is_none")]
 	pub checksum_crc64nvme: Option<Value>,
 	#[serde(rename = "ChecksumSHA1", skip_serializing_if = "Option::is_none")]
 	pub checksum_sha1: Option<Value>,
