@@ -2,6 +2,7 @@ use std::pin::Pin;
 
 use futures::{stream, stream::Stream, StreamExt, TryStreamExt};
 
+use base64::prelude::*;
 use bytes::Bytes;
 use http::header::HeaderName;
 use hyper::{Request, Response};
@@ -147,6 +148,28 @@ pub async fn handle_copy(
 		|| (checksum_algorithm.is_some()
 			&& (was_multipart || checksum_algorithm != source_checksum_algorithm));
 
+	// When recopying, the checksum is only verified (i.e. kept identical to the
+	// source) if the source was not a multipart upload and the checksum algorithm
+	// is unchanged; otherwise it is recalculated from scratch as a full-object
+	// checksum.
+	let checksum_mode_is_verify = !was_multipart && source_checksum_algorithm == checksum_algorithm;
+
+	// Determine checksum & checksum type of the destination object,
+	// as returned in the CopyObjectResult XML body.
+	// In the recopy + recalculate case, the checksum value is only known
+	// after the copy has been done, so we don't return it here.
+	let (dest_checksum, dest_checksum_type) = if !must_recopy {
+		(dest_object_meta.checksum, dest_object_meta.checksum_type)
+	} else {
+		(
+			match checksum_mode_is_verify {
+				true => source_checksum,
+				false => None,
+			},
+			checksum_algorithm.map(|_| ChecksumType::FullObject),
+		)
+	};
+
 	let res = if !must_recopy {
 		let dest_info = DestInfo {
 			key: dest_key,
@@ -166,7 +189,7 @@ pub async fn handle_copy(
 		)
 		.await?
 	} else {
-		let checksum_mode = if was_multipart || source_checksum_algorithm != checksum_algorithm {
+		let checksum_mode = if !checksum_mode_is_verify {
 			ChecksumMode::Calculate(checksum_algorithm)
 		} else {
 			ChecksumMode::Verify(ExpectedChecksums {
@@ -203,6 +226,35 @@ pub async fn handle_copy(
 	let result = CopyObjectResult {
 		last_modified: s3_xml::Value(last_modified),
 		etag: s3_xml::Value(format!("\"{}\"", res.etag)),
+		checksum_crc32: match &dest_checksum {
+			Some(ChecksumValue::Crc32(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			_ => None,
+		},
+		checksum_crc32c: match &dest_checksum {
+			Some(ChecksumValue::Crc32c(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			_ => None,
+		},
+		checksum_crc64nvme: match &dest_checksum {
+			Some(ChecksumValue::Crc64Nvme(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			_ => None,
+		},
+		checksum_sha1: match &dest_checksum {
+			Some(ChecksumValue::Sha1(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			_ => None,
+		},
+		checksum_sha256: match &dest_checksum {
+			Some(ChecksumValue::Sha256(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			_ => None,
+		},
+		checksum_type: dest_checksum_type.map(|ty| {
+			s3_xml::Value(
+				match ty {
+					ChecksumType::Composite => COMPOSITE,
+					ChecksumType::FullObject => FULL_OBJECT,
+				}
+				.into(),
+			)
+		}),
 	};
 	let xml = s3_xml::to_xml_with_header(&result)?;
 
@@ -849,6 +901,18 @@ pub struct CopyObjectResult {
 	pub last_modified: s3_xml::Value,
 	#[serde(rename = "ETag")]
 	pub etag: s3_xml::Value,
+	#[serde(rename = "ChecksumCRC32", skip_serializing_if = "Option::is_none")]
+	pub checksum_crc32: Option<s3_xml::Value>,
+	#[serde(rename = "ChecksumCRC32C", skip_serializing_if = "Option::is_none")]
+	pub checksum_crc32c: Option<s3_xml::Value>,
+	#[serde(rename = "ChecksumCRC64NVME", skip_serializing_if = "Option::is_none")]
+	pub checksum_crc64nvme: Option<s3_xml::Value>,
+	#[serde(rename = "ChecksumSHA1", skip_serializing_if = "Option::is_none")]
+	pub checksum_sha1: Option<s3_xml::Value>,
+	#[serde(rename = "ChecksumSHA256", skip_serializing_if = "Option::is_none")]
+	pub checksum_sha256: Option<s3_xml::Value>,
+	#[serde(rename = "ChecksumType", skip_serializing_if = "Option::is_none")]
+	pub checksum_type: Option<s3_xml::Value>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -871,6 +935,12 @@ mod tests {
 		let copy_result = CopyObjectResult {
 			last_modified: s3_xml::Value(msec_to_rfc3339(0)),
 			etag: s3_xml::Value("\"9b2cf535f27731c974343645a3985328\"".to_string()),
+			checksum_crc32: None,
+			checksum_crc32c: None,
+			checksum_crc64nvme: None,
+			checksum_sha1: None,
+			checksum_sha256: None,
+			checksum_type: None,
 		};
 		assert_eq!(
 			to_xml_with_header(&copy_result)?,
@@ -878,6 +948,25 @@ mod tests {
 <CopyObjectResult>\
     <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
     <ETag>&quot;9b2cf535f27731c974343645a3985328&quot;</ETag>\
+</CopyObjectResult>\
+			"
+		);
+
+		// With a checksum, the corresponding Checksum* and ChecksumType
+		// elements are included in the XML output
+		let copy_result = CopyObjectResult {
+			checksum_sha256: Some(s3_xml::Value(BASE64_STANDARD.encode([0x42; 32]))),
+			checksum_type: Some(s3_xml::Value(FULL_OBJECT.into())),
+			..copy_result
+		};
+		assert_eq!(
+			to_xml_with_header(&copy_result)?,
+			"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+<CopyObjectResult>\
+    <LastModified>1970-01-01T00:00:00.000Z</LastModified>\
+    <ETag>&quot;9b2cf535f27731c974343645a3985328&quot;</ETag>\
+    <ChecksumSHA256>QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=</ChecksumSHA256>\
+    <ChecksumType>FULL_OBJECT</ChecksumType>\
 </CopyObjectResult>\
 			"
 		);

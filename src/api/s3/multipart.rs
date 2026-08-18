@@ -102,6 +102,19 @@ pub async fn handle_create_multipart_upload(
 
 	let mut resp = Response::builder();
 	encryption.add_response_headers(&mut resp);
+	// As per AWS S3 spec, the response returns the x-amz-checksum-algorithm
+	// and x-amz-checksum-type headers when a checksum algorithm was specified
+	// in the request
+	if let Some((algo, checksum_type)) = checksum_algorithm {
+		resp = resp.header(X_AMZ_CHECKSUM_ALGORITHM, checksum_algorithm_str(algo));
+		resp = resp.header(
+			X_AMZ_CHECKSUM_TYPE,
+			match checksum_type {
+				ChecksumType::Composite => COMPOSITE,
+				ChecksumType::FullObject => FULL_OBJECT,
+			},
+		);
+	}
 	Ok(resp.body(string_body(xml))?)
 }
 
@@ -237,7 +250,9 @@ pub async fn handle_put_part(
 
 	let mut resp = Response::builder().header("ETag", format!("\"{}\"", etag));
 	encryption.add_response_headers(&mut resp);
-	let resp = add_checksum_response_headers(&expected_checksums.extra, resp);
+	// UploadPart responses carry the part-level checksum only,
+	// no x-amz-checksum-type header (same as AWS S3)
+	let resp = add_checksum_response_headers(&expected_checksums.extra, None, resp);
 	Ok(resp.body(empty_body())?)
 }
 
@@ -533,7 +548,9 @@ pub async fn handle_complete_multipart_upload(
 	let xml = s3_xml::to_xml_with_header(&result)?;
 
 	let resp = Response::builder();
-	let resp = add_checksum_response_headers(&expected_checksum, resp);
+	// AWS S3 returns the checksum type in the CompleteMultipartUploadResult
+	// XML body (already done above), not as a response header.
+	let resp = add_checksum_response_headers(&expected_checksum, None, resp);
 	Ok(resp.body(string_body(xml))?)
 }
 

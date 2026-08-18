@@ -127,7 +127,12 @@ pub async fn handle_put(
 		.header("x-amz-version-id", hex::encode(res.version_uuid))
 		.header("ETag", format!("\"{}\"", res.etag));
 	encryption.add_response_headers(&mut resp);
-	let resp = add_checksum_response_headers(&expected_checksums.extra, resp);
+	// For single-part PutObject uploads, the checksum type is always FULL_OBJECT
+	let resp = add_checksum_response_headers(
+		&expected_checksums.extra,
+		Some(ChecksumType::FullObject),
+		resp,
+	);
 	Ok(resp.body(empty_body())?)
 }
 
