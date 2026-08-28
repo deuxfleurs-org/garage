@@ -381,7 +381,7 @@ impl BlockResyncManager {
 				// TODO(alex): Is max the right choice here?
 				// We consider that `when` is a constraint indicating that a resync should be done
 				// but would lead to worth performance or maybe incorrect behavior if done before the given date,
-				// so we give precendence to the latest of the two.
+				// so we give precedence to the latest of the two.
 				occupied_entry.set_when(u64::max(old_when, when))?;
 			}
 			IndexedQueueEntry::Vacant(mut vacant_entry) => {
