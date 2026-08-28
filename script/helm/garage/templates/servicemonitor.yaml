@@ -28,11 +28,11 @@ spec:
       scheme: {{ .Values.monitoring.metrics.serviceMonitor.scheme }}
     {{- with .Values.monitoring.metrics.serviceMonitor.tlsConfig }}
       tlsConfig:
-      {{- toYaml . | nindent 6 }}
+      {{- toYaml . | nindent 8 }}
     {{- end }}
     {{- with .Values.monitoring.metrics.serviceMonitor.relabelings }}
       relabelings:
-      {{- toYaml . | nindent 6 }}
+      {{- toYaml . | nindent 8 }}
     {{- end }}
   jobLabel: "{{ .Release.Name }}"
   selector:
