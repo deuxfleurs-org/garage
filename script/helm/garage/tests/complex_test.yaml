@@ -1,0 +1,82 @@
+# Integration-style suite: renders the whole chart with complex-values.yaml
+# (many non-default features combined at once) and checks that they don't
+# clobber each other, rather than testing any single feature in isolation
+# (that's what the other tests/*_test.yaml suites are for).
+suite: complex-values integration
+templates:
+  - templates/workload.yaml
+  - templates/service.yaml
+  - templates/service-headless.yaml
+  - templates/ingress.yaml
+  - templates/servicemonitor.yaml
+  - templates/serviceaccount.yaml
+  - templates/configmap.yaml
+  - templates/clusterrole.yaml
+tests:
+  - it: renders a self-consistent deployment with every optional feature enabled
+    values:
+      - ../complex-values.yaml
+    asserts:
+      - template: templates/workload.yaml
+        isKind:
+          of: StatefulSet
+      - template: templates/workload.yaml
+        equal:
+          path: metadata.labels.team
+          value: platform
+      - template: templates/workload.yaml
+        equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: RUST_LOG
+      - template: templates/workload.yaml
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: secrets-store
+            csi:
+              driver: secrets-store.csi.k8s.io
+              readOnly: true
+              volumeAttributes:
+                secretProviderClass: garage-admin-token
+      - template: templates/workload.yaml
+        equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: GARAGE_ADMIN_TOKEN_FILE
+      - template: templates/workload.yaml
+        equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: fast-ssd
+      - template: templates/workload.yaml
+        contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: my-pull-secret
+      - template: templates/service.yaml
+        hasDocuments:
+          count: 2 # main service + metrics service, since monitoring.metrics.enabled is true here
+      - template: templates/service-headless.yaml
+        hasDocuments:
+          count: 1 # StatefulSet still gets a headless service
+      - template: templates/ingress.yaml
+        hasDocuments:
+          count: 2 # both s3 api and s3 web ingresses enabled together
+      - template: templates/servicemonitor.yaml
+        hasDocuments:
+          count: 1
+      - template: templates/servicemonitor.yaml
+        equal:
+          path: spec.endpoints[0].relabelings[0].targetLabel
+          value: node
+      - template: templates/serviceaccount.yaml
+        equal:
+          path: metadata.annotations["eks.amazonaws.com/role-arn"]
+          value: "arn:aws:iam::123456789012:role/garage-s3"
+      - template: templates/configmap.yaml
+        matchRegex:
+          path: data["garage.toml"]
+          pattern: 'data_fsync = true'
+      - template: templates/clusterrole.yaml
+        documentIndex: 0
+        notContains:
+          path: rules[0].resources
+          content: customresourcedefinitions # garage.kubernetesSkipCrd is true here

@@ -1,0 +1,61 @@
+suite: service
+templates:
+  - templates/service.yaml
+tests:
+  - it: creates a ClusterIP service with s3-api and s3-web ports by default
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0].name
+          value: s3-api
+      - equal:
+          path: spec.ports[0].port
+          value: 3900
+      - equal:
+          path: spec.ports[1].name
+          value: s3-web
+      - equal:
+          path: spec.ports[1].port
+          value: 3902
+
+  - it: honors a custom service type and port
+    set:
+      service.type: LoadBalancer
+      service.s3.api.port: 9000
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+      - equal:
+          path: spec.ports[0].port
+          value: 9000
+
+  - it: does not create a metrics service by default
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: adds a headless metrics service when monitoring is enabled
+    values:
+      - ./values/monitoring.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 1
+        equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-metrics
+      - documentIndex: 1
+        equal:
+          path: spec.clusterIP
+          value: None
+      - documentIndex: 1
+        equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"

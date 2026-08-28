@@ -1,0 +1,8 @@
+# Minimal single-node deployment without persistent storage or a dedicated
+# service account, e.g. for local testing.
+deployment:
+  replicaCount: 1
+persistence:
+  enabled: false
+serviceAccount:
+  create: false

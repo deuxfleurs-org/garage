@@ -1,0 +1,65 @@
+suite: service monitor
+templates:
+  - templates/servicemonitor.yaml
+tests:
+  - it: renders no ServiceMonitor by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders no ServiceMonitor when only metrics are enabled
+    set:
+      monitoring.metrics.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a ServiceMonitor when explicitly enabled
+    values:
+      - ./values/monitoring.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ServiceMonitor
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE
+      - equal:
+          path: spec.endpoints[0].interval
+          value: 30s
+
+  - it: templates a custom namespace against the release context
+    values:
+      - ./values/monitoring.yaml
+    set:
+      monitoring.metrics.serviceMonitor.namespace: "{{ .Release.Namespace }}-monitoring"
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: NAMESPACE-monitoring
+
+  - it: applies custom labels, tlsConfig and relabelings
+    values:
+      - ./values/monitoring.yaml
+    set:
+      monitoring.metrics.serviceMonitor.labels:
+        team: storage
+      monitoring.metrics.serviceMonitor.tlsConfig:
+        insecureSkipVerify: true
+      monitoring.metrics.serviceMonitor.relabelings:
+        - sourceLabels: ["__meta_kubernetes_pod_name"]
+          targetLabel: pod
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: storage
+      - equal:
+          path: spec.endpoints[0].tlsConfig.insecureSkipVerify
+          value: true
+      - equal:
+          path: spec.endpoints[0].relabelings[0].targetLabel
+          value: pod

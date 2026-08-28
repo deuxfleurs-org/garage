@@ -1,0 +1,56 @@
+suite: naming and common labels
+templates:
+  - templates/workload.yaml
+  - templates/configmap.yaml
+tests:
+  - it: applies commonLabels alongside the default chart labels
+    template: templates/workload.yaml
+    set:
+      commonLabels:
+        team: storage
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: storage
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+
+  - it: uses fullnameOverride verbatim for resource names
+    template: templates/workload.yaml
+    set:
+      fullnameOverride: my-garage-cluster
+    asserts:
+      - equal:
+          path: metadata.name
+          value: my-garage-cluster
+      - equal:
+          path: spec.serviceName
+          value: my-garage-cluster-headless
+
+  - it: does not double-prefix when the release name already contains the chart name
+    template: templates/workload.yaml
+    release:
+      name: garage
+    asserts:
+      - equal:
+          path: metadata.name
+          value: garage
+
+  - it: prefixes the release name with the chart name otherwise
+    template: templates/workload.yaml
+    release:
+      name: prod
+    asserts:
+      - equal:
+          path: metadata.name
+          value: prod-garage
+
+  - it: truncates an overly long fullname to 63 characters and trims a trailing dash
+    template: templates/workload.yaml
+    set:
+      fullnameOverride: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-suffix-that-will-be-cut-off
+    asserts:
+      - equal:
+          path: metadata.name
+          value: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
