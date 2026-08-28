@@ -62,7 +62,9 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if and .Values.ingress.s3.api.enabled .Values.ingress.s3.web.enabled }}
 ---
+{{ end }}
 {{- if .Values.ingress.s3.web.enabled -}}
 {{- $fullName := include "garage.fullname" . -}}
 {{- $svcPort := .Values.service.s3.web.port -}}
