@@ -23,7 +23,7 @@ tests:
       - template: templates/workload.yaml
         equal:
           path: metadata.labels.team
-          value: platform
+          value: platform-infrastructure
       - template: templates/workload.yaml
         equal:
           path: spec.template.spec.containers[0].env[0].name
