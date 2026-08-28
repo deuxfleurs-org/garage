@@ -624,7 +624,8 @@ impl BlockManager {
 				.await
 				.move_block_to_corrupted(block_path)
 				.await?;
-			self.resync.put_to_resync_after(hash, Duration::from_millis(0))?;
+			self.resync
+				.put_to_resync_after(hash, Duration::from_millis(0))?;
 
 			return Err(Error::CorruptData(*hash));
 		}
