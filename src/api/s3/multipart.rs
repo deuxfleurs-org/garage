@@ -476,7 +476,13 @@ pub async fn handle_complete_multipart_upload(
 			size: total_size,
 			etag: etag.clone(),
 		},
-		final_version.blocks.items()[0].1.hash,
+		final_version
+			.blocks
+			.items()
+			.first()
+			.ok_or_internal_error("Multipart completion produced a final version with no blocks")?
+			.1
+			.hash,
 	));
 
 	let final_object = Object::new(*bucket_id, key.clone(), vec![object_version]);
