@@ -90,7 +90,7 @@ pub struct Config {
 	pub allow_world_readable_secrets: bool,
 
 	/// RPC secret key: 32 bytes hex encoded
-	pub rpc_secret: Option<String>,
+	pub rpc_secret: Option<Secret<String>>,
 	/// Optional file where RPC secret key is read from
 	pub rpc_secret_file: Option<PathBuf>,
 	/// Address to bind for RPC
@@ -205,6 +205,37 @@ pub struct WebConfig {
 	pub add_host_to_metrics: bool,
 }
 
+#[derive(Deserialize, Clone)]
+#[serde(transparent)]
+pub struct Secret<T>(T);
+
+impl<T> Secret<T> {
+	pub fn new(secret: T) -> Self {
+		Secret(secret)
+	}
+
+	pub fn extract_secret(&self) -> &T {
+		&self.0
+	}
+}
+
+impl<T: std::ops::Deref<Target = str>> Secret<T> {
+	pub fn eq_ct(&self, other: &T) -> bool {
+		use subtle::ConstantTimeEq;
+		self.0
+			.deref()
+			.as_bytes()
+			.ct_eq(other.deref().as_bytes())
+			.into()
+	}
+}
+
+impl<T> std::fmt::Debug for Secret<T> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Secret").finish_non_exhaustive()
+	}
+}
+
 /// Configuration for the admin and monitoring HTTP API
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct AdminConfig {
@@ -212,7 +243,7 @@ pub struct AdminConfig {
 	pub api_bind_addr: Option<UnixOrTCPSocketAddress>,
 
 	/// Bearer token to use to scrape metrics
-	pub metrics_token: Option<String>,
+	pub metrics_token: Option<Secret<String>>,
 	/// File to read metrics token from
 	pub metrics_token_file: Option<PathBuf>,
 	/// Whether to require an access token for accessing the metrics endpoint
@@ -220,7 +251,7 @@ pub struct AdminConfig {
 	pub metrics_require_token: bool,
 
 	/// Bearer token to use to access Admin API endpoints
-	pub admin_token: Option<String>,
+	pub admin_token: Option<Secret<String>>,
 	/// File to read admin token from
 	pub admin_token_file: Option<PathBuf>,
 
@@ -252,7 +283,7 @@ pub struct ConsulDiscoveryConfig {
 	/// Client TLS key to use when connecting to Consul
 	pub client_key: Option<String>,
 	/// /// Token to use for connecting to consul
-	pub token: Option<String>,
+	pub token: Option<Secret<String>>,
 	/// Skip TLS hostname verification
 	#[serde(default)]
 	pub tls_skip_verify: bool,

@@ -307,7 +307,8 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 
 	let net_key_hex_str = rpc_secret.ok_or("No RPC secret provided")?;
 	let network_key = NetworkKey::from_slice(
-		&hex::decode(&net_key_hex_str).err_context("Invalid RPC secret key (bad hex)")?[..],
+		&hex::decode(net_key_hex_str.extract_secret())
+			.err_context("Invalid RPC secret key (bad hex)")?[..],
 	)
 	.ok_or("Invalid RPC secret provided (wrong length)")?;
 
