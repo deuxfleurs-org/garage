@@ -12,7 +12,7 @@
       "name": "AGPL-3.0",
       "identifier": "AGPL-3.0"
     },
-    "version": "v2.3.0"
+    "version": "v2.4.0"
   },
   "servers": [
     {
@@ -3321,9 +3321,34 @@
           "dbEngine"
         ],
         "properties": {
+          "addr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Socket address used by other nodes to connect to this node for RPC"
+          },
+          "dataPartition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FreeSpaceResp",
+                "description": "Total and available space on the disk partition(s) containing the data\ndirectory(ies)"
+              }
+            ]
+          },
           "dbEngine": {
             "type": "string",
             "description": "database engine used for metadata"
+          },
+          "draining": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this node is part of an older layout version and is draining data."
           },
           "garageFeatures": {
             "type": [
@@ -3346,8 +3371,37 @@
             ],
             "description": "hostname of this node"
           },
+          "isUp": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this node is connected in the cluster"
+          },
+          "metadataPartition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FreeSpaceResp",
+                "description": "Total and available space on the disk partition containing the\nmetadata directory"
+              }
+            ]
+          },
           "nodeId": {
             "type": "string"
+          },
+          "role": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NodeAssignedRole",
+                "description": "Role assigned to this node in the current cluster layout"
+              }
+            ]
           },
           "rustVersion": {
             "type": "string",
@@ -3684,9 +3738,34 @@
                 "dbEngine"
               ],
               "properties": {
+                "addr": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Socket address used by other nodes to connect to this node for RPC"
+                },
+                "dataPartition": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeSpaceResp",
+                      "description": "Total and available space on the disk partition(s) containing the data\ndirectory(ies)"
+                    }
+                  ]
+                },
                 "dbEngine": {
                   "type": "string",
                   "description": "database engine used for metadata"
+                },
+                "draining": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Whether this node is part of an older layout version and is draining data."
                 },
                 "garageFeatures": {
                   "type": [
@@ -3709,8 +3788,37 @@
                   ],
                   "description": "hostname of this node"
                 },
+                "isUp": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Whether this node is connected in the cluster"
+                },
+                "metadataPartition": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeSpaceResp",
+                      "description": "Total and available space on the disk partition containing the\nmetadata directory"
+                    }
+                  ]
+                },
                 "nodeId": {
                   "type": "string"
+                },
+                "role": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NodeAssignedRole",
+                      "description": "Role assigned to this node in the current cluster layout"
+                    }
+                  ]
                 },
                 "rustVersion": {
                   "type": "string",
