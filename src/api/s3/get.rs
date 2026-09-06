@@ -698,9 +698,14 @@ fn body_from_blocks_range(
 	// range, as well as their "true offset", which is their actual offset in the complete
 	// file (whereas block.offset designates the offset of the block WITHIN THE PART
 	// block.part_number, which is not the same in the case of a multipart upload)
+	// A version with no blocks yields no data, so the capacity hint must not index
+	// into an empty slice.
+	let capacity_block_size = all_blocks
+		.first()
+		.map_or(1024, |(_, b)| std::cmp::max(b.size, 1024));
 	let mut blocks: Vec<(VersionBlock, u64)> = Vec::with_capacity(std::cmp::min(
 		all_blocks.len(),
-		4 + ((end - begin) / std::cmp::max(all_blocks[0].1.size, 1024)) as usize,
+		4 + ((end - begin) / capacity_block_size) as usize,
 	));
 	let mut block_offset: u64 = 0;
 	for (_, b) in all_blocks.iter() {
