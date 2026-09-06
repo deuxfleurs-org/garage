@@ -1,0 +1,10 @@
+# Run garage as a DaemonSet (one pod per node) instead of the default StatefulSet,
+# using hostPath volumes for meta/data persistence.
+deployment:
+  kind: DaemonSet
+persistence:
+  enabled: true
+  meta:
+    hostPath: /var/lib/garage/meta
+  data:
+    hostPath: /var/lib/garage/data

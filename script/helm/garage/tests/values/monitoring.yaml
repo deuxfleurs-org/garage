@@ -1,0 +1,7 @@
+# Enable Prometheus metrics scraping and a ServiceMonitor for the prometheus-operator.
+monitoring:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s

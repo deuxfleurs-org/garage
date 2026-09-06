@@ -1,0 +1,136 @@
+suite: configmap
+templates:
+  - templates/configmap.yaml
+tests:
+  - it: renders garage.toml with the default configuration
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-config
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'metadata_dir = "/mnt/meta"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'data_dir = "/mnt/data"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'db_engine = "lmdb"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'block_size = "1048576"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'replication_factor = 3'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'consistency_mode = "consistent"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'compression_level = 1'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'rpc_bind_addr = "\[::\]:3901"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'rpc_secret = "__RPC_SECRET_REPLACE__"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: '(?s)\[kubernetes_discovery\]\s*namespace = "NAMESPACE"\s*service_name = "RELEASE-NAME-garage"\s*skip_crd = false'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: '(?s)\[s3_api\]\s*s3_region = "garage"\s*api_bind_addr = "\[::\]:3900"\s*root_domain = "\.s3\.garage\.tld"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: '(?s)\[s3_web\]\s*bind_addr = "\[::\]:3902"\s*root_domain = "\.web\.garage\.tld"\s*index = "index.html"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: '(?s)\[admin\]\s*api_bind_addr = "\[::\]:3903"'
+      - notMatchRegex:
+          path: data["garage.toml"]
+          pattern: 'metadata_auto_snapshot_interval'
+      - notMatchRegex:
+          path: data["garage.toml"]
+          pattern: 'trace_sink'
+
+  - it: reflects custom garage settings, bootstrap peers and additional config
+    set:
+      garage.dbEngine: sqlite
+      garage.blockSize: "2097152"
+      garage.replicationFactor: "5"
+      garage.consistencyMode: degraded
+      garage.compressionLevel: "3"
+      garage.metadataAutoSnapshotInterval: 6h
+      garage.bootstrapPeers:
+        - abc@peer1:3901
+        - def@peer2:3901
+      garage.additionalTopLevelConfig: "data_fsync = true"
+      monitoring.tracing.sink: http://otel:4317
+    asserts:
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'db_engine = "sqlite"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'block_size = "2097152"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'replication_factor = 5'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'consistency_mode = "degraded"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'compression_level = 3'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'metadata_auto_snapshot_interval = "6h"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'bootstrap_peers = \["abc@peer1:3901"\s*, "def@peer2:3901"'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'data_fsync = true'
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'trace_sink = "http://otel:4317"'
+
+  - it: uses garageTomlString verbatim when set, ignoring the structured values
+    set:
+      garage.garageTomlString: |-
+        metadata_dir = "/custom/meta"
+        replication_factor = 1
+      garage.dbEngine: sqlite
+    asserts:
+      - equal:
+          path: data["garage.toml"]
+          value: |-
+            metadata_dir = "/custom/meta"
+            replication_factor = 1
+      - notMatchRegex:
+          path: data["garage.toml"]
+          pattern: 'db_engine'
+
+  - it: templates garageTomlString against the release and values context
+    set:
+      garage.garageTomlString: |-
+        # namespace: {{ .Release.Namespace }}
+        replication_factor = {{ .Values.garage.replicationFactor }}
+      garage.replicationFactor: "7"
+    asserts:
+      - equal:
+          path: data["garage.toml"]
+          value: |-
+            # namespace: NAMESPACE
+            replication_factor = 7
+
+  - it: does not render a ConfigMap when an existing one is referenced
+    set:
+      garage.existingConfigMap: my-external-cm
+    asserts:
+      - hasDocuments:
+          count: 0

@@ -1,0 +1,331 @@
+# An "everything and the kitchen sink" values file for the helm chart: combines many non-default
+# settings at once, including examples for the fields that default to empty in
+# values.yaml and are therefore hard to guess the expected shape of.
+#
+# Aside the documentation value, it doubles as an integration-test fixture:
+# CI renders and lints the chart with this file (see .woodpecker/debug.yaml)
+# to catch feature interactions that per-feature fixtures wouldn't exercise together
+# (e.g. both ingresses enabled at once, monitoring + custom service account,
+# a DaemonSet-incompatible field set alongside a StatefulSet, ...).
+#
+# Try it locally with:
+#   helm template script/helm/garage -f script/helm/garage/complex-values.yaml
+#   helm lint --strict script/helm/garage -f script/helm/garage/complex-values.yaml
+
+# -- Additional labels to add to all resources created by this chart
+commonLabels:
+  app.kubernetes.io/part-of: storage
+  team: platform-infrastructure
+
+# Garage configuration. Values under this are written to garage.toml
+garage:
+  # -- sqlite for durability, lmdb for performance
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine
+  dbEngine: "sqlite"
+
+  # -- Here set to 10MiB
+  # An increase can result in better performance in certain scenarios
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block_size
+  blockSize: "10485760"
+
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication_factor
+  replicationFactor: "5"
+
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#consistency_mode
+  consistencyMode: "dangerous"
+
+  # -- zstd compression level of stored blocks
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression_level
+  compressionLevel: "5"
+
+  # -- If this value is set, Garage will automatically take a snapshot of the metadata DB file and save it in the metadata directory.
+  # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval
+  metadataAutoSnapshotInterval: "30 days"
+
+  rpcBindAddr: "[::]:3901"
+  # -- If not given, a random secret will be generated and stored in a Secret object
+  rpcSecret: ""
+  # -- If you want to provide an rpcSecret within an existing k8s secret,
+  # specify the secret name here, and store the value under the secret key `rpcSecret`
+  # ! the default secret will not be created
+  existingRpcSecret: ""
+  # -- This is not required if you use the integrated kubernetes discovery. Each
+  # entry is "<garage_node_id>@<host>:<port>", where <garage_node_id> is the node's public key
+  # (shown by `garage node id` on that node).
+  bootstrapPeers:
+    - "563e1ac825ee3323aa441e72c26d1030d6d4222c43c986812dbf7cd47d18aef@garage-0.garage-headless:3901"
+    - "86f0f26ae4afbd59aaf9cfb302af3fe0464f2f7b5b21f80f7e6f4e9989b5c1f8@garage-1.garage-headless:3901"
+  # -- Set to true if you want to use k8s discovery but install the CRDs manually outside
+  # of the helm chart, for example if you operate at namespace level without cluster resources
+  kubernetesSkipCrd: true
+  s3:
+    api:
+      bindAddr: "[::]:3900"
+      region: "garage"
+      rootDomain: ".s3.garage.tld"
+    web:
+      bindAddr: "[::]:3902"
+      rootDomain: ".web.garage.tld"
+      index: "index.html"
+  admin:
+    apiBindAddr: "[::]:3903"
+
+  # -- Additional configuration to append to garage.toml. Use a multi-line string for custom config.
+  additionalTopLevelConfig: |-
+    data_fsync = true
+
+  # -- if not empty string, allow using an existing ConfigMap for the garage.toml,
+  # if set, ignores garage.toml
+  existingConfigMap: ""
+
+  # -- String Template for the garage configuration.
+  # if set, ignores every other garage.* value above and is rendered with `tpl`,
+  # so it can reference .Values/.Release/.Chart, e.g.:
+  #   garageTomlString: |-
+  #     metadata_dir = "/mnt/meta"
+  #     data_dir = "/mnt/data"
+  #     replication_factor = {{ .Values.garage.replicationFactor }}
+  #     rpc_bind_addr = "{{ .Values.garage.rpcBindAddr }}"
+  #     rpc_secret = "__RPC_SECRET_REPLACE__"
+  #     [kubernetes_discovery]
+  #     namespace = "{{ .Release.Namespace }}"
+  #     service_name = "{{ include "garage.fullname" . }}"
+  # A rendering-verified version of this example lives in tests/configmap_test.yaml.
+  garageTomlString: ""
+
+# Data persistence
+persistence:
+  enabled: true
+  meta:
+    storageClass: "fast-ssd"
+    size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/meta
+  data:
+    storageClass: "standard"
+    size: 100Mi
+    # used only for daemon sets
+    hostPath: /var/lib/garage/data
+
+# Deployment configuration
+deployment:
+  # -- Switchable to DaemonSet
+  kind: StatefulSet
+  # -- Number of StatefulSet replicas/garage nodes to start
+  replicaCount: 3
+  # -- If using statefulset, allow Parallel or OrderedReady (default)
+  podManagementPolicy: OrderedReady
+
+image:
+  # -- default to amd64 docker image
+  repository: dxflrs/amd64_garage
+  # -- set the image tag, please prefer using the chart version and not this
+  # to avoid compatibility issues
+  tag: ""
+  pullPolicy: IfNotPresent
+
+initImage:
+  repository: busybox
+  tag: stable
+  pullPolicy: IfNotPresent
+
+# -- set if you need credentials to pull your custom image. Each entry needs a
+# `name:` key, matching a Secret of type kubernetes.io/dockerconfigjson.
+imagePullSecrets:
+  - name: my-pull-secret
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account. Example below is for AWS IRSA.
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/garage-s3"
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- additional pod annotations
+podAnnotations:
+  example.com/has-an-annotation: "true"
+
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: "OnRootMismatch"
+  runAsNonRoot: true
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  # -- You can rely on any service to expose your cluster
+  # - ClusterIP (+ Ingress)
+  # - NodePort (+ Ingress)
+  # - LoadBalancer
+  type: ClusterIP
+  # -- Annotations to add to the service. Example below is for an AWS NLB.
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  s3:
+    api:
+      port: 3900
+    web:
+      port: 3902
+    # NOTE: the admin API is excluded for now as it is not consistent across nodes
+
+ingress:
+  s3:
+    api:
+      enabled: true
+      className: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      labels: {}
+      hosts:
+        # -- garage S3 API endpoint, to be used with awscli for example
+        - host: "s3.garage.tld"
+          paths:
+            - path: /
+              pathType: Prefix
+        # -- garage S3 API endpoint, DNS style bucket access
+        - host: "*.s3.garage.tld"
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: garage-s3-api-tls
+          hosts:
+            - s3.garage.tld
+            - "*.s3.garage.tld"
+    web:
+      enabled: true
+      className: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      labels: {}
+      hosts:
+        # --  wildcard website access with bucket name prefix
+        - host: "*.web.garage.tld"
+          paths:
+            - path: /
+              pathType: Prefix
+        # -- specific bucket access with FQDN bucket
+        - host: "mywebpage.example.com"
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: garage-s3-web-tls
+          hosts:
+            - "*.web.garage.tld"
+            - mywebpage.example.com
+
+# The following are indicative for a small-size deployment, for anything serious double them.
+resources:
+  limits:
+    cpu: 200m
+    memory: 2048Mi
+  requests:
+    cpu: 100m
+    memory: 1024Mi
+
+# -- Specifies a livenessProbe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3903 # or the port from garage.admin.apiBindAddr
+  initialDelaySeconds: 5
+  periodSeconds: 30
+# -- Specifies a readinessProbe
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3903 # or the port from garage.admin.apiBindAddr
+  initialDelaySeconds: 5
+  periodSeconds: 30
+
+# -- Example: pin pods to a dedicated storage node pool, paired with the
+# toleration below.
+nodeSelector:
+  node-role.kubernetes.io/storage: "true"
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "storage"
+    effect: "NoSchedule"
+
+# -- Example: spread garage replicas across different nodes, since it is a
+# geo-distributed store that only helps availability if replicas don't share
+# a failure domain or availability zone.
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: garage
+          topologyKey: kubernetes.io/hostname
+
+# -- Optional priority class name to assign to the pods.
+# See https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+# This is expected to reference a PriorityClass you define yourself.
+priorityClassName: "high-priority-storage"
+
+# -- Extra container env vars. Note this is a [] of {name, value} objects (ie. a pod env stanza)
+# GARAGE_ADMIN_TOKEN_FILE below points garage at the token file mounted by
+# extraVolumes/extraVolumeMounts, see below.
+environment:
+  - name: RUST_LOG
+    value: "garage=debug"
+  - name: GARAGE_ADMIN_TOKEN_FILE
+    value: /mnt/secrets-store/admin-token
+
+# -- Extra volumes/volumeMounts. Both are []. Example here mounts the admin API
+# token from an external secrets manager via the Secrets Store CSI driver
+# (https://secrets-store-csi-driver.sigs.k8s.io/) instead of a Secret volume.
+# This allows, for example, providing the tokens without creating a Kubernetes
+# secret. garage reads the mounted file through GARAGE_ADMIN_TOKEN_FILE above.
+extraVolumes:
+  - name: secrets-store
+    csi:
+      driver: secrets-store.csi.k8s.io
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: garage-admin-token
+extraVolumeMounts:
+  - name: secrets-store
+    mountPath: /mnt/secrets-store
+    readOnly: true
+
+monitoring:
+  metrics:
+    # -- If true, a service for monitoring is created with a prometheus.io/scrape annotation
+    enabled: true
+    serviceMonitor:
+      # -- If true, a ServiceMonitor CRD is created for a prometheus operator
+      # https://github.com/coreos/prometheus-operator
+      enabled: true
+      path: /metrics
+      # -- Defaults to the namespace the chart is deployed to; this field is
+      # templated, so it can also reference .Release.Namespace itself.
+      namespace: "monitoring"
+      labels:
+        release: prometheus
+      interval: 30s
+      scheme: http
+      tlsConfig: {}
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels: ["__meta_kubernetes_pod_node_name"]
+          targetLabel: node
+  tracing:
+    # -- specify a sink endpoint for OpenTelemetry Traces, eg. `http://localhost:4317`
+    sink: "http://otel-collector.monitoring.svc:4317"

@@ -1,0 +1,95 @@
+suite: ingress
+templates:
+  - templates/ingress.yaml
+tests:
+  - it: renders no ingress by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders api and web ingresses with tls when enabled
+    values:
+      - ./values/ingress.yaml
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: Ingress
+      - documentIndex: 0
+        equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-s3-api
+      - documentIndex: 0
+        equal:
+          path: spec.ingressClassName
+          value: nginx
+      - documentIndex: 0
+        equal:
+          path: spec.rules[0].host
+          value: s3.example.com
+      - documentIndex: 0
+        equal:
+          path: spec.tls[0].secretName
+          value: garage-s3-api-tls
+      - documentIndex: 1
+        equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-s3-web
+      - documentIndex: 1
+        equal:
+          path: spec.rules[0].host
+          value: "*.web.example.com"
+      - documentIndex: 1
+        equal:
+          path: spec.tls[0].secretName
+          value: garage-s3-web-tls
+
+  - it: can enable only the s3 api ingress
+    set:
+      ingress.s3.api.enabled: true
+      ingress.s3.api.hosts[0].host: s3.example.com
+      ingress.s3.api.hosts[0].paths[0].path: /
+      ingress.s3.api.hosts[0].paths[0].pathType: Prefix
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-s3-api
+
+  - it: omits ingressClassName and tls when neither is configured
+    set:
+      ingress.s3.api.enabled: true
+      ingress.s3.api.hosts[0].host: s3.example.com
+      ingress.s3.api.hosts[0].paths[0].path: /
+      ingress.s3.api.hosts[0].paths[0].pathType: Prefix
+    asserts:
+      - isNull:
+          path: spec.ingressClassName
+      - isNull:
+          path: spec.tls
+
+  - it: renders multiple hosts on the same ingress
+    set:
+      ingress.s3.api.enabled: true
+      ingress.s3.api.hosts:
+        - host: s3.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+        - host: s3-alt.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+    asserts:
+      - hasDocuments:
+          count: 1
+      - lengthEqual:
+          path: spec.rules
+          count: 2
+      - equal:
+          path: spec.rules[0].host
+          value: s3.example.com
+      - equal:
+          path: spec.rules[1].host
+          value: s3-alt.example.com

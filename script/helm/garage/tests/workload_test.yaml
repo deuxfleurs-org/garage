@@ -1,0 +1,187 @@
+suite: workload (StatefulSet/DaemonSet)
+templates:
+  - templates/workload.yaml
+  - templates/configmap.yaml
+tests:
+  - it: defaults to a StatefulSet with 3 replicas and 2 volumes
+    template: templates/workload.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.podManagementPolicy
+          value: OrderedReady
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: etc
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 2
+      - isNotNull:
+          path: spec.volumeClaimTemplates
+
+  - it: uses a StatefulSet with PVC-backed volumeClaimTemplates by default
+    template: templates/workload.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - isNotNull:
+          path: spec.volumeClaimTemplates
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 100Mi
+
+  - it: switches to a DaemonSet with hostPath volumes when requested
+    template: templates/workload.yaml
+    values:
+      - ./values/daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - isNull:
+          path: spec.replicas
+      - isNull:
+          path: spec.volumeClaimTemplates
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: meta
+            hostPath:
+              path: /var/lib/garage/meta
+              type: DirectoryOrCreate
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            hostPath:
+              path: /var/lib/garage/data
+              type: DirectoryOrCreate
+
+  - it: renders emptyDir volumes when persistence is disabled
+    template: templates/workload.yaml
+    values:
+      - ./values/minimal.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: meta
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            emptyDir: {}
+      - isNull:
+          path: spec.volumeClaimTemplates
+
+  - it: honors a custom replicaCount
+    template: templates/workload.yaml
+    set:
+      deployment.replicaCount: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: points the init container at the configured rpc secret
+    template: templates/workload.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name
+          value: RELEASE-NAME-garage-rpc-secret
+
+  - it: points the init container at an existing rpc secret when configured
+    template: templates/workload.yaml
+    values:
+      - ./values/existing-secret.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name
+          value: garage-rpc-secret-external
+
+  - it: sets the container image from repository and tag
+    template: templates/workload.yaml
+    set:
+      image.repository: dxflrs/amd64_garage
+      image.tag: v1.2.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: dxflrs/amd64_garage:v1.2.3
+
+  - it: falls back to the chart appVersion when no image tag is set
+    template: templates/workload.yaml
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^dxflrs/amd64_garage:v
+
+  - it: omits storageClassName from volumeClaimTemplates by default
+    template: templates/workload.yaml
+    asserts:
+      - isNull:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+      - isNull:
+          path: spec.volumeClaimTemplates[1].spec.storageClassName
+
+  - it: sets storageClassName in volumeClaimTemplates when configured
+    template: templates/workload.yaml
+    set:
+      persistence.meta.storageClass: fast-storage
+      persistence.data.storageClass: slow-storage
+    asserts:
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.storageClassName
+          value: fast-storage
+      - equal:
+          path: spec.volumeClaimTemplates[1].spec.storageClassName
+          value: slow-storage
+
+  - it: renders emptyDir volumes for a DaemonSet when persistence is disabled
+    template: templates/workload.yaml
+    set:
+      deployment.kind: DaemonSet
+      persistence.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: meta
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: data
+            emptyDir: {}
+
+  - it: mounts the existing ConfigMap volume when configured
+    template: templates/workload.yaml
+    set:
+      garage.existingConfigMap: my-external-cm
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: my-external-cm
+
+  - it: uses a custom service account name without creating one when disabled
+    template: templates/workload.yaml
+    set:
+      serviceAccount.create: false
+      serviceAccount.name: my-external-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: my-external-sa
+
+  - it: falls back to the default service account when disabled without a custom name
+    template: templates/workload.yaml
+    set:
+      serviceAccount.create: false
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default

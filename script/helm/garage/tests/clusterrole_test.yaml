@@ -1,0 +1,31 @@
+suite: rbac
+templates:
+  - templates/clusterrole.yaml
+tests:
+  - it: allows managing the garage CRD by default
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        isKind:
+          of: ClusterRole
+      - documentIndex: 0
+        contains:
+          path: rules[0].resources
+          content: customresourcedefinitions
+      - documentIndex: 1
+        isKind:
+          of: ClusterRoleBinding
+      - documentIndex: 1
+        equal:
+          path: subjects[0].name
+          value: RELEASE-NAME-garage
+
+  - it: skips the CRD management rule when the CRD is installed manually
+    set:
+      garage.kubernetesSkipCrd: true
+    asserts:
+      - documentIndex: 0
+        notContains:
+          path: rules[0].resources
+          content: customresourcedefinitions

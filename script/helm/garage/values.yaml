@@ -246,10 +246,14 @@ affinity: {}
 # See https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
 priorityClassName: ""
 
+# -- Extra container env vars, as a list of {name, value} objects (same shape
+# as a Pod container's env)
 environment: {}
 
+# -- Extra volumes, as a list of volume objects (same shape as a PodSpec's volumes)
 extraVolumes: {}
 
+# -- Extra volume mounts, as a list of mount objects (same shape as a container's volumeMounts)
 extraVolumeMounts: {}
 
 monitoring:

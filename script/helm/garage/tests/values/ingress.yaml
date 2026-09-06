@@ -1,0 +1,27 @@
+# Expose both the S3 API and website endpoints through Ingress, with TLS.
+ingress:
+  s3:
+    api:
+      enabled: true
+      className: "nginx"
+      hosts:
+        - host: "s3.example.com"
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: garage-s3-api-tls
+          hosts:
+            - s3.example.com
+    web:
+      enabled: true
+      className: "nginx"
+      hosts:
+        - host: "*.web.example.com"
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: garage-s3-web-tls
+          hosts:
+            - "*.web.example.com"
