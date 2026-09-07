@@ -29,8 +29,15 @@ pub struct Node {
 	port: u16,
 }
 
+pub async fn get_client() -> Result<Client, kube::Error> {
+	if rustls::crypto::CryptoProvider::get_default().is_none() {
+		_ = rustls::crypto::ring::default_provider().install_default();
+	}
+	Client::try_default().await
+}
+
 pub async fn create_kubernetes_crd() -> Result<(), kube::Error> {
-	let client = Client::try_default().await?;
+	let client = get_client().await?;
 	let crds: Api<CustomResourceDefinition> = Api::all(client.clone());
 
 	let params = PatchParams::apply(&format!("garage.{}", K8S_GROUP));
@@ -45,7 +52,7 @@ pub async fn create_kubernetes_crd() -> Result<(), kube::Error> {
 pub async fn get_kubernetes_nodes(
 	kubernetes_config: &KubernetesDiscoveryConfig,
 ) -> Result<Vec<(NodeID, SocketAddr)>, kube::Error> {
-	let client = Client::try_default().await?;
+	let client = get_client().await?;
 	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), &kubernetes_config.namespace);
 
 	let lp = ListParams::default().labels(&format!(
@@ -98,7 +105,7 @@ pub async fn publish_kubernetes_node(
 
 	debug!("Node object to be applied: {:#?}", node);
 
-	let client = Client::try_default().await?;
+	let client = get_client().await?;
 	let nodes: Api<GarageNode> = Api::namespaced(client.clone(), &kubernetes_config.namespace);
 
 	if let Ok(old_node) = nodes.get(&node_pubkey).await {
