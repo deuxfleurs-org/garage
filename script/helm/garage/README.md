@@ -33,11 +33,11 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | fullnameOverride | string | `""` |  |
 | garage.additionalTopLevelConfig | string | `""` | Additional configuration to append to garage.toml. Use a multi-line string for custom config. Example:  additionalTopLevelConfig: |-    data_fsync = true |
 | garage.admin.apiBindAddr | string | `"[::]:3903"` |  |
-| garage.blockSize | string | `"1048576"` | Defaults is 1MB An increase can result in better performance in certain scenarios https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block_size |
+| garage.blockSize | string | `"1048576"` | Defaults is 1MB, an increase can result in better performance in certain scenarios https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block_size |
 | garage.bootstrapPeers | list | `[]` | This is not required if you use the integrated kubernetes discovery |
 | garage.compressionLevel | string | `"1"` | zstd compression level of stored blocks https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#compression_level |
 | garage.consistencyMode | string | `"consistent"` | By default, enable read-after-write consistency guarantees, see the consistency_mode section at https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#consistency_mode |
-| garage.dbEngine | string | `"lmdb"` | Can be changed for better performance on certain systems https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine |
+| garage.dbEngine | string | `"lmdb"` | Can be changed for better performance on certain systems, use "sqlite" to prioritize durability https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine |
 | garage.existingConfigMap | string | `""` | if not empty string, allow using an existing ConfigMap for the garage.toml, if set, ignores garage.toml |
 | garage.existingRpcSecret | string | `""` | If you want to provide an rpcSecret within an existing k8s secret, specify the secret name here, and store the value under the secret key `rpcSecret` the default secret will not be created |
 | garage.garageTomlString | string | `""` | String Template for the garage configuration if set, ignores above values. Values can be templated, see https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/ |
@@ -45,7 +45,7 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | garage.metadataAutoSnapshotInterval | string | `""` | If this value is set, Garage will automatically take a snapshot of the metadata DB file at a regular interval and save it in the metadata directory. https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval |
 | garage.noClusterRole | bool | `false` | Set to true if you want to use roles instead of cluster roles |
 | garage.replicationFactor | string | `"3"` | Default to 3 replicas, see the replication_factor section at https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication_factor |
-| garage.rpcBindAddr | string | `"[::]:3901"` |  |
+| garage.rpcBindAddr | string | `"[::]:3901"` | Port used for node-to-node RPC |
 | garage.rpcSecret | string | `""` | If not given, a random secret will be generated and stored in a Secret object |
 | garage.s3.api.bindAddr | string | `"[::]:3900"` |  |
 | garage.s3.api.region | string | `"garage"` |  |
@@ -53,10 +53,10 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | garage.s3.web.bindAddr | string | `"[::]:3902"` |  |
 | garage.s3.web.index | string | `"index.html"` |  |
 | garage.s3.web.rootDomain | string | `".web.garage.tld"` |  |
-| garage.singleNode | bool | `false` |  |
+| garage.singleNode | bool | `false` | Start Garage with `--single-node`, run one StatefulSet replica, and render replication_factor = 1 in the generated garage.toml, if using garageTomlString or existingConfigMap, set replication_factor = 1 yourself. |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"dxflrs/amd64_garage"` | default to amd64 docker image |
-| image.tag | string | `""` | set the image tag, please prefer using the chart version and not this to avoid compatibility issues |
+| image.tag | string | `""` | set the image tag, please prefer using the chart version and not this, to avoid compatibility issues |
 | imagePullSecrets | list | `[]` | set if you need credentials to pull your custom image |
 | ingress.s3.api.annotations | object | `{}` | Rely _either_ on the className or the annotation below but not both! If you want to use the className, set className: "nginx" and replace "nginx" by an Ingress controller name, examples [here](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers). |
 | ingress.s3.api.enabled | bool | `false` |  |

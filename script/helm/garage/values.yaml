@@ -9,12 +9,11 @@ commonLabels: {}
 
 # Garage configuration. These values configure Garage and render to garage.toml unless noted otherwise.
 garage:
-  # -- Can be changed for better performance on certain systems
+  # -- Can be changed for better performance on certain systems, use "sqlite" to prioritize durability
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#db_engine
   dbEngine: "lmdb"
 
-  # -- Defaults is 1MB
-  # An increase can result in better performance in certain scenarios
+  # -- Defaults is 1MB, an increase can result in better performance in certain scenarios
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#block_size
   blockSize: "1048576"
 
@@ -22,8 +21,8 @@ garage:
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#replication_factor
   replicationFactor: "3"
 
-  # -- Start Garage with --single-node, run one StatefulSet replica, and render replication_factor = 1 in the generated garage.toml.
-  # If using garageTomlString or existingConfigMap, set replication_factor = 1 yourself.
+  # -- Start Garage with `--single-node`, run one StatefulSet replica, and render replication_factor = 1 in the generated garage.toml,
+  # if using garageTomlString or existingConfigMap, set replication_factor = 1 yourself.
   singleNode: false
 
   # -- By default, enable read-after-write consistency guarantees, see the consistency_mode section at
@@ -38,6 +37,7 @@ garage:
   # https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval
   metadataAutoSnapshotInterval: ""
 
+  # -- Port used for node-to-node RPC
   rpcBindAddr: "[::]:3901"
   # -- If not given, a random secret will be generated and stored in a Secret object
   rpcSecret: ""
@@ -106,7 +106,7 @@ deployment:
 image:
   # -- default to amd64 docker image
   repository: dxflrs/amd64_garage
-  # -- set the image tag, please prefer using the chart version and not this
+  # -- set the image tag, please prefer using the chart version and not this,
   # to avoid compatibility issues
   tag: ""
   pullPolicy: IfNotPresent
