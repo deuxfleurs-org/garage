@@ -167,6 +167,33 @@ tests:
           path: spec.template.spec.volumes[0].configMap.name
           value: my-external-cm
 
+  - it: runs a single replica with --single-node when garage.singleNode is enabled
+    template: templates/workload.yaml
+    set:
+      garage.singleNode: true
+      deployment.replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value:
+            - /garage
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - server
+            - --single-node
+
+  - it: does not set a custom command/args when garage.singleNode is disabled
+    template: templates/workload.yaml
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].command
+      - isNull:
+          path: spec.template.spec.containers[0].args
+
   - it: uses a custom service account name without creating one when disabled
     template: templates/workload.yaml
     set:

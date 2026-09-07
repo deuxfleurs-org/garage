@@ -128,6 +128,15 @@ tests:
             # namespace: NAMESPACE
             replication_factor = 7
 
+  - it: forces replication_factor to 1 when garage.singleNode is enabled
+    set:
+      garage.singleNode: true
+      garage.replicationFactor: "5"
+    asserts:
+      - matchRegex:
+          path: data["garage.toml"]
+          pattern: 'replication_factor = 1'
+
   - it: does not render a ConfigMap when an existing one is referenced
     set:
       garage.existingConfigMap: my-external-cm
