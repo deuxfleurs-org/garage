@@ -24,7 +24,7 @@ percent-encoding.workspace = true
 hyper = { workspace = true, default-features = false, features = ["http1", "http2"] }
 hyper-util.workspace = true
 hyper-rustls.workspace = true
-reqwest = { workspace = true, default-features = false, features = ["json", "rustls-no-provider"] }
+rustls.workspace = true
 serde = { workspace = true, default-features = false, features = ["derive", "std"] }
 serde_json.workspace = true
 thiserror.workspace = true

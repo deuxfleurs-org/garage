@@ -72,7 +72,7 @@ impl K2vClient {
 	/// Create a new K2V client.
 	pub fn new(config: K2vClientConfig) -> Result<Self, Error> {
 		let connector = hyper_rustls::HttpsConnectorBuilder::new()
-			.with_native_roots()?
+			.with_provider_and_native_roots(rustls::crypto::ring::default_provider())?
 			.https_or_http()
 			.enable_http1()
 			.enable_http2()

@@ -40,7 +40,11 @@ thiserror = { workspace = true, optional = true }
 kube = { workspace = true, optional = true }
 k8s-openapi = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true, features = ["json", "rustls"] }
+reqwest = { workspace = true, optional = true }
+hyper = { workspace = true, optional = true }
+hyper-rustls = { workspace = true, optional = true }
+hyper-util = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
 
 pnet_datalink.workspace = true
 
@@ -50,7 +54,7 @@ opentelemetry.workspace = true
 
 [features]
 kubernetes-discovery = ["kube", "k8s-openapi", "schemars"]
-consul-discovery = ["reqwest", "thiserror"]
+consul-discovery = ["hyper", "hyper-rustls", "hyper-util", "reqwest", "rustls", "thiserror"]
 system-libs = ["sodiumoxide/use-pkg-config"]
 
 [lints]
