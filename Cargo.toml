@@ -117,11 +117,7 @@ kube = { version = "3.0", default-features = false, features = [
     "rustls-tls",
 ] }
 schemars = "1.2"
-reqwest = { version = "0.13", default-features = false, features = [
-    "rustls-no-provider",
-    "json",
-] }
-
+reqwest = { version = "0.13", default-features = false }
 form_urlencoded = "1.2"
 http = "1.4"
 httpdate = "1.0"
