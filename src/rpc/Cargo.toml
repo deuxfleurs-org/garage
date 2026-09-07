@@ -40,7 +40,7 @@ thiserror = { workspace = true, optional = true }
 kube = { workspace = true, optional = true }
 k8s-openapi = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true, features = ["json", "rustls"] }
+reqwest = { workspace = true, optional = true }
 
 pnet_datalink.workspace = true
 
