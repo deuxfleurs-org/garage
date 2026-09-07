@@ -47,6 +47,10 @@ bootstrap_peers = []
 $REPLICATION_MODE
 rpc_secret = "$NETWORK_SECRET"
 
+[consul_discovery]
+service_name = "panic-catcher"
+consul_http_addr = "http://localhost:9876"
+
 [s3_api]
 api_bind_addr = "0.0.0.0:$((3910+$count))"	# the S3 API port, HTTP without TLS. Add a reverse proxy for the TLS part.
 s3_region = "garage"				# set this to anything. S3 API calls will fail if they are not made against the region set here.
