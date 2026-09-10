@@ -378,7 +378,6 @@ impl BlockResyncManager {
 		match idxqueue.entry(*hash)? {
 			IndexedQueueEntry::Occupied(mut occupied_entry) => {
 				let old_when = occupied_entry.when();
-				// TODO(alex): Is max the right choice here?
 				// We consider that `when` is a constraint indicating that a resync should be done
 				// but would lead to worth performance or maybe incorrect behavior if done before the given date,
 				// so we give precedence to the latest of the two.
@@ -462,23 +461,28 @@ impl BlockResyncManager {
 
 			manager.metrics.resync_counter.add(1);
 
-			let mut idxqueue = self.idxqueue.lock().unwrap();
-			let mut entry = match idxqueue.entry(hash)? {
-				IndexedQueueEntry::Vacant(_) => {
-					unreachable!("We should be the sole processor of this block and we have not removed it yet")
-				}
-				IndexedQueueEntry::Occupied(occupied_entry) => occupied_entry,
-			};
 			if let Err(e) = &res {
 				manager.metrics.resync_error_counter.add(1);
 				error!("Error when resyncing {:?}: {}", hash, e);
+			}
 
-				entry.set_when_and_errors(
-					now + retry_delay_ms(entry.errors()),
-					entry.errors() + 1,
-				)?;
-			} else {
-				entry.remove()?;
+			let mut idxqueue = self.idxqueue.lock().unwrap();
+			match idxqueue.entry(hash)? {
+				IndexedQueueEntry::Vacant(_) => {
+					// The resync queue was cleared concurrently while this block was
+					// being processed (e.g. via `garage repair clear-resync-queue`).
+					// There is nothing left to update.
+				}
+				IndexedQueueEntry::Occupied(mut entry) => {
+					if res.is_err() {
+						entry.set_when_and_errors(
+							now + retry_delay_ms(entry.errors()),
+							entry.errors() + 1,
+						)?;
+					} else {
+						entry.remove()?;
+					}
+				}
 			}
 
 			Ok(ResyncIterResult::BusyDidSomething)
