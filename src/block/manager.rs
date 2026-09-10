@@ -148,7 +148,7 @@ impl BlockManager {
 			.expect("Unable to open block_local_rc tree");
 		let rc = BlockRc::new(rc);
 
-		let resync = BlockResyncManager::new(db, &system);
+		let resync = BlockResyncManager::new(db, &system)?;
 
 		let endpoint = system
 			.netapp
@@ -159,8 +159,7 @@ impl BlockManager {
 		let metrics = BlockManagerMetrics::new(
 			config.compression_level,
 			rc.rc_table.untyped().clone(),
-			resync.queue.untyped().clone(),
-			resync.errors.untyped().clone(),
+			resync.idxqueue.clone(),
 			buffer_kb_semaphore.clone(),
 		);
 
@@ -446,15 +445,18 @@ impl BlockManager {
 
 	/// List all resync errors
 	pub fn list_resync_errors(&self) -> Result<Vec<BlockResyncErrorInfo>, Error> {
-		let mut blocks = Vec::with_capacity(self.resync.errors.approximate_len()?);
-		for ent in self.resync.errors.iter()? {
-			let (hash, cnt) = ent?;
+		let mut blocks = Vec::with_capacity(self.resync.errored());
+		for ent in self.resync.idxqueue.lock().unwrap().iter()? {
+			let (hash, ResyncEntry { when, errors }) = ent?;
+			if errors == 0 {
+				continue;
+			}
 			blocks.push(BlockResyncErrorInfo {
 				hash,
 				refcount: 0,
-				error_count: cnt.errors,
-				last_try: cnt.last_try,
-				next_try: cnt.next_try(),
+				error_count: errors,
+				last_try: when - retry_delay_ms(errors - 1),
+				next_try: when,
 			});
 		}
 		for block in blocks.iter_mut() {
@@ -483,7 +485,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, 2 * this.system.rpc_helper().rpc_timeout())
+					.put_to_resync_after(&hash, 2 * this.system.rpc_helper().rpc_timeout())
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -508,7 +510,7 @@ impl BlockManager {
 			tokio::spawn(async move {
 				if let Err(e) = this
 					.resync
-					.put_to_resync(&hash, BLOCK_GC_DELAY + Duration::from_secs(10))
+					.put_to_resync_after(&hash, BLOCK_GC_DELAY + Duration::from_secs(10))
 				{
 					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
 				}
@@ -622,7 +624,8 @@ impl BlockManager {
 				.await
 				.move_block_to_corrupted(block_path)
 				.await?;
-			self.resync.put_to_resync(hash, Duration::from_millis(0))?;
+			self.resync
+				.put_to_resync_after(hash, Duration::from_millis(0))?;
 
 			return Err(Error::CorruptData(*hash));
 		}

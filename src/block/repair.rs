@@ -125,7 +125,7 @@ impl Worker for RepairWorker {
 				for hash in batch_of_hashes.into_iter() {
 					self.manager
 						.resync
-						.put_to_resync(&hash, Duration::from_secs(0))?;
+						.put_to_resync_after(&hash, Duration::from_secs(0))?;
 					self.next_start = Some(hash);
 				}
 
@@ -139,7 +139,7 @@ impl Worker for RepairWorker {
 				if let Some((_path, hash)) = bi.next().await? {
 					self.manager
 						.resync
-						.put_to_resync(&hash, Duration::from_secs(0))?;
+						.put_to_resync_after(&hash, Duration::from_secs(0))?;
 					Ok(WorkerState::Busy)
 				} else {
 					Ok(WorkerState::Done)

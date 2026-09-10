@@ -1,10 +1,12 @@
-use std::sync::Arc;
+use std::{convert::TryInto, sync::Arc};
 
 use tokio::sync::Semaphore;
 
 use opentelemetry::{global, metrics::*};
 
 use garage_db as db;
+
+use crate::resync::IndexedQueue;
 
 /// `TableMetrics` reference all counter used for metrics
 pub struct BlockManagerMetrics {
@@ -34,8 +36,7 @@ impl BlockManagerMetrics {
 	pub fn new(
 		compression_level: Option<i32>,
 		rc_tree: db::Tree,
-		resync_queue: db::Tree,
-		resync_errors: db::Tree,
+		resync_queue: Arc<std::sync::Mutex<IndexedQueue>>,
 		buffer_semaphore: Arc<Semaphore>,
 	) -> Self {
 		let meter = global::meter("garage_model/block");
@@ -57,21 +58,22 @@ impl BlockManagerMetrics {
 				})
 				.with_description("Number of blocks known to the reference counter")
 				.init(),
-			_resync_queue_len: meter
+			_resync_queue_len: {
+				let resync_queue = resync_queue.clone();
+				meter
 				.u64_value_observer("block.resync_queue_length", move |observer| {
-					if let Ok(value) = resync_queue.approximate_len() {
-						observer.observe(value as u64, &[]);
-					}
+					let len = resync_queue.lock().unwrap().approximate_len().unwrap_or_default();
+						observer.observe(len.try_into().unwrap(), &[]);
 				})
 				.with_description(
 					"Number of block hashes queued for local check and possible resync",
 				)
-				.init(),
+				.init()
+			},
 			_resync_errored_blocks: meter
 				.u64_value_observer("block.resync_errored_blocks", move |observer| {
-					if let Ok(value) = resync_errors.approximate_len() {
-						observer.observe(value as u64, &[]);
-					}
+					let errs = resync_queue.lock().unwrap().errored();
+						observer.observe(errs, &[]);
 				})
 				.with_description("Number of block hashes whose last resync resulted in an error")
 				.init(),
