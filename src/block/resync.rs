@@ -848,13 +848,13 @@ mod v1 {
 		let old_errors =
 			db.open_typed_tree::<Hash, ErrorCounter, _>("block_local_resync_errors")?;
 
-		// The old queue is ordered by (when, hash); iterating it in order means the first time we
-		// see a given hash, that is its earliest scheduled `when` — which is the one we want.
+		// The old queue is ordered by (when, hash). For a given hash, its occurrences are
+		// therefore visited in ascending `when` order, so overwriting on every match
+		// means the last (and thus highest) `when` we see for a hash is the one that survives
+		// in the v2 tree — consistent with the max-wins semantics used when updating an
+		// already-queued entry elsewhere (see `put_to_resync_at_or_later`).
 		for row in old_queue.iter()? {
 			let (ResyncQueueKey { when, hash }, _) = row?;
-			if new_queue.get(&hash)?.is_some() {
-				continue; // already inserted with an earlier `when`
-			}
 			let errors = old_errors.get(&hash)?.map(|ec| ec.errors).unwrap_or(0);
 			new_queue.insert(&hash, &ResyncEntry { when, errors })?;
 		}
