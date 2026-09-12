@@ -10,7 +10,6 @@ This documents how the Garage project operates. It reflects the state of the pro
   The current maintainers are:
    * Alex (handle `lx`)
    * Trinity (handle `trinity-1686a`)
-   * Quentin (handle `quentin`)
    * Maximilien (handle `halfa`), who is in particular responsible for coordinating effort on the Kubernetes integration / Helm chart.
  
   They are added to a white-list of the branch protection rule of the repository to enable them to merge pull requests.

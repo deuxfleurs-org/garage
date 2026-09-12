@@ -175,7 +175,7 @@ cargo run -- admin-api-schema > doc/api/garage-admin-v2.json
 Alex (handle `lx`) is the lead developer and is responsible of ensuring the
 correctness of Garage and stability between version upgrades.
 
-The other maintainers are Trinity (handle `trinity-1686a`), Quentin (handle `quentin`) and Maximilien (handle `halfa`).
+The other maintainers are Trinity (handle `trinity-1686a`) and Maximilien (handle `halfa`).
 
 Maximilien is responsible for coordinating effort on the Kubernetes integration / Helm chart.
 
