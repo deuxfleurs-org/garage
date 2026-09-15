@@ -13,7 +13,7 @@ use garage_util::data::*;
 use super::*;
 use crate::common_error::CommonError;
 
-pub use garage_model::s3::object_table::{ChecksumAlgorithm, ChecksumValue};
+pub use garage_model::s3::object_table::{ChecksumAlgorithm, ChecksumType, ChecksumValue};
 
 pub const CONTENT_MD5: HeaderName = HeaderName::from_static("content-md5");
 
@@ -262,6 +262,17 @@ impl Checksums {
 
 // ----
 
+/// String value for the x-amz-checksum-algorithm response header
+pub fn checksum_algorithm_str(algo: ChecksumAlgorithm) -> &'static str {
+	match algo {
+		ChecksumAlgorithm::Crc32 => "CRC32",
+		ChecksumAlgorithm::Crc32c => "CRC32C",
+		ChecksumAlgorithm::Crc64Nvme => "CRC64NVME",
+		ChecksumAlgorithm::Sha1 => "SHA1",
+		ChecksumAlgorithm::Sha256 => "SHA256",
+	}
+}
+
 pub fn parse_checksum_algorithm(algo: &str) -> Result<ChecksumAlgorithm, Error> {
 	match algo {
 		"CRC32" => Ok(ChecksumAlgorithm::Crc32),
@@ -382,6 +393,7 @@ pub fn extract_checksum_value(
 
 pub fn add_checksum_response_headers(
 	checksum: &Option<ChecksumValue>,
+	checksum_type: Option<ChecksumType>,
 	mut resp: http::response::Builder,
 ) -> http::response::Builder {
 	match checksum {
@@ -399,6 +411,15 @@ pub fn add_checksum_response_headers(
 		}
 		Some(ChecksumValue::Sha256(sha256)) => {
 			resp = resp.header(X_AMZ_CHECKSUM_SHA256, BASE64_STANDARD.encode(sha256));
+		}
+		None => (),
+	}
+	match checksum_type {
+		Some(ChecksumType::Composite) => {
+			resp = resp.header(X_AMZ_CHECKSUM_TYPE, COMPOSITE);
+		}
+		Some(ChecksumType::FullObject) => {
+			resp = resp.header(X_AMZ_CHECKSUM_TYPE, FULL_OBJECT);
 		}
 		None => (),
 	}

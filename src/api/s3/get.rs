@@ -83,7 +83,7 @@ fn object_headers(
 	}
 
 	if checksum_mode.enabled {
-		resp = add_checksum_response_headers(&meta_inner.checksum, resp);
+		resp = add_checksum_response_headers(&meta_inner.checksum, meta_inner.checksum_type, resp);
 	}
 
 	encryption.add_response_headers(&mut resp);
