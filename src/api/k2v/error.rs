@@ -55,6 +55,9 @@ pub enum Error {
 	/// The request contained an invalid UTF-8 sequence in its path or in other parameters
 	#[error("Invalid UTF-8: {0}")]
 	InvalidUtf8Str(#[from] std::str::Utf8Error),
+
+	#[error("Bad digest: {0}")]
+	BadDigest(String),
 }
 
 commonErrorDerivative!(Error);
@@ -72,6 +75,7 @@ impl From<SignatureError> for Error {
 			},
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
 			SignatureError::InvalidDigest(d) => Self::InvalidDigest(d),
+			SignatureError::BadDigest(b) => Self::BadDigest(b),
 		}
 	}
 }
@@ -91,6 +95,7 @@ impl Error {
 			Error::InvalidCausalityToken => "CausalityToken",
 			Error::InvalidNonMonotonicRead(_) => "InvalidNonMonotonicRead",
 			Error::InvalidDigest(_) => "InvalidDigest",
+			Error::BadDigest(_) => "BadDigest",
 		}
 	}
 }
@@ -107,7 +112,8 @@ impl ApiError for Error {
 			| Error::InvalidUtf8Str(_)
 			| Error::InvalidDigest(_)
 			| Error::InvalidCausalityToken
-			| Error::InvalidNonMonotonicRead(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidNonMonotonicRead(_)
+			| Error::BadDigest(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 

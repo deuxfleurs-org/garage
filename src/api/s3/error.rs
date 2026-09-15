@@ -104,6 +104,9 @@ pub enum Error {
 	/// The provided digest (checksum) value was invalid
 	#[error("Invalid digest: {0}")]
 	InvalidDigest(String),
+
+	#[error("Bad digest: {0}")]
+	BadDigest(String),
 }
 
 commonErrorDerivative!(Error);
@@ -135,6 +138,7 @@ impl From<SignatureError> for Error {
 			},
 			SignatureError::InvalidUtf8Str(i) => Self::InvalidUtf8Str(i),
 			SignatureError::InvalidDigest(d) => Self::InvalidDigest(d),
+			SignatureError::BadDigest(b) => Self::BadDigest(b),
 		}
 	}
 }
@@ -165,6 +169,7 @@ impl Error {
 			Error::InvalidEncryptionAlgorithm(_) => "InvalidEncryptionAlgorithmError",
 			Error::NoSuchCORSConfiguration => "NoSuchCORSConfiguration",
 			Error::NoSuchLifecycleConfiguration => "NoSuchLifecycleConfiguration",
+			Error::BadDigest(_) => "BadDigest",
 		}
 	}
 }
@@ -190,7 +195,8 @@ impl ApiError for Error {
 			| Error::InvalidXml(_)
 			| Error::InvalidXmlDe(_)
 			| Error::InvalidUtf8Str(_)
-			| Error::InvalidUtf8String(_) => StatusCode::BAD_REQUEST,
+			| Error::InvalidUtf8String(_)
+			| Error::BadDigest(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 

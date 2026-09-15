@@ -181,11 +181,16 @@ impl Checksummer {
 impl Checksums {
 	pub fn verify(&self, expected: &ExpectedChecksums) -> Result<(), Error> {
 		if let Some(expected_md5) = &expected.md5 {
+			let Ok(expected_md5) = BASE64_STANDARD.decode(expected_md5.trim_matches('"')) else {
+				return Err(Error::InvalidDigest(
+					"The Content-MD5 or checksum value that you specified is not valid.".into(),
+				));
+			};
 			match self.md5 {
-				Some(md5) if BASE64_STANDARD.encode(md5) == expected_md5.trim_matches('"') => (),
+				Some(md5) if md5 == expected_md5.as_slice() => (),
 				_ => {
-					return Err(Error::InvalidDigest(
-						"MD5 checksum verification failed (from content-md5)".into(),
+					return Err(Error::BadDigest(
+						"The Content-MD5 you specified did not match what we received.".into(),
 					))
 				}
 			}

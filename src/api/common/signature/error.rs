@@ -27,6 +27,9 @@ pub enum Error {
 	/// The provided digest (checksum) value was invalid
 	#[error("Invalid digest: {0}")]
 	InvalidDigest(String),
+
+	#[error("Bad digest: {0}")]
+	BadDigest(String),
 }
 
 impl<T> From<T> for Error
