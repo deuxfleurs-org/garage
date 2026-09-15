@@ -281,6 +281,7 @@ mod v010 {
 	pub type HeaderList = Vec<(String, String)>;
 
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ChecksumAlgorithm {
 		Crc32,
 		Crc32c,
@@ -391,6 +392,7 @@ mod v2 {
 
 	/// An object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub struct Object {
 		/// The bucket in which the object is stored, used as partition key
 		pub bucket_id: Uuid,
@@ -404,6 +406,7 @@ mod v2 {
 
 	/// Information about a version of an object
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub struct ObjectVersion {
 		/// Id of the version
 		pub uuid: Uuid,
@@ -415,6 +418,7 @@ mod v2 {
 
 	/// State of an object version
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ObjectVersionState {
 		/// The version is being received
 		Uploading {
@@ -433,6 +437,7 @@ mod v2 {
 
 	/// Data stored in object version
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ObjectVersionData {
 		/// The object was deleted, this Version is a tombstone to mark it as such
 		DeleteMarker,
@@ -447,6 +452,7 @@ mod v2 {
 
 	/// Metadata about the object version
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub struct ObjectVersionMeta {
 		/// Size of the object. If object is encrypted/compressed,
 		/// this is always the size of the unencrypted/uncompressed data
@@ -459,6 +465,7 @@ mod v2 {
 
 	/// Encryption information + metadata
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ObjectVersionEncryption {
 		SseC {
 			/// Encrypted serialized `ObjectVersionInner` struct.
@@ -485,6 +492,7 @@ mod v2 {
 	/// have been migrated from Garage version before v2.0, as the distinction between
 	/// full-object and composite checksums was not implemented yet.
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub struct ObjectVersionMetaInner {
 		pub headers: HeaderList,
 		pub checksum: Option<ChecksumValue>,
@@ -498,6 +506,7 @@ mod v2 {
 	pub type HeaderList = Vec<(String, String)>;
 
 	#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ChecksumType {
 		FullObject,
 		Composite,
@@ -632,6 +641,22 @@ impl Object {
 	pub fn versions(&self) -> &[ObjectVersion] {
 		&self.versions[..]
 	}
+
+	/// Remove versions which are obsolete, i.e. those that come
+	/// before the last version which `.is_complete()`.
+	pub fn strip_obsolete(&mut self) {
+		let last_complete = self
+			.versions
+			.iter()
+			.enumerate()
+			.rev()
+			.find(|(_, v)| v.is_complete())
+			.map(|(vi, _)| vi);
+
+		if let Some(last_vi) = last_complete {
+			self.versions = self.versions.drain(last_vi..).collect::<Vec<_>>();
+		}
+	}
 }
 
 impl Crdt for ObjectVersionState {
@@ -736,19 +761,7 @@ impl Crdt for Object {
 			}
 		}
 
-		// Remove versions which are obsolete, i.e. those that come
-		// before the last version which .is_complete().
-		let last_complete = self
-			.versions
-			.iter()
-			.enumerate()
-			.rev()
-			.find(|(_, v)| v.is_complete())
-			.map(|(vi, _)| vi);
-
-		if let Some(last_vi) = last_complete {
-			self.versions = self.versions.drain(last_vi..).collect::<Vec<_>>();
-		}
+		self.strip_obsolete();
 	}
 }
 

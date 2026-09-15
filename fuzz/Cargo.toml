@@ -71,3 +71,10 @@ path = "fuzz_targets/k2v_item_crdt.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "object_crdt"
+path = "fuzz_targets/object_crdt.rs"
+test = false
+doc = false
+bench = false
