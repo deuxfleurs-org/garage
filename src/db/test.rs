@@ -122,6 +122,10 @@ fn test_suite(db: Db) {
 		Ok(())
 	})
 	.unwrap();
+
+	assert!(tree.iter().unwrap().next().is_some());
+	tree.clear().unwrap();
+	assert!(tree.iter().unwrap().next().is_none());
 }
 
 #[test]
