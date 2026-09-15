@@ -137,7 +137,7 @@ impl Garage {
 		info!("Initializing RPC...");
 		let network_key = hex::decode(config.rpc_secret.as_ref().ok_or_message(
 			"rpc_secret value is missing, not present in config file or in environment",
-		)?)
+		)?.extract_secret())
 		.ok()
 		.and_then(|x| NetworkKey::from_slice(&x))
 		.ok_or_message("Invalid RPC secret key: expected 32 bytes of random hex, please check the documentation for requirements")?;

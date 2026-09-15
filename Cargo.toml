@@ -76,6 +76,7 @@ pnet_datalink = "0.35"
 rand = "0.9"
 sha1 = "0.10"
 sha2 = "0.10"
+subtle = "2.6.1"
 timeago = { version = "0.5", default-features = false }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 

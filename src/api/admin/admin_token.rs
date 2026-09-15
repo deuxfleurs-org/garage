@@ -191,7 +191,7 @@ impl RequestHandler for GetCurrentAdminTokenInfoRequest {
 			.admin
 			.metrics_token
 			.as_ref()
-			.is_some_and(|s| s == &self.admin_token)
+			.is_some_and(|s| s.eq_ct(&self.admin_token))
 		{
 			return Ok(GetCurrentAdminTokenInfoResponse(
 				GetAdminTokenInfoResponse {
@@ -210,7 +210,7 @@ impl RequestHandler for GetCurrentAdminTokenInfoRequest {
 			.admin
 			.admin_token
 			.as_ref()
-			.is_some_and(|s| s == &self.admin_token)
+			.is_some_and(|s| s.eq_ct(&self.admin_token))
 		{
 			return Ok(GetCurrentAdminTokenInfoResponse(
 				GetAdminTokenInfoResponse {

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use structopt::StructOpt;
 
-use garage_util::config::Config;
+use garage_util::config::{Config, Secret};
 use garage_util::error::Error;
 
 /// Structure for secret values or paths that are passed as CLI arguments or environment
@@ -99,7 +99,7 @@ pub fn fill_secrets(mut config: Config, secrets: Secrets) -> Result<Config, Erro
 }
 
 pub(crate) fn fill_secret(
-	config_secret: &mut Option<String>,
+	config_secret: &mut Option<Secret<String>>,
 	config_secret_file: &Option<PathBuf>,
 	cli_secret: &Option<String>,
 	cli_secret_file: &Option<PathBuf>,
@@ -110,7 +110,7 @@ pub(crate) fn fill_secret(
 		(Some(_), Some(_)) => {
 			return Err(format!("only one of `{}` and `{}_file` can be set", name, name).into());
 		}
-		(Some(secret), None) => Some(secret.to_string()),
+		(Some(secret), None) => Some(Secret::new(secret.to_string())),
 		(None, Some(file)) => Some(read_secret_file(file, allow_world_readable)?),
 		(None, None) => None,
 	};
@@ -132,7 +132,10 @@ pub(crate) fn fill_secret(
 	Ok(())
 }
 
-fn read_secret_file(file_path: &PathBuf, allow_world_readable: bool) -> Result<String, Error> {
+fn read_secret_file(
+	file_path: &PathBuf,
+	allow_world_readable: bool,
+) -> Result<Secret<String>, Error> {
 	if !allow_world_readable {
 		#[cfg(unix)]
 		{
@@ -152,7 +155,7 @@ fn read_secret_file(file_path: &PathBuf, allow_world_readable: bool) -> Result<S
 
 	// trim_end: allows for use case such as `echo "$(openssl rand -hex 32)" > somefile`.
 	//           also editors sometimes add a trailing newline
-	Ok(String::from(secret_buf.trim_end()))
+	Ok(Secret::new(String::from(secret_buf.trim_end())))
 }
 
 #[cfg(test)]
@@ -217,7 +220,7 @@ mod tests {
 
 		let config = read_config(path_config.to_path_buf())?;
 		let config = fill_secrets(config, Secrets::default())?;
-		assert_eq!("foo", config.rpc_secret.unwrap());
+		assert_eq!("foo", config.rpc_secret.unwrap().extract_secret());
 
 		// ---- Check non world-readable secrets config ----
 		#[cfg(unix)]
@@ -273,7 +276,7 @@ mod tests {
 				..Default::default()
 			},
 		)?;
-		assert_eq!(config.rpc_secret.as_deref(), Some("baz"));
+		assert_eq!(config.rpc_secret.as_ref().unwrap().extract_secret(), "baz");
 
 		let config = read_config(path_config.to_path_buf())?;
 		let config = fill_secrets(
@@ -283,7 +286,7 @@ mod tests {
 				..Default::default()
 			},
 		)?;
-		assert_eq!(config.rpc_secret.as_deref(), Some("bar"));
+		assert_eq!(config.rpc_secret.as_ref().unwrap().extract_secret(), "bar");
 
 		let config = read_config(path_config.to_path_buf())?;
 		assert!(fill_secrets(

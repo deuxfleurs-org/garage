@@ -117,8 +117,14 @@ impl AdminApiServer {
 		#[cfg(feature = "metrics")] exporter: PrometheusExporter,
 	) -> Arc<Self> {
 		let cfg = &garage.config.admin;
-		let metrics_token = cfg.metrics_token.as_deref().map(hash_bearer_token);
-		let admin_token = cfg.admin_token.as_deref().map(hash_bearer_token);
+		let metrics_token = cfg
+			.metrics_token
+			.as_ref()
+			.map(|token| hash_bearer_token(token.extract_secret()));
+		let admin_token = cfg
+			.admin_token
+			.as_ref()
+			.map(|token| hash_bearer_token(token.extract_secret()));
 		let metrics_require_token = cfg.metrics_require_token;
 
 		let endpoint = garage.system.netapp.endpoint(ADMIN_RPC_PATH.into());
