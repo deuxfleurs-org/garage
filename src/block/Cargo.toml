@@ -38,6 +38,10 @@ futures.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 
+[dev-dependencies]
+garage_db = { workspace = true, features = ["lmdb"] }
+mktemp.workspace = true
+
 [features]
 system-libs = ["zstd/pkg-config"]
 
