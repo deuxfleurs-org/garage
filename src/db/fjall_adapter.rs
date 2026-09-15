@@ -22,11 +22,6 @@ pub use fjall;
 
 pub(crate) fn open_db(path: &Path, opt: &OpenOpt) -> DbResult<Db> {
 	info!("Opening Fjall database at: {}", path.display());
-	if opt.fsync {
-		return Err(DbError(
-			"metadata_fsync is not supported with the Fjall database engine".into(),
-		));
-	}
 
 	let mut config = OptimisticTxDatabase::builder(path);
 	if let Some(block_cache_size) = opt.fjall_block_cache_size {
