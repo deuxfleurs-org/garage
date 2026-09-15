@@ -6,8 +6,8 @@ use std::sync::Arc;
 use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 
 use fjall::{
-	PartitionCreateOptions, PersistMode, TransactionalKeyspace, TransactionalPartitionHandle,
-	WriteTransaction,
+	KeyspaceCreateOptions, OptimisticTxDatabase, OptimisticTxKeyspace,
+	OptimisticWriteTx as WriteTransaction, PersistMode, Readable,
 };
 
 use crate::{
@@ -22,17 +22,14 @@ pub use fjall;
 
 pub(crate) fn open_db(path: &Path, opt: &OpenOpt) -> DbResult<Db> {
 	info!("Opening Fjall database at: {}", path.display());
-	if opt.fsync {
-		return Err(DbError(
-			"metadata_fsync is not supported with the Fjall database engine".into(),
-		));
-	}
-	let mut config = fjall::Config::new(path);
+
+	let mut config = OptimisticTxDatabase::builder(path);
 	if let Some(block_cache_size) = opt.fjall_block_cache_size {
 		config = config.cache_size(block_cache_size as u64);
 	}
-	let keyspace = config.open_transactional()?;
-	Ok(FjallDb::init(keyspace))
+
+	let db = config.open()?;
+	Ok(FjallDb::init(db, opt.fsync))
 }
 
 // -- err
@@ -64,25 +61,28 @@ impl From<fjall::Error> for TxOpError {
 // -- db
 
 pub struct FjallDb {
-	keyspace: TransactionalKeyspace,
-	trees: RwLock<Vec<(String, TransactionalPartitionHandle)>>,
+	db: OptimisticTxDatabase,
+	trees: RwLock<Vec<(String, OptimisticTxKeyspace)>>,
+	persist_mode: PersistMode,
 }
 
 type ByteRefRangeBound<'r> = (Bound<&'r [u8]>, Bound<&'r [u8]>);
 
 impl FjallDb {
-	pub fn init(keyspace: TransactionalKeyspace) -> Db {
+	pub fn init(db: OptimisticTxDatabase, fsync: bool) -> Db {
 		let s = Self {
-			keyspace,
+			db,
 			trees: RwLock::new(Vec::new()),
+			persist_mode: if fsync {
+				PersistMode::SyncAll
+			} else {
+				PersistMode::Buffer
+			},
 		};
 		Db(Arc::new(s))
 	}
 
-	fn get_tree(
-		&self,
-		i: usize,
-	) -> DbResult<MappedRwLockReadGuard<'_, TransactionalPartitionHandle>> {
+	fn get_tree(&self, i: usize) -> DbResult<MappedRwLockReadGuard<'_, OptimisticTxKeyspace>> {
 		RwLockReadGuard::try_map(self.trees.read(), |trees: &Vec<_>| {
 			trees.get(i).map(|tup| &tup.1)
 		})
@@ -92,7 +92,7 @@ impl FjallDb {
 
 impl IDb for FjallDb {
 	fn engine(&self) -> String {
-		"Fjall (EXPERIMENTAL!)".into()
+		"Fjall 3 (EXPERIMENTAL!)".into()
 	}
 
 	fn open_tree(&self, name: &str) -> DbResult<usize> {
@@ -102,8 +102,8 @@ impl IDb for FjallDb {
 			Ok(i)
 		} else {
 			let tree = self
-				.keyspace
-				.open_partition(&safe_name, PartitionCreateOptions::default())?;
+				.db
+				.keyspace(&safe_name, KeyspaceCreateOptions::default)?;
 			let i = trees.len();
 			trees.push((safe_name, tree));
 			Ok(i)
@@ -111,8 +111,8 @@ impl IDb for FjallDb {
 	}
 
 	fn list_trees(&self) -> DbResult<Vec<String>> {
-		self.keyspace
-			.list_partitions()
+		self.db
+			.list_keyspace_names()
 			.iter()
 			.map(|n| decode_name(n))
 			.collect::<DbResult<Vec<_>>>()
@@ -122,19 +122,19 @@ impl IDb for FjallDb {
 		std::fs::create_dir_all(base_path)?;
 		let path = Engine::Fjall.db_path(base_path);
 
-		let source_state = self.keyspace.read_tx();
-		let copy_keyspace = fjall::Config::new(path).open()?;
+		let source_state = self.db.read_tx();
+		let copy_keyspace = fjall::OptimisticTxDatabase::builder(path).open()?;
 
-		for partition_name in self.keyspace.list_partitions() {
-			let source_partition = self
-				.keyspace
-				.open_partition(&partition_name, PartitionCreateOptions::default())?;
-			let copy_partition =
-				copy_keyspace.open_partition(&partition_name, PartitionCreateOptions::default())?;
+		for tree_name in self.db.list_keyspace_names() {
+			let source_tree = self
+				.db
+				.keyspace(&tree_name, KeyspaceCreateOptions::default)?;
 
-			for entry in source_state.iter(&source_partition) {
-				let (key, value) = entry?;
-				copy_partition.insert(key, value)?;
+			let copy_tree = copy_keyspace.keyspace(&tree_name, KeyspaceCreateOptions::default)?;
+
+			for entry in source_state.iter(&source_tree) {
+				let (key, value) = entry.into_inner()?;
+				copy_tree.insert(key, value)?;
 			}
 		}
 
@@ -146,8 +146,8 @@ impl IDb for FjallDb {
 
 	fn get(&self, tree_idx: usize, key: &[u8]) -> DbResult<Option<Value>> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
-		let val = tx.get(&tree, key)?;
+		let tx = self.db.read_tx();
+		let val = tx.get(&*tree, key)?;
 		match val {
 			None => Ok(None),
 			Some(v) => Ok(Some(v.to_vec())),
@@ -158,55 +158,61 @@ impl IDb for FjallDb {
 		let tree = self.get_tree(tree_idx)?;
 		Ok(tree.approximate_len())
 	}
+
 	fn is_empty(&self, tree_idx: usize) -> DbResult<bool> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
-		Ok(tx.is_empty(&tree)?)
+		let tx = self.db.read_tx();
+		Ok(tx.is_empty(&*tree)?)
 	}
 
 	fn insert(&self, tree_idx: usize, key: &[u8], value: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.keyspace.write_tx();
-		tx.insert(&tree, key, value);
-		tx.commit()?;
+
+		loop {
+			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
+			tx.insert(&*tree, key, value);
+
+			match tx.commit()? {
+				Ok(_) => break,
+				Err(fjall::Conflict) => continue,
+			}
+		}
+
 		Ok(())
 	}
 
 	fn remove(&self, tree_idx: usize, key: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?;
-		let mut tx = self.keyspace.write_tx();
-		tx.remove(&tree, key);
-		tx.commit()?;
+
+		loop {
+			let mut tx = self.db.write_tx()?.durability(Some(self.persist_mode));
+			tx.remove(&*tree, key);
+
+			match tx.commit()? {
+				Ok(_) => break,
+				Err(fjall::Conflict) => continue,
+			}
+		}
+
 		Ok(())
 	}
 
 	fn clear(&self, tree_idx: usize) -> DbResult<()> {
-		let mut trees = self.trees.write();
-
-		if tree_idx >= trees.len() {
-			return Err(DbError("invalid tree id".into()));
-		}
-		let (name, tree) = trees.remove(tree_idx);
-
-		self.keyspace.delete_partition(tree)?;
-		let tree = self
-			.keyspace
-			.open_partition(&name, PartitionCreateOptions::default())?;
-		trees.insert(tree_idx, (name, tree));
-
+		let tree = self.get_tree(tree_idx)?;
+		tree.inner().clear()?;
 		Ok(())
 	}
 
 	fn iter(&self, tree_idx: usize) -> DbResult<ValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
-		Ok(Box::new(tx.iter(&tree).map(iterator_remap)))
+		let tx = self.db.read_tx();
+		Ok(Box::new(tx.iter(&*tree).map(iterator_remap)))
 	}
 
 	fn iter_rev(&self, tree_idx: usize) -> DbResult<ValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
-		Ok(Box::new(tx.iter(&tree).rev().map(iterator_remap)))
+		let tx = self.db.read_tx();
+		Ok(Box::new(tx.iter(&*tree).rev().map(iterator_remap)))
 	}
 
 	fn range<'r>(
@@ -216,12 +222,13 @@ impl IDb for FjallDb {
 		high: Bound<&'r [u8]>,
 	) -> DbResult<ValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
+		let tx = self.db.read_tx();
 		Ok(Box::new(
-			tx.range::<&'r [u8], ByteRefRangeBound>(&tree, (low, high))
+			tx.range::<&'r [u8], ByteRefRangeBound>(&*tree, (low, high))
 				.map(iterator_remap),
 		))
 	}
+
 	fn range_rev<'r>(
 		&self,
 		tree_idx: usize,
@@ -229,9 +236,9 @@ impl IDb for FjallDb {
 		high: Bound<&'r [u8]>,
 	) -> DbResult<ValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?;
-		let tx = self.keyspace.read_tx();
+		let tx = self.db.read_tx();
 		Ok(Box::new(
-			tx.range::<&'r [u8], ByteRefRangeBound>(&tree, (low, high))
+			tx.range::<&'r [u8], ByteRefRangeBound>(&*tree, (low, high))
 				.rev()
 				.map(iterator_remap),
 		))
@@ -241,26 +248,35 @@ impl IDb for FjallDb {
 
 	fn transaction(&self, f: &dyn ITxFn) -> TxResult<OnCommit, ()> {
 		let trees = self.trees.read();
-		let mut tx = FjallTx {
-			trees: &trees[..],
-			tx: self.keyspace.write_tx(),
-		};
 
-		let res = f.try_on(&mut tx);
-		match res {
-			TxFnResult::Ok(on_commit) => {
-				tx.tx.commit().map_err(Error::from).map_err(TxError::Db)?;
-				Ok(on_commit)
-			}
-			TxFnResult::Abort => {
-				tx.tx.rollback();
-				Err(TxError::Abort(()))
-			}
-			TxFnResult::DbErr => {
-				tx.tx.rollback();
-				Err(TxError::Db(
-					DbError("(this message will be discarded)".into()).into(),
-				))
+		loop {
+			let mut tx = FjallTx {
+				trees: &trees,
+				tx: self
+					.db
+					.write_tx()
+					.map_err(Error::from)
+					.map_err(TxError::Db)?
+					.durability(Some(self.persist_mode)),
+			};
+
+			match f.try_on(&mut tx) {
+				TxFnResult::Ok(on_commit) => {
+					match tx.tx.commit().map_err(Error::from).map_err(TxError::Db)? {
+						Ok(_) => return Ok(on_commit),
+						Err(fjall::Conflict) => continue,
+					}
+				}
+				TxFnResult::Abort => {
+					tx.tx.rollback();
+					return Err(TxError::Abort(()));
+				}
+				TxFnResult::DbErr => {
+					tx.tx.rollback();
+					return Err(TxError::Db(Error::Db(DbError(
+						"(this message will be discarded)".into(),
+					))));
+				}
 			}
 		}
 	}
@@ -269,12 +285,12 @@ impl IDb for FjallDb {
 // ----
 
 struct FjallTx<'a> {
-	trees: &'a [(String, TransactionalPartitionHandle)],
-	tx: WriteTransaction<'a>,
+	trees: &'a [(String, OptimisticTxKeyspace)],
+	tx: WriteTransaction,
 }
 
 impl<'a> FjallTx<'a> {
-	fn get_tree(&self, i: usize) -> DbResult<&TransactionalPartitionHandle> {
+	fn get_tree(&self, i: usize) -> DbResult<&OptimisticTxKeyspace> {
 		self.trees.get(i).map(|tup| &tup.1).ok_or_else(|| {
 			DbError(
 				"invalid tree id (it might have been opened after the transaction started)".into(),
@@ -291,6 +307,7 @@ impl<'a> ITx for FjallTx<'a> {
 			None => Ok(None),
 		}
 	}
+
 	fn len(&self, tree_idx: usize) -> DbResult<usize> {
 		let tree = self.get_tree(tree_idx)?;
 		Ok(self.tx.len(tree)?)
@@ -301,22 +318,25 @@ impl<'a> ITx for FjallTx<'a> {
 		self.tx.insert(&tree, key, value);
 		Ok(())
 	}
+
 	fn remove(&mut self, tree_idx: usize, key: &[u8]) -> DbResult<()> {
 		let tree = self.get_tree(tree_idx)?.clone();
 		self.tx.remove(&tree, key);
 		Ok(())
 	}
+
 	fn clear(&mut self, _tree_idx: usize) -> DbResult<()> {
 		unimplemented!("LSM tree clearing in cross-partition transaction is not supported")
 	}
 
 	fn iter(&self, tree_idx: usize) -> DbResult<TxValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?.clone();
-		Ok(Box::new(self.tx.iter(&tree).map(iterator_remap_tx)))
+		Ok(Box::new(self.tx.iter(&tree).map(iterator_remap)))
 	}
+
 	fn iter_rev(&self, tree_idx: usize) -> DbResult<TxValueIter<'_>> {
 		let tree = self.get_tree(tree_idx)?.clone();
-		Ok(Box::new(self.tx.iter(&tree).rev().map(iterator_remap_tx)))
+		Ok(Box::new(self.tx.iter(&tree).rev().map(iterator_remap)))
 	}
 
 	fn range<'r>(
@@ -331,9 +351,10 @@ impl<'a> ITx for FjallTx<'a> {
 		Ok(Box::new(
 			self.tx
 				.range::<Vec<u8>, ByteVecRangeBounds>(tree, (low, high))
-				.map(iterator_remap_tx),
+				.map(iterator_remap),
 		))
 	}
+
 	fn range_rev<'r>(
 		&self,
 		tree_idx: usize,
@@ -347,20 +368,16 @@ impl<'a> ITx for FjallTx<'a> {
 			self.tx
 				.range::<Vec<u8>, ByteVecRangeBounds>(tree, (low, high))
 				.rev()
-				.map(iterator_remap_tx),
+				.map(iterator_remap),
 		))
 	}
 }
 
 // -- maps fjall's (k, v) to ours
 
-fn iterator_remap(r: fjall::Result<(fjall::Slice, fjall::Slice)>) -> DbResult<(Value, Value)> {
-	r.map(|(k, v)| (k.to_vec(), v.to_vec()))
-		.map_err(DbError::from)
-}
-
-fn iterator_remap_tx(r: fjall::Result<(fjall::Slice, fjall::Slice)>) -> DbResult<(Value, Value)> {
-	r.map(|(k, v)| (k.to_vec(), v.to_vec()))
+fn iterator_remap(r: fjall::Guard) -> DbResult<(Value, Value)> {
+	r.into_inner()
+		.map(|(k, v)| (k.to_vec(), v.to_vec()))
 		.map_err(DbError::from)
 }
 

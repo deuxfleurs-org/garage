@@ -122,6 +122,10 @@ fn test_suite(db: Db) {
 		Ok(())
 	})
 	.unwrap();
+
+	assert!(tree.iter().unwrap().next().is_some());
+	tree.clear().unwrap();
+	assert!(tree.iter().unwrap().next().is_none());
 }
 
 #[test]
@@ -157,8 +161,8 @@ fn test_fjall_db() {
 	use crate::fjall_adapter::{fjall, FjallDb};
 
 	let path = mktemp::Temp::new_dir().unwrap();
-	let config = fjall::Config::new(path).temporary(true);
-	let keyspace = config.open_transactional().unwrap();
-	let db = FjallDb::init(keyspace);
+	let config = fjall::OptimisticTxDatabase::builder(path).temporary(true);
+	let keyspace = config.open().unwrap();
+	let db = FjallDb::init(keyspace, false);
 	test_suite(db);
 }
