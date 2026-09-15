@@ -32,7 +32,7 @@ To add an element to the set, a node increments its own version counter, and sen
 On receiving such an update, a node checks if it has already seen this particular (replica, version), and if so ignore it.
 If it hasn't seen that update, it saves the new element, and update its SV to include that new (replica, version).
 
-TODO: describe formaly the algorithm
+TODO: describe formally the algorithm
 
 
 Algorithm 1, Seen Vector:
@@ -132,7 +132,7 @@ The node then increment a generation number, which is made part of its replica i
 
 ## Appendix: providing SV to the underlying elements
 
-Some more complexe elements may want to have access to a version id and the Seen Vector to perform their own internal merge operations.
+Some more complex elements may want to have access to a version id and the Seen Vector to perform their own internal merge operations.
 The author reckon this may help implementing S3 versioning, by giving a simple way for Objects to know if an ObjectVersion was yet
 unknown or is known and already deleted.
 
