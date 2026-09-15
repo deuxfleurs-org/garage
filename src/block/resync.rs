@@ -848,19 +848,133 @@ mod v1 {
 		let old_errors =
 			db.open_typed_tree::<Hash, ErrorCounter, _>("block_local_resync_errors")?;
 
-		// The old queue is ordered by (when, hash). For a given hash, its occurrences are
-		// therefore visited in ascending `when` order, so overwriting on every match
-		// means the last (and thus highest) `when` we see for a hash is the one that survives
-		// in the v2 tree — consistent with the max-wins semantics used when updating an
-		// already-queued entry elsewhere (see `put_to_resync_at_or_later`).
-		for row in old_queue.iter()? {
-			let (ResyncQueueKey { when, hash }, _) = row?;
-			let errors = old_errors.get(&hash)?.map(|ec| ec.errors).unwrap_or(0);
-			new_queue.insert(&hash, &ResyncEntry { when, errors })?;
+		// All reads and writes below are done in a single db-level transaction: mixing a
+		// standalone iterator (which holds its own read transaction open) with further
+		// standalone reads/writes on the same thread is invalid for the LMDB backend
+		// (`MDB_BAD_RSLOT: Invalid reuse of reader locktable slot`).
+		db.transaction(|tx| {
+			// The old queue is ordered by (when, hash). For a given hash, its occurrences are
+			// therefore visited in ascending `when` order, so overwriting on every match
+			// means the last (and thus highest) `when` we see for a hash is the one that survives
+			// in the v2 tree — consistent with the max-wins semantics used when updating an
+			// already-queued entry elsewhere (see `put_to_resync_at_or_later`).
+			let rows = old_queue.tx_iter(tx)?.collect::<db::TxOpResult<Vec<_>>>()?;
+
+			for (ResyncQueueKey { when, hash }, _) in rows {
+				let errors = old_errors
+					.tx_get(tx, &hash)?
+					.map(|ec| ec.errors)
+					.unwrap_or(0);
+				new_queue.tx_insert(tx, &hash, &ResyncEntry { when, errors })?;
+			}
+
+			old_queue.tx_clear(tx)?;
+			old_errors.tx_clear(tx)?;
+			Ok(())
+		})
+		.map_err(|e| e.cannot_have_aborted())
+	}
+
+	#[cfg(test)]
+	mod test {
+		use super::*;
+
+		fn h(byte: u8) -> Hash {
+			Hash::from([byte; 32])
 		}
 
-		old_queue.clear()?;
-		old_errors.clear()?;
-		Ok(())
+		/// Regression test for a bug where `migrate_resync_queue_v1_to_v2` mixed a
+		/// standalone iterator (which keeps its own LMDB read transaction open for the
+		/// duration of the loop) with further standalone reads and writes on the same
+		/// thread while migrating a non-empty v1 queue. On the LMDB backend, opening
+		/// those extra transactions while the iterator's read transaction was still
+		/// alive produced:
+		/// "LMDB: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot"
+		///
+		/// This only reproduces against a real LMDB-backed `Db`, since the bug is
+		/// specific to how the `heed`/LMDB backend hands out reader-lock-table slots
+		/// per thread.
+		#[test]
+		fn migrate_resync_queue_v1_to_v2_with_lmdb_backend() {
+			let tmp_dir = mktemp::Temp::new_dir().unwrap();
+			let db = db::open_db(
+				&tmp_dir.to_path_buf(),
+				db::Engine::Lmdb,
+				&db::OpenOpt::default(),
+			)
+			.expect("failed to open temporary lmdb database");
+
+			let old_queue = db
+				.open_typed_tree::<ResyncQueueKey, Hash, _>("block_local_resync_queue")
+				.unwrap();
+			let old_errors = db
+				.open_typed_tree::<Hash, ErrorCounter, _>("block_local_resync_errors")
+				.unwrap();
+
+			let h1 = h(1);
+			let h2 = h(2);
+
+			// h2 is queued twice: the migration must keep the entry with the highest
+			// `when`, following the max-wins semantics used elsewhere in this module.
+			old_queue
+				.insert(
+					&ResyncQueueKey {
+						when: 100,
+						hash: h1,
+					},
+					&h1,
+				)
+				.unwrap();
+			old_queue
+				.insert(
+					&ResyncQueueKey {
+						when: 200,
+						hash: h2,
+					},
+					&h2,
+				)
+				.unwrap();
+			old_queue
+				.insert(
+					&ResyncQueueKey {
+						when: 300,
+						hash: h2,
+					},
+					&h2,
+				)
+				.unwrap();
+			old_errors
+				.insert(
+					&h2,
+					&ErrorCounter {
+						errors: 3,
+						last_try: 250,
+					},
+				)
+				.unwrap();
+
+			// Before the fix, this call errored out with MDB_BAD_RSLOT as soon as the
+			// old queue was non-empty.
+			migrate_resync_queue_v1_to_v2(&db).expect("migration failed");
+
+			assert!(old_queue.is_empty().unwrap());
+			assert!(old_errors.is_empty().unwrap());
+
+			let new_queue = db
+				.open_typed_tree::<Hash, ResyncEntry, _>("block_local_resync_queue_v2")
+				.unwrap();
+
+			let e1 = new_queue
+				.get(&h1)
+				.unwrap()
+				.expect("h1 missing from v2 queue");
+			assert_eq!((e1.when, e1.errors), (100, 0));
+
+			let e2 = new_queue
+				.get(&h2)
+				.unwrap()
+				.expect("h2 missing from v2 queue");
+			assert_eq!((e2.when, e2.errors), (300, 3));
+		}
 	}
 }

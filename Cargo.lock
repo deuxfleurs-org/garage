@@ -1759,6 +1759,7 @@ dependencies = [
  "garage_rpc",
  "garage_util",
  "hex",
+ "mktemp",
  "opentelemetry",
  "rand 0.9.5",
  "serde",

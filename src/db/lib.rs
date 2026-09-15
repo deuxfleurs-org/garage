@@ -88,11 +88,29 @@ impl From<DecodeError> for TxOpError {
 }
 
 #[derive(Debug)]
+/// An empty enum used to represent errors in transaction that cannot abort.
+///
+/// Such transactions would have error type `TxError<Unabortable>`
+pub enum Unabortable {}
+
+#[derive(Debug)]
+/// An error representing whether a transaction was aborted or if an underlying DB error happened.
+///
+/// The aborted case carry a payload of type `E`.
 pub enum TxError<E> {
 	Abort(E),
 	Db(Error),
 }
 pub type TxResult<R, E> = std::result::Result<R, TxError<E>>;
+
+impl TxError<Unabortable> {
+	/// If the transaction is statically known to not have aborted, unwraps the underlying DB error.
+	pub fn cannot_have_aborted(self) -> Error {
+		match self {
+			TxError::Db(e) => e,
+		}
+	}
+}
 
 impl<E> From<TxOpError> for TxError<E> {
 	fn from(e: TxOpError) -> TxError<E> {
