@@ -848,20 +848,31 @@ mod v1 {
 		let old_errors =
 			db.open_typed_tree::<Hash, ErrorCounter, _>("block_local_resync_errors")?;
 
-		// The old queue is ordered by (when, hash). For a given hash, its occurrences are
-		// therefore visited in ascending `when` order, so overwriting on every match
-		// means the last (and thus highest) `when` we see for a hash is the one that survives
-		// in the v2 tree — consistent with the max-wins semantics used when updating an
-		// already-queued entry elsewhere (see `put_to_resync_at_or_later`).
-		for row in old_queue.iter()? {
-			let (ResyncQueueKey { when, hash }, _) = row?;
-			let errors = old_errors.get(&hash)?.map(|ec| ec.errors).unwrap_or(0);
-			new_queue.insert(&hash, &ResyncEntry { when, errors })?;
-		}
+		// All reads and writes below are done in a single db-level transaction: mixing a
+		// standalone iterator (which holds its own read transaction open) with further
+		// standalone reads/writes on the same thread is invalid for the LMDB backend
+		// (`MDB_BAD_RSLOT: Invalid reuse of reader locktable slot`).
+		db.transaction(|tx| {
+			// The old queue is ordered by (when, hash). For a given hash, its occurrences are
+			// therefore visited in ascending `when` order, so overwriting on every match
+			// means the last (and thus highest) `when` we see for a hash is the one that survives
+			// in the v2 tree — consistent with the max-wins semantics used when updating an
+			// already-queued entry elsewhere (see `put_to_resync_at_or_later`).
+			let rows = old_queue.tx_iter(tx)?.collect::<db::TxOpResult<Vec<_>>>()?;
 
-		old_queue.clear()?;
-		old_errors.clear()?;
-		Ok(())
+			for (ResyncQueueKey { when, hash }, _) in rows {
+				let errors = old_errors
+					.tx_get(tx, &hash)?
+					.map(|ec| ec.errors)
+					.unwrap_or(0);
+				new_queue.tx_insert(tx, &hash, &ResyncEntry { when, errors })?;
+			}
+
+			old_queue.tx_clear(tx)?;
+			old_errors.tx_clear(tx)?;
+			Ok(())
+		})
+		.map_err(|e| e.cannot_have_aborted())
 	}
 
 	#[cfg(test)]
@@ -906,13 +917,31 @@ mod v1 {
 			// h2 is queued twice: the migration must keep the entry with the highest
 			// `when`, following the max-wins semantics used elsewhere in this module.
 			old_queue
-				.insert(&ResyncQueueKey { when: 100, hash: h1 }, &h1)
+				.insert(
+					&ResyncQueueKey {
+						when: 100,
+						hash: h1,
+					},
+					&h1,
+				)
 				.unwrap();
 			old_queue
-				.insert(&ResyncQueueKey { when: 200, hash: h2 }, &h2)
+				.insert(
+					&ResyncQueueKey {
+						when: 200,
+						hash: h2,
+					},
+					&h2,
+				)
 				.unwrap();
 			old_queue
-				.insert(&ResyncQueueKey { when: 300, hash: h2 }, &h2)
+				.insert(
+					&ResyncQueueKey {
+						when: 300,
+						hash: h2,
+					},
+					&h2,
+				)
 				.unwrap();
 			old_errors
 				.insert(
