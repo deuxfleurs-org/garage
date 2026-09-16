@@ -1,6 +1,6 @@
 # garage
 
-![Version: 0.10.2](https://img.shields.io/badge/Version-0.10.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2.4.1](https://img.shields.io/badge/AppVersion-v2.4.1-informational?style=flat-square)
+![Version: 0.10.3](https://img.shields.io/badge/Version-0.10.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2.4.1](https://img.shields.io/badge/AppVersion-v2.4.1-informational?style=flat-square)
 
 S3-compatible object store for small self-hosted geo-distributed deployments
 
@@ -102,12 +102,12 @@ S3-compatible object store for small self-hosted geo-distributed deployments
 | resources | object | `{}` |  |
 | securityContext.capabilities | object | `{"drop":["ALL"]}` | The default security context is heavily restricted, feel free to tune it to your requirements |
 | securityContext.readOnlyRootFilesystem | bool | `true` |  |
+| service.admin.annotations | object | `{}` | Annotations to add to the admin API service |
+| service.admin.enabled | bool | `false` | Expose admin API internally as a Kubernetes service. NOTE: the admin API is excluded by default as it is not consistent across nodes |
 | service.annotations | object | `{}` | Annotations to add to the service |
 | service.s3.api.port | int | `3900` |  |
 | service.s3.web.port | int | `3902` |  |
 | service.type | string | `"ClusterIP"` | You can rely on any service to expose your cluster - ClusterIP (+ Ingress) - NodePort (+ Ingress) - LoadBalancer |
-| service.admin.enabled | bool | false | Create a separate Service for the admin API |
-| service.admin.annotations | object | `{}` | Annotations to add to the admin API service |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
 | serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template |
