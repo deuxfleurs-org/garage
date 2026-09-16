@@ -1,0 +1,51 @@
+suite: admin API service
+templates:
+  - templates/service-admin.yaml
+tests:
+  - it: does not create an admin API service by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: creates a ClusterIP admin API service when enabled
+    set:
+      service.admin.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-garage-admin
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0].name
+          value: admin
+      - equal:
+          path: spec.ports[0].port
+          value: 3903
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 3903
+
+  - it: derives the admin API port from a custom apiBindAddr
+    set:
+      service.admin.enabled: true
+      garage.admin.apiBindAddr: "[::]:9999"
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9999
+
+  - it: adds custom annotations to the admin API service
+    set:
+      service.admin.enabled: true
+      service.admin.annotations:
+        my-annotation: my-value
+    asserts:
+      - equal:
+          path: metadata.annotations["my-annotation"]
+          value: my-value

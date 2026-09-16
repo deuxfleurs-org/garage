@@ -1,4 +1,4 @@
-.PHONY: doc all run1 run2 run3
+.PHONY: doc all run1 run2 run3 helmtest
 
 all:
 	clear
@@ -20,3 +20,6 @@ run3:
 	RUST_LOG=garage=debug ./target/debug/garage -c tmp/config3.toml server
 run3rel:
 	RUST_LOG=garage=debug ./target/release/garage -c tmp/config3.toml server
+
+helmtest:
+	helm unittest --strict script/helm/garage

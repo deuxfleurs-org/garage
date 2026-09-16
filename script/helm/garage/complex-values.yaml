@@ -177,7 +177,11 @@ service:
       port: 3900
     web:
       port: 3902
-    # NOTE: the admin API is excluded for now as it is not consistent across nodes
+  # -- The admin API is excluded by default as it is not consistent across nodes
+  admin:
+    enabled: true
+    annotations:
+      my-annotation: my-value
 
 ingress:
   s3:
