@@ -161,7 +161,12 @@ service:
       port: 3900
     web:
       port: 3902
-    # NOTE: the admin API is excluded for now as it is not consistent across nodes
+  admin:
+    # -- Expose admin API internally as a Kubernetes service.
+    # NOTE: the admin API is excluded by default as it is not consistent across nodes
+    enabled: false
+    # -- Annotations to add to the admin API service
+    annotations: {}
 
 ingress:
   s3:

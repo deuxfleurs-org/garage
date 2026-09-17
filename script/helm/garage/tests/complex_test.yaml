@@ -6,6 +6,7 @@ suite: complex-values integration
 templates:
   - templates/workload.yaml
   - templates/service.yaml
+  - templates/service-admin.yaml
   - templates/service-headless.yaml
   - templates/ingress.yaml
   - templates/servicemonitor.yaml
@@ -54,6 +55,13 @@ tests:
       - template: templates/service.yaml
         hasDocuments:
           count: 2 # main service + metrics service, since monitoring.metrics.enabled is true here
+      - template: templates/service-admin.yaml
+        hasDocuments:
+          count: 1 # service.admin.enabled is true here
+      - template: templates/service-admin.yaml
+        equal:
+          path: metadata.annotations["my-annotation"]
+          value: my-value
       - template: templates/service-headless.yaml
         hasDocuments:
           count: 1 # StatefulSet still gets a headless service
