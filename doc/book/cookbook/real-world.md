@@ -216,6 +216,11 @@ You can also use an alias as follows to use the Garage binary inside your docker
 alias garage="docker exec -ti <container name> /garage"
 ```
 
+Note that our Docker image is built `FROM scratch` and does not contain a shell, so
+`docker exec -it <container name> /bin/sh` will not work. See
+[Debugging the Docker container](@/documentation/operations/debugging.md) if you need
+to troubleshoot a Garage container further.
+
 You can test your `garage` CLI utility by running a simple command such as:
 
 ```bash
