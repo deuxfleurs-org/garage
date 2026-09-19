@@ -15,7 +15,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.2.0"
+      "version": "12.4.1"
     },
     {
       "type": "datasource",
@@ -52,29 +52,31 @@
       }
     ]
   },
+  "description": "The garage default dashboard for performance and monitoring",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "id": null,
+  "graphTooltip": 1,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of garage block disk IO across all cluster nodes",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 24,
             "gradientMode": "none",
@@ -83,6 +85,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -90,6 +93,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -105,7 +109,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -132,21 +136,24 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(block_bytes_read{job=\"garage\"}[$__rate_interval])    )",
-          "hide": false,
+          "expr": "sum(rate(block_bytes_read{job=\"garage\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "Disk bytes read",
+          "range": true,
           "refId": "A"
         },
         {
@@ -154,11 +161,12 @@
             "type": "prometheus",
             "uid": "${DS_DS_PROMETHEUS}"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "-sum(rate(block_bytes_written{job=\"garage\"}[$__rate_interval])    )",
-          "hide": false,
+          "expr": "-sum(rate(block_bytes_written{job=\"garage\"}[$__rate_interval]))",
           "interval": "",
           "legendFormat": "Disk bytes written",
+          "range": true,
           "refId": "B"
         }
       ],
@@ -170,17 +178,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of all API request per S3 endpoint across all nodes",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -189,6 +200,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -196,6 +208,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -211,7 +224,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -238,10 +251,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -251,7 +266,6 @@
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum by (api_endpoint) (rate(api_s3_request_counter {job=\"garage\"}[$__rate_interval]))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{api_endpoint}}",
           "range": true,
@@ -266,17 +280,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of all request on the web endpoint across all nodes",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -285,6 +302,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -292,6 +310,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -307,7 +326,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -334,10 +353,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -346,7 +367,6 @@
           },
           "exemplar": true,
           "expr": "sum(rate(web_request_counter {job=\"garage\"}[$__rate_interval]))",
-          "hide": false,
           "interval": "",
           "legendFormat": "Web request rate",
           "refId": "A"
@@ -360,17 +380,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of all internal RPC requests across all nodes ",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -379,6 +402,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -386,6 +410,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -401,7 +426,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -428,10 +453,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -440,7 +467,6 @@
           },
           "exemplar": true,
           "expr": "sum by (rpc_endpoint) (rate(rpc_request_counter {job=\"garage\"}[$__rate_interval]))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{rpc_endpoint}}",
           "refId": "A"
@@ -454,17 +480,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of all API request error per S3 endpoint across all nodes",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -473,6 +502,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -480,6 +510,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -495,7 +526,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -522,10 +553,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -535,7 +568,6 @@
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum by (api_endpoint, status_code) (rate(api_s3_error_counter {job=\"garage\"}[$__rate_interval]))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{api_endpoint}} {{status_code}}",
           "range": true,
@@ -550,17 +582,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Sum of all web request error across all nodes",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -569,6 +604,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -576,6 +612,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -591,7 +628,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -618,10 +655,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -630,7 +669,6 @@
           },
           "exemplar": true,
           "expr": "sum by(status_code) (rate(web_error_counter {job=\"garage\"}[$__rate_interval]))",
-          "hide": false,
           "interval": "",
           "legendFormat": "{{status_code}}",
           "refId": "A"
@@ -644,17 +682,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Number of blocks in the resync queue on each node. A block ends up here as a result of each write. Each node \"consumes\" its resync queue, getting missing blocks from other nodes. If the resync queue is growing, it indicates either performance issues on that node or connectivity issues in the cluster. Repair commands can also lead to blocks being queue into resync. The resync queue is persisted to disk, stored in the metadata database. As of garage 2.4.1, the resync queue can contain duplicated blocks, so what matters here is more the evolution (growing or shrinking).",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -663,6 +704,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -670,6 +712,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -685,7 +728,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -711,10 +754,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -736,17 +781,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Rows waiting to be purged from the metadata database. It is expected to see a certain amount of objects, version and block_ref here when S3 objects gets overwritten or deleted, as garage will keep the references in store for 24h. If you have not deleted files in the last 24h and this is not going down, you might have an issue.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -755,6 +803,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -762,6 +811,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -777,7 +827,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -803,10 +853,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -828,17 +880,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "Table syn between nodes. This should usually be close to zero, and will increase if a node re-join the cluster after being split. It should decrease soon afterward. If this is permanently high, you might have a node with a metadata performance issue.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -847,6 +902,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -854,6 +910,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -869,7 +926,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -895,10 +952,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -920,17 +979,20 @@
         "type": "prometheus",
         "uid": "${DS_DS_PROMETHEUS}"
       },
+      "description": "When a node try to re-sync a block and encounter an error, it enters this queue. This can happen as part of normal operation (because connectivity was broken), but in general this should be zero or close to zero in normal operation.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -939,6 +1001,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -946,6 +1009,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -961,7 +1025,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -987,10 +1051,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1006,23 +1072,230 @@
       ],
       "title": "Resync errored blocks",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_DS_PROMETHEUS}"
+      },
+      "description": "Amount of free buffer in the cache used by garage for its blocks. Should not be zero in normal operations.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "deckbytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 25
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "block_ram_buffer_free_kb{job=\"garage\"}",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Block write buffer free",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_DS_PROMETHEUS}"
+      },
+      "description": "Deleted blocks by the garage garbage collector, per node.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 25
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": true,
+          "expr": "sum by (instance) (rate(block_delete_counter{job=\"garage\"}[$__rate_interval]))",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Deleted blocks",
+      "type": "timeseries"
     }
   ],
-  "refresh": "30s",
-  "schemaVersion": 37,
-  "style": "dark",
-  "tags": [],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": [
+    "garage",
+    "s3",
+    "storage"
+  ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "browser",
   "title": "Garage",
   "uid": "ys3pnpZ4k",
-  "version": 26,
+  "version": 36,
   "weekStart": ""
 }
