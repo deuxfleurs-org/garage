@@ -21,3 +21,7 @@ to ensure integrity and availability of your data:
 - **[Recovering from failures](@/documentation/operations/recovering.md):** Garage's first selling point is resilience
   to hardware failures. This section explains how to recover from such a failure in the
   best possible way.
+
+- **[Debugging the Docker container](@/documentation/operations/debugging.md):** The official Docker image is
+  built `FROM scratch` and has no shell. This page explains how to run CLI commands, read logs, and inspect the
+  container's filesystem/processes anyway.
