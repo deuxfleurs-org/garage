@@ -12,7 +12,7 @@ use crate::cli::remote::*;
 use crate::cli::structs::*;
 
 impl Cli {
-	pub async fn cmd_key(&self, cmd: KeyOperation) -> Result<(), Error> {
+	pub async fn cmd_key(&self, cmd: KeyOperation, config: Option<Config>) -> Result<(), Error> {
 		match cmd {
 			KeyOperation::List => self.cmd_list_keys().await,
 			KeyOperation::Info(query) => self.cmd_key_info(query).await,
@@ -24,6 +24,9 @@ impl Cli {
 			KeyOperation::Deny(query) => self.cmd_deny_key(query).await,
 			KeyOperation::Import(query) => self.cmd_import_key(query).await,
 			KeyOperation::DeleteExpired { yes } => self.cmd_delete_expired_keys(yes).await,
+			KeyOperation::ExportEnv { key, prefix } => {
+				self.cmd_export_env(key, prefix, config).await
+			}
 		}
 	}
 
@@ -61,11 +64,18 @@ impl Cli {
 			.api_request(GetKeyInfoRequest {
 				id: None,
 				search: Some(opt.key_pattern),
-				show_secret_key: opt.show_secret,
+				show_secret_key: opt.show_secret | opt.secret_key,
 			})
 			.await?;
 
-		print_key_info(&key);
+		match (opt.key_id, opt.secret_key) {
+			(true, _) => println!("{}", key.access_key_id),
+			(_, true) => println!(
+				"{}",
+				key.secret_access_key.as_deref().unwrap_or("(redacted)")
+			),
+			_ => print_key_info(&key),
+		}
 
 		Ok(())
 	}

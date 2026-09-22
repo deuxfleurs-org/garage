@@ -359,5 +359,5 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 		rpc_host: id,
 	};
 
-	cli.handle(opt.cmd).await
+	cli.handle(opt.cmd, config).await
 }

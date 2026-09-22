@@ -18,11 +18,11 @@ use garage_util::error::*;
 
 use garage_rpc::*;
 
+use crate::cli::structs::*;
 use garage_api_admin::api::*;
 use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
 use garage_api_admin::RequestHandler;
-
-use crate::cli::structs::*;
+use garage_util::config::Config;
 
 pub struct Cli {
 	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
@@ -30,7 +30,7 @@ pub struct Cli {
 }
 
 impl Cli {
-	pub async fn handle(&self, cmd: Command) -> Result<(), Error> {
+	pub async fn handle(&self, cmd: Command, config: Option<Config>) -> Result<(), Error> {
 		match cmd {
 			Command::Status => self.cmd_status().await,
 			Command::Health(opt) => self.cmd_health(opt.quiet).await,
@@ -40,7 +40,7 @@ impl Cli {
 			Command::Layout(layout_opt) => self.layout_command_dispatch(layout_opt).await,
 			Command::Bucket(bo) => self.cmd_bucket(bo).await,
 			Command::AdminToken(to) => self.cmd_admin_token(to).await,
-			Command::Key(ko) => self.cmd_key(ko).await,
+			Command::Key(ko) => self.cmd_key(ko, config).await,
 			Command::Worker(wo) => self.cmd_worker(wo).await,
 			Command::Block(bo) => self.cmd_block(bo).await,
 			Command::Meta(mo) => self.cmd_meta(mo).await,
@@ -164,6 +164,40 @@ impl Cli {
 			"Invalid response: {}",
 			serde_json::to_string(&resp)?
 		)))
+	}
+
+	pub async fn cmd_export_env(
+		&self,
+		key: String,
+		prefix: String,
+		config: Option<Config>,
+	) -> Result<(), Error> {
+		let key_infos = self
+			.api_request(GetKeyInfoRequest {
+				id: None,
+				search: Some(key),
+				show_secret_key: true,
+			})
+			.await?;
+
+		println!("{}ACCESS_KEY_ID={}", prefix, key_infos.access_key_id);
+		println!(
+			"{}SECRET_ACCESS_KEY={}",
+			prefix,
+			key_infos
+				.secret_access_key
+				.as_deref()
+				.unwrap_or("(redacted)")
+		);
+		println!("{}DEFAULT_REGION='garage'", prefix);
+
+		if let Some(config) = config {
+			if let Some(url) = config.s3_api.advertise_endpoint {
+				println!("{}ENDPOINT_URL='{}'", prefix, url);
+			}
+		}
+
+		Ok(())
 	}
 }
 
