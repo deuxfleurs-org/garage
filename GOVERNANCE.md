@@ -1,4 +1,4 @@
-# Governance of Gararge
+# Governance of Garage
 
 This documents how the Garage project operates. It reflects the state of the project as of July 2026 and is not optimal. The team is interested to improve it in the future.
 
