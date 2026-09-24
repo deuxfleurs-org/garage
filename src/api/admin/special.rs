@@ -52,9 +52,8 @@ impl RequestHandler for MetricsRequest {
 			let encoder = TextEncoder::new();
 
 			let tracer = opentelemetry::global::tracer("garage");
-			let metric_families = tracer.in_span("admin/gather_metrics", |_| {
-				admin.exporter.registry().gather()
-			});
+			let metric_families =
+				tracer.in_span("admin/gather_metrics", |_| admin.registry.gather());
 
 			encoder
 				.encode(&metric_families, &mut buffer)

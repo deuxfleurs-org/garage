@@ -108,11 +108,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		let span = tracer.start(format!("{} insert", F::TABLE_NAME));
 
 		self.insert_internal(e)
-			.bound_record_duration(&self.data.metrics.put_request_duration)
+			.record_duration(
+				&self.data.metrics.put_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.put_request_counter.add(1);
+		self.data
+			.metrics
+			.put_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(())
 	}
@@ -152,11 +158,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 		let span = tracer.start(format!("{} insert_many", F::TABLE_NAME));
 
 		self.insert_many_internal(entries)
-			.bound_record_duration(&self.data.metrics.put_request_duration)
+			.record_duration(
+				&self.data.metrics.put_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.put_request_counter.add(1);
+		self.data
+			.metrics
+			.put_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(())
 	}
@@ -294,11 +306,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 		let res = self
 			.get_internal(partition_key, sort_key, false)
-			.bound_record_duration(&self.data.metrics.get_request_duration)
+			.record_duration(
+				&self.data.metrics.get_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.get_request_counter.add(1);
+		self.data
+			.metrics
+			.get_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(res)
 	}
@@ -313,11 +331,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 
 		let res = self
 			.get_internal(partition_key, sort_key, true)
-			.bound_record_duration(&self.data.metrics.get_request_duration)
+			.record_duration(
+				&self.data.metrics.get_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.get_request_counter.add(1);
+		self.data
+			.metrics
+			.get_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(res)
 	}
@@ -403,11 +427,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 				enumeration_order,
 				false,
 			)
-			.bound_record_duration(&self.data.metrics.get_request_duration)
+			.record_duration(
+				&self.data.metrics.get_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.get_request_counter.add(1);
+		self.data
+			.metrics
+			.get_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(res)
 	}
@@ -432,11 +462,17 @@ impl<F: TableSchema, R: TableReplication> Table<F, R> {
 				enumeration_order,
 				true,
 			)
-			.bound_record_duration(&self.data.metrics.get_request_duration)
+			.record_duration(
+				&self.data.metrics.get_request_duration,
+				&self.data.metrics.attrs,
+			)
 			.with_context(Context::current_with_span(span))
 			.await?;
 
-		self.data.metrics.get_request_counter.add(1);
+		self.data
+			.metrics
+			.get_request_counter
+			.add(1, &self.data.metrics.attrs);
 
 		Ok(res)
 	}

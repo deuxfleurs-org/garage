@@ -161,7 +161,7 @@ impl ClientConn {
 					.with_kind(SpanKind::Client)
 					.start(&tracer);
 				let propagator = BinaryPropagator::new();
-				let telemetry_id: Bytes = propagator.to_bytes(span.span_context()).to_vec().into();
+				let telemetry_id: Bytes = propagator.serialize_into_bytes(span.span_context()).to_vec().into();
 			} else {
 				let telemetry_id: Bytes = Bytes::new();
 			}

@@ -42,7 +42,7 @@ k2v-client = { version = "0.0.4", path = "src/k2v-client" }
 # External crates from crates.io
 arc-swap = "1.8"
 arbitrary = { version = "1.4.2"}
-argon2 = "0.5"
+argon2 = { version = "0.5", features = ["std"] }
 async-trait = "0.1"
 backtrace = "0.3"
 base64 = "0.22"
@@ -153,11 +153,16 @@ tokio-util = { version = "0.7", features = ["compat", "io"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 socket2 = { version = "0.6", features = ["all"] }
 
-opentelemetry = { version = "0.17", features = ["rt-tokio", "metrics", "trace"] }
-opentelemetry-prometheus = "0.10"
-opentelemetry-otlp = "0.10"
-opentelemetry-contrib = "0.9"
-prometheus = "0.13"
+opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
+opentelemetry_sdk = "0.32"
+opentelemetry-prometheus = "0.32"
+opentelemetry-otlp = { version = "0.32", default-features = false, features = [
+    "grpc-tonic",
+    "trace",
+    "internal-logs",
+] }
+opentelemetry-contrib = "0.24"
+prometheus = "0.14"
 
 # used by the k2v-client crate only
 aws-sigv4 = { version = "1.3", default-features = false }

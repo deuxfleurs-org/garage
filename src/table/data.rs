@@ -246,7 +246,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 		})?;
 
 		if let Some((new_entry, new_bytes_hash)) = changed {
-			self.metrics.internal_update_counter.add(1);
+			self.metrics
+				.internal_update_counter
+				.add(1, &self.metrics.attrs);
 
 			let is_tombstone = new_entry.is_tombstone();
 			self.merkle_todo_notify.notify_one();
@@ -289,7 +291,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if removed {
-			self.metrics.internal_delete_counter.add(1);
+			self.metrics
+				.internal_delete_counter
+				.add(1, &self.metrics.attrs);
 			self.merkle_todo_notify.notify_one();
 		}
 		Ok(removed)
@@ -317,7 +321,9 @@ impl<F: TableSchema, R: TableReplication> TableData<F, R> {
 			})?;
 
 		if removed {
-			self.metrics.internal_delete_counter.add(1);
+			self.metrics
+				.internal_delete_counter
+				.add(1, &self.metrics.attrs);
 			self.merkle_todo_notify.notify_one();
 		}
 		Ok(removed)

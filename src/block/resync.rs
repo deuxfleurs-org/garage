@@ -441,28 +441,28 @@ impl BlockResyncManager {
 
 		if now >= time_msec {
 			let tracer = opentelemetry::global::tracer("garage");
+			// FIXME: I don't really like this, we are generating a 32 char UUID and then taking half of
+			// it, encode it in hex and making it a 16 bytes trace_id ? We should declare a tracer properly
+			// and let otel initialize the root span and stop being cavepeople
 			let trace_id = gen_uuid();
+			let trace_id =
+				opentelemetry::trace::TraceId::from_hex(&hex::encode(&trace_id.as_slice()[..16]))
+					.unwrap();
 			let span = tracer
 				.span_builder("Resync block")
-				.with_trace_id(
-					opentelemetry::trace::TraceId::from_hex(&hex::encode(
-						&trace_id.as_slice()[..16],
-					))
-					.unwrap(),
-				)
 				.with_attributes(vec![KeyValue::new("block", format!("{:?}", hash))])
-				.start(&tracer);
+				.start_with_context(&tracer, &garage_util::metrics::trace_id_context(trace_id));
 
 			let res = self
 				.resync_block(manager, &hash)
 				.with_context(Context::current_with_span(span))
-				.bound_record_duration(&manager.metrics.resync_duration)
+				.record_duration(&manager.metrics.resync_duration, &[])
 				.await;
 
-			manager.metrics.resync_counter.add(1);
+			manager.metrics.resync_counter.add(1, &[]);
 
 			if let Err(e) = &res {
-				manager.metrics.resync_error_counter.add(1);
+				manager.metrics.resync_error_counter.add(1, &[]);
 				error!("Error when resyncing {:?}: {}", hash, e);
 			}
 
@@ -630,7 +630,7 @@ impl BlockResyncManager {
 			}
 			let block_data = block_data?;
 
-			manager.metrics.resync_recv_counter.add(1);
+			manager.metrics.resync_recv_counter.add(1, &[]);
 
 			manager.write_block(hash, &block_data).await?;
 		}
