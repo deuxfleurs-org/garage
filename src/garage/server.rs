@@ -6,6 +6,8 @@ use tokio::sync::watch;
 use garage_util::background::*;
 use garage_util::config::*;
 use garage_util::error::Error;
+#[cfg(feature = "metrics")]
+use garage_util::error::ErrorContext;
 
 use garage_api_admin::api_server::AdminApiServer;
 use garage_api_s3::api_server::S3ApiServer;
@@ -38,14 +40,58 @@ pub async fn run_server(
 	// ---- Initialize Garage internals ----
 
 	#[cfg(feature = "metrics")]
-	let metrics_exporter = opentelemetry_prometheus::exporter()
-		.with_default_summary_quantiles(vec![0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
-		.with_default_histogram_boundaries(vec![
+	let metrics_registry = {
+		use opentelemetry_sdk::metrics::{
+			Aggregation, Instrument, InstrumentKind, SdkMeterProvider, Stream,
+		};
+		use opentelemetry_sdk::Resource;
+
+		let histogram_boundaries = vec![
 			0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07, 0.1,
 			0.15, 0.2, 0.3, 0.5, 0.7, 1., 1.5, 2., 3., 5., 7., 10., 15., 20., 30., 40., 50., 60.,
 			70., 100.,
-		])
-		.init();
+		];
+
+		let registry = prometheus::Registry::new();
+		let metrics_exporter = opentelemetry_prometheus::exporter()
+			.with_registry(registry.clone())
+			// FIXME: Keep metric names and series stable across the opentelemetry upgrade:
+			// newer versions of the exporter add a `_total` suffix to counters and
+			// an `otel_scope_name`/`otel_scope_version` label (plus a corresponding
+			// `otel_scope_info` metric) to every series by default, which would
+			// break existing dashboards, alerts and `rate()` queries. We might want to
+			// do this later to be more industry-standard but it will be a breaking change.
+			.without_counter_suffixes()
+			.without_scope_info()
+			.build()
+			.err_context("Unable to initialize Prometheus exporter")?;
+
+		let meter_provider = SdkMeterProvider::builder()
+		    // Note: OTEL_SERVICE_NAME will be forcibly overriden by "garage"
+			.with_resource(Resource::builder().with_service_name("garage").build())
+			.with_reader(metrics_exporter)
+			.with_view(move |i: &Instrument| {
+				if i.kind() == InstrumentKind::Histogram {
+					Stream::builder()
+						.with_aggregation(Aggregation::ExplicitBucketHistogram {
+							boundaries: histogram_boundaries.clone(),
+							record_min_max: true,
+						})
+						.build()
+						.inspect_err(|e| {
+							error!("Invalid histogram bucket boundaries configuration (falling back to default aggregation): {e}");
+						})
+						.ok()
+				} else {
+					None
+				}
+			})
+			.build();
+
+		opentelemetry::global::set_meter_provider(meter_provider);
+
+		registry
+	};
 
 	info!("Initializing Garage main data store...");
 	let garage = Garage::new(config.clone())?;
@@ -70,7 +116,7 @@ pub async fn run_server(
 		garage.clone(),
 		background.clone(),
 		#[cfg(feature = "metrics")]
-		metrics_exporter,
+		metrics_registry,
 	);
 
 	info!("Launching internal Garage cluster communications...");
@@ -163,7 +209,7 @@ pub async fn run_server(
 	// Remove RPC handlers for system to break reference cycles
 	info!("Deregistering RPC handlers for shutdown...");
 	garage.system.netapp.drop_all_handlers();
-	opentelemetry::global::shutdown_tracer_provider();
+	crate::tracing_setup::shutdown_tracing();
 
 	// Await for netapp RPC system to end
 	run_system.await?;

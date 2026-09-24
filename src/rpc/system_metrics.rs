@@ -8,27 +8,27 @@ use crate::system::{ClusterHealthStatus, System};
 /// `TableMetrics` reference all counter used for metrics
 pub struct SystemMetrics {
 	// Static values
-	pub(crate) _garage_build_info: ValueObserver<u64>,
-	pub(crate) _replication_factor: ValueObserver<u64>,
+	pub(crate) _garage_build_info: ObservableGauge<u64>,
+	pub(crate) _replication_factor: ObservableGauge<u64>,
 
 	// Disk space values from System::local_status
-	pub(crate) _disk_avail: ValueObserver<u64>,
-	pub(crate) _disk_total: ValueObserver<u64>,
+	pub(crate) _disk_avail: ObservableGauge<u64>,
+	pub(crate) _disk_total: ObservableGauge<u64>,
 
 	// Health report from System::health()
-	pub(crate) _cluster_healthy: ValueObserver<u64>,
-	pub(crate) _cluster_available: ValueObserver<u64>,
-	pub(crate) _known_nodes: ValueObserver<u64>,
-	pub(crate) _connected_nodes: ValueObserver<u64>,
-	pub(crate) _storage_nodes: ValueObserver<u64>,
-	pub(crate) _storage_nodes_ok: ValueObserver<u64>,
-	pub(crate) _partitions: ValueObserver<u64>,
-	pub(crate) _partitions_quorum: ValueObserver<u64>,
-	pub(crate) _partitions_all_ok: ValueObserver<u64>,
+	pub(crate) _cluster_healthy: ObservableGauge<u64>,
+	pub(crate) _cluster_available: ObservableGauge<u64>,
+	pub(crate) _known_nodes: ObservableGauge<u64>,
+	pub(crate) _connected_nodes: ObservableGauge<u64>,
+	pub(crate) _storage_nodes: ObservableGauge<u64>,
+	pub(crate) _storage_nodes_ok: ObservableGauge<u64>,
+	pub(crate) _partitions: ObservableGauge<u64>,
+	pub(crate) _partitions_quorum: ObservableGauge<u64>,
+	pub(crate) _partitions_all_ok: ObservableGauge<u64>,
 
 	// Status report for individual cluster nodes
-	pub(crate) _layout_node_connected: ValueObserver<u64>,
-	pub(crate) _layout_node_disconnected_time: ValueObserver<u64>,
+	pub(crate) _layout_node_connected: ObservableGauge<u64>,
+	pub(crate) _layout_node_disconnected_time: ObservableGauge<u64>,
 }
 
 impl SystemMetrics {
@@ -53,7 +53,9 @@ impl SystemMetrics {
 		Self {
 			// Static values
 			_garage_build_info: meter
-				.u64_value_observer("garage_build_info", move |observer| {
+				.u64_observable_gauge("garage_build_info")
+				.with_description("Garage build info")
+				.with_callback(move |observer| {
 					observer.observe(
 						1,
 						&[
@@ -62,23 +64,25 @@ impl SystemMetrics {
 						],
 					);
 				})
-				.with_description("Garage build info")
-				.init(),
+				.build(),
 			_replication_factor: {
 				let replication_factor = system.replication_factor;
 				meter
-					.u64_value_observer("garage_replication_factor", move |observer| {
+					.u64_observable_gauge("garage_replication_factor")
+					.with_description("Garage replication factor setting")
+					.with_callback(move |observer| {
 						observer.observe(usize::from(replication_factor) as u64, &[]);
 					})
-					.with_description("Garage replication factor setting")
-					.init()
+					.build()
 			},
 
 			// Disk space values from System::local_status
 			_disk_avail: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("garage_local_disk_avail", move |observer| {
+					.u64_observable_gauge("garage_local_disk_avail")
+					.with_description("Garage available disk space on each node")
+					.with_callback(move |observer| {
 						let st = system.local_status.read().unwrap();
 						if let Some((avail, _total)) = st.data_disk_avail {
 							observer.observe(avail, &[KeyValue::new("volume", "data")]);
@@ -87,13 +91,14 @@ impl SystemMetrics {
 							observer.observe(avail, &[KeyValue::new("volume", "metadata")]);
 						}
 					})
-					.with_description("Garage available disk space on each node")
-					.init()
+					.build()
 			},
 			_disk_total: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("garage_local_disk_total", move |observer| {
+					.u64_observable_gauge("garage_local_disk_total")
+					.with_description("Garage total disk space on each node")
+					.with_callback(move |observer| {
 						let st = system.local_status.read().unwrap();
 						if let Some((_avail, total)) = st.data_disk_avail {
 							observer.observe(total, &[KeyValue::new("volume", "data")]);
@@ -102,15 +107,16 @@ impl SystemMetrics {
 							observer.observe(total, &[KeyValue::new("volume", "metadata")]);
 						}
 					})
-					.with_description("Garage total disk space on each node")
-					.init()
+					.build()
 			},
 
 			// Health report from System::()
 			_cluster_healthy: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_healthy", move |observer| {
+					.u64_observable_gauge("cluster_healthy")
+					.with_description("Whether all storage nodes are connected")
+					.with_callback(move |observer| {
 						let h = get_health();
 						if h.status == ClusterHealthStatus::Healthy {
 							observer.observe(1, &[]);
@@ -118,12 +124,13 @@ impl SystemMetrics {
 							observer.observe(0, &[]);
 						}
 					})
-					.with_description("Whether all storage nodes are connected")
-					.init()
+					.build()
 			},
 			_cluster_available: {
 				let get_health = get_health.clone();
-				meter.u64_value_observer("cluster_available", move |observer| {
+				meter.u64_observable_gauge("cluster_available")
+				.with_description("Whether all requests can be served, even if some storage nodes are disconnected")
+				.with_callback(move |observer| {
 					let h = get_health();
 					if h.status != ClusterHealthStatus::Unavailable {
 						observer.observe(1, &[]);
@@ -131,89 +138,97 @@ impl SystemMetrics {
 						observer.observe(0, &[]);
 					}
 				})
-				.with_description("Whether all requests can be served, even if some storage nodes are disconnected")
-				.init()
+				.build()
 			},
 			_known_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_known_nodes", move |observer| {
+					.u64_observable_gauge("cluster_known_nodes")
+					.with_description("Number of nodes already seen once in the cluster")
+					.with_callback(move |observer| {
 						let h = get_health();
 						observer.observe(h.known_nodes as u64, &[]);
 					})
-					.with_description("Number of nodes already seen once in the cluster")
-					.init()
+					.build()
 			},
 			_connected_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_connected_nodes", move |observer| {
+					.u64_observable_gauge("cluster_connected_nodes")
+					.with_description("Number of nodes currently connected")
+					.with_callback(move |observer| {
 						let h = get_health();
 						observer.observe(h.connected_nodes as u64, &[]);
 					})
-					.with_description("Number of nodes currently connected")
-					.init()
+					.build()
 			},
 			_storage_nodes: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_storage_nodes", move |observer| {
+					.u64_observable_gauge("cluster_storage_nodes")
+					.with_description("Number of storage nodes declared in the current layout")
+					.with_callback(move |observer| {
 						let h = get_health();
 						observer.observe(h.storage_nodes as u64, &[]);
 					})
-					.with_description("Number of storage nodes declared in the current layout")
-					.init()
+					.build()
 			},
 			_storage_nodes_ok: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_storage_nodes_ok", move |observer| {
+					.u64_observable_gauge("cluster_storage_nodes_ok")
+					.with_description("Number of storage nodes currently connected")
+					.with_callback(move |observer| {
 						let h = get_health();
 						observer.observe(h.storage_nodes_ok as u64, &[]);
 					})
-					.with_description("Number of storage nodes currently connected")
-					.init()
+					.build()
 			},
 			_partitions: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions", move |observer| {
+					.u64_observable_gauge("cluster_partitions")
+					.with_description("Number of partitions in the layout")
+					.with_callback(move |observer| {
 						let h = get_health();
 						observer.observe(h.partitions as u64, &[]);
 					})
-					.with_description("Number of partitions in the layout")
-					.init()
+					.build()
 			},
 			_partitions_quorum: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions_quorum", move |observer| {
-						let h = get_health();
-						observer.observe(h.partitions_quorum as u64, &[]);
-					})
+					.u64_observable_gauge("cluster_partitions_quorum")
 					.with_description(
 						"Number of partitions for which we have a quorum of connected nodes",
 					)
-					.init()
+					.with_callback(move |observer| {
+						let h = get_health();
+						observer.observe(h.partitions_quorum as u64, &[]);
+					})
+					.build()
 			},
 			_partitions_all_ok: {
 				let get_health = get_health.clone();
 				meter
-					.u64_value_observer("cluster_partitions_all_ok", move |observer| {
-						let h = get_health();
-						observer.observe(h.partitions_all_ok as u64, &[]);
-					})
+					.u64_observable_gauge("cluster_partitions_all_ok")
 					.with_description(
 						"Number of partitions for which all storage nodes are connected",
 					)
-					.init()
+					.with_callback(move |observer| {
+						let h = get_health();
+						observer.observe(h.partitions_all_ok as u64, &[]);
+					})
+					.build()
 			},
 
 			// Status report for individual cluster nodes
 			_layout_node_connected: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("cluster_layout_node_connected", move |observer| {
+					.u64_observable_gauge("cluster_layout_node_connected")
+					.with_description("Connection status for nodes in the cluster layout")
+					.with_callback(move |observer| {
 						let layout = system.cluster_layout();
 						let nodes = system.get_known_nodes();
 						for id in layout.all_nodes().unwrap_or_default().iter() {
@@ -254,13 +269,16 @@ impl SystemMetrics {
 							observer.observe(value, &kv);
 						}
 					})
-					.with_description("Connection status for nodes in the cluster layout")
-					.init()
+					.build()
 			},
 			_layout_node_disconnected_time: {
 				let system = system.clone();
 				meter
-					.u64_value_observer("cluster_layout_node_disconnected_time", move |observer| {
+					.u64_observable_gauge("cluster_layout_node_disconnected_time")
+					.with_description(
+						"Time (in seconds) since last connection to nodes in the cluster layout",
+					)
+					.with_callback(move |observer| {
 						let layout = system.cluster_layout();
 						let nodes = system.get_known_nodes();
 						for id in layout.all_nodes().unwrap_or_default().iter() {
@@ -298,10 +316,7 @@ impl SystemMetrics {
 							}
 						}
 					})
-					.with_description(
-						"Time (in seconds) since last connection to nodes in the cluster layout",
-					)
-					.init()
+					.build()
 			},
 		}
 	}

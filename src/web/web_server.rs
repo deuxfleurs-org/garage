@@ -13,7 +13,7 @@ use hyper::{
 
 use opentelemetry::{
 	global,
-	metrics::{Counter, ValueRecorder},
+	metrics::{Counter, Histogram},
 	trace::{FutureExt, TraceContextExt, Tracer},
 	Context, KeyValue,
 };
@@ -46,7 +46,7 @@ use garage_util::socket_address::UnixOrTCPSocketAddress;
 struct WebMetrics {
 	request_counter: Counter<u64>,
 	error_counter: Counter<u64>,
-	request_duration: ValueRecorder<f64>,
+	request_duration: Histogram<f64>,
 }
 
 impl WebMetrics {
@@ -56,15 +56,15 @@ impl WebMetrics {
 			request_counter: meter
 				.u64_counter("web.request_counter")
 				.with_description("Number of requests to the web endpoint")
-				.init(),
+				.build(),
 			error_counter: meter
 				.u64_counter("web.error_counter")
 				.with_description("Number of requests to the web endpoint resulting in errors")
-				.init(),
+				.build(),
 			request_duration: meter
-				.f64_value_recorder("web.request_duration")
+				.f64_histogram("web.request_duration")
 				.with_description("Duration of requests to the web endpoint")
-				.init(),
+				.build(),
 		}
 	}
 }
@@ -153,13 +153,15 @@ impl WebServer {
 		let tracer = opentelemetry::global::tracer("garage");
 		let span = tracer
 			.span_builder(format!("Web {} request", req.method()))
-			.with_trace_id(gen_trace_id())
 			.with_attributes(vec![
 				KeyValue::new("host", host_header.clone()),
 				KeyValue::new("method", req.method().to_string()),
 				KeyValue::new("uri", req.uri().to_string()),
 			])
-			.start(&tracer);
+			.start_with_context(
+				&tracer,
+				&garage_util::metrics::trace_id_context(gen_trace_id()),
+			);
 
 		let mut metrics_tags = vec![KeyValue::new("method", req.method().to_string())];
 		if self.add_host_to_metrics {
