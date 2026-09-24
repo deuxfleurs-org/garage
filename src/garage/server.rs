@@ -67,7 +67,7 @@ pub async fn run_server(
 			.err_context("Unable to initialize Prometheus exporter")?;
 
 		let meter_provider = SdkMeterProvider::builder()
-		    // Note: OTEL_SERVICE_NAME will be forcibly overriden by "garage"
+		    // Note: OTEL_SERVICE_NAME will be forcibly overridden by "garage"
 			.with_resource(Resource::builder().with_service_name("garage").build())
 			.with_reader(metrics_exporter)
 			.with_view(move |i: &Instrument| {
