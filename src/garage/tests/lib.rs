@@ -1,9 +1,9 @@
 #[macro_use]
 mod common;
 
-mod admin;
 mod bucket;
 
+mod admin;
 mod s3;
 
 #[cfg(feature = "k2v")]

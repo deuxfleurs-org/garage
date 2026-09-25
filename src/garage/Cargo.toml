@@ -74,6 +74,9 @@ hyper.workspace = true
 hyper-util.workspace = true
 mktemp.workspace = true
 sha2.workspace = true
+rand.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
 
 
 static_init.workspace = true
