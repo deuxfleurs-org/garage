@@ -224,7 +224,10 @@ impl RequestHandler for GetCurrentAdminTokenInfoRequest {
 			));
 		}
 
-		let (prefix, _) = self.admin_token.split_once('.').unwrap();
+		let (prefix, _) = self
+			.admin_token
+			.split_once('.')
+			.ok_or_internal_error("Invalid admin token")?;
 		let token = get_existing_admin_token(garage, &prefix.to_string()).await?;
 
 		Ok(GetCurrentAdminTokenInfoResponse(admin_token_info_results(

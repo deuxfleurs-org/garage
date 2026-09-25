@@ -261,8 +261,7 @@ fn parse_authorization(auth_header: &hyper::http::HeaderValue) -> Result<&str, E
 	let token = auth_header
 		.to_str()?
 		.strip_prefix("Bearer ")
-		.ok_or_else(|| Error::forbidden("Invalid Authorization header"))?
-		.trim();
+		.ok_or_else(|| Error::forbidden("Invalid Authorization header"))?;
 	Ok(token)
 }
 

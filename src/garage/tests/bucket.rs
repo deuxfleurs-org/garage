@@ -3,7 +3,7 @@ use crate::common::ext::CommandExt;
 use aws_sdk_s3::operation::delete_bucket::DeleteBucketOutput;
 
 #[tokio::test]
-async fn test_bucket_all() {
+async fn test_bucket() {
 	let ctx = common::context();
 	let bucket_name = "hello";
 
@@ -100,4 +100,55 @@ async fn test_bucket_all() {
 			.filter(|x| x.name.as_ref().is_some())
 			.any(|x| x.name.as_ref().unwrap() == "hello"));
 	}
+}
+
+#[tokio::test]
+async fn test_bucket_perms() {
+	const BCKT_NAME: &str = "seau";
+
+	let ctx = common::context();
+
+	let hb = || ctx.client.head_bucket().bucket(BCKT_NAME).send();
+
+	assert!(hb().await.is_err());
+
+	ctx.garage
+		.command()
+		.args(["bucket", "create", BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not create bucket");
+
+	assert!(hb().await.is_err());
+
+	ctx.garage
+		.command()
+		.args(["bucket", "allow", "--read", "--key", &ctx.key.id, BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not create bucket");
+
+	assert!(hb().await.is_ok());
+
+	ctx.garage
+		.command()
+		.args(["bucket", "deny", "--read", "--key", &ctx.key.id, BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not create bucket");
+
+	assert!(hb().await.is_err());
+
+	ctx.garage
+		.command()
+		.args(["bucket", "allow", "--read", "--key", &ctx.key.id, BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not create bucket");
+
+	assert!(hb().await.is_ok());
+
+	ctx.garage
+		.command()
+		.args(["bucket", "delete", "--yes", BCKT_NAME])
+		.quiet()
+		.expect_success_status("Could not delete bucket");
+
+	assert!(hb().await.is_err());
 }

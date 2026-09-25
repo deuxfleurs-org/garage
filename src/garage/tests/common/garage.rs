@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::{Mutex, OnceLock};
 
+use rand::Rng;
 use serde_json::json;
 
 use super::ext::*;
@@ -26,6 +27,7 @@ pub struct Instance {
 	pub k2v_port: u16,
 	pub web_port: u16,
 	pub admin_port: u16,
+	pub admin_token: String,
 }
 
 impl Instance {
@@ -51,6 +53,8 @@ impl Instance {
 			fs::remove_dir_all(&path).expect("Could not clean test runtime directory");
 		}
 		fs::create_dir(&path).expect("Could not create test runtime directory");
+
+		let admin_token = hex::encode(&rand::rng().random::<[u8; 16]>()[..]);
 
 		let config = format!(
 			r#"
@@ -81,6 +85,7 @@ index = "index.html"
 
 [admin]
 api_bind_addr = "127.0.0.1:{admin_port}"
+admin_token = "{admin_token}"
 "#,
 			path = path.display(),
 			secret = GARAGE_TEST_SECRET,
@@ -90,6 +95,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			rpc_port = port + 2,
 			web_port = port + 3,
 			admin_port = port + 4,
+			admin_token = admin_token,
 		);
 		fs::write(path.join("config.toml"), config).expect("Could not write garage config file");
 
@@ -117,6 +123,7 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 			k2v_port: port + 1,
 			web_port: port + 3,
 			admin_port: port + 4,
+			admin_token,
 		}
 	}
 
@@ -192,6 +199,13 @@ api_bind_addr = "127.0.0.1:{admin_port}"
 		format!("http://127.0.0.1:{k2v_port}", k2v_port = self.k2v_port)
 			.parse()
 			.expect("Could not build garage endpoint URI")
+	}
+
+	pub fn admin_uri(&self) -> String {
+		format!(
+			"http://127.0.0.1:{admin_port}",
+			admin_port = self.admin_port
+		)
 	}
 
 	pub fn key(&self, maybe_name: Option<&str>) -> Key {

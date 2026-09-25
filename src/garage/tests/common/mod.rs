@@ -21,6 +21,7 @@ pub struct Context {
 	pub garage: &'static garage::Instance,
 	pub key: garage::Key,
 	pub client: Client,
+	pub admin_client: reqwest::Client,
 	pub custom_request: CustomRequester,
 	#[cfg(feature = "k2v")]
 	pub k2v: K2VContext,
@@ -33,9 +34,14 @@ pub struct K2VContext {
 
 impl Context {
 	fn new() -> Self {
+		if rustls::crypto::CryptoProvider::get_default().is_none() {
+			_ = rustls::crypto::ring::default_provider().install_default();
+		}
+
 		let garage = garage::instance();
 		let key = garage.key(None);
 		let client = client::build_client(&key);
+		let admin_client = reqwest::Client::new();
 		let custom_request = CustomRequester::new_s3(garage, &key);
 		#[cfg(feature = "k2v")]
 		let k2v_request = CustomRequester::new_k2v(garage, &key);
@@ -43,6 +49,7 @@ impl Context {
 		Context {
 			garage,
 			client,
+			admin_client,
 			key,
 			custom_request,
 			#[cfg(feature = "k2v")]
@@ -87,6 +94,20 @@ impl Context {
 			user_agent: None,
 		};
 		K2vClient::new(config).expect("Could not create K2V client")
+	}
+
+	/// client to send GET request to admin endpoint
+	pub fn admin_get(&self, endpoint: &str) -> reqwest::RequestBuilder {
+		self.admin_client
+			.get(format!("{}/v2/{}", self.garage.admin_uri(), endpoint))
+			.bearer_auth(&self.garage.admin_token)
+	}
+
+	/// client to send POST request to admin endpoint
+	pub fn admin_post(&self, endpoint: &str) -> reqwest::RequestBuilder {
+		self.admin_client
+			.post(format!("{}/v2/{}", self.garage.admin_uri(), endpoint))
+			.bearer_auth(&self.garage.admin_token)
 	}
 }
 
