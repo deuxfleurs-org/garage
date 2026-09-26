@@ -32,14 +32,14 @@ done
 if [ "$GARAGE_OLDVER" = "v08" ]; then
 	$GARAGE_BIN -c /tmp/config.1.toml status \
 		| grep 'NO ROLE' \
-		| grep -Po '^[0-9a-f]+' \
+		| grep -Eo '^[0-9a-f]+' \
 		| while read id; do
 		  $GARAGE_BIN -c /tmp/config.1.toml layout assign $id -z dc1 -c 1
 		done
 else
 	$GARAGE_BIN -c /tmp/config.1.toml status \
 		| grep 'NO ROLE' \
-		| grep -Po '^[0-9a-f]+' \
+		| grep -Eo '^[0-9a-f]+' \
 		| while read id; do
 		  $GARAGE_BIN -c /tmp/config.1.toml layout assign $id -z dc1 -c 1G
 		done
