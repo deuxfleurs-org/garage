@@ -14,7 +14,10 @@ use tokio_util::compat::*;
 
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
-	trace::{FutureExt, Span, SpanKind, TraceContextExt, TraceId, Tracer},
+	trace::{
+		FutureExt, Span, SpanContext, SpanId, SpanKind, TraceContextExt, TraceFlags, TraceId,
+		TraceState, Tracer,
+	},
 	Context, KeyValue,
 };
 #[cfg(feature = "telemetry")]
@@ -141,7 +144,7 @@ impl ServerConn {
 
 					let mut span = if !req_enc.telemetry_id.is_empty() {
 						let propagator = BinaryPropagator::new();
-						let context = propagator.from_bytes(req_enc.telemetry_id.to_vec());
+						let context = propagator.deserialize_from_bytes(&req_enc.telemetry_id);
 						let context = Context::new().with_remote_span_context(context);
 						tracer.span_builder(format!(">> RPC {}", path))
 							.with_kind(SpanKind::Server)
@@ -149,11 +152,18 @@ impl ServerConn {
 					} else {
 						let mut rng = thread_rng();
 						let trace_id = TraceId::from_bytes(rng.gen());
+						// Force the trace id of this root span
+						let context = Context::new().with_remote_span_context(SpanContext::new(
+							trace_id,
+							SpanId::INVALID,
+							TraceFlags::SAMPLED,
+							true,
+							TraceState::default(),
+						));
 						tracer
 							.span_builder(format!(">> RPC {}", path))
 							.with_kind(SpanKind::Server)
-							.with_trace_id(trace_id)
-							.start(&tracer)
+							.start_with_context(&tracer, &context)
 					};
 					span.set_attribute(KeyValue::new("path", path.to_string()));
 					span.set_attribute(KeyValue::new("len_query_msg", req_enc.msg.len() as i64));

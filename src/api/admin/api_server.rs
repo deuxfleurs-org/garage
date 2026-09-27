@@ -8,9 +8,6 @@ use tokio::sync::watch;
 
 use opentelemetry::trace::SpanRef;
 
-#[cfg(feature = "metrics")]
-use opentelemetry_prometheus::PrometheusExporter;
-
 use garage_model::garage::Garage;
 use garage_rpc::{Endpoint as RpcEndpoint, *};
 use garage_table::EmptyKey;
@@ -97,7 +94,7 @@ pub type ResBody = BoxBody<Error>;
 pub struct AdminApiServer {
 	garage: Arc<Garage>,
 	#[cfg(feature = "metrics")]
-	pub(crate) exporter: PrometheusExporter,
+	pub(crate) registry: prometheus::Registry,
 	metrics_token: Option<String>,
 	metrics_require_token: bool,
 	admin_token: Option<String>,
@@ -114,7 +111,7 @@ impl AdminApiServer {
 	pub fn new(
 		garage: Arc<Garage>,
 		background: Arc<BackgroundRunner>,
-		#[cfg(feature = "metrics")] exporter: PrometheusExporter,
+		#[cfg(feature = "metrics")] registry: prometheus::Registry,
 	) -> Arc<Self> {
 		let cfg = &garage.config.admin;
 		let metrics_token = cfg
@@ -131,7 +128,7 @@ impl AdminApiServer {
 		let admin = Arc::new(Self {
 			garage,
 			#[cfg(feature = "metrics")]
-			exporter,
+			registry,
 			metrics_token,
 			metrics_require_token,
 			admin_token,

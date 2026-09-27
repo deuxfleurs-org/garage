@@ -540,7 +540,7 @@ impl BlockManager {
 		self.lock_mutate(hash)
 			.await
 			.write_block(hash, data, self)
-			.bound_record_duration(&self.metrics.block_write_duration)
+			.record_duration(&self.metrics.block_write_duration, &[])
 			.with_context(Context::current_with_span(
 				tracer.start("BlockManagerLocked::write_block"),
 			))
@@ -582,7 +582,7 @@ impl BlockManager {
 				))),
 			}
 		}
-		.bound_record_duration(&self.metrics.block_read_duration)
+		.record_duration(&self.metrics.block_read_duration, &[])
 		.with_context(Context::current_with_span(
 			tracer.start("BlockManager::read_block"),
 		))
@@ -599,7 +599,7 @@ impl BlockManager {
 		let permit = tokio::select! {
 			sem = self.read_semaphore.acquire() => sem.ok_or_message("acquire read semaphore")?,
 			_ = tokio::time::sleep(BLOCK_READ_SEMAPHORE_TIMEOUT) => {
-				self.metrics.block_read_semaphore_timeouts.add(1);
+				self.metrics.block_read_semaphore_timeouts.add(1, &[]);
 				debug!("read block {:?}: read_semaphore acquire timeout", hash);
 				return Err(Error::Message("read block: read_semaphore acquire timeout".into()));
 			}
@@ -608,13 +608,13 @@ impl BlockManager {
 		let mut f = fs::File::open(&path).await?;
 		let mut data = vec![];
 		f.read_to_end(&mut data).await?;
-		self.metrics.bytes_read.add(data.len() as u64);
+		self.metrics.bytes_read.add(data.len() as u64, &[]);
 		drop(f);
 
 		let data = DataBlock::from_parts(header, data.into());
 
 		if data.verify(*hash).is_err() {
-			self.metrics.corruption_counter.add(1);
+			self.metrics.corruption_counter.add(1, &[]);
 
 			warn!(
 				"Block {:?} is corrupted. Renaming to .corrupted and resyncing.",
@@ -798,7 +798,7 @@ impl BlockManagerLocked {
 		let mut f = fs::File::create(&path_tmp).await?;
 		f.write_all(data).await?;
 		f.flush().await?;
-		mgr.metrics.bytes_written.add(data.len() as u64);
+		mgr.metrics.bytes_written.add(data.len() as u64, &[]);
 
 		if mgr.data_fsync {
 			f.sync_all().await?;
@@ -852,7 +852,7 @@ impl BlockManagerLocked {
 			while let Some(path) = mgr.find_block(hash).await {
 				let (_header, path) = path.as_parts_ref();
 				fs::remove_file(path).await?;
-				mgr.metrics.delete_counter.add(1);
+				mgr.metrics.delete_counter.add(1, &[]);
 			}
 		}
 		Ok(())

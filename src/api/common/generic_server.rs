@@ -23,7 +23,7 @@ use tokio::time::{sleep_until, Instant};
 
 use opentelemetry::{
 	global,
-	metrics::{Counter, ValueRecorder},
+	metrics::{Counter, Histogram},
 	trace::{FutureExt, SpanRef, TraceContextExt, Tracer},
 	Context, KeyValue,
 };
@@ -74,7 +74,7 @@ pub struct ApiServer<A: ApiHandler> {
 	// Metrics
 	request_counter: Counter<u64>,
 	error_counter: Counter<u64>,
-	request_duration: ValueRecorder<f64>,
+	request_duration: Histogram<f64>,
 }
 
 impl<A: ApiHandler> ApiServer<A> {
@@ -89,21 +89,21 @@ impl<A: ApiHandler> ApiServer<A> {
 					"Number of API calls to the various {} API endpoints",
 					A::API_NAME_DISPLAY
 				))
-				.init(),
+				.build(),
 			error_counter: meter
 				.u64_counter(format!("api.{}.error_counter", A::API_NAME))
 				.with_description(format!(
 					"Number of API calls to the various {} API endpoints that resulted in errors",
 					A::API_NAME_DISPLAY
 				))
-				.init(),
+				.build(),
 			request_duration: meter
-				.f64_value_recorder(format!("api.{}.request_duration", A::API_NAME))
+				.f64_histogram(format!("api.{}.request_duration", A::API_NAME))
 				.with_description(format!(
 					"Duration of API calls to the various {} API endpoints",
 					A::API_NAME_DISPLAY
 				))
-				.init(),
+				.build(),
 		})
 	}
 
@@ -175,12 +175,16 @@ impl<A: ApiHandler> ApiServer<A> {
 		let tracer = opentelemetry::global::tracer("garage");
 		let span = tracer
 			.span_builder(format!("{} API call (unknown)", A::API_NAME_DISPLAY))
-			.with_trace_id(gen_trace_id())
 			.with_attributes(vec![
 				KeyValue::new("method", format!("{}", req.method())),
 				KeyValue::new("uri", req.uri().to_string()),
 			])
-			.start(&tracer);
+			.start_with_context(
+				&tracer,
+				// TODO: get trace_id from `traceparent` headers if any
+				// and inject it in context
+				&garage_util::metrics::trace_id_context(gen_trace_id()),
+			);
 
 		let res = self
 			.handler_stage2(req)
