@@ -107,7 +107,7 @@ kubernetes-discovery = ["garage_rpc/kubernetes-discovery"]
 # Prometheus exporter (/metrics endpoint).
 metrics = ["garage_api_admin/metrics", "opentelemetry-prometheus", "opentelemetry_sdk", "prometheus"]
 # Exporter for the OpenTelemetry Collector.
-telemetry-otlp = ["opentelemetry-otlp", "opentelemetry_sdk"]
+telemetry-otlp = ["opentelemetry-otlp", "opentelemetry_sdk", "garage_net/telemetry"]
 # Logging to syslog
 syslog = ["syslog-tracing"]
 # Logging to journald
