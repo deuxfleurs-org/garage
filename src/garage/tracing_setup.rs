@@ -43,6 +43,7 @@ mod telemetry {
 			.with_attributes([
 				KeyValue::new("service.name", "garage"),
 				KeyValue::new("service.instance.id", node_id),
+				KeyValue::new("service.version", garage_util::version::garage_version()),
 			])
 			.build();
 
