@@ -131,6 +131,7 @@ pub async fn handle_put(
 	let resp = add_checksum_response_headers(
 		&expected_checksums.extra,
 		Some(ChecksumType::FullObject),
+		None,
 		resp,
 	);
 	Ok(resp.body(empty_body())?)

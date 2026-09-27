@@ -83,12 +83,40 @@ fn object_headers(
 	}
 
 	if checksum_mode.enabled {
-		resp = add_checksum_response_headers(&meta_inner.checksum, meta_inner.checksum_type, resp);
+		resp = add_checksum_response_headers(
+			&meta_inner.checksum,
+			meta_inner.checksum_type,
+			composite_checksum_part_count(version, version_meta, meta_inner),
+			resp,
+		);
 	}
 
 	encryption.add_response_headers(&mut resp);
 
 	resp
+}
+
+/// Part count for composite checksums, taken from the multipart etag
+fn composite_checksum_part_count(
+	version: &ObjectVersion,
+	version_meta: &ObjectVersionMeta,
+	meta_inner: &ObjectVersionMetaInner,
+) -> Option<u64> {
+	if meta_inner.checksum_type != Some(ChecksumType::Composite) {
+		return None;
+	}
+	let part_count = version_meta
+		.etag
+		.rsplit_once('-')
+		.and_then(|(_, n)| n.parse::<u64>().ok());
+	if part_count.is_none() {
+		// TODO: should this be an error? Without -N, clients fail validation
+		warn!(
+			"No part count in etag for composite checksum, version {:?}: {}",
+			version.uuid, version_meta.etag
+		);
+	}
+	part_count
 }
 
 /// Override headers according to specific query parameters, see
