@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # Job name must stay "garage" to match the Grafana dashboard filters
+  - job_name: garage
+    static_configs:
+      # this will target the docker host bridge
+      - targets: ["host.docker.internal:3903"]
+    # Uncomment if admin.metrics_token is set in your Garage config
+    # authorization:
+    #   type: Bearer
+    #   credentials: "your metrics token"

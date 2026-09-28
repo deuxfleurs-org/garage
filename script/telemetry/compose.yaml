@@ -1,0 +1,44 @@
+# Local telemetry stack for Garage: Prometheus (metrics), Jaeger (traces), Grafana (UI).
+# Garage is supposed to run on the host separatelty and be reachable on the docker bridge
+
+services:
+  prometheus:
+    image: docker.io/prom/prometheus:${PROMETHEUS_TAG}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  jaeger:
+    # Jaeger v2 all-in-one: receives OTLP directly, keeps traces in memory
+    image: docker.io/jaegertracing/jaeger:${JAEGER_TAG}
+    ports:
+      - "4317:4317"   # OTLP gRPC (Garage admin.trace_sink)
+      - "4318:4318"   # OTLP HTTP
+      - "16686:16686" # Jaeger UI
+
+  grafana:
+    image: docker.io/grafana/grafana:${GRAFANA_TAG}
+    environment:
+      # Anonymous viewers can browse dashboards and use Explore;
+      # log in as admin/admin to save changes
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_USERS_VIEWERS_CAN_EDIT: "true"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro,z
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro,z
+      - ./grafana-garage-dashboard-prometheus.json:/etc/grafana/dashboards/garage.json:ro,z
+      - grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on: [prometheus, jaeger]
+
+volumes:
+  prometheus:
+  grafana:
