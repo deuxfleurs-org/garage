@@ -1245,15 +1245,6 @@
         "operationId": "ListBuckets",
         "parameters": [
           {
-            "name": "details",
-            "in": "query",
-            "description": "Returned detailed information in the same format as `GetBucketInfo` for each bucket",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
             "name": "offset",
             "in": "query",
             "description": "Bucket ID of the first bucket to return",
@@ -1290,6 +1281,51 @@
         }
       }
     },
+    "/v2/ListBucketsWithDetails": {
+      "get": {
+        "tags": [
+          "Bucket"
+        ],
+        "description": "List all the buckets on the cluster with their UUID and their global and local aliases.",
+        "operationId": "ListBucketsWithDetails",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Bucket ID of the first bucket to return",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of buckets to return in a single call",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a detailed description of all buckets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBucketsWithDetailsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
     "/v2/ListKeys": {
       "get": {
         "tags": [
@@ -1298,15 +1334,6 @@
         "description": "Returns all API access keys in the cluster.",
         "operationId": "ListKeys",
         "parameters": [
-          {
-            "name": "details",
-            "in": "query",
-            "description": "Returned detailed information in the same format as `GetKeyInfo` for each bucket",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            }
-          },
           {
             "name": "offset",
             "in": "query",
@@ -1334,6 +1361,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListKeysResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/v2/ListKeysWithDetails": {
+      "get": {
+        "tags": [
+          "Access key"
+        ],
+        "description": "Returns all API access keys in the cluster.",
+        "operationId": "ListKeysWithDetails",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Key ID of the first key to return",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of keys to return in a single call",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return detailed information about all keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListKeysWithDetailsResponse"
                 }
               }
             }
@@ -3260,20 +3332,10 @@
         }
       },
       "ListBucketsResponse": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ListBucketsResponseItem"
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GetBucketInfoResponse"
-            }
-          }
-        ]
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ListBucketsResponseItem"
+        }
       },
       "ListBucketsResponseItem": {
         "type": "object",
@@ -3305,21 +3367,17 @@
           }
         }
       },
+      "ListBucketsWithDetailsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GetBucketInfoResponse"
+        }
+      },
       "ListKeysResponse": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ListKeysResponseItem"
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GetKeyInfoResponse"
-            }
-          }
-        ]
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ListKeysResponseItem"
+        }
       },
       "ListKeysResponseItem": {
         "type": "object",
@@ -3352,6 +3410,12 @@
           "name": {
             "type": "string"
           }
+        }
+      },
+      "ListKeysWithDetailsResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GetKeyInfoResponse"
         }
       },
       "LocalCreateMetadataSnapshotResponse": {

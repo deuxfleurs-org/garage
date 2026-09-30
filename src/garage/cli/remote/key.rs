@@ -28,10 +28,7 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_keys(&self) -> Result<(), Error> {
-		let mut keys = match self.api_request(ListKeysRequest::default()).await? {
-			ListKeysResponse::WithoutDetails(list) => list,
-			_ => return Err(Error::Message("Unexpected ListKeys response format".into())),
-		};
+		let ListKeysResponse(mut keys) = self.api_request(ListKeysRequest::default()).await?;
 
 		keys.sort_by_key(|x| x.created);
 
@@ -246,10 +243,7 @@ impl Cli {
 	}
 
 	pub async fn cmd_delete_expired_keys(&self, yes: bool) -> Result<(), Error> {
-		let mut list = match self.api_request(ListKeysRequest::default()).await? {
-			ListKeysResponse::WithoutDetails(list) => list,
-			_ => return Err(Error::Message("Unexpected ListKeys response format".into())),
-		};
+		let ListKeysResponse(mut list) = self.api_request(ListKeysRequest::default()).await?;
 
 		list.retain(|key| key.expired);
 

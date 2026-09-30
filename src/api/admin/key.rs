@@ -21,58 +21,77 @@ impl RequestHandler for ListKeysRequest {
 	async fn handle(self, garage: &Arc<Garage>, _admin: &Admin) -> Result<ListKeysResponse, Error> {
 		let now = now_msec();
 
-		let limit = self
-			.limit
-			.unwrap_or(if self.details { 1000 } else { 10_000 });
+		let keys = list_keys_helper(garage, self.limit, 10000, self.offset).await?;
 
-		let keys = garage
-			.key_table
-			.get_range(
-				&EmptyKey,
-				self.offset,
-				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
-				limit,
-				EnumerationOrder::Forward,
-			)
-			.await?;
+		let res = keys
+			.iter()
+			.map(|k| {
+				let p = k.params().unwrap();
 
-		if self.details {
-			let mut stream = keys
-				.into_iter()
-				.map(|k| key_info_results(garage, k, false))
-				.collect::<futures::stream::FuturesOrdered<_>>();
+				ListKeysResponseItem {
+					id: k.key_id.to_string(),
+					name: p.name.get().clone(),
+					created: p.created.map(|x| {
+						DateTime::from_timestamp_millis(x as i64)
+							.expect("invalid timestamp stored in db")
+					}),
+					expiration: p.expiration.get().inner().map(|x| {
+						DateTime::from_timestamp_millis(x.0 as i64)
+							.expect("invalid timestamp stored in db")
+					}),
+					expired: p.is_expired(now),
+				}
+			})
+			.collect::<Vec<_>>();
 
-			let mut res = vec![];
-			while let Some(next) = stream.next().await {
-				res.push(next?);
-			}
-
-			Ok(ListKeysResponse::WithDetails(res))
-		} else {
-			let res = keys
-				.iter()
-				.map(|k| {
-					let p = k.params().unwrap();
-
-					ListKeysResponseItem {
-						id: k.key_id.to_string(),
-						name: p.name.get().clone(),
-						created: p.created.map(|x| {
-							DateTime::from_timestamp_millis(x as i64)
-								.expect("invalid timestamp stored in db")
-						}),
-						expiration: p.expiration.get().inner().map(|x| {
-							DateTime::from_timestamp_millis(x.0 as i64)
-								.expect("invalid timestamp stored in db")
-						}),
-						expired: p.is_expired(now),
-					}
-				})
-				.collect::<Vec<_>>();
-
-			Ok(ListKeysResponse::WithoutDetails(res))
-		}
+		Ok(ListKeysResponse(res))
 	}
+}
+
+impl RequestHandler for ListKeysWithDetailsRequest {
+	type Response = ListKeysWithDetailsResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ListKeysWithDetailsResponse, Error> {
+		let keys = list_keys_helper(garage, self.limit, 1000, self.offset).await?;
+
+		let mut stream = keys
+			.into_iter()
+			.map(|k| key_info_results(garage, k, false))
+			.collect::<futures::stream::FuturesOrdered<_>>();
+
+		let mut res = vec![];
+		while let Some(next) = stream.next().await {
+			res.push(next?);
+		}
+
+		Ok(ListKeysWithDetailsResponse(res))
+	}
+}
+
+async fn list_keys_helper(
+	garage: &Garage,
+	limit: Option<usize>,
+	default_limit: usize,
+	offset: Option<String>,
+) -> Result<Vec<Key>, Error> {
+	let limit = limit.unwrap_or(default_limit);
+
+	let keys = garage
+		.key_table
+		.get_range(
+			&EmptyKey,
+			offset,
+			Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
+			limit,
+			EnumerationOrder::Forward,
+		)
+		.await?;
+
+	Ok(keys)
 }
 
 impl RequestHandler for GetKeyInfoRequest {

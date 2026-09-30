@@ -31,14 +31,8 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_buckets(&self) -> Result<(), Error> {
-		let mut buckets = match self.api_request(ListBucketsRequest::default()).await? {
-			ListBucketsResponse::WithoutDetails(list) => list,
-			_ => {
-				return Err(Error::Message(
-					"Unexpected ListBuckets response format".into(),
-				))
-			}
-		};
+		let ListBucketsResponse(mut buckets) =
+			self.api_request(ListBucketsRequest::default()).await?;
 
 		buckets.sort_by_key(|x| x.created);
 

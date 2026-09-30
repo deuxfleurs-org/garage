@@ -373,6 +373,18 @@ fn ClusterLayoutSkipDeadNodes() {}
 fn ListKeys() {}
 
 #[utoipa::path(get,
+    path = "/v2/ListKeysWithDetails",
+    tag = "Access key",
+    description = "Returns all API access keys in the cluster.",
+    params(ListKeysWithDetailsRequest),
+	responses(
+            (status = 200, description = "Return detailed information about all keys", body = ListKeysWithDetailsResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListKeysWithDetails() {}
+
+#[utoipa::path(get,
     path = "/v2/GetKeyInfo",
     tag = "Access key",
     description = "
@@ -461,6 +473,18 @@ fn DeleteKey() {}
         ),
 )]
 fn ListBuckets() {}
+
+#[utoipa::path(get,
+    path = "/v2/ListBucketsWithDetails",
+    tag = "Bucket",
+    description = "List all the buckets on the cluster with their UUID and their global and local aliases.",
+    params(ListBucketsWithDetailsRequest),
+	responses(
+            (status = 200, description = "Returns a detailed description of all buckets", body = ListBucketsWithDetailsResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListBucketsWithDetails() {}
 
 #[utoipa::path(get,
     path = "/v2/GetBucketInfo",
@@ -918,6 +942,7 @@ impl Modify for SecurityAddon {
         ClusterLayoutSkipDeadNodes,
         // Key operations
         ListKeys,
+        ListKeysWithDetails,
         GetKeyInfo,
         CreateKey,
         ImportKey,
@@ -925,6 +950,7 @@ impl Modify for SecurityAddon {
         DeleteKey,
         // Bucket operations
         ListBuckets,
+        ListBucketsWithDetails,
         GetBucketInfo,
         CreateBucket,
         UpdateBucket,

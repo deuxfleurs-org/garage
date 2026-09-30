@@ -33,71 +33,90 @@ impl RequestHandler for ListBucketsRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<ListBucketsResponse, Error> {
-		let limit = self
-			.limit
-			.unwrap_or(if self.details { 1000 } else { 10_000 });
+		let buckets = list_buckets_helper(garage, self.limit, 10000, &self.offset).await?;
 
-		let offset = match self.offset {
-			Some(id) => Some(parse_bucket_id(&id)?),
-			None => None,
-		};
+		let res = buckets
+			.into_iter()
+			.map(|b| {
+				let state = b.state.as_option().unwrap();
+				ListBucketsResponseItem {
+					id: hex::encode(b.id),
+					created: DateTime::from_timestamp_millis(state.creation_date as i64)
+						.expect("invalid timestamp stored in db"),
+					global_aliases: state
+						.aliases
+						.items()
+						.iter()
+						.filter(|(_, _, a)| *a)
+						.map(|(n, _, _)| n.to_string())
+						.collect::<Vec<_>>(),
+					local_aliases: state
+						.local_aliases
+						.items()
+						.iter()
+						.filter(|(_, _, a)| *a)
+						.map(|((k, n), _, _)| BucketLocalAlias {
+							access_key_id: k.to_string(),
+							alias: n.to_string(),
+						})
+						.collect::<Vec<_>>(),
+				}
+			})
+			.collect::<Vec<_>>();
 
-		let buckets = garage
-			.bucket_table
-			.get_range(
-				&EmptyKey,
-				offset,
-				Some(DeletedFilter::NotDeleted),
-				limit,
-				EnumerationOrder::Forward,
-			)
-			.await?;
-
-		if self.details {
-			let mut stream = buckets
-				.into_iter()
-				.map(|b| bucket_info_results(garage, b.id))
-				.collect::<futures::stream::FuturesOrdered<_>>();
-
-			let mut res = vec![];
-			while let Some(next) = stream.next().await {
-				res.push(next?);
-			}
-
-			Ok(ListBucketsResponse::WithDetails(res))
-		} else {
-			let res = buckets
-				.into_iter()
-				.map(|b| {
-					let state = b.state.as_option().unwrap();
-					ListBucketsResponseItem {
-						id: hex::encode(b.id),
-						created: DateTime::from_timestamp_millis(state.creation_date as i64)
-							.expect("invalid timestamp stored in db"),
-						global_aliases: state
-							.aliases
-							.items()
-							.iter()
-							.filter(|(_, _, a)| *a)
-							.map(|(n, _, _)| n.to_string())
-							.collect::<Vec<_>>(),
-						local_aliases: state
-							.local_aliases
-							.items()
-							.iter()
-							.filter(|(_, _, a)| *a)
-							.map(|((k, n), _, _)| BucketLocalAlias {
-								access_key_id: k.to_string(),
-								alias: n.to_string(),
-							})
-							.collect::<Vec<_>>(),
-					}
-				})
-				.collect::<Vec<_>>();
-
-			Ok(ListBucketsResponse::WithoutDetails(res))
-		}
+		Ok(ListBucketsResponse(res))
 	}
+}
+
+impl RequestHandler for ListBucketsWithDetailsRequest {
+	type Response = ListBucketsWithDetailsResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ListBucketsWithDetailsResponse, Error> {
+		let buckets = list_buckets_helper(garage, self.limit, 1000, &self.offset).await?;
+
+		let mut stream = buckets
+			.into_iter()
+			.map(|b| bucket_info_results(garage, b.id))
+			.collect::<futures::stream::FuturesOrdered<_>>();
+
+		let mut res = vec![];
+		while let Some(next) = stream.next().await {
+			res.push(next?);
+		}
+
+		Ok(ListBucketsWithDetailsResponse(res))
+	}
+}
+
+async fn list_buckets_helper(
+	garage: &Garage,
+	limit: Option<usize>,
+	default_limit: usize,
+	offset: &Option<String>,
+) -> Result<Vec<Bucket>, Error> {
+	let limit = limit.unwrap_or(default_limit);
+
+	let offset = match offset {
+		Some(id) => Some(parse_bucket_id(id)?),
+		None => None,
+	};
+
+	let buckets = garage
+		.bucket_table
+		.get_range(
+			&EmptyKey,
+			offset,
+			Some(DeletedFilter::NotDeleted),
+			limit,
+			EnumerationOrder::Forward,
+		)
+		.await?;
+
+	Ok(buckets)
 }
 
 impl RequestHandler for GetBucketInfoRequest {
