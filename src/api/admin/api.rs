@@ -69,7 +69,7 @@ admin_endpoints![
 
 	// Access key operations
 	ListKeys,
-	ListKeysWithDetails,
+	ListKeysInfo,
 	GetKeyInfo,
 	CreateKey,
 	ImportKey,
@@ -78,7 +78,7 @@ admin_endpoints![
 
 	// Bucket operations
 	ListBuckets,
-	ListBucketsWithDetails,
+	ListBucketsInfo,
 	GetBucketInfo,
 	CreateBucket,
 	UpdateBucket,
@@ -714,11 +714,11 @@ pub struct ListKeysResponseItem {
 	pub expired: bool,
 }
 
-// ---- ListKeysWithDetails ----
+// ---- ListKeysInfo ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct ListKeysWithDetailsRequest {
+pub struct ListKeysInfoRequest {
 	/// Key ID of the first key to return
 	#[serde(default)]
 	pub offset: Option<String>,
@@ -728,7 +728,7 @@ pub struct ListKeysWithDetailsRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ListKeysWithDetailsResponse(pub Vec<GetKeyInfoResponse>);
+pub struct ListKeysInfoResponse(pub Vec<GetKeyInfoResponse>);
 
 // ---- GetKeyInfo ----
 
@@ -886,11 +886,11 @@ pub struct BucketLocalAlias {
 	pub alias: String,
 }
 
-// ---- ListBucketsWithDetails ----
+// ---- ListBucketsInfo ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct ListBucketsWithDetailsRequest {
+pub struct ListBucketsInfoRequest {
 	/// Bucket ID of the first bucket to return
 	#[serde(default)]
 	pub offset: Option<String>,
@@ -900,7 +900,7 @@ pub struct ListBucketsWithDetailsRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct ListBucketsWithDetailsResponse(pub Vec<GetBucketInfoResponse>);
+pub struct ListBucketsInfoResponse(pub Vec<GetBucketInfoResponse>);
 
 // ---- GetBucketInfo ----
 

@@ -48,14 +48,14 @@ impl RequestHandler for ListKeysRequest {
 	}
 }
 
-impl RequestHandler for ListKeysWithDetailsRequest {
-	type Response = ListKeysWithDetailsResponse;
+impl RequestHandler for ListKeysInfoRequest {
+	type Response = ListKeysInfoResponse;
 
 	async fn handle(
 		self,
 		garage: &Arc<Garage>,
 		_admin: &Admin,
-	) -> Result<ListKeysWithDetailsResponse, Error> {
+	) -> Result<ListKeysInfoResponse, Error> {
 		let keys = list_keys_helper(garage, self.limit, 1000, self.offset).await?;
 
 		let mut stream = keys
@@ -68,7 +68,7 @@ impl RequestHandler for ListKeysWithDetailsRequest {
 			res.push(next?);
 		}
 
-		Ok(ListKeysWithDetailsResponse(res))
+		Ok(ListKeysInfoResponse(res))
 	}
 }
 

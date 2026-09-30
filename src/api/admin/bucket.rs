@@ -68,14 +68,14 @@ impl RequestHandler for ListBucketsRequest {
 	}
 }
 
-impl RequestHandler for ListBucketsWithDetailsRequest {
-	type Response = ListBucketsWithDetailsResponse;
+impl RequestHandler for ListBucketsInfoRequest {
+	type Response = ListBucketsInfoResponse;
 
 	async fn handle(
 		self,
 		garage: &Arc<Garage>,
 		_admin: &Admin,
-	) -> Result<ListBucketsWithDetailsResponse, Error> {
+	) -> Result<ListBucketsInfoResponse, Error> {
 		let buckets = list_buckets_helper(garage, self.limit, 1000, &self.offset).await?;
 
 		let mut stream = buckets
@@ -88,7 +88,7 @@ impl RequestHandler for ListBucketsWithDetailsRequest {
 			res.push(next?);
 		}
 
-		Ok(ListBucketsWithDetailsResponse(res))
+		Ok(ListBucketsInfoResponse(res))
 	}
 }
 

@@ -373,16 +373,16 @@ fn ClusterLayoutSkipDeadNodes() {}
 fn ListKeys() {}
 
 #[utoipa::path(get,
-    path = "/v2/ListKeysWithDetails",
+    path = "/v2/ListKeysInfo",
     tag = "Access key",
-    description = "Returns all API access keys in the cluster.",
-    params(ListKeysWithDetailsRequest),
+    description = "Returns all API access keys in the cluster with details in the same format as `GetKeyInfo`. This endpoint might be costly and take some time to execute.",
+    params(ListKeysInfoRequest),
 	responses(
-            (status = 200, description = "Return detailed information about all keys", body = ListKeysWithDetailsResponse),
+            (status = 200, description = "Return detailed information about all keys", body = ListKeysInfoResponse),
             (status = 500, description = "Internal server error")
         ),
 )]
-fn ListKeysWithDetails() {}
+fn ListKeysInfo() {}
 
 #[utoipa::path(get,
     path = "/v2/GetKeyInfo",
@@ -475,16 +475,16 @@ fn DeleteKey() {}
 fn ListBuckets() {}
 
 #[utoipa::path(get,
-    path = "/v2/ListBucketsWithDetails",
+    path = "/v2/ListBucketsInfo",
     tag = "Bucket",
-    description = "List all the buckets on the cluster with their UUID and their global and local aliases.",
-    params(ListBucketsWithDetailsRequest),
+    description = "List all the buckets on their cluster, returning full info in the same format as `GetBucketInfo`. This endpoint might be costly and take some time to execute.",
+    params(ListBucketsInfoRequest),
 	responses(
-            (status = 200, description = "Returns a detailed description of all buckets", body = ListBucketsWithDetailsResponse),
+            (status = 200, description = "Returns a detailed description of all buckets", body = ListBucketsInfoResponse),
             (status = 500, description = "Internal server error")
         ),
 )]
-fn ListBucketsWithDetails() {}
+fn ListBucketsInfo() {}
 
 #[utoipa::path(get,
     path = "/v2/GetBucketInfo",
@@ -942,7 +942,7 @@ impl Modify for SecurityAddon {
         ClusterLayoutSkipDeadNodes,
         // Key operations
         ListKeys,
-        ListKeysWithDetails,
+        ListKeysInfo,
         GetKeyInfo,
         CreateKey,
         ImportKey,
@@ -950,7 +950,7 @@ impl Modify for SecurityAddon {
         DeleteKey,
         // Bucket operations
         ListBuckets,
-        ListBucketsWithDetails,
+        ListBucketsInfo,
         GetBucketInfo,
         CreateBucket,
         UpdateBucket,

@@ -56,11 +56,11 @@ impl AdminApiRequest {
 			POST ImportKey (body),
 			POST DeleteKey (query::id),
 			GET ListKeys (query_opt::offset, opt_parse::limit),
-			GET ListKeysWithDetails (query_opt::offset, opt_parse::limit),
+			GET ListKeysInfo (query_opt::offset, opt_parse::limit),
 			// Bucket endpoints
 			GET GetBucketInfo (query_opt::id, query_opt::global_alias, query_opt::search),
 			GET ListBuckets (query_opt::offset, opt_parse::limit),
-			GET ListBucketsWithDetails (query_opt::offset, opt_parse::limit),
+			GET ListBucketsInfo (query_opt::offset, opt_parse::limit),
 			POST CreateBucket (body),
 			POST DeleteBucket (query::id),
 			POST UpdateBucket (body_field, query::id),

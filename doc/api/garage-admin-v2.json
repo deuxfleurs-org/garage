@@ -1281,13 +1281,13 @@
         }
       }
     },
-    "/v2/ListBucketsWithDetails": {
+    "/v2/ListBucketsInfo": {
       "get": {
         "tags": [
           "Bucket"
         ],
-        "description": "List all the buckets on the cluster with their UUID and their global and local aliases.",
-        "operationId": "ListBucketsWithDetails",
+        "description": "List all the buckets on their cluster, returning full info in the same format as `GetBucketInfo`. This endpoint might be costly and take some time to execute.",
+        "operationId": "ListBucketsInfo",
         "parameters": [
           {
             "name": "offset",
@@ -1315,7 +1315,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListBucketsWithDetailsResponse"
+                  "$ref": "#/components/schemas/ListBucketsInfoResponse"
                 }
               }
             }
@@ -1371,13 +1371,13 @@
         }
       }
     },
-    "/v2/ListKeysWithDetails": {
+    "/v2/ListKeysInfo": {
       "get": {
         "tags": [
           "Access key"
         ],
-        "description": "Returns all API access keys in the cluster.",
-        "operationId": "ListKeysWithDetails",
+        "description": "Returns all API access keys in the cluster with details in the same format as `GetKeyInfo`. This endpoint might be costly and take some time to execute.",
+        "operationId": "ListKeysInfo",
         "parameters": [
           {
             "name": "offset",
@@ -1405,7 +1405,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListKeysWithDetailsResponse"
+                  "$ref": "#/components/schemas/ListKeysInfoResponse"
                 }
               }
             }
@@ -3331,6 +3331,12 @@
           "$ref": "#/components/schemas/GetAdminTokenInfoResponse"
         }
       },
+      "ListBucketsInfoResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GetBucketInfoResponse"
+        }
+      },
       "ListBucketsResponse": {
         "type": "array",
         "items": {
@@ -3367,10 +3373,10 @@
           }
         }
       },
-      "ListBucketsWithDetailsResponse": {
+      "ListKeysInfoResponse": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/GetBucketInfoResponse"
+          "$ref": "#/components/schemas/GetKeyInfoResponse"
         }
       },
       "ListKeysResponse": {
@@ -3410,12 +3416,6 @@
           "name": {
             "type": "string"
           }
-        }
-      },
-      "ListKeysWithDetailsResponse": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/GetKeyInfoResponse"
         }
       },
       "LocalCreateMetadataSnapshotResponse": {
