@@ -9,7 +9,6 @@ use garage_net::peering::PeeringManager;
 use garage_net::NodeID;
 
 use garage_util::config::Config;
-use garage_util::data::*;
 use garage_util::error::*;
 use garage_util::persister::Persister;
 

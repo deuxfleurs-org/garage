@@ -12,7 +12,6 @@ use garage_util::data::Hash;
 use garage_util::time::now_msec;
 
 use garage_model::garage::Garage;
-use garage_model::key_table::*;
 
 use super::*;
 

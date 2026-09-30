@@ -8,8 +8,6 @@ use sha2::Sha256;
 
 use http::{HeaderMap, HeaderName, HeaderValue};
 
-use garage_util::data::*;
-
 use super::*;
 use crate::common_error::CommonError;
 
