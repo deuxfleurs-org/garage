@@ -1,14 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_DS_PROMETHEUS",
-      "label": "DS_PROMETHEUS",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
   "__elements": {},
   "__requires": [
     {
@@ -61,7 +51,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of garage block disk IO across all cluster nodes",
       "fieldConfig": {
@@ -146,7 +136,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -159,7 +149,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -176,7 +166,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of all API request per S3 endpoint across all nodes",
       "fieldConfig": {
@@ -261,7 +251,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -278,7 +268,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of all request on the web endpoint across all nodes",
       "fieldConfig": {
@@ -363,7 +353,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "sum(rate(web_request_counter {job=\"garage\"}[$__rate_interval]))",
@@ -378,7 +368,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of all internal RPC requests across all nodes ",
       "fieldConfig": {
@@ -463,7 +453,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "sum by (rpc_endpoint) (rate(rpc_request_counter {job=\"garage\"}[$__rate_interval]))",
@@ -478,7 +468,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of all API request error per S3 endpoint across all nodes",
       "fieldConfig": {
@@ -563,7 +553,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -580,7 +570,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Sum of all web request error across all nodes",
       "fieldConfig": {
@@ -665,7 +655,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "sum by(status_code) (rate(web_error_counter {job=\"garage\"}[$__rate_interval]))",
@@ -680,7 +670,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Number of blocks in the resync queue on each node. A block ends up here as a result of each write. Each node \"consumes\" its resync queue, getting missing blocks from other nodes. If the resync queue is growing, it indicates either performance issues on that node or connectivity issues in the cluster. Repair commands can also lead to blocks being queue into resync. The resync queue is persisted to disk, stored in the metadata database. As of garage 2.4.1, the resync queue can contain duplicated blocks, so what matters here is more the evolution (growing or shrinking).",
       "fieldConfig": {
@@ -764,7 +754,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "block_resync_queue_length{job=\"garage\"}",
@@ -779,7 +769,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Rows waiting to be purged from the metadata database. It is expected to see a certain amount of objects, version and block_ref here when S3 objects gets overwritten or deleted, as garage will keep the references in store for 24h. If you have not deleted files in the last 24h and this is not going down, you might have an issue.",
       "fieldConfig": {
@@ -863,7 +853,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "sum by(table_name) (table_gc_todo_queue_length{job=\"garage\"})",
@@ -878,7 +868,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Table syn between nodes. This should usually be close to zero, and will increase if a node re-join the cluster after being split. It should decrease soon afterward. If this is permanently high, you might have a node with a metadata performance issue.",
       "fieldConfig": {
@@ -962,7 +952,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "sum by(table_name) (table_merkle_updater_todo_queue_length{job=\"garage\"})",
@@ -977,7 +967,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "When a node try to re-sync a block and encounter an error, it enters this queue. This can happen as part of normal operation (because connectivity was broken), but in general this should be zero or close to zero in normal operation.",
       "fieldConfig": {
@@ -1061,7 +1051,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "block_resync_errored_blocks{job=\"garage\"}",
@@ -1076,7 +1066,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Amount of free buffer in the cache used by garage for its blocks. Should not be zero in normal operations.",
       "fieldConfig": {
@@ -1161,7 +1151,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1178,7 +1168,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_DS_PROMETHEUS}"
+        "uid": "${datasource}"
       },
       "description": "Deleted blocks by the garage garbage collector, per node.",
       "fieldConfig": {
@@ -1262,7 +1252,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_DS_PROMETHEUS}"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "exemplar": true,
@@ -1286,7 +1276,22 @@
     "storage"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
   },
   "time": {
     "from": "now-3h",
