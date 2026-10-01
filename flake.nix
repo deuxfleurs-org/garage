@@ -50,6 +50,9 @@
           # dev = native dev build
           dev = packageFor null false;
 
+          # webadmin
+          webadmin = pkgs.callPackage ./nix/webadmin.nix {};
+
           # test = cargo test
           tests = testWith {};
           tests-lmdb = testWith {

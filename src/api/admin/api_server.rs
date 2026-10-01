@@ -105,6 +105,8 @@ pub struct AdminApiServer {
 pub enum HttpEndpoint {
 	Old(router_v1::Endpoint),
 	New(String),
+	#[cfg(feature = "webadmin")]
+	Webadmin,
 }
 
 impl AdminApiServer {
@@ -160,6 +162,10 @@ impl AdminApiServer {
 		let request = match endpoint {
 			HttpEndpoint::Old(endpoint_v1) => AdminApiRequest::from_v1(endpoint_v1, req).await?,
 			HttpEndpoint::New(_) => AdminApiRequest::from_request(req).await?,
+			#[cfg(feature = "webadmin")]
+			HttpEndpoint::Webadmin => {
+				return crate::webadmin::handle(req).await;
+			}
 		};
 
 		let (global_token_hash, token_required) = match request.authorization_type() {
@@ -201,6 +207,11 @@ impl ApiHandler for ArcAdminApiServer {
 	type Error = Error;
 
 	fn parse_endpoint(&self, req: &Request<IncomingBody>) -> Result<HttpEndpoint, Error> {
+		#[cfg(feature = "webadmin")]
+		if crate::webadmin::is_webadmin_path(req.uri().path()) {
+			return Ok(HttpEndpoint::Webadmin);
+		}
+
 		if req.uri().path().starts_with("/v0/") {
 			let endpoint_v0 = router_v0::Endpoint::from_request(req)?;
 			let endpoint_v1 = router_v1::Endpoint::from_v0(endpoint_v0)?;
@@ -234,6 +245,8 @@ impl ApiEndpoint for HttpEndpoint {
 		match self {
 			Self::Old(endpoint_v1) => Cow::Borrowed(endpoint_v1.name()),
 			Self::New(path) => Cow::Owned(path.clone()),
+			#[cfg(feature = "webadmin")]
+			Self::Webadmin => Cow::Borrowed("_webadmin_"),
 		}
 	}
 
