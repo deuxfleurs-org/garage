@@ -65,6 +65,44 @@ you might be interested in producing debug builds, which compile faster but run 
 this can be done by removing the `--release` flag, and the resulting build can then
 be found in `target/debug/garage`.
 
+
+## Building with the web admin UI
+
+By default, Garage builds will not include the web admin UI, as this requires
+some extra build steps.
+
+Building the web admin UI requires the latest LTS version of Node.js.
+For instance on Debian testing:
+
+```bash
+sudo apt update
+sudo apt install npm nodejs
+```
+
+To include the web admin UI, you must first build it separately:
+
+```bash
+git clone https://git.deuxfleurs.fr/Deuxfleurs/garage-webadmin
+cd garage-webadmin
+npm install
+npm run build:integrated
+```
+
+Next, export the `$GARAGE_WEBADMIN_DIST` environment variable to point to the
+`/dist/` folder of the `garage-webadmin` build:
+
+```bash
+export GARAGE_WEBADMIN_DIST=$(pwd)/dist
+```
+
+Then, return to your Garage source folder and build with the `webadmin` feature
+flag enabled:
+
+```bash
+cargo build --release --features webadmin
+```
+
+
 ## List of available Cargo feature flags
 
 Garage supports a number of compilation options in the form of Cargo feature flags,
@@ -96,3 +134,4 @@ The following feature flags are available in v0.8.0:
 | `syslog` | optional | Enable logging to Syslog with<br>`GARAGE_LOG_TO_SYSLOG=true` environment variable set |
 | `system-libs` | optional | Use system version of sqlite3, zstd, lmdb and libsodium<br>if available (exclusive with `bundled-libs`, build using<br>`cargo build --no-default-features --features system-libs`) |
 | `telemetry-otlp` | optional | Enable collection of execution traces using OpenTelemetry |
+| `webadmin` | optional | Embed static files for the web admin UI (see dedicated section above) |

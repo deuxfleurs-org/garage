@@ -88,6 +88,13 @@ This can be helpful for instance if you want to write an application that create
 
 This feature is totally invisible to S3 clients and does not break compatibility with AWS.
 
+### Web user interface for cluster administration
+
+Since v2.5.0, Garage ships with a built-in web interface to visualize cluster
+state and perform administrative tasks.  Most regular tasks can be done
+through the UI, including configuring the cluster layout, creating buckets and
+access keys, managing user permissions and launching maintenance operations.
+
 ### Cluster administration API
 
 Garage provides a fully-fledged REST API to administer your cluster programmatically.
