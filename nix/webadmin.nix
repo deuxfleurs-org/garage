@@ -8,26 +8,23 @@
 }:
 buildNpmPackage (finalAttrs: {
   pname = "garage-webadmin";
-  version = "0.1.0";
+  version = "0.2.2";
 
   nodejs = nodejs_24;
   src = fetchgit {
     url = "https://git.deuxfleurs.fr/Deuxfleurs/garage-webadmin";
     rev = "v${finalAttrs.version}";
-    sha256 = "sha256-o/Ww3dEE0ofKqZrVugnM7FJLdzOO+cTWHASILELaJZc=";
+    sha256 = "sha256-8Q4Pc1XKXK86kG2o1MAvgdmAzOpzIpq5Kg2iiJIAN2I=";
   };
 
-  npmDepsHash = "sha256-EBXekK7lglNWDTR294C9/McWWSVd4x68b/h7NBHnmtg=";
+  npmDepsHash = "sha256-G/ODrxE87F2aS3l0ypLIQC6hvgCFOmm5oo+aQNvJbnc=";
 
   buildPhase = ''
-    npx vite build --base=/ui/
+    npm run build:integrated
   '';
   installPhase = ''
     cp -rv dist $out
   '';
-
-  VITE_API_HOST = "/";
-  VITE_FORCE_API_HOST = "true";
 
   meta = {
     description = "Web admin UI for Garage";
