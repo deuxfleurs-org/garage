@@ -4,3 +4,4 @@
 **/*.rs.bk
 *.swp
 /.direnv
+result

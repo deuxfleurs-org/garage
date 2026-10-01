@@ -35,6 +35,8 @@ futures.workspace = true
 tokio.workspace = true
 http.workspace = true
 hyper = { workspace = true, default-features = false, features = ["server", "http1"] }
+rust-embed = { workspace = true, optional = true, features = ["interpolate-folder-path", "debug-embed"] }
+mime_guess = { workspace = true, optional = true }
 url.workspace = true
 
 serde.workspace = true
@@ -48,6 +50,7 @@ prometheus = { workspace = true, optional = true }
 [features]
 metrics = ["opentelemetry-prometheus", "prometheus"]
 k2v = ["garage_model/k2v"]
+webadmin = ["rust-embed", "mime_guess"]
 
 [lints]
 workspace = true
