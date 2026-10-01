@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::DateTime;
+use futures::StreamExt;
 
 use garage_util::crdt::*;
 use garage_util::data::*;
@@ -32,16 +33,7 @@ impl RequestHandler for ListBucketsRequest {
 		garage: &Arc<Garage>,
 		_admin: &Admin,
 	) -> Result<ListBucketsResponse, Error> {
-		let buckets = garage
-			.bucket_table
-			.get_range(
-				&EmptyKey,
-				None,
-				Some(DeletedFilter::NotDeleted),
-				1_000_000,
-				EnumerationOrder::Forward,
-			)
-			.await?;
+		let buckets = list_buckets_helper(garage, self.limit, 10000, &self.offset).await?;
 
 		let res = buckets
 			.into_iter()
@@ -74,6 +66,57 @@ impl RequestHandler for ListBucketsRequest {
 
 		Ok(ListBucketsResponse(res))
 	}
+}
+
+impl RequestHandler for ListBucketsInfoRequest {
+	type Response = ListBucketsInfoResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ListBucketsInfoResponse, Error> {
+		let buckets = list_buckets_helper(garage, self.limit, 1000, &self.offset).await?;
+
+		let mut stream = buckets
+			.into_iter()
+			.map(|b| bucket_info_results(garage, b.id))
+			.collect::<futures::stream::FuturesOrdered<_>>();
+
+		let mut res = vec![];
+		while let Some(next) = stream.next().await {
+			res.push(next?);
+		}
+
+		Ok(ListBucketsInfoResponse(res))
+	}
+}
+
+async fn list_buckets_helper(
+	garage: &Garage,
+	limit: Option<usize>,
+	default_limit: usize,
+	offset: &Option<String>,
+) -> Result<Vec<Bucket>, Error> {
+	let limit = limit.unwrap_or(default_limit);
+
+	let offset = match offset {
+		Some(id) => Some(parse_bucket_id(id)?),
+		None => None,
+	};
+
+	let buckets = garage
+		.bucket_table
+		.get_range(
+			&EmptyKey,
+			offset,
+			Some(DeletedFilter::NotDeleted),
+			limit,
+			EnumerationOrder::Forward,
+		)
+		.await?;
+
+	Ok(buckets)
 }
 
 impl RequestHandler for GetBucketInfoRequest {

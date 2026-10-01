@@ -31,12 +31,13 @@ impl Cli {
 	}
 
 	pub async fn cmd_list_buckets(&self) -> Result<(), Error> {
-		let mut buckets = self.api_request(ListBucketsRequest).await?;
+		let ListBucketsResponse(mut buckets) =
+			self.api_request(ListBucketsRequest::default()).await?;
 
-		buckets.0.sort_by_key(|x| x.created);
+		buckets.sort_by_key(|x| x.created);
 
 		let mut table = vec!["ID\tCreated\tGlobal aliases\tLocal aliases".to_string()];
-		for bucket in buckets.0.iter() {
+		for bucket in buckets.iter() {
 			table.push(format!(
 				"{:.16}\t{}\t{}\t{}",
 				bucket.id,

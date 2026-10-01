@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::DateTime;
+use futures::StreamExt;
 
 use garage_table::*;
 use garage_util::time::now_msec;
@@ -20,16 +21,9 @@ impl RequestHandler for ListKeysRequest {
 	async fn handle(self, garage: &Arc<Garage>, _admin: &Admin) -> Result<ListKeysResponse, Error> {
 		let now = now_msec();
 
-		let res = garage
-			.key_table
-			.get_range(
-				&EmptyKey,
-				None,
-				Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
-				10000,
-				EnumerationOrder::Forward,
-			)
-			.await?
+		let keys = list_keys_helper(garage, self.limit, 10000, self.offset).await?;
+
+		let res = keys
 			.iter()
 			.map(|k| {
 				let p = k.params().unwrap();
@@ -52,6 +46,52 @@ impl RequestHandler for ListKeysRequest {
 
 		Ok(ListKeysResponse(res))
 	}
+}
+
+impl RequestHandler for ListKeysInfoRequest {
+	type Response = ListKeysInfoResponse;
+
+	async fn handle(
+		self,
+		garage: &Arc<Garage>,
+		_admin: &Admin,
+	) -> Result<ListKeysInfoResponse, Error> {
+		let keys = list_keys_helper(garage, self.limit, 1000, self.offset).await?;
+
+		let mut stream = keys
+			.into_iter()
+			.map(|k| key_info_results(garage, k, false))
+			.collect::<futures::stream::FuturesOrdered<_>>();
+
+		let mut res = vec![];
+		while let Some(next) = stream.next().await {
+			res.push(next?);
+		}
+
+		Ok(ListKeysInfoResponse(res))
+	}
+}
+
+async fn list_keys_helper(
+	garage: &Garage,
+	limit: Option<usize>,
+	default_limit: usize,
+	offset: Option<String>,
+) -> Result<Vec<Key>, Error> {
+	let limit = limit.unwrap_or(default_limit);
+
+	let keys = garage
+		.key_table
+		.get_range(
+			&EmptyKey,
+			offset,
+			Some(KeyFilter::Deleted(DeletedFilter::NotDeleted)),
+			limit,
+			EnumerationOrder::Forward,
+		)
+		.await?;
+
+	Ok(keys)
 }
 
 impl RequestHandler for GetKeyInfoRequest {

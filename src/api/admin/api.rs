@@ -69,6 +69,7 @@ admin_endpoints![
 
 	// Access key operations
 	ListKeys,
+	ListKeysInfo,
 	GetKeyInfo,
 	CreateKey,
 	ImportKey,
@@ -77,6 +78,7 @@ admin_endpoints![
 
 	// Bucket operations
 	ListBuckets,
+	ListBucketsInfo,
 	GetBucketInfo,
 	CreateBucket,
 	UpdateBucket,
@@ -688,8 +690,16 @@ pub struct ClusterLayoutSkipDeadNodesResponse {
 
 // ---- ListKeys ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListKeysRequest;
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListKeysRequest {
+	/// Key ID of the first key to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of keys to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ListKeysResponse(pub Vec<ListKeysResponseItem>);
@@ -703,6 +713,22 @@ pub struct ListKeysResponseItem {
 	pub expiration: Option<DateTime<Utc>>,
 	pub expired: bool,
 }
+
+// ---- ListKeysInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListKeysInfoRequest {
+	/// Key ID of the first key to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of keys to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ListKeysInfoResponse(pub Vec<GetKeyInfoResponse>);
 
 // ---- GetKeyInfo ----
 
@@ -830,8 +856,16 @@ pub struct DeleteKeyResponse;
 
 // ---- ListBuckets ----
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListBucketsRequest;
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListBucketsRequest {
+	/// Bucket ID of the first bucket to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of buckets to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ListBucketsResponse(pub Vec<ListBucketsResponseItem>);
@@ -851,6 +885,22 @@ pub struct BucketLocalAlias {
 	pub access_key_id: String,
 	pub alias: String,
 }
+
+// ---- ListBucketsInfo ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ListBucketsInfoRequest {
+	/// Bucket ID of the first bucket to return
+	#[serde(default)]
+	pub offset: Option<String>,
+	/// Maximum number of buckets to return in a single call
+	#[serde(default)]
+	pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct ListBucketsInfoResponse(pub Vec<GetBucketInfoResponse>);
 
 // ---- GetBucketInfo ----
 

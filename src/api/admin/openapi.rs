@@ -364,12 +364,25 @@ fn ClusterLayoutSkipDeadNodes() {}
     path = "/v2/ListKeys",
     tag = "Access key",
     description = "Returns all API access keys in the cluster.",
+    params(ListKeysRequest),
 	responses(
             (status = 200, description = "Returns the key identifier (aka `AWS_ACCESS_KEY_ID`) and its associated, human friendly, name if any (otherwise return an empty string)", body = ListKeysResponse),
             (status = 500, description = "Internal server error")
         ),
 )]
 fn ListKeys() {}
+
+#[utoipa::path(get,
+    path = "/v2/ListKeysInfo",
+    tag = "Access key",
+    description = "Returns all API access keys in the cluster with details in the same format as `GetKeyInfo`. This endpoint might be costly and take some time to execute.",
+    params(ListKeysInfoRequest),
+	responses(
+            (status = 200, description = "Return detailed information about all keys", body = ListKeysInfoResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListKeysInfo() {}
 
 #[utoipa::path(get,
     path = "/v2/GetKeyInfo",
@@ -453,12 +466,25 @@ fn DeleteKey() {}
     path = "/v2/ListBuckets",
     tag = "Bucket",
     description = "List all the buckets on the cluster with their UUID and their global and local aliases.",
+    params(ListBucketsRequest),
 	responses(
             (status = 200, description = "Returns the UUID of all the buckets and all their aliases", body = ListBucketsResponse),
             (status = 500, description = "Internal server error")
         ),
 )]
 fn ListBuckets() {}
+
+#[utoipa::path(get,
+    path = "/v2/ListBucketsInfo",
+    tag = "Bucket",
+    description = "List all the buckets on their cluster, returning full info in the same format as `GetBucketInfo`. This endpoint might be costly and take some time to execute.",
+    params(ListBucketsInfoRequest),
+	responses(
+            (status = 200, description = "Returns a detailed description of all buckets", body = ListBucketsInfoResponse),
+            (status = 500, description = "Internal server error")
+        ),
+)]
+fn ListBucketsInfo() {}
 
 #[utoipa::path(get,
     path = "/v2/GetBucketInfo",
@@ -916,6 +942,7 @@ impl Modify for SecurityAddon {
         ClusterLayoutSkipDeadNodes,
         // Key operations
         ListKeys,
+        ListKeysInfo,
         GetKeyInfo,
         CreateKey,
         ImportKey,
@@ -923,6 +950,7 @@ impl Modify for SecurityAddon {
         DeleteKey,
         // Bucket operations
         ListBuckets,
+        ListBucketsInfo,
         GetBucketInfo,
         CreateBucket,
         UpdateBucket,
