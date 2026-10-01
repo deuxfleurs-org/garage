@@ -10,6 +10,7 @@
   target ? null,
   release ? false,
   features ? null,
+  webadmin ? null,
   extraTestEnv ? {}
 }:
 
@@ -75,7 +76,7 @@ let
       "telemetry-otlp"
       "syslog"
       "journald"
-    ]));
+    ]) ++ (lib.optional (webadmin != null) "webadmin"));
 
   featuresStr = lib.concatStringsSep "," rootFeatures;
 
@@ -133,6 +134,10 @@ let
           " "
           (builtins.map (flag: "-C ${flag}") codegenOpts);
     }
+  //
+    (if webadmin != null then {
+      GARAGE_WEBADMIN_DIST = webadmin;
+    } else {})
   //
     (if rustTarget != null then {
       CARGO_BUILD_TARGET = rustTarget;

@@ -24,8 +24,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        webadmin = pkgs.callPackage ./nix/webadmin.nix {};
         packageFor = target: release: (compile {
-          inherit system target nixpkgs crane rust-overlay release;
+          inherit system target nixpkgs crane rust-overlay release webadmin;
         }).garage;
         testWith = extraTestEnv: (compile {
           inherit system nixpkgs crane rust-overlay extraTestEnv;
@@ -41,6 +42,9 @@
           # default = native release build
           default = packageFor null true;
 
+          # webadmin = distfiles for webadmin configured for embedding within Garage binary
+          inherit webadmin;
+
           # <arch> = cross-compiled, statically-linked release builds
           amd64 = packageFor "x86_64-unknown-linux-musl" true;
           i386 = packageFor "i686-unknown-linux-musl" true;
@@ -49,9 +53,6 @@
 
           # dev = native dev build
           dev = packageFor null false;
-
-          # webadmin
-          webadmin = pkgs.callPackage ./nix/webadmin.nix {};
 
           # test = cargo test
           tests = testWith {};

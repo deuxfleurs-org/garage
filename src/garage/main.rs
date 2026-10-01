@@ -90,6 +90,8 @@ fn main() {
 		"system-libs",
 		#[cfg(feature = "telemetry-otlp")]
 		"telemetry-otlp",
+		#[cfg(feature = "webadmin")]
+		"webadmin",
 	][..];
 	if let Some(git_version) = option_env!("GIT_VERSION") {
 		garage_util::version::init_version(git_version);
