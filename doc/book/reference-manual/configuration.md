@@ -76,13 +76,13 @@ skip_crd = false
 [s3_api]
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
-root_domain = ".s3.garage.localhost"
-advertise_endpoint = "http://s3.garage.localhost"
+root_domain = ".s3.example.com"
+advertise_endpoint = "https://s3.example.com"
 advertise_path_style = false
 
 [s3_web]
 bind_addr = "[::]:3902"
-root_domain = ".web.garage.localhost"
+root_domain = ".web.example.com"
 add_host_to_metrics = true
 
 [admin]
@@ -809,8 +809,8 @@ Note path-style requests are always enabled, whether or not vhost-style is confi
 Configuring vhost-style S3 required a wildcard DNS entry, and possibly a wildcard TLS certificate,
 but might be required by software not supporting path-style requests.
 
-If `root_domain` is `s3.garage.eu`, a bucket called `my-bucket` can be interacted with
-using the hostname `my-bucket.s3.garage.eu`.
+If `root_domain` is `s3.example.com`, a bucket called `my-bucket` can be interacted with
+using the hostname `my-bucket.s3.example.com`.
 
 #### `advertise_endpoint` {#s3_api_advertise_endpoint}
 
@@ -854,8 +854,8 @@ Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0
 
 The optional suffix appended to bucket names for the corresponding HTTP Host.
 
-For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.fr`
-will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
+For instance, if `root_domain` is `web.example.com`, a bucket called `deuxfleurs.fr`
+will be accessible either with hostname `deuxfleurs.fr.web.example.com`
 or with hostname `deuxfleurs.fr`.
 
 If this is not defined, the bucket name must always match the requested hostname.

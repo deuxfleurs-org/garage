@@ -32,6 +32,32 @@ An example:
 mc ls --insecure garage/
 ```
 
+## Updating your Garage configuration
+
+This section is common to all methods described below.
+
+When configuring a reverse-proxy, you should update your Garage configuration
+file with the proper endpoint in `advertise_endpoint`:
+
+```toml
+[s3_api]
+advertise_endpoint = "https://s3.example.com"
+```
+
+If you have a wildcard DNS setup and are able to automatically provision TLS
+certificates for subdomains, you can enable vhost-style bucket addressing as
+follows:
+
+```toml
+[s3_api]
+root_domain = ".s3.example.com"
+advertise_endpoint = "https://s3.example.com"
+```
+
+For example, this will make bucket `my-bucket` accessible either at
+`https://my-bucket.s3.example.com` or at `https://s3.example.com/my-bucket`.
+
+
 ## socat (only for testing purposes)
 
 If you want to test Garage with a TLS frontend, socat can do it for you in a single command:

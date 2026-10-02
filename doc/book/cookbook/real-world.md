@@ -139,11 +139,10 @@ rpc_secret = "<RPC secret>"
 [s3_api]
 s3_region = "garage"
 api_bind_addr = "[::]:3900"
-root_domain = ".s3.garage"
+advertise_endpoint = "http://s3.example.com:3900"
 
 [s3_web]
 bind_addr = "[::]:3902"
-root_domain = ".web.garage"
 index = "index.html"
 ```
 
