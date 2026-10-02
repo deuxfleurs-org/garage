@@ -76,11 +76,13 @@ skip_crd = false
 [s3_api]
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
-root_domain = ".s3.garage"
+root_domain = ".s3.example.com"
+advertise_endpoint = "https://s3.example.com"
+advertise_path_style = false
 
 [s3_web]
 bind_addr = "[::]:3902"
-root_domain = ".web.garage"
+root_domain = ".web.example.com"
 add_host_to_metrics = true
 
 [admin]
@@ -146,6 +148,8 @@ The `[kubernetes_discovery]` section:
 [`skip_crd`](#kube_skip_crd).
 
 The `[s3_api]` section:
+[`advertise_endpoint`](#s3_api_advertise_endpoint),
+[`advertise_path_style`](#s3_api_advertise_path_style),
 [`api_bind_addr`](#s3_api_bind_addr),
 [`root_domain`](#s3_root_domain),
 [`s3_region`](#s3_region).
@@ -805,9 +809,32 @@ Note path-style requests are always enabled, whether or not vhost-style is confi
 Configuring vhost-style S3 required a wildcard DNS entry, and possibly a wildcard TLS certificate,
 but might be required by software not supporting path-style requests.
 
-If `root_domain` is `s3.garage.eu`, a bucket called `my-bucket` can be interacted with
-using the hostname `my-bucket.s3.garage.eu`.
+If `root_domain` is `s3.example.com`, a bucket called `my-bucket` can be interacted with
+using the hostname `my-bucket.s3.example.com`.
 
+#### `advertise_endpoint` {#s3_api_advertise_endpoint}
+
+The publicly-advertised endpoint for accessing this Garage cluster.  This must
+be a full URI specifying the `http://` or `https://` scheme, suitable to be set
+directly as the endpoint parameter in client configurations.
+
+By default, this is not specified and Garage will fall back graciously:
+
+- The admin API will not report any specific endpoint value in the connection
+  parameters returned by `GetNodeInfo`
+
+- When the S3 API needs to return a string corresponding to the public URL of
+  an object, it will try to guess the URL by using `root_domain` if it is
+  available.
+
+#### `advertise_path_style` {#s3_api_advertise_path_style}
+
+Whether to advertise clients to use path-style URLs when accessing this Garage cluster.
+
+This will be reported in the connection parameters returned by the `GetNodeInfo` admin API endpoint.
+It will also impact the S3 API when it needs to return a string corresponding to the public URL of an object.
+
+If it is not defined and `root_domain` is not set, it will default to `true`.
 
 
 ### The `[s3_web]` section
@@ -827,9 +854,11 @@ Alternatively, since `v0.8.5`, a path can be used to create a unix socket with 0
 
 The optional suffix appended to bucket names for the corresponding HTTP Host.
 
-For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.fr`
-will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
+For instance, if `root_domain` is `web.example.com`, a bucket called `deuxfleurs.fr`
+will be accessible either with hostname `deuxfleurs.fr.web.example.com`
 or with hostname `deuxfleurs.fr`.
+
+If this is not defined, the bucket name must always match the requested hostname.
 
 #### `add_host_to_metrics` {#web_add_host_to_metrics}
 

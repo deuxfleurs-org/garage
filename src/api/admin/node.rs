@@ -36,6 +36,24 @@ impl RequestHandler for LocalGetNodeInfoRequest {
 				.map(|features| features.iter().map(ToString::to_string).collect()),
 			rust_version: garage_util::version::rust_version().to_string(),
 			db_engine: garage.db.engine(),
+
+			connection_parameters: Some(ConnectionParameters {
+				region: garage.config.s3_api.s3_region.clone(),
+				s3_endpoint: garage
+					.config
+					.s3_api
+					.advertise_endpoint
+					.as_ref()
+					.map(ToString::to_string),
+				s3_use_path_style: garage.config.s3_api.advertise_path_style,
+				k2v_endpoint: garage
+					.config
+					.k2v_api
+					.as_ref()
+					.and_then(|c| c.advertise_endpoint.as_ref())
+					.map(ToString::to_string),
+			}),
+
 			is_up: Some(true),
 			addr: garage
 				.system

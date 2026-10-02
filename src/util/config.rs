@@ -183,7 +183,15 @@ pub struct S3ApiConfig {
 	pub s3_region: String,
 	/// Suffix to remove from domain name to find bucket. If None,
 	/// vhost-style S3 request are disabled
+	#[serde(default)]
 	pub root_domain: Option<String>,
+
+	/// Public endpoint to use in auto-generated client configurations
+	#[serde(deserialize_with = "deserialize_advertise_endpoint", default)]
+	pub advertise_endpoint: Option<http::Uri>,
+	/// Whether the client configurations should use path-style instead of dns-style
+	#[serde(default)]
+	pub advertise_path_style: Option<bool>,
 }
 
 /// Configuration for K2V api
@@ -191,6 +199,10 @@ pub struct S3ApiConfig {
 pub struct K2VApiConfig {
 	/// Address and port to bind for api serving
 	pub api_bind_addr: UnixOrTCPSocketAddress,
+
+	/// Public endpoint to use in auto-generated client configurations
+	#[serde(deserialize_with = "deserialize_advertise_endpoint", default)]
+	pub advertise_endpoint: Option<http::Uri>,
 }
 
 /// Configuration for serving files as normal web server
@@ -199,7 +211,8 @@ pub struct WebConfig {
 	/// Address and port to bind for web serving
 	pub bind_addr: UnixOrTCPSocketAddress,
 	/// Suffix to remove from domain name to find bucket
-	pub root_domain: String,
+	#[serde(default)]
+	pub root_domain: Option<String>,
 	/// Whether to add the requested domain to exported Prometheus metrics
 	#[serde(default)]
 	pub add_host_to_metrics: bool,
@@ -321,7 +334,32 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 		)
 	})?;
 
-	Ok(toml::from_str(&config)?)
+	let mut config: Config = toml::from_str(&config)?;
+
+	// when no root domain is configured, force path style
+	if config.s3_api.root_domain.is_none() {
+		if config.s3_api.advertise_path_style == Some(false) {
+			return Err(Error::Message(
+				"`advertise_path_style` is `false` but `root_domain` is not configured".to_string(),
+			));
+		}
+
+		config.s3_api.advertise_path_style = Some(true);
+	}
+
+	// when using vhost-style, check that root_domain and advertised endpoint match
+	if config.s3_api.advertise_path_style == Some(false) {
+		if let (Some(rd), Some(ep)) = (
+			&config.s3_api.root_domain,
+			&config.s3_api.advertise_endpoint,
+		) {
+			if rd.trim_start_matches('.') != ep.authority().unwrap().host() {
+				warn!("Values of `root_domain` and `advertise_endpoint` do not match in configuration file");
+			}
+		}
+	}
+
+	Ok(config)
 }
 
 fn default_db_engine() -> String {
@@ -437,6 +475,35 @@ where
 	}
 
 	deserializer.deserialize_any(CapacityVisitor)
+}
+
+fn deserialize_advertise_endpoint<'de, D>(deserializer: D) -> Result<Option<http::Uri>, D::Error>
+where
+	D: de::Deserializer<'de>,
+{
+	struct EndpointVisitor;
+
+	impl<'de> serde::de::Visitor<'de> for EndpointVisitor {
+		type Value = Option<http::Uri>;
+		fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+			formatter.write_str("string or null")
+		}
+
+		fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			let uri = value
+				.parse::<http::uri::Uri>()
+				.map_err(|e| E::custom(format!("invalid url: {}", e)))?;
+			if uri.authority().is_none() {
+				return Err(E::custom(format!("endpoint url {} is incomplete", uri)));
+			}
+			Ok(Some(uri))
+		}
+	}
+
+	deserializer.deserialize_any(EndpointVisitor)
 }
 
 #[cfg(test)]

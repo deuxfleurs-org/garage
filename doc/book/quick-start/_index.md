@@ -74,6 +74,7 @@ rpc_secret = "$(openssl rand -hex 32)"
 s3_region = "garage"
 api_bind_addr = "[::]:3900"
 root_domain = ".s3.garage.localhost"
+advertise_endpoint = "http://s3.garage.localhost:3900"
 
 [s3_web]
 bind_addr = "[::]:3902"

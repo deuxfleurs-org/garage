@@ -1215,17 +1215,21 @@ pub struct LocalGetNodeInfoRequest;
 pub struct LocalGetNodeInfoResponse {
 	pub node_id: String,
 	// FIXME for v3: remove Option<> and serde(default) for field below
-	/// hostname of this node
+	/// Hostname of this node
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub hostname: Option<String>,
-	/// garage version running on this node
+	/// Garage version running on this node
 	pub garage_version: String,
-	/// build-time features enabled for this garage release
+	/// Build-time features enabled for this garage release
 	pub garage_features: Option<Vec<String>>,
-	/// rustc version with which this garage release was compiled
+	/// `rustc` version with which this garage release was compiled
 	pub rust_version: String,
-	/// database engine used for metadata
+	/// Database engine used for metadata
 	pub db_engine: String,
+	/// Connection parameters for S3 and K2V clients
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub connection_parameters: Option<ConnectionParameters>,
+
 	// FIXME for v3: remove Option<> and serde(default) for field below
 	// FIXME for v3: merge LocalGetNodeInfoResponse and NodeResp
 	/// Socket address used by other nodes to connect to this node for RPC
@@ -1249,6 +1253,24 @@ pub struct LocalGetNodeInfoResponse {
 	/// metadata directory
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata_partition: Option<FreeSpaceResp>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionParameters {
+	/// Region parameter, put this in `$AWS_DEFAULT_REGION`
+	pub region: String,
+
+	/// S3 endpoint URL
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub s3_endpoint: Option<String>,
+	/// whether S3 client should use path-style instead of DNS style
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub s3_use_path_style: Option<bool>,
+
+	/// K2V endpoint URL
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub k2v_endpoint: Option<String>,
 }
 
 // ---- GetNodeStatistics ----
