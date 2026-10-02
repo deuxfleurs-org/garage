@@ -2467,6 +2467,39 @@
           }
         }
       },
+      "ConnectionParameters": {
+        "type": "object",
+        "required": [
+          "region"
+        ],
+        "properties": {
+          "k2vEndpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "K2V endpoint URL"
+          },
+          "region": {
+            "type": "string",
+            "description": "Region parameter, put this in `$AWS_DEFAULT_REGION`"
+          },
+          "s3Endpoint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "S3 endpoint URL"
+          },
+          "s3UsePathStyle": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "whether S3 client should use path-style instead of DNS style"
+          }
+        }
+      },
       "CreateAdminTokenResponse": {
         "allOf": [
           {
@@ -3472,6 +3505,17 @@
             ],
             "description": "Socket address used by other nodes to connect to this node for RPC"
           },
+          "connectionParameters": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectionParameters",
+                "description": "Connection parameters for S3 and K2V clients"
+              }
+            ]
+          },
           "dataPartition": {
             "oneOf": [
               {
@@ -3485,7 +3529,7 @@
           },
           "dbEngine": {
             "type": "string",
-            "description": "database engine used for metadata"
+            "description": "Database engine used for metadata"
           },
           "draining": {
             "type": [
@@ -3502,18 +3546,18 @@
             "items": {
               "type": "string"
             },
-            "description": "build-time features enabled for this garage release"
+            "description": "Build-time features enabled for this garage release"
           },
           "garageVersion": {
             "type": "string",
-            "description": "garage version running on this node"
+            "description": "Garage version running on this node"
           },
           "hostname": {
             "type": [
               "string",
               "null"
             ],
-            "description": "hostname of this node"
+            "description": "Hostname of this node"
           },
           "isUp": {
             "type": [
@@ -3549,7 +3593,7 @@
           },
           "rustVersion": {
             "type": "string",
-            "description": "rustc version with which this garage release was compiled"
+            "description": "`rustc` version with which this garage release was compiled"
           }
         }
       },
@@ -3889,6 +3933,17 @@
                   ],
                   "description": "Socket address used by other nodes to connect to this node for RPC"
                 },
+                "connectionParameters": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConnectionParameters",
+                      "description": "Connection parameters for S3 and K2V clients"
+                    }
+                  ]
+                },
                 "dataPartition": {
                   "oneOf": [
                     {
@@ -3902,7 +3957,7 @@
                 },
                 "dbEngine": {
                   "type": "string",
-                  "description": "database engine used for metadata"
+                  "description": "Database engine used for metadata"
                 },
                 "draining": {
                   "type": [
@@ -3919,18 +3974,18 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "build-time features enabled for this garage release"
+                  "description": "Build-time features enabled for this garage release"
                 },
                 "garageVersion": {
                   "type": "string",
-                  "description": "garage version running on this node"
+                  "description": "Garage version running on this node"
                 },
                 "hostname": {
                   "type": [
                     "string",
                     "null"
                   ],
-                  "description": "hostname of this node"
+                  "description": "Hostname of this node"
                 },
                 "isUp": {
                   "type": [
@@ -3966,7 +4021,7 @@
                 },
                 "rustVersion": {
                   "type": "string",
-                  "description": "rustc version with which this garage release was compiled"
+                  "description": "`rustc` version with which this garage release was compiled"
                 }
               }
             },

@@ -74,9 +74,11 @@ allow_punycode = true
 s3_region = "{region}"
 api_bind_addr = "127.0.0.1:{s3_port}"
 root_domain = ".s3.garage"
+advertise_endpoint = "http://s3.garage"
 
 [k2v_api]
 api_bind_addr = "127.0.0.1:{k2v_port}"
+advertise_endpoint = "http://s3.garage"
 
 [s3_web]
 bind_addr = "127.0.0.1:{web_port}"
