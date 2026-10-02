@@ -211,7 +211,8 @@ pub struct WebConfig {
 	/// Address and port to bind for web serving
 	pub bind_addr: UnixOrTCPSocketAddress,
 	/// Suffix to remove from domain name to find bucket
-	pub root_domain: String,
+	#[serde(default)]
+	pub root_domain: Option<String>,
 	/// Whether to add the requested domain to exported Prometheus metrics
 	#[serde(default)]
 	pub add_host_to_metrics: bool,

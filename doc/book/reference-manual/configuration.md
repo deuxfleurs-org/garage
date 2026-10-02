@@ -858,6 +858,8 @@ For instance, if `root_domain` is `web.garage.eu`, a bucket called `deuxfleurs.f
 will be accessible either with hostname `deuxfleurs.fr.web.garage.eu`
 or with hostname `deuxfleurs.fr`.
 
+If this is not defined, the bucket name must always match the requested hostname.
+
 #### `add_host_to_metrics` {#web_add_host_to_metrics}
 
 Whether to include the requested domain name (HTTP `Host` header) in the

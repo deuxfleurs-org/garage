@@ -72,7 +72,7 @@ impl WebMetrics {
 pub struct WebServer {
 	garage: Arc<Garage>,
 	metrics: Arc<WebMetrics>,
-	root_domain: String,
+	root_domain: Option<String>,
 	add_host_to_metrics: bool,
 }
 
@@ -237,7 +237,11 @@ impl WebServer {
 		// Get bucket
 		let host = authority_to_host(authority)?;
 
-		let bucket_name = host_to_bucket(&host, &self.root_domain).unwrap_or(&host);
+		let bucket_name = self
+			.root_domain
+			.as_deref()
+			.and_then(|rd| host_to_bucket(&host, rd))
+			.unwrap_or(&host);
 		let bucket_id = self
 			.garage
 			.bucket_alias_table

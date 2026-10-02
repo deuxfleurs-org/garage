@@ -143,7 +143,8 @@ async fn check_domain(garage: &Arc<Garage>, domain: &str) -> Result<bool, Error>
 		.config
 		.s3_web
 		.as_ref()
-		.and_then(|sw| host_to_bucket(domain, sw.root_domain.as_str()))
+		.and_then(|sw| sw.root_domain.as_ref())
+		.and_then(|rd| host_to_bucket(domain, rd))
 	{
 		(bname.to_string(), true)
 	} else {
