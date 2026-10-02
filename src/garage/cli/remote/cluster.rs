@@ -40,14 +40,20 @@ impl Cli {
 
 		println!("==== HEALTHY NODES ====");
 
-		let mut healthy_nodes =
-			vec!["ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail\tVersion".to_string()];
+		let mut healthy_nodes = vec![
+			"ID\tHostname\tAddress\tTags\tZone\tCapacity\tDataAvail\tResyncQueue\tVersion"
+				.to_string(),
+		];
 
 		for adv in status.nodes.iter().filter(|adv| adv.is_up) {
 			let host = adv.hostname.as_deref().unwrap_or("?");
 			let addr = match adv.addr {
 				Some(addr) => addr.to_string(),
 				None => "N/A".to_string(),
+			};
+			let resync_queue = match adv.resync_queue_len {
+				Some(n) => n.to_string(),
+				None => "N/A".into(),
 			};
 			if let Some(cfg) = &adv.role {
 				let data_avail = match &adv.data_partition {
@@ -60,7 +66,7 @@ impl Cli {
 					None => "?".into(),
 				};
 				healthy_nodes.push(format!(
-					"{id:.16}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}\t{version}",
+					"{id:.16}\t{host}\t{addr}\t[{tags}]\t{zone}\t{capacity}\t{data_avail}\t{resync_queue}\t{version}",
 					id = adv.id,
 					host = host,
 					addr = addr,
@@ -68,6 +74,7 @@ impl Cli {
 					zone = cfg.zone,
 					capacity = capacity_string(cfg.capacity),
 					data_avail = data_avail,
+					resync_queue = resync_queue,
                     version = adv.garage_version.as_deref().unwrap_or_default(),
 				));
 			} else {
@@ -80,11 +87,12 @@ impl Cli {
 					_ => "NO ROLE ASSIGNED",
 				};
 				healthy_nodes.push(format!(
-					"{id:.16}\t{h}\t{addr}\t\t\t{status}\t\t{version}",
+					"{id:.16}\t{h}\t{addr}\t\t\t{status}\t\t{resync_queue}\t{version}",
 					id = adv.id,
 					h = host,
 					addr = addr,
 					status = status,
+					resync_queue = resync_queue,
 					version = adv.garage_version.as_deref().unwrap_or_default(),
 				));
 			}

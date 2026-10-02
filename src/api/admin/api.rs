@@ -226,6 +226,9 @@ pub struct NodeResp {
 	/// metadata directory
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata_partition: Option<FreeSpaceResp>,
+	/// Approximate number of blocks waiting in the resync queue on this node
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub resync_queue_len: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

@@ -115,6 +115,8 @@ pub struct System {
 
 	metrics: ArcSwapOption<SystemMetrics>,
 
+	resync_queue_len_getter: ArcSwapOption<Box<dyn Fn() -> Option<u64> + Send + Sync>>,
+
 	pub(crate) replication_factor: ReplicationFactor,
 
 	/// Path to metadata directory
@@ -143,6 +145,10 @@ pub struct NodeStatus {
 	/// Disk usage on partition containing data directory (tuple: `(avail, total)`)
 	#[serde(default)]
 	pub data_disk_avail: Option<(u64, u64)>,
+
+	/// Approximate length of the block resync queue on this node
+	#[serde(default)]
+	pub resync_queue_len: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -331,6 +337,7 @@ impl System {
 			kubernetes_discovery: config.kubernetes_discovery.clone(),
 			layout_manager,
 			metrics: ArcSwapOption::new(None),
+			resync_queue_len_getter: ArcSwapOption::empty(),
 
 			metadata_dir: config.metadata_dir.clone(),
 			data_dir: config.data_dir.clone(),
@@ -359,8 +366,9 @@ impl System {
 	}
 
 	pub fn cleanup(self: &Arc<Self>) {
-		// Break reference cycle
+		// Break reference cycles
 		self.metrics.store(None);
+		self.resync_queue_len_getter.store(None);
 	}
 
 	// ---- Public utilities / accessors ----
@@ -379,6 +387,14 @@ impl System {
 
 	pub fn local_status(&self) -> NodeStatus {
 		self.local_status.read().unwrap().clone()
+	}
+
+	/// Register a getter function used to fill in `NodeStatus::resync_queue_len`
+	/// on every gossip tick. `System` lives in a crate that cannot depend on
+	/// `garage_block`, so the actual block resync queue is read through this
+	/// late-bound closure instead of a direct reference.
+	pub fn set_resync_queue_len_getter(&self, getter: Box<dyn Fn() -> Option<u64> + Send + Sync>) {
+		self.resync_queue_len_getter.store(Some(Arc::new(getter)));
 	}
 
 	// ---- Administrative operations (directly available and
@@ -584,6 +600,9 @@ impl System {
 		let mut local_status = self.local_status.write().unwrap();
 		local_status.layout_digest = self.layout_manager.layout().digest();
 		local_status.update_disk_usage(&self.metadata_dir, &self.data_dir);
+		if let Some(get_queue_len) = &*self.resync_queue_len_getter.load() {
+			local_status.resync_queue_len = get_queue_len();
+		}
 	}
 
 	// --- RPC HANDLERS ---
@@ -856,6 +875,7 @@ impl NodeStatus {
 			layout_digest: layout_manager.layout().digest(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
+			resync_queue_len: None,
 		}
 	}
 
@@ -867,6 +887,7 @@ impl NodeStatus {
 			layout_digest: Default::default(),
 			meta_disk_avail: None,
 			data_disk_avail: None,
+			resync_queue_len: None,
 		}
 	}
 

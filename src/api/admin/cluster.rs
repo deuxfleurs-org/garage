@@ -52,6 +52,7 @@ impl RequestHandler for GetClusterStatusRequest {
 								total,
 							}
 						}),
+						resync_queue_len: i.status.resync_queue_len,
 						..Default::default()
 					},
 				)

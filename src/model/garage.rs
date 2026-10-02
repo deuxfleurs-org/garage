@@ -165,6 +165,11 @@ impl Garage {
 		let block_manager = BlockManager::new(&db, &config, block_write_quorum, system.clone())?;
 		block_manager.register_bg_vars(&mut bg_vars);
 
+		system.set_resync_queue_len_getter({
+			let bm = block_manager.clone();
+			Box::new(move || bm.resync.queue_approximate_len().ok().map(|n| n as u64))
+		});
+
 		// ---- admin tables ----
 		info!("Initialize admin_token_table...");
 		let admin_token_table = Table::new(

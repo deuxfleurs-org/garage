@@ -4464,6 +4464,15 @@
               }
             ]
           },
+          "resyncQueueLen": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Approximate number of blocks waiting in the resync queue on this node",
+            "minimum": 0
+          },
           "role": {
             "oneOf": [
               {
