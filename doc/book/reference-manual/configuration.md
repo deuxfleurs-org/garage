@@ -179,8 +179,8 @@ they do not exist in the configuration file:
   Garage daemon send its logs to `journald` (using the native protocol of `systemd-journald`)
   instead of printing to stderr.
 
-- `NO_COLOR` (since `v2.4.0`): set this to `0` or `false` to disable
-  ANSI color codes in Garage's logs.
+- `NO_COLOR` (since `v2.4.0`): set this to `1` or `true` to disable ANSI color
+  codes in Garage's logs.
 
 The following environment variables can be used to override the corresponding
 values in the configuration file:
