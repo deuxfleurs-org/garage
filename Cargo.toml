@@ -90,7 +90,7 @@ structopt = { version = "0.3", default-features = false }
 syslog-tracing = "0.3"
 tracing = "0.1"
 tracing-journald = "0.3"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 heed = { version = "0.22", default-features = false, features = [] }
 rusqlite = { version = "0.38", features = ["fallible_uint"] }

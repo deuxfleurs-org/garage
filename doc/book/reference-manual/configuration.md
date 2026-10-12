@@ -179,6 +179,11 @@ they do not exist in the configuration file:
   Garage daemon send its logs to `journald` (using the native protocol of `systemd-journald`)
   instead of printing to stderr.
 
+- `GARAGE_LOG_FORMAT` (since `v2.5.0`): set this to `json` to make the Garage
+  daemon print its logs to stderr as one JSON object per line. This cannot currently be
+  combined with `GARAGE_LOG_TO_SYSLOG` or `GARAGE_LOG_TO_JOURNALD`: when either
+  of those is set, it takes precedence and `GARAGE_LOG_FORMAT` is ignored.
+
 - `NO_COLOR` (since `v2.4.0`): set this to `1` or `true` to disable ANSI color
   codes in Garage's logs.
 

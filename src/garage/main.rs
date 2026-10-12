@@ -273,6 +273,19 @@ fn init_logging(opt: &Opt) {
 		}
 	}
 
+	if std::env::var("GARAGE_LOG_FORMAT")
+		.map(|x| x.eq_ignore_ascii_case("json"))
+		.unwrap_or(false)
+	{
+		tracing_subscriber::fmt()
+			.with_writer(std::io::stderr)
+			.with_env_filter(env_filter)
+			.json()
+			.flatten_event(true)
+			.init();
+		return;
+	}
+
 	tracing_subscriber::fmt()
 		.with_writer(std::io::stderr)
 		.with_env_filter(env_filter)
