@@ -355,6 +355,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	let proxy_rpc_endpoint = netapp.endpoint::<ProxyRpc, ()>(PROXY_RPC_PATH.into());
 
 	let cli = cli::remote::Cli {
+		config,
 		proxy_rpc_endpoint,
 		rpc_host: id,
 	};

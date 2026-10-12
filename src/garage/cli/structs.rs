@@ -476,6 +476,17 @@ pub enum KeyOperation {
 		#[structopt(long = "yes")]
 		yes: bool,
 	},
+
+	/// Generate a file with all information to use garage as a client (e.g ~/.awsrc)
+	#[structopt(name = "export-env", version = garage_version())]
+	ExportEnv {
+		/// ID or name of the key
+		key: String,
+
+		/// Use a prefix for the environment variables. Default: "AWS_" (e.g. `GARAGE_` for `GARAGE_ACCESS_KEY_ID` and `GARAGE_SECRET_ACCESS_KEY`)
+		#[structopt(long = "prefix", default_value = "AWS_")]
+		prefix: String,
+	},
 }
 
 #[derive(StructOpt, Debug)]
@@ -485,6 +496,12 @@ pub struct KeyInfoOpt {
 	/// Whether to display the secret key
 	#[structopt(long = "show-secret")]
 	pub show_secret: bool,
+	/// Whether to display the key ID and only the key ID (without the secret key)
+	#[structopt(long = "key-id")]
+	pub key_id: bool,
+	/// Whether to display the secret key and only the secret key (without the key ID)
+	#[structopt(long = "secret-key")]
+	pub secret_key: bool,
 }
 
 #[derive(StructOpt, Debug)]

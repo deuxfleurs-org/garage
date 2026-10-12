@@ -18,13 +18,14 @@ use garage_util::error::*;
 
 use garage_rpc::*;
 
+use crate::cli::structs::*;
 use garage_api_admin::api::*;
 use garage_api_admin::api_server::{AdminRpc as ProxyRpc, AdminRpcResponse as ProxyRpcResponse};
 use garage_api_admin::RequestHandler;
-
-use crate::cli::structs::*;
+use garage_util::config::Config;
 
 pub struct Cli {
+	pub config: Option<Config>,
 	pub proxy_rpc_endpoint: Arc<Endpoint<ProxyRpc, ()>>,
 	pub rpc_host: NodeID,
 }
