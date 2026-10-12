@@ -12,7 +12,7 @@ use crate::cli::remote::*;
 use crate::cli::structs::*;
 
 impl Cli {
-	pub async fn cmd_key(&self, cmd: KeyOperation, config: Option<Config>) -> Result<(), Error> {
+	pub async fn cmd_key(&self, cmd: KeyOperation) -> Result<(), Error> {
 		match cmd {
 			KeyOperation::List => self.cmd_list_keys().await,
 			KeyOperation::Info(query) => self.cmd_key_info(query).await,
@@ -24,9 +24,7 @@ impl Cli {
 			KeyOperation::Deny(query) => self.cmd_deny_key(query).await,
 			KeyOperation::Import(query) => self.cmd_import_key(query).await,
 			KeyOperation::DeleteExpired { yes } => self.cmd_delete_expired_keys(yes).await,
-			KeyOperation::ExportEnv { key, prefix } => {
-				self.cmd_export_env(key, prefix, config).await
-			}
+			KeyOperation::ExportEnv { key, prefix } => self.cmd_export_env(key, prefix).await,
 		}
 	}
 
@@ -271,6 +269,35 @@ impl Cli {
 		}
 
 		println!("{} access keys have been deleted.", list.len());
+
+		Ok(())
+	}
+
+	pub async fn cmd_export_env(&self, key: String, prefix: String) -> Result<(), Error> {
+		let key_infos = self
+			.api_request(GetKeyInfoRequest {
+				id: None,
+				search: Some(key),
+				show_secret_key: true,
+			})
+			.await?;
+
+		println!("{}ACCESS_KEY_ID={}", prefix, key_infos.access_key_id);
+		println!(
+			"{}SECRET_ACCESS_KEY={}",
+			prefix,
+			key_infos
+				.secret_access_key
+				.as_deref()
+				.unwrap_or("(redacted)")
+		);
+		println!("{}DEFAULT_REGION='garage'", prefix);
+
+		if let Some(config) = &self.config {
+			if let Some(url) = &config.s3_api.advertise_endpoint {
+				println!("{}ENDPOINT_URL='{}'", prefix, url);
+			}
+		}
 
 		Ok(())
 	}

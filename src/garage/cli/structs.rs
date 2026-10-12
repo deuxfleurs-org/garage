@@ -483,7 +483,7 @@ pub enum KeyOperation {
 		/// ID or name of the key
 		key: String,
 
-		/// Use a prefix for the environment variables. Default: "AWS_" (e.g. `GARAGE_` for `GARAGE_ACCESS_KEY` and `GARAGE_SECRET_KEY`)
+		/// Use a prefix for the environment variables. Default: "AWS_" (e.g. `GARAGE_` for `GARAGE_ACCESS_KEY_ID` and `GARAGE_SECRET_ACCESS_KEY`)
 		#[structopt(long = "prefix", default_value = "AWS_")]
 		prefix: String,
 	},
