@@ -48,6 +48,10 @@ tests:
           path: spec.volumeClaimTemplates[0].spec.storageClassName
           value: fast-ssd
       - template: templates/workload.yaml
+        equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: topology.kubernetes.io/zone
+      - template: templates/workload.yaml
         contains:
           path: spec.template.spec.imagePullSecrets
           content:
