@@ -63,8 +63,12 @@ impl Context {
 	///
 	/// Return the created bucket full name.
 	pub fn create_bucket(&self, name: &str) -> String {
-		let bucket_name = name.to_owned();
+		let bucket_name = format!("{}-{:016x}", name.to_owned(), rand::random::<u64>());
 
+		self.create_bucket_no_suffix(bucket_name)
+	}
+
+	pub fn create_bucket_no_suffix(&self, bucket_name: String) -> String {
 		self.garage
 			.command()
 			.args(["bucket", "create", &bucket_name])

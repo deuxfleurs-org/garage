@@ -27,9 +27,8 @@ pub type Body = FullBody<Bytes>;
 
 #[tokio::test]
 async fn test_website() {
-	const BCKT_NAME: &str = "my-website";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("my-website");
 
 	let data = ByteStream::from_static(BODY);
 
@@ -48,7 +47,7 @@ async fn test_website() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
@@ -66,7 +65,7 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port, BCKT_NAME
+				ctx.garage.admin_port, bucket
 			))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
@@ -79,7 +78,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Domain 'my-website' is not managed by Garage",
+			"message": format!("Bad request: Domain '{bucket}' is not managed by Garage"),
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -87,7 +86,7 @@ async fn test_website() {
 
 	ctx.garage
 		.command()
-		.args(["bucket", "website", "--allow", BCKT_NAME])
+		.args(["bucket", "website", "--allow", &bucket])
 		.quiet()
 		.expect_success_status("Could not allow website on bucket");
 
@@ -99,9 +98,9 @@ async fn test_website() {
 	);
 
 	for bname in [
-		BCKT_NAME.to_string(),
-		format!("{BCKT_NAME}.web.garage"),
-		format!("{BCKT_NAME}.s3.garage"),
+		bucket.clone(),
+		format!("{bucket}.web.garage"),
+		format!("{bucket}.s3.garage"),
 	] {
 		let admin_req = || {
 			Request::builder()
@@ -124,7 +123,7 @@ async fn test_website() {
 
 	ctx.garage
 		.command()
-		.args(["bucket", "website", "--deny", BCKT_NAME])
+		.args(["bucket", "website", "--deny", &bucket])
 		.quiet()
 		.expect_success_status("Could not deny website on bucket");
 
@@ -140,7 +139,7 @@ async fn test_website() {
 			.method("GET")
 			.uri(format!(
 				"http://127.0.0.1:{0}/check?domain={1}",
-				ctx.garage.admin_port, BCKT_NAME
+				ctx.garage.admin_port, bucket
 			))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
@@ -153,7 +152,7 @@ async fn test_website() {
 		res_body,
 		json!({
 			"code": "InvalidRequest",
-			"message": "Bad request: Domain 'my-website' is not managed by Garage",
+			"message": format!("Bad request: Domain '{bucket}' is not managed by Garage"),
 			"region": "garage-integ-test",
 			"path": "/check",
 		})
@@ -162,9 +161,8 @@ async fn test_website() {
 
 #[tokio::test]
 async fn test_website_s3_api() {
-	const BCKT_NAME: &str = "my-cors";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("my-cors");
 
 	let data = ByteStream::from_static(BODY);
 
@@ -261,7 +259,7 @@ async fn test_website_s3_api() {
 		let req = Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.header("Origin", "https://example.com")
 			.body(Body::new(Bytes::new()))
 			.unwrap();
@@ -287,7 +285,7 @@ async fn test_website_s3_api() {
 				"http://127.0.0.1:{}/wrong.html",
 				ctx.garage.web_port
 			))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -317,7 +315,7 @@ async fn test_website_s3_api() {
 				"http://127.0.0.1:{}/test-redirect.html",
 				ctx.garage.web_port
 			))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -332,7 +330,7 @@ async fn test_website_s3_api() {
 		let req = Request::builder()
 			.method("OPTIONS")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "PUT")
 			.body(Body::new(Bytes::new()))
@@ -356,7 +354,7 @@ async fn test_website_s3_api() {
 		let req = Request::builder()
 			.method("OPTIONS")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "DELETE")
 			.body(Body::new(Bytes::new()))
@@ -399,7 +397,7 @@ async fn test_website_s3_api() {
 		let req = Request::builder()
 			.method("OPTIONS")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.header("Origin", "https://example.com")
 			.header("Access-Control-Request-Method", "PUT")
 			.body(Body::new(Bytes::new()))
@@ -427,7 +425,7 @@ async fn test_website_s3_api() {
 		let req = Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/site/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -549,9 +547,8 @@ async fn test_website_check_domain() {
 
 #[tokio::test]
 async fn test_website_redirect_full_bucket() {
-	const BCKT_NAME: &str = "my-redirect-full";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("my-redirect-full");
 
 	let conf = WebsiteConfiguration::builder()
 		.routing_rules(
@@ -580,7 +577,7 @@ async fn test_website_redirect_full_bucket() {
 		let req = Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/my-path", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -601,7 +598,7 @@ async fn test_website_redirect_full_bucket() {
 		let req = Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/my-path/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -622,7 +619,7 @@ async fn test_website_redirect_full_bucket() {
 		let req = Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap();
 
@@ -642,9 +639,8 @@ async fn test_website_redirect_full_bucket() {
 
 #[tokio::test]
 async fn test_website_redirect() {
-	const BCKT_NAME: &str = "my-redirect";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("my-redirect");
 
 	ctx.client
 		.put_object()
@@ -813,7 +809,7 @@ async fn test_website_redirect() {
 				"http://127.0.0.1:{}/{}/path",
 				ctx.garage.web_port, path
 			))
-			.header("Host", format!("{}.web.garage", BCKT_NAME))
+			.header("Host", format!("{}.web.garage", bucket))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
@@ -1002,9 +998,8 @@ async fn test_redirect_helper(
 
 #[tokio::test]
 async fn test_website_invalid_redirect() {
-	const BCKT_NAME: &str = "my-invalid-redirect";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("my-invalid-redirect");
 
 	let conf = WebsiteConfiguration::builder()
 		.routing_rules(
@@ -1034,9 +1029,8 @@ async fn test_website_invalid_redirect() {
 
 #[tokio::test]
 async fn test_website_puny() {
-	const BCKT_NAME: &str = "xn--pda.eu";
 	let ctx = common::context();
-	let bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket_no_suffix("xn--pda.eu".to_string());
 
 	let data = ByteStream::from_static(BODY);
 
@@ -1055,14 +1049,14 @@ async fn test_website_puny() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
-			.header("Host", format!("{}{}", BCKT_NAME, suffix))
+			.header("Host", format!("{}{}", bucket, suffix))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
 	ctx.garage
 		.command()
-		.args(["bucket", "website", "--allow", BCKT_NAME])
+		.args(["bucket", "website", "--allow", &bucket])
 		.quiet()
 		.expect_success_status("Could not allow website on bucket");
 
@@ -1081,9 +1075,9 @@ async fn test_website_puny() {
 	);
 
 	for bname in [
-		BCKT_NAME.to_string(),
-		format!("{BCKT_NAME}.web.garage"),
-		format!("{BCKT_NAME}.s3.garage"),
+		bucket.clone(),
+		format!("{bucket}.web.garage"),
+		format!("{bucket}.s3.garage"),
 	] {
 		let admin_req = || {
 			Request::builder()
@@ -1107,9 +1101,8 @@ async fn test_website_puny() {
 
 #[tokio::test]
 async fn test_website_object_not_found() {
-	const BCKT_NAME: &str = "not-found";
 	let ctx = common::context();
-	let _bucket = ctx.create_bucket(BCKT_NAME);
+	let bucket = ctx.create_bucket("not-found");
 
 	let client = Client::builder(TokioExecutor::new()).build_http();
 
@@ -1117,14 +1110,14 @@ async fn test_website_object_not_found() {
 		Request::builder()
 			.method("GET")
 			.uri(format!("http://127.0.0.1:{}/", ctx.garage.web_port))
-			.header("Host", format!("{}{}", BCKT_NAME, suffix))
+			.header("Host", format!("{}{}", bucket, suffix))
 			.body(Body::new(Bytes::new()))
 			.unwrap()
 	};
 
 	ctx.garage
 		.command()
-		.args(["bucket", "website", "--allow", BCKT_NAME])
+		.args(["bucket", "website", "--allow", &bucket])
 		.quiet()
 		.expect_success_status("Could not allow website on bucket");
 
