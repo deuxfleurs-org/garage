@@ -12,6 +12,8 @@ pub mod custom_requester;
 pub mod ext;
 pub mod garage;
 
+pub use garage_api_admin::api::ApiBucketKeyPerm as BucketKeyPerm;
+
 use custom_requester::CustomRequester;
 
 const REGION: Region = Region::from_static("garage-integ-test");
@@ -78,6 +80,39 @@ impl Context {
 			.command()
 			.args(["bucket", "allow"])
 			.args(["--owner", "--read", "--write"])
+			.arg(&bucket_name)
+			.args(["--key", &self.key.id])
+			.quiet()
+			.expect_success_status("Could not allow key for bucket");
+
+		bucket_name
+	}
+
+	/// Create an unique bucket with a random suffix and given permissions
+	///
+	/// Return the created bucket full name.
+	pub fn create_bucket_with_permissions(&self, name: &str, perm: BucketKeyPerm) -> String {
+		let bucket_name = format!("{}-{:016x}", name.to_owned(), rand::random::<u64>());
+
+		self.garage
+			.command()
+			.args(["bucket", "create", &bucket_name])
+			.quiet()
+			.expect_success_status("Could not create bucket");
+		let mut perms = vec![];
+		if perm.read {
+			perms.push("--read");
+		}
+		if perm.write {
+			perms.push("--write");
+		}
+		if perm.owner {
+			perms.push("--owner");
+		}
+		self.garage
+			.command()
+			.args(["bucket", "allow"])
+			.args(perms)
 			.arg(&bucket_name)
 			.args(["--key", &self.key.id])
 			.quiet()
