@@ -585,65 +585,50 @@ impl Endpoint {
 			@match
 			self,
 			[
-				GetBucketAccelerateConfiguration,
-				GetBucketAcl,
-				GetBucketAnalyticsConfiguration,
-				GetBucketEncryption,
-				GetBucketIntelligentTieringConfiguration,
-				GetBucketInventoryConfiguration,
-				GetBucketLifecycleConfiguration,
-				GetBucketLocation,
-				GetBucketLogging,
-				GetBucketMetricsConfiguration,
-				GetBucketNotificationConfiguration,
-				GetBucketOwnershipControls,
-				GetBucketPolicy,
-				GetBucketPolicyStatus,
-				GetBucketReplication,
-				GetBucketRequestPayment,
-				GetBucketTagging,
-				GetBucketVersioning,
-				GetObject,
-				GetObjectAcl,
-				GetObjectLegalHold,
-				GetObjectLockConfiguration,
-				GetObjectRetention,
-				GetObjectTagging,
-				GetObjectTorrent,
-				GetPublicAccessBlock,
+				// Bucket-wide
 				HeadBucket,
+				GetBucketAcl,
+				GetBucketLocation,
+				GetBucketVersioning,
+
+				// Object-wide
 				HeadObject,
-				ListBucketAnalyticsConfigurations,
-				ListBucketIntelligentTieringConfigurations,
-				ListBucketInventoryConfigurations,
-				ListBucketMetricsConfigurations,
+				GetObject,
+
+				// Enumeration
+				ListBuckets,
 				ListMultipartUploads,
 				ListObjects,
 				ListObjectsV2,
 				ListObjectVersions,
 				ListParts,
-				SelectObjectContent,
 			]
 		};
-		let owner = router_match! {
+		let write = router_match! {
 			@match
 			self,
 			[
-				DeleteBucket,
-				GetBucketWebsite,
-				PutBucketWebsite,
-				DeleteBucketWebsite,
-				GetBucketCors,
-				PutBucketCors,
-				DeleteBucketCors,
+				// Objects
+				PutObject,
+				PostObject,
+				CopyObject,
+				DeleteObject,
+				DeleteObjects,
+
+				// Multipart uploads
+				CreateMultipartUpload,
+				UploadPart,
+				UploadPartCopy,
+				CompleteMultipartUpload,
+				AbortMultipartUpload,
 			]
 		};
 		if readonly {
 			Authorization::Read
-		} else if owner {
-			Authorization::Owner
-		} else {
+		} else if write {
 			Authorization::Write
+		} else {
+			Authorization::Owner
 		}
 	}
 }
