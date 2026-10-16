@@ -12,7 +12,7 @@ use super::{xmlns_tag, IntValue, Value};
 pub struct LifecycleConfiguration {
 	#[serde(rename = "@xmlns", serialize_with = "xmlns_tag", skip_deserializing)]
 	pub xmlns: (),
-	#[serde(rename = "Rule")]
+	#[serde(rename = "Rule", default)]
 	pub lifecycle_rules: Vec<LifecycleRule>,
 }
 
@@ -235,6 +235,23 @@ mod tests {
 	use super::*;
 
 	use quick_xml::de::from_str;
+
+	#[test]
+	fn test_empty() {
+		let message = r#"<?xml version="1.0" encoding="UTF-8"?>
+<LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+</LifecycleConfiguration>"#;
+
+		let conf: LifecycleConfiguration = from_str(message).unwrap();
+		let ref_value = LifecycleConfiguration {
+			xmlns: (),
+			lifecycle_rules: vec![],
+		};
+		assert_eq! {
+			ref_value,
+			conf
+		};
+	}
 
 	#[test]
 	fn test_deserialize_lifecycle_config() {
