@@ -743,40 +743,54 @@ mod tests {
         (@actual_method PUT) => {{ "PUT" }};
         (@actual_method OWNER_PUT) => {{ "PUT" }};
         (@actual_method POST) => {{ "POST" }};
+        (@actual_method OWNER_POST) => {{ "POST" }};
         (@actual_method DELETE) => {{ "DELETE" }};
         (@actual_method OWNER_DELETE) => {{ "DELETE" }};
 
         (@auth HEAD $uri:expr) => {{
             assert_eq!(parse("HEAD", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Read)
+                Authorization::Read,
+                "in HEAD {}", $uri)
         }};
         (@auth GET $uri:expr) => {{
             assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Read)
+                Authorization::Read,
+                "in GET {}", $uri)
         }};
         (@auth OWNER_GET $uri:expr) => {{
             assert_eq!(parse("GET", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Owner)
+                Authorization::Owner,
+                "in GET {}", $uri)
         }};
         (@auth PUT $uri:expr) => {{
             assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Write)
+                Authorization::Write,
+                "in PUT {}", $uri)
         }};
         (@auth OWNER_PUT $uri:expr) => {{
             assert_eq!(parse("PUT", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Owner)
+                Authorization::Owner,
+                "in PUT {}", $uri)
         }};
         (@auth POST $uri:expr) => {{
             assert_eq!(parse("POST", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Write)
+                Authorization::Write,
+                "in POST {}", $uri)
+        }};
+        (@auth OWNER_POST $uri:expr) => {{
+            assert_eq!(parse("POST", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
+                Authorization::Owner,
+                "in POST {}", $uri)
         }};
         (@auth DELETE $uri:expr) => {{
             assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Write)
+                Authorization::Write,
+                "in DELETE {}", $uri)
         }};
         (@auth OWNER_DELETE $uri:expr) => {{
             assert_eq!(parse("DELETE", concat!("/my_bucket", $uri), None, None).0.authorization_type(),
-                Authorization::Owner)
+                Authorization::Owner,
+                "in DELETE {}", $uri)
         }};
     }
 
@@ -848,87 +862,87 @@ mod tests {
 	}
 
 	#[test]
-	fn test_aws_doc_examples() {
+	fn test_aws_doc_examples_1() {
 		test_cases!(
 			DELETE "/example-object?uploadId=VXBsb2FkIElEIGZvciBlbHZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZ" => AbortMultipartUpload
 			DELETE "/Key+?uploadId=UploadId" => AbortMultipartUpload
 			POST "/example-object?uploadId=AAAsb2FkIElEIGZvciBlbHZpbmcncyWeeS1tb3ZpZS5tMnRzIRRwbG9hZA" => CompleteMultipartUpload
 			POST "/Key+?uploadId=UploadId" => CompleteMultipartUpload
-			PUT "/" => CreateBucket
+			OWNER_PUT "/" => CreateBucket
 			POST "/example-object?uploads" => CreateMultipartUpload
 			POST "/{Key+}?uploads" => CreateMultipartUpload
 			OWNER_DELETE "/" => DeleteBucket
-			DELETE "/?analytics&id=list1" => DeleteBucketAnalyticsConfiguration
-			DELETE "/?analytics&id=Id" => DeleteBucketAnalyticsConfiguration
+			OWNER_DELETE "/?analytics&id=list1" => DeleteBucketAnalyticsConfiguration
+			OWNER_DELETE "/?analytics&id=Id" => DeleteBucketAnalyticsConfiguration
 			OWNER_DELETE "/?cors" => DeleteBucketCors
-			DELETE "/?encryption" => DeleteBucketEncryption
-			DELETE "/?intelligent-tiering&id=Id" => DeleteBucketIntelligentTieringConfiguration
-			DELETE "/?inventory&id=list1" => DeleteBucketInventoryConfiguration
-			DELETE "/?inventory&id=Id" => DeleteBucketInventoryConfiguration
-			DELETE "/?lifecycle" => DeleteBucketLifecycle
-			DELETE "/?metrics&id=ExampleMetrics" => DeleteBucketMetricsConfiguration
-			DELETE "/?metrics&id=Id" => DeleteBucketMetricsConfiguration
-			DELETE "/?ownershipControls" => DeleteBucketOwnershipControls
-			DELETE "/?policy" => DeleteBucketPolicy
-			DELETE "/?replication" => DeleteBucketReplication
-			DELETE "/?tagging" => DeleteBucketTagging
+			OWNER_DELETE "/?encryption" => DeleteBucketEncryption
+			OWNER_DELETE "/?intelligent-tiering&id=Id" => DeleteBucketIntelligentTieringConfiguration
+			OWNER_DELETE "/?inventory&id=list1" => DeleteBucketInventoryConfiguration
+			OWNER_DELETE "/?inventory&id=Id" => DeleteBucketInventoryConfiguration
+			OWNER_DELETE "/?lifecycle" => DeleteBucketLifecycle
+			OWNER_DELETE "/?metrics&id=ExampleMetrics" => DeleteBucketMetricsConfiguration
+			OWNER_DELETE "/?metrics&id=Id" => DeleteBucketMetricsConfiguration
+			OWNER_DELETE "/?ownershipControls" => DeleteBucketOwnershipControls
+			OWNER_DELETE "/?policy" => DeleteBucketPolicy
+			OWNER_DELETE "/?replication" => DeleteBucketReplication
+			OWNER_DELETE "/?tagging" => DeleteBucketTagging
 			OWNER_DELETE "/?website" => DeleteBucketWebsite
 			DELETE "/my-second-image.jpg" => DeleteObject
 			DELETE "/my-third-image.jpg?versionId=UIORUnfndfiufdisojhr398493jfdkjFJjkndnqUifhnw89493jJFJ" => DeleteObject
 			DELETE "/Key+?versionId=VersionId" => DeleteObject
 			POST "/?delete" => DeleteObjects
-			DELETE "/exampleobject?tagging" => DeleteObjectTagging
-			DELETE "/{Key+}?tagging&versionId=VersionId" => DeleteObjectTagging
-			DELETE "/?publicAccessBlock" => DeletePublicAccessBlock
-			GET "/?accelerate" => GetBucketAccelerateConfiguration
+			OWNER_DELETE "/exampleobject?tagging" => DeleteObjectTagging
+			OWNER_DELETE "/{Key+}?tagging&versionId=VersionId" => DeleteObjectTagging
+			OWNER_DELETE "/?publicAccessBlock" => DeletePublicAccessBlock
+			OWNER_GET "/?accelerate" => GetBucketAccelerateConfiguration
 			GET "/?acl" => GetBucketAcl
-			GET "/?analytics&id=Id" => GetBucketAnalyticsConfiguration
+			OWNER_GET "/?analytics&id=Id" => GetBucketAnalyticsConfiguration
 			OWNER_GET "/?cors" => GetBucketCors
-			GET "/?encryption" => GetBucketEncryption
-			GET "/?intelligent-tiering&id=Id" => GetBucketIntelligentTieringConfiguration
-			GET "/?inventory&id=list1" => GetBucketInventoryConfiguration
-			GET "/?inventory&id=Id" => GetBucketInventoryConfiguration
-			GET "/?lifecycle" => GetBucketLifecycleConfiguration
+			OWNER_GET "/?encryption" => GetBucketEncryption
+			OWNER_GET "/?intelligent-tiering&id=Id" => GetBucketIntelligentTieringConfiguration
+			OWNER_GET "/?inventory&id=list1" => GetBucketInventoryConfiguration
+			OWNER_GET "/?inventory&id=Id" => GetBucketInventoryConfiguration
+			OWNER_GET "/?lifecycle" => GetBucketLifecycleConfiguration
 			GET "/?location" => GetBucketLocation
-			GET "/?logging" => GetBucketLogging
-			GET "/?metrics&id=Documents" => GetBucketMetricsConfiguration
-			GET "/?metrics&id=Id" => GetBucketMetricsConfiguration
-			GET "/?notification" => GetBucketNotificationConfiguration
-			GET "/?ownershipControls" => GetBucketOwnershipControls
-			GET "/?policy" => GetBucketPolicy
-			GET "/?policyStatus" => GetBucketPolicyStatus
-			GET "/?replication" => GetBucketReplication
-			GET "/?requestPayment" => GetBucketRequestPayment
-			GET "/?tagging" => GetBucketTagging
+			OWNER_GET "/?logging" => GetBucketLogging
+			OWNER_GET "/?metrics&id=Documents" => GetBucketMetricsConfiguration
+			OWNER_GET "/?metrics&id=Id" => GetBucketMetricsConfiguration
+			OWNER_GET "/?notification" => GetBucketNotificationConfiguration
+			OWNER_GET "/?ownershipControls" => GetBucketOwnershipControls
+			OWNER_GET "/?policy" => GetBucketPolicy
+			OWNER_GET "/?policyStatus" => GetBucketPolicyStatus
+			OWNER_GET "/?replication" => GetBucketReplication
+			OWNER_GET "/?requestPayment" => GetBucketRequestPayment
+			OWNER_GET "/?tagging" => GetBucketTagging
 			GET "/?versioning" => GetBucketVersioning
 			OWNER_GET "/?website" => GetBucketWebsite
 			GET "/my-image.jpg" => GetObject
 			GET "/myObject?versionId=3/L4kqtJlcpXroDTDmpUMLUo" => GetObject
 			GET "/Junk3.txt?response-cache-control=No-cache&response-content-disposition=attachment%3B%20filename%3Dtesting.txt&response-content-encoding=x-gzip&response-content-language=mi%2C%20en&response-expires=Thu%2C%2001%20Dec%201994%2016:00:00%20GMT" => GetObject
 			GET "/Key+?partNumber=1&response-cache-control=ResponseCacheControl&response-content-disposition=ResponseContentDisposition&response-content-encoding=ResponseContentEncoding&response-content-language=ResponseContentLanguage&response-content-type=ResponseContentType&response-expires=ResponseExpires&versionId=VersionId" => GetObject
-			GET "/my-image.jpg?acl" => GetObjectAcl
-			GET "/my-image.jpg?versionId=3/L4kqtJlcpXroDVBH40Nr8X8gdRQBpUMLUo&acl" => GetObjectAcl
-			GET "/{Key+}?acl&versionId=VersionId" => GetObjectAcl
-			GET "/{Key+}?legal-hold&versionId=VersionId" => GetObjectLegalHold
-			GET "/?object-lock" => GetObjectLockConfiguration
-			GET "/{Key+}?retention&versionId=VersionId" => GetObjectRetention
-			GET "/example-object?tagging" => GetObjectTagging
-			GET "/{Key+}?tagging&versionId=VersionId" => GetObjectTagging
-			GET "/quotes/Nelson?torrent" => GetObjectTorrent
-			GET "/{Key+}?torrent" => GetObjectTorrent
-			GET "/?publicAccessBlock" => GetPublicAccessBlock
+			OWNER_GET "/my-image.jpg?acl" => GetObjectAcl
+			OWNER_GET "/my-image.jpg?versionId=3/L4kqtJlcpXroDVBH40Nr8X8gdRQBpUMLUo&acl" => GetObjectAcl
+			OWNER_GET "/{Key+}?acl&versionId=VersionId" => GetObjectAcl
+			OWNER_GET "/{Key+}?legal-hold&versionId=VersionId" => GetObjectLegalHold
+			OWNER_GET "/?object-lock" => GetObjectLockConfiguration
+			OWNER_GET "/{Key+}?retention&versionId=VersionId" => GetObjectRetention
+			OWNER_GET "/example-object?tagging" => GetObjectTagging
+			OWNER_GET "/{Key+}?tagging&versionId=VersionId" => GetObjectTagging
+			OWNER_GET "/quotes/Nelson?torrent" => GetObjectTorrent
+			OWNER_GET "/{Key+}?torrent" => GetObjectTorrent
+			OWNER_GET "/?publicAccessBlock" => GetPublicAccessBlock
 			HEAD "/" => HeadBucket
 			HEAD "/my-image.jpg" => HeadObject
 			HEAD "/my-image.jpg?versionId=3HL4kqCxf3vjVBH40Nrjfkd" => HeadObject
 			HEAD "/Key+?partNumber=3&versionId=VersionId" => HeadObject
-			GET "/?analytics" => ListBucketAnalyticsConfigurations
-			GET "/?analytics&continuation-token=ContinuationToken" => ListBucketAnalyticsConfigurations
-			GET "/?intelligent-tiering" => ListBucketIntelligentTieringConfigurations
-			GET "/?intelligent-tiering&continuation-token=ContinuationToken" => ListBucketIntelligentTieringConfigurations
-			GET "/?inventory" => ListBucketInventoryConfigurations
-			GET "/?inventory&continuation-token=ContinuationToken" => ListBucketInventoryConfigurations
-			GET "/?metrics" => ListBucketMetricsConfigurations
-			GET "/?metrics&continuation-token=ContinuationToken" => ListBucketMetricsConfigurations
+			OWNER_GET "/?analytics" => ListBucketAnalyticsConfigurations
+			OWNER_GET "/?analytics&continuation-token=ContinuationToken" => ListBucketAnalyticsConfigurations
+			OWNER_GET "/?intelligent-tiering" => ListBucketIntelligentTieringConfigurations
+			OWNER_GET "/?intelligent-tiering&continuation-token=ContinuationToken" => ListBucketIntelligentTieringConfigurations
+			OWNER_GET "/?inventory" => ListBucketInventoryConfigurations
+			OWNER_GET "/?inventory&continuation-token=ContinuationToken" => ListBucketInventoryConfigurations
+			OWNER_GET "/?metrics" => ListBucketMetricsConfigurations
+			OWNER_GET "/?metrics&continuation-token=ContinuationToken" => ListBucketMetricsConfigurations
 			GET "/?uploads&max-uploads=3" => ListMultipartUploads
 			GET "/?uploads&delimiter=/" => ListMultipartUploads
 			GET "/?uploads&delimiter=/&prefix=photos/2006/" => ListMultipartUploads
@@ -955,44 +969,48 @@ mod tests {
 			GET "/?versions&delimiter=D&encoding-type=EncodingType&key-marker=KeyMarker&max-keys=2&prefix=Prefix&version-id-marker=VersionIdMarker" => ListObjectVersions
 			GET "/example-object?uploadId=XXBsb2FkIElEIGZvciBlbHZpbmcncyVcdS1tb3ZpZS5tMnRzEEEwbG9hZA&max-parts=2&part-number-marker=1" => ListParts
 			GET "/Key+?max-parts=2&part-number-marker=2&uploadId=UploadId" => ListParts
-			PUT "/?accelerate" => PutBucketAccelerateConfiguration
-			PUT "/?acl" => PutBucketAcl
-			PUT "/?analytics&id=report1" => PutBucketAnalyticsConfiguration
-			PUT "/?analytics&id=Id" => PutBucketAnalyticsConfiguration
+			OWNER_PUT "/?accelerate" => PutBucketAccelerateConfiguration
+			OWNER_PUT "/?acl" => PutBucketAcl
+			OWNER_PUT "/?analytics&id=report1" => PutBucketAnalyticsConfiguration
+			OWNER_PUT "/?analytics&id=Id" => PutBucketAnalyticsConfiguration
 			OWNER_PUT "/?cors" => PutBucketCors
-			PUT "/?encryption" => PutBucketEncryption
-			PUT "/?intelligent-tiering&id=Id" => PutBucketIntelligentTieringConfiguration
-			PUT "/?inventory&id=report1" => PutBucketInventoryConfiguration
-			PUT "/?inventory&id=Id" => PutBucketInventoryConfiguration
-			PUT "/?lifecycle" => PutBucketLifecycleConfiguration
-			PUT "/?logging" => PutBucketLogging
-			PUT "/?metrics&id=EntireBucket" => PutBucketMetricsConfiguration
-			PUT "/?metrics&id=Id" => PutBucketMetricsConfiguration
-			PUT "/?notification" => PutBucketNotificationConfiguration
-			PUT "/?ownershipControls" => PutBucketOwnershipControls
-			PUT "/?policy" => PutBucketPolicy
-			PUT "/?replication" => PutBucketReplication
-			PUT "/?requestPayment" => PutBucketRequestPayment
-			PUT "/?tagging" => PutBucketTagging
-			PUT "/?versioning" => PutBucketVersioning
+			OWNER_PUT "/?encryption" => PutBucketEncryption
+			OWNER_PUT "/?intelligent-tiering&id=Id" => PutBucketIntelligentTieringConfiguration
+			OWNER_PUT "/?inventory&id=report1" => PutBucketInventoryConfiguration
+			OWNER_PUT "/?inventory&id=Id" => PutBucketInventoryConfiguration
+			OWNER_PUT "/?lifecycle" => PutBucketLifecycleConfiguration
+			OWNER_PUT "/?logging" => PutBucketLogging
+			OWNER_PUT "/?metrics&id=EntireBucket" => PutBucketMetricsConfiguration
+			OWNER_PUT "/?metrics&id=Id" => PutBucketMetricsConfiguration
+			OWNER_PUT "/?notification" => PutBucketNotificationConfiguration
+			OWNER_PUT "/?ownershipControls" => PutBucketOwnershipControls
+			OWNER_PUT "/?policy" => PutBucketPolicy
+			OWNER_PUT "/?replication" => PutBucketReplication
+			OWNER_PUT "/?requestPayment" => PutBucketRequestPayment
+			OWNER_PUT "/?tagging" => PutBucketTagging
+			OWNER_PUT "/?versioning" => PutBucketVersioning
 			OWNER_PUT "/?website" => PutBucketWebsite
 			PUT "/my-image.jpg" => PutObject
 			PUT "/Key+" => PutObject
-			PUT "/my-image.jpg?acl" => PutObjectAcl
-			PUT "/my-image.jpg?acl&versionId=3HL4kqtJlcpXroDTDmJ+rmSpXd3dIbrHY+MTRCxf3vjVBH40Nrjfkd" => PutObjectAcl
-			PUT "/{Key+}?acl&versionId=VersionId" => PutObjectAcl
-			PUT "/{Key+}?legal-hold&versionId=VersionId" => PutObjectLegalHold
-			PUT "/?object-lock" => PutObjectLockConfiguration
-			PUT "/{Key+}?retention&versionId=VersionId" => PutObjectRetention
-			PUT "/object-key?tagging" => PutObjectTagging
-			PUT "/{Key+}?tagging&versionId=VersionId" => PutObjectTagging
-			PUT "/?publicAccessBlock" => PutPublicAccessBlock
-			POST "/object-one.csv?restore" => RestoreObject
-			POST "/{Key+}?restore&versionId=VersionId" => RestoreObject
+			OWNER_PUT "/my-image.jpg?acl" => PutObjectAcl
+			OWNER_PUT "/my-image.jpg?acl&versionId=3HL4kqtJlcpXroDTDmJ+rmSpXd3dIbrHY+MTRCxf3vjVBH40Nrjfkd" => PutObjectAcl
+			OWNER_PUT "/{Key+}?acl&versionId=VersionId" => PutObjectAcl
+			OWNER_PUT "/{Key+}?legal-hold&versionId=VersionId" => PutObjectLegalHold
+			OWNER_PUT "/?object-lock" => PutObjectLockConfiguration
+			OWNER_PUT "/{Key+}?retention&versionId=VersionId" => PutObjectRetention
+			OWNER_PUT "/object-key?tagging" => PutObjectTagging
+			OWNER_PUT "/{Key+}?tagging&versionId=VersionId" => PutObjectTagging
+			OWNER_PUT "/?publicAccessBlock" => PutPublicAccessBlock
+			OWNER_POST "/object-one.csv?restore" => RestoreObject
+			OWNER_POST "/{Key+}?restore&versionId=VersionId" => RestoreObject
 			PUT "/my-movie.m2ts?partNumber=1&uploadId=VCVsb2FkIElEIGZvciBlbZZpbmcncyBteS1tb3ZpZS5tMnRzIHVwbG9hZR" => UploadPart
 			PUT "/Key+?partNumber=2&uploadId=UploadId" => UploadPart
 			POST "/" => PostObject
 		);
+	}
+
+	#[test]
+	fn test_aws_doc_examples_2() {
 		// no bucket, won't work with the rest of the test suite
 		assert!(matches!(
 			parse("GET", "/", None, None).0,
@@ -1088,7 +1106,7 @@ mod tests {
 			parse("POST", "/my_bucket/{Key+}?select&select-type=2", None, None)
 				.0
 				.authorization_type(),
-			Authorization::Read
+			Authorization::Owner // could be Read if we implement it
 		));
 	}
 }
