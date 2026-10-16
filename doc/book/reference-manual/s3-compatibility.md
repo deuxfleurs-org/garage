@@ -90,12 +90,14 @@ but these endpoints are documented in [Red Hat Ceph Storage - Chapter 2. Ceph Ob
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
 | [DeleteBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketWebsite.html)          | ✅ Implemented                      | ❌| ❌| ❌| ❌|
 | [GetBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)             | ✅ Implemented                      |  ❌ | ❌| ❌| ❌|
-| [PutBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)             | ⚠ Partially implemented (see below)| ❌| ❌| ❌| ❌|
+| [PutBucketWebsite](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)             | ✅ Implemented (\*) | ❌| ❌| ❌| ❌|
 | [DeleteBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)             | ✅ Implemented                      |  ❌|  ✅ | ❌| ✅ |
 | [GetBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html)                | ✅ Implemented                      |  ❌ |  ✅ | ❌| ✅ |
 | [PutBucketCors](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)                | ✅ Implemented                      | ❌|  ✅ | ❌| ✅ |
 
-**PutBucketWebsite:** Implemented, but only stores the index document suffix and the error document path. Redirects are not supported.
+**PutBucketWebsite:** `RedirectAllRequestsTo` is not currently implemented in
+Garage, however its effect can be emulated using a single unconditional
+`RoutingRule`.
 
 *Note: Ceph radosgw has some support for static websites but it is different from the Amazon one. It also does not implement its configuration endpoints.*
 
@@ -111,10 +113,14 @@ See Garage CLI reference manual to learn how to use Garage's permission system.
 | [GetBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicy.html) | ❌ Missing | ❌|  ✅ | ⚠ | ❌|
 | [GetBucketPolicyStatus](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketPolicyStatus.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 | [PutBucketPolicy](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketPolicy.html) | ❌ Missing | ❌|  ✅ | ⚠ | ❌|
-| [GetBucketAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
+| [GetBucketAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAcl.html) | ⚠ Partial (see below) | ✅ | ✅ | ✅ | ✅ |
 | [PutBucketAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 | [GetObjectAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
 | [PutObjectAcl](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectAcl.html) | ❌ Missing | ✅ | ✅ | ✅ | ✅ |
+
+**GetBucketACL:** We report only the read/write/owner permissions associated with the current
+S3 access key. Actual permissions might not match strictly with the reported ACL, as Garage
+uses its own permission system.
 
 *Notes:* Riak CS only supports a subset of the policy configuration.
 

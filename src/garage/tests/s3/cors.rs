@@ -74,6 +74,7 @@ async fn apply_bucket_cors(ctx: &common::Context, bucket: &str, allowed_origins:
 async fn test_s3_api_cors_reflects_request_origin() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("s3-cors-direct");
+	ctx.bucket_allow_owner(&bucket);
 
 	apply_bucket_cors(&ctx, &bucket, &[REQUEST_ORIGIN]).await;
 

@@ -695,7 +695,7 @@ async fn test_uploadpartcopy() {
 		.key("target")
 		.upload_id(uid)
 		.part_number(2)
-		.copy_source("uploadpartcopy/source2")
+		.copy_source(format!("{bucket}/source2"))
 		.copy_source_range("bytes=500-5500000")
 		.send()
 		.await
@@ -708,7 +708,7 @@ async fn test_uploadpartcopy() {
 		.key("target")
 		.upload_id(uid)
 		.part_number(4)
-		.copy_source("uploadpartcopy/source1")
+		.copy_source(format!("{bucket}/source1"))
 		.copy_source_range("bytes=500-5500000")
 		.send()
 		.await

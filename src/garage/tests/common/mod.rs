@@ -12,6 +12,8 @@ pub mod custom_requester;
 pub mod ext;
 pub mod garage;
 
+pub use garage_api_admin::api::ApiBucketKeyPerm as BucketKeyPerm;
+
 use custom_requester::CustomRequester;
 
 const REGION: Region = Region::from_static("garage-integ-test");
@@ -63,8 +65,12 @@ impl Context {
 	///
 	/// Return the created bucket full name.
 	pub fn create_bucket(&self, name: &str) -> String {
-		let bucket_name = name.to_owned();
+		let bucket_name = format!("{}-{:016x}", name.to_owned(), rand::random::<u64>());
 
+		self.create_bucket_no_suffix(bucket_name)
+	}
+
+	pub fn create_bucket_no_suffix(&self, bucket_name: String) -> String {
 		self.garage
 			.command()
 			.args(["bucket", "create", &bucket_name])
@@ -73,7 +79,50 @@ impl Context {
 		self.garage
 			.command()
 			.args(["bucket", "allow"])
-			.args(["--owner", "--read", "--write"])
+			.args(["--read", "--write"])
+			.arg(&bucket_name)
+			.args(["--key", &self.key.id])
+			.quiet()
+			.expect_success_status("Could not allow key for bucket");
+
+		bucket_name
+	}
+
+	pub fn bucket_allow_owner(&self, bucket_name: &str) {
+		self.garage
+			.command()
+			.args(["bucket", "allow", "--owner"])
+			.arg(bucket_name)
+			.args(["--key", &self.key.id])
+			.quiet()
+			.expect_success_status("Could not allow key for bucket");
+	}
+
+	/// Create an unique bucket with a random suffix and given permissions
+	///
+	/// Return the created bucket full name.
+	pub fn create_bucket_with_permissions(&self, name: &str, perm: BucketKeyPerm) -> String {
+		let bucket_name = format!("{}-{:016x}", name.to_owned(), rand::random::<u64>());
+
+		self.garage
+			.command()
+			.args(["bucket", "create", &bucket_name])
+			.quiet()
+			.expect_success_status("Could not create bucket");
+		let mut perms = vec![];
+		if perm.read {
+			perms.push("--read");
+		}
+		if perm.write {
+			perms.push("--write");
+		}
+		if perm.owner {
+			perms.push("--owner");
+		}
+		self.garage
+			.command()
+			.args(["bucket", "allow"])
+			.args(perms)
 			.arg(&bucket_name)
 			.args(["--key", &self.key.id])
 			.quiet()
