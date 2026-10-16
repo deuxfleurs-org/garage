@@ -15,16 +15,14 @@ async fn test_read_only() {
 		},
 	);
 
-	let data = ByteStream::from_static(b"Hello world!");
-	assert!(ctx
-		.client
-		.put_object()
+	ctx.client.list_buckets().send().await.unwrap();
+
+	ctx.client
+		.get_bucket_acl()
 		.bucket(&bucket)
-		.key("test")
-		.body(data)
 		.send()
 		.await
-		.is_err());
+		.unwrap();
 
 	let r = ctx
 		.client
@@ -36,6 +34,31 @@ async fn test_read_only() {
 
 	assert!(r.contents.is_none());
 	assert!(r.common_prefixes.is_none());
+
+	let data = ByteStream::from_static(b"Hello world!");
+	assert!(ctx
+		.client
+		.put_object()
+		.bucket(&bucket)
+		.key("test")
+		.body(data)
+		.send()
+		.await
+		.is_err());
+
+	assert!(ctx
+		.client
+		.put_bucket_lifecycle_configuration()
+		.bucket(&bucket)
+		.lifecycle_configuration(
+			BucketLifecycleConfiguration::builder()
+				.set_rules(Some(vec![]))
+				.build()
+				.unwrap()
+		)
+		.send()
+		.await
+		.is_err());
 }
 
 #[tokio::test]

@@ -303,6 +303,7 @@ async fn test_create_bucket_streaming() {
 async fn test_put_website_streaming() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("putwebsite-streaming");
+	ctx.bucket_allow_owner(&bucket);
 
 	{
 		let website_config = r#"<?xml version="1.0" encoding="UTF-8"?>

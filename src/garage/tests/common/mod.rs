@@ -79,13 +79,23 @@ impl Context {
 		self.garage
 			.command()
 			.args(["bucket", "allow"])
-			.args(["--owner", "--read", "--write"])
+			.args(["--read", "--write"])
 			.arg(&bucket_name)
 			.args(["--key", &self.key.id])
 			.quiet()
 			.expect_success_status("Could not allow key for bucket");
 
 		bucket_name
+	}
+
+	pub fn bucket_allow_owner(&self, bucket_name: &str) {
+		self.garage
+			.command()
+			.args(["bucket", "allow", "--owner"])
+			.arg(bucket_name)
+			.args(["--key", &self.key.id])
+			.quiet()
+			.expect_success_status("Could not allow key for bucket");
 	}
 
 	/// Create an unique bucket with a random suffix and given permissions

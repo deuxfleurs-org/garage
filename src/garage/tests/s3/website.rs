@@ -199,6 +199,7 @@ async fn test_website_s3_api() {
 		)
 		.build();
 
+	ctx.bucket_allow_owner(&bucket);
 	ctx.client
 		.put_bucket_website()
 		.bucket(&bucket)
@@ -565,6 +566,7 @@ async fn test_website_redirect_full_bucket() {
 		)
 		.build();
 
+	ctx.bucket_allow_owner(&bucket);
 	ctx.client
 		.put_bucket_website()
 		.bucket(&bucket)
@@ -783,6 +785,7 @@ async fn test_website_redirect() {
 	}
 	let conf = conf.build();
 
+	ctx.bucket_allow_owner(&bucket);
 	ctx.client
 		.put_bucket_website()
 		.bucket(&bucket)
