@@ -252,7 +252,7 @@ pub async fn handle_put_part(
 	encryption.add_response_headers(&mut resp);
 	// UploadPart responses carry the part-level checksum only,
 	// no x-amz-checksum-type header (same as AWS S3)
-	let resp = add_checksum_response_headers(&expected_checksums.extra, None, None, resp);
+	let resp = add_checksum_response_headers(&expected_checksums.extra, None, None, resp)?;
 	Ok(resp.body(empty_body())?)
 }
 
@@ -566,7 +566,7 @@ pub async fn handle_complete_multipart_upload(
 	let resp = Response::builder();
 	// AWS S3 returns the checksum type in the CompleteMultipartUploadResult
 	// XML body (already done above), not as a response header.
-	let resp = add_checksum_response_headers(&expected_checksum, None, None, resp);
+	let resp = add_checksum_response_headers(&expected_checksum, None, None, resp)?;
 	Ok(resp.body(string_body(xml))?)
 }
 

@@ -52,7 +52,7 @@ fn object_headers(
 	meta_inner: &ObjectVersionMetaInner,
 	encryption: EncryptionParams,
 	checksum_mode: ChecksumMode,
-) -> http::response::Builder {
+) -> Result<http::response::Builder, Error> {
 	debug!("Version meta: {:?}", version_meta);
 
 	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
@@ -86,14 +86,14 @@ fn object_headers(
 		resp = add_checksum_response_headers(
 			&meta_inner.checksum,
 			meta_inner.checksum_type,
-			composite_checksum_part_count(version, version_meta, meta_inner),
+			composite_checksum_part_count(version, version_meta, meta_inner)?,
 			resp,
-		);
+		)?;
 	}
 
 	encryption.add_response_headers(&mut resp);
 
-	resp
+	Ok(resp)
 }
 
 /// Part count for composite checksums, taken from the multipart etag
@@ -101,22 +101,23 @@ fn composite_checksum_part_count(
 	version: &ObjectVersion,
 	version_meta: &ObjectVersionMeta,
 	meta_inner: &ObjectVersionMetaInner,
-) -> Option<u64> {
+) -> Result<Option<u64>, Error> {
 	if meta_inner.checksum_type != Some(ChecksumType::Composite) {
-		return None;
+		return Ok(None);
 	}
+	// FIXME: parsing the part count out of the etag is fragile, we would
+	// prefer to have it stored explicitly in the object metadata
 	let part_count = version_meta
 		.etag
 		.rsplit_once('-')
-		.and_then(|(_, n)| n.parse::<u64>().ok());
-	if part_count.is_none() {
-		// TODO: should this be an error? Without -N, clients fail validation
-		warn!(
-			"No part count in etag for composite checksum, version {:?}: {}",
-			version.uuid, version_meta.etag
-		);
-	}
-	part_count
+		.and_then(|(_, n)| n.parse::<u64>().ok())
+		.ok_or_else(|| {
+			Error::internal_error(format!(
+				"no part count in etag for composite checksum, version {:?}: {}",
+				version.uuid, version_meta.etag
+			))
+		})?;
+	Ok(Some(part_count))
 }
 
 /// Override headers according to specific query parameters, see
@@ -161,7 +162,7 @@ fn handle_http_precondition(
 			meta_inner,
 			encryption,
 			ChecksumMode { enabled: false },
-		);
+		)?;
 		if let Some(header_map) = response.headers_mut() {
 			use http::header;
 			let headers_to_keep: Vec<_> = header_map
@@ -260,7 +261,7 @@ pub async fn handle_head_without_ctx(
 					&headers,
 					encryption,
 					checksum_mode,
-				)
+				)?
 				.header(CONTENT_LENGTH, format!("{}", bytes_len))
 				.header(
 					CONTENT_RANGE,
@@ -287,7 +288,7 @@ pub async fn handle_head_without_ctx(
 					&headers,
 					encryption,
 					checksum_mode,
-				)
+				)?
 				.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
 				.header(
 					CONTENT_RANGE,
@@ -311,7 +312,7 @@ pub async fn handle_head_without_ctx(
 			&headers,
 			encryption,
 			checksum_mode,
-		)
+		)?
 		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
 		.status(StatusCode::OK)
 		.body(empty_body())?)
@@ -453,7 +454,7 @@ async fn handle_get_full(
 		info.meta_inner,
 		info.encryption,
 		checksum_mode,
-	)
+	)?
 	.header(CONTENT_LENGTH, format!("{}", info.version_meta.size))
 	.status(StatusCode::OK);
 	getobject_override_headers(overrides, &mut resp_builder)?;
@@ -557,7 +558,7 @@ async fn handle_get_range(
 		info.meta_inner,
 		info.encryption,
 		checksum_mode,
-	)
+	)?
 	.header(CONTENT_LENGTH, format!("{}", end - begin))
 	.header(
 		CONTENT_RANGE,
@@ -610,7 +611,7 @@ async fn handle_get_part(
 		info.meta_inner,
 		info.encryption,
 		checksum_mode,
-	)
+	)?
 	.status(StatusCode::PARTIAL_CONTENT);
 
 	match info.version_data {

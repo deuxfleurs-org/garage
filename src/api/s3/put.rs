@@ -133,7 +133,7 @@ pub async fn handle_put(
 		Some(ChecksumType::FullObject),
 		None,
 		resp,
-	);
+	)?;
 	Ok(resp.body(empty_body())?)
 }
 

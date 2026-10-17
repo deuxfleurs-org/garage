@@ -403,10 +403,20 @@ pub fn add_checksum_response_headers(
 	checksum_type: Option<ChecksumType>,
 	composite_part_count: Option<u64>,
 	mut resp: http::response::Builder,
-) -> http::response::Builder {
-	let part_count = match checksum_type {
-		Some(ChecksumType::Composite) => composite_part_count,
-		_ => None,
+) -> Result<http::response::Builder, Error> {
+	let part_count = match (checksum_type, composite_part_count) {
+		(Some(ChecksumType::Composite), Some(n)) => Some(n),
+		(Some(ChecksumType::Composite), None) => {
+			return Err(Error::internal_error(
+				"composite checksum without part count",
+			));
+		}
+		(_, Some(_)) => {
+			return Err(Error::internal_error(
+				"part count given for non-composite checksum",
+			));
+		}
+		(_, None) => None,
 	};
 	match checksum {
 		Some(ChecksumValue::Crc32(crc32)) => {
@@ -447,35 +457,47 @@ pub fn add_checksum_response_headers(
 		}
 		None => (),
 	}
-	resp
+	Ok(resp)
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
 
-	fn sha1_header(checksum_type: Option<ChecksumType>, part_count: Option<u64>) -> String {
+	fn sha1_header(
+		checksum_type: Option<ChecksumType>,
+		part_count: Option<u64>,
+	) -> Result<String, Error> {
 		let resp = add_checksum_response_headers(
 			&Some(ChecksumValue::Sha1([0u8; 20])),
 			checksum_type,
 			part_count,
 			http::response::Builder::new(),
-		);
-		resp.headers_ref().unwrap()[X_AMZ_CHECKSUM_SHA1]
+		)?;
+		Ok(resp.headers_ref().unwrap()[X_AMZ_CHECKSUM_SHA1]
 			.to_str()
 			.unwrap()
-			.to_string()
+			.to_string())
 	}
 
 	#[test]
 	fn composite_checksum_has_part_count_suffix() {
 		let b64 = BASE64_STANDARD.encode([0u8; 20]);
 		assert_eq!(
-			sha1_header(Some(ChecksumType::Composite), Some(3)),
+			sha1_header(Some(ChecksumType::Composite), Some(3)).unwrap(),
 			format!("{}-3", b64)
 		);
-		assert_eq!(sha1_header(Some(ChecksumType::Composite), None), b64);
-		assert_eq!(sha1_header(Some(ChecksumType::FullObject), Some(3)), b64);
-		assert_eq!(sha1_header(None, Some(3)), b64);
+		assert_eq!(
+			sha1_header(Some(ChecksumType::FullObject), None).unwrap(),
+			b64
+		);
+		assert_eq!(sha1_header(None, None).unwrap(), b64);
+	}
+
+	#[test]
+	fn inconsistent_composite_part_count_is_an_error() {
+		assert!(sha1_header(Some(ChecksumType::Composite), None).is_err());
+		assert!(sha1_header(Some(ChecksumType::FullObject), Some(3)).is_err());
+		assert!(sha1_header(None, Some(3)).is_err());
 	}
 }
