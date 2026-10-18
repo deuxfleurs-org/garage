@@ -481,15 +481,11 @@ impl BlockManager {
 			// so in all cases we add the block here to the todo list
 			// to check later that it arrived correctly, and if not
 			// we will fecth it from someone.
-			let this = self.clone();
-			tokio::spawn(async move {
-				if let Err(e) = this
-					.resync
-					.put_to_resync_after(&hash, 2 * this.system.rpc_helper().rpc_timeout())
-				{
-					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
-				}
-			});
+			self.resync.put_to_resync_after_commit(
+				tx,
+				hash,
+				2 * self.system.rpc_helper().rpc_timeout(),
+			);
 		}
 		Ok(())
 	}
@@ -506,15 +502,11 @@ impl BlockManager {
 			// There is a delay before we garbage collect it;
 			// make sure that it is handled in the resync loop
 			// after that delay has passed.
-			let this = self.clone();
-			tokio::spawn(async move {
-				if let Err(e) = this
-					.resync
-					.put_to_resync_after(&hash, BLOCK_GC_DELAY + Duration::from_secs(10))
-				{
-					error!("Block {:?} could not be put in resync queue: {}.", hash, e);
-				}
-			});
+			self.resync.put_to_resync_after_commit(
+				tx,
+				hash,
+				BLOCK_GC_DELAY + Duration::from_secs(10),
+			);
 		}
 		Ok(())
 	}

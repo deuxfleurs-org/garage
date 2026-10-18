@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -116,6 +116,69 @@ pub struct IndexedQueue {
 }
 
 impl IndexedQueue {
+	fn load(queue: db::TypedTree<Hash, ResyncEntry>) -> Result<Self, Error> {
+		let (when_index, errored) =
+			queue
+				.iter()?
+				.try_fold((BTreeSet::new(), 0), |(mut index, errored), tree_row| {
+					let (hash, ResyncEntry { when, errors }) = tree_row?;
+					index.insert(WhenIndexEntry { when, hash });
+					let errored = errored + if errors > 0 { 1 } else { 0 };
+					Ok::<_, Error>((index, errored))
+				})?;
+		Ok(Self {
+			queue,
+			when_index,
+			errored,
+			busy_set: HashSet::new(),
+		})
+	}
+
+	/// Put many blocks in the queue using a single db transaction, with the
+	/// same semantics as `put_to_resync_at_or_later` for each of them.
+	/// Each hash must appear at most once in `items`.
+	fn put_many(&mut self, items: &[(Hash, u64)]) -> Result<(), db::Error> {
+		let queue = &self.queue;
+		// (hash, when before this batch if it was queued, when after this batch)
+		let changes = queue
+			.db()
+			.transaction(|tx| {
+				let mut changes = Vec::with_capacity(items.len());
+				for &(hash, when) in items {
+					let current = queue.tx_get(tx, &hash)?;
+					let errors = match current {
+						Some(cur) if cur.when >= when => continue,
+						Some(cur) => cur.errors,
+						None => 0,
+					};
+					queue.tx_insert(tx, &hash, &ResyncEntry { when, errors })?;
+					changes.push((hash, current.map(|cur| cur.when), when));
+				}
+				Ok(changes)
+			})
+			.map_err(|e| e.cannot_have_aborted())?;
+
+		for (hash, old_when, new_when) in changes {
+			self.reindex(hash, old_when, new_when);
+		}
+		Ok(())
+	}
+
+	/// Move `hash` in the when index from `old_when` (if it was queued) to `new_when`
+	fn reindex(&mut self, hash: Hash, old_when: Option<u64>, new_when: u64) {
+		if let Some(old_when) = old_when {
+			let was_there = self.when_index.remove(&WhenIndexEntry {
+				when: old_when,
+				hash,
+			});
+			debug_assert!(was_there, "The entry was not in the when index anymore");
+		}
+		self.when_index.insert(WhenIndexEntry {
+			when: new_when,
+			hash,
+		});
+	}
+
 	fn entry(&mut self, hash: Hash) -> Result<IndexedQueueEntry<'_>, db::Error> {
 		Ok(match self.queue.get(&hash)? {
 			Some(value) => IndexedQueueEntry::Occupied(OccupiedEntry {
@@ -168,18 +231,8 @@ impl<'idxqueue> OccupiedEntry<'idxqueue> {
 				errors: new_errors,
 			},
 		)?;
-		let was_there = self.origin.when_index.remove(&WhenIndexEntry {
-			when: self.value.when,
-			hash: self.hash,
-		});
-		debug_assert!(
-			was_there,
-			"The entry was not in the when index anymore (set_when_and_errors)"
-		);
-		self.origin.when_index.insert(WhenIndexEntry {
-			when: new_when,
-			hash: self.hash,
-		});
+		self.origin
+			.reindex(self.hash, Some(self.value.when), new_when);
 		match (self.value.errors, new_errors) {
 			(0, 0) => (),
 			(0, _) => self.origin.errored = self.origin.errored.checked_add(1).unwrap(),
@@ -229,10 +282,7 @@ impl<'idxqueue> VacantEntry<'idxqueue> {
 		self.origin
 			.queue
 			.insert(&self.hash, &ResyncEntry { when, errors: 0 })?;
-		self.origin.when_index.insert(WhenIndexEntry {
-			when,
-			hash: self.hash,
-		});
+		self.origin.reindex(self.hash, None, when);
 		Ok(())
 	}
 }
@@ -246,6 +296,31 @@ pub struct BlockResyncManager {
 	pub(crate) idxqueue: Arc<Mutex<IndexedQueue>>,
 	pub(crate) notify: Arc<Notify>,
 	persister: PersisterShared<ResyncPersistedConfig>,
+	deferred: Arc<Mutex<DeferredPuts>>,
+}
+
+// Maximum number of blocks added to the resync queue in a single db transaction
+// when flushing deferred puts
+const DEFERRED_PUTS_BATCH_SIZE: usize = 1024;
+
+/// Blocks waiting to be added to the resync queue, see `put_to_resync_after_commit`
+#[derive(Default)]
+struct DeferredPuts {
+	items: HashMap<Hash, u64>,
+	// Whether a flush task is running; it keeps going until `items` is empty
+	flush_running: bool,
+}
+
+impl DeferredPuts {
+	/// Add a block, keeping the latest `when` if it is already pending.
+	/// Returns true if the caller has to start a flush task.
+	fn push(&mut self, hash: Hash, when: u64) -> bool {
+		self.items
+			.entry(hash)
+			.and_modify(|w| *w = u64::max(*w, when))
+			.or_insert(when);
+		!std::mem::replace(&mut self.flush_running, true)
+	}
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
@@ -277,25 +352,11 @@ impl BlockResyncManager {
 
 		let persister = PersisterShared::new(&system.metadata_dir, "resync_cfg");
 
-		let (when_index, errored) =
-			queue
-				.iter()?
-				.try_fold((BTreeSet::new(), 0), |(mut index, errored), tree_row| {
-					let (hash, ResyncEntry { when, errors }) = tree_row?;
-					index.insert(WhenIndexEntry { when, hash });
-					let errored = errored + if errors > 0 { 1 } else { 0 };
-					Ok::<_, Error>((index, errored))
-				})?;
-
 		Ok(Self {
 			persister,
 			notify: Arc::new(Notify::new()),
-			idxqueue: Arc::new(Mutex::new(IndexedQueue {
-				queue,
-				when_index,
-				errored,
-				busy_set: HashSet::new(),
-			})),
+			idxqueue: Arc::new(Mutex::new(IndexedQueue::load(queue)?)),
+			deferred: Arc::new(Mutex::new(DeferredPuts::default())),
 		})
 	}
 
@@ -389,6 +450,34 @@ impl BlockResyncManager {
 		}
 		self.notify.notify_waiters();
 		Ok(())
+	}
+
+	/// Put a block in the resync queue once `tx` commits, without blocking.
+	///
+	/// This is meant for reference counter changes, which happen inside db
+	/// transactions, where `put_to_resync_after` would wait for the queue
+	/// mutex and do a db write of its own. The block is added to a list that
+	/// a blocking task flushes to the queue in batches, so that many puts
+	/// share a single db transaction and a single lock of the queue.
+	pub(crate) fn put_to_resync_after_commit(
+		&self,
+		tx: &mut db::Transaction,
+		hash: Hash,
+		delay: Duration,
+	) {
+		let idxqueue = self.idxqueue.clone();
+		let deferred = self.deferred.clone();
+		let notify = self.notify.clone();
+		tx.on_commit(move || {
+			let when = now_msec() + delay.as_millis() as u64;
+			trace!("Put resync_queue (deferred): {} {:?}", when, hash);
+			let start_flush = deferred.lock().unwrap().push(hash, when);
+			if start_flush {
+				tokio::task::spawn_blocking(move || {
+					flush_deferred_puts(&idxqueue, &deferred, &notify);
+				});
+			}
+		});
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
@@ -636,6 +725,58 @@ impl BlockResyncManager {
 		}
 
 		Ok(())
+	}
+}
+
+/// Clears `flush_running` if the flush task exits without finishing (a panic),
+/// so that the next deferred put starts a new flush instead of leaving the
+/// pending list stuck forever.
+struct ClearFlushRunningOnDrop<'a>(Option<&'a Mutex<DeferredPuts>>);
+
+impl ClearFlushRunningOnDrop<'_> {
+	fn cancel(&mut self) {
+		self.0 = None;
+	}
+}
+
+impl Drop for ClearFlushRunningOnDrop<'_> {
+	fn drop(&mut self) {
+		if let Some(deferred) = self.0.take() {
+			let mut deferred = deferred.lock().unwrap_or_else(|e| e.into_inner());
+			deferred.flush_running = false;
+		}
+	}
+}
+
+fn flush_deferred_puts(
+	idxqueue: &Mutex<IndexedQueue>,
+	deferred: &Mutex<DeferredPuts>,
+	notify: &Notify,
+) {
+	let mut cleanup = ClearFlushRunningOnDrop(Some(deferred));
+	loop {
+		let items = {
+			let mut deferred = deferred.lock().unwrap();
+			if deferred.items.is_empty() {
+				// Must be cleared under the same lock as the emptiness check,
+				// otherwise a concurrent push could see a flush still running
+				deferred.flush_running = false;
+				cleanup.cancel();
+				return;
+			}
+			std::mem::take(&mut deferred.items)
+		};
+		let items = items.into_iter().collect::<Vec<_>>();
+		for batch in items.chunks(DEFERRED_PUTS_BATCH_SIZE) {
+			match idxqueue.lock().unwrap().put_many(batch) {
+				Ok(()) => notify.notify_waiters(),
+				Err(e) => error!(
+					"{} blocks could not be put in resync queue: {}.",
+					batch.len(),
+					e
+				),
+			}
+		}
 	}
 }
 
@@ -976,5 +1117,163 @@ mod v1 {
 				.expect("h2 missing from v2 queue");
 			assert_eq!((e2.when, e2.errors), (300, 3));
 		}
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	fn h(byte: u8) -> Hash {
+		Hash::from([byte; 32])
+	}
+
+	fn open_queue(tmp_dir: &mktemp::Temp) -> db::TypedTree<Hash, ResyncEntry> {
+		let db = db::open_db(
+			&tmp_dir.to_path_buf(),
+			db::Engine::Lmdb,
+			&db::OpenOpt::default(),
+		)
+		.expect("failed to open temporary lmdb database");
+		db.open_typed_tree::<Hash, ResyncEntry, _>("block_local_resync_queue_v2")
+			.unwrap()
+	}
+
+	fn when_index_of(idxqueue: &IndexedQueue) -> Vec<(u64, Hash)> {
+		idxqueue
+			.when_index
+			.iter()
+			.map(|e| (e.when, e.hash))
+			.collect()
+	}
+
+	#[test]
+	fn put_many_keeps_latest_when_and_errors() {
+		let tmp_dir = mktemp::Temp::new_dir().unwrap();
+		let queue = open_queue(&tmp_dir);
+
+		// h1: queued later than what we will put, must not move
+		// h2: queued earlier than what we will put, with errors that must be kept
+		queue
+			.insert(
+				&h(1),
+				&ResyncEntry {
+					when: 500,
+					errors: 0,
+				},
+			)
+			.unwrap();
+		queue
+			.insert(
+				&h(2),
+				&ResyncEntry {
+					when: 100,
+					errors: 2,
+				},
+			)
+			.unwrap();
+
+		let mut idxqueue = IndexedQueue::load(queue.clone()).unwrap();
+		assert_eq!(idxqueue.errored(), 1);
+
+		// h3: not queued yet
+		idxqueue
+			.put_many(&[(h(1), 200), (h(2), 300), (h(3), 400)])
+			.unwrap();
+
+		let get = |hash| {
+			let e = queue.get(&hash).unwrap().expect("missing from queue");
+			(e.when, e.errors)
+		};
+		assert_eq!(get(h(1)), (500, 0));
+		assert_eq!(get(h(2)), (300, 2));
+		assert_eq!(get(h(3)), (400, 0));
+
+		assert_eq!(
+			when_index_of(&idxqueue),
+			vec![(300, h(2)), (400, h(3)), (500, h(1))]
+		);
+		assert_eq!(idxqueue.errored(), 1);
+
+		// The in-memory index must match what a fresh load from the db gives
+		let reloaded = IndexedQueue::load(queue).unwrap();
+		assert_eq!(when_index_of(&reloaded), when_index_of(&idxqueue));
+	}
+
+	#[test]
+	fn deferred_puts_push_keeps_latest_when() {
+		let mut deferred = DeferredPuts::default();
+
+		// Only the first push needs to start a flush
+		assert!(deferred.push(h(1), 400));
+		assert!(!deferred.push(h(1), 350));
+		assert!(!deferred.push(h(2), 100));
+		assert!(!deferred.push(h(2), 200));
+
+		assert_eq!(deferred.items, HashMap::from([(h(1), 400), (h(2), 200)]));
+	}
+
+	#[test]
+	fn flush_deferred_puts_empties_pending_list() {
+		let tmp_dir = mktemp::Temp::new_dir().unwrap();
+		let queue = open_queue(&tmp_dir);
+		let idxqueue = Mutex::new(IndexedQueue::load(queue.clone()).unwrap());
+
+		// More items than fit in one batch, so the flush has to loop
+		let n = DEFERRED_PUTS_BATCH_SIZE as u64 + 10;
+		let items = (0..n)
+			.map(|i| {
+				let mut hash = [0u8; 32];
+				hash[..8].copy_from_slice(&i.to_be_bytes());
+				(Hash::from(hash), 1000 + i)
+			})
+			.collect::<HashMap<_, _>>();
+		let deferred = Mutex::new(DeferredPuts {
+			items: items.clone(),
+			flush_running: true,
+		});
+
+		flush_deferred_puts(&idxqueue, &deferred, &Notify::new());
+
+		let deferred = deferred.lock().unwrap();
+		assert!(deferred.items.is_empty());
+		assert!(!deferred.flush_running);
+
+		for (hash, when) in items {
+			let e = queue.get(&hash).unwrap().expect("missing from queue");
+			assert_eq!((e.when, e.errors), (when, 0));
+		}
+		assert_eq!(idxqueue.lock().unwrap().when_index.len(), n as usize);
+	}
+
+	#[test]
+	fn flush_deferred_puts_panic_clears_flush_running() {
+		let tmp_dir = mktemp::Temp::new_dir().unwrap();
+		let queue = open_queue(&tmp_dir);
+		let idxqueue = Mutex::new(IndexedQueue::load(queue).unwrap());
+
+		// Poison the queue mutex so that the flush panics when it locks it
+		std::thread::scope(|s| {
+			s.spawn(|| {
+				let _lock = idxqueue.lock().unwrap();
+				panic!("poisoning the queue mutex");
+			})
+			.join()
+			.unwrap_err();
+		});
+		assert!(idxqueue.is_poisoned());
+
+		let deferred = Mutex::new(DeferredPuts {
+			items: HashMap::from([(h(1), 1000)]),
+			flush_running: true,
+		});
+
+		let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+			flush_deferred_puts(&idxqueue, &deferred, &Notify::new());
+		}));
+		assert!(res.is_err());
+
+		let deferred = deferred.lock().unwrap();
+		assert!(!deferred.flush_running);
 	}
 }
