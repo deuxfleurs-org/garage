@@ -10,7 +10,7 @@ Garage can also be deployed on a kubernetes cluster via helm chart.
 Firstly clone the repository:
 
 ```bash
-git clone https://git.deuxfleurs.fr/Deuxfleurs/garage
+git clone https://git.deuxfleurs.fr/Deuxfleurs/garage.git
 cd garage/script/helm
 ```
 
