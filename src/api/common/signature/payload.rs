@@ -614,3 +614,22 @@ impl Authorization {
 		Ok(auth)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn canonical_request_rejects_invalid_utf8_path() {
+		let res = canonical_request(
+			"s3",
+			&Method::GET,
+			"/%C0",
+			&QueryMap::default(),
+			&HeaderMap::default(),
+			&[],
+			"UNSIGNED-PAYLOAD",
+		);
+		assert!(res.is_err());
+	}
+}
