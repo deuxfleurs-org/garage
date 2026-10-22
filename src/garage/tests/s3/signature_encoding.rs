@@ -14,6 +14,8 @@ async fn test_signature_encoding() {
 	let obj_key = "key@good~.txt";
 	let obj_content = "hello world of special characters";
 
+	// ---- basic put/get test
+
 	let _put_obj_info = ctx
 		.client
 		.put_object()
@@ -33,8 +35,10 @@ async fn test_signature_encoding() {
 		.await
 		.expect("failed to get object");
 
+	// ---- test url with different encoding -> should still find object
+
 	let presign_config = PresigningConfig::builder()
-		.expires_in(Duration::from_secs(10))
+		.expires_in(Duration::from_secs(100))
 		.build()
 		.expect("failed to build presigning config");
 	let presigned_request = ctx
@@ -69,4 +73,23 @@ async fn test_signature_encoding() {
 		.expect("failed to execute presigned request");
 
 	assert_eq!(res.status(), StatusCode::OK);
+
+	// -- test url with badly encoded characters -> should return 400 bad request
+
+	let client = ctx.custom_request.client();
+	let req = Request::builder()
+        .method(http::Method::GET)
+        .uri(format!("{}/%C0", ctx.garage.s3_uri()))
+        .header("x-amz-date", chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string())
+        .header("x-amz-content-sha256", "UNSIGNED-PAYLOAD")
+        .header("Authorization", "AWS4-HMAC-SHA256 Credential=GKdoesnotexist/20261017/garage/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=00")
+		.body(Full::new(Bytes::new()))
+		.expect("failed to construct request from presigned_request");
+
+	let res = client
+		.request(req)
+		.await
+		.expect("failed to execute presigned request");
+
+	assert_eq!(res.status(), StatusCode::BAD_REQUEST);
 }
