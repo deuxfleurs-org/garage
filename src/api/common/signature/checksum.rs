@@ -389,26 +389,62 @@ pub fn extract_checksum_value(
 	}
 }
 
+/// Base64 checksum, with a -N suffix for composite checksums (same as AWS S3)
+pub fn encode_checksum_value(value: &[u8], composite_part_count: Option<u64>) -> String {
+	let b64 = BASE64_STANDARD.encode(value);
+	match composite_part_count {
+		Some(n) => format!("{}-{}", b64, n),
+		None => b64,
+	}
+}
+
 pub fn add_checksum_response_headers(
 	checksum: &Option<ChecksumValue>,
 	checksum_type: Option<ChecksumType>,
+	composite_part_count: Option<u64>,
 	mut resp: http::response::Builder,
-) -> http::response::Builder {
+) -> Result<http::response::Builder, Error> {
+	let part_count = match (checksum_type, composite_part_count) {
+		(Some(ChecksumType::Composite), Some(n)) => Some(n),
+		(Some(ChecksumType::Composite), None) => {
+			return Err(Error::internal_error(
+				"composite checksum without part count",
+			));
+		}
+		(_, Some(_)) => {
+			return Err(Error::internal_error(
+				"part count given for non-composite checksum",
+			));
+		}
+		(_, None) => None,
+	};
 	match checksum {
 		Some(ChecksumValue::Crc32(crc32)) => {
-			resp = resp.header(X_AMZ_CHECKSUM_CRC32, BASE64_STANDARD.encode(crc32));
+			resp = resp.header(
+				X_AMZ_CHECKSUM_CRC32,
+				encode_checksum_value(crc32, part_count),
+			);
 		}
 		Some(ChecksumValue::Crc32c(crc32c)) => {
-			resp = resp.header(X_AMZ_CHECKSUM_CRC32C, BASE64_STANDARD.encode(crc32c));
+			resp = resp.header(
+				X_AMZ_CHECKSUM_CRC32C,
+				encode_checksum_value(crc32c, part_count),
+			);
 		}
 		Some(ChecksumValue::Crc64Nvme(crc64nvme)) => {
-			resp = resp.header(X_AMZ_CHECKSUM_CRC64NVME, BASE64_STANDARD.encode(crc64nvme));
+			resp = resp.header(
+				X_AMZ_CHECKSUM_CRC64NVME,
+				encode_checksum_value(crc64nvme, part_count),
+			);
 		}
 		Some(ChecksumValue::Sha1(sha1)) => {
-			resp = resp.header(X_AMZ_CHECKSUM_SHA1, BASE64_STANDARD.encode(sha1));
+			resp = resp.header(X_AMZ_CHECKSUM_SHA1, encode_checksum_value(sha1, part_count));
 		}
 		Some(ChecksumValue::Sha256(sha256)) => {
-			resp = resp.header(X_AMZ_CHECKSUM_SHA256, BASE64_STANDARD.encode(sha256));
+			resp = resp.header(
+				X_AMZ_CHECKSUM_SHA256,
+				encode_checksum_value(sha256, part_count),
+			);
 		}
 		None => (),
 	}
@@ -421,5 +457,47 @@ pub fn add_checksum_response_headers(
 		}
 		None => (),
 	}
-	resp
+	Ok(resp)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn sha1_header(
+		checksum_type: Option<ChecksumType>,
+		part_count: Option<u64>,
+	) -> Result<String, Error> {
+		let resp = add_checksum_response_headers(
+			&Some(ChecksumValue::Sha1([0u8; 20])),
+			checksum_type,
+			part_count,
+			http::response::Builder::new(),
+		)?;
+		Ok(resp.headers_ref().unwrap()[X_AMZ_CHECKSUM_SHA1]
+			.to_str()
+			.unwrap()
+			.to_string())
+	}
+
+	#[test]
+	fn composite_checksum_has_part_count_suffix() {
+		let b64 = BASE64_STANDARD.encode([0u8; 20]);
+		assert_eq!(
+			sha1_header(Some(ChecksumType::Composite), Some(3)).unwrap(),
+			format!("{}-3", b64)
+		);
+		assert_eq!(
+			sha1_header(Some(ChecksumType::FullObject), None).unwrap(),
+			b64
+		);
+		assert_eq!(sha1_header(None, None).unwrap(), b64);
+	}
+
+	#[test]
+	fn inconsistent_composite_part_count_is_an_error() {
+		assert!(sha1_header(Some(ChecksumType::Composite), None).is_err());
+		assert!(sha1_header(Some(ChecksumType::FullObject), Some(3)).is_err());
+		assert!(sha1_header(None, Some(3)).is_err());
+	}
 }

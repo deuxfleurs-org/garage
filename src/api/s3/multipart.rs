@@ -252,7 +252,7 @@ pub async fn handle_put_part(
 	encryption.add_response_headers(&mut resp);
 	// UploadPart responses carry the part-level checksum only,
 	// no x-amz-checksum-type header (same as AWS S3)
-	let resp = add_checksum_response_headers(&expected_checksums.extra, None, resp);
+	let resp = add_checksum_response_headers(&expected_checksums.extra, None, None, resp)?;
 	Ok(resp.body(empty_body())?)
 }
 
@@ -503,6 +503,12 @@ pub async fn handle_complete_multipart_upload(
 	let final_object = Object::new(*bucket_id, key.clone(), vec![object_version]);
 	garage.object_table.insert(&final_object).await?;
 
+	// Composite checksums get a -N suffix (same as AWS S3)
+	let composite_part_count = match checksum_algorithm {
+		Some((_, ChecksumType::Composite)) => Some(parts.len() as u64),
+		_ => None,
+	};
+
 	// Send response saying ok we're done
 	let result = s3_xml::CompleteMultipartUploadResult {
 		xmlns: (),
@@ -515,23 +521,38 @@ pub async fn handle_complete_multipart_upload(
 		key: s3_xml::Value(key),
 		etag: s3_xml::Value(format!("\"{}\"", etag)),
 		checksum_crc32: match &checksum_extra {
-			Some(ChecksumValue::Crc32(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			Some(ChecksumValue::Crc32(x)) => Some(s3_xml::Value(encode_checksum_value(
+				x,
+				composite_part_count,
+			))),
 			_ => None,
 		},
 		checksum_crc32c: match &checksum_extra {
-			Some(ChecksumValue::Crc32c(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			Some(ChecksumValue::Crc32c(x)) => Some(s3_xml::Value(encode_checksum_value(
+				x,
+				composite_part_count,
+			))),
 			_ => None,
 		},
 		checksum_crc64nvme: match &checksum_extra {
-			Some(ChecksumValue::Crc64Nvme(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			Some(ChecksumValue::Crc64Nvme(x)) => Some(s3_xml::Value(encode_checksum_value(
+				x,
+				composite_part_count,
+			))),
 			_ => None,
 		},
 		checksum_sha1: match &checksum_extra {
-			Some(ChecksumValue::Sha1(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			Some(ChecksumValue::Sha1(x)) => Some(s3_xml::Value(encode_checksum_value(
+				x,
+				composite_part_count,
+			))),
 			_ => None,
 		},
 		checksum_sha256: match &checksum_extra {
-			Some(ChecksumValue::Sha256(x)) => Some(s3_xml::Value(BASE64_STANDARD.encode(x))),
+			Some(ChecksumValue::Sha256(x)) => Some(s3_xml::Value(encode_checksum_value(
+				x,
+				composite_part_count,
+			))),
 			_ => None,
 		},
 		checksum_type: match checksum_algorithm {
@@ -545,7 +566,7 @@ pub async fn handle_complete_multipart_upload(
 	let resp = Response::builder();
 	// AWS S3 returns the checksum type in the CompleteMultipartUploadResult
 	// XML body (already done above), not as a response header.
-	let resp = add_checksum_response_headers(&expected_checksum, None, resp);
+	let resp = add_checksum_response_headers(&expected_checksum, None, None, resp)?;
 	Ok(resp.body(string_body(xml))?)
 }
 

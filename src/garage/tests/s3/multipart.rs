@@ -251,7 +251,7 @@ async fn test_multipart_with_checksum() {
 		.upload_id(uid)
 		.part_number(2)
 		.checksum_sha1(&ck2)
-		.body(ByteStream::from(u2))
+		.body(ByteStream::from(u2.clone()))
 		.send()
 		.await
 		.unwrap();
@@ -334,7 +334,42 @@ async fn test_multipart_with_checksum() {
 		.await
 		.unwrap();
 
-	assert_eq!(res.checksum_sha1, Some(expected_checksum));
+	// Composite checksums have a -N suffix
+	let expected_composite = format!("{}-3", expected_checksum);
+	assert_eq!(res.checksum_sha1, Some(expected_composite.clone()));
+
+	{
+		let r = ctx
+			.client
+			.head_object()
+			.bucket(&bucket)
+			.key("a")
+			.checksum_mode(aws_sdk_s3::types::ChecksumMode::Enabled)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(r.checksum_sha1, Some(expected_composite.clone()));
+		assert_eq!(
+			r.checksum_type,
+			Some(aws_sdk_s3::types::ChecksumType::Composite)
+		);
+	}
+
+	{
+		// Without -N the SDK fails validating the body, see issue #1228
+		let r = ctx
+			.client
+			.get_object()
+			.bucket(&bucket)
+			.key("a")
+			.checksum_mode(aws_sdk_s3::types::ChecksumMode::Enabled)
+			.send()
+			.await
+			.unwrap();
+		assert_eq!(r.checksum_sha1, Some(expected_composite));
+		let body = r.body.collect().await.unwrap().into_bytes();
+		assert_eq!(&body[..], &[&u1[..], &u2[..], &u3[..]].concat()[..]);
+	}
 }
 
 #[tokio::test]
