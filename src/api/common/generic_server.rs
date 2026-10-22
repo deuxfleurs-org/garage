@@ -370,11 +370,15 @@ where
 
 	while !*must_exit.borrow() {
 		let (stream, client_addr) = tokio::select! {
-			acc = listener.accept() => match acc {
-							Ok(r) => r,
-							Err(e) if e.kind() == std::io::ErrorKind::ConnectionAborted => continue,
-							Err(e) => return Err(e.into()),
-						},
+			acc = listener.accept() => {
+				match acc {
+					Ok(r) => r,
+					Err(e) => {
+						warn!("{} server: accept() returned error: {}", server_name, e);
+						continue;
+					}
+				}
+			},
 			_ = must_exit.changed() => continue,
 		};
 
