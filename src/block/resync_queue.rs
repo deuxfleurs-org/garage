@@ -1,17 +1,26 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::convert::TryInto;
-use std::sync::Mutex;
+use std::sync::Arc;
 
-use tokio::sync::Notify;
+use async_trait::async_trait;
+use tokio::select;
+use tokio::sync::{mpsc, watch};
+use tokio::time::{Duration, Instant};
 
 use garage_db as db;
 
+use garage_util::background::*;
 use garage_util::data::*;
 use garage_util::error::*;
+
+use crate::manager::BlockManager;
 
 // Maximum number of blocks added to the resync queue in a single db transaction
 // when flushing deferred puts
 const DEFERRED_PUTS_BATCH_SIZE: usize = 1024;
+
+// Maximum delay for deferred puts
+const DEFERRED_PUTS_MAX_DELAY: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ResyncEntry {
@@ -278,73 +287,122 @@ pub(crate) enum IndexedQueueEntry<'idxqueue> {
 
 // -------
 
-/// Blocks waiting to be added to the resync queue, see `put_to_resync_after_commit`
-#[derive(Default)]
-pub(crate) struct DeferredPuts {
+pub(crate) struct DeferredItem {
+	pub(crate) hash: Hash,
+	pub(crate) when: u64,
+}
+
+pub(crate) struct DeferredWorker {
+	manager: Arc<BlockManager>,
+	rx_deferred: mpsc::UnboundedReceiver<DeferredItem>,
 	items: HashMap<Hash, u64>,
-	// Whether a flush task is running; it keeps going until `items` is empty
-	flush_running: bool,
+	first_insert: Option<Instant>,
 }
 
-impl DeferredPuts {
-	/// Add a block, keeping the latest `when` if it is already pending.
-	/// Returns true if the caller has to start a flush task.
-	pub(crate) fn push(&mut self, hash: Hash, when: u64) -> bool {
-		self.items
-			.entry(hash)
-			.and_modify(|w| *w = u64::max(*w, when))
-			.or_insert(when);
-		!std::mem::replace(&mut self.flush_running, true)
-	}
-}
-
-/// Clears `flush_running` if the flush task exits without finishing (a panic),
-/// so that the next deferred put starts a new flush instead of leaving the
-/// pending list stuck forever.
-struct ClearFlushRunningOnDrop<'a>(Option<&'a Mutex<DeferredPuts>>);
-
-impl ClearFlushRunningOnDrop<'_> {
-	fn cancel(&mut self) {
-		self.0 = None;
-	}
-}
-
-impl Drop for ClearFlushRunningOnDrop<'_> {
-	fn drop(&mut self) {
-		if let Some(deferred) = self.0.take() {
-			let mut deferred = deferred.lock().unwrap_or_else(|e| e.into_inner());
-			deferred.flush_running = false;
+impl DeferredWorker {
+	pub(crate) fn new(
+		manager: Arc<BlockManager>,
+		rx_deferred: mpsc::UnboundedReceiver<DeferredItem>,
+	) -> Self {
+		Self {
+			manager,
+			rx_deferred,
+			items: HashMap::new(),
+			first_insert: None,
 		}
 	}
+
+	/// Add a block, keeping the latest `when` if it is already pending.
+	fn push(&mut self, entry: DeferredItem) {
+		self.items
+			.entry(entry.hash)
+			.and_modify(|w| *w = u64::max(*w, entry.when))
+			.or_insert(entry.when);
+
+		if self.first_insert.is_none() {
+			self.first_insert = Some(Instant::now());
+		}
+	}
+
+	async fn flush_batch(&mut self) -> Result<(), Error> {
+		let batch = self
+			.items
+			.iter()
+			.take(DEFERRED_PUTS_BATCH_SIZE)
+			.map(|(hash, when)| (*hash, *when))
+			.collect::<Vec<_>>();
+		let batch = Arc::<[_]>::from(batch);
+
+		tokio::task::spawn_blocking({
+			let manager = self.manager.clone();
+			let batch = batch.clone();
+			move || {
+				manager.resync.idxqueue.lock().unwrap().put_many(&batch)?;
+				manager.resync.notify.notify_waiters();
+				Ok::<_, Error>(())
+			}
+		})
+		.await??;
+
+		for (hash, _) in batch.iter() {
+			self.items.remove(hash);
+		}
+
+		if self.items.is_empty() {
+			self.first_insert = None;
+		}
+
+		Ok(())
+	}
 }
 
-pub(crate) fn flush_deferred_puts(
-	idxqueue: &Mutex<IndexedQueue>,
-	deferred: &Mutex<DeferredPuts>,
-	notify: &Notify,
-) {
-	let mut cleanup = ClearFlushRunningOnDrop(Some(deferred));
-	loop {
-		let items = {
-			let mut deferred = deferred.lock().unwrap();
-			if deferred.items.is_empty() {
-				// Must be cleared under the same lock as the emptiness check,
-				// otherwise a concurrent push could see a flush still running
-				deferred.flush_running = false;
-				cleanup.cancel();
-				return;
+#[async_trait]
+impl Worker for DeferredWorker {
+	fn name(&self) -> String {
+		"Block resync queue deferred worker".to_string()
+	}
+
+	fn status(&self) -> WorkerStatus {
+		WorkerStatus {
+			queue_length: Some(self.items.len() as u64),
+			..Default::default()
+		}
+	}
+
+	async fn work(&mut self, _must_exit: &mut watch::Receiver<bool>) -> Result<WorkerState, Error> {
+		while let Ok(item) = self.rx_deferred.try_recv() {
+			self.push(item);
+		}
+		let full_batch = self.items.len() > DEFERRED_PUTS_BATCH_SIZE;
+		let timeout = self
+			.first_insert
+			.map(|x| Instant::now() >= x + DEFERRED_PUTS_MAX_DELAY)
+			.unwrap_or(false);
+
+		if full_batch || timeout {
+			self.flush_batch().await?;
+			Ok(WorkerState::Busy)
+		} else {
+			Ok(WorkerState::Idle)
+		}
+	}
+
+	async fn wait_for_work(&mut self) -> WorkerState {
+		let first_insert = self.first_insert;
+		let wait_fut = async {
+			match first_insert {
+				Some(d) => tokio::time::sleep_until(d + DEFERRED_PUTS_MAX_DELAY).await,
+				None => futures::future::pending().await,
 			}
-			std::mem::take(&mut deferred.items)
 		};
-		let items = items.into_iter().collect::<Vec<_>>();
-		for batch in items.chunks(DEFERRED_PUTS_BATCH_SIZE) {
-			match idxqueue.lock().unwrap().put_many(batch) {
-				Ok(()) => notify.notify_waiters(),
-				Err(e) => error!(
-					"{} blocks could not be put in resync queue: {}.",
-					batch.len(),
-					e
-				),
+
+		select! {
+			_ = wait_fut => WorkerState::Busy,
+			received = self.rx_deferred.recv() => {
+				if let Some(item) = received {
+					self.push(item);
+				}
+				WorkerState::Busy
 			}
 		}
 	}
@@ -671,82 +729,5 @@ mod test {
 		// The in-memory index must match what a fresh load from the db gives
 		let reloaded = IndexedQueue::load(queue).unwrap();
 		assert_eq!(when_index_of(&reloaded), when_index_of(&idxqueue));
-	}
-
-	#[test]
-	fn deferred_puts_push_keeps_latest_when() {
-		let mut deferred = DeferredPuts::default();
-
-		// Only the first push needs to start a flush
-		assert!(deferred.push(h(1), 400));
-		assert!(!deferred.push(h(1), 350));
-		assert!(!deferred.push(h(2), 100));
-		assert!(!deferred.push(h(2), 200));
-
-		assert_eq!(deferred.items, HashMap::from([(h(1), 400), (h(2), 200)]));
-	}
-
-	#[test]
-	fn flush_deferred_puts_empties_pending_list() {
-		let tmp_dir = mktemp::Temp::new_dir().unwrap();
-		let queue = open_queue(&tmp_dir);
-		let idxqueue = Mutex::new(IndexedQueue::load(queue.clone()).unwrap());
-
-		// More items than fit in one batch, so the flush has to loop
-		let n = DEFERRED_PUTS_BATCH_SIZE as u64 + 10;
-		let items = (0..n)
-			.map(|i| {
-				let mut hash = [0u8; 32];
-				hash[..8].copy_from_slice(&i.to_be_bytes());
-				(Hash::from(hash), 1000 + i)
-			})
-			.collect::<HashMap<_, _>>();
-		let deferred = Mutex::new(DeferredPuts {
-			items: items.clone(),
-			flush_running: true,
-		});
-
-		flush_deferred_puts(&idxqueue, &deferred, &Notify::new());
-
-		let deferred = deferred.lock().unwrap();
-		assert!(deferred.items.is_empty());
-		assert!(!deferred.flush_running);
-
-		for (hash, when) in items {
-			let e = queue.get(&hash).unwrap().expect("missing from queue");
-			assert_eq!((e.when, e.errors), (when, 0));
-		}
-		assert_eq!(idxqueue.lock().unwrap().when_index.len(), n as usize);
-	}
-
-	#[test]
-	fn flush_deferred_puts_panic_clears_flush_running() {
-		let tmp_dir = mktemp::Temp::new_dir().unwrap();
-		let queue = open_queue(&tmp_dir);
-		let idxqueue = Mutex::new(IndexedQueue::load(queue).unwrap());
-
-		// Poison the queue mutex so that the flush panics when it locks it
-		std::thread::scope(|s| {
-			s.spawn(|| {
-				let _lock = idxqueue.lock().unwrap();
-				panic!("poisoning the queue mutex");
-			})
-			.join()
-			.unwrap_err();
-		});
-		assert!(idxqueue.is_poisoned());
-
-		let deferred = Mutex::new(DeferredPuts {
-			items: HashMap::from([(h(1), 1000)]),
-			flush_running: true,
-		});
-
-		let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-			flush_deferred_puts(&idxqueue, &deferred, &Notify::new());
-		}));
-		assert!(res.is_err());
-
-		let deferred = deferred.lock().unwrap();
-		assert!(!deferred.flush_running);
 	}
 }

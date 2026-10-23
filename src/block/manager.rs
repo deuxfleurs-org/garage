@@ -194,6 +194,11 @@ impl BlockManager {
 	}
 
 	pub fn spawn_workers(self: &Arc<Self>, bg: &BackgroundRunner) {
+		// Spawn deferred queue worker
+		let (tx_deferred, rx_deferred) = tokio::sync::mpsc::unbounded_channel();
+		self.resync.tx_deferred.store(Some(Arc::new(tx_deferred)));
+		bg.spawn_worker(DeferredWorker::new(self.clone(), rx_deferred));
+
 		// Spawn a bunch of resync workers
 		for index in 0..MAX_RESYNC_WORKERS {
 			let worker = ResyncWorker::new(index, self.clone());

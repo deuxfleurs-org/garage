@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +56,7 @@ pub struct BlockResyncManager {
 	pub(crate) idxqueue: Arc<Mutex<IndexedQueue>>,
 	pub(crate) notify: Arc<Notify>,
 	persister: PersisterShared<ResyncPersistedConfig>,
-	deferred: Arc<Mutex<DeferredPuts>>,
+	pub(crate) tx_deferred: ArcSwapOption<tokio::sync::mpsc::UnboundedSender<DeferredItem>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
@@ -91,7 +92,7 @@ impl BlockResyncManager {
 			persister,
 			notify: Arc::new(Notify::new()),
 			idxqueue: Arc::new(Mutex::new(IndexedQueue::load(queue)?)),
-			deferred: Arc::new(Mutex::new(DeferredPuts::default())),
+			tx_deferred: ArcSwapOption::new(None),
 		})
 	}
 
@@ -188,19 +189,15 @@ impl BlockResyncManager {
 		hash: Hash,
 		delay: Duration,
 	) {
-		let idxqueue = self.idxqueue.clone();
-		let deferred = self.deferred.clone();
-		let notify = self.notify.clone();
-		tx.on_commit(move || {
-			let when = now_msec() + delay.as_millis() as u64;
-			trace!("Put resync_queue (deferred): {} {:?}", when, hash);
-			let start_flush = deferred.lock().unwrap().push(hash, when);
-			if start_flush {
-				tokio::task::spawn_blocking(move || {
-					flush_deferred_puts(&idxqueue, &deferred, &notify);
-				});
-			}
-		});
+		if let Some(tx_deferred) = self.tx_deferred.load_full() {
+			tx.on_commit(move || {
+				let when = now_msec() + delay.as_millis() as u64;
+				trace!("Put resync_queue (deferred): {} {:?}", when, hash);
+				tx_deferred.send(DeferredItem { when, hash }).unwrap();
+			});
+		} else {
+			warn!("tx_deferred not ready");
+		}
 	}
 
 	async fn resync_iter(&self, manager: &BlockManager) -> Result<ResyncIterResult, db::Error> {
