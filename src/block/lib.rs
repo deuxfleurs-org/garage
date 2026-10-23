@@ -4,6 +4,7 @@ extern crate tracing;
 pub mod manager;
 pub mod repair;
 pub mod resync;
+pub mod resync_queue;
 
 mod block;
 mod layout;
