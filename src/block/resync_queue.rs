@@ -12,6 +12,7 @@ use garage_db as db;
 use garage_util::background::*;
 use garage_util::data::*;
 use garage_util::error::*;
+use garage_util::time::*;
 
 use crate::manager::BlockManager;
 
@@ -201,6 +202,20 @@ impl IndexedQueue {
 			}
 		}
 		Ok(())
+	}
+
+	pub fn clear_backoff(&mut self, hash: &Hash) -> Result<(), Error> {
+		let now = now_msec();
+		if let IndexedQueueEntry::Occupied(mut resync_entry) = self.entry(*hash)? {
+			if resync_entry.errors() > 0 {
+				resync_entry.set_when_and_errors(now, 0)?;
+				return Ok(());
+			}
+		}
+		Err(Error::Message(format!(
+			"Block {:?} was not in an errored state",
+			hash
+		)))
 	}
 }
 

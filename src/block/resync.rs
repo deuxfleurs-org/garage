@@ -110,25 +110,13 @@ impl BlockResyncManager {
 
 	/// Clear the error counter for a block and put it in queue immediately
 	pub fn clear_backoff(&self, hash: &Hash) -> Result<(), Error> {
-		let now = now_msec();
-		let mut idxqueue = self.idxqueue.lock().unwrap();
-		if let IndexedQueueEntry::Occupied(mut resync_entry) = idxqueue.entry(*hash)? {
-			if resync_entry.errors() > 0 {
-				resync_entry.set_when_and_errors(now, 0)?;
-				return Ok(());
-			}
-		}
-		Err(Error::Message(format!(
-			"Block {:?} was not in an errored state",
-			hash
-		)))
+		self.idxqueue.lock().unwrap().clear_backoff(hash)
 	}
 
 	/// Clear the entire resync queue and list of errored blocks
 	/// Corresponds to `garage repair clear-resync-queue`
 	pub fn clear_resync_queue(&self) -> Result<(), Error> {
-		let mut idxqueue = self.idxqueue.lock().unwrap();
-		idxqueue.clear()?;
+		self.idxqueue.lock().unwrap().clear()?;
 		Ok(())
 	}
 
@@ -170,10 +158,24 @@ impl BlockResyncManager {
 	}
 
 	pub(crate) fn put_to_resync_at_or_later(&self, hash: &Hash, when: u64) -> Result<(), Error> {
-		let mut idxqueue = self.idxqueue.lock().unwrap();
-		idxqueue.put_to_resync_at_or_later(hash, when)?;
+		self.idxqueue
+			.lock()
+			.unwrap()
+			.put_to_resync_at_or_later(hash, when)?;
 		self.notify.notify_waiters();
 		Ok(())
+	}
+
+	pub(crate) fn put_to_resync_after_deferred(&self, hash: &Hash, delay: Duration) {
+		if let Some(tx_deferred) = self.tx_deferred.load().as_ref() {
+			let when = now_msec() + delay.as_millis() as u64;
+			trace!("Put resync_queue (deferred): {} {:?}", when, hash);
+			tx_deferred
+				.send(DeferredItem { when, hash: *hash })
+				.unwrap();
+		} else {
+			warn!("tx_deferred not ready");
+		}
 	}
 
 	/// Put a block in the resync queue once `tx` commits, without blocking.
