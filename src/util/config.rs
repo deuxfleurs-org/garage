@@ -187,11 +187,11 @@ pub struct S3ApiConfig {
 	pub root_domain: Option<String>,
 
 	/// Public endpoint to use in auto-generated client configurations
-	#[serde(deserialize_with = "deserialize_advertise_endpoint", default)]
-	pub advertise_endpoint: Option<http::Uri>,
+	#[serde(deserialize_with = "deserialize_public_endpoint", default)]
+	pub public_endpoint: Option<http::Uri>,
 	/// Whether the client configurations should use path-style instead of dns-style
 	#[serde(default)]
-	pub advertise_path_style: Option<bool>,
+	pub public_endpoint_path_style: Option<bool>,
 }
 
 /// Configuration for K2V api
@@ -201,8 +201,8 @@ pub struct K2VApiConfig {
 	pub api_bind_addr: UnixOrTCPSocketAddress,
 
 	/// Public endpoint to use in auto-generated client configurations
-	#[serde(deserialize_with = "deserialize_advertise_endpoint", default)]
-	pub advertise_endpoint: Option<http::Uri>,
+	#[serde(deserialize_with = "deserialize_public_endpoint", default)]
+	pub public_endpoint: Option<http::Uri>,
 }
 
 /// Configuration for serving files as normal web server
@@ -338,23 +338,21 @@ pub fn read_config(config_file: PathBuf) -> Result<Config, Error> {
 
 	// when no root domain is configured, force path style
 	if config.s3_api.root_domain.is_none() {
-		if config.s3_api.advertise_path_style == Some(false) {
+		if config.s3_api.public_endpoint_path_style == Some(false) {
 			return Err(Error::Message(
-				"`advertise_path_style` is `false` but `root_domain` is not configured".to_string(),
+				"`public_endpoint_path_style` is `false` but `root_domain` is not configured"
+					.to_string(),
 			));
 		}
 
-		config.s3_api.advertise_path_style = Some(true);
+		config.s3_api.public_endpoint_path_style = Some(true);
 	}
 
-	// when using vhost-style, check that root_domain and advertised endpoint match
-	if config.s3_api.advertise_path_style == Some(false) {
-		if let (Some(rd), Some(ep)) = (
-			&config.s3_api.root_domain,
-			&config.s3_api.advertise_endpoint,
-		) {
+	// when using vhost-style, check that root_domain and public endpoint match
+	if config.s3_api.public_endpoint_path_style == Some(false) {
+		if let (Some(rd), Some(ep)) = (&config.s3_api.root_domain, &config.s3_api.public_endpoint) {
 			if rd.trim_start_matches('.') != ep.authority().unwrap().host() {
-				warn!("Values of `root_domain` and `advertise_endpoint` do not match in configuration file");
+				warn!("Values of `root_domain` and `public_endpoint` do not match in configuration file");
 			}
 		}
 	}
@@ -477,7 +475,7 @@ where
 	deserializer.deserialize_any(CapacityVisitor)
 }
 
-fn deserialize_advertise_endpoint<'de, D>(deserializer: D) -> Result<Option<http::Uri>, D::Error>
+fn deserialize_public_endpoint<'de, D>(deserializer: D) -> Result<Option<http::Uri>, D::Error>
 where
 	D: de::Deserializer<'de>,
 {

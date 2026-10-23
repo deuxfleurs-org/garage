@@ -77,8 +77,8 @@ skip_crd = false
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
 root_domain = ".s3.example.com"
-advertise_endpoint = "https://s3.example.com"
-advertise_path_style = false
+public_endpoint = "https://s3.example.com"
+public_endpoint_path_style = false
 
 [s3_web]
 bind_addr = "[::]:3902"
@@ -148,9 +148,9 @@ The `[kubernetes_discovery]` section:
 [`skip_crd`](#kube_skip_crd).
 
 The `[s3_api]` section:
-[`advertise_endpoint`](#s3_api_advertise_endpoint),
-[`advertise_path_style`](#s3_api_advertise_path_style),
 [`api_bind_addr`](#s3_api_bind_addr),
+[`public_endpoint`](#s3_api_public_endpoint),
+[`public_endpoint_path_style`](#s3_api_public_endpoint_path_style),
 [`root_domain`](#s3_root_domain),
 [`s3_region`](#s3_region).
 
@@ -817,11 +817,13 @@ but might be required by software not supporting path-style requests.
 If `root_domain` is `s3.example.com`, a bucket called `my-bucket` can be interacted with
 using the hostname `my-bucket.s3.example.com`.
 
-#### `advertise_endpoint` {#s3_api_advertise_endpoint}
+#### `public_endpoint` {#s3_api_public_endpoint}
 
-The publicly-advertised endpoint for accessing this Garage cluster.  This must
-be a full URI specifying the `http://` or `https://` scheme, suitable to be set
-directly as the endpoint parameter in client configurations.
+The publicly reachable endpoint for accessing this Garage cluster. This
+parameter is used when Garage must generate the public URL of an object to send
+to the client.  This must be a full URI specifying the `http://` or
+`https://` scheme, suitable to be set directly as the endpoint parameter in
+client configurations.
 
 By default, this is not specified and Garage will fall back graciously:
 
@@ -832,9 +834,9 @@ By default, this is not specified and Garage will fall back graciously:
   an object, it will try to guess the URL by using `root_domain` if it is
   available.
 
-#### `advertise_path_style` {#s3_api_advertise_path_style}
+#### `public_endpoint_path_style` {#s3_api_public_endpoint_path_style}
 
-Whether to advertise clients to use path-style URLs when accessing this Garage cluster.
+Whether to use path-style URLs when advertising the public URL of an object to a client.
 
 This will be reported in the connection parameters returned by the `GetNodeInfo` admin API endpoint.
 It will also impact the S3 API when it needs to return a string corresponding to the public URL of an object.

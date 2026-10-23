@@ -37,11 +37,11 @@ mc ls --insecure garage/
 This section is common to all methods described below.
 
 When configuring a reverse-proxy, you should update your Garage configuration
-file with the proper endpoint in `advertise_endpoint`:
+file with the proper endpoint in `public_endpoint`:
 
 ```toml
 [s3_api]
-advertise_endpoint = "https://s3.example.com"
+public_endpoint = "https://s3.example.com"
 ```
 
 If you have a wildcard DNS setup and are able to automatically provision TLS
@@ -51,7 +51,7 @@ follows:
 ```toml
 [s3_api]
 root_domain = ".s3.example.com"
-advertise_endpoint = "https://s3.example.com"
+public_endpoint = "https://s3.example.com"
 ```
 
 For example, this will make bucket `my-bucket` accessible either at

@@ -65,9 +65,9 @@ pub fn generate_public_object_url(
 
 	let key = garage_api_common::encoding::uri_encode(key, false);
 
-	if let Some(public_endpoint) = &config.advertise_endpoint {
+	if let Some(public_endpoint) = &config.public_endpoint {
 		let path_style = config
-			.advertise_path_style
+			.public_endpoint_path_style
 			.unwrap_or(config.root_domain.is_none());
 
 		if let Some(res) = inner(path_style, public_endpoint, bucket, &key) {

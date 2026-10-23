@@ -294,7 +294,7 @@ impl Cli {
 		println!("{}DEFAULT_REGION='garage'", prefix);
 
 		if let Some(config) = &self.config {
-			if let Some(url) = &config.s3_api.advertise_endpoint {
+			if let Some(url) = &config.s3_api.public_endpoint {
 				println!("{}ENDPOINT_URL='{}'", prefix, url);
 			}
 		}

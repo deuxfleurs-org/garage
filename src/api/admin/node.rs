@@ -42,15 +42,15 @@ impl RequestHandler for LocalGetNodeInfoRequest {
 				s3_endpoint: garage
 					.config
 					.s3_api
-					.advertise_endpoint
+					.public_endpoint
 					.as_ref()
 					.map(ToString::to_string),
-				s3_use_path_style: garage.config.s3_api.advertise_path_style,
+				s3_use_path_style: garage.config.s3_api.public_endpoint_path_style,
 				k2v_endpoint: garage
 					.config
 					.k2v_api
 					.as_ref()
-					.and_then(|c| c.advertise_endpoint.as_ref())
+					.and_then(|c| c.public_endpoint.as_ref())
 					.map(ToString::to_string),
 			}),
 
