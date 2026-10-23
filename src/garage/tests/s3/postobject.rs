@@ -2,7 +2,7 @@ use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{Duration, Utc};
 use hmac::Mac;
-use http_body_util::Full;
+use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::{header, Method, Request, Response, StatusCode};
 
@@ -94,8 +94,33 @@ async fn test_post_object_utf8_key() {
 	let ctx = common::context();
 	let bucket = ctx.create_bucket("post-object-utf8-key");
 
-	let res = send_post_object(&ctx, &bucket, UTF8_KEY, "копия файла.jpg", &[], "hello").await;
-	assert_eq!(res.status(), StatusCode::NO_CONTENT);
+	let res = send_post_object(
+		&ctx,
+		&bucket,
+		UTF8_KEY,
+		"копия файла.jpg",
+		&[("success_action_status", "201")],
+		"hello",
+	)
+	.await;
+	assert_eq!(res.status(), StatusCode::CREATED);
+
+	let location = format!(
+		"http://{}.s3.garage/{}",
+		bucket,
+		garage_api_common::encoding::uri_encode(UTF8_KEY, false)
+	);
+	assert_eq!(
+		res.headers()
+			.get(http::header::LOCATION)
+			.unwrap()
+			.to_str()
+			.unwrap(),
+		&location
+	);
+	let body = res.into_body().collect().await.unwrap().to_bytes();
+	let body = std::str::from_utf8(&body).unwrap();
+	assert!(body.contains(&format!("<Location>{}</Location>", location)));
 
 	let obj = ctx
 		.client
