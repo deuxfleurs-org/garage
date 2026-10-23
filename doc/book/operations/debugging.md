@@ -80,7 +80,7 @@ the official image or from a [release](@/documentation/cookbook/from-source.md):
 
 ```dockerfile
 FROM debian:bookworm-slim
-COPY --from=dxflrs/garage:v2.4.1 /garage /garage
+COPY --from=dxflrs/garage:v2.5.0 /garage /garage
 ENTRYPOINT ["/garage"]
 ```
 

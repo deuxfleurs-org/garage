@@ -902,7 +902,7 @@ impl Modify for SecurityAddon {
 #[derive(OpenApi)]
 #[openapi(
     info(
-        version = "v2.4.0",
+        version = "v2.5.0",
         title = "Garage administration API",
         description = "Administrate your Garage cluster programmatically, including status, layout, keys, buckets, and maintenance tasks.
 

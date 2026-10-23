@@ -158,7 +158,7 @@ docker run \
   -e GARAGE_DEFAULT_ACCESS_KEY \
   -e GARAGE_DEFAULT_SECRET_KEY \
   -e GARAGE_DEFAULT_BUCKET \
-  dxflrs/garage:v2.4.1
+  dxflrs/garage:v2.5.0
   /garage server --single-node --default-bucket
 ```
 
@@ -338,7 +338,7 @@ When you first start a cluster without automatic configuration, the output of `g
 ```
 ==== HEALTHY NODES ====
 ID                Hostname  Address         Tags  Zone  Capacity          DataAvail  Version
-563e1ac825ee3323  linuxbox  127.0.0.1:3901              NO ROLE ASSIGNED             v2.4.1
+563e1ac825ee3323  linuxbox  127.0.0.1:3901              NO ROLE ASSIGNED             v2.5.0
 ```
 
 Creating a cluster layout for a Garage deployment means informing Garage of the

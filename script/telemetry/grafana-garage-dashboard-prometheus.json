@@ -672,7 +672,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Number of blocks in the resync queue on each node. A block ends up here as a result of each write. Each node \"consumes\" its resync queue, getting missing blocks from other nodes. If the resync queue is growing, it indicates either performance issues on that node or connectivity issues in the cluster. Repair commands can also lead to blocks being queue into resync. The resync queue is persisted to disk, stored in the metadata database. As of garage 2.4.1, the resync queue can contain duplicated blocks, so what matters here is more the evolution (growing or shrinking).",
+      "description": "Number of blocks in the resync queue on each node. A block ends up here as a result of each write. Each node \"consumes\" its resync queue, getting missing blocks from other nodes. If the resync queue is growing, it indicates either performance issues on that node or connectivity issues in the cluster. Repair commands can also lead to blocks being queue into resync. The resync queue is persisted to disk, stored in the metadata database.",
       "fieldConfig": {
         "defaults": {
           "color": {
