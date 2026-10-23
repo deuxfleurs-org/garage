@@ -340,9 +340,7 @@ pub fn canonical_request(
 		uri_encode(canonical_uri, false).into()
 	} else {
 		//TODO: decode is already do for construct Api::EndPoint, should be better to be able to keep it instead of compute it again.
-		let key = percent_encoding::percent_decode_str(canonical_uri)
-			.decode_utf8()
-			.unwrap();
+		let key = percent_encoding::percent_decode_str(canonical_uri).decode_utf8()?;
 		uri_encode(&key, false).into()
 	};
 
@@ -614,5 +612,24 @@ impl Authorization {
 			date,
 		};
 		Ok(auth)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn canonical_request_rejects_invalid_utf8_path() {
+		let res = canonical_request(
+			"s3",
+			&Method::GET,
+			"/%C0",
+			&QueryMap::default(),
+			&HeaderMap::default(),
+			&[],
+			"UNSIGNED-PAYLOAD",
+		);
+		assert!(res.is_err());
 	}
 }
