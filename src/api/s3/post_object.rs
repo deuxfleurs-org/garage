@@ -25,6 +25,7 @@ use garage_api_common::signature::payload::{verify_v4, Authorization};
 use crate::api_server::ResBody;
 use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
+use crate::generate_public_object_url;
 use crate::put::{extract_metadata_headers, save_stream, ChecksumMode};
 use crate::xml as s3_xml;
 
@@ -305,26 +306,8 @@ pub async fn handle_post_object(
 		encryption.add_response_headers(&mut resp);
 		resp.body(string_body(target))?
 	} else {
-		let path = head
-			.uri
-			.path_and_query()
-			.map(|paq| paq.path().to_string())
-			.unwrap_or_else(|| "/".to_string());
-		let authority = head
-			.headers
-			.get(header::HOST)
-			.and_then(|h| h.to_str().ok())
-			.unwrap_or_default();
-		let proto = if !authority.is_empty() {
-			"https://"
-		} else {
-			""
-		};
-
-		let url_key: String = form_urlencoded::byte_serialize(key.as_bytes())
-			.flat_map(str::chars)
-			.collect();
-		let location = format!("{}{}{}{}", proto, authority, path, url_key);
+		let location =
+			generate_public_object_url(&ctx.garage.config.s3_api, &ctx.bucket_name, &key);
 
 		let action = params
 			.get("success_action_status")
