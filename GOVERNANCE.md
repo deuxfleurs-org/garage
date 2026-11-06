@@ -22,11 +22,10 @@ correctness of Garage and stability between version upgrades. He may transfer th
 ## Communication channels
 
 The team coordinates in the following channels:
-* The issue tracker and pull requests of the official repository.
-* The `#garage:deuxfleurs.fr` matrix channel (in English), open to anyone.
+* The [issue tracker](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues) and [pull requests](https://git.deuxfleurs.fr/Deuxfleurs/garage/pulls) of the official repository.
+* The [`#Garage :: Community` channel on Deuxfleur's Zulip chat](https://zulip.deuxfleurs.fr/#narrow/channel/42-Garage-.3A.3A-Community)
+* The [`#garage:deuxfleurs.fr` matrix channel](https://matrix.to/#/#garage:deuxfleurs.fr) (in English), open to anyone.
   On this channel, users may ask for support and discussions about development also happen.
-* The `#garage-dev:deuxfleurs.fr` matrix channel (in French), not advertised to contributors but de facto accessible to anyone.
-  Discussions about development and project coordination happen there.
 
 The moderators for those discussion channels are the Garage maintainers.
 
