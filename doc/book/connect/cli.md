@@ -8,7 +8,6 @@ These tools are particularly suitable for debug, backups, website deployments or
 
 | Name | Status | Note |
 |------|--------|------|
-| [Minio client](#minio-client)     | ✅       |  Recommended  |
 | [AWS CLI](#aws-cli)     | ✅       | Recommended   |
 | [rclone](#rclone)     | ✅       |    |
 | [s3cmd](#s3cmd)     | ✅       |    |
@@ -16,43 +15,7 @@ These tools are particularly suitable for debug, backups, website deployments or
 | [(Cyber)duck](#cyberduck)     | ✅       |    |
 | [WinSCP (libs3)](#winscp)     | ✅       | CLI instructions only   |
 | [sftpgo](#sftpgo)     | ✅       |    |
-
-
-## Minio client
-
-Use the following command to set an "alias", i.e. define a new S3 server to be
-used by the Minio client:
-
-```bash
-mc alias set \
-  garage \
-  <endpoint> \
-  <access key> \
-  <secret key> \
-  --api S3v4
-```
-
-Remember that `mc` is sometimes called `mcli` (such as on Arch Linux), to avoid conflicts
-with Midnight Commander.
-
-Some commands:
-
-```bash
-# list buckets
-mc ls garage/
-
-# list objects in a bucket
-mc ls garage/my_files
-
-# copy from your filesystem to garage
-mc cp /proc/cpuinfo garage/my_files/cpuinfo.txt
-
-# copy from garage to your filesystem
-mc cp garage/my_files/cpuinfo.txt /tmp/cpuinfo.txt
-
-# mirror a folder from your filesystem to garage
-mc mirror --overwrite ./book garage/garagehq.deuxfleurs.fr
-```
+| [Minio client](#minio-client)     | ⚠️       |  Abandoned  |
 
 
 ## AWS CLI
@@ -323,3 +286,44 @@ ls
 ```
 
 And through the web interface at http://[::1]:8080/web/client
+
+
+## Minio client
+
+**WARNING!
+minio-client has been abandoned by upstream and security issues won't be fixed.
+Users should migrate to alternatives such as awscli2 or rclone.**
+
+Use the following command to set an "alias", i.e. define a new S3 server to be
+used by the Minio client:
+
+```bash
+mc alias set \
+  garage \
+  <endpoint> \
+  <access key> \
+  <secret key> \
+  --api S3v4
+```
+
+Remember that `mc` is sometimes called `mcli` (such as on Arch Linux), to avoid conflicts
+with Midnight Commander.
+
+Some commands:
+
+```bash
+# list buckets
+mc ls garage/
+
+# list objects in a bucket
+mc ls garage/my_files
+
+# copy from your filesystem to garage
+mc cp /proc/cpuinfo garage/my_files/cpuinfo.txt
+
+# copy from garage to your filesystem
+mc cp garage/my_files/cpuinfo.txt /tmp/cpuinfo.txt
+
+# mirror a folder from your filesystem to garage
+mc mirror --overwrite ./book garage/garagehq.deuxfleurs.fr
+```
