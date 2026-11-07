@@ -3,11 +3,17 @@ use std::time::{Duration, SystemTime};
 use crate::common;
 use aws_sdk_s3::presigning::PresigningConfig;
 use bytes::Bytes;
+use hmac::Mac;
 use http_body_util::{BodyExt, Full};
-use hyper::Request;
+use hyper::header::{HeaderMap, HeaderValue, HOST};
+use hyper::{Method, Request, Uri};
+
+use garage_api_common::signature::payload::{canonical_request, parse_query_map, string_to_sign};
+use garage_api_common::signature::{compute_scope, signing_hmac, LONG_DATETIME};
 
 const STD_KEY: &str = "hello world";
 const BODY: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const REGION: &str = "garage-integ-test";
 
 #[tokio::test]
 async fn test_presigned_url() {
@@ -109,4 +115,59 @@ async fn test_presigned_put_with_user_metadata() {
 
 	let res = ctx.custom_request.client().request(req).await.unwrap();
 	assert_eq!(res.status(), 200);
+}
+
+// Presigned PUT shaped like the JS SDK default (#1236). The URL carries the
+// checksum of an empty body as a query parameter that is not a signed header.
+#[tokio::test]
+async fn test_presigned_put_ignores_unsigned_query_checksum() {
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("presigned-checksum");
+	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
+	let host = "s3.garage";
+
+	let now = chrono::Utc::now();
+	let scope = compute_scope(&now, REGION, "s3");
+	let query = format!(
+		"X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={}%2F{}&X-Amz-Date={}\
+		 &X-Amz-Expires=300&X-Amz-SignedHeaders=host\
+		 &x-amz-checksum-crc32=AAAAAA%3D%3D&x-amz-sdk-checksum-algorithm=CRC32",
+		ctx.key.id,
+		scope.replace('/', "%2F"),
+		now.format(LONG_DATETIME),
+	);
+	let uri: Uri = format!(
+		"{}{}/checksum-object?{}",
+		ctx.garage.s3_uri(),
+		bucket,
+		query
+	)
+	.parse()
+	.unwrap();
+
+	let mut headers = HeaderMap::new();
+	headers.insert(HOST, HeaderValue::from_static(host));
+	let canonical = canonical_request(
+		"s3",
+		&Method::PUT,
+		uri.path(),
+		&parse_query_map(&uri).unwrap(),
+		&headers,
+		&[HOST],
+		"UNSIGNED-PAYLOAD",
+	)
+	.unwrap();
+	let mut signer = signing_hmac(&now, &ctx.key.secret, REGION, "s3").unwrap();
+	signer.update(string_to_sign(&now, &scope, &canonical).as_bytes());
+	let signature = hex::encode(signer.finalize().into_bytes());
+
+	let req = Request::builder()
+		.method("PUT")
+		.uri(format!("{}&X-Amz-Signature={}", uri, signature))
+		.header(HOST, host)
+		.body(Full::new(Bytes::from(BODY.to_vec())))
+		.unwrap();
+	let res = ctx.custom_request.client().request(req).await.unwrap();
+	assert_eq!(res.status(), 200);
+	assert_eq!(res.headers().get("etag").unwrap(), etag);
 }
