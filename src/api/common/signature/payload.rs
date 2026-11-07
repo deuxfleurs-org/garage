@@ -193,6 +193,11 @@ fn check_presigned_signature(
 				)));
 			}
 		}
+		if checksum::is_checksum_value_header(name) && !signed_headers.contains(name) {
+			// AWS SDKs presign an empty-body checksum into the URL. AWS ignores a
+			// checksum query param that is not a signed header, so do we (#1236).
+			continue;
+		}
 		if name.as_str().starts_with("x-amz-") {
 			// Query parameters that start by x-amz- are actually intended to stand in for
 			// headers that can't be added at the time the request is made.

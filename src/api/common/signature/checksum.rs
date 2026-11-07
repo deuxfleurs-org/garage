@@ -306,6 +306,18 @@ pub fn request_trailer_checksum_algorithm(
 	}
 }
 
+/// Whether this header carries a checksum value to verify the body against
+pub fn is_checksum_value_header(name: &HeaderName) -> bool {
+	[
+		X_AMZ_CHECKSUM_CRC32,
+		X_AMZ_CHECKSUM_CRC32C,
+		X_AMZ_CHECKSUM_CRC64NVME,
+		X_AMZ_CHECKSUM_SHA1,
+		X_AMZ_CHECKSUM_SHA256,
+	]
+	.contains(name)
+}
+
 /// Extract the value of any of the x-amz-checksum-* headers
 pub fn request_checksum_value(
 	headers: &HeaderMap<HeaderValue>,
@@ -499,5 +511,14 @@ mod tests {
 		assert!(sha1_header(Some(ChecksumType::Composite), None).is_err());
 		assert!(sha1_header(Some(ChecksumType::FullObject), Some(3)).is_err());
 		assert!(sha1_header(None, Some(3)).is_err());
+	}
+
+	#[test]
+	fn only_value_headers_are_checksum_value_headers() {
+		assert!(is_checksum_value_header(&X_AMZ_CHECKSUM_CRC32));
+		assert!(is_checksum_value_header(&X_AMZ_CHECKSUM_SHA256));
+		assert!(!is_checksum_value_header(&X_AMZ_CHECKSUM_MODE));
+		assert!(!is_checksum_value_header(&X_AMZ_CHECKSUM_ALGORITHM));
+		assert!(!is_checksum_value_header(&X_AMZ_CHECKSUM_TYPE));
 	}
 }
