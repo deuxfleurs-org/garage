@@ -77,6 +77,7 @@ impl SqliteDb {
 	pub fn open(manager: SqliteConnectionManager, sync_mode: bool) -> DbResult<Db> {
 		let manager = manager.with_init(move |db| {
 			db.pragma_update(None, "journal_mode", "WAL")?;
+			db.pragma_update(None, "journal_size_limit", 1024 * 1024 * 1024)?;
 			if sync_mode {
 				db.pragma_update(None, "synchronous", "NORMAL")?;
 			} else {
