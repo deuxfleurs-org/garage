@@ -506,11 +506,14 @@ you should also ensure that each node has the same timezone configuration.
 
 #### `block_size` {#block_size}
 
-Garage splits stored objects in consecutive chunks of size `block_size`
-(except the last one which might be smaller). The default size is 1MiB and
-should work in most cases. We recommend increasing it to e.g. 10MiB if
-you are using Garage to store large files and have fast network connections
-between all nodes (e.g. 1gbps).
+Garage splits stored objects in consecutive chunks of size `block_size` (except
+the last one which might be smaller). The default block size is 1MiB in Garage
+v2.x and 10MiB starting from Garage v3.0.  1MiB is known to be a bit small, the
+metadata will easily become a bottleneck for bigger objects. 10MiB is a good
+compromise.  You may increase it even further, to e.g. 50MiB if you are using
+Garage to store very large files and have fast network connections between all
+nodes (e.g. 1gbps) and a lot of RAM. In that case, you must increase
+`block_ram_buffer_max` as well.
 
 If you are interested in tuning this, feel free to do so (and remember to
 report your findings to us!). When this value is changed for a running Garage
@@ -548,7 +551,8 @@ as each request will use a few buffers of size `block_size` for receiving and
 intermediate processing before even trying to send the data to the storage
 node.
 
-The default value is 256MiB.
+The default value is 256MiB in Garage v2.x and was increased to 512MiB starting
+with Garage v3.0.
 
 #### `block_max_concurrent_reads` (since `v1.3.0` / `v2.1.0`) {#block_max_concurrent_reads}
 
