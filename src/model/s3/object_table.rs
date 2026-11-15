@@ -417,7 +417,7 @@ mod v2 {
 	}
 
 	/// State of an object version
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[derive(PartialEq, Eq, PartialOrd, Clone, Debug, Serialize, Deserialize)]
 	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub enum ObjectVersionState {
 		/// The version is being received
@@ -433,6 +433,7 @@ mod v2 {
 		Complete(ObjectVersionData),
 		/// The version uploaded containded errors or the upload was explicitly aborted
 		Aborted,
+		Deleted,
 	}
 
 	/// Data stored in object version
@@ -662,20 +663,22 @@ impl Object {
 impl Crdt for ObjectVersionState {
 	fn merge(&mut self, other: &Self) {
 		use ObjectVersionState::*;
-		match other {
-			Aborted => {
-				*self = Aborted;
+		match (&mut *self, other) {
+			(_, Deleted) => *self = Deleted,
+			(Deleted, _) => (),
+			(Aborted, Complete(_)) | (Complete(_), Aborted) => *self = Deleted,
+			(_, Aborted) => *self = Aborted,
+			(Aborted, _) => (),
+			(Complete(slf), Complete(otr)) => slf.merge(otr),
+			(Uploading { .. }, Complete(otr)) => *self = Complete(otr.clone()),
+			(Complete(_), Uploading { .. }) => (),
+			(Uploading { .. }, Uploading { .. }) => {
+				// This should not happen in practice but is needed for the correction of the CRDT
+				// to avoid false positive when fuzzing
+				if other > self {
+					*self = other.clone();
+				}
 			}
-			Complete(b) => match self {
-				Aborted => {}
-				Complete(a) => {
-					a.merge(b);
-				}
-				Uploading { .. } => {
-					*self = Complete(b.clone());
-				}
-			},
-			Uploading { .. } => {}
 		}
 	}
 }
@@ -705,7 +708,10 @@ impl ObjectVersion {
 
 	/// Is the object version completely received
 	pub fn is_complete(&self) -> bool {
-		matches!(self.state, ObjectVersionState::Complete(_))
+		matches!(
+			self.state,
+			ObjectVersionState::Complete(_) | ObjectVersionState::Deleted
+		)
 	}
 
 	/// Is the object version available (received and not a tombstone)

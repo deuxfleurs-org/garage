@@ -560,6 +560,14 @@ impl RequestHandler for InspectObjectRequest {
 						..Default::default()
 					});
 				}
+				ObjectVersionState::Deleted => {
+					versions.push(InspectObjectVersion {
+						uuid,
+						timestamp,
+						delete_marker: true,
+						..Default::default()
+					});
+				}
 			}
 		}
 
