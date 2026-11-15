@@ -55,6 +55,7 @@ pub async fn run_server(
 		let registry = prometheus::Registry::new();
 		let metrics_exporter = opentelemetry_prometheus::exporter()
 			.with_registry(registry.clone())
+			.with_namespace("garage")
 			// FIXME: Keep metric names and series stable across the opentelemetry upgrade:
 			// newer versions of the exporter add a `_total` suffix to counters and
 			// an `otel_scope_name`/`otel_scope_version` label (plus a corresponding

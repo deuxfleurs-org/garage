@@ -31,7 +31,8 @@ async fn check_metrics_name() {
 	//dbg!(&body);
 	let invalid_metrics_name = body
 		.lines()
-		.filter(isnot_comment_line) // skip the comment lines
+		.filter(is_not_comment_line) // skip the comment lines
+		.filter(is_not_target_info)
 		.filter(hasnt_prefix_garage)
 		.collect::<Vec<_>>();
 
@@ -40,10 +41,14 @@ async fn check_metrics_name() {
 	}
 }
 
-fn isnot_comment_line(line: &&str) -> bool {
+fn is_not_comment_line(line: &&str) -> bool {
 	!line.starts_with("#")
 }
 
+fn is_not_target_info(line: &&str) -> bool {
+	!line.starts_with("target_info")
+}
+
 fn hasnt_prefix_garage(line: &&str) -> bool {
-	!line.starts_with("garage_")
+	!line.starts_with("garage_") || line.starts_with("garage_garage")
 }
