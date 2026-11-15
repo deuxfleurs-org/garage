@@ -56,14 +56,6 @@ pub async fn run_server(
 		let metrics_exporter = opentelemetry_prometheus::exporter()
 			.with_registry(registry.clone())
 			.with_namespace("garage")
-			// FIXME: Keep metric names and series stable across the opentelemetry upgrade:
-			// newer versions of the exporter add a `_total` suffix to counters and
-			// an `otel_scope_name`/`otel_scope_version` label (plus a corresponding
-			// `otel_scope_info` metric) to every series by default, which would
-			// break existing dashboards, alerts and `rate()` queries. We might want to
-			// do this later to be more industry-standard but it will be a breaking change.
-			.without_counter_suffixes()
-			.without_scope_info()
 			.build()
 			.err_context("Unable to initialize Prometheus exporter")?;
 

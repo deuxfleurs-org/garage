@@ -54,11 +54,11 @@ impl WebMetrics {
 		let meter = global::meter("garage/web");
 		Self {
 			request_counter: meter
-				.u64_counter("web.request_counter")
+				.u64_counter("web.requests")
 				.with_description("Number of requests to the web endpoint")
 				.build(),
 			error_counter: meter
-				.u64_counter("web.error_counter")
+				.u64_counter("web.errors")
 				.with_description("Number of requests to the web endpoint resulting in errors")
 				.build(),
 			request_duration: meter
