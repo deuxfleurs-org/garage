@@ -148,6 +148,11 @@ impl ApiHandler for S3ApiServer {
 		let bucket_id = bucket.id;
 		let bucket_params = bucket.state.into_option().unwrap();
 
+		// Return HTTP 501 Not Implemented before permission check
+		if !endpoint.is_implemented() {
+			return Err(CommonError::NotImplemented(endpoint.name().to_owned()).into());
+		}
+
 		let allowed = match endpoint.authorization_type() {
 			Authorization::Read => api_key.allow_read(&bucket_id),
 			Authorization::Write => api_key.allow_write(&bucket_id),
@@ -217,7 +222,6 @@ impl ApiHandler for S3ApiServer {
 			Endpoint::CompleteMultipartUpload { key, upload_id } => {
 				handle_complete_multipart_upload(ctx, req, &key, &upload_id).await
 			}
-			Endpoint::CreateBucket {} => unreachable!(),
 			Endpoint::HeadBucket {} => {
 				let response = Response::builder().body(empty_body()).unwrap();
 				Ok(response)
@@ -329,7 +333,7 @@ impl ApiHandler for S3ApiServer {
 			Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(ctx).await,
 			Endpoint::PutBucketLifecycleConfiguration {} => handle_put_lifecycle(ctx, req).await,
 			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx).await,
-			endpoint => Err(CommonError::NotImplemented(endpoint.name().to_owned()).into()),
+			_ => unreachable!(), // unimplemented check is earlier
 		};
 
 		// If request was a success and we have a CORS rule that applies to it,

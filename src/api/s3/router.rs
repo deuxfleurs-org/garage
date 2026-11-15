@@ -576,12 +576,9 @@ impl Endpoint {
 		}
 	}
 
-	/// Get the kind of authorization which is required to perform the operation.
-	pub fn authorization_type(&self) -> Authorization {
-		if let Endpoint::ListBuckets = self {
-			return Authorization::None;
-		}
-		let readonly = router_match! {
+	/// Is this a read-only endpoint supported by Garage
+	pub fn is_implemented_read(&self) -> bool {
+		router_match! {
 			@match
 			self,
 			[
@@ -600,11 +597,14 @@ impl Endpoint {
 				ListMultipartUploads,
 				ListObjects,
 				ListObjectsV2,
-				ListObjectVersions,
 				ListParts,
 			]
-		};
-		let write = router_match! {
+		}
+	}
+
+	/// Is this a read-write endpoint supported by Garage
+	pub fn is_implemented_write(&self) -> bool {
+		router_match! {
 			@match
 			self,
 			[
@@ -622,10 +622,64 @@ impl Endpoint {
 				CompleteMultipartUpload,
 				AbortMultipartUpload,
 			]
+		}
+	}
+
+	/// Is this an owner endpoint supported by Garage
+	pub fn is_implemented_owner(&self) -> bool {
+		router_match! {
+			@match
+			self,
+			[
+				CreateBucket,
+				DeleteBucket,
+
+				GetBucketWebsite,
+				PutBucketWebsite,
+				DeleteBucketWebsite,
+
+				GetBucketCors,
+				PutBucketCors,
+				DeleteBucketCors,
+
+				GetBucketLifecycleConfiguration,
+				PutBucketLifecycleConfiguration,
+				DeleteBucketLifecycle,
+			]
+		}
+	}
+
+	pub fn is_implemented(&self) -> bool {
+		self.is_implemented_read() || self.is_implemented_write() || self.is_implemented_owner()
+	}
+
+	/// Get the kind of authorization which is required to perform the operation.
+	pub fn authorization_type(&self) -> Authorization {
+		if let Endpoint::ListBuckets = self {
+			return Authorization::None;
+		}
+		let is_unimplemented_read = router_match! {
+			@match
+			self,
+			[
+				ListObjectVersions,
+				GetObjectTagging,
+			]
 		};
-		if readonly {
+		let is_unimplemented_write = router_match! {
+			@match
+			self,
+			[
+				PutObjectTagging,
+				DeleteObjectTagging,
+			]
+		};
+		if self.is_implemented_read() || is_unimplemented_read {
+			debug_assert!(!self.is_implemented_write());
+			debug_assert!(!self.is_implemented_owner());
 			Authorization::Read
-		} else if write {
+		} else if self.is_implemented_write() || is_unimplemented_write {
+			debug_assert!(!self.is_implemented_owner());
 			Authorization::Write
 		} else {
 			Authorization::Owner
@@ -891,8 +945,8 @@ mod tests {
 			DELETE "/my-third-image.jpg?versionId=UIORUnfndfiufdisojhr398493jfdkjFJjkndnqUifhnw89493jJFJ" => DeleteObject
 			DELETE "/Key+?versionId=VersionId" => DeleteObject
 			POST "/?delete" => DeleteObjects
-			OWNER_DELETE "/exampleobject?tagging" => DeleteObjectTagging
-			OWNER_DELETE "/{Key+}?tagging&versionId=VersionId" => DeleteObjectTagging
+			DELETE "/exampleobject?tagging" => DeleteObjectTagging
+			DELETE "/{Key+}?tagging&versionId=VersionId" => DeleteObjectTagging
 			OWNER_DELETE "/?publicAccessBlock" => DeletePublicAccessBlock
 			OWNER_GET "/?accelerate" => GetBucketAccelerateConfiguration
 			GET "/?acl" => GetBucketAcl
@@ -926,8 +980,8 @@ mod tests {
 			OWNER_GET "/{Key+}?legal-hold&versionId=VersionId" => GetObjectLegalHold
 			OWNER_GET "/?object-lock" => GetObjectLockConfiguration
 			OWNER_GET "/{Key+}?retention&versionId=VersionId" => GetObjectRetention
-			OWNER_GET "/example-object?tagging" => GetObjectTagging
-			OWNER_GET "/{Key+}?tagging&versionId=VersionId" => GetObjectTagging
+			GET "/example-object?tagging" => GetObjectTagging
+			GET "/{Key+}?tagging&versionId=VersionId" => GetObjectTagging
 			OWNER_GET "/quotes/Nelson?torrent" => GetObjectTorrent
 			OWNER_GET "/{Key+}?torrent" => GetObjectTorrent
 			OWNER_GET "/?publicAccessBlock" => GetPublicAccessBlock
@@ -998,8 +1052,8 @@ mod tests {
 			OWNER_PUT "/{Key+}?legal-hold&versionId=VersionId" => PutObjectLegalHold
 			OWNER_PUT "/?object-lock" => PutObjectLockConfiguration
 			OWNER_PUT "/{Key+}?retention&versionId=VersionId" => PutObjectRetention
-			OWNER_PUT "/object-key?tagging" => PutObjectTagging
-			OWNER_PUT "/{Key+}?tagging&versionId=VersionId" => PutObjectTagging
+			PUT "/object-key?tagging" => PutObjectTagging
+			PUT "/{Key+}?tagging&versionId=VersionId" => PutObjectTagging
 			OWNER_PUT "/?publicAccessBlock" => PutPublicAccessBlock
 			OWNER_POST "/object-one.csv?restore" => RestoreObject
 			OWNER_POST "/{Key+}?restore&versionId=VersionId" => RestoreObject
