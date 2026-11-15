@@ -365,10 +365,10 @@ fn default_db_engine() -> String {
 }
 
 fn default_block_size() -> usize {
-	1048576
+	10 * 1024 * 1024
 }
 fn default_block_ram_buffer_max() -> usize {
-	256 * 1024 * 1024
+	512 * 1024 * 1024
 }
 fn default_block_max_concurrent_reads() -> usize {
 	16
