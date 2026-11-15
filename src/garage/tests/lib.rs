@@ -4,6 +4,9 @@ mod common;
 mod bucket;
 
 mod admin;
+#[cfg(feature = "metrics")]
+mod metrics;
+
 mod s3;
 
 #[cfg(feature = "k2v")]
