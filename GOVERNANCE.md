@@ -26,6 +26,7 @@ The team coordinates in the following channels:
 * The [`#Garage :: Community` channel on Deuxfleur's Zulip chat](https://zulip.deuxfleurs.fr/#narrow/channel/42-Garage-.3A.3A-Community)
 * The [`#garage:deuxfleurs.fr` matrix channel](https://matrix.to/#/#garage:deuxfleurs.fr) (in English), open to anyone.
   On this channel, users may ask for support and discussions about development also happen.
+* Private channels on Deuxfleur's Zulip chat reserved to maintainers and trusted contributors, such as `#Garage :: Dev (FR)` (in French)
 
 The moderators for those discussion channels are the Garage maintainers.
 
