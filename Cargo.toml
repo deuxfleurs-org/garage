@@ -134,6 +134,8 @@ hyper-util = { version = "0.1", features = ["full"] }
 multer = "3.1"
 percent-encoding = "2.3"
 roxmltree = "0.21"
+rust-embed = "8.12"
+mime_guess = "2.0"
 url = "2.5"
 
 futures = "0.3"

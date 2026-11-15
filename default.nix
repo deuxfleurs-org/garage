@@ -5,9 +5,10 @@ with import ./nix/common.nix;
 let
   pkgs = import nixpkgs { };
   compile = import ./nix/compile.nix;
+  webadmin = pkgs.callPackage ./nix/webadmin.nix {};
 
   build_release = target: (compile {
-    inherit target system git_version nixpkgs;
+    inherit target system git_version nixpkgs webadmin;
     crane = flake.inputs.crane;
     rust-overlay = flake.inputs.rust-overlay;
     release = true;

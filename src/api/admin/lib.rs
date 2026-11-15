@@ -10,6 +10,8 @@ pub mod openapi;
 mod router_v0;
 mod router_v1;
 mod router_v2;
+#[cfg(feature = "webadmin")]
+mod webadmin;
 
 mod admin_token;
 mod bucket;
