@@ -140,7 +140,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(block_bytes_read{job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum(rate(garage_block_bytes_read_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "Disk bytes read",
           "range": true,
@@ -153,7 +153,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "-sum(rate(block_bytes_written{job=\"garage\"}[$__rate_interval]))",
+          "expr": "-sum(rate(garage_block_bytes_written_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "Disk bytes written",
           "range": true,
@@ -255,7 +255,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (api_endpoint) (rate(api_s3_request_counter {job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum by (api_endpoint) (rate(garage_api_s3_requests_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{api_endpoint}}",
           "range": true,
@@ -356,7 +356,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "sum(rate(web_request_counter {job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum(rate(garage_web_requests_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "Web request rate",
           "refId": "A"
@@ -456,7 +456,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "sum by (rpc_endpoint) (rate(rpc_request_counter {job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum by (rpc_endpoint) (rate(garage_rpc_requests_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{rpc_endpoint}}",
           "refId": "A"
@@ -557,7 +557,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (api_endpoint, status_code) (rate(api_s3_error_counter {job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum by (api_endpoint, status_code) (rate(garage_api_s3_errors_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{api_endpoint}} {{status_code}}",
           "range": true,
@@ -658,7 +658,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "sum by(status_code) (rate(web_error_counter {job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum by(status_code) (rate(garage_web_errors_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{status_code}}",
           "refId": "A"
@@ -757,7 +757,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "block_resync_queue_length{job=\"garage\"}",
+          "expr": "garage_block_resync_queue_length",
           "interval": "",
           "legendFormat": "{{instance}}",
           "refId": "A"
@@ -856,7 +856,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "sum by(table_name) (table_gc_todo_queue_length{job=\"garage\"})",
+          "expr": "sum by(table_name) (garage_table_gc_todo_queue_length)",
           "interval": "",
           "legendFormat": "{{ table_name}}",
           "refId": "A"
@@ -955,7 +955,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "sum by(table_name) (table_merkle_updater_todo_queue_length{job=\"garage\"})",
+          "expr": "sum by(table_name) (garage_table_merkle_updater_todo_queue_length)",
           "interval": "",
           "legendFormat": "{{ table_name}}",
           "refId": "A"
@@ -1054,7 +1054,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "block_resync_errored_blocks{job=\"garage\"}",
+          "expr": "garage_block_resync_errored_blocks",
           "interval": "",
           "legendFormat": "{{instance}}",
           "refId": "A"
@@ -1155,7 +1155,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "block_ram_buffer_free_kb{job=\"garage\"}",
+          "expr": "garage_block_ram_buffer_free_kb",
           "interval": "",
           "legendFormat": "{{instance}}",
           "range": true,
@@ -1256,7 +1256,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum by (instance) (rate(block_delete_counter{job=\"garage\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(garage_block_deletes_total[$__rate_interval]))",
           "interval": "",
           "legendFormat": "{{instance}}",
           "range": true,
