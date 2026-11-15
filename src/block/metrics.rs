@@ -91,11 +91,11 @@ impl BlockManagerMetrics {
 				.build(),
 
 			resync_counter: meter
-				.u64_counter("block.resync_counter")
+				.u64_counter("block.resyncs")
 				.with_description("Number of calls to resync_block")
 				.build(),
 			resync_error_counter: meter
-				.u64_counter("block.resync_error_counter")
+				.u64_counter("block.resync_errors")
 				.with_description("Number of calls to resync_block that returned an error")
 				.build(),
 			resync_duration: meter
@@ -103,11 +103,11 @@ impl BlockManagerMetrics {
 				.with_description("Duration of resync_block operations")
 				.build(),
 			resync_send_counter: meter
-				.u64_counter("block.resync_send_counter")
+				.u64_counter("block.resync_sends")
 				.with_description("Number of blocks sent to another node in resync operations")
 				.build(),
 			resync_recv_counter: meter
-				.u64_counter("block.resync_recv_counter")
+				.u64_counter("block.resync_receives")
 				.with_description("Number of blocks received from other nodes in resync operations")
 				.build(),
 
@@ -132,12 +132,12 @@ impl BlockManagerMetrics {
 				.with_description("Duration of block write operations")
 				.build(),
 			delete_counter: meter
-				.u64_counter("block.delete_counter")
+				.u64_counter("block.deletes")
 				.with_description("Number of blocks deleted")
 				.build(),
 
 			corruption_counter: meter
-				.u64_counter("block.corruption_counter")
+				.u64_counter("block.corruptions")
 				.with_description("Data corruptions detected on block reads")
 				.build(),
 		}

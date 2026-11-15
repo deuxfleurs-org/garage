@@ -87,7 +87,7 @@ impl TableMetrics {
 			attrs: [KeyValue::new("table_name", table_name)],
 
 			get_request_counter: meter
-				.u64_counter("table.get_request_counter")
+				.u64_counter("table.get_requests")
 				.with_description("Number of get/get_range requests internally made on this table")
 				.build(),
 			get_request_duration: meter
@@ -95,7 +95,7 @@ impl TableMetrics {
 				.with_description("Duration of get/get_range requests internally made on this table, in seconds")
 				.build(),
 			put_request_counter: meter
-				.u64_counter("table.put_request_counter")
+				.u64_counter("table.put_requests")
 				.with_description("Number of insert/insert_many requests internally made on this table")
 				.build(),
 			put_request_duration: meter
@@ -104,11 +104,11 @@ impl TableMetrics {
 				.build(),
 
 			internal_update_counter: meter
-				.u64_counter("table.internal_update_counter")
+				.u64_counter("table.internal_updates")
 				.with_description("Number of value updates where the value actually changes (includes creation of new key and update of existing key)")
 				.build(),
 			internal_delete_counter: meter
-				.u64_counter("table.internal_delete_counter")
+				.u64_counter("table.internal_deletes")
 				.with_description("Number of value deletions in the tree (due to GC or repartitioning)")
 				.build(),
 
