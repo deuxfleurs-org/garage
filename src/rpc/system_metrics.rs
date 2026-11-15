@@ -53,7 +53,7 @@ impl SystemMetrics {
 		Self {
 			// Static values
 			_garage_build_info: meter
-				.u64_observable_gauge("garage_build_info")
+				.u64_observable_gauge("build_info")
 				.with_description("Garage build info")
 				.with_callback(move |observer| {
 					observer.observe(
@@ -68,7 +68,7 @@ impl SystemMetrics {
 			_replication_factor: {
 				let replication_factor = system.replication_factor;
 				meter
-					.u64_observable_gauge("garage_replication_factor")
+					.u64_observable_gauge("replication_factor")
 					.with_description("Garage replication factor setting")
 					.with_callback(move |observer| {
 						observer.observe(usize::from(replication_factor) as u64, &[]);
@@ -80,7 +80,7 @@ impl SystemMetrics {
 			_disk_avail: {
 				let system = system.clone();
 				meter
-					.u64_observable_gauge("garage_local_disk_avail")
+					.u64_observable_gauge("local_disk_avail")
 					.with_description("Garage available disk space on each node")
 					.with_callback(move |observer| {
 						let st = system.local_status.read().unwrap();
@@ -96,7 +96,7 @@ impl SystemMetrics {
 			_disk_total: {
 				let system = system.clone();
 				meter
-					.u64_observable_gauge("garage_local_disk_total")
+					.u64_observable_gauge("local_disk_total")
 					.with_description("Garage total disk space on each node")
 					.with_callback(move |observer| {
 						let st = system.local_status.read().unwrap();
