@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use garage_model::bucket_table::{AnonymousMethod, Bucket};
 use hyper::header::HeaderValue;
 use hyper::{HeaderMap, Method, Request};
 
@@ -688,23 +687,6 @@ impl Endpoint {
 			Authorization::Write
 		} else {
 			Authorization::Owner
-		}
-	}
-
-	/// Check that a bucket allows all anonymous methods required by an endpoint
-	pub fn can_be_accessed_anonymously(&self, bucket: &Bucket) -> bool {
-		use Endpoint::*;
-
-		let bucket_params = bucket.state.as_option().unwrap();
-
-		match self {
-			HeadObject { .. } => {
-				bucket_params.has_anonymous_methods(&[AnonymousMethod::HeadObject])
-			}
-
-			GetObject { .. } => bucket_params.has_anonymous_methods(&[AnonymousMethod::GetObject]),
-
-			_ => false,
 		}
 	}
 }

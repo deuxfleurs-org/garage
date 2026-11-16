@@ -21,6 +21,7 @@ garage_table.workspace = true
 garage_util.workspace = true
 garage_rpc.workspace = true
 garage_api_common.workspace = true
+garage_api_s3.workspace = true
 
 argon2.workspace = true
 async-trait.workspace = true

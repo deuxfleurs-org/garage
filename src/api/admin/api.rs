@@ -940,8 +940,8 @@ pub struct GetBucketInfoResponse {
 	/// Object lifecycle rules for this bucket
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
-	/// List of methods that can be invoked anonymously
-	pub anonymous_access: Vec<String>,
+	/// Anonymous access configuration
+	pub anonymous_access: BucketAnonymousAccess,
 	/// List of access keys that have permissions granted on this bucket
 	pub keys: Vec<GetBucketInfoKey>,
 	/// Number of objects in this bucket
@@ -986,6 +986,13 @@ pub struct ApiBucketQuotas {
 	pub max_objects: Option<u64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BucketAnonymousAccess {
+	/// List of S3 operations that are allowed anonymously
+	pub allowed_operations: Vec<String>,
+}
+
 // ---- CreateBucket ----
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -1025,7 +1032,7 @@ pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequestBody {
 	pub website_access: Option<UpdateBucketWebsiteAccess>,
-	pub anonymous_access: Option<UpdateBucketAnonymousAccess>,
+	pub anonymous_access: Option<BucketAnonymousAccess>,
 	pub quotas: Option<ApiBucketQuotas>,
 	// FIXME for v3: remove serde(default) for the two fields below
 	#[serde(default)]
@@ -1043,12 +1050,6 @@ pub struct UpdateBucketWebsiteAccess {
 	// FIXME for v3: remove serde(default) for field below
 	#[serde(default)]
 	pub routing_rules: Option<Vec<xml::website::RoutingRule>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateBucketAnonymousAccess {
-	pub methods: Vec<String>,
 }
 
 // ---- DeleteBucket ----

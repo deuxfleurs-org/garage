@@ -297,7 +297,7 @@ pub enum BucketOperation {
 	Website(WebsiteOpt),
 
 	/// Set anonymous access on the bucket files
-	#[structopt(name = "anonymous", version = garage_version())]
+	#[structopt(name = "anonymous-access", version = garage_version())]
 	AnonymousAccess(AnonymousAccessOpt),
 
 	/// Set the quotas for this bucket
@@ -337,13 +337,33 @@ pub struct WebsiteOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct AnonymousAccessOpt {
-	/// Allow anonymous access to all files in the bucket
-	#[structopt(long = "allow")]
-	pub allow: Vec<String>,
+	/// Allow specific S3 operations (such as `GetObject`, ...) for anonymous access
+	#[structopt(long = "allow-operations")]
+	pub allow_operations: Vec<String>,
 
-	/// Deny anonymous access to any file in the bucket
-	#[structopt(long = "revoke-all")]
-	pub revoke_all: bool,
+	/// Allow anonymous access to GET/HEAD individual objects
+	#[structopt(long = "allow-get")]
+	pub allow_get: bool,
+
+	/// Allow anonymous access to list all objects
+	#[structopt(long = "allow-list")]
+	pub allow_list: bool,
+
+	/// Allow anonymous access for all (read-only) operations
+	#[structopt(long = "allow-all")]
+	pub allow_all: bool,
+
+	/// Deny all S3 operations for anonymous access
+	#[structopt(long = "deny-operations")]
+	pub deny_operations: Vec<String>,
+
+	/// Deny all S3 operations for anonymous access
+	#[structopt(long = "deny-all")]
+	pub deny_all: bool,
+
+	/// If this flag is not given, the operation won't be executed
+	#[structopt(long = "yes")]
+	pub yes: bool,
 
 	/// Bucket name
 	pub bucket: String,

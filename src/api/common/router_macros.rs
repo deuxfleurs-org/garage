@@ -217,6 +217,9 @@ macro_rules! router_match {
                 })?,
             )*
         }
+        pub const ALL_ENDPOINT_NAMES: &[&str] = &[
+            $(stringify!($variant),)*
+        ];
         impl Endpoint {
             pub fn name(&self) -> &'static str {
                 match self {

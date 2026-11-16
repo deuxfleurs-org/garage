@@ -341,6 +341,9 @@ impl Cli {
 	}
 
 	pub async fn cmd_anonymous_access(&self, opt: AnonymousAccessOpt) -> Result<(), Error> {
+		const ANON_GET_OPS: &[&str] = &["GetObject", "HeadObject"];
+		const ANON_LIST_OPS: &[&str] = &["ListObjects", "ListObjectsV2", "ListParts"];
+
 		let bucket = self
 			.api_request(GetBucketInfoRequest {
 				id: None,
@@ -349,20 +352,81 @@ impl Cli {
 			})
 			.await?;
 
-		if !(!opt.allow.is_empty() ^ opt.revoke_all) {
-			return Err(Error::Message(
-				"You must specify exactly one flag, either --allow or --revoke-all".to_string(),
-			));
+		let mut original_allowed = bucket.anonymous_access.allowed_operations.clone();
+		let mut new_allowed = original_allowed.clone();
+
+		// Add newly allowed ops
+		let mut add_op = |op: &str| {
+			if !new_allowed.iter().any(|x| x == op) {
+				new_allowed.push(op.to_string());
+			}
+		};
+
+		for op in opt.allow_operations {
+			if !garage_api_s3::ALL_ENDPOINT_NAMES.iter().any(|x| **x == op) {
+				return Err(Error::Message(format!("Invalid operation name: {}", op)));
+			}
+			add_op(&op);
 		}
 
-		let wa = UpdateBucketAnonymousAccess { methods: opt.allow };
+		if opt.allow_get {
+			for op in ANON_GET_OPS {
+				add_op(op);
+			}
+		}
+
+		if opt.allow_list {
+			for op in ANON_LIST_OPS {
+				add_op(op);
+			}
+		}
+
+		if opt.allow_all {
+			new_allowed = vec!["*".to_string()];
+		}
+
+		// Deny specified operations
+		for op in opt.deny_operations {
+			if new_allowed.iter().any(|x| x == "*") {
+				return Err(Error::Message(format!(
+					"Can't deny single operation {} when '*' is allowed",
+					op
+				)));
+			}
+			new_allowed.retain(|x| *x != op);
+		}
+
+		if opt.deny_all {
+			new_allowed.clear();
+		}
+
+		// Check if we changed something
+		original_allowed.sort();
+		new_allowed.sort();
+
+		if original_allowed == new_allowed {
+			println!("Nothing to change");
+			return Ok(());
+		}
+
+		// Confirm with user
+		if !opt.yes {
+			println!("About to update authorized operations for anonymous access as follows:");
+			println!("  before: {}", fmt_allowed_ops(&original_allowed));
+			println!("  after:  {}", fmt_allowed_ops(&new_allowed));
+			return Err(Error::Message(
+				"Add --yes flag to really perform this operation".to_string(),
+			));
+		}
 
 		let res = self
 			.api_request(UpdateBucketRequest {
 				id: bucket.id,
 				body: UpdateBucketRequestBody {
 					website_access: None,
-					anonymous_access: Some(wa),
+					anonymous_access: Some(BucketAnonymousAccess {
+						allowed_operations: new_allowed,
+					}),
 					quotas: None,
 					cors_rules: None,
 					lifecycle_rules: None,
@@ -583,11 +647,7 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 		String::new(),
 		format!(
 			"Anonymous access:\t{}",
-			if bucket.anonymous_access.is_empty() {
-				"-".to_string()
-			} else {
-				bucket.anonymous_access.join(", ")
-			}
+			fmt_allowed_ops(&bucket.anonymous_access.allowed_operations),
 		),
 	]);
 
@@ -640,4 +700,12 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 		)
 	}));
 	format_table(key_info);
+}
+
+fn fmt_allowed_ops(list: &[String]) -> String {
+	if list.is_empty() {
+		"(none)".to_string()
+	} else {
+		list.join(", ")
+	}
 }
