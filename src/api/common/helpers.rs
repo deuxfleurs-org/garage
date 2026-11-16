@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use garage_model::bucket_table::{Bucket, BucketParams};
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
-use garage_util::data::{FixedBytes32, Uuid};
+use garage_util::data::Uuid;
 use garage_util::error::Error as GarageError;
 
 use crate::common_error::{CommonError as Error, *};
@@ -31,60 +31,9 @@ pub enum Authorization {
 	Owner,
 }
 
-pub enum ReqCtxEnum {
-	Anonymous(AnonReqCtx),
-	Authenticated(ReqCtx),
-}
-
-impl ReqCtxEnum {
-	pub fn anonymous(garage: Arc<Garage>, bucket: Bucket, bucket_name: String) -> ReqCtxEnum {
-		let bucket_params = bucket.state.into_option().unwrap();
-
-		ReqCtxEnum::Anonymous(AnonReqCtx {
-			garage,
-			bucket_id: bucket.id,
-			bucket_name,
-			bucket_params,
-		})
-	}
-
-	pub fn authenticated(
-		garage: Arc<Garage>,
-		api_key: Key,
-		bucket: Bucket,
-		bucket_name: String,
-	) -> ReqCtxEnum {
-		let bucket_params = bucket.state.into_option().unwrap();
-
-		ReqCtxEnum::Authenticated(ReqCtx {
-			garage,
-			bucket_id: bucket.id,
-			bucket_name,
-			bucket_params,
-			api_key,
-		})
-	}
-
-	pub fn bucket_id(&self) -> FixedBytes32 {
-		match self {
-			ReqCtxEnum::Anonymous(ctx) => ctx.bucket_id,
-			ReqCtxEnum::Authenticated(ctx) => ctx.bucket_id,
-		}
-	}
-
-	pub fn bucket_name(&self) -> &String {
-		match self {
-			ReqCtxEnum::Anonymous(ctx) => &ctx.bucket_name,
-			ReqCtxEnum::Authenticated(ctx) => &ctx.bucket_name,
-		}
-	}
-
-	pub fn bucket_params(&self) -> &BucketParams {
-		match self {
-			ReqCtxEnum::Anonymous(ctx) => &ctx.bucket_params,
-			ReqCtxEnum::Authenticated(ctx) => &ctx.bucket_params,
-		}
-	}
+pub struct AnyReqCtx {
+	pub anon: AnonReqCtx,
+	pub api_key: Option<Key>,
 }
 
 pub struct AnonReqCtx {
@@ -94,18 +43,25 @@ pub struct AnonReqCtx {
 	pub bucket_params: BucketParams,
 }
 
-impl TryFrom<ReqCtxEnum> for AnonReqCtx {
-	type Error = Error;
+impl AnyReqCtx {
+	pub fn new(garage: Arc<Garage>, bucket: Bucket, bucket_name: String) -> Self {
+		let bucket_params = bucket.state.into_option().unwrap();
 
-	fn try_from(value: ReqCtxEnum) -> Result<Self, Self::Error> {
-		match value {
-			ReqCtxEnum::Anonymous(ctx) => Ok(ctx),
-			ReqCtxEnum::Authenticated(ctx) => Ok(AnonReqCtx {
-				garage: ctx.garage,
-				bucket_id: ctx.bucket_id,
-				bucket_name: ctx.bucket_name,
-				bucket_params: ctx.bucket_params,
-			}),
+		Self {
+			anon: AnonReqCtx {
+				garage,
+				bucket_id: bucket.id,
+				bucket_name,
+				bucket_params,
+			},
+			api_key: None,
+		}
+	}
+
+	pub fn with_key(self, api_key: Key) -> Self {
+		Self {
+			api_key: Some(api_key),
+			..self
 		}
 	}
 }
@@ -119,14 +75,19 @@ pub struct ReqCtx {
 	pub api_key: Key,
 }
 
-impl TryFrom<ReqCtxEnum> for ReqCtx {
+impl TryFrom<AnyReqCtx> for ReqCtx {
 	type Error = Error;
 
-	fn try_from(value: ReqCtxEnum) -> Result<Self, Self::Error> {
-		match value {
-			ReqCtxEnum::Anonymous(_) => Err(Error::Forbidden("Access denied".into())),
-			ReqCtxEnum::Authenticated(ctx) => Ok(ctx),
-		}
+	fn try_from(value: AnyReqCtx) -> Result<Self, Self::Error> {
+		Ok(ReqCtx {
+			garage: value.anon.garage,
+			bucket_id: value.anon.bucket_id,
+			bucket_name: value.anon.bucket_name,
+			bucket_params: value.anon.bucket_params,
+			api_key: value
+				.api_key
+				.ok_or(Error::Forbidden("Access denied".into()))?,
+		})
 	}
 }
 
