@@ -673,3 +673,95 @@ async fn test_multichar_delimiter() {
 		assert_eq!(common_prefixes[1].prefix.as_deref().unwrap(), "a/c/b/");
 	}
 }
+
+#[tokio::test]
+async fn test_startafter_before_prefix() {
+	// testcase for issue #1596
+	let ctx = common::context();
+	let bucket = ctx.create_bucket("listobjectsv2-startafter");
+
+	for k in [
+		"registry/docker/registry/v2/blobs/a",
+		"registry/docker/registry/v2/blobs/b",
+		"registry/docker/registry/v2/blobs/c",
+		"registry/docker/registry/v2/repositories/x",
+		"registry/docker/registry/v2/repositories/y",
+	] {
+		ctx.client
+			.put_object()
+			.bucket(&bucket)
+			.key(k)
+			.send()
+			.await
+			.unwrap();
+	}
+
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.prefix("registry/docker/registry/v2/repositories/")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.contents.unwrap().len(), 2);
+	}
+
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.prefix("registry/docker/registry/v2/blobs/")
+			.start_after("registry")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.contents.unwrap().len(), 3);
+	}
+
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.prefix("registry/docker/registry/v2/repositories/")
+			.start_after("registry")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.contents.unwrap().len(), 2);
+	}
+
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.prefix("registry/docker/registry/v2/repositories/")
+			.start_after("registry/docker/registry/v2/repositories/")
+			.send()
+			.await
+			.unwrap();
+
+		assert_eq!(r.contents.unwrap().len(), 2);
+	}
+
+	{
+		let r = ctx
+			.client
+			.list_objects_v2()
+			.bucket(&bucket)
+			.prefix("registry/docker/registry/v2/blobs/")
+			.start_after("registry/docker/registry/v2/repositories/")
+			.send()
+			.await
+			.unwrap();
+
+		assert!(r.contents.is_none());
+	}
+}

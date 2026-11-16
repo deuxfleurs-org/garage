@@ -615,7 +615,7 @@ impl ListObjectsQuery {
 
 				// StartAfter has defined semantics in the spec:
 				// start listing at the first key immediately after.
-				(_, Some(key)) => Ok(RangeBegin::AfterKey {
+				(_, Some(key)) if *key >= self.common.prefix => Ok(RangeBegin::AfterKey {
 					key: key.to_string(),
 				}),
 
