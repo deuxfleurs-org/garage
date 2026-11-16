@@ -61,10 +61,10 @@ pub struct ListPartsQuery {
 }
 
 pub async fn handle_list(
-	ctx: ReqCtx,
+	ctx: AnonReqCtx,
 	query: &ListObjectsQuery,
 ) -> Result<Response<ResBody>, Error> {
-	let ReqCtx { garage, .. } = &ctx;
+	let AnonReqCtx { garage, .. } = &ctx;
 	let io = |bucket, key, count| {
 		let t = &garage.object_table;
 		async move {
@@ -317,7 +317,7 @@ pub async fn handle_list_multipart_upload(
 }
 
 pub async fn handle_list_parts(
-	ctx: ReqCtx,
+	ctx: AnonReqCtx,
 	req: Request<ReqBody>,
 	query: &ListPartsQuery,
 ) -> Result<Response<ResBody>, Error> {
@@ -325,7 +325,8 @@ pub async fn handle_list_parts(
 
 	let upload_id = s3_multipart::decode_upload_id(&query.upload_id)?;
 
-	let (_, object_version, mpu) = s3_multipart::get_upload(&ctx, &query.key, &upload_id).await?;
+	let (_, object_version, mpu) =
+		s3_multipart::get_upload_inner(&ctx.garage, &ctx.bucket_id, &query.key, &upload_id).await?;
 
 	let object_encryption = match object_version.state {
 		ObjectVersionState::Uploading { encryption, .. } => encryption,
