@@ -13,6 +13,7 @@ use hyper::header::{
 use hyper::{Method, Request, Response, Uri};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::TokioExecutor;
+use sha2::Sha256;
 
 use super::garage::{Instance, Key};
 use garage_api_common::signature;
@@ -67,6 +68,49 @@ impl CustomRequester {
 
 	pub fn client(&self) -> &Client<HttpConnector, Body> {
 		&self.client
+	}
+
+	pub fn sigv4(&self) -> SigV4 {
+		let now = Utc::now();
+		let region = super::REGION;
+		SigV4 {
+			now,
+			scope: signature::compute_scope(&now, region.as_ref(), self.service),
+			key_id: self.key.id.clone(),
+			hmac: signature::signing_hmac(&now, &self.key.secret, region.as_ref(), self.service)
+				.unwrap(),
+		}
+	}
+}
+
+/// `SigV4` timestamp, scope and signing key for hand-built requests.
+pub struct SigV4 {
+	pub now: DateTime<Utc>,
+	pub scope: String,
+	key_id: String,
+	hmac: Hmac<Sha256>,
+}
+
+impl SigV4 {
+	pub fn credential(&self) -> String {
+		format!("{}/{}", self.key_id, self.scope)
+	}
+
+	pub fn date(&self) -> String {
+		self.now.format(signature::LONG_DATETIME).to_string()
+	}
+
+	/// `PostObject` signs the base64 policy directly.
+	pub fn sign_bytes(&self, data: &[u8]) -> String {
+		let mut mac = self.hmac.clone();
+		mac.update(data);
+		hex::encode(mac.finalize().into_bytes())
+	}
+
+	/// Header or query auth signs the string-to-sign of a canonical request.
+	pub fn sign_request(&self, canonical: &str) -> String {
+		let sts = signature::payload::string_to_sign(&self.now, &self.scope, canonical);
+		self.sign_bytes(sts.as_bytes())
 	}
 }
 

@@ -1,19 +1,15 @@
 use base64::prelude::*;
 use bytes::Bytes;
-use chrono::{Duration, Utc};
-use hmac::Mac;
+use chrono::Duration;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::{header, Method, Request, Response, StatusCode};
-
-use garage_api_common::signature;
 
 use crate::common;
 
 const UTF8_KEY: &str = "uploads/test/копия файла.jpg";
 const UTF8_FILENAME: &str = "café-日本語.txt";
 const UTF8_CONTENT_DISPOSITION: &str = "attachment; filename=\"копия файла.jpg\"";
-const REGION: &str = "garage-integ-test";
 const BOUNDARY: &str = "boundary-garage-integ-test";
 
 async fn send_post_object(
@@ -24,11 +20,10 @@ async fn send_post_object(
 	extra_fields: &[(&str, &str)],
 	file_body: &str,
 ) -> Response<Incoming> {
-	let now = Utc::now();
-	let scope = signature::compute_scope(&now, REGION, "s3");
-	let credential = format!("{}/{}", ctx.key.id, scope);
-	let date = now.format(signature::LONG_DATETIME).to_string();
-	let expiration = (now + Duration::hours(1)).to_rfc3339();
+	let sig = ctx.custom_request.sigv4();
+	let credential = sig.credential();
+	let date = sig.date();
+	let expiration = (sig.now + Duration::hours(1)).to_rfc3339();
 
 	let mut conditions = vec![
 		serde_json::json!({ "bucket": bucket }),
@@ -48,9 +43,7 @@ async fn send_post_object(
 
 	let policy_b64 = BASE64_STANDARD.encode(policy.as_bytes());
 
-	let mut signer = signature::signing_hmac(&now, &ctx.key.secret, REGION, "s3").unwrap();
-	signer.update(policy_b64.as_bytes());
-	let x_amz_signature = hex::encode(signer.finalize().into_bytes());
+	let x_amz_signature = sig.sign_bytes(policy_b64.as_bytes());
 
 	let mut fields = vec![
 		("key".to_string(), key_field.to_string()),

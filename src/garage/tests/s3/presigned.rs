@@ -3,17 +3,14 @@ use std::time::{Duration, SystemTime};
 use crate::common;
 use aws_sdk_s3::presigning::PresigningConfig;
 use bytes::Bytes;
-use hmac::Mac;
 use http_body_util::{BodyExt, Full};
 use hyper::header::{HeaderMap, HeaderValue, HOST};
 use hyper::{Method, Request, Uri};
 
-use garage_api_common::signature::payload::{canonical_request, parse_query_map, string_to_sign};
-use garage_api_common::signature::{compute_scope, signing_hmac, LONG_DATETIME};
+use garage_api_common::signature::payload::{canonical_request, parse_query_map};
 
 const STD_KEY: &str = "hello world";
 const BODY: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-const REGION: &str = "garage-integ-test";
 
 #[tokio::test]
 async fn test_presigned_url() {
@@ -126,15 +123,13 @@ async fn test_presigned_put_ignores_unsigned_query_checksum() {
 	let etag = "\"46cf18a9b447991b450cad3facf5937e\"";
 	let host = "s3.garage";
 
-	let now = chrono::Utc::now();
-	let scope = compute_scope(&now, REGION, "s3");
+	let sig = ctx.custom_request.sigv4();
 	let query = format!(
-		"X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={}%2F{}&X-Amz-Date={}\
+		"X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential={}&X-Amz-Date={}\
 		 &X-Amz-Expires=300&X-Amz-SignedHeaders=host\
 		 &x-amz-checksum-crc32=AAAAAA%3D%3D&x-amz-sdk-checksum-algorithm=CRC32",
-		ctx.key.id,
-		scope.replace('/', "%2F"),
-		now.format(LONG_DATETIME),
+		sig.credential().replace('/', "%2F"),
+		sig.date(),
 	);
 	let uri: Uri = format!(
 		"{}{}/checksum-object?{}",
@@ -157,9 +152,7 @@ async fn test_presigned_put_ignores_unsigned_query_checksum() {
 		"UNSIGNED-PAYLOAD",
 	)
 	.unwrap();
-	let mut signer = signing_hmac(&now, &ctx.key.secret, REGION, "s3").unwrap();
-	signer.update(string_to_sign(&now, &scope, &canonical).as_bytes());
-	let signature = hex::encode(signer.finalize().into_bytes());
+	let signature = sig.sign_request(&canonical);
 
 	let req = Request::builder()
 		.method("PUT")
