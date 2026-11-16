@@ -22,6 +22,7 @@ impl Cli {
 			BucketOperation::Allow(query) => self.cmd_bucket_allow(query).await,
 			BucketOperation::Deny(query) => self.cmd_bucket_deny(query).await,
 			BucketOperation::Website(query) => self.cmd_bucket_website(query).await,
+			BucketOperation::AnonymousAccess(query) => self.cmd_anonymous_access(query).await,
 			BucketOperation::SetQuotas(query) => self.cmd_bucket_set_quotas(query).await,
 			BucketOperation::CleanupIncompleteUploads(query) => {
 				self.cmd_cleanup_incomplete_uploads(query).await
@@ -326,6 +327,40 @@ impl Cli {
 				id: bucket_id,
 				body: UpdateBucketRequestBody {
 					website_access: Some(wa),
+					anonymous_access: None,
+					quotas: None,
+				},
+			})
+			.await?;
+
+		print_bucket_info(&res.0);
+
+		Ok(())
+	}
+
+	pub async fn cmd_anonymous_access(&self, opt: AnonymousAccessOpt) -> Result<(), Error> {
+		let bucket = self
+			.api_request(GetBucketInfoRequest {
+				id: None,
+				global_alias: None,
+				search: Some(opt.bucket.clone()),
+			})
+			.await?;
+
+		if !(opt.allow ^ opt.deny) {
+			return Err(Error::Message(
+				"You must specify exactly one flag, either --allow or --deny".to_string(),
+			));
+		}
+
+		let wa = UpdateBucketAnonymousAccess { enabled: opt.allow };
+
+		let res = self
+			.api_request(UpdateBucketRequest {
+				id: bucket.id,
+				body: UpdateBucketRequestBody {
+					website_access: None,
+					anonymous_access: Some(wa),
 					quotas: None,
 					cors_rules: None,
 					lifecycle_rules: None,
@@ -378,6 +413,7 @@ impl Cli {
 				id: bucket.id.clone(),
 				body: UpdateBucketRequestBody {
 					website_access: None,
+					anonymous_access: None,
 					quotas: Some(new_quotas),
 					cors_rules: None,
 					lifecycle_rules: None,
@@ -540,6 +576,11 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 			),
 		]);
 	}
+
+	info.extend([
+		String::new(),
+		format!("Anonymous access:\t{}", bucket.anonymous_access),
+	]);
 
 	if bucket.quotas.max_size.is_some() || bucket.quotas.max_objects.is_some() {
 		info.push(String::new());

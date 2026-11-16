@@ -132,7 +132,7 @@ mod v2 {
 
 	use super::v08;
 
-	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
+	pub use v08::{BucketQuotas, CorsRule, LifecycleRule};
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Bucket {
@@ -245,7 +245,89 @@ mod v2 {
 	}
 }
 
-pub use v2::*;
+mod v3 {
+	use crate::{bucket_table::v2, permission::BucketKeyPerm};
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	use super::v08;
+
+	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
+	pub use v2::{Redirect, RedirectAll, RedirectCondition, RoutingRule, WebsiteConfig};
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct Bucket {
+		/// ID of the bucket
+		pub id: Uuid,
+		/// State, and configuration if not deleted, of the bucket
+		pub state: crdt::Deletable<BucketParams>,
+	}
+
+	/// Configuration for a bucket
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	pub struct BucketParams {
+		/// Bucket's creation date
+		pub creation_date: u64,
+		/// Map of key with access to the bucket, and what kind of access they give
+		pub authorized_keys: crdt::Map<String, BucketKeyPerm>,
+
+		/// Map of aliases that are or have been given to this bucket
+		/// in the global namespace
+		/// (not authoritative: this is just used as an indication to
+		/// map back to aliases when doing ListBuckets)
+		pub aliases: crdt::LwwMap<String, bool>,
+		/// Map of aliases that are or have been given to this bucket
+		/// in namespaces local to keys
+		/// key = (access key id, alias name)
+		pub local_aliases: crdt::LwwMap<(String, String), bool>,
+
+		/// Whether this bucket is allowed for website access
+		/// (under all of its global alias names),
+		/// and if so, the website configuration XML document
+		pub website_config: crdt::Lww<Option<WebsiteConfig>>,
+		/// CORS rules
+		pub cors_config: crdt::Lww<Option<Vec<CorsRule>>>,
+        /// Whether to allow anonymous read-only access
+		pub anonymous_access: crdt::Lww<bool>,
+		/// Lifecycle configuration
+		pub lifecycle_config: crdt::Lww<Option<Vec<LifecycleRule>>>,
+		/// Bucket quotas
+		pub quotas: crdt::Lww<BucketQuotas>,
+	}
+
+	impl garage_util::migrate::Migrate for Bucket {
+		const VERSION_MARKER: &'static [u8] = b"G3bkt";
+
+		type Previous = v2::Bucket;
+
+		fn migrate(old: v2::Bucket) -> Bucket {
+			Bucket {
+				id: old.id,
+				state: old.state.map(|x| BucketParams {
+					creation_date: x.creation_date,
+					authorized_keys: x.authorized_keys,
+					aliases: x.aliases,
+					local_aliases: x.local_aliases,
+					website_config: x.website_config.map(|wc_opt| {
+						wc_opt.map(|wc| WebsiteConfig {
+							index_document: wc.index_document,
+							error_document: wc.error_document,
+							redirect_all: None,
+							routing_rules: vec![],
+						})
+					}),
+					cors_config: x.cors_config,
+					anonymous_access: crdt::Lww::new(false),
+					lifecycle_config: x.lifecycle_config,
+					quotas: x.quotas,
+				}),
+			}
+		}
+	}
+}
+
+pub use v3::*;
 
 impl AutoCrdt for BucketQuotas {
 	const WARN_IF_DIFFERENT: bool = true;
@@ -262,6 +344,7 @@ impl BucketParams {
 			website_config: crdt::Lww::new(None.into()),
 			cors_config: crdt::Lww::new(None.into()),
 			lifecycle_config: crdt::Lww::new(None.into()),
+			anonymous_access: crdt::Lww::new(false),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
@@ -277,6 +360,7 @@ impl Crdt for BucketParams {
 
 		self.website_config.merge(&o.website_config);
 		self.cors_config.merge(&o.cors_config);
+		self.anonymous_access.merge(&o.anonymous_access);
 		self.lifecycle_config.merge(&o.lifecycle_config);
 		self.quotas.merge(&o.quotas);
 	}

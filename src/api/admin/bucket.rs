@@ -380,6 +380,10 @@ impl RequestHandler for UpdateBucketRequest {
 			}
 		}
 
+		if let Some(aa) = self.body.anonymous_access {
+			state.anonymous_access.update(aa.enabled);
+		}
+
 		if let Some(q) = self.body.quotas {
 			state.quotas.update(BucketQuotas {
 				max_size: q.max_size,
@@ -808,6 +812,7 @@ async fn bucket_info_results(
 				.map(xml::lifecycle::LifecycleRule::from_garage_lifecycle_rule)
 				.collect::<Vec<_>>()
 		}),
+		anonymous_access: *state.anonymous_access.get(),
 		keys: relevant_keys
 			.into_values()
 			.map(|key| {
