@@ -84,9 +84,7 @@ impl TryFrom<AnyReqCtx> for ReqCtx {
 			bucket_id: value.anon.bucket_id,
 			bucket_name: value.anon.bucket_name,
 			bucket_params: value.anon.bucket_params,
-			api_key: value
-				.api_key
-				.ok_or(Error::Forbidden("Access denied".into()))?,
+			api_key: value.api_key.ok_or(Error::AnonymousAccessDenied)?,
 		})
 	}
 }

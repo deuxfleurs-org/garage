@@ -186,19 +186,18 @@ impl ApiHandler for S3ApiServer {
 			}
 
 			anonymous_request => {
-				let bucket_name = bucket_name
-					.ok_or_bad_request("Anonymous request must be targeted to a specific bucket")?;
+				let bucket_name = bucket_name.ok_or(CommonError::AnonymousAccessDenied)?;
 
-				// Let's not leak existence of a bucket on anonymous access, we return a generic Access denied.
+				// return generic error to not leak existence of a bucket on anonymous access
 				let Ok(Some(bucket)) = garage
 					.bucket_helper()
 					.resolve_global_bucket_fast(&bucket_name)
 				else {
-					return Err(Error::forbidden("Access denied"));
+					return Err(CommonError::AnonymousAccessDenied.into());
 				};
 
 				if !allow_anonymous_operation(&endpoint, &bucket) {
-					return Err(Error::forbidden("Access denied"));
+					return Err(CommonError::AnonymousAccessDenied.into());
 				}
 
 				(
