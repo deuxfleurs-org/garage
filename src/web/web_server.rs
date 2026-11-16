@@ -259,15 +259,17 @@ impl WebServer {
 			.map_err(|_| Error::NotFound)?;
 		let bucket_params = bucket.state.into_option().unwrap();
 
-		let website_config = bucket_params
-			.website_config
-			.get()
-			.inner()
-			.ok_or(Error::NotFound)?;
+		let website_config = bucket_params.website_config.get();
+		if !website_config.enabled {
+			return Err(Error::NotFound);
+		}
 
 		// Get path
 		let path = req.uri().path().to_string();
-		let index = &website_config.index_document;
+		let index = website_config
+			.index_document
+			.as_deref()
+			.unwrap_or(garage_api_common::xml::website::DEFAULT_INDEX_DOCUMENT);
 		let routing_result = path_to_keys(&path, index, &website_config.routing_rules)?;
 
 		debug!(

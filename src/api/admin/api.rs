@@ -928,11 +928,8 @@ pub struct GetBucketInfoResponse {
 	pub created: DateTime<Utc>,
 	/// List of global aliases for this bucket
 	pub global_aliases: Vec<String>,
-	/// Whether website access is enabled for this bucket
-	pub website_access: bool,
 	/// Website configuration for this bucket
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub website_config: Option<GetBucketInfoWebsiteResponse>,
+	pub website_access: BucketWebsiteAccess,
 	// FIXME for v3: remove serde(default) for the two fields below
 	/// CORS rules for this bucket
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -962,8 +959,12 @@ pub struct GetBucketInfoResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct GetBucketInfoWebsiteResponse {
-	pub index_document: String,
+pub struct BucketWebsiteAccess {
+	/// Whether website access is enabled for this bucket
+	pub enabled: bool,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub index_document: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub error_document: Option<String>,
 	// FIXME for v3: remove serde(default) for field below
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1031,7 +1032,7 @@ pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequestBody {
-	pub website_access: Option<UpdateBucketWebsiteAccess>,
+	pub website_access: Option<BucketWebsiteAccess>,
 	pub anonymous_access: Option<BucketAnonymousAccess>,
 	pub quotas: Option<ApiBucketQuotas>,
 	// FIXME for v3: remove serde(default) for the two fields below
@@ -1039,17 +1040,6 @@ pub struct UpdateBucketRequestBody {
 	pub cors_rules: Option<Vec<xml::cors::CorsRule>>,
 	#[serde(default)]
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateBucketWebsiteAccess {
-	pub enabled: bool,
-	pub index_document: Option<String>,
-	pub error_document: Option<String>,
-	// FIXME for v3: remove serde(default) for field below
-	#[serde(default)]
-	pub routing_rules: Option<Vec<xml::website::RoutingRule>>,
 }
 
 // ---- DeleteBucket ----
