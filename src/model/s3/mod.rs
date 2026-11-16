@@ -1,4 +1,3 @@
-pub mod anonymous_access;
 pub mod block_ref_table;
 pub mod mpu_table;
 pub mod object_table;

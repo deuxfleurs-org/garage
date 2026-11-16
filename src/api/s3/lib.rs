@@ -20,6 +20,8 @@ mod encryption;
 mod router;
 pub mod xml;
 
+pub use router::ALL_ENDPOINT_NAMES;
+
 pub fn generate_public_object_url(
 	config: &garage_util::config::S3ApiConfig,
 	bucket: &str,

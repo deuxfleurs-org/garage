@@ -132,7 +132,7 @@ mod v2 {
 
 	use super::v08;
 
-	pub use v08::{BucketQuotas, CorsRule, LifecycleRule};
+	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Bucket {
@@ -246,16 +246,16 @@ mod v2 {
 }
 
 mod v3 {
-	use crate::{bucket_table::v2, permission::BucketKeyPerm, s3::anonymous_access};
+	use crate::permission::BucketKeyPerm;
 	use garage_util::crdt;
 	use garage_util::data::Uuid;
 	use serde::{Deserialize, Serialize};
 
-	use super::v08;
-
-	pub use anonymous_access::AnonymousMethod;
-	pub use v08::{BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule};
-	pub use v2::{Redirect, RedirectAll, RedirectCondition, RoutingRule, WebsiteConfig};
+	use super::v2;
+	pub use v2::{
+		BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule, Redirect,
+		RedirectAll, RedirectCondition, RoutingRule, WebsiteConfig,
+	};
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 	pub struct Bucket {
@@ -289,12 +289,19 @@ mod v3 {
 		pub website_config: crdt::Lww<crdt::CancelingOption<WebsiteConfig>>,
 		/// CORS rules
 		pub cors_config: crdt::Lww<crdt::CancelingOption<Vec<CorsRule>>>,
-		/// Whether to allow anonymous read-only access
-		pub anonymous_access: crdt::Lww<crdt::CancelingOption<Vec<AnonymousMethod>>>,
+		/// Anonymous access configuration
+		pub anonymous_access: crdt::Lww<AnonymousAccess>,
 		/// Lifecycle configuration
 		pub lifecycle_config: crdt::Lww<crdt::CancelingOption<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		pub quotas: crdt::Lww<BucketQuotas>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	pub struct AnonymousAccess {
+		/// List of S3 operations (such as `GetObject`, ...) allowed for anonymous access
+		pub allowed_operations: Vec<String>,
 	}
 
 	impl garage_util::migrate::Migrate for Bucket {
@@ -319,20 +326,10 @@ mod v3 {
 						})
 					}),
 					cors_config: x.cors_config,
-					anonymous_access: crdt::Lww::new(None.into()),
+					anonymous_access: crdt::Lww::new(AnonymousAccess::new()),
 					lifecycle_config: x.lifecycle_config,
 					quotas: x.quotas,
 				}),
-			}
-		}
-	}
-
-	impl BucketParams {
-		/// Checks whether all anonymous access methods are allowed on the bucket
-		pub fn has_anonymous_methods(&self, methods: &[AnonymousMethod]) -> bool {
-			match self.anonymous_access.get().inner() {
-				None => false,
-				Some(allowed) => methods.iter().all(|m| allowed.contains(m)),
 			}
 		}
 	}
@@ -355,7 +352,7 @@ impl BucketParams {
 			website_config: crdt::Lww::new(None.into()),
 			cors_config: crdt::Lww::new(None.into()),
 			lifecycle_config: crdt::Lww::new(None.into()),
-			anonymous_access: crdt::Lww::new(None.into()),
+			anonymous_access: crdt::Lww::new(AnonymousAccess::new()),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
@@ -374,6 +371,21 @@ impl Crdt for BucketParams {
 		self.anonymous_access.merge(&o.anonymous_access);
 		self.lifecycle_config.merge(&o.lifecycle_config);
 		self.quotas.merge(&o.quotas);
+	}
+}
+
+impl AnonymousAccess {
+	fn new() -> Self {
+		Self {
+			allowed_operations: vec![],
+		}
+	}
+}
+
+impl Crdt for AnonymousAccess {
+	fn merge(&mut self, o: &Self) {
+		self.allowed_operations
+			.retain(|x| o.allowed_operations.contains(x));
 	}
 }
 
@@ -450,6 +462,12 @@ impl Bucket {
 		self.params()
 			.map(|s| s.local_aliases.items())
 			.unwrap_or(&[])
+	}
+
+	pub fn allowed_anonymous_operations(&self) -> &[String] {
+		self.params()
+			.map(|s| &s.anonymous_access.get().allowed_operations[..])
+			.unwrap_or_default()
 	}
 }
 

@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -22,6 +20,7 @@ use garage_model::s3::object_table::*;
 
 use garage_api_common::common_error::CommonError;
 use garage_api_common::xml;
+use garage_api_s3::ALL_ENDPOINT_NAMES;
 
 use crate::api::*;
 use crate::error::*;
@@ -383,47 +382,17 @@ impl RequestHandler for UpdateBucketRequest {
 		}
 
 		if let Some(aa) = self.body.anonymous_access {
-			use AnonymousMethod::*;
-
-			#[inline]
-			fn invalid_method(name: &str) -> Error {
-				Error::bad_request(format!("invalid anonymous method: {name}"))
-			}
-
-			match aa.methods.as_slice() {
-				&[] => {
-					state.anonymous_access.update(None.into());
-				}
-
-				names => {
-					let methods = names.iter().try_fold(
-						HashSet::new(),
-						|mut acc, name| -> Result<_, Error> {
-							match name {
-								name if name.starts_with("garage:") => match name.as_str() {
-									"garage:ReadObject" => acc.extend([HeadObject, GetObject]),
-									_ => Err(invalid_method(name))?,
-								},
-
-								name if name.starts_with("s3:") => {
-									acc.insert(
-										AnonymousMethod::from_str(name)
-											.map_err(|_| invalid_method(name))?,
-									);
-								}
-
-								_ => Err(invalid_method(name))?,
-							}
-
-							Ok(acc)
-						},
-					)?;
-
-					state
-						.anonymous_access
-						.update(Some(methods.into_iter().collect()).into());
+			for op in aa.allowed_operations.iter() {
+				if !ALL_ENDPOINT_NAMES.contains(&op.as_str()) && op != "*" {
+					return Err(Error::bad_request(format!(
+						"Invalid operation name for anonymous access: {}",
+						op
+					)));
 				}
 			}
+			state.anonymous_access.update(AnonymousAccess {
+				allowed_operations: aa.allowed_operations,
+			});
 		}
 
 		if let Some(q) = self.body.quotas {
@@ -854,14 +823,9 @@ async fn bucket_info_results(
 				.map(xml::lifecycle::LifecycleRule::from_garage_lifecycle_rule)
 				.collect::<Vec<_>>()
 		}),
-		anonymous_access: state
-			.anonymous_access
-			.get()
-			.0
-			.iter()
-			.flatten()
-			.map(|m| m.as_ref().to_string())
-			.collect(),
+		anonymous_access: BucketAnonymousAccess {
+			allowed_operations: state.anonymous_access.get().allowed_operations.clone(),
+		},
 		keys: relevant_keys
 			.into_values()
 			.map(|key| {

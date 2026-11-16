@@ -11,6 +11,7 @@ use opentelemetry::{trace::SpanRef, KeyValue};
 use garage_util::error::Error as GarageError;
 use garage_util::socket_address::UnixOrTCPSocketAddress;
 
+use garage_model::bucket_table::Bucket;
 use garage_model::garage::Garage;
 use garage_model::key_table::Key;
 
@@ -196,7 +197,7 @@ impl ApiHandler for S3ApiServer {
 					return Err(Error::forbidden("Access denied"));
 				};
 
-				if !endpoint.can_be_accessed_anonymously(&bucket) {
+				if !allow_anonymous_operation(&endpoint, &bucket) {
 					return Err(Error::forbidden("Access denied"));
 				}
 
@@ -410,4 +411,15 @@ impl ApiEndpoint for S3ApiEndpoint {
 			self.bucket_name.clone().unwrap_or_default(),
 		));
 	}
+}
+
+fn allow_anonymous_operation(endpoint: &Endpoint, bucket: &Bucket) -> bool {
+	if endpoint.authorization_type() != Authorization::Read {
+		return false;
+	}
+
+	bucket
+		.allowed_anonymous_operations()
+		.iter()
+		.any(|x| x == endpoint.name() || x == "*")
 }
