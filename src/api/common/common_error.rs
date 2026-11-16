@@ -28,6 +28,10 @@ pub enum CommonError {
 	#[error("Forbidden: {0}")]
 	Forbidden(String),
 
+	/// Anonymous access denied
+	#[error("Anonymous access denied")]
+	AnonymousAccessDenied,
+
 	/// Generic bad request response with custom message
 	#[error("Bad request: {0}")]
 	BadRequest(String),
@@ -104,7 +108,7 @@ impl CommonError {
 				StatusCode::INTERNAL_SERVER_ERROR
 			}
 			CommonError::BadRequest(_) => StatusCode::BAD_REQUEST,
-			CommonError::Forbidden(_) => StatusCode::FORBIDDEN,
+			CommonError::AnonymousAccessDenied | CommonError::Forbidden(_) => StatusCode::FORBIDDEN,
 			CommonError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
 			CommonError::NoSuchBucket(_) => StatusCode::NOT_FOUND,
 			CommonError::BucketNotEmpty
@@ -118,7 +122,7 @@ impl CommonError {
 
 	pub fn aws_code(&self) -> &'static str {
 		match self {
-			CommonError::Forbidden(_) => "AccessDenied",
+			CommonError::Forbidden(_) | CommonError::AnonymousAccessDenied => "AccessDenied",
 			CommonError::InternalError(
 				GarageError::Timeout | GarageError::RemoteError(_) | GarageError::Quorum(..),
 			) => "ServiceUnavailable",

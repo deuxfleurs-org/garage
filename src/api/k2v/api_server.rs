@@ -90,7 +90,7 @@ impl ApiHandler for K2VApiServer {
 			..
 		} = verified_request
 		else {
-			return Err(Error::forbidden("Access denied".to_string()));
+			return Err(CommonError::AnonymousAccessDenied.into());
 		};
 
 		let bucket = garage
