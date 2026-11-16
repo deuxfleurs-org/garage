@@ -2115,6 +2115,21 @@
           }
         ]
       },
+      "BucketAnonymousAccess": {
+        "type": "object",
+        "required": [
+          "allowedOperations"
+        ],
+        "properties": {
+          "allowedOperations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of S3 operations that are allowed anonymously"
+          }
+        }
+      },
       "BucketKeyPermChangeRequest": {
         "type": "object",
         "required": [
@@ -2675,6 +2690,7 @@
           "created",
           "globalAliases",
           "websiteAccess",
+          "anonymousAccess",
           "keys",
           "objects",
           "bytes",
@@ -2685,6 +2701,10 @@
           "quotas"
         ],
         "properties": {
+          "anonymousAccess": {
+            "$ref": "#/components/schemas/BucketAnonymousAccess",
+            "description": "Anonymous access configuration"
+          },
           "bytes": {
             "type": "integer",
             "format": "int64",
@@ -4862,6 +4882,16 @@
       "UpdateBucketRequestBody": {
         "type": "object",
         "properties": {
+          "anonymousAccess": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BucketAnonymousAccess"
+              }
+            ]
+          },
           "corsRules": {
             "type": [
               "array",
