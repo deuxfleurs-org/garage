@@ -236,6 +236,77 @@ impl ApiHandler for S3ApiServer {
 				};
 				handle_get(ctx.anon, &req.map(|_| ()), &key, part_number, overrides).await
 			}
+			Endpoint::ListObjects {
+				delimiter,
+				encoding_type,
+				marker,
+				max_keys,
+				prefix,
+			} => {
+				let query = ListObjectsQuery {
+					common: ListQueryCommon {
+						bucket_name: ctx.anon.bucket_name.clone(),
+						bucket_id: ctx.anon.bucket_id,
+						delimiter,
+						page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
+						prefix: prefix.unwrap_or_default(),
+						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+					},
+					is_v2: false,
+					marker,
+					continuation_token: None,
+					start_after: None,
+				};
+				handle_list(ctx.anon, &query).await
+			}
+			Endpoint::ListObjectsV2 {
+				delimiter,
+				encoding_type,
+				max_keys,
+				prefix,
+				continuation_token,
+				start_after,
+				list_type,
+				..
+			} => {
+				if list_type == "2" {
+					let query = ListObjectsQuery {
+						common: ListQueryCommon {
+							bucket_name: ctx.anon.bucket_name.clone(),
+							bucket_id: ctx.anon.bucket_id,
+							delimiter,
+							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
+							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+							prefix: prefix.unwrap_or_default(),
+						},
+						is_v2: true,
+						marker: None,
+						continuation_token,
+						start_after,
+					};
+					handle_list(ctx.anon, &query).await
+				} else {
+					Err(Error::bad_request(format!(
+						"Invalid endpoint: list-type={}",
+						list_type
+					)))
+				}
+			}
+			Endpoint::ListParts {
+				key,
+				max_parts,
+				part_number_marker,
+				upload_id,
+			} => {
+				let query = ListPartsQuery {
+					bucket_name: ctx.anon.bucket_name.clone(),
+					key,
+					upload_id,
+					part_number_marker: part_number_marker.map(|p| p.min(10000)),
+					max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
+				};
+				handle_list_parts(ctx.anon, req, &query).await
+			}
 			authenticated_endpoint => {
 				let ctx: ReqCtx = ctx.try_into()?;
 				match authenticated_endpoint {
@@ -270,64 +341,6 @@ impl ApiHandler for S3ApiServer {
 					Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx),
 					Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
 					Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx),
-					Endpoint::ListObjects {
-						delimiter,
-						encoding_type,
-						marker,
-						max_keys,
-						prefix,
-					} => {
-						let query = ListObjectsQuery {
-							common: ListQueryCommon {
-								bucket_name: ctx.bucket_name.clone(),
-								bucket_id: ctx.bucket_id,
-								delimiter,
-								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
-								prefix: prefix.unwrap_or_default(),
-								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
-							},
-							is_v2: false,
-							marker,
-							continuation_token: None,
-							start_after: None,
-						};
-						handle_list(ctx, &query).await
-					}
-					Endpoint::ListObjectsV2 {
-						delimiter,
-						encoding_type,
-						max_keys,
-						prefix,
-						continuation_token,
-						start_after,
-						list_type,
-						..
-					} => {
-						if list_type == "2" {
-							let query = ListObjectsQuery {
-								common: ListQueryCommon {
-									bucket_name: ctx.bucket_name.clone(),
-									bucket_id: ctx.bucket_id,
-									delimiter,
-									page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
-									urlencode_resp: encoding_type
-										.map(|e| e == "url")
-										.unwrap_or(false),
-									prefix: prefix.unwrap_or_default(),
-								},
-								is_v2: true,
-								marker: None,
-								continuation_token,
-								start_after,
-							};
-							handle_list(ctx, &query).await
-						} else {
-							Err(Error::bad_request(format!(
-								"Invalid endpoint: list-type={}",
-								list_type
-							)))
-						}
-					}
 					Endpoint::ListMultipartUploads {
 						delimiter,
 						encoding_type,
@@ -349,21 +362,6 @@ impl ApiHandler for S3ApiServer {
 							upload_id_marker,
 						};
 						handle_list_multipart_upload(ctx, &query).await
-					}
-					Endpoint::ListParts {
-						key,
-						max_parts,
-						part_number_marker,
-						upload_id,
-					} => {
-						let query = ListPartsQuery {
-							bucket_name: ctx.bucket_name.clone(),
-							key,
-							upload_id,
-							part_number_marker: part_number_marker.map(|p| p.min(10000)),
-							max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
-						};
-						handle_list_parts(ctx, req, &query).await
 					}
 					Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req).await,
 					Endpoint::GetBucketWebsite {} => handle_get_website(ctx).await,

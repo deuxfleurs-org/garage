@@ -603,6 +603,16 @@ pub(crate) async fn get_upload(
 	let ReqCtx {
 		garage, bucket_id, ..
 	} = ctx;
+	get_upload_inner(garage, bucket_id, key, upload_id).await
+}
+
+#[allow(clippy::ptr_arg)]
+pub(crate) async fn get_upload_inner(
+	garage: &Arc<Garage>,
+	bucket_id: &Uuid,
+	key: &String,
+	upload_id: &Uuid,
+) -> Result<(Object, ObjectVersion, MultipartUpload), Error> {
 	let (object, mpu) = futures::try_join!(
 		garage.object_table.get(bucket_id, key).map_err(Error::from),
 		garage
