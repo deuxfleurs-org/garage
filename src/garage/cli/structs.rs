@@ -296,6 +296,10 @@ pub enum BucketOperation {
 	#[structopt(name = "website", version = garage_version())]
 	Website(WebsiteOpt),
 
+	/// Set anonymous access on the bucket files
+	#[structopt(name = "anonymous", version = garage_version())]
+	AnonymousAccess(AnonymousAccessOpt),
+
 	/// Set the quotas for this bucket
 	#[structopt(name = "set-quotas", version = garage_version())]
 	SetQuotas(SetQuotasOpt),
@@ -329,6 +333,20 @@ pub struct WebsiteOpt {
 	/// Error document: the optional document returned when an error occurs
 	#[structopt(short = "e", long = "error-document")]
 	pub error_document: Option<String>,
+}
+
+#[derive(StructOpt, Debug)]
+pub struct AnonymousAccessOpt {
+	/// Allow anonymous access to all files in the bucket
+	#[structopt(long = "allow")]
+	pub allow: bool,
+
+	/// Deny anonymous access to any file in the bucket
+	#[structopt(long = "deny")]
+	pub deny: bool,
+
+	/// Bucket name
+	pub bucket: String,
 }
 
 #[derive(StructOpt, Debug)]

@@ -941,6 +941,7 @@ pub struct GetBucketInfoResponse {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
 	/// List of access keys that have permissions granted on this bucket
+	pub anonymous_access: bool,
 	pub keys: Vec<GetBucketInfoKey>,
 	/// Number of objects in this bucket
 	pub objects: i64,
@@ -1023,6 +1024,7 @@ pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequestBody {
 	pub website_access: Option<UpdateBucketWebsiteAccess>,
+	pub anonymous_access: Option<UpdateBucketAnonymousAccess>,
 	pub quotas: Option<ApiBucketQuotas>,
 	// FIXME for v3: remove serde(default) for the two fields below
 	#[serde(default)]
@@ -1040,6 +1042,12 @@ pub struct UpdateBucketWebsiteAccess {
 	// FIXME for v3: remove serde(default) for field below
 	#[serde(default)]
 	pub routing_rules: Option<Vec<xml::website::RoutingRule>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateBucketAnonymousAccess {
+	pub enabled: bool,
 }
 
 // ---- DeleteBucket ----

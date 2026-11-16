@@ -80,7 +80,7 @@ pub fn verify_request(
 
 	let access_key = checked_signature
 		.key
-		.ok_or_else(|| Error::forbidden("Garage does not support anonymous access yet"))?;
+		.ok_or_else(|| Error::forbidden("Access Denied"))?;
 
 	Ok(VerifiedRequest {
 		request,

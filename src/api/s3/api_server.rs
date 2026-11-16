@@ -68,6 +68,94 @@ impl S3ApiServer {
 			endpoint => Err(CommonError::NotImplemented(endpoint.name().to_owned()).into()),
 		}
 	}
+
+	/// This method checks if the called method and requested bucket can be used
+	/// together for anonymous access, to provide short-circuiting before
+	/// permissions are looked at.
+	///
+	/// It returns `None` if either the method is not usable anonymously, or if
+	/// the bucket does not have anonymous access enabled. Calling code can
+	/// understand it to mean other means of authentication should be performed.
+	///
+	/// If it returns `Some`, anonymous access was attemped, and can contain
+	/// either the response, or an error. In this case, processing it done and
+	/// calling code should return the response.
+	async fn try_handle_anonymous_request(
+		&self,
+		req: &Request<()>,
+		endpoint: Endpoint,
+		bucket_name: &String,
+	) -> Option<Result<Response<ResBody>, Error>> {
+		let bucket = self
+			.garage
+			.bucket_helper()
+			.resolve_global_bucket(bucket_name)
+			.await;
+
+		let bucket = match bucket {
+			Ok(Some(bucket)) => bucket,
+			Ok(None) => return Some(Err(Error::NoSuchKey)),
+			Err(err) => return Some(Err(err.into())),
+		};
+
+		let params = bucket.state.into_option().unwrap();
+
+		if *params.anonymous_access.get() {
+			match endpoint {
+				Endpoint::HeadObject {
+					key, part_number, ..
+				} => {
+					return Some(
+						handle_head_without_ctx(
+							self.garage.clone(),
+							req,
+							bucket.id,
+							&key,
+							part_number,
+						)
+						.await,
+					);
+				}
+
+				Endpoint::GetObject {
+					key,
+					part_number,
+					response_cache_control,
+					response_content_disposition,
+					response_content_encoding,
+					response_content_language,
+					response_content_type,
+					response_expires,
+					..
+				} => {
+					let overrides = GetObjectOverrides {
+						response_cache_control,
+						response_content_disposition,
+						response_content_encoding,
+						response_content_language,
+						response_content_type,
+						response_expires,
+					};
+
+					return Some(
+						handle_get_without_ctx(
+							self.garage.clone(),
+							req,
+							bucket.id,
+							&key,
+							part_number,
+							overrides,
+						)
+						.await,
+					);
+				}
+
+				_ => {}
+			}
+		}
+
+		None
+	}
 }
 
 impl ApiHandler for S3ApiServer {
@@ -123,6 +211,25 @@ impl ApiHandler for S3ApiServer {
 			return Ok(options_res.map(|_empty_body: EmptyBody| empty_body()));
 		}
 
+		// Split the request to prevent moving the body, which is required later.
+		let (parts, body) = req.into_parts();
+
+		// Try methods that can be used with anonymous access: HeadObject and
+		// GetObject. Both require a bucket name. If we get a response from
+		// this, return the content immediately. Otherwise, move on with
+		// processing.
+		if let Some(ref bucket_name) = bucket_name {
+			let req = Request::from_parts(parts.clone(), ());
+
+			if let Some(response) = self
+				.try_handle_anonymous_request(&req, endpoint.clone(), bucket_name)
+				.await
+			{
+				return response;
+			}
+		}
+
+		let req = Request::from_parts(parts, body);
 		let verified_request = verify_request(&garage, req, "s3")?;
 		let req = verified_request.request;
 		let api_key = verified_request.access_key;
