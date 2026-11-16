@@ -136,7 +136,7 @@ impl ApiHandler for S3ApiServer {
 		//  2. On the other hand, if we have an unauthenticated request, we
 		//     verify that the bucket has all the methods required by the endpoint
 		//     allowlisted.
-		let (ctx, req): (ReqCtxEnum, Request<ReqBody>) = match verified_request {
+		let (ctx, req): (AnyReqCtx, Request<ReqBody>) = match verified_request {
 			VerifiedRequest {
 				request: req,
 				access_key: Some(api_key),
@@ -179,15 +179,14 @@ impl ApiHandler for S3ApiServer {
 				}
 
 				(
-					ReqCtxEnum::authenticated(garage, api_key, bucket, bucket_name),
+					AnyReqCtx::new(garage, bucket, bucket_name).with_key(api_key),
 					req,
 				)
 			}
 
 			anonymous_request => {
-				let Some(bucket_name) = bucket_name else {
-					return Err(Error::forbidden("Access denied"));
-				};
+				let bucket_name = bucket_name
+					.ok_or_bad_request("Anonymous request must be targeted to a specific bucket")?;
 
 				// Let's not leak existence of a bucket on anonymous access, we return a generic Access denied.
 				let Ok(Some(bucket)) = garage
@@ -202,19 +201,19 @@ impl ApiHandler for S3ApiServer {
 				}
 
 				(
-					ReqCtxEnum::anonymous(garage, bucket, bucket_name),
+					AnyReqCtx::new(garage, bucket, bucket_name),
 					anonymous_request.request,
 				)
 			}
 		};
 
-		let matching_cors = find_matching_cors_rule(ctx.bucket_params(), &req)?
+		let matching_cors = find_matching_cors_rule(&ctx.anon.bucket_params, &req)?
 			.map(|(rule, origin)| (rule.clone(), origin.to_string()));
 
 		let resp = match endpoint {
 			Endpoint::HeadObject {
 				key, part_number, ..
-			} => handle_head(ctx.try_into()?, &req.map(|_| ()), &key, part_number).await,
+			} => handle_head(ctx.anon, &req.map(|_| ()), &key, part_number).await,
 			Endpoint::GetObject {
 				key,
 				part_number,
@@ -234,153 +233,152 @@ impl ApiHandler for S3ApiServer {
 					response_content_type,
 					response_expires,
 				};
-				handle_get(
-					ctx.try_into()?,
-					&req.map(|_| ()),
-					&key,
-					part_number,
-					overrides,
-				)
-				.await
+				handle_get(ctx.anon, &req.map(|_| ()), &key, part_number, overrides).await
 			}
-			Endpoint::UploadPart {
-				key,
-				part_number,
-				upload_id,
-			} => handle_put_part(ctx.try_into()?, req, &key, part_number, &upload_id).await,
-			Endpoint::CopyObject { key } => handle_copy(ctx.try_into()?, &req, &key).await,
-			Endpoint::UploadPartCopy {
-				key,
-				part_number,
-				upload_id,
-			} => handle_upload_part_copy(ctx.try_into()?, &req, &key, part_number, &upload_id).await,
-			Endpoint::PutObject { key } => handle_put(ctx.try_into()?, req, &key).await,
-			Endpoint::AbortMultipartUpload { key, upload_id } => {
-				handle_abort_multipart_upload(ctx.try_into()?, &key, &upload_id).await
-			}
-			Endpoint::DeleteObject { key, .. } => handle_delete(ctx.try_into()?, &key).await,
-			Endpoint::CreateMultipartUpload { key } => {
-				handle_create_multipart_upload(ctx.try_into()?, &req, &key).await
-			}
-			Endpoint::CompleteMultipartUpload { key, upload_id } => {
-				handle_complete_multipart_upload(ctx.try_into()?, req, &key, &upload_id).await
-			}
-			Endpoint::HeadBucket {} => {
-				let response = Response::builder().body(empty_body()).unwrap();
-				Ok(response)
-			}
-			Endpoint::DeleteBucket {} => handle_delete_bucket(ctx.try_into()?).await,
-			Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx.try_into()?),
-			Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
-			Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx.try_into()?),
-			Endpoint::ListObjects {
-				delimiter,
-				encoding_type,
-				marker,
-				max_keys,
-				prefix,
-			} => {
-				let query = ListObjectsQuery {
-					common: ListQueryCommon {
-						bucket_name: ctx.bucket_name().clone(),
-						bucket_id: ctx.bucket_id(),
+			authenticated_endpoint => {
+				let ctx: ReqCtx = ctx.try_into()?;
+				match authenticated_endpoint {
+					Endpoint::UploadPart {
+						key,
+						part_number,
+						upload_id,
+					} => handle_put_part(ctx, req, &key, part_number, &upload_id).await,
+					Endpoint::CopyObject { key } => handle_copy(ctx, &req, &key).await,
+					Endpoint::UploadPartCopy {
+						key,
+						part_number,
+						upload_id,
+					} => handle_upload_part_copy(ctx, &req, &key, part_number, &upload_id).await,
+					Endpoint::PutObject { key } => handle_put(ctx, req, &key).await,
+					Endpoint::AbortMultipartUpload { key, upload_id } => {
+						handle_abort_multipart_upload(ctx, &key, &upload_id).await
+					}
+					Endpoint::DeleteObject { key, .. } => handle_delete(ctx, &key).await,
+					Endpoint::CreateMultipartUpload { key } => {
+						handle_create_multipart_upload(ctx, &req, &key).await
+					}
+					Endpoint::CompleteMultipartUpload { key, upload_id } => {
+						handle_complete_multipart_upload(ctx, req, &key, &upload_id).await
+					}
+					Endpoint::CreateBucket {} => unreachable!(),
+					Endpoint::HeadBucket {} => {
+						let response = Response::builder().body(empty_body()).unwrap();
+						Ok(response)
+					}
+					Endpoint::DeleteBucket {} => handle_delete_bucket(ctx).await,
+					Endpoint::GetBucketLocation {} => handle_get_bucket_location(ctx),
+					Endpoint::GetBucketVersioning {} => handle_get_bucket_versioning(),
+					Endpoint::GetBucketAcl {} => handle_get_bucket_acl(ctx),
+					Endpoint::ListObjects {
 						delimiter,
-						page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
-						prefix: prefix.unwrap_or_default(),
-						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
-					},
-					is_v2: false,
-					marker,
-					continuation_token: None,
-					start_after: None,
-				};
-				handle_list(ctx.try_into()?, &query).await
-			}
-			Endpoint::ListObjectsV2 {
-				delimiter,
-				encoding_type,
-				max_keys,
-				prefix,
-				continuation_token,
-				start_after,
-				list_type,
-				..
-			} => {
-				if list_type == "2" {
-					let query = ListObjectsQuery {
-						common: ListQueryCommon {
-							bucket_name: ctx.bucket_name().clone(),
-							bucket_id: ctx.bucket_id(),
-							delimiter,
-							page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
-							urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
-							prefix: prefix.unwrap_or_default(),
-						},
-						is_v2: true,
-						marker: None,
+						encoding_type,
+						marker,
+						max_keys,
+						prefix,
+					} => {
+						let query = ListObjectsQuery {
+							common: ListQueryCommon {
+								bucket_name: ctx.bucket_name.clone(),
+								bucket_id: ctx.bucket_id,
+								delimiter,
+								page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
+								prefix: prefix.unwrap_or_default(),
+								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+							},
+							is_v2: false,
+							marker,
+							continuation_token: None,
+							start_after: None,
+						};
+						handle_list(ctx, &query).await
+					}
+					Endpoint::ListObjectsV2 {
+						delimiter,
+						encoding_type,
+						max_keys,
+						prefix,
 						continuation_token,
 						start_after,
-					};
-					handle_list(ctx.try_into()?, &query).await
-				} else {
-					Err(Error::bad_request(format!(
-						"Invalid endpoint: list-type={}",
-						list_type
-					)))
+						list_type,
+						..
+					} => {
+						if list_type == "2" {
+							let query = ListObjectsQuery {
+								common: ListQueryCommon {
+									bucket_name: ctx.bucket_name.clone(),
+									bucket_id: ctx.bucket_id,
+									delimiter,
+									page_size: max_keys.unwrap_or(1000).clamp(1, 1000),
+									urlencode_resp: encoding_type
+										.map(|e| e == "url")
+										.unwrap_or(false),
+									prefix: prefix.unwrap_or_default(),
+								},
+								is_v2: true,
+								marker: None,
+								continuation_token,
+								start_after,
+							};
+							handle_list(ctx, &query).await
+						} else {
+							Err(Error::bad_request(format!(
+								"Invalid endpoint: list-type={}",
+								list_type
+							)))
+						}
+					}
+					Endpoint::ListMultipartUploads {
+						delimiter,
+						encoding_type,
+						key_marker,
+						max_uploads,
+						prefix,
+						upload_id_marker,
+					} => {
+						let query = ListMultipartUploadsQuery {
+							common: ListQueryCommon {
+								bucket_name: ctx.bucket_name.clone(),
+								bucket_id: ctx.bucket_id,
+								delimiter,
+								page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
+								prefix: prefix.unwrap_or_default(),
+								urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
+							},
+							key_marker,
+							upload_id_marker,
+						};
+						handle_list_multipart_upload(ctx, &query).await
+					}
+					Endpoint::ListParts {
+						key,
+						max_parts,
+						part_number_marker,
+						upload_id,
+					} => {
+						let query = ListPartsQuery {
+							bucket_name: ctx.bucket_name.clone(),
+							key,
+							upload_id,
+							part_number_marker: part_number_marker.map(|p| p.min(10000)),
+							max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
+						};
+						handle_list_parts(ctx, req, &query).await
+					}
+					Endpoint::DeleteObjects {} => handle_delete_objects(ctx, req).await,
+					Endpoint::GetBucketWebsite {} => handle_get_website(ctx).await,
+					Endpoint::PutBucketWebsite {} => handle_put_website(ctx, req).await,
+					Endpoint::DeleteBucketWebsite {} => handle_delete_website(ctx).await,
+					Endpoint::GetBucketCors {} => handle_get_cors(ctx).await,
+					Endpoint::PutBucketCors {} => handle_put_cors(ctx, req).await,
+					Endpoint::DeleteBucketCors {} => handle_delete_cors(ctx).await,
+					Endpoint::GetBucketLifecycleConfiguration {} => handle_get_lifecycle(ctx).await,
+					Endpoint::PutBucketLifecycleConfiguration {} => {
+						handle_put_lifecycle(ctx, req).await
+					}
+					Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx).await,
+					_ => unreachable!(), // unimplemented check is earlier
 				}
 			}
-			Endpoint::ListMultipartUploads {
-				delimiter,
-				encoding_type,
-				key_marker,
-				max_uploads,
-				prefix,
-				upload_id_marker,
-			} => {
-				let query = ListMultipartUploadsQuery {
-					common: ListQueryCommon {
-						bucket_name: ctx.bucket_name().clone(),
-						bucket_id: ctx.bucket_id(),
-						delimiter,
-						page_size: max_uploads.unwrap_or(1000).clamp(1, 1000),
-						prefix: prefix.unwrap_or_default(),
-						urlencode_resp: encoding_type.map(|e| e == "url").unwrap_or(false),
-					},
-					key_marker,
-					upload_id_marker,
-				};
-				handle_list_multipart_upload(ctx.try_into()?, &query).await
-			}
-			Endpoint::ListParts {
-				key,
-				max_parts,
-				part_number_marker,
-				upload_id,
-			} => {
-				let query = ListPartsQuery {
-					bucket_name: ctx.bucket_name().clone(),
-					key,
-					upload_id,
-					part_number_marker: part_number_marker.map(|p| p.min(10000)),
-					max_parts: max_parts.unwrap_or(1000).clamp(1, 1000),
-				};
-				handle_list_parts(ctx.try_into()?, req, &query).await
-			}
-			Endpoint::DeleteObjects {} => handle_delete_objects(ctx.try_into()?, req).await,
-			Endpoint::GetBucketWebsite {} => handle_get_website(ctx.try_into()?).await,
-			Endpoint::PutBucketWebsite {} => handle_put_website(ctx.try_into()?, req).await,
-			Endpoint::DeleteBucketWebsite {} => handle_delete_website(ctx.try_into()?).await,
-			Endpoint::GetBucketCors {} => handle_get_cors(ctx.try_into()?).await,
-			Endpoint::PutBucketCors {} => handle_put_cors(ctx.try_into()?, req).await,
-			Endpoint::DeleteBucketCors {} => handle_delete_cors(ctx.try_into()?).await,
-			Endpoint::GetBucketLifecycleConfiguration {} => {
-				handle_get_lifecycle(ctx.try_into()?).await
-			}
-			Endpoint::PutBucketLifecycleConfiguration {} => {
-				handle_put_lifecycle(ctx.try_into()?, req).await
-			}
-			Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx.try_into()?).await,
-			_ => unreachable!(), // unimplemented check is earlier
 		};
 
 		// If request was a success and we have a CORS rule that applies to it,
