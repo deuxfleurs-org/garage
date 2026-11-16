@@ -254,7 +254,7 @@ mod v3 {
 	use super::v2;
 	pub use v2::{
 		BucketQuotas, CorsRule, LifecycleExpiration, LifecycleFilter, LifecycleRule, Redirect,
-		RedirectAll, RedirectCondition, RoutingRule, WebsiteConfig,
+		RedirectAll, RedirectCondition, RoutingRule,
 	};
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -287,7 +287,7 @@ mod v3 {
 		/// Whether this bucket is allowed for website access
 		/// (under all of its global alias names),
 		/// and if so, the website configuration XML document
-		pub website_config: crdt::Lww<crdt::CancelingOption<WebsiteConfig>>,
+		pub website_config: crdt::Lww<WebsiteConfig>,
 		/// CORS rules
 		pub cors_config: crdt::Lww<crdt::CancelingOption<Vec<CorsRule>>>,
 		/// Anonymous access configuration
@@ -296,6 +296,18 @@ mod v3 {
 		pub lifecycle_config: crdt::Lww<crdt::CancelingOption<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		pub quotas: crdt::Lww<BucketQuotas>,
+	}
+
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	pub struct WebsiteConfig {
+		pub enabled: bool,
+		pub index_document: Option<String>,
+		pub error_document: Option<String>,
+		// this field is currently unused, but present so adding it in the future doesn't
+		// need a new migration
+		pub redirect_all: Option<RedirectAll>,
+		pub routing_rules: Vec<RoutingRule>,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -317,7 +329,18 @@ mod v3 {
 					authorized_keys: x.authorized_keys,
 					aliases: x.aliases,
 					local_aliases: x.local_aliases,
-					website_config: x.website_config,
+					website_config: x.website_config.map(|wc_opt| {
+						wc_opt
+							.into_inner()
+							.map(|wc| WebsiteConfig {
+								enabled: true,
+								index_document: Some(wc.index_document),
+								error_document: wc.error_document,
+								redirect_all: wc.redirect_all,
+								routing_rules: wc.routing_rules,
+							})
+							.unwrap_or(WebsiteConfig::disabled())
+					}),
 					cors_config: x.cors_config,
 					anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
 					lifecycle_config: x.lifecycle_config,
@@ -342,7 +365,7 @@ impl BucketParams {
 			authorized_keys: crdt::Map::new(),
 			aliases: crdt::LwwMap::new(),
 			local_aliases: crdt::LwwMap::new(),
-			website_config: crdt::Lww::new(None.into()),
+			website_config: crdt::Lww::new(WebsiteConfig::disabled()),
 			cors_config: crdt::Lww::new(None.into()),
 			lifecycle_config: crdt::Lww::new(None.into()),
 			anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
@@ -390,6 +413,26 @@ impl<'a> arbitrary::Arbitrary<'a> for AnonymousAccess {
 	fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
 		let ops: Vec<String> = arbitrary::Arbitrary::arbitrary(u)?;
 		Ok(AnonymousAccess::default().with_allowed_operations(ops))
+	}
+}
+
+impl WebsiteConfig {
+	pub fn disabled() -> Self {
+		Self {
+			enabled: false,
+			index_document: None,
+			error_document: None,
+			redirect_all: None,
+			routing_rules: vec![],
+		}
+	}
+}
+
+impl Crdt for WebsiteConfig {
+	fn merge(&mut self, o: &Self) {
+		if o != self {
+			*self = Self::disabled();
+		}
 	}
 }
 

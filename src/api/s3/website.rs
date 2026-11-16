@@ -2,7 +2,7 @@ use quick_xml::de::from_reader;
 
 use hyper::{header::HeaderName, Request, Response, StatusCode};
 
-use garage_model::bucket_table::Bucket;
+use garage_model::bucket_table::{Bucket, WebsiteConfig};
 
 use garage_api_common::helpers::*;
 use garage_api_common::xml::website::*;
@@ -16,14 +16,15 @@ pub const X_AMZ_WEBSITE_REDIRECT_LOCATION: HeaderName =
 
 pub async fn handle_get_website(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;
-	if let Some(website) = bucket_params.website_config.get().inner() {
+	let website = bucket_params.website_config.get();
+	if website.enabled {
 		let wc = WebsiteConfiguration {
 			xmlns: (),
 			error_document: website.error_document.as_ref().map(|v| Key {
 				key: Value(v.to_string()),
 			}),
-			index_document: Some(Suffix {
-				suffix: Value(website.index_document.to_string()),
+			index_document: website.index_document.as_ref().map(|doc| Suffix {
+				suffix: Value(doc.to_string()),
 			}),
 			redirect_all_requests_to: None,
 			routing_rules: RoutingRules {
@@ -54,7 +55,15 @@ pub async fn handle_delete_website(ctx: ReqCtx) -> Result<Response<ResBody>, Err
 		mut bucket_params,
 		..
 	} = ctx;
-	bucket_params.website_config.update(None.into());
+	// In S3 API, disabling website access also deletes all configuration options,
+	// such as routing rules, error document, etc.
+	// This is OK because when the client enables website access again using S3 API,
+	// they will send the entire website configuration again.
+	// When using the admin api, we have more precise control, we can disable
+	// website access without deleting all configuration options.
+	bucket_params
+		.website_config
+		.update(WebsiteConfig::disabled());
 	garage
 		.bucket_table
 		.insert(&Bucket::present(bucket_id, bucket_params))
@@ -83,7 +92,7 @@ pub async fn handle_put_website(
 
 	bucket_params
 		.website_config
-		.update(Some(conf.into_garage_website_config()?).into());
+		.update(conf.into_garage_website_config()?);
 	garage
 		.bucket_table
 		.insert(&Bucket::present(bucket_id, bucket_params))

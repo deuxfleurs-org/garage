@@ -6,6 +6,8 @@ use garage_model::bucket_table::{self, RoutingRule as GarageRoutingRule, Website
 use crate::common_error::CommonError as Error;
 use crate::xml::{xmlns_tag, IntValue, Value};
 
+pub const DEFAULT_INDEX_DOCUMENT: &str = "index.html";
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WebsiteConfiguration {
 	#[serde(rename = "@xmlns", serialize_with = "xmlns_tag", skip_deserializing)]
@@ -142,10 +144,12 @@ impl WebsiteConfiguration {
 			))
 		} else {
 			Ok(WebsiteConfig {
-				index_document: self
-					.index_document
-					.map(|x| x.suffix.0)
-					.unwrap_or_else(|| "index.html".to_string()),
+				enabled: true,
+				index_document: Some(
+					self.index_document
+						.map(|x| x.suffix.0)
+						.unwrap_or_else(|| DEFAULT_INDEX_DOCUMENT.to_string()),
+				),
 				error_document: self.error_document.map(|x| x.key.0),
 				redirect_all: None,
 				routing_rules: self

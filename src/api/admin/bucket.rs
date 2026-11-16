@@ -337,48 +337,40 @@ impl RequestHandler for UpdateBucketRequest {
 		let state = bucket.state.as_option_mut().unwrap();
 
 		if let Some(wa) = self.body.website_access {
-			if wa.enabled {
-				let redirect_all = state
-					.website_config
-					.get()
-					.inner()
-					.and_then(|wc| wc.redirect_all.clone());
+			let old_config = state.website_config.get();
 
-				let routing_rules = if let Some(rr) = wa.routing_rules {
-					for r in rr.iter() {
-						r.validate()?;
-					}
-					rr.into_iter()
-						.map(xml::website::RoutingRule::into_garage_routing_rule)
-						.collect::<Vec<_>>()
-				} else {
-					state
-						.website_config
-						.get()
-						.inner()
-						.map(|wc| wc.routing_rules.clone())
-						.unwrap_or_default()
-				};
-
-				state.website_config.update(
-					Some(WebsiteConfig {
-						index_document: wa.index_document.ok_or_bad_request(
-							"Please specify indexDocument when enabling website access.",
-						)?,
-						error_document: wa.error_document,
-						redirect_all,
-						routing_rules,
-					})
-					.into(),
-				);
+			let index_document = if wa.index_document.is_some() {
+				wa.index_document
+			} else if old_config.index_document.is_some() {
+				old_config.index_document.clone()
+			} else if wa.enabled {
+				Some(garage_api_common::xml::website::DEFAULT_INDEX_DOCUMENT.to_string())
 			} else {
-				if wa.index_document.is_some() || wa.error_document.is_some() {
-					return Err(Error::bad_request(
-                        "Cannot specify indexDocument or errorDocument when disabling website access.",
-                    ));
+				None
+			};
+
+			let error_document = wa.error_document.or(old_config.index_document.clone());
+
+			let redirect_all = old_config.redirect_all.clone();
+
+			let routing_rules = if let Some(rr) = wa.routing_rules {
+				for r in rr.iter() {
+					r.validate()?;
 				}
-				state.website_config.update(None.into());
-			}
+				rr.into_iter()
+					.map(xml::website::RoutingRule::into_garage_routing_rule)
+					.collect::<Vec<_>>()
+			} else {
+				old_config.routing_rules.clone()
+			};
+
+			state.website_config.update(WebsiteConfig {
+				enabled: wa.enabled,
+				index_document,
+				error_document,
+				redirect_all,
+				routing_rules,
+			});
 		}
 
 		if let Some(aa) = self.body.anonymous_access {
@@ -788,6 +780,7 @@ async fn bucket_info_results(
 	relevant_keys.retain(|_, k| !k.is_deleted());
 
 	let quotas = state.quotas.get();
+	let wsc = state.website_config.get().clone();
 	let res = GetBucketInfoResponse {
 		id: hex::encode(bucket.id),
 		created: DateTime::from_timestamp_millis(state.creation_date as i64)
@@ -799,19 +792,18 @@ async fn bucket_info_results(
 			.filter(|(_, _, a)| *a)
 			.map(|(n, _, _)| n.to_string())
 			.collect::<Vec<_>>(),
-		website_access: state.website_config.get().inner().is_some(),
-		website_config: state.website_config.get().inner().cloned().map(|wsc| {
-			GetBucketInfoWebsiteResponse {
-				index_document: wsc.index_document,
-				error_document: wsc.error_document,
-				routing_rules: Some(
-					wsc.routing_rules
-						.into_iter()
-						.map(xml::website::RoutingRule::from_garage_routing_rule)
-						.collect::<Vec<_>>(),
-				),
-			}
-		}),
+		website_access: BucketWebsiteAccess {
+			enabled: wsc.enabled,
+			index_document: wsc.index_document,
+			error_document: wsc.error_document,
+			routing_rules: Some(
+				wsc.routing_rules
+					.into_iter()
+					.map(xml::website::RoutingRule::from_garage_routing_rule)
+					.collect::<Vec<_>>(),
+			)
+			.filter(|x| !x.is_empty()),
+		},
 		cors_rules: state.cors_config.get().inner().map(|rules| {
 			rules
 				.iter()

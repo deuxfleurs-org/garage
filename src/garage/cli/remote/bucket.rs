@@ -297,24 +297,24 @@ impl Cli {
 			));
 		}
 
-		// Destructure becket info to allow separate use of `id` and `website_config`
+		// Destructure becket info to allow separate use of `id` and `website_access`
 		let GetBucketInfoResponse {
 			id: bucket_id,
-			website_config: bucket_website_config,
+			website_access: bucket_website_access,
 			..
 		} = bucket;
 
 		let wa = if opt.allow {
-			UpdateBucketWebsiteAccess {
+			BucketWebsiteAccess {
 				enabled: true,
 				index_document: Some(opt.index_document.clone()),
 				error_document: opt
 					.error_document
-					.or_else(|| bucket_website_config.and_then(|x| x.error_document.clone())),
+					.or_else(|| bucket_website_access.error_document.clone()),
 				routing_rules: None,
 			}
 		} else {
-			UpdateBucketWebsiteAccess {
+			BucketWebsiteAccess {
 				enabled: false,
 				index_document: None,
 				error_document: None,
@@ -628,17 +628,21 @@ fn print_bucket_info(bucket: &GetBucketInfoResponse) {
 		]);
 	}
 
+	let website = &bucket.website_access;
 	info.extend([
 		String::new(),
-		format!("Website access:\t{}", bucket.website_access),
+		format!("Website access:\t{}", website.enabled),
 	]);
 
-	if let Some(wc) = &bucket.website_config {
+	if website.enabled {
 		info.extend([
-			format!("  index document:\t{}", wc.index_document),
+			format!(
+				"  index document:\t{}",
+				website.index_document.as_deref().unwrap_or("(not defined)")
+			),
 			format!(
 				"  error document:\t{}",
-				wc.error_document.as_deref().unwrap_or("(not defined)")
+				website.error_document.as_deref().unwrap_or("(not defined)")
 			),
 		]);
 	}
