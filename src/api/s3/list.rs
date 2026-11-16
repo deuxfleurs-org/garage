@@ -11,7 +11,7 @@ use garage_util::time::*;
 use garage_model::s3::mpu_table::*;
 use garage_model::s3::object_table::*;
 
-use garage_table::EnumerationOrder;
+use garage_table::{EnumerationOrder, TableSchema};
 
 use garage_api_common::encoding::*;
 use garage_api_common::helpers::*;
@@ -172,20 +172,66 @@ pub async fn handle_list_multipart_upload(
 ) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { garage, .. } = &ctx;
 
-	let io = |bucket, key, count| {
-		let t = &garage.object_table;
-		async move {
-			t.get_range(
+	let io = |bucket, key: Option<String>, count: usize| async move {
+		// If prefix contains only few items, detect it early with an unfiltered get_range
+		// (without this, the filtered get_range would potentially scan the entire table)
+		// This is a partial, non-iedal solution to the problem but it seems to solve it in some basic cases.
+		// FIXME: improve the get_range API to support stopping after the prefix when given a filter
+
+		const UNFILTERED_COUNT: usize = 1000;
+		let filter = ObjectFilter::IsUploading {
+			check_multipart: Some(true),
+		};
+
+		let first = garage
+			.object_table
+			.get_range(
 				&bucket,
 				key,
-				Some(ObjectFilter::IsUploading {
-					check_multipart: Some(true),
-				}),
-				count,
+				None,
+				UNFILTERED_COUNT,
 				EnumerationOrder::Forward,
 			)
-			.await
+			.await?;
+		let exhausted = first.len() < UNFILTERED_COUNT;
+
+		let mut ret = Vec::new();
+		let mut last_key = None;
+		for obj in first {
+			if !obj.key.starts_with(&query.common.prefix) {
+				return Ok(ret);
+			}
+			last_key = Some(obj.key.clone());
+			if <ObjectTable as TableSchema>::matches_filter(&obj, &filter) {
+				ret.push(obj);
+				if ret.len() >= count {
+					return Ok(ret);
+				}
+			}
 		}
+		let last_key = match last_key {
+			Some(k) if !exhausted => k,
+			_ => return Ok(ret),
+		};
+
+		let rest = garage
+			.object_table
+			.get_range(
+				&bucket,
+				Some(last_key.clone()),
+				Some(filter),
+				count - ret.len() + 1,
+				EnumerationOrder::Forward,
+			)
+			.await?;
+
+		// skip last_key if it was returned in rest, as it was already in first
+		let rest = rest.into_iter().filter(|o| o.key != last_key);
+
+		ret.extend(rest);
+		ret.truncate(count);
+
+		Ok(ret)
 	};
 
 	debug!("ListMultipartUploads {:?}", query);
