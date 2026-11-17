@@ -267,6 +267,7 @@ mod v3 {
 
 	/// Configuration for a bucket
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 	pub struct BucketParams {
 		/// Bucket's creation date
 		pub creation_date: u64,
