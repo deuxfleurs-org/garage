@@ -595,6 +595,7 @@ impl Endpoint {
 				// Object-wide
 				HeadObject,
 				GetObject,
+				GetObjectTagging,
 
 				// Enumeration
 				ListBuckets,
@@ -618,6 +619,8 @@ impl Endpoint {
 				CopyObject,
 				DeleteObject,
 				DeleteObjects,
+				PutObjectTagging,
+				DeleteObjectTagging,
 
 				// Multipart uploads
 				CreateMultipartUpload,
