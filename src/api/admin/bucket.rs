@@ -512,7 +512,7 @@ impl RequestHandler for InspectObjectRequest {
 						..Default::default()
 					});
 				}
-				ObjectVersionState::Complete(data) => match data {
+				ObjectVersionState::Complete { data, .. } => match data {
 					ObjectVersionData::DeleteMarker => {
 						versions.push(InspectObjectVersion {
 							uuid,

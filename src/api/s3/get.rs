@@ -223,7 +223,7 @@ pub async fn handle_head_without_ctx(
 		.ok_or(Error::NoSuchKey)?;
 
 	let version_data = match &object_version.state {
-		ObjectVersionState::Complete(c) => c,
+		ObjectVersionState::Complete { data, .. } => data,
 		_ => unreachable!(),
 	};
 
@@ -353,7 +353,7 @@ pub async fn handle_get_without_ctx(
 		.ok_or(Error::NoSuchKey)?;
 
 	let last_v_data = match &last_v.state {
-		ObjectVersionState::Complete(x) => x,
+		ObjectVersionState::Complete { data, .. } => data,
 		_ => unreachable!(),
 	};
 	let last_v_meta = match last_v_data {

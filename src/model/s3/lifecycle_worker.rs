@@ -296,7 +296,7 @@ async fn process_object(
 				let version_date = next_date(current_version.timestamp);
 
 				let current_version_data = match &current_version.state {
-					ObjectVersionState::Complete(c) => c,
+					ObjectVersionState::Complete { data, .. } => data,
 					_ => unreachable!(),
 				};
 
@@ -323,7 +323,10 @@ async fn process_object(
 						vec![ObjectVersion {
 							uuid: gen_uuid(),
 							timestamp: std::cmp::max(now_msec(), current_version.timestamp + 1),
-							state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
+							state: ObjectVersionState::Complete {
+								data: ObjectVersionData::DeleteMarker,
+								tags: Default::default(),
+							},
 						}],
 					);
 					info!(

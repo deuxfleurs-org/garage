@@ -485,20 +485,25 @@ pub async fn handle_complete_multipart_upload(
 	};
 
 	// Write final object version
-	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-		ObjectVersionMeta {
-			encryption: object_encryption,
-			size: total_size,
-			etag: etag.clone(),
-		},
-		final_version
-			.blocks
-			.items()
-			.first()
-			.ok_or_internal_error("Multipart completion produced a final version with no blocks")?
-			.1
-			.hash,
-	));
+	object_version.state = ObjectVersionState::Complete {
+		data: ObjectVersionData::FirstBlock(
+			ObjectVersionMeta {
+				encryption: object_encryption,
+				size: total_size,
+				etag: etag.clone(),
+			},
+			final_version
+				.blocks
+				.items()
+				.first()
+				.ok_or_internal_error(
+					"Multipart completion produced a final version with no blocks",
+				)?
+				.1
+				.hash,
+		),
+		tags: Default::default(), //TODO
+	};
 
 	let final_object = Object::new(*bucket_id, key.clone(), vec![object_version]);
 	garage.object_table.insert(&final_object).await?;
