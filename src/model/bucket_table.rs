@@ -342,7 +342,7 @@ mod v3 {
 							.unwrap_or(WebsiteConfig::disabled())
 					}),
 					cors_config: x.cors_config,
-					anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
+					anonymous_access: Default::default(),
 					lifecycle_config: x.lifecycle_config,
 					quotas: x.quotas,
 				}),
