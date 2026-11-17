@@ -42,20 +42,84 @@ impl Cli {
 	}
 
 	pub async fn cmd_stats(&self, cmd: StatsOpt) -> Result<(), Error> {
+		let query_node = if cmd.all_nodes {
+			"*".to_string()
+		} else {
+			hex::encode(self.rpc_host)
+		};
+
 		let res = self
 			.api_request(GetNodeStatisticsRequest {
-				node: if cmd.all_nodes {
-					"*".to_string()
-				} else {
-					hex::encode(self.rpc_host)
-				},
+				node: query_node.clone(),
 				body: LocalGetNodeStatisticsRequest,
+			})
+			.await?;
+
+		let node_info = self
+			.api_request(GetNodeInfoRequest {
+				node: query_node.clone(),
+				body: LocalGetNodeInfoRequest,
 			})
 			.await?;
 
 		for (node, res) in res.success.iter() {
 			println!("==== NODE [{:.16}] ====", node);
-			println!("{}\n", res.freeform);
+
+			if let Some(info) = node_info.success.get(node) {
+				format_table(vec![
+					format!("Node ID:\t{:.16}", node),
+					format!("Hostname:\t{}", info.hostname.as_deref().unwrap_or("?")),
+					format!("Garage version:\t{}", info.garage_version),
+					format!(
+						"Garage features:\t{}",
+						info.garage_features
+							.as_ref()
+							.map(|x| x.join(", "))
+							.unwrap_or("?".to_string())
+					),
+					format!("Rust compiler version:\t{}", info.rust_version),
+					format!("Database engine:\t{}", info.db_engine),
+				]);
+			} else {
+				println!("Failed to fetch node info");
+			}
+
+			// Gather table statistics
+			let mut table = vec!["  Table\tItems\tMklItems\tMklTodo\tInsQueue\tGcTodo".into()];
+			table.extend(res.table_stats.iter().map(|ts| {
+				format!(
+					"  {}\t{}\t{}\t{}\t{}\t{}",
+					ts.table_name,
+					ts.items,
+					ts.merkle_items,
+					ts.merkle_queue_len,
+					ts.insert_queue_len,
+					ts.gc_queue_len,
+				)
+			}));
+
+			println!("\nTable stats:");
+			format_table(table);
+
+			// Gather block manager statistics
+			println!("\nBlock manager stats:");
+
+			format_table(vec![
+				format!(
+					"  number of RC entries:\t{} (~= number of blocks)",
+					res.block_manager_stats.rc_entries
+				),
+				format!(
+					"  resync queue length:\t{}",
+					res.block_manager_stats.resync_queue_len,
+				),
+				format!(
+					"  blocks with resync errors:\t{}",
+					res.block_manager_stats.resync_errors
+				),
+			]);
+
+			println!("\n");
 		}
 
 		for (node, err) in res.error.iter() {
