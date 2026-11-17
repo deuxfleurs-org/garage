@@ -236,6 +236,9 @@ impl ApiHandler for S3ApiServer {
 				};
 				handle_get(ctx.anon, &req.map(|_| ()), &key, part_number, overrides).await
 			}
+			Endpoint::GetObjectTagging { key, .. } => {
+				handle_get_object_tagging(ctx.anon, &key).await
+			}
 			Endpoint::ListObjects {
 				delimiter,
 				encoding_type,
@@ -332,6 +335,13 @@ impl ApiHandler for S3ApiServer {
 					Endpoint::CompleteMultipartUpload { key, upload_id } => {
 						handle_complete_multipart_upload(ctx, req, &key, &upload_id).await
 					}
+					Endpoint::PutObjectTagging { key, .. } => {
+						handle_put_object_tagging(ctx, &key, req).await
+					}
+					Endpoint::DeleteObjectTagging { key, .. } => {
+						handle_delete_object_tagging(ctx, &key).await
+					}
+
 					Endpoint::CreateBucket {} => unreachable!(),
 					Endpoint::HeadBucket {} => {
 						let response = Response::builder().body(empty_body()).unwrap();
