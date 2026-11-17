@@ -613,9 +613,7 @@ pub enum PreviewClusterLayoutChangesResponse {
 		/// (do not try to parse this)
 		message: Vec<String>,
 		/// Structured statistics about the layout computation
-		// FIXME for v3: remove default and skip_serializing_if
-		#[serde(default, skip_serializing_if = "Option::is_none")]
-		statistics: Option<Box<garage_rpc::layout::ComputationStat>>,
+		statistics: Box<garage_rpc::layout::ComputationStat>,
 		/// Details about the new cluster layout
 		new_layout: GetClusterLayoutResponse,
 	},
@@ -638,9 +636,7 @@ pub struct ApplyClusterLayoutResponse {
 	/// (do not try to parse this)
 	pub message: Vec<String>,
 	/// Structured statistics about the layout computation
-	// FIXME for v3: remove default and skip_serializing_if
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub statistics: Option<garage_rpc::layout::ComputationStat>,
+	pub statistics: garage_rpc::layout::ComputationStat,
 	/// Details about the new cluster layout
 	pub layout: GetClusterLayoutResponse,
 }

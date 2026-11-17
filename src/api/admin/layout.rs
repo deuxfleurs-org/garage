@@ -259,7 +259,7 @@ impl RequestHandler for PreviewClusterLayoutChangesRequest {
 				let message = stat.to_message();
 				Ok(PreviewClusterLayoutChangesResponse::Success {
 					message,
-					statistics: Some(Box::new(stat)),
+					statistics: Box::new(stat),
 					new_layout: format_cluster_layout(&new_layout),
 				})
 			}
@@ -287,7 +287,7 @@ impl RequestHandler for ApplyClusterLayoutRequest {
 
 		Ok(ApplyClusterLayoutResponse {
 			message,
-			statistics: Some(stat),
+			statistics: stat,
 			layout: format_cluster_layout(&layout),
 		})
 	}
