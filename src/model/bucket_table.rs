@@ -246,6 +246,8 @@ mod v2 {
 }
 
 mod v3 {
+	use std::collections::BTreeMap;
+
 	use crate::permission::BucketKeyPerm;
 	use garage_util::crdt;
 	use garage_util::data::Uuid;
@@ -296,6 +298,8 @@ mod v3 {
 		pub lifecycle_config: crdt::Lww<crdt::CancelingOption<Vec<LifecycleRule>>>,
 		/// Bucket quotas
 		pub quotas: crdt::Lww<BucketQuotas>,
+		/// Tags added via `PutBucketTagging`
+		pub tags: crdt::Lww<crdt::CancelingOption<TagMap>>,
 	}
 
 	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -315,6 +319,8 @@ mod v3 {
 		/// List of S3 operations (such as `GetObject`, ...) allowed for anonymous access
 		pub(crate) allowed_operations: Vec<String>,
 	}
+
+	pub type TagMap = BTreeMap<String, String>;
 
 	impl garage_util::migrate::Migrate for Bucket {
 		const VERSION_MARKER: &'static [u8] = b"G3bkt";
@@ -345,6 +351,7 @@ mod v3 {
 					anonymous_access: Default::default(),
 					lifecycle_config: x.lifecycle_config,
 					quotas: x.quotas,
+					tags: Default::default(),
 				}),
 			}
 		}
@@ -370,6 +377,7 @@ impl BucketParams {
 			lifecycle_config: crdt::Lww::new(None.into()),
 			anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
+			tags: crdt::Lww::new(None.into()),
 		}
 	}
 }
@@ -387,6 +395,7 @@ impl Crdt for BucketParams {
 		self.anonymous_access.merge(&o.anonymous_access);
 		self.lifecycle_config.merge(&o.lifecycle_config);
 		self.quotas.merge(&o.quotas);
+		self.tags.merge(&o.tags);
 	}
 }
 
