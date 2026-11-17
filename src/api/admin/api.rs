@@ -227,7 +227,6 @@ pub struct NodeResp {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub metadata_partition: Option<FreeSpaceResp>,
 	/// Approximate number of blocks waiting in the resync queue on this node
-	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub resync_queue_len: Option<u64>,
 }
 
@@ -915,7 +914,6 @@ pub struct GetBucketInfoResponse {
 	pub global_aliases: Vec<String>,
 	/// Website configuration for this bucket
 	pub website_access: BucketWebsiteAccess,
-	// FIXME for v3: remove serde(default) for the two fields below
 	/// CORS rules for this bucket
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub cors_rules: Option<Vec<xml::cors::CorsRule>>,
@@ -951,7 +949,6 @@ pub struct BucketWebsiteAccess {
 	pub index_document: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub error_document: Option<String>,
-	// FIXME for v3: remove serde(default) for field below
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub routing_rules: Option<Vec<xml::website::RoutingRule>>,
 }
@@ -1017,10 +1014,12 @@ pub struct UpdateBucketResponse(pub GetBucketInfoResponse);
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBucketRequestBody {
+	#[serde(default)]
 	pub website_access: Option<BucketWebsiteAccess>,
+	#[serde(default)]
 	pub anonymous_access: Option<BucketAnonymousAccess>,
+	#[serde(default)]
 	pub quotas: Option<ApiBucketQuotas>,
-	// FIXME for v3: remove serde(default) for the two fields below
 	#[serde(default)]
 	pub cors_rules: Option<Vec<xml::cors::CorsRule>>,
 	#[serde(default)]
@@ -1199,10 +1198,8 @@ pub struct LocalGetNodeInfoRequest;
 #[serde(rename_all = "camelCase")]
 pub struct LocalGetNodeInfoResponse {
 	pub node_id: String,
-	// FIXME for v3: remove Option<> and serde(default) for field below
 	/// Hostname of this node
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub hostname: Option<String>,
+	pub hostname: String,
 	/// Garage version running on this node
 	pub garage_version: String,
 	/// Build-time features enabled for this garage release
@@ -1212,24 +1209,17 @@ pub struct LocalGetNodeInfoResponse {
 	/// Database engine used for metadata
 	pub db_engine: String,
 	/// Connection parameters for S3 and K2V clients
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub connection_parameters: Option<ConnectionParameters>,
+	pub connection_parameters: ConnectionParameters,
 
-	// FIXME for v3: remove Option<> and serde(default) for field below
-	// FIXME for v3: merge LocalGetNodeInfoResponse and NodeResp
 	/// Socket address used by other nodes to connect to this node for RPC
-	#[serde(default, skip_serializing_if = "Option::is_none")]
 	#[schema(value_type = Option<String>)]
 	pub addr: Option<SocketAddr>,
 	/// Whether this node is connected in the cluster
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub is_up: Option<bool>,
+	pub is_up: bool,
 	/// Role assigned to this node in the current cluster layout
-	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub role: Option<NodeAssignedRole>,
 	/// Whether this node is part of an older layout version and is draining data.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub draining: Option<bool>,
+	pub draining: bool,
 	/// Total and available space on the disk partition(s) containing the data
 	/// directory(ies)
 	#[serde(default, skip_serializing_if = "Option::is_none")]
