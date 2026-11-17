@@ -390,9 +390,9 @@ impl RequestHandler for UpdateBucketRequest {
 					)));
 				}
 			}
-			state.anonymous_access.update(AnonymousAccess {
-				allowed_operations: aa.allowed_operations,
-			});
+			state
+				.anonymous_access
+				.update(AnonymousAccess::default().with_allowed_operations(aa.allowed_operations));
 		}
 
 		if let Some(q) = self.body.quotas {
@@ -824,7 +824,7 @@ async fn bucket_info_results(
 				.collect::<Vec<_>>()
 		}),
 		anonymous_access: BucketAnonymousAccess {
-			allowed_operations: state.anonymous_access.get().allowed_operations.clone(),
+			allowed_operations: state.anonymous_access.get().allowed_operations().to_vec(),
 		},
 		keys: relevant_keys
 			.into_values()
