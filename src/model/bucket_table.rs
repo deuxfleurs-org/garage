@@ -297,11 +297,10 @@ mod v3 {
 		pub quotas: crdt::Lww<BucketQuotas>,
 	}
 
-	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, Default)]
 	pub struct AnonymousAccess {
 		/// List of S3 operations (such as `GetObject`, ...) allowed for anonymous access
-		pub allowed_operations: Vec<String>,
+		pub(crate) allowed_operations: Vec<String>,
 	}
 
 	impl garage_util::migrate::Migrate for Bucket {
@@ -319,7 +318,7 @@ mod v3 {
 					local_aliases: x.local_aliases,
 					website_config: x.website_config,
 					cors_config: x.cors_config,
-					anonymous_access: crdt::Lww::new(AnonymousAccess::new()),
+					anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
 					lifecycle_config: x.lifecycle_config,
 					quotas: x.quotas,
 				}),
@@ -345,7 +344,7 @@ impl BucketParams {
 			website_config: crdt::Lww::new(None.into()),
 			cors_config: crdt::Lww::new(None.into()),
 			lifecycle_config: crdt::Lww::new(None.into()),
-			anonymous_access: crdt::Lww::new(AnonymousAccess::new()),
+			anonymous_access: crdt::Lww::new(AnonymousAccess::default()),
 			quotas: crdt::Lww::new(BucketQuotas::default()),
 		}
 	}
@@ -368,10 +367,13 @@ impl Crdt for BucketParams {
 }
 
 impl AnonymousAccess {
-	fn new() -> Self {
-		Self {
-			allowed_operations: vec![],
-		}
+	pub fn with_allowed_operations(self, mut allowed_operations: Vec<String>) -> Self {
+		allowed_operations.sort();
+		allowed_operations.dedup();
+		Self { allowed_operations }
+	}
+	pub fn allowed_operations(&self) -> &[String] {
+		&self.allowed_operations
 	}
 }
 
@@ -379,6 +381,14 @@ impl Crdt for AnonymousAccess {
 	fn merge(&mut self, o: &Self) {
 		self.allowed_operations
 			.retain(|x| o.allowed_operations.contains(x));
+	}
+}
+
+#[cfg(feature = "arbitrary")]
+impl<'a> arbitrary::Arbitrary<'a> for AnonymousAccess {
+	fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+		let ops: Vec<String> = arbitrary::Arbitrary::arbitrary(u)?;
+		Ok(AnonymousAccess::default().with_allowed_operations(ops))
 	}
 }
 
@@ -459,7 +469,7 @@ impl Bucket {
 
 	pub fn allowed_anonymous_operations(&self) -> &[String] {
 		self.params()
-			.map(|s| &s.anonymous_access.get().allowed_operations[..])
+			.map(|s| s.anonymous_access.get().allowed_operations())
 			.unwrap_or_default()
 	}
 }
