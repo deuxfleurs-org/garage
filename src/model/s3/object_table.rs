@@ -433,7 +433,9 @@ mod v2 {
 		Complete(ObjectVersionData),
 		/// The version uploaded containded errors or the upload was explicitly aborted
 		Aborted,
-		Deleted,
+		/// CRDT merge state for conflicting Complete and Aborted states,
+		/// shouldn't exist in practice but required for correct CRDT semantics.
+		Conflict,
 	}
 
 	/// Data stored in object version
@@ -644,14 +646,16 @@ impl Object {
 	}
 
 	/// Remove versions which are obsolete, i.e. those that come
-	/// before the last version which `.is_complete()`.
+	/// before the last version which `.is_complete()` or `.is_conflict()`.
+	/// (the conflict state has to be taken into account to ensure CRDT rules
+	/// are respected, however in practice it should never be produced)
 	pub fn strip_obsolete(&mut self) {
 		let last_complete = self
 			.versions
 			.iter()
 			.enumerate()
 			.rev()
-			.find(|(_, v)| v.is_complete())
+			.find(|(_, v)| v.is_complete() || v.is_conflict())
 			.map(|(vi, _)| vi);
 
 		if let Some(last_vi) = last_complete {
@@ -664,9 +668,9 @@ impl Crdt for ObjectVersionState {
 	fn merge(&mut self, other: &Self) {
 		use ObjectVersionState::*;
 		match (&mut *self, other) {
-			(_, Deleted) => *self = Deleted,
-			(Deleted, _) => (),
-			(Aborted, Complete(_)) | (Complete(_), Aborted) => *self = Deleted,
+			(_, Conflict) => *self = Conflict,
+			(Conflict, _) => (),
+			(Aborted, Complete(_)) | (Complete(_), Aborted) => *self = Conflict,
 			(_, Aborted) => *self = Aborted,
 			(Aborted, _) => (),
 			(Complete(slf), Complete(otr)) => slf.merge(otr),
@@ -708,10 +712,12 @@ impl ObjectVersion {
 
 	/// Is the object version completely received
 	pub fn is_complete(&self) -> bool {
-		matches!(
-			self.state,
-			ObjectVersionState::Complete(_) | ObjectVersionState::Deleted
-		)
+		matches!(self.state, ObjectVersionState::Complete(_))
+	}
+
+	/// Is the object version a conflict
+	pub fn is_conflict(&self) -> bool {
+		matches!(self.state, ObjectVersionState::Conflict)
 	}
 
 	/// Is the object version available (received and not a tombstone)
