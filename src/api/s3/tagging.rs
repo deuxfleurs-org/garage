@@ -11,6 +11,8 @@ use crate::api_server::{ReqBody, ResBody};
 use crate::error::*;
 use crate::xml::to_xml_with_header;
 
+const BUCKET_MAX_TAGS: usize = 10;
+
 pub async fn handle_get_bucket_tagging(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;
 	if let Some(tagging) = bucket_params.tags.get().inner() {
@@ -60,7 +62,9 @@ pub async fn handle_put_bucket_tagging(
 	let body = req.into_body().collect().await?;
 	let tagging: Tagging = from_reader(&body as &[u8])?;
 
-	bucket_params.tags.update(Some(tagging.into_map()?).into());
+	bucket_params
+		.tags
+		.update(Some(tagging.into_map(BUCKET_MAX_TAGS)?).into());
 	garage
 		.bucket_table
 		.insert(&Bucket::present(bucket_id, bucket_params))
