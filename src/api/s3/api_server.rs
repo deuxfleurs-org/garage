@@ -33,6 +33,7 @@ use crate::multipart::*;
 use crate::post_object::handle_post_object;
 use crate::put::*;
 use crate::router::Endpoint;
+use crate::tagging::*;
 use crate::website::*;
 
 pub use garage_api_common::signature::streaming::ReqBody;
@@ -374,6 +375,9 @@ impl ApiHandler for S3ApiServer {
 						handle_put_lifecycle(ctx, req).await
 					}
 					Endpoint::DeleteBucketLifecycle {} => handle_delete_lifecycle(ctx).await,
+					Endpoint::GetBucketTagging {} => handle_get_bucket_tagging(ctx).await,
+					Endpoint::PutBucketTagging {} => handle_put_bucket_tagging(ctx, req).await,
+					Endpoint::DeleteBucketTagging {} => handle_delete_bucket_tagging(ctx).await,
 					_ => unreachable!(), // unimplemented check is earlier
 				}
 			}

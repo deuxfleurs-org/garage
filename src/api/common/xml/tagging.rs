@@ -31,7 +31,7 @@ pub struct Tag {
 }
 
 impl Tagging {
-	pub fn to_map(self) -> Result<TagMap, Error> {
+	pub fn into_map(self) -> Result<TagMap, Error> {
 		let mut ret = TagMap::new();
 		for tag in self.tag_set.tags.iter() {
 			if ret
@@ -44,15 +44,15 @@ impl Tagging {
 		Ok(ret)
 	}
 
-	pub fn from_map(map: TagMap) -> Self {
+	pub fn from_map(map: &TagMap) -> Self {
 		Self {
 			xmlns: (),
 			tag_set: TagSet {
 				tags: map
-					.into_iter()
+					.iter()
 					.map(|(key, value)| Tag {
-						key: Value(key),
-						value: Value(value),
+						key: Value(key.to_string()),
+						value: Value(value.to_string()),
 					})
 					.collect(),
 			},

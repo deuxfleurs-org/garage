@@ -649,6 +649,10 @@ impl Endpoint {
 				GetBucketLifecycleConfiguration,
 				PutBucketLifecycleConfiguration,
 				DeleteBucketLifecycle,
+
+				GetBucketTagging,
+				PutBucketTagging,
+				DeleteBucketTagging,
 			]
 		}
 	}
