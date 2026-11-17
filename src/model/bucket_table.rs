@@ -317,14 +317,7 @@ mod v3 {
 					authorized_keys: x.authorized_keys,
 					aliases: x.aliases,
 					local_aliases: x.local_aliases,
-					website_config: x.website_config.map(|wc_opt| {
-						wc_opt.map(|wc| WebsiteConfig {
-							index_document: wc.index_document,
-							error_document: wc.error_document,
-							redirect_all: None,
-							routing_rules: vec![],
-						})
-					}),
+					website_config: x.website_config,
 					cors_config: x.cors_config,
 					anonymous_access: crdt::Lww::new(AnonymousAccess::new()),
 					lifecycle_config: x.lifecycle_config,
