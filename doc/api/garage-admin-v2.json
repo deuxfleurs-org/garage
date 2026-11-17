@@ -12,7 +12,7 @@
       "name": "AGPL-3.0",
       "identifier": "AGPL-3.0"
     },
-    "version": "v2.5.0"
+    "version": "v3.0.0-alpha"
   },
   "servers": [
     {
@@ -2164,6 +2164,39 @@
           }
         }
       },
+      "BucketWebsiteAccess": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether website access is enabled for this bucket"
+          },
+          "errorDocument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "indexDocument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "routingRules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/website.RoutingRule"
+            }
+          }
+        }
+      },
       "CleanupIncompleteUploadsRequest": {
         "type": "object",
         "required": [
@@ -2783,45 +2816,8 @@
             "description": "Number of unfinished uploads in this bucket"
           },
           "websiteAccess": {
-            "type": "boolean",
-            "description": "Whether website access is enabled for this bucket"
-          },
-          "websiteConfig": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/GetBucketInfoWebsiteResponse",
-                "description": "Website configuration for this bucket"
-              }
-            ]
-          }
-        }
-      },
-      "GetBucketInfoWebsiteResponse": {
-        "type": "object",
-        "required": [
-          "indexDocument"
-        ],
-        "properties": {
-          "errorDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "indexDocument": {
-            "type": "string"
-          },
-          "routingRules": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/website.RoutingRule"
-            }
+            "$ref": "#/components/schemas/BucketWebsiteAccess",
+            "description": "Website configuration for this bucket"
           }
         }
       },
@@ -4926,7 +4922,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/UpdateBucketWebsiteAccess"
+                "$ref": "#/components/schemas/BucketWebsiteAccess"
               }
             ]
           }
@@ -4934,38 +4930,6 @@
       },
       "UpdateBucketResponse": {
         "$ref": "#/components/schemas/GetBucketInfoResponse"
-      },
-      "UpdateBucketWebsiteAccess": {
-        "type": "object",
-        "required": [
-          "enabled"
-        ],
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "errorDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "indexDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "routingRules": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/website.RoutingRule"
-            }
-          }
-        }
       },
       "UpdateClusterLayoutRequest": {
         "type": "object",
