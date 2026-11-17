@@ -1214,8 +1214,6 @@ pub struct LocalGetNodeInfoResponse {
 	/// Socket address used by other nodes to connect to this node for RPC
 	#[schema(value_type = Option<String>)]
 	pub addr: Option<SocketAddr>,
-	/// Whether this node is connected in the cluster
-	pub is_up: bool,
 	/// Role assigned to this node in the current cluster layout
 	pub role: Option<NodeAssignedRole>,
 	/// Whether this node is part of an older layout version and is draining data.

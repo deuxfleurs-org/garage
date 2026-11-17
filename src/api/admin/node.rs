@@ -51,7 +51,6 @@ impl RequestHandler for LocalGetNodeInfoRequest {
 					.map(ToString::to_string),
 			},
 
-			is_up: true,
 			addr: garage
 				.system
 				.get_known_nodes()
