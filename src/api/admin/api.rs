@@ -1270,17 +1270,10 @@ pub struct LocalGetNodeStatisticsRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalGetNodeStatisticsResponse {
-	// FIXME for v3: remove freeform field and move display logic to garage crate
-	/// node statistics as a free-form string, kept for compatibility with nodes
-	/// running older v2.x versions of garage
-	pub freeform: String,
-	// FIXME for v3: remove serde(default) for fields below
 	/// metadata table statistics
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub table_stats: Option<Vec<NodeTableStats>>,
+	pub table_stats: Vec<NodeTableStats>,
 	/// block manager statistics
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub block_manager_stats: Option<NodeBlockManagerStats>,
+	pub block_manager_stats: NodeBlockManagerStats,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
