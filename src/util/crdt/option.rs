@@ -23,14 +23,8 @@ where
 	T: Eq + Clone,
 {
 	fn merge(&mut self, other: &Self) {
-		match (self.0.as_ref(), other.0.as_ref()) {
-			(Some(a), Some(b)) if a != b => {
-				self.0 = None;
-			}
-			(None, Some(b)) => {
-				self.0 = Some(b.clone());
-			}
-			_ => {}
+		if self.0 != other.0 {
+			self.0 = None;
 		}
 	}
 }

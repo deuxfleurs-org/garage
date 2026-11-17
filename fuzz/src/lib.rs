@@ -9,7 +9,10 @@ where
 	{
 		let mut a2 = a.clone();
 		a2.merge(&a);
-		assert_eq!(a2, a, "merge is not idempotent: {a2:#?} != {a:#?}");
+		assert_eq!(
+			a2, a,
+			"merge is not idempotent:\n\na :: {a:?}\n\na2 :: {a2:?}\n"
+		);
 	}
 
 	// Commutativity: merge(a, b) == merge(b, a)
@@ -23,7 +26,10 @@ where
 		t.merge(&a);
 		t
 	};
-	assert_eq!(ab, ba, "merge is not commutative: {ab:#?} != {ba:#?}");
+	assert_eq!(
+		ab, ba,
+		"merge is not commutative:\n\nab :: {ab:?}\n\nba :: {ba:?}\n"
+	);
 
 	// LX's corrolary: merge(merge(a,b),b) = merge(a,b)
 	let ab_b = {
@@ -31,7 +37,10 @@ where
 		t.merge(&b);
 		t
 	};
-	assert_eq!(ab, ab_b);
+	assert_eq!(
+		ab, ab_b,
+		"merge(merge(a,b),b) != merge(a,b)):\n\nab :: {ab:?}\n\nb :: {b:?}\n\nab_b :: {ab_b:?}\n"
+	);
 
 	// Associativity: merge(merge(a, b), c) == merge(a, merge(b, c))
 	let ab_c = {
@@ -51,6 +60,6 @@ where
 	};
 	assert_eq!(
 		ab_c, a_bc,
-		"merge is not associative: {ab_c:#?} != {a_bc:#?}"
+		"merge is not associative:\n\nab_c :: {ab_c:?}\n\na_bc :: {a_bc:?}\n"
 	);
 }
