@@ -243,7 +243,7 @@ pub struct NodeAssignedRole {
 	pub capacity: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FreeSpaceResp {
 	/// Number of bytes available
@@ -289,31 +289,20 @@ pub struct GetClusterStatisticsRequest;
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterStatisticsResponse {
-	// FIXME for v3: remove freeform field and move display logic to garage crate
-	/// cluster statistics as a free-form string, kept for compatibility with nodes
-	/// running older v2.x versions of garage
-	pub freeform: String,
-	// FIXME for v3: remove Option<> and serde(default) for all fields below
 	/// available storage space for object data in the entire cluster, in bytes
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub data_avail: Option<u64>,
+	pub data_avail: u64,
 	/// available storage space for object metadata in the entire cluster, in bytes
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub metadata_avail: Option<u64>,
+	pub metadata_avail: u64,
 	/// true if the available storage space statistics are imprecise due to missing
 	/// information of disconnected nodes. When this is the case, the actual
 	/// space available in the cluster might be lower than the reported values.
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub incomplete_avail_info: Option<bool>,
+	pub incomplete_avail_info: bool,
 	/// number of buckets in the cluster
-	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub bucket_count: Option<u64>,
+	pub bucket_count: u64,
 	/// total number of objects stored in all buckets
-	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub total_object_count: Option<u64>,
 	/// total size of objects stored in all buckets, before compression, deduplication and
 	/// replication (this is NOT equivalent to actual disk usage in the cluster)
-	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub total_object_bytes: Option<u64>,
 }
 
