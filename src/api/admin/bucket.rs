@@ -567,7 +567,7 @@ impl RequestHandler for InspectObjectRequest {
 						..Default::default()
 					});
 				}
-				ObjectVersionState::Deleted => {
+				ObjectVersionState::Conflict => {
 					versions.push(InspectObjectVersion {
 						uuid,
 						timestamp,
