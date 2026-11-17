@@ -44,7 +44,10 @@ async fn handle_delete_internal(ctx: &ReqCtx, key: &str) -> Result<(Uuid, Uuid),
 		vec![ObjectVersion {
 			uuid: del_uuid,
 			timestamp: del_timestamp,
-			state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
+			state: ObjectVersionState::Complete {
+				data: ObjectVersionData::DeleteMarker,
+				tags: Default::default(),
+			},
 		}],
 	);
 

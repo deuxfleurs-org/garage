@@ -209,14 +209,17 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		let object_version = ObjectVersion {
 			uuid: version_uuid,
 			timestamp: version_timestamp,
-			state: ObjectVersionState::Complete(ObjectVersionData::Inline(
-				ObjectVersionMeta {
-					encryption: encryption.encrypt_meta(meta)?,
-					size,
-					etag: etag.clone(),
-				},
-				inline_data,
-			)),
+			state: ObjectVersionState::Complete {
+				data: ObjectVersionData::Inline(
+					ObjectVersionMeta {
+						encryption: encryption.encrypt_meta(meta)?,
+						size,
+						etag: etag.clone(),
+					},
+					inline_data,
+				),
+				tags: Default::default(), //TODO
+			},
 		};
 
 		let object = Object::new(*bucket_id, key.into(), vec![object_version]);
@@ -307,14 +310,17 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	// Save final object state, marked as Complete
 	let etag = encryption.etag_from_md5(&checksums.md5);
 
-	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-		ObjectVersionMeta {
-			encryption: encryption.encrypt_meta(meta)?,
-			size: total_size,
-			etag: etag.clone(),
-		},
-		first_block_hash,
-	));
+	object_version.state = ObjectVersionState::Complete {
+		data: ObjectVersionData::FirstBlock(
+			ObjectVersionMeta {
+				encryption: encryption.encrypt_meta(meta)?,
+				size: total_size,
+				etag: etag.clone(),
+			},
+			first_block_hash,
+		),
+		tags: Default::default(), //TODO
+	};
 	let object = Object::new(*bucket_id, key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 

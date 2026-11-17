@@ -433,9 +433,6 @@ mod v2 {
 		Complete(ObjectVersionData),
 		/// The version uploaded containded errors or the upload was explicitly aborted
 		Aborted,
-		/// CRDT merge state for conflicting Complete and Aborted states,
-		/// shouldn't exist in practice but required for correct CRDT semantics.
-		Conflict,
 	}
 
 	/// Data stored in object version
@@ -608,7 +605,113 @@ mod v2 {
 	}
 }
 
-pub use v2::*;
+mod v3 {
+	use std::collections::BTreeMap;
+
+	use garage_util::crdt;
+	use garage_util::data::Uuid;
+	use serde::{Deserialize, Serialize};
+
+	use super::v2;
+	pub use v2::{
+		ChecksumAlgorithm, ChecksumType, ChecksumValue, HeaderList, ObjectVersionData,
+		ObjectVersionEncryption, ObjectVersionMeta, ObjectVersionMetaInner,
+	};
+
+	/// An object
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	pub struct Object {
+		/// The bucket in which the object is stored, used as partition key
+		pub bucket_id: Uuid,
+
+		/// The key at which the object is stored in its bucket, used as sorting key
+		pub key: String,
+
+		/// The list of currently stored versions of the object
+		pub(super) versions: Vec<ObjectVersion>,
+	}
+
+	/// Information about a version of an object
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	pub struct ObjectVersion {
+		/// Id of the version
+		pub uuid: Uuid,
+		/// Timestamp of when the object was created
+		pub timestamp: u64,
+		/// State of the version
+		pub state: ObjectVersionState,
+	}
+
+	/// State of an object version
+	#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+	#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+	pub enum ObjectVersionState {
+		/// The version is being received
+		Uploading {
+			/// Indicates whether this is a multipart upload
+			multipart: bool,
+			/// Checksum algorithm and algorithm type to use
+			checksum_algorithm: Option<(ChecksumAlgorithm, ChecksumType)>,
+			/// Encryption params + headers to be included in the final object
+			encryption: ObjectVersionEncryption,
+		},
+		/// The version is fully received
+		Complete {
+			/// The object data (immutable once upload is finished)
+			data: ObjectVersionData,
+			/// Tags associated to the object with `PutObjectTagging`
+			tags: crdt::Lww<crdt::CancelingOption<TagMap>>,
+		},
+		/// The version uploaded containded errors or the upload was explicitly aborted
+		Aborted,
+		/// CRDT merge state for conflicting Complete and Aborted states,
+		/// shouldn't exist in practice but required for correct CRDT semantics.
+		Conflict,
+	}
+
+	pub type TagMap = BTreeMap<String, String>;
+
+	impl garage_util::migrate::Migrate for Object {
+		const VERSION_MARKER: &'static [u8] = b"G3s3ob";
+
+		type Previous = v2::Object;
+
+		fn migrate(old: v2::Object) -> Object {
+			Object {
+				bucket_id: old.bucket_id,
+				key: old.key,
+				versions: old.versions.into_iter().map(migrate_version).collect(),
+			}
+		}
+	}
+
+	fn migrate_version(old: v2::ObjectVersion) -> ObjectVersion {
+		ObjectVersion {
+			uuid: old.uuid,
+			timestamp: old.timestamp,
+			state: match old.state {
+				v2::ObjectVersionState::Uploading {
+					multipart,
+					checksum_algorithm,
+					encryption,
+				} => ObjectVersionState::Uploading {
+					multipart,
+					checksum_algorithm,
+					encryption,
+				},
+				v2::ObjectVersionState::Complete(data) => ObjectVersionState::Complete {
+					tags: Default::default(),
+					data,
+				},
+				v2::ObjectVersionState::Aborted => ObjectVersionState::Aborted,
+			},
+		}
+	}
+}
+
+pub use v3::*;
 
 impl Object {
 	/// Initialize an Object struct from parts
@@ -670,16 +773,41 @@ impl Crdt for ObjectVersionState {
 		match (&mut *self, other) {
 			(_, Conflict) => *self = Conflict,
 			(Conflict, _) => (),
-			(Aborted, Complete(_)) | (Complete(_), Aborted) => *self = Conflict,
+			(Aborted, Complete { .. }) | (Complete { .. }, Aborted) => *self = Conflict,
 			(_, Aborted) => *self = Aborted,
 			(Aborted, _) => (),
-			(Complete(slf), Complete(otr)) => slf.merge(otr),
-			(Uploading { .. }, Complete(otr)) => *self = Complete(otr.clone()),
-			(Complete(_), Uploading { .. }) => (),
-			(Uploading { .. }, Uploading { .. }) => {
+			(
+				Complete {
+					data: self_data,
+					tags: self_tags,
+				},
+				Complete {
+					data: otr_data,
+					tags: otr_tags,
+				},
+			) => {
+				self_data.merge(otr_data);
+				self_tags.merge(otr_tags);
+			}
+			(Uploading { .. }, Complete { .. }) => {
+				*self = other.clone();
+			}
+			(Complete { .. }, Uploading { .. }) => (),
+			(
+				Uploading {
+					multipart: slf_mp,
+					checksum_algorithm: slf_ca,
+					encryption: slf_enc,
+				},
+				Uploading {
+					multipart: otr_mp,
+					checksum_algorithm: otr_ca,
+					encryption: otr_enc,
+				},
+			) => {
 				// This should not happen in practice but is needed for the correction of the CRDT
 				// to avoid false positive when fuzzing
-				if other > self {
+				if (otr_mp, otr_ca, otr_enc) > (slf_mp, slf_ca, slf_enc) {
 					*self = other.clone();
 				}
 			}
@@ -712,7 +840,7 @@ impl ObjectVersion {
 
 	/// Is the object version completely received
 	pub fn is_complete(&self) -> bool {
-		matches!(self.state, ObjectVersionState::Complete(_))
+		matches!(self.state, ObjectVersionState::Complete { .. })
 	}
 
 	/// Is the object version a conflict
@@ -723,8 +851,11 @@ impl ObjectVersion {
 	/// Is the object version available (received and not a tombstone)
 	pub fn is_data(&self) -> bool {
 		match self.state {
-			ObjectVersionState::Complete(ObjectVersionData::DeleteMarker) => false,
-			ObjectVersionState::Complete(_) => true,
+			ObjectVersionState::Complete {
+				data: ObjectVersionData::DeleteMarker,
+				..
+			} => false,
+			ObjectVersionState::Complete { .. } => true,
 			_ => false,
 		}
 	}
@@ -741,8 +872,10 @@ impl Entry<Uuid, String> for Object {
 		self.versions.len() == 1
 			&& matches!(
 				self.versions[0].state,
-				ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
-					| ObjectVersionState::Conflict
+				ObjectVersionState::Complete {
+					data: ObjectVersionData::DeleteMarker,
+					..
+				} | ObjectVersionState::Conflict
 			)
 	}
 }
@@ -929,8 +1062,14 @@ impl CountedItem for Object {
 		let n_bytes = versions
 			.iter()
 			.map(|v| match &v.state {
-				ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _))
-				| ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta.size,
+				ObjectVersionState::Complete {
+					data: ObjectVersionData::Inline(meta, _),
+					..
+				}
+				| ObjectVersionState::Complete {
+					data: ObjectVersionData::FirstBlock(meta, _),
+					..
+				} => meta.size,
 				_ => 0,
 			})
 			.sum::<u64>();

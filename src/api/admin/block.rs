@@ -271,7 +271,10 @@ async fn handle_block_purge_version_backlink(
 					vec![ObjectVersion {
 						uuid: del_uuid,
 						timestamp: ov.timestamp + 1,
-						state: ObjectVersionState::Complete(ObjectVersionData::DeleteMarker),
+						state: ObjectVersionState::Complete {
+							data: ObjectVersionData::DeleteMarker,
+							tags: Default::default(),
+						},
 					}],
 				);
 				garage.object_table.insert(&deleted_object).await?;

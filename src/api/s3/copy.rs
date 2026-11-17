@@ -313,10 +313,10 @@ async fn handle_copy_metaonly(
 			let dest_object_version = ObjectVersion {
 				uuid: dest_info.uuid,
 				timestamp: new_timestamp,
-				state: ObjectVersionState::Complete(ObjectVersionData::Inline(
-					new_meta,
-					bytes.clone(),
-				)),
+				state: ObjectVersionState::Complete {
+					data: ObjectVersionData::Inline(new_meta, bytes.clone()),
+					tags: Default::default(), //TODO
+				},
 			};
 			let dest_object = Object::new(
 				dest_bucket_id,
@@ -397,10 +397,10 @@ async fn handle_copy_metaonly(
 			let dest_object_version = ObjectVersion {
 				uuid: dest_info.uuid,
 				timestamp: new_timestamp,
-				state: ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-					new_meta,
-					*first_block_hash,
-				)),
+				state: ObjectVersionState::Complete {
+					data: ObjectVersionData::FirstBlock(new_meta, *first_block_hash),
+					tags: Default::default(), //TODO
+				},
 			};
 			let dest_object = Object::new(
 				dest_bucket_id,
@@ -832,7 +832,7 @@ fn extract_source_info(
 		.ok_or(Error::NoSuchKey)?;
 
 	let source_version_data = match &source_version.state {
-		ObjectVersionState::Complete(x) => x,
+		ObjectVersionState::Complete { data, .. } => data,
 		_ => unreachable!(),
 	};
 
