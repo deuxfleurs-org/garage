@@ -1,5 +1,6 @@
 pub mod cors;
 pub mod lifecycle;
+pub mod tagging;
 pub mod website;
 
 use serde::{Deserialize, Serialize, Serializer};
