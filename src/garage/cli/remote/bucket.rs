@@ -331,6 +331,7 @@ impl Cli {
 					cors_rules: None,
 					lifecycle_rules: None,
 					quotas: None,
+					tags: None,
 				},
 			})
 			.await?;
@@ -430,6 +431,7 @@ impl Cli {
 					quotas: None,
 					cors_rules: None,
 					lifecycle_rules: None,
+					tags: None,
 				},
 			})
 			.await?;
@@ -483,6 +485,7 @@ impl Cli {
 					quotas: Some(new_quotas),
 					cors_rules: None,
 					lifecycle_rules: None,
+					tags: None,
 				},
 			})
 			.await?;

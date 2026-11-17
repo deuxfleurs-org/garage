@@ -426,6 +426,10 @@ impl RequestHandler for UpdateBucketRequest {
 			state.lifecycle_config.update(lifecycle_config.into());
 		}
 
+		if let Some(t) = self.body.tags {
+			state.tags.update(Some(t).filter(|x| !x.is_empty()).into());
+		}
+
 		garage.bucket_table.insert(&bucket).await?;
 
 		Ok(UpdateBucketResponse(
@@ -818,6 +822,7 @@ async fn bucket_info_results(
 		anonymous_access: BucketAnonymousAccess {
 			allowed_operations: state.anonymous_access.get().allowed_operations().to_vec(),
 		},
+		tags: state.tags.get().inner().cloned(),
 		keys: relevant_keys
 			.into_values()
 			.map(|key| {
