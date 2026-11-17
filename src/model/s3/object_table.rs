@@ -739,8 +739,11 @@ impl Entry<Uuid, String> for Object {
 	}
 	fn is_tombstone(&self) -> bool {
 		self.versions.len() == 1
-			&& self.versions[0].state
-				== ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+			&& matches!(
+				self.versions[0].state,
+				ObjectVersionState::Complete(ObjectVersionData::DeleteMarker)
+					| ObjectVersionState::Conflict
+			)
 	}
 }
 
