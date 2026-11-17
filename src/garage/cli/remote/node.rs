@@ -68,7 +68,7 @@ impl Cli {
 			if let Some(info) = node_info.success.get(node) {
 				format_table(vec![
 					format!("Node ID:\t{:.16}", node),
-					format!("Hostname:\t{}", info.hostname.as_deref().unwrap_or("?")),
+					format!("Hostname:\t{}", info.hostname),
 					format!("Garage version:\t{}", info.garage_version),
 					format!(
 						"Garage features:\t{}",

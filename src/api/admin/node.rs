@@ -27,14 +27,14 @@ impl RequestHandler for LocalGetNodeInfoRequest {
 
 		Ok(LocalGetNodeInfoResponse {
 			node_id: hex::encode(garage.system.id),
-			hostname: Some(hostname),
+			hostname,
 			garage_version: garage_util::version::garage_version().to_string(),
 			garage_features: garage_util::version::garage_features()
 				.map(|features| features.iter().map(ToString::to_string).collect()),
 			rust_version: garage_util::version::rust_version().to_string(),
 			db_engine: garage.db.engine(),
 
-			connection_parameters: Some(ConnectionParameters {
+			connection_parameters: ConnectionParameters {
 				region: garage.config.s3_api.s3_region.clone(),
 				s3_endpoint: garage
 					.config
@@ -49,24 +49,22 @@ impl RequestHandler for LocalGetNodeInfoRequest {
 					.as_ref()
 					.and_then(|c| c.public_endpoint.as_ref())
 					.map(ToString::to_string),
-			}),
+			},
 
-			is_up: Some(true),
+			is_up: true,
 			addr: garage
 				.system
 				.get_known_nodes()
 				.iter()
 				.find(|x| x.id == garage.system.id)
 				.and_then(|x| x.addr),
-			draining: Some(
-				current_layout.node_role(&garage.system.id).is_none()
-					&& layout
-						.inner()
-						.versions
-						.iter()
-						.filter(|x| x.version != current_layout.version)
-						.any(|x| x.node_role(&garage.system.id).is_some()),
-			),
+			draining: current_layout.node_role(&garage.system.id).is_none()
+				&& layout
+					.inner()
+					.versions
+					.iter()
+					.filter(|x| x.version != current_layout.version)
+					.any(|x| x.node_role(&garage.system.id).is_some()),
 			role: current_layout
 				.node_role(&garage.system.id)
 				.map(|v| NodeAssignedRole {
