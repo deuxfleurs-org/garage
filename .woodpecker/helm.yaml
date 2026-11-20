@@ -1,0 +1,53 @@
+variables:
+  - &chart_paths
+    - "script/helm/**"
+    - "script/helm-chart.sh"
+    - ".woodpecker/helm.yaml"
+
+labels:
+  nix: "enabled"
+
+when:
+  - event: pull_request
+    path: *chart_paths
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path: *chart_paths
+  - event: manual
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+
+steps:
+  - name: lint and unit tests
+    image: helmunittest/helm-unittest:4.2.3-1.1.2
+    commands:
+      - helm lint --strict script/helm/garage
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/daemonset.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/ingress.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/existing-secret.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/monitoring.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/minimal.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/complex-values.yaml
+      - helm unittest --strict script/helm/garage
+
+  - name: check version bump
+    image: nixpkgs/nix:nixos-24.05
+    commands:
+      - ./script/helm-chart.sh check-version-bump
+    when:
+      - event: pull_request
+        path:
+          include: ["script/helm/garage/**"]
+          exclude: ["script/helm/garage/tests/**"]
+
+  - name: publish
+    image: nixpkgs/nix:nixos-24.05
+    environment:
+      HELM_OCI_REPO: oci://registry-1.docker.io/dxflrs
+      REGISTRY_USERNAME:
+        from_secret: helm_registry_username
+      REGISTRY_PASSWORD:
+        from_secret: helm_registry_password
+    commands:
+      - nix-shell --attr ci --run "./script/helm-chart.sh publish"
+    when:
+      - event: [push, manual]
