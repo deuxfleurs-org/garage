@@ -272,8 +272,9 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		timestamp: version_timestamp,
 		state: ObjectVersionState::Uploading {
 			encryption: encryption.encrypt_meta(meta.clone())?,
-			checksum_algorithm: None, // don't care; overwritten later
 			multipart: false,
+			checksum_algorithm: None, // don't care; overwritten later
+			tags: None,               // same
 		},
 	};
 	let object = Object::new(*bucket_id, key.into(), vec![object_version.clone()]);

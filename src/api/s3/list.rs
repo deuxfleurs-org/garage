@@ -1056,6 +1056,7 @@ mod tests {
 					},
 				},
 				checksum_algorithm: None,
+				tags: None,
 			},
 		}
 	}

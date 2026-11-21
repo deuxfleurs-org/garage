@@ -656,6 +656,8 @@ mod v3 {
 			checksum_algorithm: Option<(ChecksumAlgorithm, ChecksumType)>,
 			/// Encryption params + headers to be included in the final object
 			encryption: ObjectVersionEncryption,
+			/// Object tags
+			tags: Option<TagMap>,
 		},
 		/// The version is fully received
 		Complete {
@@ -700,6 +702,7 @@ mod v3 {
 					multipart,
 					checksum_algorithm,
 					encryption,
+					tags: None,
 				},
 				v2::ObjectVersionState::Complete(data) => ObjectVersionState::Complete {
 					tags: Default::default(),
@@ -798,16 +801,18 @@ impl Crdt for ObjectVersionState {
 					multipart: slf_mp,
 					checksum_algorithm: slf_ca,
 					encryption: slf_enc,
+					tags: slf_tags,
 				},
 				Uploading {
 					multipart: otr_mp,
 					checksum_algorithm: otr_ca,
 					encryption: otr_enc,
+					tags: otr_tags,
 				},
 			) => {
 				// This should not happen in practice but is needed for the correction of the CRDT
 				// to avoid false positive when fuzzing
-				if (otr_mp, otr_ca, otr_enc) > (slf_mp, slf_ca, slf_enc) {
+				if (otr_mp, otr_ca, otr_enc, otr_tags) > (slf_mp, slf_ca, slf_enc, slf_tags) {
 					*self = other.clone();
 				}
 			}
