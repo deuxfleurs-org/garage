@@ -16,6 +16,7 @@ use futures::stream::StreamExt;
 use tokio::net::{TcpListener, TcpSocket, TcpStream};
 use tokio::select;
 use tokio::sync::{mpsc, watch};
+use tokio::time::{sleep_until, Instant};
 
 use crate::client::*;
 use crate::endpoint::*;
@@ -236,32 +237,56 @@ impl NetApp {
 
 		let (conn_in, mut conn_out) = mpsc::unbounded_channel();
 		let connection_collector = tokio::spawn(async move {
-			let mut collection = FuturesUnordered::new();
+			let mut connections = FuturesUnordered::<tokio::task::JoinHandle<()>>::new();
 			loop {
-				if collection.is_empty() {
+				if connections.is_empty() {
 					match conn_out.recv().await {
-						Some(f) => collection.push(f),
+						Some(f) => connections.push(f),
 						None => break,
 					}
 				} else {
 					select! {
 						new_fut = conn_out.recv() => {
 							match new_fut {
-								Some(f) => collection.push(f),
+								Some(f) => connections.push(f),
 								None => break,
 							}
 						}
-						result = collection.next() => {
+						result = connections.next() => {
 							trace!("Collected connection: {:?}", result);
 						}
 					}
 				}
 			}
+
 			debug!("Collecting last open server connections.");
-			while let Some(conn_res) = collection.next().await {
-				trace!("Collected connection: {:?}", conn_res);
+
+			let deadline = Instant::now() + Duration::from_secs(10);
+			while !connections.is_empty() {
+				info!(
+					"RPC server: {} connections still open, deadline in {:.2}s",
+					connections.len(),
+					(deadline - Instant::now()).as_secs_f32(),
+				);
+				select! {
+					conn_res = connections.next() => {
+						trace!("Collected connection: {:?}", conn_res);
+					},
+					_ = sleep_until(deadline) => {
+						warn!(
+							"RPC server: exit deadline reached with {} connections still open, killing them now",
+							connections.len()
+						);
+						for conn in connections.iter() {
+							conn.abort();
+						}
+						for conn in connections {
+							assert!(conn.await.unwrap_err().is_cancelled());
+						}
+						break;
+					}
+				}
 			}
-			debug!("No more server connections to collect");
 		});
 
 		while !*must_exit.borrow_and_update() {

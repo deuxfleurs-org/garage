@@ -15,6 +15,7 @@ use kuska_handshake::async_std::{handshake_client, BoxStream};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, oneshot, watch};
+use tokio::time::{sleep_until, Duration, Instant};
 use tokio_util::compat::*;
 
 #[cfg(feature = "telemetry")]
@@ -49,18 +50,23 @@ impl ClientConn {
 		socket: TcpStream,
 		peer_id: NodeID,
 	) -> Result<(), Error> {
+		let deadline = Instant::now() + Duration::from_secs(60);
+
 		let remote_addr = socket.peer_addr()?;
 		let mut socket = socket.compat();
 
 		// Do handshake to authenticate and prove our identity to server
-		let handshake = handshake_client(
+		let hs_fut = handshake_client(
 			&mut socket,
 			netapp.netid.clone(),
 			netapp.id,
 			netapp.privkey.clone(),
 			peer_id,
-		)
-		.await?;
+		);
+		let handshake = select! {
+			hs = hs_fut => hs?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
 
 		debug!(
 			"Handshake complete (client) with {}@{}",
@@ -76,7 +82,11 @@ impl ClientConn {
 		// Before doing anything, receive version tag and
 		// check they are running the same version as us
 		let mut their_version_tag = VersionTag::default();
-		read.read_exact(&mut their_version_tag[..]).await?;
+		select! {
+			res = read.read_exact(&mut their_version_tag[..]) => res?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
+
 		if their_version_tag != netapp.version_tag {
 			let msg = format!(
 				"different version tags: {} (theirs) vs. {} (ours)",

@@ -45,6 +45,9 @@ pub enum Error {
 
 	#[error("Version mismatch: {0}")]
 	VersionMismatch(String),
+
+	#[error("Handshake timeout")]
+	HandshakeTimeout,
 }
 
 impl<T> From<tokio::sync::watch::error::SendError<T>> for Error {

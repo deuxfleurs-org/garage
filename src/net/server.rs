@@ -10,6 +10,7 @@ use kuska_handshake::async_std::{handshake_server, BoxStream};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, watch};
+use tokio::time::{sleep_until, Duration, Instant};
 use tokio_util::compat::*;
 
 #[cfg(feature = "telemetry")]
@@ -66,17 +67,23 @@ impl ServerConn {
 		socket: TcpStream,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
+		let deadline = Instant::now() + Duration::from_secs(60);
+
 		let remote_addr = socket.peer_addr()?;
 		let mut socket = socket.compat();
 
 		// Do handshake to authenticate client
-		let handshake = handshake_server(
+		let hs_fut = handshake_server(
 			&mut socket,
 			netapp.netid.clone(),
 			netapp.id,
 			netapp.privkey.clone(),
-		)
-		.await?;
+		);
+		let handshake = select! {
+			hs = hs_fut => hs?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
+
 		let peer_id = handshake.peer_pk;
 
 		debug!(
@@ -92,8 +99,15 @@ impl ServerConn {
 
 		// Before doing anything, send version tag, so that client
 		// can check and disconnect if version is wrong
-		write.write_all(&netapp.version_tag[..]).await?;
-		write.flush().await?;
+		let wr_fut = async {
+			write.write_all(&netapp.version_tag[..]).await?;
+			write.flush().await?;
+			Ok::<_, Error>(())
+		};
+		select! {
+			res = wr_fut => res?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
 
 		// Build and launch stuff that handles requests server-side
 		let (resp_send, resp_recv) = mpsc::unbounded_channel();
