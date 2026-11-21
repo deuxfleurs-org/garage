@@ -519,6 +519,26 @@ files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
 
+Performance notes:
+
+- When objects are zstd-compressed and not encrypted using SSE-C, Zstd adds a
+  few bytes of overhead (about 37 bytes per block) on incompressible content.
+  Since v2.6.0, Garage automatically removes 64 bytes from the block size when
+  chunking incoming objects to ensure that files on disk for each block remain
+  smaller than `block_size`. This helps prevent unnecessary allocation of an
+  extra filesystem block just to hold a few bytes.
+
+- The above might not be enough for all filesystems, depending on how they
+  store file data on disk. If this is a concern to you, tune the `block_size`
+  manually. Removing `4K` seems to work for most filesystems (see
+  [#1359](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/1359)), so you can
+  use e.g. `block_size = "1020KiB"` for 1MB-blocks or `block_size = "10236KiB"`
+  for 10MB-blocks.
+
+- This doesn't apply for objects encrypted using SSE-C: the files on disk will
+  always have a small percentage of overhead compared to the size of the
+  unencrypted data due to the encryption method used.
+
 #### `block_ram_buffer_max` (since `v0.9.4`) {#block_ram_buffer_max}
 
 A limit on the total size of data blocks kept in RAM by S3 API nodes awaiting

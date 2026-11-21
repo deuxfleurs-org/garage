@@ -150,7 +150,11 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		garage, bucket_id, ..
 	} = ctx;
 
-	let mut chunker = StreamChunker::new(body, garage.config.block_size);
+	let mut chunker = StreamChunker::new(
+		body,
+		garage.config.block_size,
+		garage.config.compression_level.is_some() && !encryption.is_encrypted(),
+	);
 	let (first_block_opt, existing_object) = try_join!(
 		chunker.next(),
 		garage.object_table.get(bucket_id, key).map_err(Error::from),
@@ -617,11 +621,21 @@ pub(crate) struct StreamChunker<S: Stream<Item = Result<Bytes, Error>>> {
 }
 
 impl<S: Stream<Item = Result<Bytes, Error>> + Unpin> StreamChunker<S> {
-	pub(crate) fn new(stream: S, block_size: usize) -> Self {
+	pub(crate) fn new(stream: S, block_size: usize, leave_padding: bool) -> Self {
 		Self {
 			stream,
 			read_all: false,
-			block_size,
+			block_size: if leave_padding {
+				// Leave room for ZSTD header on incompressible data, to avoid using an
+				// extra filesystem block when block_size is a multiple of filesystem block size
+				// ZSTD header is about 37 bytes, take some margin and remove 64 bytes
+				// Note: this is not relevant for SSE-C encrypted objects, because
+				// the block is split in 4096-byte chunks that each have a 16 byte header
+				// so we'er off filesystem block boundaries in all cases
+				block_size - 64
+			} else {
+				block_size
+			},
 			buf: BytesBuf::new(),
 		}
 	}
