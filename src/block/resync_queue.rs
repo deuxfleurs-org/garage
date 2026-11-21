@@ -182,9 +182,9 @@ impl IndexedQueue {
 		self.errored
 	}
 
-	// May actually be exact in our case because of the mutex
-	pub fn approximate_len(&self) -> Result<usize, garage_db::DbError> {
-		self.queue.approximate_len()
+	#[allow(clippy::len_without_is_empty)]
+	pub fn len(&self) -> usize {
+		self.when_index.len()
 	}
 
 	pub fn put_to_resync_at_or_later(&mut self, hash: &Hash, when: u64) -> Result<(), Error> {

@@ -178,7 +178,7 @@ impl RequestHandler for LocalGetNodeStatisticsRequest {
 
 		let block_manager_stats = NodeBlockManagerStats {
 			rc_entries: garage.block_manager.rc_approximate_len()? as u64,
-			resync_queue_len: garage.block_manager.resync.queue_approximate_len()? as u64,
+			resync_queue_len: garage.block_manager.resync.queue_len() as u64,
 			resync_errors: garage.block_manager.resync.errored() as u64,
 		};
 

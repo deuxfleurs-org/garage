@@ -97,9 +97,9 @@ impl BlockResyncManager {
 	}
 
 	/// Get length of resync queue
-	pub fn queue_approximate_len(&self) -> Result<usize, Error> {
+	pub fn queue_len(&self) -> usize {
 		let idxqueue = self.idxqueue.lock().unwrap();
-		Ok(idxqueue.approximate_len()?)
+		idxqueue.len()
 	}
 
 	/// Get length of resync queue
@@ -490,7 +490,7 @@ impl Worker for ResyncWorker {
 		}
 
 		WorkerStatus {
-			queue_length: Some(self.manager.resync.queue_approximate_len().unwrap_or(0) as u64),
+			queue_length: Some(self.manager.resync.queue_len() as u64),
 			tranquility: Some(tranquility),
 			persistent_errors: Some(self.manager.resync.errored().try_into().unwrap()),
 			..Default::default()

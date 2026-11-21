@@ -167,7 +167,7 @@ impl Garage {
 
 		system.set_resync_queue_len_getter({
 			let bm = block_manager.clone();
-			Box::new(move || bm.resync.queue_approximate_len().ok().map(|n| n as u64))
+			Box::new(move || Some(bm.resync.queue_len() as u64))
 		});
 
 		// ---- admin tables ----

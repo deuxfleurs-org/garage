@@ -66,8 +66,8 @@ impl BlockManagerMetrics {
 					"Number of block hashes queued for local check and possible resync",
 				)
 				.with_callback(move |observer| {
-					let len = resync_queue.lock().unwrap().approximate_len().unwrap_or_default();
-						observer.observe(len.try_into().unwrap(), &[]);
+					let len = resync_queue.lock().unwrap().len();
+					observer.observe(len.try_into().unwrap(), &[]);
 				})
 				.build()
 			},
@@ -76,7 +76,7 @@ impl BlockManagerMetrics {
 				.with_description("Number of block hashes whose last resync resulted in an error")
 				.with_callback(move |observer| {
 					let errs = resync_queue.lock().unwrap().errored();
-						observer.observe(errs, &[]);
+					observer.observe(errs, &[]);
 				})
 				.build(),
 
