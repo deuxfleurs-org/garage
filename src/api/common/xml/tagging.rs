@@ -80,3 +80,60 @@ impl Tagging {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use crate::xml::{to_xml_with_header, unprettify_xml, Value};
+
+	use super::*;
+
+	use quick_xml::de::from_str;
+
+	#[test]
+	fn test_deserialize() {
+		let message = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+   <TagSet>
+      <Tag>
+         <Key>kkey</Key>
+         <Value>vvalue</Value>
+      </Tag>
+   </TagSet>
+</Tagging>"#;
+		let conf: Tagging =
+			from_str(message).expect("failed to deserialize xml in `WebsiteConfiguration`");
+		let ref_value = Tagging {
+			xmlns: (),
+			tag_set: TagSet {
+				tags: vec![Tag {
+					key: Value("kkey".to_string()),
+					value: Value("vvalue".to_string()),
+				}],
+			},
+		};
+		assert_eq! {
+			ref_value,
+			conf
+		}
+
+		let message2 = to_xml_with_header(&ref_value).expect("xml serialization");
+
+		assert_eq!(unprettify_xml(message), unprettify_xml(&message2));
+	}
+
+	#[test]
+	fn test_serialize_empty() {
+		let conf = Tagging {
+			xmlns: (),
+			tag_set: TagSet { tags: vec![] },
+		};
+		let serialized_ref = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    <TagSet>
+    </TagSet>
+</Tagging>"#;
+
+		let serialized = to_xml_with_header(&conf).expect("xml serialization");
+		assert_eq!(unprettify_xml(&serialized), unprettify_xml(&serialized_ref));
+	}
+}
