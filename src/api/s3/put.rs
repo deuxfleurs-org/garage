@@ -304,7 +304,7 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	// Verify quotas are respsected
 	check_quotas(ctx, total_size, existing_object.as_ref()).await?;
 
-	// Save final object state, marked as Complete
+	// Prepare final object state, marked as Complete, to be saved
 	let etag = encryption.etag_from_md5(&checksums.md5);
 
 	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
@@ -316,11 +316,21 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		first_block_hash,
 	));
 	let object = Object::new(*bucket_id, key.into(), vec![object_version]);
-	garage.object_table.insert(&object).await?;
 
-	// We were not interrupted, everything went fine.
-	// We won't have to clean up on drop.
+	// Make sure the finalized version will be saved asynchronously even if the
+	// (synchronous) call to `.insert()` below is canceled
+	garage
+		.db
+		.transaction(|tx| garage.object_table.queue_insert(tx, &object))
+		.map_err(GarageError::from)?;
+
+	// From now on, we are sure that the finalized object will be saved,
+	// so disarm the drop guard
 	interrupted_cleanup.cancel();
+
+	// Do a synchronous insert of the finalized object to ensure that the
+	// object is readable immediately once we return OK to the client
+	garage.object_table.insert(&object).await?;
 
 	Ok(SaveStreamResult {
 		version_uuid,
