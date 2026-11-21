@@ -12,6 +12,7 @@ use sha1::Sha1;
 use sha2::Sha256;
 
 use garage_table::*;
+use garage_util::crdt;
 use garage_util::data::*;
 use garage_util::error::OkOrMessage;
 
@@ -49,6 +50,7 @@ pub async fn handle_create_multipart_upload(
 	let timestamp = next_timestamp(existing_object.as_ref());
 
 	let headers = extract_metadata_headers(req.headers())?;
+	let tags = extract_object_tagging(req.headers());
 	let meta = ObjectVersionMetaInner {
 		headers,
 		checksum: None,
@@ -80,6 +82,7 @@ pub async fn handle_create_multipart_upload(
 			multipart: true,
 			encryption: object_encryption,
 			checksum_algorithm,
+			tags,
 		},
 	};
 	let object = Object::new(*bucket_id, key.to_string(), vec![object_version]);
@@ -335,12 +338,13 @@ pub async fn handle_complete_multipart_upload(
 	}
 
 	let oek_params = OekDerivationInfo::for_object(&object, &object_version);
-	let (object_encryption, checksum_algorithm) = match object_version.state {
+	let (object_encryption, checksum_algorithm, tags) = match object_version.state {
 		ObjectVersionState::Uploading {
 			encryption,
 			checksum_algorithm,
+			tags,
 			..
-		} => (encryption, checksum_algorithm),
+		} => (encryption, checksum_algorithm, tags),
 		_ => unreachable!(),
 	};
 	debug!(
@@ -502,7 +506,7 @@ pub async fn handle_complete_multipart_upload(
 				.1
 				.hash,
 		),
-		tags: Default::default(), //TODO
+		tags: crdt::Lww::new(tags.into()),
 	};
 
 	let final_object = Object::new(*bucket_id, key.clone(), vec![object_version]);

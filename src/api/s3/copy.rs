@@ -362,8 +362,9 @@ async fn handle_copy_metaonly(
 				timestamp: new_timestamp,
 				state: ObjectVersionState::Uploading {
 					encryption: new_meta.encryption.clone(),
-					checksum_algorithm: None,
 					multipart: false,
+					checksum_algorithm: None, // don't care, overwritten later
+					tags: None,               // same
 				},
 			};
 			let tmp_dest_object = Object::new(
