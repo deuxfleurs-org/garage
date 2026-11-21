@@ -33,7 +33,10 @@ Feel free to open a PR to suggest fixes this table. Minio is missing because the
 | [URL vhost-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#virtual-hosted-style-access) URL (eg. `bucket.host.tld/key`) |  ✅ Implemented | ❌| ✅| ✅ | ✅ |
 | [Presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html) |  ✅ Implemented | ❌|  ✅ | ✅ |  ✅(❓) |
 | [SSE-C encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html) |  ✅ Implemented | ❓ |  ✅ | ❌ |  ✅ |
+| [Bucket & object tagging](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html) | ✅ Since v3.0 | ❌ |  ✅ | ❌ | ✅ |
 | [Bucket versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html) | ❌ Missing | ✅ |  ✅ | ❌ | ✅ |
+| [Object locking](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html) | ❌ Missing | ❌ |  ✅ | ❌ | ❌ |
+| [ACLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html) / [policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-policy-language-overview.html) | ❌ Missing | ✅/❌ |  ✅ | ✅/❌ | ✅/❌ |
 
 *Note:* OpenIO does not says if it supports presigned URLs. Because it is part
 of signature v4 and they claim they support it without additional precisions,
@@ -100,6 +103,17 @@ Garage, however its effect can be emulated using a single unconditional
 `RoutingRule`.
 
 *Note: Ceph radosgw has some support for static websites but it is different from the Amazon one. It also does not implement its configuration endpoints.*
+
+### Tagging endpoints
+
+| Endpoint                     | Garage                           | [Openstack Swift](https://docs.openstack.org/swift/latest/s3_compat.html) | [Ceph Object Gateway](https://docs.ceph.com/en/latest/radosgw/s3/) | [Riak CS](https://docs.riak.com/riak/cs/2.1.1/references/apis/storage/s3/index.html) | [OpenIO](https://docs.openio.io/latest/source/arch-design/s3_compliancy.html) |
+|------------------------------|----------------------------------|-----------------|---------------|---------|-----|
+| [DeleteBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
+| [GetBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
+| [PutBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
+| [DeleteObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
+| [GetObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
+| [PutObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) | ✅ | ❌| ✅ | ❌| ✅ |
 
 ### ACL, Policies endpoints
 
@@ -193,12 +207,6 @@ Please open an issue if you have a use case.
 |------------------------------|----------------------------------|-----------------|---------------|---------|-----|
 | [GetBucketNotificationConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketNotificationConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 | [PutBucketNotificationConfiguration](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotificationConfiguration.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
-| [DeleteBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
-| [GetBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
-| [PutBucketTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
-| [DeleteObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
-| [GetObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
-| [PutObjectTagging](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) | ❌ Missing | ❌| ✅ | ❌| ✅ |
 | [GetObjectTorrent](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTorrent.html) | ❌ Missing | ❌| ✅ | ❌| ❌|
 
 ### Vendor specific endpoints
