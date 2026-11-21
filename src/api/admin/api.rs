@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -922,6 +922,8 @@ pub struct GetBucketInfoResponse {
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
 	/// Anonymous access configuration
 	pub anonymous_access: BucketAnonymousAccess,
+	/// Bucket tags (see `PutBucketTagging`)
+	pub tags: Option<BTreeMap<String, String>>,
 	/// List of access keys that have permissions granted on this bucket
 	pub keys: Vec<GetBucketInfoKey>,
 	/// Number of objects in this bucket
@@ -1024,6 +1026,8 @@ pub struct UpdateBucketRequestBody {
 	pub cors_rules: Option<Vec<xml::cors::CorsRule>>,
 	#[serde(default)]
 	pub lifecycle_rules: Option<Vec<xml::lifecycle::LifecycleRule>>,
+	#[serde(default)]
+	pub tags: Option<BTreeMap<String, String>>,
 }
 
 // ---- DeleteBucket ----

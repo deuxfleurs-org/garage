@@ -4,7 +4,7 @@ use futures::{stream, stream::Stream, StreamExt, TryStreamExt};
 
 use base64::prelude::*;
 use bytes::Bytes;
-use http::header::HeaderName;
+use http::header::{HeaderName, HeaderValue};
 use hyper::{Request, Response};
 use serde::Serialize;
 
@@ -12,6 +12,7 @@ use garage_net::bytes_buf::BytesBuf;
 use garage_net::stream::read_stream_to_end;
 use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
+use garage_util::crdt;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
@@ -29,9 +30,14 @@ use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::get::{check_version_not_deleted, full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
-use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::put::{
+	extract_metadata_headers, extract_object_tagging, save_stream, ChecksumMode, PutObjectInfo,
+	SaveStreamResult,
+};
 use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 use crate::xml::{self as s3_xml, xmlns_tag};
+
+pub const X_AMZ_VERSION_ID: HeaderName = HeaderName::from_static("x-amz-version-id");
 
 pub const X_AMZ_COPY_SOURCE_IF_MATCH: HeaderName =
 	HeaderName::from_static("x-amz-copy-source-if-match");
@@ -42,12 +48,21 @@ pub const X_AMZ_COPY_SOURCE_IF_MODIFIED_SINCE: HeaderName =
 pub const X_AMZ_COPY_SOURCE_IF_UNMODIFIED_SINCE: HeaderName =
 	HeaderName::from_static("x-amz-copy-source-if-unmodified-since");
 
+pub const X_AMZ_COPY_SOURCE: HeaderName = HeaderName::from_static("x-amz-copy-source");
+pub const X_AMZ_COPY_SOURCE_VERSION_ID: HeaderName =
+	HeaderName::from_static("x-amz-copy-source-version-id");
+pub const X_AMZ_COPY_SOURCE_RANGE: HeaderName = HeaderName::from_static("x-amz-copy-source-range");
+pub const X_AMZ_METADATA_DIRECTIVE: HeaderName =
+	HeaderName::from_static("x-amz-metadata-directive");
+pub const X_AMZ_TAGGING_DIRECTIVE: HeaderName = HeaderName::from_static("x-amz-tagging-directive");
+pub const REPLACE: HeaderValue = HeaderValue::from_static("REPLACE");
+
 // -------- CopyObject ---------
 
 pub async fn handle_copy(
 	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	dest_key: &str,
+	dest_key: &String,
 ) -> Result<Response<ResBody>, Error> {
 	let copy_precondition = PreconditionHeaders::parse_copy_source(req)?;
 
@@ -55,7 +70,7 @@ pub async fn handle_copy(
 
 	let source_object = get_copy_source(&ctx, req).await?;
 
-	let (source_version, source_version_data, source_version_meta) =
+	let (source_version, source_version_data, source_version_meta, source_version_tags) =
 		extract_source_info(&source_object)?;
 
 	// Check precondition, e.g. x-amz-copy-source-if-match
@@ -107,10 +122,8 @@ pub async fn handle_copy(
 
 	// Determine metadata of destination object
 	let dest_object_meta = ObjectVersionMetaInner {
-		headers: match req.headers().get("x-amz-metadata-directive") {
-			Some(v) if v == hyper::header::HeaderValue::from_static("REPLACE") => {
-				extract_metadata_headers(req.headers())?
-			}
+		headers: match req.headers().get(X_AMZ_METADATA_DIRECTIVE) {
+			Some(v) if v == REPLACE => extract_metadata_headers(req.headers())?,
 			_ => {
 				// The x-amz-website-redirect-location header is not copied, instead
 				// it is replaced by the value from the request (or removed if no
@@ -126,6 +139,11 @@ pub async fn handle_copy(
 		},
 		checksum: source_checksum,
 		checksum_type: source_checksum_type,
+	};
+
+	let dest_object_tags = match req.headers().get(X_AMZ_TAGGING_DIRECTIVE) {
+		Some(x) if x == REPLACE => extract_object_tagging(req.headers()),
+		_ => source_version_tags.cloned(),
 	};
 
 	// Do actual object copying
@@ -171,10 +189,11 @@ pub async fn handle_copy(
 	};
 
 	let res = if !must_recopy {
-		let dest_info = DestInfo {
+		let dest_info = PutObjectInfo {
 			key: dest_key,
-			uuid: dest_uuid,
-			object_meta: dest_object_meta,
+			version_uuid: dest_uuid,
+			meta: dest_object_meta,
+			tags: dest_object_tags,
 			encryption: dest_encryption,
 		};
 
@@ -205,10 +224,11 @@ pub async fn handle_copy(
 			..dest_object_meta
 		};
 
-		let dest_info = DestInfo {
+		let dest_info = PutObjectInfo {
 			key: dest_key,
-			uuid: dest_uuid,
-			object_meta: dest_object_meta,
+			version_uuid: dest_uuid,
+			meta: dest_object_meta,
+			tags: dest_object_tags,
 			encryption: dest_encryption,
 		};
 		handle_copy_reencrypt(
@@ -260,25 +280,18 @@ pub async fn handle_copy(
 
 	let mut resp = Response::builder()
 		.header("Content-Type", "application/xml")
-		.header("x-amz-version-id", hex::encode(res.version_uuid))
+		.header(X_AMZ_VERSION_ID, hex::encode(res.version_uuid))
 		.header(
-			"x-amz-copy-source-version-id",
+			X_AMZ_COPY_SOURCE_VERSION_ID,
 			hex::encode(source_version.uuid),
 		);
 	dest_encryption.add_response_headers(&mut resp);
 	Ok(resp.body(string_body(xml))?)
 }
 
-struct DestInfo<'a> {
-	key: &'a str,
-	uuid: Uuid,
-	object_meta: ObjectVersionMetaInner,
-	encryption: EncryptionParams,
-}
-
 async fn handle_copy_metaonly(
 	ctx: ReqCtx,
-	dest_info: DestInfo<'_>,
+	dest_info: PutObjectInfo<'_>,
 	source_version: &ObjectVersion,
 	source_version_data: &ObjectVersionData,
 	source_version_meta: &ObjectVersionMeta,
@@ -293,13 +306,13 @@ async fn handle_copy_metaonly(
 	let new_timestamp = now_msec();
 
 	let new_meta = ObjectVersionMeta {
-		encryption: dest_info.encryption.encrypt_meta(dest_info.object_meta)?,
+		encryption: dest_info.encryption.encrypt_meta(dest_info.meta)?,
 		size: source_version_meta.size,
 		etag: source_version_meta.etag.clone(),
 	};
 
 	let res = SaveStreamResult {
-		version_uuid: dest_info.uuid,
+		version_uuid: dest_info.version_uuid,
 		version_timestamp: new_timestamp,
 		etag: new_meta.etag.clone(),
 	};
@@ -311,12 +324,12 @@ async fn handle_copy_metaonly(
 			// bytes is either plaintext before&after or encrypted with the
 			// same keys, so it's ok to just copy it as is
 			let dest_object_version = ObjectVersion {
-				uuid: dest_info.uuid,
+				uuid: dest_info.version_uuid,
 				timestamp: new_timestamp,
-				state: ObjectVersionState::Complete(ObjectVersionData::Inline(
-					new_meta,
-					bytes.clone(),
-				)),
+				state: ObjectVersionState::Complete {
+					data: ObjectVersionData::Inline(new_meta, bytes.clone()),
+					tags: crdt::Lww::new(dest_info.tags.into()),
+				},
 			};
 			let dest_object = Object::new(
 				dest_bucket_id,
@@ -338,12 +351,13 @@ async fn handle_copy_metaonly(
 			// This holds a reference to the object in the Version table
 			// so that it won't be deleted, e.g. by repair_versions.
 			let tmp_dest_object_version = ObjectVersion {
-				uuid: dest_info.uuid,
+				uuid: dest_info.version_uuid,
 				timestamp: new_timestamp,
 				state: ObjectVersionState::Uploading {
 					encryption: new_meta.encryption.clone(),
-					checksum_algorithm: None,
 					multipart: false,
+					checksum_algorithm: None, // don't care, overwritten later
+					tags: None,               // same
 				},
 			};
 			let tmp_dest_object = Object::new(
@@ -353,7 +367,7 @@ async fn handle_copy_metaonly(
 			);
 			garage.object_table.insert(&tmp_dest_object).await?;
 
-			let dest_uuid = dest_info.uuid;
+			let dest_uuid = dest_info.version_uuid;
 
 			// Write version in the version table. Even with empty block list,
 			// this means that the BlockRef entries linked to this version cannot be
@@ -395,12 +409,12 @@ async fn handle_copy_metaonly(
 			// with the stuff before, the block's reference counts could be decremented before
 			// they are incremented again for the new version, leading to data being deleted.
 			let dest_object_version = ObjectVersion {
-				uuid: dest_info.uuid,
+				uuid: dest_info.version_uuid,
 				timestamp: new_timestamp,
-				state: ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-					new_meta,
-					*first_block_hash,
-				)),
+				state: ObjectVersionState::Complete {
+					data: ObjectVersionData::FirstBlock(new_meta, *first_block_hash),
+					tags: crdt::Lww::new(dest_info.tags.into()),
+				},
 			};
 			let dest_object = Object::new(
 				dest_bucket_id,
@@ -416,7 +430,7 @@ async fn handle_copy_metaonly(
 
 async fn handle_copy_reencrypt(
 	ctx: ReqCtx,
-	dest_info: DestInfo<'_>,
+	dest_info: PutObjectInfo<'_>,
 	source_version: &ObjectVersion,
 	source_version_data: &ObjectVersionData,
 	source_encryption: EncryptionParams,
@@ -434,11 +448,8 @@ async fn handle_copy_reencrypt(
 
 	save_stream(
 		&ctx,
-		dest_info.uuid,
-		dest_info.object_meta,
-		dest_info.encryption,
+		dest_info,
 		source_stream.map_err(|e| Error::from(GarageError::from(e))),
-		&dest_info.key.to_string(),
 		checksum_mode,
 	)
 	.await
@@ -465,7 +476,7 @@ pub async fn handle_upload_part_copy(
 
 	let ReqCtx { garage, .. } = ctx;
 
-	let (source_object_version, source_version_data, source_version_meta) =
+	let (source_object_version, source_version_data, source_version_meta, _) =
 		extract_source_info(&source_object)?;
 
 	// Check precondition on source, e.g. x-amz-copy-source-if-match
@@ -497,7 +508,7 @@ pub async fn handle_upload_part_copy(
 	let same_encryption = EncryptionParams::is_same(&source_encryption, &dest_encryption);
 
 	// Check source range is valid
-	let source_range = match req.headers().get("x-amz-copy-source-range") {
+	let source_range = match req.headers().get(X_AMZ_COPY_SOURCE_RANGE) {
 		Some(range) => {
 			let range_str = range.to_str()?;
 			let mut ranges = http_range::HttpRange::parse(range_str, source_version_meta.size)
@@ -782,7 +793,7 @@ pub async fn handle_upload_part_copy(
 	let mut resp = Response::builder()
 		.header("Content-Type", "application/xml")
 		.header(
-			"x-amz-copy-source-version-id",
+			X_AMZ_COPY_SOURCE_VERSION_ID,
 			hex::encode(source_object_version.uuid),
 		);
 	dest_encryption.add_response_headers(&mut resp);
@@ -794,7 +805,7 @@ async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object,
 		garage, api_key, ..
 	} = ctx;
 
-	let copy_source = req.headers().get("x-amz-copy-source").unwrap().to_str()?;
+	let copy_source = req.headers().get(X_AMZ_COPY_SOURCE).unwrap().to_str()?;
 	let copy_source = percent_encoding::percent_decode_str(copy_source).decode_utf8()?;
 
 	let (source_bucket, source_key) = parse_bucket_key(&copy_source, None)?;
@@ -823,7 +834,15 @@ async fn get_copy_source(ctx: &ReqCtx, req: &Request<ReqBody>) -> Result<Object,
 
 fn extract_source_info(
 	source_object: &Object,
-) -> Result<(&ObjectVersion, &ObjectVersionData, &ObjectVersionMeta), Error> {
+) -> Result<
+	(
+		&ObjectVersion,
+		&ObjectVersionData,
+		&ObjectVersionMeta,
+		Option<&TagMap>,
+	),
+	Error,
+> {
 	let source_version = source_object
 		.versions()
 		.iter()
@@ -831,8 +850,8 @@ fn extract_source_info(
 		.find(|v| v.is_complete())
 		.ok_or(Error::NoSuchKey)?;
 
-	let source_version_data = match &source_version.state {
-		ObjectVersionState::Complete(x) => x,
+	let (source_version_data, source_version_tags) = match &source_version.state {
+		ObjectVersionState::Complete { data, tags } => (data, tags),
 		_ => unreachable!(),
 	};
 
@@ -844,7 +863,12 @@ fn extract_source_info(
 		ObjectVersionData::FirstBlock(meta, _fbh) => meta,
 	};
 
-	Ok((source_version, source_version_data, source_version_meta))
+	Ok((
+		source_version,
+		source_version_data,
+		source_version_meta,
+		source_version_tags.get().inner(),
+	))
 }
 
 type BlockStreamItemOk = (Bytes, Option<Hash>);

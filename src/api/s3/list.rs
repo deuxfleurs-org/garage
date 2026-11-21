@@ -861,8 +861,14 @@ impl ExtractAccumulator for ObjectAccumulator {
 		};
 
 		let meta = match &version.state {
-			ObjectVersionState::Complete(ObjectVersionData::Inline(meta, _)) => meta,
-			ObjectVersionState::Complete(ObjectVersionData::FirstBlock(meta, _)) => meta,
+			ObjectVersionState::Complete {
+				data: ObjectVersionData::Inline(meta, _),
+				..
+			} => meta,
+			ObjectVersionState::Complete {
+				data: ObjectVersionData::FirstBlock(meta, _),
+				..
+			} => meta,
 			_ => unreachable!(),
 		};
 		let info = ObjectInfo {
@@ -1050,6 +1056,7 @@ mod tests {
 					},
 				},
 				checksum_algorithm: None,
+				tags: None,
 			},
 		}
 	}

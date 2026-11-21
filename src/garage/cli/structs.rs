@@ -337,7 +337,7 @@ pub struct WebsiteOpt {
 
 #[derive(StructOpt, Debug)]
 pub struct AnonymousAccessOpt {
-	/// Allow specific S3 operations (such as `GetObject`, ...) for anonymous access
+	/// Allow specific S3 operations (such as `GetObjectTagging`, ...) for anonymous access
 	#[structopt(long = "allow-operations")]
 	pub allow_operations: Vec<String>,
 

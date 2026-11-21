@@ -34,7 +34,8 @@ use crate::copy::*;
 use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 
-const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
+pub const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
+pub const X_AMZ_TAGGING_COUNT: HeaderName = HeaderName::from_static("x-amz-tagging-count");
 
 #[derive(Default)]
 pub struct GetObjectOverrides {
@@ -46,31 +47,83 @@ pub struct GetObjectOverrides {
 	pub(crate) response_expires: Option<String>,
 }
 
-fn object_headers(
-	version: &ObjectVersion,
-	version_meta: &ObjectVersionMeta,
-	meta_inner: &ObjectVersionMetaInner,
+struct ObjectInfo<'a> {
+	version: &'a ObjectVersion,
+	version_data: &'a ObjectVersionData,
+	version_meta: &'a ObjectVersionMeta,
+	tags: Option<&'a TagMap>,
+	meta_inner: std::borrow::Cow<'a, ObjectVersionMetaInner>,
 	encryption: EncryptionParams,
+}
+
+impl<'a> ObjectInfo<'a> {
+	fn extract(
+		garage: &Garage,
+		object: &'a Object,
+		headers: &'a http::header::HeaderMap,
+	) -> Result<Self, Error> {
+		let version = object
+			.versions()
+			.iter()
+			.rev()
+			.find(|v| v.is_data())
+			.ok_or(Error::NoSuchKey)?;
+
+		let (version_data, tags) = match &version.state {
+			ObjectVersionState::Complete { data, tags } => (data, tags),
+			_ => unreachable!(),
+		};
+
+		let version_meta = match version_data {
+			ObjectVersionData::Inline(meta, _) => meta,
+			ObjectVersionData::FirstBlock(meta, _) => meta,
+			_ => unreachable!(),
+		};
+
+		let (encryption, meta_inner) = EncryptionParams::check_decrypt(
+			garage,
+			headers,
+			&version_meta.encryption,
+			OekDerivationInfo::for_object(object, version),
+		)?;
+
+		Ok(ObjectInfo {
+			version,
+			version_data,
+			version_meta,
+			tags: tags.get().inner(),
+			encryption,
+			meta_inner,
+		})
+	}
+}
+
+fn object_headers(
+	info: &ObjectInfo,
 	checksum_mode: ChecksumMode,
 ) -> Result<http::response::Builder, Error> {
-	debug!("Version meta: {:?}", version_meta);
+	debug!("Version meta: {:?}", info.version_meta);
 
-	let date = UNIX_EPOCH + Duration::from_millis(version.timestamp);
+	let date = UNIX_EPOCH + Duration::from_millis(info.version.timestamp);
 	let date_str = httpdate::fmt_http_date(date);
 
 	let mut resp = Response::builder()
 		.header(LAST_MODIFIED, date_str)
 		.header(ACCEPT_RANGES, "bytes".to_string());
 
-	if !version_meta.etag.is_empty() {
-		resp = resp.header(ETAG, format!("\"{}\"", version_meta.etag));
+	if !info.version_meta.etag.is_empty() {
+		resp = resp.header(ETAG, format!("\"{}\"", info.version_meta.etag));
+	}
+
+	if let Some(tags) = info.tags {
+		resp = resp.header(X_AMZ_TAGGING_COUNT, tags.len().to_string());
 	}
 
 	// When metadata is retrieved through the REST API, Amazon S3 combines headers that
 	// have the same name (ignoring case) into a comma-delimited list.
 	// See: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
 	let mut headers_by_name = BTreeMap::new();
-	for (name, value) in meta_inner.headers.iter() {
+	for (name, value) in info.meta_inner.headers.iter() {
 		let name_lower = name.to_ascii_lowercase();
 		headers_by_name
 			.entry(name_lower)
@@ -84,37 +137,34 @@ fn object_headers(
 
 	if checksum_mode.enabled {
 		resp = add_checksum_response_headers(
-			&meta_inner.checksum,
-			meta_inner.checksum_type,
-			composite_checksum_part_count(version, version_meta, meta_inner)?,
+			&info.meta_inner.checksum,
+			info.meta_inner.checksum_type,
+			composite_checksum_part_count(info)?,
 			resp,
 		)?;
 	}
 
-	encryption.add_response_headers(&mut resp);
+	info.encryption.add_response_headers(&mut resp);
 
 	Ok(resp)
 }
 
 /// Part count for composite checksums, taken from the multipart etag
-fn composite_checksum_part_count(
-	version: &ObjectVersion,
-	version_meta: &ObjectVersionMeta,
-	meta_inner: &ObjectVersionMetaInner,
-) -> Result<Option<u64>, Error> {
-	if meta_inner.checksum_type != Some(ChecksumType::Composite) {
+fn composite_checksum_part_count(info: &ObjectInfo) -> Result<Option<u64>, Error> {
+	if info.meta_inner.checksum_type != Some(ChecksumType::Composite) {
 		return Ok(None);
 	}
 	// FIXME: parsing the part count out of the etag is fragile, we would
 	// prefer to have it stored explicitly in the object metadata
-	let part_count = version_meta
+	let part_count = info
+		.version_meta
 		.etag
 		.rsplit_once('-')
 		.and_then(|(_, n)| n.parse::<u64>().ok())
 		.ok_or_else(|| {
 			Error::internal_error(format!(
 				"no part count in etag for composite checksum, version {:?}: {}",
-				version.uuid, version_meta.etag
+				info.version.uuid, info.version_meta.etag
 			))
 		})?;
 	Ok(Some(part_count))
@@ -147,22 +197,13 @@ fn getobject_override_headers(
 }
 
 fn handle_http_precondition(
-	version: &ObjectVersion,
-	version_meta: &ObjectVersionMeta,
-	meta_inner: &ObjectVersionMetaInner,
-	encryption: EncryptionParams,
+	info: &ObjectInfo,
 	req: &Request<()>,
 ) -> Result<Option<Response<ResBody>>, Error> {
 	let precondition_headers = PreconditionHeaders::parse(req)?;
 
-	if let Some(status_code) = precondition_headers.check(version, &version_meta.etag) {
-		let mut response = object_headers(
-			version,
-			version_meta,
-			meta_inner,
-			encryption,
-			ChecksumMode { enabled: false },
-		)?;
+	if let Some(status_code) = precondition_headers.check(info.version, &info.version_meta.etag) {
+		let mut response = object_headers(info, ChecksumMode { enabled: false })?;
 		if let Some(header_map) = response.headers_mut() {
 			use http::header;
 			let headers_to_keep: Vec<_> = header_map
@@ -215,66 +256,35 @@ pub async fn handle_head_without_ctx(
 		.await?
 		.ok_or(Error::NoSuchKey)?;
 
-	let object_version = object
-		.versions()
-		.iter()
-		.rev()
-		.find(|v| v.is_data())
-		.ok_or(Error::NoSuchKey)?;
+	let info = ObjectInfo::extract(&garage, &object, req.headers())?;
 
-	let version_data = match &object_version.state {
-		ObjectVersionState::Complete(c) => c,
-		_ => unreachable!(),
-	};
-
-	let version_meta = match version_data {
-		ObjectVersionData::Inline(meta, _) => meta,
-		ObjectVersionData::FirstBlock(meta, _) => meta,
-		_ => unreachable!(),
-	};
-
-	let (encryption, headers) = EncryptionParams::check_decrypt(
-		&garage,
-		req.headers(),
-		&version_meta.encryption,
-		OekDerivationInfo::for_object(&object, object_version),
-	)?;
-
-	if let Some(res) =
-		handle_http_precondition(object_version, version_meta, &headers, encryption, req)?
-	{
+	if let Some(res) = handle_http_precondition(&info, req)? {
 		return Ok(res);
 	}
 
 	let checksum_mode = checksum_mode(req);
 
 	if let Some(part_number) = part_number {
-		match version_data {
+		match info.version_data {
 			ObjectVersionData::Inline(_, _) => {
 				if part_number != 1 {
 					return Err(Error::InvalidPart);
 				}
-				let bytes_len = version_meta.size;
-				Ok(object_headers(
-					object_version,
-					version_meta,
-					&headers,
-					encryption,
-					checksum_mode,
-				)?
-				.header(CONTENT_LENGTH, format!("{}", bytes_len))
-				.header(
-					CONTENT_RANGE,
-					format!("bytes 0-{}/{}", bytes_len - 1, bytes_len),
-				)
-				.header(X_AMZ_MP_PARTS_COUNT, "1")
-				.status(StatusCode::PARTIAL_CONTENT)
-				.body(empty_body())?)
+				let bytes_len = info.version_meta.size;
+				Ok(object_headers(&info, checksum_mode)?
+					.header(CONTENT_LENGTH, format!("{}", bytes_len))
+					.header(
+						CONTENT_RANGE,
+						format!("bytes 0-{}/{}", bytes_len - 1, bytes_len),
+					)
+					.header(X_AMZ_MP_PARTS_COUNT, "1")
+					.status(StatusCode::PARTIAL_CONTENT)
+					.body(empty_body())?)
 			}
 			ObjectVersionData::FirstBlock(_, _) => {
 				let version = garage
 					.version_table
-					.get(&object_version.uuid, &EmptyKey)
+					.get(&info.version.uuid, &EmptyKey)
 					.await?
 					.ok_or(Error::NoSuchKey)?;
 				check_version_not_deleted(&version)?;
@@ -282,40 +292,28 @@ pub async fn handle_head_without_ctx(
 				let (part_offset, part_end) =
 					calculate_part_bounds(&version, part_number).ok_or(Error::InvalidPart)?;
 
-				Ok(object_headers(
-					object_version,
-					version_meta,
-					&headers,
-					encryption,
-					checksum_mode,
-				)?
-				.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
-				.header(
-					CONTENT_RANGE,
-					format!(
-						"bytes {}-{}/{}",
-						part_offset,
-						part_end - 1,
-						version_meta.size
-					),
-				)
-				.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
-				.status(StatusCode::PARTIAL_CONTENT)
-				.body(empty_body())?)
+				Ok(object_headers(&info, checksum_mode)?
+					.header(CONTENT_LENGTH, format!("{}", part_end - part_offset))
+					.header(
+						CONTENT_RANGE,
+						format!(
+							"bytes {}-{}/{}",
+							part_offset,
+							part_end - 1,
+							info.version_meta.size
+						),
+					)
+					.header(X_AMZ_MP_PARTS_COUNT, format!("{}", version.n_parts()?))
+					.status(StatusCode::PARTIAL_CONTENT)
+					.body(empty_body())?)
 			}
 			_ => unreachable!(),
 		}
 	} else {
-		Ok(object_headers(
-			object_version,
-			version_meta,
-			&headers,
-			encryption,
-			checksum_mode,
-		)?
-		.header(CONTENT_LENGTH, format!("{}", version_meta.size))
-		.status(StatusCode::OK)
-		.body(empty_body())?)
+		Ok(object_headers(&info, checksum_mode)?
+			.header(CONTENT_LENGTH, format!("{}", info.version_meta.size))
+			.status(StatusCode::OK)
+			.body(empty_body())?)
 	}
 }
 
@@ -345,52 +343,25 @@ pub async fn handle_get_without_ctx(
 		.await?
 		.ok_or(Error::NoSuchKey)?;
 
-	let last_v = object
-		.versions()
-		.iter()
-		.rev()
-		.find(|v| v.is_complete())
-		.ok_or(Error::NoSuchKey)?;
+	let info = ObjectInfo::extract(&garage, &object, req.headers())?;
 
-	let last_v_data = match &last_v.state {
-		ObjectVersionState::Complete(x) => x,
-		_ => unreachable!(),
-	};
-	let last_v_meta = match last_v_data {
-		ObjectVersionData::DeleteMarker => return Err(Error::NoSuchKey),
-		ObjectVersionData::Inline(meta, _) => meta,
-		ObjectVersionData::FirstBlock(meta, _) => meta,
-	};
-
-	let (enc, headers) = EncryptionParams::check_decrypt(
-		&garage,
-		req.headers(),
-		&last_v_meta.encryption,
-		OekDerivationInfo::for_object(&object, last_v),
-	)?;
-
-	if let Some(res) = handle_http_precondition(last_v, last_v_meta, &headers, enc, req)? {
+	if let Some(res) = handle_http_precondition(&info, req)? {
 		return Ok(res);
 	}
 
 	let checksum_mode = checksum_mode(req);
 
-	let handle_get_info = HandleGetInfo {
-		garage,
-		version: last_v,
-		version_data: last_v_data,
-		version_meta: last_v_meta,
-		encryption: enc,
-		meta_inner: &headers,
-	};
-
-	match (part_number, parse_range_header(req, last_v_meta.size)?) {
+	match (
+		part_number,
+		parse_range_header(req, info.version_meta.size)?,
+	) {
 		(Some(_), Some(_)) => Err(Error::bad_request(
 			"Cannot specify both partNumber and Range header",
 		)),
 		(Some(pn), None) => {
 			handle_get_part(
-				handle_get_info,
+				garage,
+				info,
 				pn,
 				ChecksumMode {
 					// TODO: for multipart uploads, checksums of each part should be stored
@@ -403,7 +374,8 @@ pub async fn handle_get_without_ctx(
 		}
 		(None, Some(range)) => {
 			handle_get_range(
-				handle_get_info,
+				garage,
+				info,
 				range.start,
 				range.start + range.length,
 				ChecksumMode {
@@ -415,7 +387,7 @@ pub async fn handle_get_without_ctx(
 			)
 			.await
 		}
-		(None, None) => handle_get_full(handle_get_info, overrides, checksum_mode).await,
+		(None, None) => handle_get_full(garage, info, overrides, checksum_mode).await,
 	}
 }
 
@@ -434,37 +406,18 @@ pub(crate) fn check_version_not_deleted(version: &Version) -> Result<(), Error> 
 	Ok(())
 }
 
-struct HandleGetInfo<'a> {
-	garage: Arc<Garage>,
-	version: &'a ObjectVersion,
-	version_data: &'a ObjectVersionData,
-	version_meta: &'a ObjectVersionMeta,
-	encryption: EncryptionParams,
-	meta_inner: &'a ObjectVersionMetaInner,
-}
-
 async fn handle_get_full(
-	info: HandleGetInfo<'_>,
+	garage: Arc<Garage>,
+	info: ObjectInfo<'_>,
 	overrides: GetObjectOverrides,
 	checksum_mode: ChecksumMode,
 ) -> Result<Response<ResBody>, Error> {
-	let mut resp_builder = object_headers(
-		info.version,
-		info.version_meta,
-		info.meta_inner,
-		info.encryption,
-		checksum_mode,
-	)?
-	.header(CONTENT_LENGTH, format!("{}", info.version_meta.size))
-	.status(StatusCode::OK);
+	let mut resp_builder = object_headers(&info, checksum_mode)?
+		.header(CONTENT_LENGTH, format!("{}", info.version_meta.size))
+		.status(StatusCode::OK);
 	getobject_override_headers(overrides, &mut resp_builder)?;
 
-	let stream = full_object_byte_stream(
-		info.garage,
-		info.version,
-		info.version_data,
-		info.encryption,
-	);
+	let stream = full_object_byte_stream(garage, info.version, info.version_data, info.encryption);
 
 	Ok(resp_builder.body(response_body_from_stream(stream))?)
 }
@@ -544,7 +497,8 @@ pub fn full_object_byte_stream(
 }
 
 async fn handle_get_range(
-	info: HandleGetInfo<'_>,
+	garage: Arc<Garage>,
+	info: ObjectInfo<'_>,
 	begin: u64,
 	end: u64,
 	checksum_mode: ChecksumMode,
@@ -552,19 +506,13 @@ async fn handle_get_range(
 	// Here we do not use getobject_override_headers because we don't
 	// want to add any overridden headers (those should not be added
 	// when returning PARTIAL_CONTENT)
-	let resp_builder = object_headers(
-		info.version,
-		info.version_meta,
-		info.meta_inner,
-		info.encryption,
-		checksum_mode,
-	)?
-	.header(CONTENT_LENGTH, format!("{}", end - begin))
-	.header(
-		CONTENT_RANGE,
-		format!("bytes {}-{}/{}", begin, end - 1, info.version_meta.size),
-	)
-	.status(StatusCode::PARTIAL_CONTENT);
+	let resp_builder = object_headers(&info, checksum_mode)?
+		.header(CONTENT_LENGTH, format!("{}", end - begin))
+		.header(
+			CONTENT_RANGE,
+			format!("bytes {}-{}/{}", begin, end - 1, info.version_meta.size),
+		)
+		.status(StatusCode::PARTIAL_CONTENT);
 
 	match &info.version_data {
 		ObjectVersionData::DeleteMarker => unreachable!(),
@@ -580,39 +528,27 @@ async fn handle_get_range(
 			}
 		}
 		ObjectVersionData::FirstBlock(_meta, _first_block_hash) => {
-			let version = info
-				.garage
+			let version = garage
 				.version_table
 				.get(&info.version.uuid, &EmptyKey)
 				.await?
 				.ok_or(Error::NoSuchKey)?;
 			check_version_not_deleted(&version)?;
-			let body = body_from_blocks_range(
-				info.garage,
-				info.encryption,
-				version.blocks.items(),
-				begin,
-				end,
-			);
+			let body =
+				body_from_blocks_range(garage, info.encryption, version.blocks.items(), begin, end);
 			Ok(resp_builder.body(body)?)
 		}
 	}
 }
 
 async fn handle_get_part(
-	info: HandleGetInfo<'_>,
+	garage: Arc<Garage>,
+	info: ObjectInfo<'_>,
 	part_number: u64,
 	checksum_mode: ChecksumMode,
 ) -> Result<Response<ResBody>, Error> {
 	// Same as for get_range, no getobject_override_headers
-	let resp_builder = object_headers(
-		info.version,
-		info.version_meta,
-		info.meta_inner,
-		info.encryption,
-		checksum_mode,
-	)?
-	.status(StatusCode::PARTIAL_CONTENT);
+	let resp_builder = object_headers(&info, checksum_mode)?.status(StatusCode::PARTIAL_CONTENT);
 
 	match info.version_data {
 		ObjectVersionData::Inline(_, bytes) => {
@@ -631,8 +567,7 @@ async fn handle_get_part(
 				.body(bytes_body(bytes.into_owned().into()))?)
 		}
 		ObjectVersionData::FirstBlock(_, _) => {
-			let version = info
-				.garage
+			let version = garage
 				.version_table
 				.get(&info.version.uuid, &EmptyKey)
 				.await?
@@ -643,13 +578,8 @@ async fn handle_get_part(
 			let (begin, end) =
 				calculate_part_bounds(&version, part_number).ok_or(Error::InvalidPart)?;
 
-			let body = body_from_blocks_range(
-				info.garage,
-				info.encryption,
-				version.blocks.items(),
-				begin,
-				end,
-			);
+			let body =
+				body_from_blocks_range(garage, info.encryption, version.blocks.items(), begin, end);
 
 			Ok(resp_builder
 				.header(CONTENT_LENGTH, format!("{}", end - begin))

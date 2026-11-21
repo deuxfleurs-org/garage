@@ -67,6 +67,10 @@ pub enum CommonError {
 	/// Tried to create bucket that is already owned by you
 	#[error("Bucket already owned by you")]
 	BucketAlreadyOwnedByYou,
+
+	/// Tag is invalid
+	#[error("Invalid tag: {0}")]
+	InvalidTag(String),
 }
 
 #[macro_export]
@@ -114,9 +118,9 @@ impl CommonError {
 			CommonError::BucketNotEmpty
 			| CommonError::BucketAlreadyExists
 			| CommonError::BucketAlreadyOwnedByYou => StatusCode::CONFLICT,
-			CommonError::InvalidBucketName(_) | CommonError::InvalidHeader(_) => {
-				StatusCode::BAD_REQUEST
-			}
+			CommonError::InvalidTag(_)
+			| CommonError::InvalidBucketName(_)
+			| CommonError::InvalidHeader(_) => StatusCode::BAD_REQUEST,
 		}
 	}
 
@@ -137,6 +141,7 @@ impl CommonError {
 			CommonError::InvalidHeader(_) => "InvalidHeaderValue",
 			CommonError::BucketAlreadyOwnedByYou => "BucketAlreadyOwnedByYou",
 			CommonError::NotImplemented(_) => "NotImplemented",
+			CommonError::InvalidTag(_) => "InvalidTag",
 		}
 	}
 

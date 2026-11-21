@@ -7,6 +7,7 @@ use futures::try_join;
 
 use tokio::sync::mpsc;
 
+use http::header::HeaderName;
 use hyper::body::Bytes;
 use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Request, Response};
@@ -19,6 +20,7 @@ use opentelemetry::{
 use garage_net::bytes_buf::BytesBuf;
 use garage_rpc::rpc_helper::OrderTag;
 use garage_table::*;
+use garage_util::crdt;
 use garage_util::data::*;
 use garage_util::error::Error as GarageError;
 use garage_util::time::*;
@@ -38,6 +40,16 @@ use crate::api_server::{ReqBody, ResBody};
 use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
+
+pub const X_AMZ_TAGGING: HeaderName = HeaderName::from_static("x-amz-tagging");
+
+pub(crate) struct PutObjectInfo<'a> {
+	pub(crate) key: &'a String,
+	pub(crate) version_uuid: Uuid,
+	pub(crate) meta: ObjectVersionMetaInner,
+	pub(crate) tags: Option<TagMap>,
+	pub(crate) encryption: EncryptionParams,
+}
 
 pub(crate) struct SaveStreamResult {
 	pub(crate) version_uuid: Uuid,
@@ -66,6 +78,7 @@ pub async fn handle_put(
 
 	// Retrieve interesting headers from request
 	let headers = extract_metadata_headers(req.headers())?;
+	let tags = extract_object_tagging(req.headers());
 	debug!("Object headers: {:?}", headers);
 
 	let expected_checksums = ExpectedChecksums {
@@ -95,6 +108,14 @@ pub async fn handle_put(
 		},
 	)?;
 
+	let info = PutObjectInfo {
+		key,
+		version_uuid,
+		meta,
+		tags,
+		encryption,
+	};
+
 	// The request body is a special ReqBody object (see garage_api_common::signature::body)
 	// which supports calculating checksums while streaming the data.
 	// Before we start streaming, we configure it to calculate all the checksums we need.
@@ -111,11 +132,8 @@ pub async fn handle_put(
 
 	let res = save_stream(
 		&ctx,
-		version_uuid,
-		meta,
-		encryption,
+		info,
 		stream,
-		key,
 		ChecksumMode::VerifyFrom {
 			checksummer,
 			trailer_algo: trailer_checksum_algorithm,
@@ -139,16 +157,20 @@ pub async fn handle_put(
 
 pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	ctx: &ReqCtx,
-	version_uuid: Uuid,
-	mut meta: ObjectVersionMetaInner,
-	encryption: EncryptionParams,
+	info: PutObjectInfo<'_>,
 	body: S,
-	key: &String,
 	checksum_mode: ChecksumMode,
 ) -> Result<SaveStreamResult, Error> {
 	let ReqCtx {
 		garage, bucket_id, ..
 	} = ctx;
+	let PutObjectInfo {
+		key,
+		version_uuid,
+		mut meta,
+		tags,
+		encryption,
+	} = info;
 
 	let mut chunker = StreamChunker::new(body, garage.config.block_size);
 	let (first_block_opt, existing_object) = try_join!(
@@ -209,14 +231,17 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		let object_version = ObjectVersion {
 			uuid: version_uuid,
 			timestamp: version_timestamp,
-			state: ObjectVersionState::Complete(ObjectVersionData::Inline(
-				ObjectVersionMeta {
-					encryption: encryption.encrypt_meta(meta)?,
-					size,
-					etag: etag.clone(),
-				},
-				inline_data,
-			)),
+			state: ObjectVersionState::Complete {
+				data: ObjectVersionData::Inline(
+					ObjectVersionMeta {
+						encryption: encryption.encrypt_meta(meta)?,
+						size,
+						etag: etag.clone(),
+					},
+					inline_data,
+				),
+				tags: crdt::Lww::new(tags.into()),
+			},
 		};
 
 		let object = Object::new(*bucket_id, key.into(), vec![object_version]);
@@ -247,8 +272,9 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 		timestamp: version_timestamp,
 		state: ObjectVersionState::Uploading {
 			encryption: encryption.encrypt_meta(meta.clone())?,
-			checksum_algorithm: None, // don't care; overwritten later
 			multipart: false,
+			checksum_algorithm: None, // don't care; overwritten later
+			tags: None,               // same
 		},
 	};
 	let object = Object::new(*bucket_id, key.into(), vec![object_version.clone()]);
@@ -307,14 +333,17 @@ pub(crate) async fn save_stream<S: Stream<Item = Result<Bytes, Error>> + Unpin>(
 	// Save final object state, marked as Complete
 	let etag = encryption.etag_from_md5(&checksums.md5);
 
-	object_version.state = ObjectVersionState::Complete(ObjectVersionData::FirstBlock(
-		ObjectVersionMeta {
-			encryption: encryption.encrypt_meta(meta)?,
-			size: total_size,
-			etag: etag.clone(),
-		},
-		first_block_hash,
-	));
+	object_version.state = ObjectVersionState::Complete {
+		data: ObjectVersionData::FirstBlock(
+			ObjectVersionMeta {
+				encryption: encryption.encrypt_meta(meta)?,
+				size: total_size,
+				etag: etag.clone(),
+			},
+			first_block_hash,
+		),
+		tags: crdt::Lww::new(tags.into()),
+	};
 	let object = Object::new(*bucket_id, key.into(), vec![object_version]);
 	garage.object_table.insert(&object).await?;
 
@@ -715,6 +744,14 @@ pub(crate) fn extract_metadata_headers(
 	}
 
 	Ok(ret)
+}
+
+pub(crate) fn extract_object_tagging(headers: &HeaderMap<HeaderValue>) -> Option<TagMap> {
+	headers.get(X_AMZ_TAGGING).map(|tagging| {
+		url::form_urlencoded::parse(tagging.as_bytes())
+			.into_owned()
+			.collect::<TagMap>()
+	})
 }
 
 pub(crate) fn next_timestamp(existing_object: Option<&Object>) -> u64 {
