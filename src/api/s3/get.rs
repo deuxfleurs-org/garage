@@ -35,6 +35,7 @@ use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 
 const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
+const X_AMZ_TAGGING_COUNT: HeaderName = HeaderName::from_static("x-amz-tagging-count");
 
 #[derive(Default)]
 pub struct GetObjectOverrides {
@@ -50,6 +51,7 @@ struct ObjectInfo<'a> {
 	version: &'a ObjectVersion,
 	version_data: &'a ObjectVersionData,
 	version_meta: &'a ObjectVersionMeta,
+	tags: Option<&'a TagMap>,
 	meta_inner: std::borrow::Cow<'a, ObjectVersionMetaInner>,
 	encryption: EncryptionParams,
 }
@@ -67,8 +69,8 @@ impl<'a> ObjectInfo<'a> {
 			.find(|v| v.is_data())
 			.ok_or(Error::NoSuchKey)?;
 
-		let version_data = match &version.state {
-			ObjectVersionState::Complete { data, .. } => data,
+		let (version_data, tags) = match &version.state {
+			ObjectVersionState::Complete { data, tags } => (data, tags),
 			_ => unreachable!(),
 		};
 
@@ -89,6 +91,7 @@ impl<'a> ObjectInfo<'a> {
 			version,
 			version_data,
 			version_meta,
+			tags: tags.get().inner(),
 			encryption,
 			meta_inner,
 		})
@@ -110,6 +113,10 @@ fn object_headers(
 
 	if !info.version_meta.etag.is_empty() {
 		resp = resp.header(ETAG, format!("\"{}\"", info.version_meta.etag));
+	}
+
+	if let Some(tags) = info.tags {
+		resp = resp.header(X_AMZ_TAGGING_COUNT, tags.len().to_string());
 	}
 
 	// When metadata is retrieved through the REST API, Amazon S3 combines headers that
