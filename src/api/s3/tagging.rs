@@ -3,7 +3,7 @@ use quick_xml::de::from_reader;
 use hyper::{Request, Response, StatusCode};
 
 use garage_model::bucket_table::Bucket;
-use garage_model::s3::object_table::{Object, ObjectVersionState};
+use garage_model::s3::object_table::{Object, ObjectVersionState, TagMap};
 
 use garage_api_common::helpers::*;
 use garage_api_common::xml::tagging::*;
@@ -17,18 +17,19 @@ const OBJECT_MAX_TAGS: usize = 10;
 
 pub async fn handle_get_bucket_tagging(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
 	let ReqCtx { bucket_params, .. } = ctx;
-	if let Some(tagging) = bucket_params.tags.get().inner() {
-		let tagging = Tagging::from_map(tagging);
-		let xml = to_xml_with_header(&tagging)?;
-		Ok(Response::builder()
-			.status(StatusCode::OK)
-			.header(http::header::CONTENT_TYPE, "application/xml")
-			.body(string_body(xml))?)
-	} else {
-		Ok(Response::builder()
-			.status(StatusCode::NO_CONTENT)
-			.body(empty_body())?)
-	}
+
+	let tagging = bucket_params
+		.tags
+		.get()
+		.inner()
+		.ok_or(Error::NoSuchTagSet)?;
+
+	let tagging = Tagging::from_map(tagging);
+	let xml = to_xml_with_header(&tagging)?;
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.header(http::header::CONTENT_TYPE, "application/xml")
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_delete_bucket_tagging(ctx: ReqCtx) -> Result<Response<ResBody>, Error> {
@@ -105,18 +106,17 @@ pub async fn handle_get_object_tagging(
 		_ => unreachable!(),
 	};
 
-	if let Some(tagging) = version_tags.get().inner() {
-		let tagging = Tagging::from_map(tagging);
-		let xml = to_xml_with_header(&tagging)?;
-		Ok(Response::builder()
-			.status(StatusCode::OK)
-			.header(http::header::CONTENT_TYPE, "application/xml")
-			.body(string_body(xml))?)
+	let tagging = if let Some(tagging) = version_tags.get().inner() {
+		Tagging::from_map(tagging)
 	} else {
-		Ok(Response::builder()
-			.status(StatusCode::NO_CONTENT)
-			.body(empty_body())?)
-	}
+		Tagging::from_map(&TagMap::new())
+	};
+
+	let xml = to_xml_with_header(&tagging)?;
+	Ok(Response::builder()
+		.status(StatusCode::OK)
+		.header(http::header::CONTENT_TYPE, "application/xml")
+		.body(string_body(xml))?)
 }
 
 pub async fn handle_delete_object_tagging(

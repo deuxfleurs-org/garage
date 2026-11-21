@@ -51,9 +51,13 @@ pub enum Error {
 	#[error("The CORS configuration does not exist")]
 	NoSuchCORSConfiguration,
 
-	/// CORS configuration doesn't exist for this bucket
+	/// Lifecycle configuration doesn't exist for this bucket
 	#[error("The lifecycle configuration does not exist")]
 	NoSuchLifecycleConfiguration,
+
+	/// No tags on this bucket
+	#[error("No tags on this bucket")]
+	NoSuchTagSet,
 
 	/// Precondition failed (e.g. x-amz-copy-source-if-match)
 	#[error("At least one of the preconditions you specified did not hold")]
@@ -169,6 +173,7 @@ impl Error {
 			Error::InvalidEncryptionAlgorithm(_) => "InvalidEncryptionAlgorithmError",
 			Error::NoSuchCORSConfiguration => "NoSuchCORSConfiguration",
 			Error::NoSuchLifecycleConfiguration => "NoSuchLifecycleConfiguration",
+			Error::NoSuchTagSet => "NoSuchTagSet",
 			Error::BadDigest(_) => "BadDigest",
 		}
 	}
@@ -182,7 +187,8 @@ impl ApiError for Error {
 			Error::NoSuchKey
 			| Error::NoSuchUpload
 			| Error::NoSuchCORSConfiguration
-			| Error::NoSuchLifecycleConfiguration => StatusCode::NOT_FOUND,
+			| Error::NoSuchLifecycleConfiguration
+			| Error::NoSuchTagSet => StatusCode::NOT_FOUND,
 			Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
 			Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
 			Error::InvalidXmlSe(_) => StatusCode::INTERNAL_SERVER_ERROR,
