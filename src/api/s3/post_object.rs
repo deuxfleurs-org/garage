@@ -26,7 +26,9 @@ use crate::api_server::ResBody;
 use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::generate_public_object_url;
-use crate::put::{extract_metadata_headers, save_stream, ChecksumMode};
+use crate::put::{
+	extract_metadata_headers, extract_object_tagging, save_stream, ChecksumMode, PutObjectInfo,
+};
 use crate::xml as s3_xml;
 
 pub async fn handle_post_object(
@@ -236,6 +238,7 @@ pub async fn handle_post_object(
 	// if we ever start supporting ACLs, we likely want to map "acl" to x-amz-acl" somewhere
 	// around here to make sure the rest of the machinery takes our acl into account.
 	let headers = extract_metadata_headers(&params)?;
+	let tags = extract_object_tagging(&params);
 
 	let checksum_algorithm = request_checksum_algorithm(&params)?;
 	let expected_checksums = ExpectedChecksums {
@@ -279,11 +282,14 @@ pub async fn handle_post_object(
 
 	let res = save_stream(
 		&ctx,
-		version_uuid,
-		meta,
-		encryption,
+		PutObjectInfo {
+			key: &key,
+			version_uuid,
+			meta,
+			tags,
+			encryption,
+		},
 		StreamLimiter::new(stream, conditions.content_length),
-		&key,
 		ChecksumMode::Verify(expected_checksums),
 	)
 	.await?;

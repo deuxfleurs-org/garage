@@ -34,8 +34,8 @@ use crate::copy::*;
 use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 
-const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
-const X_AMZ_TAGGING_COUNT: HeaderName = HeaderName::from_static("x-amz-tagging-count");
+pub const X_AMZ_MP_PARTS_COUNT: HeaderName = HeaderName::from_static("x-amz-mp-parts-count");
+pub const X_AMZ_TAGGING_COUNT: HeaderName = HeaderName::from_static("x-amz-tagging-count");
 
 #[derive(Default)]
 pub struct GetObjectOverrides {
