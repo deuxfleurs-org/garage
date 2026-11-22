@@ -42,11 +42,10 @@ steps:
   - name: publish
     image: nixpkgs/nix:nixos-24.05
     environment:
-      HELM_OCI_REPO: oci://registry-1.docker.io/dxflrs
-      REGISTRY_USERNAME:
-        from_secret: helm_registry_username
-      REGISTRY_PASSWORD:
-        from_secret: helm_registry_password
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
     commands:
       - nix-shell --attr ci --run "./script/helm-chart.sh publish"
     when:
