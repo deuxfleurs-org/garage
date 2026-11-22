@@ -9,7 +9,7 @@ use log::*;
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, watch};
-//use tokio::time::{sleep_until, Duration, Instant};
+use tokio::time::{sleep_until, Duration, Instant};
 
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
@@ -68,8 +68,7 @@ impl ServerConn {
 		mut socket: TcpStream,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		// TODO: deadline
-		// let deadline = Instant::now() + Duration::from_secs(60);
+		let deadline = Instant::now() + Duration::from_secs(60);
 
 		let remote_addr = socket.peer_addr()?;
 
@@ -81,27 +80,35 @@ impl ServerConn {
 		let mut buf = new_buffer();
 		let mut buf2 = new_buffer();
 
-		// Handshake step 1: client to server
-		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-		noise.read_message(&buf[..len], &mut buf2[..])?;
+		let mut hs_proc = async || {
+			// Handshake step 1: client to server
+			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+			noise.read_message(&buf[..len], &mut buf2[..])?;
 
-		// Handshake step 2: server to client
-		let len = noise.write_message(&[], &mut buf[..])?;
-		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+			// Handshake step 2: server to client
+			let len = noise.write_message(&[], &mut buf[..])?;
+			write_chunk(pin!(&mut socket), &buf[..len]).await?;
 
-		// Handshake step 3: client to server
-		// During this step, the client attaches a version tag to the message
-		// Check that we are running the same version as them.
-		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-		let len2 = noise.read_message(&buf[..len], &mut buf2[..])?;
+			// Handshake step 3: client to server
+			// During this step, the client attaches a version tag to the message
+			// Check that we are running the same version as them.
+			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+			let len2 = noise.read_message(&buf[..len], &mut buf2[..])?;
 
-		if buf2[..len2] != netapp.version_tag[..] {
-			return Err(Error::VersionMismatch(format!(
-				"local: {}, remote: {}",
-				hex::encode(netapp.version_tag),
-				hex::encode(&buf2[..len2])
-			)));
-		}
+			if buf2[..len2] != netapp.version_tag[..] {
+				return Err(Error::VersionMismatch(format!(
+					"local: {}, remote: {}",
+					hex::encode(netapp.version_tag),
+					hex::encode(&buf2[..len2])
+				)));
+			}
+
+			Ok::<_, Error>(())
+		};
+		tokio::select! {
+			res = hs_proc() => res?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
 
 		// Handshake is done
 		let noise = noise.into_transport_mode()?;
@@ -114,10 +121,9 @@ impl ServerConn {
 			remote_addr
 		);
 
-		// Create BoxStream layer that encodes content
+		// Build and launch stuff that handles requests server-side
 		let (read, write) = socket.into_split();
 
-		// Build and launch stuff that handles requests server-side
 		let (resp_send, resp_recv) = mpsc::unbounded_channel();
 
 		let conn = Arc::new(ServerConn {

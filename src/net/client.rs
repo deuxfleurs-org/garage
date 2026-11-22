@@ -13,7 +13,7 @@ use futures::Stream;
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, oneshot, watch};
-//use tokio::time::{sleep_until, Duration, Instant};
+use tokio::time::{sleep_until, Duration, Instant};
 
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
@@ -50,8 +50,7 @@ impl ClientConn {
 		mut socket: TcpStream,
 		peer_id: NodeID,
 	) -> Result<(), Error> {
-		// TODO
-		//let deadline = Instant::now() + Duration::from_secs(60);
+		let deadline = Instant::now() + Duration::from_secs(60);
 
 		let remote_addr = socket.peer_addr()?;
 
@@ -65,18 +64,26 @@ impl ClientConn {
 		let mut buf2 = new_buffer();
 
 		// Handshake step 1: client to server
-		let len = noise.write_message(&[], &mut buf[..])?;
-		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+		let mut hs_proc = async || {
+			let len = noise.write_message(&[], &mut buf[..])?;
+			write_chunk(pin!(&mut socket), &buf[..len]).await?;
 
-		// Handshake step 2: server to client
-		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-		noise.read_message(&buf[..len], &mut buf2[..])?;
+			// Handshake step 2: server to client
+			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+			noise.read_message(&buf[..len], &mut buf2[..])?;
 
-		// Handshake step 3: client to server
-		// During this step, we attache a version tag to the message
-		// that the server verifies
-		let len = noise.write_message(&netapp.version_tag[..], &mut buf[..])?;
-		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+			// Handshake step 3: client to server
+			// During this step, we attache a version tag to the message
+			// that the server verifies
+			let len = noise.write_message(&netapp.version_tag[..], &mut buf[..])?;
+			write_chunk(pin!(&mut socket), &buf[..len]).await?;
+
+			Ok::<_, Error>(())
+		};
+		tokio::select! {
+			res = hs_proc() => res?,
+			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
+		};
 
 		// Handshake is done
 		let noise = noise.into_transport_mode()?;
@@ -87,10 +94,9 @@ impl ClientConn {
 			remote_addr
 		);
 
-		// Create BoxStream layer that encodes content
+		// Build and launch stuff that manages sending requests client-side
 		let (read, write) = socket.into_split();
 
-		// Build and launch stuff that manages sending requests client-side
 		let (query_send, query_recv) = mpsc::unbounded_channel();
 
 		let (stop_recv_loop, stop_recv_loop_recv) = watch::channel(false);
