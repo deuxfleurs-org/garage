@@ -1,5 +1,5 @@
 variables:
-  - &chart_paths
+  - &chart_paths # list of paths that triggers a chart release
     - "script/helm/**"
     - "script/helm-chart.sh"
     - ".woodpecker/helm.yaml"
@@ -15,10 +15,12 @@ when:
     path: *chart_paths
   - event: manual
     branch: ${CI_REPO_DEFAULT_BRANCH}
+  # chart tests also run on releases and nightly builds, as they did in debug.yaml
+  - event: [tag, deployment, cron]
 
 steps:
   - name: lint and unit tests
-    image: helmunittest/helm-unittest:4.2.3-1.1.2
+    image: helmunittest/helm-unittest:4.3.0-1.2.1
     commands:
       - helm lint --strict script/helm/garage
       - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/daemonset.yaml
