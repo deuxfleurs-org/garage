@@ -29,7 +29,10 @@ use crate::encryption::{EncryptionParams, OekDerivationInfo};
 use crate::error::*;
 use crate::get::{check_version_not_deleted, full_object_byte_stream, PreconditionHeaders};
 use crate::multipart;
-use crate::put::{extract_metadata_headers, save_stream, ChecksumMode, SaveStreamResult};
+use crate::put::{
+	check_quotas, extract_metadata_headers, next_timestamp, save_stream, ChecksumMode,
+	SaveStreamResult,
+};
 use crate::website::X_AMZ_WEBSITE_REDIRECT_LOCATION;
 use crate::xml::{self as s3_xml, xmlns_tag};
 
@@ -47,7 +50,7 @@ pub const X_AMZ_COPY_SOURCE_IF_UNMODIFIED_SINCE: HeaderName =
 pub async fn handle_copy(
 	ctx: ReqCtx,
 	req: &Request<ReqBody>,
-	dest_key: &str,
+	dest_key: &String,
 ) -> Result<Response<ResBody>, Error> {
 	let copy_precondition = PreconditionHeaders::parse_copy_source(req)?;
 
@@ -270,7 +273,7 @@ pub async fn handle_copy(
 }
 
 struct DestInfo<'a> {
-	key: &'a str,
+	key: &'a String,
 	uuid: Uuid,
 	object_meta: ObjectVersionMetaInner,
 	encryption: EncryptionParams,
@@ -284,13 +287,17 @@ async fn handle_copy_metaonly(
 	source_version_meta: &ObjectVersionMeta,
 ) -> Result<SaveStreamResult, Error> {
 	let ReqCtx {
-		garage,
+		ref garage,
 		bucket_id: dest_bucket_id,
 		..
 	} = ctx;
 
-	// Generate parameters for copied object
-	let new_timestamp = now_msec();
+	// Compute new timestamp, taking into account any existing object in the bucket
+	let existing_object = garage
+		.object_table
+		.get(&dest_bucket_id, dest_info.key)
+		.await?;
+	let new_timestamp = next_timestamp(existing_object.as_ref());
 
 	let new_meta = ObjectVersionMeta {
 		encryption: dest_info.encryption.encrypt_meta(dest_info.object_meta)?,
@@ -303,6 +310,9 @@ async fn handle_copy_metaonly(
 		version_timestamp: new_timestamp,
 		etag: new_meta.etag.clone(),
 	};
+
+	// Check quotas taking into account new object copy
+	check_quotas(&ctx, source_version_meta.size, existing_object.as_ref()).await?;
 
 	// Save object copy
 	match source_version_data {
