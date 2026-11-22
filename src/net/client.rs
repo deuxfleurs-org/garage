@@ -9,6 +9,8 @@ use arc_swap::ArcSwapOption;
 use bytes::Bytes;
 use log::{debug, error, trace};
 
+use ed25519_compact::x25519;
+
 use futures::Stream;
 use tokio::net::TcpStream;
 use tokio::select;
@@ -54,29 +56,35 @@ impl ClientConn {
 
 		let remote_addr = socket.peer_addr()?;
 
+		let local_sk = x25519::SecretKey::from_ed25519(&netapp.privkey)?;
+		let remote_pk = x25519::PublicKey::from_ed25519(&peer_id)?;
+
 		// Initiate crypto
 		let mut noise = snow::Builder::new(NOISE_PROTOCOL_PATTERN.parse().unwrap())
-			.local_private_key(&netapp.privkey.0[..32])?
-			.remote_public_key(&peer_id.0[..])?
+			.local_private_key(&*local_sk)?
+			.remote_public_key(&*remote_pk)?
 			.psk(0, &netapp.netid.0)?
 			.build_initiator()?;
-		let mut buf = new_buffer();
-		let mut buf2 = new_buffer();
 
-		// Handshake step 1: client to server
+		let mut buf_plain = new_buffer();
+		let mut buf_enc = new_buffer();
+
 		let mut hs_proc = async || {
-			let len = noise.write_message(&[], &mut buf[..])?;
-			write_chunk(pin!(&mut socket), &buf[..len]).await?;
+			// Handshake step 1: client to server
+			let len_enc = noise.write_message(&[], &mut buf_enc[..])?;
+			write_chunk(pin!(&mut socket), &buf_enc[..len_enc]).await?;
 
 			// Handshake step 2: server to client
-			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-			noise.read_message(&buf[..len], &mut buf2[..])?;
+			let len_enc = read_chunk(pin!(&mut socket), &mut buf_enc).await?;
+			noise.read_message(&buf_enc[..len_enc], &mut buf_plain[..])?;
 
 			// Handshake step 3: client to server
-			// During this step, we attache a version tag to the message
-			// that the server verifies
-			let len = noise.write_message(&netapp.version_tag[..], &mut buf[..])?;
-			write_chunk(pin!(&mut socket), &buf[..len]).await?;
+			// Attach version tag and public ed25519 key,
+			// the server will check both
+			buf_plain[..32].copy_from_slice(&*netapp.id);
+			buf_plain[32..48].copy_from_slice(&netapp.version_tag[..]);
+			let len_enc = noise.write_message(&buf_plain[..48], &mut buf_enc[..])?;
+			write_chunk(pin!(&mut socket), &buf_enc[..len_enc]).await?;
 
 			Ok::<_, Error>(())
 		};
@@ -90,7 +98,7 @@ impl ClientConn {
 
 		debug!(
 			"Handshake complete (client) with {}@{}",
-			peer_id.hex(),
+			hex::encode(*peer_id),
 			remote_addr
 		);
 

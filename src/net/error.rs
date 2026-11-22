@@ -25,6 +25,9 @@ pub enum Error {
 	#[error("UTF8 error: {0}")]
 	UTF8(#[from] std::string::FromUtf8Error),
 
+	#[error("Ed25519 error: {0}")]
+	Ed25519(#[from] ed25519_compact::Error),
+
 	#[error("Framing protocol error")]
 	Framing,
 

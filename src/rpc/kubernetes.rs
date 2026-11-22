@@ -10,7 +10,7 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomRe
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use garage_net::NodeID;
+use garage_net::{util::checked_length, NodeID};
 
 use garage_util::config::KubernetesDiscoveryConfig;
 
@@ -70,7 +70,8 @@ pub async fn get_kubernetes_nodes(
 			.metadata
 			.name
 			.and_then(|k| hex::decode(&k).ok())
-			.and_then(|k| NodeID::from_slice(&k[..]));
+			.and_then(|k| checked_length(&k))
+			.map(NodeID::new);
 
 		if let Some(pubkey) = pubkey {
 			ret.push((*pubkey, SocketAddr::new(node.spec.address, node.spec.port)));
@@ -86,7 +87,7 @@ pub async fn publish_kubernetes_node(
 	hostname: &str,
 	rpc_public_addr: SocketAddr,
 ) -> Result<(), kube::Error> {
-	let node_pubkey = hex::encode(node_id);
+	let node_pubkey = hex::encode(*node_id);
 
 	let mut node = GarageNode::new(
 		&node_pubkey,

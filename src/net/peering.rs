@@ -15,6 +15,7 @@ use tokio::sync::watch;
 
 use crate::endpoint::*;
 use crate::error::*;
+use crate::key::nodeid_serde;
 use crate::netapp::*;
 
 use crate::message::*;
@@ -54,7 +55,14 @@ impl Message for PingMessage {
 
 #[derive(Serialize, Deserialize)]
 struct PeerListMessage {
-	pub list: Vec<(NodeID, SocketAddr)>,
+	pub list: Vec<PeerListItem>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PeerListItem {
+	#[serde(with = "nodeid_serde")]
+	id: NodeID,
+	addr: SocketAddr,
 }
 
 impl Message for PeerListMessage {
@@ -204,7 +212,7 @@ impl KnownHosts {
 			.filter(|(_, peer)| peer.state.is_up())
 			.map(|(id, _)| *id)
 			.collect::<Vec<_>>();
-		list.sort();
+		list.sort_by_key(|x| **x);
 
 		let mut hash_state = Blake2b256::new();
 		for id in list {
@@ -212,11 +220,11 @@ impl KnownHosts {
 		}
 		self.hash = hash_state.finalize().into();
 	}
-	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
+	fn connected_peers_vec(&self) -> Vec<PeerListItem> {
 		self.list
 			.iter()
 			.filter_map(|(id, peer)| match peer.state {
-				PeerConnState::Connected { addr } => Some((*id, addr)),
+				PeerConnState::Connected { addr } => Some(PeerListItem { id: *id, addr }),
 				_ => None,
 			})
 			.collect::<Vec<_>>()
@@ -494,11 +502,12 @@ impl PeeringManager {
 		}
 	}
 
-	fn handle_peer_list(&self, list: &[(NodeID, SocketAddr)]) {
+	fn handle_peer_list(&self, list: &[PeerListItem]) {
 		let mut known_hosts = self.known_hosts.write().unwrap();
 
 		let mut changed = false;
-		for (id, addr) in list.iter() {
+		for item in list.iter() {
+			let PeerListItem { id, addr } = item;
 			if let Some(kh) = known_hosts.list.get_mut(id) {
 				if kh.add_addr(*addr) {
 					changed = true;

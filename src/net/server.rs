@@ -11,6 +11,8 @@ use tokio::select;
 use tokio::sync::{mpsc, watch};
 use tokio::time::{sleep_until, Duration, Instant};
 
+use ed25519_compact::x25519;
+
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
 	trace::{
@@ -72,40 +74,54 @@ impl ServerConn {
 
 		let remote_addr = socket.peer_addr()?;
 
+		let local_sk = x25519::SecretKey::from_ed25519(&netapp.privkey)?;
+
 		// Initiate crypto
 		let mut noise = snow::Builder::new(NOISE_PROTOCOL_PATTERN.parse().unwrap())
-			.local_private_key(&netapp.privkey.0[..32])?
+			.local_private_key(&*local_sk)?
 			.psk(0, &netapp.netid.0)?
 			.build_responder()?;
-		let mut buf = new_buffer();
-		let mut buf2 = new_buffer();
+
+		let mut buf_plain = new_buffer();
+		let mut buf_enc = new_buffer();
 
 		let mut hs_proc = async || {
 			// Handshake step 1: client to server
-			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-			noise.read_message(&buf[..len], &mut buf2[..])?;
+			let len_enc = read_chunk(pin!(&mut socket), &mut buf_enc).await?;
+			noise.read_message(&buf_enc[..len_enc], &mut buf_plain[..])?;
 
 			// Handshake step 2: server to client
-			let len = noise.write_message(&[], &mut buf[..])?;
-			write_chunk(pin!(&mut socket), &buf[..len]).await?;
+			let len_enc = noise.write_message(&[], &mut buf_enc[..])?;
+			write_chunk(pin!(&mut socket), &buf_enc[..len_enc]).await?;
 
 			// Handshake step 3: client to server
 			// During this step, the client attaches a version tag to the message
 			// Check that we are running the same version as them.
-			let len = read_chunk(pin!(&mut socket), &mut buf).await?;
-			let len2 = noise.read_message(&buf[..len], &mut buf2[..])?;
+			let len_enc = read_chunk(pin!(&mut socket), &mut buf_enc).await?;
+			let len_plain = noise.read_message(&buf_enc[..len_enc], &mut buf_plain[..])?;
 
-			if buf2[..len2] != netapp.version_tag[..] {
+			if len_plain != 48 {
+				return Err(Error::Framing);
+			}
+
+			let node_id = NodeID::new(checked_length(&buf_plain[..32]).unwrap());
+			let node_id_x = x25519::PublicKey::from_ed25519(&node_id)?;
+			if *node_id_x != *noise.get_remote_static().unwrap() {
+				return Err(Error::Message("key mismatch".to_string()));
+			}
+
+			let version_tag = &buf_plain[32..48];
+			if version_tag != &netapp.version_tag[..] {
 				return Err(Error::VersionMismatch(format!(
 					"local: {}, remote: {}",
 					hex::encode(netapp.version_tag),
-					hex::encode(&buf2[..len2])
+					hex::encode(version_tag)
 				)));
 			}
 
-			Ok::<_, Error>(())
+			Ok::<_, Error>(node_id)
 		};
-		tokio::select! {
+		let peer_id = tokio::select! {
 			res = hs_proc() => res?,
 			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
 		};
@@ -113,11 +129,9 @@ impl ServerConn {
 		// Handshake is done
 		let noise = noise.into_transport_mode()?;
 
-		let peer_id = NodeID(checked_length(noise.get_remote_static().unwrap()).unwrap());
-
 		debug!(
 			"Handshake complete (server) with {}@{}",
-			peer_id.hex(),
+			hex::encode(*peer_id),
 			remote_addr
 		);
 

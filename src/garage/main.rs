@@ -25,7 +25,7 @@ use structopt::StructOpt;
 use utoipa::OpenApi;
 
 use garage_net::util::{checked_length, parse_and_resolve_peer_addr};
-use garage_net::{NetworkKey, NodeSecretKey};
+use garage_net::NetworkKey;
 
 use garage_util::error::*;
 
@@ -328,7 +328,7 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	);
 
 	// Generate a temporary keypair for our RPC client
-	let sk = NodeSecretKey::generate();
+	let sk = garage_net::generate_node_secret_key();
 
 	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk, None);
 

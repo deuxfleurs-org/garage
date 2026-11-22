@@ -6,7 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use garage_net::NodeID;
+use garage_net::{util::checked_length, NodeID};
 
 use garage_util::config::ConsulDiscoveryAPI;
 use garage_util::config::ConsulDiscoveryConfig;
@@ -170,7 +170,8 @@ impl ConsulDiscovery {
 					.meta
 					.get(&format!("{}-pubkey", META_PREFIX))
 					.and_then(|k| hex::decode(k).ok())
-					.and_then(|k| NodeID::from_slice(&k[..]));
+					.and_then(|k| checked_length(&k))
+					.map(NodeID::new);
 				if let (Some(ip), Some(pubkey)) = (ip, pubkey) {
 					ret.push((pubkey, SocketAddr::new(ip, ent.service_port)));
 				} else {
@@ -231,7 +232,7 @@ impl ConsulDiscovery {
 		.concat();
 
 		let mut meta = self.config.meta.clone().unwrap_or_default();
-		meta.insert(format!("{}-pubkey", META_PREFIX), hex::encode(node_id));
+		meta.insert(format!("{}-pubkey", META_PREFIX), hex::encode(*node_id));
 		meta.insert(format!("{}-hostname", META_PREFIX), hostname.to_string());
 
 		let url = format!(

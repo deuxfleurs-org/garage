@@ -151,7 +151,7 @@ impl Cli {
 				node: if all {
 					"*".to_string()
 				} else {
-					self.rpc_host.hex()
+					"self".to_string()
 				},
 				body: LocalGetWorkerVariableRequest { variable: var },
 			})
@@ -183,7 +183,7 @@ impl Cli {
 				node: if all {
 					"*".to_string()
 				} else {
-					self.rpc_host.hex()
+					"self".to_string()
 				},
 				body: LocalSetWorkerVariableRequest { variable, value },
 			})

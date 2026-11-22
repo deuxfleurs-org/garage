@@ -24,6 +24,7 @@ tokio-util.workspace = true
 tokio-stream.workspace = true
 
 serde.workspace = true
+serde_bytes.workspace = true
 rmp-serde.workspace = true
 hex.workspace = true
 
@@ -36,6 +37,7 @@ thiserror.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 
+ed25519-compact.workspace = true
 snow.workspace = true
 
 opentelemetry = { workspace = true, optional = true }

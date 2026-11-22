@@ -16,7 +16,7 @@ use garage_net::endpoint::{Endpoint, EndpointHandler};
 use garage_net::message::*;
 use garage_net::peering::{PeerConnState, PeeringManager};
 use garage_net::util::{checked_length, parse_and_resolve_peer_addr_async};
-use garage_net::{NetApp, NetworkKey, NodeID, NodeSecretKey};
+use garage_net::{generate_node_secret_key, NetApp, NetworkKey, NodeID, NodeSecretKey};
 
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
@@ -200,7 +200,7 @@ pub fn read_node_id(metadata_dir: &Path) -> Result<NodeID, Error> {
 
 	let key = checked_length(&d).ok_or(Error::Message("Corrupt node_key.pub file".to_string()))?;
 
-	Ok(NodeID(key))
+	Ok(NodeID::new(key))
 }
 
 pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeSecretKey, Error> {
@@ -213,7 +213,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeSecretKey, Error> {
 
 		let key = checked_length(&d).ok_or(Error::Message("Corrupt node_key file".to_string()))?;
 
-		Ok(NodeSecretKey(key))
+		Ok(NodeSecretKey::new(key))
 	} else {
 		if !metadata_dir.exists() {
 			info!("Metadata directory does not exist, creating it.");
@@ -221,7 +221,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeSecretKey, Error> {
 		}
 
 		info!("Generating new node key pair.");
-		let key = NodeSecretKey::generate();
+		let key = generate_node_secret_key();
 		let pubkey = key.public_key();
 
 		{
@@ -230,7 +230,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeSecretKey, Error> {
 			let mut perm = f.metadata()?.permissions();
 			perm.set_mode(0o600);
 			std::fs::set_permissions(key_file.as_path(), perm)?;
-			f.write_all(&key.0[..])?;
+			f.write_all(&key[..])?;
 		}
 
 		{
@@ -1040,5 +1040,10 @@ async fn resolve_peers(peers: &[String]) -> Vec<(NodeID, SocketAddr)> {
 }
 
 fn connect_error_message(addr: SocketAddr, pubkey: NodeID, e: garage_net::error::Error) -> String {
-	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}", pubkey.hex(), addr, e)
+	format!(
+        "Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}",
+        hex::encode(*pubkey),
+        addr,
+        e
+    )
 }

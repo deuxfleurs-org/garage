@@ -107,7 +107,7 @@ impl From<garage_net::NodeID> for FixedBytes32 {
 
 impl From<FixedBytes32> for garage_net::NodeID {
 	fn from(bytes: FixedBytes32) -> garage_net::NodeID {
-		garage_net::NodeID(bytes.0)
+		garage_net::NodeID::new(bytes.0)
 	}
 }
 

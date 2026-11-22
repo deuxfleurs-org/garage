@@ -33,9 +33,9 @@ async fn run_test(port_base: u16) {
 async fn run_test_inner(port_base: u16) {
 	let netid = NetworkKey([1u8; 32]);
 
-	let sk1 = NodeSecretKey::generate();
-	let sk2 = NodeSecretKey::generate();
-	let sk3 = NodeSecretKey::generate();
+	let sk1 = generate_node_secret_key();
+	let sk2 = generate_node_secret_key();
+	let sk3 = generate_node_secret_key();
 	let pk1 = sk1.public_key();
 	let pk2 = sk2.public_key();
 	let pk3 = sk3.public_key();

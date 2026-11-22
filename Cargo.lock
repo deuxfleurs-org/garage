@@ -1066,6 +1066,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ct-codecs"
+version = "1.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fd9f3db6f2cfef61c10613071955154ffdc9e515daebff26de4b54e35038fdd"
+
+[[package]]
 name = "ctr"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1263,6 +1269,16 @@ name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
+
+[[package]]
+name = "ed25519-compact"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9547879431a90e352a35863a54416d92898a787b9af09e6ae2e09a96bd78be80"
+dependencies = [
+ "ct-codecs",
+ "getrandom 0.4.3",
+]
 
 [[package]]
 name = "educe"
@@ -1857,6 +1873,7 @@ dependencies = [
  "blake2 0.11.0",
  "bytes",
  "cfg-if",
+ "ed25519-compact",
  "futures",
  "hex",
  "log",
@@ -1867,6 +1884,7 @@ dependencies = [
  "rand 0.9.5",
  "rmp-serde",
  "serde",
+ "serde_bytes",
  "snow",
  "socket2 0.6.5",
  "thiserror 2.0.21",
@@ -2038,8 +2056,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 6.0.0",
+ "wasm-bindgen",
 ]
 
 [[package]]

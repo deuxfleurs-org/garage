@@ -81,6 +81,7 @@ timeago = { version = "0.5", default-features = false }
 xxhash-rust = { version = "0.8", default-features = false, features = ["xxh3"] }
 
 aes-gcm = { version = "0.10", features = ["aes", "stream"] }
+ed25519-compact = "2.6"
 snow = { version = "0.10", default-features = false, features = ["default-resolver", "use-curve25519", "use-chacha20poly1305", "use-blake2", "use-getrandom"] }
 
 clap = { version = "4.5", features = ["derive", "env"] }
