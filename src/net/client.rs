@@ -39,6 +39,8 @@ pub(crate) struct ClientConn {
 	pub(crate) remote_addr: SocketAddr,
 	pub(crate) peer_id: NodeID,
 
+	// FIXME: split read/write halves to avoid using a mutex
+	// (not currently supported by the snow crate)
 	noise: Mutex<snow::TransportState>,
 	query_send: ArcSwapOption<mpsc::UnboundedSender<SendItem>>,
 

@@ -16,6 +16,8 @@ use crate::message::*;
 use crate::recv::Crypto;
 use crate::stream::*;
 
+const REKEY_EVERY: usize = 16;
+
 pub(crate) enum SendItem {
 	Stream(RequestID, RequestPriority, Option<OrderTag>, ByteStream),
 	Cancel(RequestID),
@@ -224,11 +226,15 @@ impl DataFrame {
 		}
 	}
 
-	fn serialize(&self, id: RequestID, buf: &mut ChunkBuffer) -> usize {
+	fn serialize(&self, id: RequestID, buf: &mut ChunkBuffer, rekey: bool) -> usize {
 		let mut writer = &mut buf[..];
 
 		let flags = writer.split_off_first_mut().unwrap();
-		*flags = self.flags;
+		*flags = if rekey {
+			self.flags | FLAG_REKEY
+		} else {
+			self.flags
+		};
 
 		let buf_id = writer.split_off_mut(..4).unwrap();
 		buf_id.copy_from_slice(&RequestID::to_be_bytes(id));
@@ -262,6 +268,9 @@ pub(crate) trait SendLoop: Sync + Crypto {
 
 		let mut sending = SendQueue::new();
 		let mut msg_recv = Some(msg_recv);
+
+		let mut rekey_counter = REKEY_EVERY;
+
 		while msg_recv.is_some() || !sending.is_empty() {
 			trace!(
 				"send_loop({}): queue = {:?}",
@@ -320,7 +329,15 @@ pub(crate) trait SendLoop: Sync + Crypto {
 					}
 				}
 				(id, data) = send_fut => {
-					let len_plain = data.serialize(id, &mut plain_buf);
+					let rekey = if rekey_counter == 0 {
+						rekey_counter = REKEY_EVERY;
+						true
+					} else {
+						rekey_counter -= 1;
+						false
+					};
+
+					let len_plain = data.serialize(id, &mut plain_buf, rekey);
 
 					trace!(
 						"send_loop({}): id {}, {} bytes",
@@ -331,12 +348,14 @@ pub(crate) trait SendLoop: Sync + Crypto {
 
 					let len_wire = {
 						let mut noise = self.noise();
-						noise.write_message(&plain_buf[..len_plain], &mut wire_buf[..])?
+						let len = noise.write_message(&plain_buf[..len_plain], &mut wire_buf[..])?;
+						if rekey {
+							noise.rekey_outgoing();
+						}
+						len
 					};
 
 					write_chunk(pin!(&mut write), &wire_buf[..len_wire]).await?;
-
-					// TODO: rekey cipher occasionnaly
 				}
 			}
 		}

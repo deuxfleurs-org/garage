@@ -58,6 +58,9 @@ pub(crate) struct ServerConn {
 	pub(crate) peer_id: NodeID,
 
 	netapp: Arc<NetApp>,
+
+	// FIXME: split read/write halves to avoid using a mutex
+	// (not currently supported by the snow crate)
 	noise: Mutex<snow::TransportState>,
 
 	resp_send: ArcSwapOption<mpsc::UnboundedSender<SendItem>>,
