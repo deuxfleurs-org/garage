@@ -16,6 +16,7 @@ default = []
 telemetry = ["opentelemetry", "opentelemetry-contrib"]
 
 [dependencies]
+blake2.workspace = true
 futures.workspace = true
 pin-project.workspace = true
 tokio.workspace = true
@@ -35,8 +36,7 @@ thiserror.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 
-sodiumoxide.workspace = true
-kuska-handshake.workspace = true
+snow.workspace = true
 
 opentelemetry = { workspace = true, optional = true }
 opentelemetry-contrib = { workspace = true, optional = true }

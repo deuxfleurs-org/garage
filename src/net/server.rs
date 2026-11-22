@@ -1,17 +1,15 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::pin::pin;
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwapOption;
 use log::*;
 
-use futures::io::{AsyncReadExt, AsyncWriteExt};
-use kuska_handshake::async_std::{handshake_server, BoxStream};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, watch};
-use tokio::time::{sleep_until, Duration, Instant};
-use tokio_util::compat::*;
+//use tokio::time::{sleep_until, Duration, Instant};
 
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
@@ -26,7 +24,9 @@ use opentelemetry_contrib::trace::propagator::binary::*;
 #[cfg(feature = "telemetry")]
 use rand::{thread_rng, Rng};
 
+use crate::chunk::*;
 use crate::error::*;
+use crate::key::*;
 use crate::message::*;
 use crate::netapp::*;
 use crate::recv::*;
@@ -56,6 +56,7 @@ pub(crate) struct ServerConn {
 	pub(crate) peer_id: NodeID,
 
 	netapp: Arc<NetApp>,
+	noise: Mutex<snow::TransportState>,
 
 	resp_send: ArcSwapOption<mpsc::UnboundedSender<SendItem>>,
 	running_handlers: Mutex<HashMap<RequestID, tokio::task::JoinHandle<()>>>,
@@ -64,50 +65,57 @@ pub(crate) struct ServerConn {
 impl ServerConn {
 	pub(crate) async fn run(
 		netapp: Arc<NetApp>,
-		socket: TcpStream,
+		mut socket: TcpStream,
 		must_exit: watch::Receiver<bool>,
 	) -> Result<(), Error> {
-		let deadline = Instant::now() + Duration::from_secs(60);
+		// TODO: deadline
+		// let deadline = Instant::now() + Duration::from_secs(60);
 
 		let remote_addr = socket.peer_addr()?;
-		let mut socket = socket.compat();
 
-		// Do handshake to authenticate client
-		let hs_fut = handshake_server(
-			&mut socket,
-			netapp.netid.clone(),
-			netapp.id,
-			netapp.privkey.clone(),
-		);
-		let handshake = select! {
-			hs = hs_fut => hs?,
-			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
-		};
+		// Initiate crypto
+		let mut noise = snow::Builder::new(NOISE_PROTOCOL_PATTERN.parse().unwrap())
+			.local_private_key(&netapp.privkey.0[..32])?
+			.psk(0, &netapp.netid.0)?
+			.build_responder()?;
+		let mut buf = new_buffer();
+		let mut buf2 = new_buffer();
 
-		let peer_id = handshake.peer_pk;
+		// Handshake step 1: client to server
+		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+		noise.read_message(&buf[..len], &mut buf2[..])?;
+
+		// Handshake step 2: server to client
+		let len = noise.write_message(&[], &mut buf[..])?;
+		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+
+		// Handshake step 3: client to server
+		// During this step, the client attaches a version tag to the message
+		// Check that we are running the same version as them.
+		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+		let len2 = noise.read_message(&buf[..len], &mut buf2[..])?;
+
+		if buf2[..len2] != netapp.version_tag[..] {
+			return Err(Error::VersionMismatch(format!(
+				"local: {}, remote: {}",
+				hex::encode(netapp.version_tag),
+				hex::encode(&buf2[..len2])
+			)));
+		}
+
+		// Handshake is done
+		let noise = noise.into_transport_mode()?;
+
+		let peer_id = NodeID(checked_length(noise.get_remote_static().unwrap()).unwrap());
 
 		debug!(
 			"Handshake complete (server) with {}@{}",
-			hex::encode(peer_id),
+			peer_id.hex(),
 			remote_addr
 		);
 
 		// Create BoxStream layer that encodes content
-		let (read, write) = socket.split();
-		let (read, mut write) =
-			BoxStream::from_handshake(read, write, handshake, 0x8000).split_read_write();
-
-		// Before doing anything, send version tag, so that client
-		// can check and disconnect if version is wrong
-		let wr_fut = async {
-			write.write_all(&netapp.version_tag[..]).await?;
-			write.flush().await?;
-			Ok::<_, Error>(())
-		};
-		select! {
-			res = wr_fut => res?,
-			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
-		};
+		let (read, write) = socket.into_split();
 
 		// Build and launch stuff that handles requests server-side
 		let (resp_send, resp_recv) = mpsc::unbounded_channel();
@@ -115,6 +123,7 @@ impl ServerConn {
 		let conn = Arc::new(ServerConn {
 			netapp: netapp.clone(),
 			remote_addr,
+			noise: Mutex::new(noise),
 			peer_id,
 			resp_send: ArcSwapOption::new(Some(Arc::new(resp_send))),
 			running_handlers: Mutex::new(HashMap::new()),
@@ -192,6 +201,12 @@ impl ServerConn {
 		} else {
 			Err(Error::NoHandler)
 		}
+	}
+}
+
+impl Crypto for ServerConn {
+	fn noise(self: &Arc<Self>) -> std::sync::MutexGuard<'_, snow::TransportState> {
+		self.noise.lock().unwrap()
 	}
 }
 

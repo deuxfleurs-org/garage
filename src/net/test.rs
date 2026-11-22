@@ -5,9 +5,7 @@ use std::time::Duration;
 use tokio::select;
 use tokio::sync::watch;
 
-use sodiumoxide::crypto::auth;
-use sodiumoxide::crypto::sign::ed25519;
-
+use crate::key::*;
 use crate::netapp::*;
 use crate::peering::*;
 use crate::NodeID;
@@ -33,11 +31,14 @@ async fn run_test(port_base: u16) {
 }
 
 async fn run_test_inner(port_base: u16) {
-	let netid = auth::gen_key();
+	let netid = NetworkKey([1u8; 32]);
 
-	let (pk1, sk1) = ed25519::gen_keypair();
-	let (pk2, sk2) = ed25519::gen_keypair();
-	let (pk3, sk3) = ed25519::gen_keypair();
+	let sk1 = NodeSecretKey::generate();
+	let sk2 = NodeSecretKey::generate();
+	let sk3 = NodeSecretKey::generate();
+	let pk1 = sk1.public_key();
+	let pk2 = sk2.public_key();
+	let pk3 = sk3.public_key();
 
 	let addr1: SocketAddr = SocketAddr::new("127.0.0.1".parse().unwrap(), port_base);
 	let addr2: SocketAddr = SocketAddr::new("127.0.0.1".parse().unwrap(), port_base + 1);
@@ -93,9 +94,9 @@ async fn run_test_inner(port_base: u16) {
 }
 
 fn run_netapp(
-	netid: auth::Key,
+	netid: NetworkKey,
 	_pk: NodeID,
-	sk: ed25519::SecretKey,
+	sk: NodeSecretKey,
 	listen_addr: SocketAddr,
 	bootstrap_peers: Vec<(NodeID, SocketAddr)>,
 	must_exit: watch::Receiver<bool>,

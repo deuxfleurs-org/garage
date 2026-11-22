@@ -24,8 +24,8 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use utoipa::OpenApi;
 
-use garage_net::util::parse_and_resolve_peer_addr;
-use garage_net::NetworkKey;
+use garage_net::util::{checked_length, parse_and_resolve_peer_addr};
+use garage_net::{NetworkKey, NodeSecretKey};
 
 use garage_util::error::*;
 
@@ -143,8 +143,6 @@ fn main() {
 
 	// Initialize logging as well as other libraries used in Garage
 	init_logging(&opt);
-
-	sodiumoxide::init().expect("Unable to init sodiumoxide");
 
 	let res = tokio::runtime::Builder::new_multi_thread()
 		.enable_all()
@@ -321,14 +319,16 @@ async fn cli_command(opt: Opt) -> Result<(), Error> {
 	)?;
 
 	let net_key_hex_str = rpc_secret.ok_or("No RPC secret provided")?;
-	let network_key = NetworkKey::from_slice(
-		&hex::decode(net_key_hex_str.extract_secret())
-			.err_context("Invalid RPC secret key (bad hex)")?[..],
-	)
-	.ok_or("Invalid RPC secret provided (wrong length)")?;
+	let network_key = NetworkKey(
+		checked_length(
+			&hex::decode(net_key_hex_str.extract_secret())
+				.err_context("Invalid RPC secret key (bad hex)")?[..],
+		)
+		.ok_or("Invalid RPC secret provided (wrong length)")?,
+	);
 
 	// Generate a temporary keypair for our RPC client
-	let (_pk, sk) = sodiumoxide::crypto::sign::ed25519::gen_keypair();
+	let sk = NodeSecretKey::generate();
 
 	let netapp = NetApp::new(GARAGE_VERSION_TAG, network_key, sk, None);
 

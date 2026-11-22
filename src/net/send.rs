@@ -1,49 +1,25 @@
 use std::collections::{HashMap, VecDeque};
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use bytes::{BufMut, Bytes, BytesMut};
 use log::*;
 
-use futures::{AsyncWriteExt, Future};
-use kuska_handshake::async_std::BoxStreamWrite;
+use futures::Future;
+use tokio::io::AsyncWrite;
 use tokio::sync::mpsc;
 
+use crate::chunk::*;
 use crate::error::*;
 use crate::message::*;
+use crate::recv::Crypto;
 use crate::stream::*;
-
-// Messages are sent by chunks
-// Chunk format:
-// - u32 BE: request id (same for request and response)
-// - u16 BE: chunk length + flags:
-//		CHUNK_FLAG_HAS_CONTINUATION when this is not the last chunk of the stream
-//		CHUNK_FLAG_ERROR if this chunk denotes an error
-//		(these two flags are exclusive, an error denotes the end of the stream)
-//		**special value** 0xFFFF indicates a CANCEL message
-// - [u8; chunk_length], either
-//   - if not error: chunk data
-//   - if error:
-//       - u8: error kind, encoded using error::io_errorkind_to_u8
-//       - rest: error message
-//   - absent for cancel message
-
-pub(crate) type RequestID = u32;
-pub(crate) type ChunkLength = u16;
-
-pub(crate) const MAX_CHUNK_LENGTH: ChunkLength = 0x3FF0;
-pub(crate) const CHUNK_FLAG_ERROR: ChunkLength = 0x4000;
-pub(crate) const CHUNK_FLAG_HAS_CONTINUATION: ChunkLength = 0x8000;
-pub(crate) const CHUNK_LENGTH_MASK: ChunkLength = 0x3FFF;
-pub(crate) const CANCEL_REQUEST: ChunkLength = 0xFFFF;
 
 pub(crate) enum SendItem {
 	Stream(RequestID, RequestPriority, Option<OrderTag>, ByteStream),
 	Cancel(RequestID),
 }
-
-// ----
 
 struct SendQueue {
 	items: Vec<(u8, SendQueuePriority)>,
@@ -154,7 +130,7 @@ impl SendQueuePriority {
 
 					let is_err = packet.is_err();
 					let data_frame = DataFrame::from_packet(packet, !eos);
-					item.sent += data_frame.data().len();
+					item.sent += data_frame.bytes.len();
 
 					if eos || is_err {
 						// If item had an order tag, remove it from the corresponding ordering list
@@ -214,14 +190,9 @@ impl<'a> futures::Future for SendQueuePollNextReady<'a> {
 	}
 }
 
-enum DataFrame {
-	/// a fixed size buffer containing some data + a boolean indicating whether
-	/// there may be more data coming from this stream. Can be used for some
-	/// optimization. It's an error to set it to false if there is more data, but it is correct
-	/// (albeit sub-optimal) to set it to true if there is nothing coming after
-	Data(Bytes, bool),
-	/// An error code automatically signals the end of the stream
-	Error(Bytes),
+struct DataFrame {
+	flags: u8,
+	bytes: Bytes,
 }
 
 impl DataFrame {
@@ -229,7 +200,10 @@ impl DataFrame {
 		match p {
 			Ok(bytes) => {
 				assert!(bytes.len() <= MAX_CHUNK_LENGTH as usize);
-				Self::Data(bytes, has_cont)
+				Self {
+					bytes,
+					flags: if has_cont { FLAG_HASMORE } else { 0 },
+				}
 			}
 			Err(e) => {
 				let mut buf = BytesMut::new();
@@ -242,25 +216,26 @@ impl DataFrame {
 					buf.put(&msg[..]);
 				}
 
-				Self::Error(buf.freeze())
+				Self {
+					bytes: buf.freeze(),
+					flags: FLAG_ERROR,
+				}
 			}
 		}
 	}
 
-	fn header(&self) -> [u8; 2] {
-		let header_u16 = match self {
-			DataFrame::Data(data, false) => data.len() as u16,
-			DataFrame::Data(data, true) => data.len() as u16 | CHUNK_FLAG_HAS_CONTINUATION,
-			DataFrame::Error(msg) => msg.len() as u16 | CHUNK_FLAG_ERROR,
-		};
-		ChunkLength::to_be_bytes(header_u16)
-	}
+	fn serialize(&self, id: RequestID, buf: &mut ChunkBuffer) -> usize {
+		let mut writer = &mut buf[..];
 
-	fn data(&self) -> &[u8] {
-		match self {
-			DataFrame::Data(ref data, _) => &data[..],
-			DataFrame::Error(ref msg) => &msg[..],
-		}
+		let flags = writer.split_off_first_mut().unwrap();
+		*flags = self.flags;
+
+		let buf_id = writer.split_off_mut(..4).unwrap();
+		buf_id.copy_from_slice(&RequestID::to_be_bytes(id));
+
+		writer[..self.bytes.len()].copy_from_slice(&self.bytes);
+
+		self.bytes.len() + 5
 	}
 }
 
@@ -272,16 +247,19 @@ impl DataFrame {
 ///
 /// The `.send_loop()` exits when the sending end of the channel is closed,
 /// or if there is an error at any time writing to the async writer.
-pub(crate) trait SendLoop: Sync {
+pub(crate) trait SendLoop: Sync + Crypto {
 	async fn send_loop<W>(
 		self: Arc<Self>,
 		msg_recv: mpsc::UnboundedReceiver<SendItem>,
-		mut write: BoxStreamWrite<W>,
+		mut write: W,
 		debug_name: String,
 	) -> Result<(), Error>
 	where
-		W: AsyncWriteExt + Unpin + Send + Sync,
+		W: AsyncWrite + Unpin + Send + Sync,
 	{
+		let mut plain_buf = new_buffer();
+		let mut wire_buf = new_buffer();
+
 		let mut sending = SendQueue::new();
 		let mut msg_recv = Some(msg_recv);
 		while msg_recv.is_some() || !sending.is_empty() {
@@ -323,11 +301,18 @@ pub(crate) trait SendLoop: Sync {
 						}
 						Some(SendItem::Cancel(id)) => {
 							trace!("send_loop({}): cancelling {}", debug_name, id);
+
 							sending.remove(id);
-							let header_id = RequestID::to_be_bytes(id);
-							write.write_all(&header_id[..]).await?;
-							write.write_all(&ChunkLength::to_be_bytes(CANCEL_REQUEST)).await?;
-							write.flush().await?;
+
+							plain_buf[0] = FLAG_CANCEL;
+							plain_buf[1..5].copy_from_slice(&RequestID::to_be_bytes(id));
+
+							let len_wire = {
+								let mut noise = self.noise();
+								noise.write_message(&plain_buf[..5], &mut wire_buf[..])?
+							};
+
+							write_chunk(pin!(&mut write), &wire_buf[..len_wire]).await?;
 						}
 						None => {
 							msg_recv = None;
@@ -335,25 +320,35 @@ pub(crate) trait SendLoop: Sync {
 					}
 				}
 				(id, data) = send_fut => {
+					let len_plain = data.serialize(id, &mut plain_buf);
+
 					trace!(
-						"send_loop({}): id {}, send {} bytes, header_size {}",
+						"send_loop({}): id {}, {} bytes",
 						debug_name,
 						id,
-						data.data().len(),
-						hex::encode(data.header())
+						len_plain,
 					);
 
-					let header_id = RequestID::to_be_bytes(id);
-					write.write_all(&header_id[..]).await?;
+					let len_wire = {
+						let mut noise = self.noise();
+						noise.write_message(&plain_buf[..len_plain], &mut wire_buf[..])?
+					};
 
-					write.write_all(&data.header()).await?;
-					write.write_all(data.data()).await?;
-					write.flush().await?;
+					write_chunk(pin!(&mut write), &wire_buf[..len_wire]).await?;
+
+					// TODO: rekey cipher occasionnaly
 				}
 			}
 		}
 
-		let _ = write.goodbye().await;
+		// Write Bye message to properly close connection
+		let len_wire = {
+			let mut noise = self.noise();
+			noise.write_message(&[FLAG_BYE], &mut wire_buf[..])?
+		};
+
+		let _ = write_chunk(pin!(&mut write), &wire_buf[..len_wire]).await;
+
 		Ok(())
 	}
 }

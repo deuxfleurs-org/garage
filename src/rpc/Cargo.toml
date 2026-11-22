@@ -26,7 +26,6 @@ ipnet.workspace = true
 tracing.workspace = true
 rand.workspace = true
 itertools.workspace = true
-sodiumoxide.workspace = true
 nix.workspace = true
 
 async-trait.workspace = true
@@ -55,7 +54,6 @@ opentelemetry.workspace = true
 [features]
 kubernetes-discovery = ["kube", "k8s-openapi", "schemars"]
 consul-discovery = ["hyper", "hyper-rustls", "hyper-util", "reqwest", "rustls", "thiserror"]
-system-libs = ["sodiumoxide/use-pkg-config"]
 
 [lints]
 workspace = true

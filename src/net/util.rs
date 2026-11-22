@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use tokio::sync::watch;
 
-use crate::netapp::*;
+use crate::key::*;
 
 /// Utility function: encodes any serializable value in `MessagePack` binary format
 /// using the RMP library.
@@ -60,7 +60,7 @@ pub fn watch_ctrl_c() -> watch::Receiver<bool> {
 pub fn parse_peer_addr(peer: &str) -> Option<(NodeID, SocketAddr)> {
 	let delim = peer.find('@')?;
 	let (key, ip) = peer.split_at(delim);
-	let pubkey = NodeID::from_slice(&hex::decode(key).ok()?)?;
+	let pubkey = NodeID(checked_length(&hex::decode(key).ok()?)?);
 	let ip = ip[1..].parse::<SocketAddr>().ok()?;
 	Some((pubkey, ip))
 }
@@ -72,7 +72,7 @@ pub fn parse_and_resolve_peer_addr(peer: &str) -> Option<(NodeID, Vec<SocketAddr
 
 	let delim = peer.find('@')?;
 	let (key, host) = peer.split_at(delim);
-	let pubkey = NodeID::from_slice(&hex::decode(key).ok()?)?;
+	let pubkey = NodeID(checked_length(&hex::decode(key).ok()?)?);
 	let hosts = host[1..].to_socket_addrs().ok()?.collect::<Vec<_>>();
 	if hosts.is_empty() {
 		return None;
@@ -84,7 +84,7 @@ pub fn parse_and_resolve_peer_addr(peer: &str) -> Option<(NodeID, Vec<SocketAddr
 pub async fn parse_and_resolve_peer_addr_async(peer: &str) -> Option<(NodeID, Vec<SocketAddr>)> {
 	let delim = peer.find('@')?;
 	let (key, host) = peer.split_at(delim);
-	let pubkey = NodeID::from_slice(&hex::decode(key).ok()?)?;
+	let pubkey = NodeID(checked_length(&hex::decode(key).ok()?)?);
 	let hosts = tokio::net::lookup_host(&host[1..])
 		.await
 		.ok()?
@@ -93,4 +93,16 @@ pub async fn parse_and_resolve_peer_addr_async(peer: &str) -> Option<(NodeID, Ve
 		return None;
 	}
 	Some((pubkey, hosts))
+}
+
+/// Converts a `[u8]` slice into a constant-length array if length matches.
+/// Returns None when length doesn't match.
+pub fn checked_length<const N: usize>(bytes: &[u8]) -> Option<[u8; N]> {
+	if bytes.len() != N {
+		None
+	} else {
+		let mut ret = [0u8; N];
+		ret.copy_from_slice(bytes);
+		Some(ret)
+	}
 }

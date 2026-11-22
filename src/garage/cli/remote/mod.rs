@@ -94,7 +94,7 @@ impl Cli {
 		<MultiRequest<T> as RequestHandler>::Response: TryFrom<TaggedAdminApiResponse>,
 	{
 		let req = MultiRequest {
-			node: hex::encode(self.rpc_host),
+			node: self.rpc_host.hex(),
 			body: req,
 		};
 		let resp = self.api_request(req).await?;

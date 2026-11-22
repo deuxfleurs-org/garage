@@ -9,15 +9,14 @@ use std::time::{Duration, Instant};
 use arc_swap::ArcSwapOption;
 use futures::join;
 use serde::{Deserialize, Serialize};
-use sodiumoxide::crypto::sign::ed25519;
 use tokio::select;
 use tokio::sync::{watch, Notify};
 
 use garage_net::endpoint::{Endpoint, EndpointHandler};
 use garage_net::message::*;
 use garage_net::peering::{PeerConnState, PeeringManager};
-use garage_net::util::parse_and_resolve_peer_addr_async;
-use garage_net::{NetApp, NetworkKey, NodeID, NodeKey};
+use garage_net::util::{checked_length, parse_and_resolve_peer_addr_async};
+use garage_net::{NetApp, NetworkKey, NodeID, NodeSecretKey};
 
 #[cfg(feature = "kubernetes-discovery")]
 use garage_util::config::KubernetesDiscoveryConfig;
@@ -198,29 +197,23 @@ pub fn read_node_id(metadata_dir: &Path) -> Result<NodeID, Error> {
 	let mut f = std::fs::File::open(pubkey_file.as_path())?;
 	let mut d = vec![];
 	f.read_to_end(&mut d)?;
-	if d.len() != 32 {
-		return Err(Error::Message("Corrupt node_key.pub file".to_string()));
-	}
 
-	let mut key = [0u8; 32];
-	key.copy_from_slice(&d[..]);
-	Ok(NodeID::from_slice(&key[..]).unwrap())
+	let key = checked_length(&d).ok_or(Error::Message("Corrupt node_key.pub file".to_string()))?;
+
+	Ok(NodeID(key))
 }
 
-pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
+pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeSecretKey, Error> {
 	let mut key_file = metadata_dir.to_path_buf();
 	key_file.push("node_key");
 	if key_file.as_path().exists() {
 		let mut f = std::fs::File::open(key_file.as_path())?;
 		let mut d = vec![];
 		f.read_to_end(&mut d)?;
-		if d.len() != 64 {
-			return Err(Error::Message("Corrupt node_key file".to_string()));
-		}
 
-		let mut key = [0u8; 64];
-		key.copy_from_slice(&d[..]);
-		Ok(NodeKey::from_slice(&key[..]).unwrap())
+		let key = checked_length(&d).ok_or(Error::Message("Corrupt node_key file".to_string()))?;
+
+		Ok(NodeSecretKey(key))
 	} else {
 		if !metadata_dir.exists() {
 			info!("Metadata directory does not exist, creating it.");
@@ -228,7 +221,8 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 		}
 
 		info!("Generating new node key pair.");
-		let (pubkey, key) = ed25519::gen_keypair();
+		let key = NodeSecretKey::generate();
+		let pubkey = key.public_key();
 
 		{
 			use std::os::unix::fs::PermissionsExt;
@@ -236,7 +230,7 @@ pub fn gen_node_key(metadata_dir: &Path) -> Result<NodeKey, Error> {
 			let mut perm = f.metadata()?.permissions();
 			perm.set_mode(0o600);
 			std::fs::set_permissions(key_file.as_path(), perm)?;
-			f.write_all(&key[..])?;
+			f.write_all(&key.0[..])?;
 		}
 
 		{
@@ -1045,10 +1039,6 @@ async fn resolve_peers(peers: &[String]) -> Vec<(NodeID, SocketAddr)> {
 	ret
 }
 
-fn connect_error_message(
-	addr: SocketAddr,
-	pubkey: ed25519::PublicKey,
-	e: garage_net::error::Error,
-) -> String {
-	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}", hex::encode(pubkey), addr, e)
+fn connect_error_message(addr: SocketAddr, pubkey: NodeID, e: garage_net::error::Error) -> String {
+	format!("Error establishing RPC connection to remote node: {}@{}.\nThis can happen if the remote node is not reachable on the network, but also if the two nodes are not configured with the same rpc_secret.\n{}", pubkey.hex(), addr, e)
 }

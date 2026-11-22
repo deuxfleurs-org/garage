@@ -46,7 +46,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 async-trait.workspace = true
 sha1.workspace = true
-sodiumoxide.workspace = true
 structopt.workspace = true
 git-version.workspace = true
 utoipa.workspace = true
@@ -122,11 +121,9 @@ journald = ["tracing-journald"]
 
 # Use bundled libsqlite instead of linking against system-provided.
 bundled-libs = ["garage_db/bundled-libs"]
-# Link against system-provided libsodium and libzstd.
+# Link against system-provided libraries
 system-libs = [
 	"garage_block/system-libs",
-	"garage_rpc/system-libs",
-	"sodiumoxide/use-pkg-config",
 ]
 
 [lints]

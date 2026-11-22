@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::sync::atomic::{self, AtomicU32};
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
@@ -9,14 +9,11 @@ use arc_swap::ArcSwapOption;
 use bytes::Bytes;
 use log::{debug, error, trace};
 
-use futures::io::AsyncReadExt;
 use futures::Stream;
-use kuska_handshake::async_std::{handshake_client, BoxStream};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::{mpsc, oneshot, watch};
-use tokio::time::{sleep_until, Duration, Instant};
-use tokio_util::compat::*;
+//use tokio::time::{sleep_until, Duration, Instant};
 
 #[cfg(feature = "telemetry")]
 use opentelemetry::{
@@ -26,7 +23,9 @@ use opentelemetry::{
 #[cfg(feature = "telemetry")]
 use opentelemetry_contrib::trace::propagator::binary::*;
 
+use crate::chunk::*;
 use crate::error::*;
+use crate::key::*;
 use crate::message::*;
 use crate::netapp::*;
 use crate::recv::*;
@@ -38,6 +37,7 @@ pub(crate) struct ClientConn {
 	pub(crate) remote_addr: SocketAddr,
 	pub(crate) peer_id: NodeID,
 
+	noise: Mutex<snow::TransportState>,
 	query_send: ArcSwapOption<mpsc::UnboundedSender<SendItem>>,
 
 	next_query_number: AtomicU32,
@@ -47,55 +47,48 @@ pub(crate) struct ClientConn {
 impl ClientConn {
 	pub(crate) async fn init(
 		netapp: Arc<NetApp>,
-		socket: TcpStream,
+		mut socket: TcpStream,
 		peer_id: NodeID,
 	) -> Result<(), Error> {
-		let deadline = Instant::now() + Duration::from_secs(60);
+		// TODO
+		//let deadline = Instant::now() + Duration::from_secs(60);
 
 		let remote_addr = socket.peer_addr()?;
-		let mut socket = socket.compat();
 
-		// Do handshake to authenticate and prove our identity to server
-		let hs_fut = handshake_client(
-			&mut socket,
-			netapp.netid.clone(),
-			netapp.id,
-			netapp.privkey.clone(),
-			peer_id,
-		);
-		let handshake = select! {
-			hs = hs_fut => hs?,
-			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
-		};
+		// Initiate crypto
+		let mut noise = snow::Builder::new(NOISE_PROTOCOL_PATTERN.parse().unwrap())
+			.local_private_key(&netapp.privkey.0[..32])?
+			.remote_public_key(&peer_id.0[..])?
+			.psk(0, &netapp.netid.0)?
+			.build_initiator()?;
+		let mut buf = new_buffer();
+		let mut buf2 = new_buffer();
+
+		// Handshake step 1: client to server
+		let len = noise.write_message(&[], &mut buf[..])?;
+		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+
+		// Handshake step 2: server to client
+		let len = read_chunk(pin!(&mut socket), &mut buf).await?;
+		noise.read_message(&buf[..len], &mut buf2[..])?;
+
+		// Handshake step 3: client to server
+		// During this step, we attache a version tag to the message
+		// that the server verifies
+		let len = noise.write_message(&netapp.version_tag[..], &mut buf[..])?;
+		write_chunk(pin!(&mut socket), &buf[..len]).await?;
+
+		// Handshake is done
+		let noise = noise.into_transport_mode()?;
 
 		debug!(
 			"Handshake complete (client) with {}@{}",
-			hex::encode(peer_id),
+			peer_id.hex(),
 			remote_addr
 		);
 
 		// Create BoxStream layer that encodes content
-		let (read, write) = socket.split();
-		let (mut read, write) =
-			BoxStream::from_handshake(read, write, handshake, 0x8000).split_read_write();
-
-		// Before doing anything, receive version tag and
-		// check they are running the same version as us
-		let mut their_version_tag = VersionTag::default();
-		select! {
-			res = read.read_exact(&mut their_version_tag[..]) => res?,
-			_ = sleep_until(deadline) => return Err(Error::HandshakeTimeout),
-		};
-
-		if their_version_tag != netapp.version_tag {
-			let msg = format!(
-				"different version tags: {} (theirs) vs. {} (ours)",
-				hex::encode(their_version_tag),
-				hex::encode(netapp.version_tag)
-			);
-			error!("Cannot connect to {}: {}", hex::encode(&peer_id[..8]), msg);
-			return Err(Error::VersionMismatch(msg));
-		}
+		let (read, write) = socket.into_split();
 
 		// Build and launch stuff that manages sending requests client-side
 		let (query_send, query_recv) = mpsc::unbounded_channel();
@@ -105,6 +98,7 @@ impl ClientConn {
 		let conn = Arc::new(ClientConn {
 			remote_addr,
 			peer_id,
+			noise: Mutex::new(noise),
 			next_query_number: AtomicU32::from(RequestID::default()),
 			query_send: ArcSwapOption::new(Some(Arc::new(query_send))),
 			inflight: Mutex::new(HashMap::new()),
@@ -223,6 +217,12 @@ impl ClientConn {
 		let resp_enc = RespEnc::decode(stream).await?;
 		debug!("client: got response to request {} (path {})", id, path);
 		Resp::from_enc(resp_enc)
+	}
+}
+
+impl Crypto for ClientConn {
+	fn noise(self: &Arc<Self>) -> std::sync::MutexGuard<'_, snow::TransportState> {
+		self.noise.lock().unwrap()
 	}
 }
 

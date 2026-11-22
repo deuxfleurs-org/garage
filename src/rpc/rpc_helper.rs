@@ -640,7 +640,7 @@ impl RpcHelper {
 				let peer_zone = layout.get_node_zone(&to).unwrap_or("");
 				let peer_avg_ping = peer_list
 					.iter()
-					.find(|x| x.id.as_ref() == to.as_slice())
+					.find(|x| &x.id[..] == to.as_slice())
 					.and_then(|pi| pi.avg_ping)
 					.unwrap_or_else(|| Duration::from_secs(10));
 				(

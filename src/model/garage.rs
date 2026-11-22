@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use garage_net::NetworkKey;
+use garage_net::{util::checked_length, NetworkKey};
 
 use garage_db as db;
 
@@ -135,12 +135,18 @@ impl Garage {
 			.ok_or_message("Unable to open metadata db")?;
 
 		info!("Initializing RPC...");
-		let network_key = hex::decode(config.rpc_secret.as_ref().ok_or_message(
-			"rpc_secret value is missing, not present in config file or in environment",
-		)?.extract_secret())
-		.ok()
-		.and_then(|x| NetworkKey::from_slice(&x))
-		.ok_or_message("Invalid RPC secret key: expected 32 bytes of random hex, please check the documentation for requirements")?;
+		let network_key_hex = config
+			.rpc_secret
+			.as_ref()
+			.ok_or_message(
+				"rpc_secret value is missing, not present in config file or in environment",
+			)?
+			.extract_secret();
+		let network_key = hex::decode(network_key_hex)
+            .ok()
+            .and_then(|x| checked_length(&x))
+            .map(NetworkKey)
+            .ok_or_message("Invalid RPC secret key: expected 32 bytes of random hex, please check the documentation for requirements")?;
 
 		let (replication_factor, consistency_mode) = parse_replication_mode(&config)?;
 

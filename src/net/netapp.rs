@@ -8,8 +8,6 @@ use log::{debug, error, info, trace, warn};
 use arc_swap::ArcSwapOption;
 
 use serde::{Deserialize, Serialize};
-use sodiumoxide::crypto::auth;
-use sodiumoxide::crypto::sign::ed25519;
 
 use futures::stream::futures_unordered::FuturesUnordered;
 use futures::stream::StreamExt;
@@ -21,15 +19,12 @@ use tokio::time::{sleep_until, Instant};
 use crate::client::*;
 use crate::endpoint::*;
 use crate::error::*;
+use crate::key::*;
 use crate::message::*;
 use crate::server::*;
 
-/// A node's identifier, which is also its public cryptographic key
-pub type NodeID = sodiumoxide::crypto::sign::ed25519::PublicKey;
-/// A node's secret key
-pub type NodeKey = sodiumoxide::crypto::sign::ed25519::SecretKey;
-/// A network key
-pub type NetworkKey = sodiumoxide::crypto::auth::Key;
+/// The Noise protocol pattern used by `garage_net`
+pub const NOISE_PROTOCOL_PATTERN: &str = "Noise_XKpsk0_25519_ChaChaPoly_BLAKE2b";
 
 /// Tag which is exchanged between client and server upon connection establishment
 /// to check that they are running compatible versions of Netapp,
@@ -39,7 +34,7 @@ pub(crate) type VersionTag = [u8; 16];
 /// Value of `garage_net` version used in the version tag
 /// We are no longer using prefix `netapp` as `garage_net` is forked from the netapp crate.
 /// Since Garage v1.0, we have replaced the prefix by `grgnet` (shorthand for `garage_net`).
-pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6772676e65740010; // grgnet 0x0010 (1.0)
+pub(crate) const NETAPP_VERSION_TAG: u64 = 0x6772676e65740030; // grgnet 0x0030 (3.0)
 
 /// Time a connection must be idle before the first keepalive probe is sent.
 const TCP_KEEPALIVE_TIME: Duration = Duration::from_secs(30);
@@ -96,11 +91,11 @@ pub struct NetApp {
 	/// Version tag, 8 bytes for netapp version, 8 bytes for app version
 	pub version_tag: VersionTag,
 	/// Network secret key
-	pub netid: auth::Key,
+	pub netid: NetworkKey,
 	/// Our peer ID
 	pub id: NodeID,
 	/// Private key associated with our peer ID
-	pub privkey: ed25519::SecretKey,
+	pub privkey: NodeSecretKey,
 
 	pub(crate) server_conns: RwLock<HashMap<NodeID, Arc<ServerConn>>>,
 	pub(crate) client_conns: RwLock<HashMap<NodeID, Arc<ClientConn>>>,
@@ -125,8 +120,8 @@ impl NetApp {
 	/// Our Peer ID is the public key associated to the secret key given here.
 	pub fn new(
 		app_version_tag: u64,
-		netid: auth::Key,
-		privkey: ed25519::SecretKey,
+		netid: NetworkKey,
+		privkey: NodeSecretKey,
 		bind_outgoing_to: Option<IpAddr>,
 	) -> Arc<Self> {
 		let mut version_tag = [0u8; 16];

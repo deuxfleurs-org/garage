@@ -5,14 +5,13 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use arc_swap::ArcSwap;
+use blake2::{Blake2b256, Digest};
 use log::{debug, info, trace, warn};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 use tokio::select;
 use tokio::sync::watch;
-
-use sodiumoxide::crypto::hash;
 
 use crate::endpoint::*;
 use crate::error::*;
@@ -31,6 +30,8 @@ const DEFAULT_PING_TIMEOUT_MILLIS: u64 = 10_000;
 const ADDR_MAX_CONSECUTIVE_FAILURES: usize = 3;
 const KEEP_MAX_ADDRS: usize = 5;
 
+type Hash = [u8; 32];
+
 /// A known address for a peer, with connection status tracking.
 #[derive(Debug, Clone)]
 struct KnownAddr {
@@ -44,7 +45,7 @@ struct KnownAddr {
 #[derive(Serialize, Deserialize)]
 struct PingMessage {
 	pub id: u64,
-	pub peer_list_hash: hash::Digest,
+	pub peer_list_hash: Hash,
 }
 
 impl Message for PingMessage {
@@ -176,7 +177,7 @@ impl PeerConnState {
 
 struct KnownHosts {
 	list: HashMap<NodeID, PeerInfoInternal>,
-	hash: hash::Digest,
+	hash: Hash,
 }
 
 impl KnownHosts {
@@ -184,7 +185,7 @@ impl KnownHosts {
 		let list = HashMap::new();
 		let mut ret = Self {
 			list,
-			hash: hash::Digest::from_slice(&[0u8; 64][..]).unwrap(),
+			hash: [0u8; 32],
 		};
 		ret.update_hash();
 		ret
@@ -204,11 +205,12 @@ impl KnownHosts {
 			.map(|(id, _)| *id)
 			.collect::<Vec<_>>();
 		list.sort();
-		let mut hash_state = hash::State::new();
+
+		let mut hash_state = Blake2b256::new();
 		for id in list {
 			hash_state.update(&id[..]);
 		}
-		self.hash = hash_state.finalize();
+		self.hash = hash_state.finalize().into();
 	}
 	fn connected_peers_vec(&self) -> Vec<(NodeID, SocketAddr)> {
 		self.list

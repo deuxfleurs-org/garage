@@ -16,7 +16,7 @@ impl Cli {
 				node: if all {
 					"*".to_string()
 				} else {
-					hex::encode(self.rpc_host)
+					self.rpc_host.hex()
 				},
 				body: LocalCreateMetadataSnapshotRequest,
 			})
@@ -45,7 +45,7 @@ impl Cli {
 		let query_node = if cmd.all_nodes {
 			"*".to_string()
 		} else {
-			hex::encode(self.rpc_host)
+			self.rpc_host.hex()
 		};
 
 		let res = self
@@ -232,7 +232,7 @@ impl Cli {
 				node: if cmd.all_nodes {
 					"*".to_string()
 				} else {
-					hex::encode(self.rpc_host)
+					self.rpc_host.hex()
 				},
 				body: LocalLaunchRepairOperationRequest { repair_type },
 			})

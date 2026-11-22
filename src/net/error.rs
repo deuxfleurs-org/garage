@@ -19,8 +19,8 @@ pub enum Error {
 	#[error("oneshot receive error: {0}")]
 	OneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
 
-	#[error("Handshake error: {0}")]
-	Handshake(#[from] kuska_handshake::async_std::Error),
+	#[error("Noise protocol error: {0}")]
+	NoiseProtocol(#[from] snow::error::Error),
 
 	#[error("UTF8 error: {0}")]
 	UTF8(#[from] std::string::FromUtf8Error),

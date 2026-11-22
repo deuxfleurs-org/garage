@@ -6,6 +6,7 @@ use arc_swap::ArcSwapOption;
 use futures::future::{BoxFuture, FutureExt};
 
 use crate::error::Error;
+use crate::key::*;
 use crate::message::*;
 use crate::netapp::*;
 

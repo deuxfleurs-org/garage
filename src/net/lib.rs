@@ -15,12 +15,14 @@
 
 pub mod bytes_buf;
 pub mod error;
+pub mod key;
 pub mod stream;
 pub mod util;
 
 pub mod endpoint;
 pub mod message;
 
+mod chunk;
 mod client;
 mod recv;
 mod send;
@@ -29,6 +31,7 @@ mod server;
 pub mod netapp;
 pub mod peering;
 
+pub use crate::key::*;
 pub use crate::netapp::*;
 
 #[cfg(test)]
