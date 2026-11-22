@@ -519,6 +519,21 @@ files will remain available. This however means that chunks from existing files
 will not be deduplicated with chunks from newly uploaded files, meaning you
 might use more storage space that is optimally possible.
 
+Performance notes:
+
+- When using multipart uploads, your multipart upload chunk size should be a
+  multiple of `block_size`, to avoid creating a small block at the end of each
+  part.
+
+- `block_size` applies to the raw object content as sent by the client. This
+  means that when compression/encryption are used, the size of block files on
+  disk might be different.
+
+- In particular, for objects encrypted using SSE-C, Garage adds 16 bytes of
+  overhead for every 4096 bytes of user content after compression. This means
+  that for incompressible data, block files on disk will be about 0.4% bigger
+  than `block_size`.
+
 #### `block_ram_buffer_max` (since `v0.9.4`) {#block_ram_buffer_max}
 
 A limit on the total size of data blocks kept in RAM by S3 API nodes awaiting

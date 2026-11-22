@@ -86,7 +86,14 @@ impl DataBlock {
 		tokio::task::spawn_blocking(move || {
 			if let Some(level) = level {
 				if let Ok(data_compressed) = zstd_encode(&data[..], level) {
-					return DataBlock::compressed(data_compressed.into());
+					if data_compressed.len() < data.len() {
+						return DataBlock::compressed(data_compressed.into());
+					}
+					// Discard the compressed data when it ends up being bigger than the original
+					// (this happens for incompressible content such as encrypted stuff).
+					// This helps avoid the allocation of an extra on-disk filesystem block
+					// when Garage's block_size is a proper multiple of the filesystem block size,
+					// which is often the case.
 				}
 			}
 			DataBlock::plain(data)
