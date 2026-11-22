@@ -32,7 +32,7 @@ check_version_bump() {
   echo "Chart version bumped from $pr_target_branch_chart_version to $pr_chart_version"
 }
 
-# template for the s3 command, ommitting only the verb and arguments
+# template for the s3 command, omitting only the verb and arguments
 aws_s3() {
   AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED \
     aws --endpoint-url https://garage.deuxfleurs.fr --region garage s3 "$@" --only-show-errors
