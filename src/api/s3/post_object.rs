@@ -74,7 +74,10 @@ pub async fn handle_post_object(
 		}
 
 		if let Ok(content) = HeaderValue::from_str(&field.text().await?) {
-			if params.insert(&name, content).is_some() {
+			let prev_param = params
+				.try_insert(&name, content)
+				.ok_or_bad_request("too many form fields")?;
+			if prev_param.is_some() {
 				return Err(Error::bad_request(format!(
 					"Field '{}' provided more than once",
 					name
