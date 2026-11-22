@@ -521,23 +521,18 @@ might use more storage space that is optimally possible.
 
 Performance notes:
 
-- When objects are zstd-compressed and not encrypted using SSE-C, Zstd adds a
-  few bytes of overhead (about 37 bytes per block) on incompressible content.
-  Since v2.6.0, Garage automatically removes 64 bytes from the block size when
-  chunking incoming objects to ensure that files on disk for each block remain
-  smaller than `block_size`. This helps prevent unnecessary allocation of an
-  extra filesystem block just to hold a few bytes.
+- When using multipart uploads, your multipart upload chunk size should be a
+  multiple of `block_size`, to avoid creating a small block at the end of each
+  part.
 
-- The above might not be enough for all filesystems, depending on how they
-  store file data on disk. If this is a concern to you, tune the `block_size`
-  manually. Removing `4K` seems to work for most filesystems (see
-  [#1359](https://git.deuxfleurs.fr/Deuxfleurs/garage/issues/1359)), so you can
-  use e.g. `block_size = "1020KiB"` for 1MB-blocks or `block_size = "10236KiB"`
-  for 10MB-blocks.
+- `block_size` applies to the raw object content as sent by the client. This
+  means that when compression/encryption are used, the size of block files on
+  disk might be different.
 
-- This doesn't apply for objects encrypted using SSE-C: the files on disk will
-  always have a small percentage of overhead compared to the size of the
-  unencrypted data due to the encryption method used.
+- In particular, for objects encrypted using SSE-C, Garage adds 16 bytes of
+  overhead for every 4096 bytes of user content after compression. This means
+  that for incompressible data, block files on disk will be about 0.4% bigger
+  than `block_size`.
 
 #### `block_ram_buffer_max` (since `v0.9.4`) {#block_ram_buffer_max}
 

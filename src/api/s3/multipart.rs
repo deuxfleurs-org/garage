@@ -154,11 +154,7 @@ pub async fn handle_put_part(
 	let (stream, stream_checksums) = req_body.streaming_with_checksums();
 	let stream = stream.map_err(Error::from);
 
-	let mut chunker = StreamChunker::new(
-		stream,
-		garage.config.block_size,
-		garage.config.compression_level.is_some() && !has_encryption_header(&req_head.headers),
-	);
+	let mut chunker = StreamChunker::new(stream, garage.config.block_size);
 
 	// Read first chuck, and at the same time try to get object to see if it exists
 	let ((object, object_version, mut mpu), first_block) =
