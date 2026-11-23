@@ -123,6 +123,7 @@ let
       nativeBuildInputs = [
         pkgsNative.protobuf
         pkgs.stdenv.cc
+        pkgs.cacert
       ] ++ lib.optionals (target == null) [
         pkgs.clang
         pkgs.mold
@@ -200,27 +201,21 @@ in rec {
     buildPhaseCargoCommand = "";
   });
 
-  garage-test-bin = craneLib.cargoBuild (commonArgs // {
-    cargoArtifacts = garage-test-deps;
-
-    pname = "garage-tests";
-
-    CARGO_PROFILE = "test";
-    cargoExtraArgs = "${commonArgs.cargoExtraArgs} --tests --workspace";
-  });
+  # this doesn't work because build is restarted when environment changes
+  # garage-test-bin = craneLib.mkCargoDerivation (commonArgs // {
+  #   cargoArtifacts = garage-test-deps;
+  #   buildPhaseCargoCommand = "cargo test --profile ${commonArgs.CARGO_PROFILE} ${commonArgs.cargoExtraArgs} ${commonArgs.cargoTestExtraArgs} --no-run";
+  # });
 
   garage-test = craneLib.cargoTest (commonArgs // {
-    cargoArtifacts = garage-test-bin;
-    nativeBuildInputs = commonArgs.nativeBuildInputs ++ [
-      pkgs.cacert
-    ];
+    cargoArtifacts = garage-test-deps;
     doInstallCargoArtifacts = false;
   } // extraTestEnv);
 
   # ---- source code linting ----
 
   garage-cargo-fmt = craneLib.cargoFmt (commonArgs // {
-    cargoExtraArgs = "";
+    cargoExtraArgs = "";    # was set in commonargs, must be removed
   });
 
   garage-cargo-clippy-deps = craneLib.buildDepsOnly (commonArgs // {
