@@ -2,9 +2,11 @@ labels:
   nix: "enabled"
 
 when:
-  event:
-  - deployment
-  - cron
+  - event: deployment
+  # the helm chart is released by its own cron, see helm.yaml
+  - event: cron
+    cron:
+      exclude: [helm-chart]
 
 depends_on:
   - release

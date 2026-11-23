@@ -2,10 +2,11 @@
 #
 # This is a script used by the CI.
 # It packages the helm chart and publish it to a helm repository hosted on S3
-# at https://garagehq.deuxfleurs.fr/_helm
+# at https://garagehq.deuxfleurs.fr/_helm, and mirrors it as an OCI artifact on the Forgejo registry
+# (helm install garage oci://git.deuxfleurs.fr/deuxfleurs/charts/garage)
 #
 #   check-version-bump  fails when the chart version was not incremented.
-#   publish             package the chart, upload it and refresh the repository index.yaml
+#   publish             package the chart, upload it, refresh the repository index.yaml and mirror it to OCI
 
 set -euo pipefail
 shopt -s inherit_errexit
@@ -13,6 +14,8 @@ shopt -s inherit_errexit
 chart_dir=script/helm/garage
 helm_repo_s3_uri=s3://garagehq.deuxfleurs.fr/_helm
 helm_repo_url=https://garagehq.deuxfleurs.fr/_helm
+helm_oci_registry=git.deuxfleurs.fr
+helm_oci_repo=oci://$helm_oci_registry/deuxfleurs/charts
 
 # extract a field's value from Chart.yaml, reading the file on stdin, trims the value quotes if any
 chart_field() {
@@ -39,26 +42,37 @@ aws_s3() {
 }
 
 publish() {
-  local name version workdir tgz
+  local name version repo new tgz file
+  : "${OCI_USERNAME:?}" "${OCI_PASSWORD:?}" # fail if those are not defined so we don't have partial publish
   name=$(chart_field name <"$chart_dir/Chart.yaml")
   version=$(chart_field version <"$chart_dir/Chart.yaml")
-  tgz=$name-$version.tgz
-  workdir=$(mktemp -d)
+  tgz=$name-$version.tgz # name of the target file eg. garage-0.10.4.tgz
+  repo=$(mktemp -d) # local copy of the published repository
+  new=$(mktemp -d)  # the version to publish
+  aws_s3 sync "$helm_repo_s3_uri" "$repo" # we sync the existing repo
 
-  # The index is always rebuilt from the tarballs, by syncing the entire folder locally
-  # if this becomes an issue due to volume, we can think of an incremental approach
-  aws_s3 sync "$helm_repo_s3_uri" "$workdir"
-  if [ -e "$workdir/$tgz" ]; then
-    echo "$tgz is already published, not overwriting it"
+  # if the file we built is already listed in the index,
+  # abort so we don't erase the release timestamp
+  if grep -qF "/$tgz" "$repo/index.yaml" 2>/dev/null; then
+    echo "$tgz is already published, not publishing it again"
+    file=$repo/$tgz
   else
-    helm package "$chart_dir" --destination "$workdir"
-    # upload chart before index, so we never references a missing file
-    aws_s3 cp "$workdir/$tgz" "$helm_repo_s3_uri/"
+    # otherwise publish it
+    helm package "$chart_dir" --destination "$new"
+    # no index to merge on the first publish
+    local merge=()
+    [ ! -e "$repo/index.yaml" ] || merge=(--merge "$repo/index.yaml")
+    helm repo index "$new" --url "$helm_repo_url" "${merge[@]}"
+    # upload chart before index, so the index never references a missing file
+    aws_s3 cp "$new/$tgz" "$helm_repo_s3_uri/"
+    aws_s3 cp "$new/index.yaml" "$helm_repo_s3_uri/"
     echo "Published $tgz to $helm_repo_url"
+    file=$new/$tgz
   fi
-  helm repo index "$workdir" --url "$helm_repo_url"
-  aws_s3 cp "$workdir/index.yaml" "$helm_repo_s3_uri/"
-  echo "Refreshed $helm_repo_url/index.yaml"
+
+  # Push the OCI copy to forgejo
+  helm registry login "$helm_oci_registry" --username "$OCI_USERNAME" --password-stdin <<<"$OCI_PASSWORD"
+  helm push "$file" "$helm_oci_repo"
 }
 
 case ${1:-} in

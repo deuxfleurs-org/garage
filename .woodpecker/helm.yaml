@@ -1,5 +1,5 @@
 variables:
-  - &chart_paths # list of paths that triggers a chart release
+  - &chart_paths # list of paths that trigger the chart checks
     - "script/helm/**"
     - "script/helm-chart.sh"
     - ".woodpecker/helm.yaml"
@@ -34,7 +34,7 @@ steps:
   - name: check version bump
     image: nixpkgs/nix:nixos-24.05
     commands:
-      - ./script/helm-chart.sh check-version-bump
+      - nix-shell --attr ci --run "./script/helm-chart.sh check-version-bump"
     when:
       - event: pull_request
         path:
@@ -48,7 +48,17 @@ steps:
         from_secret: garagehq_aws_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: garagehq_aws_secret_access_key
+      OCI_USERNAME:
+        from_secret: helm_oci_username
+      OCI_PASSWORD:
+        from_secret: helm_oci_password
     commands:
       - nix-shell --attr ci --run "./script/helm-chart.sh publish"
+    # Runs on the dedicated "helm-chart" cron
+    # excluded from release.yaml and publish.yaml so it doesn't trigger a Garage release
     when:
-      - event: [push, manual]
+      - event: cron
+        cron: helm-chart
+        branch: ${CI_REPO_DEFAULT_BRANCH}
+      - event: manual
+        branch: ${CI_REPO_DEFAULT_BRANCH}

@@ -6,8 +6,11 @@ when:
     - tag
     - pull_request
     - deployment
-    - cron
     - manual
+  # the helm chart is released by its own cron, see helm.yaml
+  - event: cron
+    cron:
+      exclude: [helm-chart]
   - event: push
     branch: main-*
 
