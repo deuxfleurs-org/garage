@@ -24,8 +24,11 @@ chart_field() {
 
 check_version_bump() {
   local pr_target_branch_name=${CI_COMMIT_TARGET_BRANCH:?} pr_target_branch_chart_version pr_chart_version
-  git fetch --quiet --depth=1 origin "$pr_target_branch_name"
-  pr_target_branch_chart_version=$(git show "FETCH_HEAD:$chart_dir/Chart.yaml" | chart_field version)
+  # due to an issue with the version of git missing HTTP support in nix, we use curl here
+  # to fetch the Chart.yml of the target branch of the PR (eg. main-v2)
+  pr_target_branch_chart_version=$(curl --fail --silent --show-error --location \
+    "${CI_REPO_URL:?}/raw/branch/$pr_target_branch_name/$chart_dir/Chart.yaml" | chart_field version)
+  : "${pr_target_branch_chart_version:?no chart version found on $pr_target_branch_name}" # abort if the version is missing
   pr_chart_version=$(chart_field version <"$chart_dir/Chart.yaml")
   # TODO: sort will not work with prerelease tags eg 0.11.0-rc.1, relax check if needed:
   if ! printf '%s\n' "$pr_target_branch_chart_version" "$pr_chart_version" | sort --version-sort --unique --check=quiet; then
