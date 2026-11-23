@@ -252,6 +252,10 @@ tolerations: []
 
 affinity: {}
 
+# -- Topology spread constraints for the pods, e.g. to place each node in a separate zone.
+# See https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/
+topologySpreadConstraints: []
+
 # -- Optional priority class name to assign to the pods.
 # See [the k8s pod-priority doc](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/)
 priorityClassName: ""
