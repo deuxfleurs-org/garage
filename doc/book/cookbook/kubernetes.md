@@ -7,26 +7,39 @@ Garage can also be deployed on a kubernetes cluster via helm chart.
 
 ## Deploying
 
-Firstly clone the repository:
+Add the Garage helm repository:
 
 ```bash
-git clone https://git.deuxfleurs.fr/Deuxfleurs/garage.git
-cd garage/script/helm
+helm repo add garage https://garagehq.deuxfleurs.fr/_helm
 ```
 
 Deploy with default options:
 
 ```bash
-helm install --create-namespace --namespace garage garage ./garage
+helm install --create-namespace --namespace garage garage garage/garage
 ```
 
 Or deploy with custom values:
 
 ```bash
-helm install --create-namespace --namespace garage garage ./garage -f values.override.yaml
+helm install --create-namespace --namespace garage garage garage/garage -f values.override.yaml
 ```
 
-If you want to manage the CustomResourceDefinition used by garage for its `kubernetes_discovery` outside of the helm chart, add `garage.kubernetesSkipCrd: true` to your custom values and use the kustomization before deploying the helm chart:
+The chart is also published as an OCI artifact, which can be installed without adding a repository:
+
+```bash
+helm install --create-namespace --namespace garage garage oci://git.deuxfleurs.fr/deuxfleurs/charts/garage
+```
+
+To deploy from a local checkout of the repository instead (for example to test chart changes), use the chart in `script/helm/garage`:
+
+```bash
+git clone https://git.deuxfleurs.fr/Deuxfleurs/garage.git
+cd garage/script/helm
+helm install --create-namespace --namespace garage garage ./garage
+```
+
+If you want to manage the CustomResourceDefinition used by garage for its `kubernetes_discovery` outside of the helm chart, add `garage.kubernetesSkipCrd: true` to your custom values and use the kustomization from the repository checkout (from the `script/helm` directory) before deploying the helm chart:
 
 ```bash
 kubectl apply -k ../k8s/crd

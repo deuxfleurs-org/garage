@@ -2,9 +2,12 @@ labels:
   nix: "enabled"
 
 when:
-  event:
-  - deployment
-  - cron
+  - event: deployment
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "release"'
+  # the helm chart is released by its own cron, see helm.yaml
+  - event: cron
+    cron:
+      exclude: [helm-chart]
 
 matrix:
   include:

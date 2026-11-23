@@ -5,9 +5,13 @@ when:
   - event:
     - tag
     - pull_request
-    - deployment
-    - cron
     - manual
+  - event: deployment
+    evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "release"'
+  # the helm chart is released by its own cron, see helm.yaml
+  - event: cron
+    cron:
+      exclude: [helm-chart]
   - event: push
     branch: main-*
 
@@ -53,15 +57,3 @@ steps:
       - nix-build -j4 --attr flakePackages.dev
       - nix-shell --attr ci --run ./script/test-smoke.sh || (cat /tmp/garage.log; false)
     depends_on: [ build ]
-
-  - name: helm chart tests
-    image: helmunittest/helm-unittest:4.2.3-1.1.2
-    commands:
-      - helm lint --strict script/helm/garage
-      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/daemonset.yaml
-      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/ingress.yaml
-      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/existing-secret.yaml
-      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/monitoring.yaml
-      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/minimal.yaml
-      - helm lint --strict script/helm/garage -f script/helm/garage/complex-values.yaml
-      - helm unittest --strict script/helm/garage

@@ -1,0 +1,67 @@
+variables:
+  - &chart_paths # list of paths that trigger the chart checks
+    - "script/helm/**"
+    - "script/helm-chart.sh"
+    - ".woodpecker/helm.yaml"
+
+labels:
+  nix: "enabled"
+
+when:
+  - event: pull_request
+    path: *chart_paths
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path: *chart_paths
+  - event: manual
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+  # chart tests also run on releases and nightly builds, as they did in debug.yaml
+  - event: [tag, deployment, cron]
+    branch: main-*
+
+steps:
+  - name: lint and unit tests
+    image: helmunittest/helm-unittest:4.3.0-1.2.1
+    commands:
+      - helm lint --strict script/helm/garage
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/daemonset.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/ingress.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/existing-secret.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/monitoring.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/tests/values/minimal.yaml
+      - helm lint --strict script/helm/garage -f script/helm/garage/complex-values.yaml
+      - helm unittest --strict script/helm/garage
+
+  - name: check version bump
+    image: nixpkgs/nix:nixos-24.05
+    commands:
+      - nix-shell --attr ci --run "./script/helm-chart.sh check-version-bump"
+    when:
+      - event: pull_request
+        path:
+          include: ["script/helm/garage/**"]
+          exclude: ["script/helm/garage/tests/**"]
+
+  - name: publish
+    image: nixpkgs/nix:nixos-24.05
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: garagehq_aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: garagehq_aws_secret_access_key
+      OCI_USERNAME:
+        from_secret: helm_oci_user
+      OCI_PASSWORD:
+        from_secret: helm_oci_password
+    commands:
+      - nix-shell --attr ci --run "./script/helm-chart.sh publish"
+    # Runs on the dedicated "helm-chart" cron
+    # excluded from release.yaml and publish.yaml so it doesn't trigger a Garage release
+    when:
+      - event: cron
+        cron: helm-chart
+        branch: ${CI_REPO_DEFAULT_BRANCH}
+      - event: manual
+        branch: ${CI_REPO_DEFAULT_BRANCH}
+      - event: deployment
+        evaluate: 'CI_PIPELINE_DEPLOY_TARGET == "helm"'

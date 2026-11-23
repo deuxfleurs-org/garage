@@ -21,6 +21,7 @@ in
 
       kaniko
       manifest-tool
+      kubernetes-helm
       awscli2
       file
       s3cmd
