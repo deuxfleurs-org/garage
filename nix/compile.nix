@@ -214,6 +214,7 @@ in rec {
     nativeBuildInputs = commonArgs.nativeBuildInputs ++ [
       pkgs.cacert
     ];
+    doInstallCargoArtifacts = false;
   } // extraTestEnv);
 
   # ---- source code linting ----
@@ -222,8 +223,14 @@ in rec {
     cargoExtraArgs = "";
   });
 
+  garage-cargo-clippy-deps = craneLib.buildDepsOnly (commonArgs // {
+    buildPhaseCargoCommand = "cargo clippy --profile ${commonArgs.CARGO_PROFILE} ${commonArgs.cargoExtraArgs} --all-targets -- -D warnings";
+    doCheck = false;
+  });
+
   garage-cargo-clippy = craneLib.cargoClippy (commonArgs // {
-    cargoArtifacts = garage-deps;
+    cargoArtifacts = garage-cargo-clippy-deps;
     cargoClippyExtraArgs = "--all-targets -- -D warnings";
+    doInstallCargoArtifacts = false;
   });
 }
