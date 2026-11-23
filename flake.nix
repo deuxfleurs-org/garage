@@ -25,34 +25,45 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         webadmin = pkgs.callPackage ./nix/webadmin.nix {};
-        packageFor = target: release: (compile {
-          inherit system target nixpkgs crane rust-overlay release webadmin;
-        }).garage;
-        testWith = extraTestEnv: (compile {
-          inherit system nixpkgs crane rust-overlay extraTestEnv;
-          release = false;
-        }).garage-test;
-        lints = (compile {
-          inherit system nixpkgs crane rust-overlay;
-          release = false;
-        });
+
+        commonArgs = {
+          inherit system nixpkgs crane rust-overlay webadmin;
+        };
+
+        # dev outputs: all outputs produced by compile.nix with target=null, release=false
+        devOutputs = compile commonArgs;
+
+        # package for given target in release mode
+        releasePackageFor = target: (compile (commonArgs // {
+          inherit target;
+          release = true;
+        })).garage;
+
+        # garage tests, release=false, target=null, with extra test environment variables
+        testWith = extraTestEnv: (compile (commonArgs //{
+          inherit extraTestEnv;
+        })).garage-test;
       in
       {
         packages = {
           # default = native release build
-          default = packageFor null true;
+          default = releasePackageFor null;
 
           # webadmin = distfiles for webadmin configured for embedding within Garage binary
           inherit webadmin;
 
           # <arch> = cross-compiled, statically-linked release builds
-          amd64 = packageFor "x86_64-unknown-linux-musl" true;
-          i386 = packageFor "i686-unknown-linux-musl" true;
-          arm64 = packageFor "aarch64-unknown-linux-musl" true;
-          arm = packageFor "armv6l-unknown-linux-musl" true;
+          amd64 = releasePackageFor "x86_64-unknown-linux-musl";
+          i386 = releasePackageFor "i686-unknown-linux-musl";
+          arm64 = releasePackageFor "aarch64-unknown-linux-musl";
+          arm = releasePackageFor "armv6l-unknown-linux-musl";
 
           # dev = native dev build
-          dev = packageFor null false;
+          dev = devOutputs.garage;
+
+          # lints (fmt, clippy)
+          fmt = devOutputs.garage-cargo-fmt;
+          clippy = devOutputs.garage-cargo-clippy;
 
           # test = cargo test
           tests = testWith {};
@@ -65,10 +76,6 @@
           tests-fjall = testWith {
             GARAGE_TEST_INTEGRATION_DB_ENGINE = "fjall";
           };
-
-          # lints (fmt, clippy)
-          fmt = lints.garage-cargo-fmt;
-          clippy = lints.garage-cargo-clippy;
         };
 
         # ---- development shell, for making native builds only ----

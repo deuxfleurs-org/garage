@@ -123,6 +123,7 @@ let
       nativeBuildInputs = [
         pkgsNative.protobuf
         pkgs.stdenv.cc
+        pkgs.cacert
       ] ++ lib.optionals (target == null) [
         pkgs.clang
         pkgs.mold
@@ -173,7 +174,12 @@ in rec {
 
   # ---- building garage ----
 
-  garage-deps = craneLib.buildDepsOnly commonArgs;
+  garage-deps = craneLib.buildDepsOnly (commonArgs // {
+    # disable `cargo check`
+    cargoCheckCommand = ":";
+    # don't build test dependencies
+    doCheck = false;
+  });
 
   garage = craneLib.buildPackage (commonArgs // {
     cargoArtifacts = garage-deps;
@@ -186,32 +192,40 @@ in rec {
     } else {}));
 
   # ---- testing garage ----
+  # step `garage-test-deps` is shared between all CI runs
+  # step `garage-test-bin` runs only once per CI run
+  # step `garage-test` runs several times per CI run, once for each DB engine
 
-  garage-test-bin = craneLib.cargoBuild (commonArgs // {
-    cargoArtifacts = garage-deps;
-
-    pname = "garage-tests";
-
-    CARGO_PROFILE = "test";
-    cargoExtraArgs = "${commonArgs.cargoExtraArgs} --tests --workspace";
-    doCheck = false;
+  garage-test-deps = craneLib.buildDepsOnly (commonArgs // {
+    # disable build phase
+    buildPhaseCargoCommand = "";
   });
 
+  # this doesn't work because build is restarted when environment changes
+  # garage-test-bin = craneLib.mkCargoDerivation (commonArgs // {
+  #   cargoArtifacts = garage-test-deps;
+  #   buildPhaseCargoCommand = "cargo test --profile ${commonArgs.CARGO_PROFILE} ${commonArgs.cargoExtraArgs} ${commonArgs.cargoTestExtraArgs} --no-run";
+  # });
+
   garage-test = craneLib.cargoTest (commonArgs // {
-    cargoArtifacts = garage-test-bin;
-    nativeBuildInputs = commonArgs.nativeBuildInputs ++ [
-      pkgs.cacert
-    ];
+    cargoArtifacts = garage-test-deps;
+    doInstallCargoArtifacts = false;
   } // extraTestEnv);
 
   # ---- source code linting ----
 
   garage-cargo-fmt = craneLib.cargoFmt (commonArgs // {
-    cargoExtraArgs = "";
+    cargoExtraArgs = "";    # was set in commonargs, must be removed
+  });
+
+  garage-cargo-clippy-deps = craneLib.buildDepsOnly (commonArgs // {
+    buildPhaseCargoCommand = "cargo clippy --profile ${commonArgs.CARGO_PROFILE} ${commonArgs.cargoExtraArgs} --all-targets -- -D warnings";
+    doCheck = false;
   });
 
   garage-cargo-clippy = craneLib.cargoClippy (commonArgs // {
-    cargoArtifacts = garage-deps;
+    cargoArtifacts = garage-cargo-clippy-deps;
     cargoClippyExtraArgs = "--all-targets -- -D warnings";
+    doInstallCargoArtifacts = false;
   });
 }
