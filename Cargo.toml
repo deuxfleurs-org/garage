@@ -189,6 +189,9 @@ aws-sdk-s3 = { version = "1.121", default-features = false, features = [
     "rt-tokio",
 ] }
 
+[profile.dev]
+debug = "line-tables-only"
+
 [profile.release]
 lto = "thin"
 codegen-units = 16
