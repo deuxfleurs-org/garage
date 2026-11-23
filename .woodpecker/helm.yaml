@@ -17,6 +17,7 @@ when:
     branch: ${CI_REPO_DEFAULT_BRANCH}
   # chart tests also run on releases and nightly builds, as they did in debug.yaml
   - event: [tag, deployment, cron]
+    branch: main-*
 
 steps:
   - name: lint and unit tests
