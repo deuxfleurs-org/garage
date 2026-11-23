@@ -33,7 +33,7 @@ garage:
   compressionLevel: "1"
 
   # -- If this value is set, Garage will automatically take a snapshot of the metadata DB file at a regular interval and save it in the metadata directory.
-  # [Metdata Snapshot doc](https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval).
+  # [Metadata Snapshot doc](https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/#metadata_auto_snapshot_interval).
   metadataAutoSnapshotInterval: ""
 
   # -- Port used for node-to-node RPC
