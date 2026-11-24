@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "garage"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "assert-json-diff",
  "async-trait",
@@ -1571,7 +1571,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_admin"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1605,7 +1605,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_common"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1641,7 +1641,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_k2v"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "base64 0.22.1",
  "futures",
@@ -1664,7 +1664,7 @@ dependencies = [
 
 [[package]]
 name = "garage_api_s3"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "aes-gcm",
  "async-compression",
@@ -1709,7 +1709,7 @@ dependencies = [
 
 [[package]]
 name = "garage_block"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arc-swap",
  "async-compression",
@@ -1734,7 +1734,7 @@ dependencies = [
 
 [[package]]
 name = "garage_db"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "fjall",
  "heed",
@@ -1749,7 +1749,7 @@ dependencies = [
 
 [[package]]
 name = "garage_model"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arbitrary",
  "argon2",
@@ -1777,7 +1777,7 @@ dependencies = [
 
 [[package]]
 name = "garage_net"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arc-swap",
  "bytes",
@@ -1803,7 +1803,7 @@ dependencies = [
 
 [[package]]
 name = "garage_rpc"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1840,7 +1840,7 @@ dependencies = [
 
 [[package]]
 name = "garage_table"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1861,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "garage_util"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "arbitrary",
  "arc-swap",
@@ -1897,7 +1897,7 @@ dependencies = [
 
 [[package]]
 name = "garage_web"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "garage_api_common",
  "garage_api_s3",
