@@ -12,7 +12,7 @@
       "name": "AGPL-3.0",
       "identifier": "AGPL-3.0"
     },
-    "version": "v3.0.0-alpha"
+    "version": "v3.0.0-beta1"
   },
   "servers": [
     {
@@ -1916,6 +1916,7 @@
         "type": "object",
         "required": [
           "message",
+          "statistics",
           "layout"
         ],
         "properties": {
@@ -1931,15 +1932,8 @@
             "description": "Plain-text information about the layout computation\n(do not try to parse this)"
           },
           "statistics": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ComputationStat",
-                "description": "Structured statistics about the layout computation"
-              }
-            ]
+            "$ref": "#/components/schemas/ComputationStat",
+            "description": "Structured statistics about the layout computation"
           }
         }
       },
@@ -2795,6 +2789,19 @@
             "$ref": "#/components/schemas/ApiBucketQuotas",
             "description": "Quotas that apply to this bucket"
           },
+          "tags": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Bucket tags (see `PutBucketTagging`)",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
           "unfinishedMultipartUploadBytes": {
             "type": "integer",
             "format": "int64",
@@ -2973,43 +2980,30 @@
       "GetClusterStatisticsResponse": {
         "type": "object",
         "required": [
-          "freeform"
+          "dataAvail",
+          "metadataAvail",
+          "incompleteAvailInfo",
+          "bucketCount"
         ],
         "properties": {
           "bucketCount": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64",
             "description": "number of buckets in the cluster",
             "minimum": 0
           },
           "dataAvail": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64",
             "description": "available storage space for object data in the entire cluster, in bytes",
             "minimum": 0
           },
-          "freeform": {
-            "type": "string",
-            "description": "cluster statistics as a free-form string, kept for compatibility with nodes\nrunning older v2.x versions of garage"
-          },
           "incompleteAvailInfo": {
-            "type": [
-              "boolean",
-              "null"
-            ],
+            "type": "boolean",
             "description": "true if the available storage space statistics are imprecise due to missing\ninformation of disconnected nodes. When this is the case, the actual\nspace available in the cluster might be lower than the reported values."
           },
           "metadataAvail": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64",
             "description": "available storage space for object metadata in the entire cluster, in bytes",
             "minimum": 0
@@ -3509,9 +3503,12 @@
         "type": "object",
         "required": [
           "nodeId",
+          "hostname",
           "garageVersion",
           "rustVersion",
-          "dbEngine"
+          "dbEngine",
+          "connectionParameters",
+          "draining"
         ],
         "properties": {
           "addr": {
@@ -3522,15 +3519,8 @@
             "description": "Socket address used by other nodes to connect to this node for RPC"
           },
           "connectionParameters": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ConnectionParameters",
-                "description": "Connection parameters for S3 and K2V clients"
-              }
-            ]
+            "$ref": "#/components/schemas/ConnectionParameters",
+            "description": "Connection parameters for S3 and K2V clients"
           },
           "dataPartition": {
             "oneOf": [
@@ -3548,10 +3538,7 @@
             "description": "Database engine used for metadata"
           },
           "draining": {
-            "type": [
-              "boolean",
-              "null"
-            ],
+            "type": "boolean",
             "description": "Whether this node is part of an older layout version and is draining data."
           },
           "garageFeatures": {
@@ -3569,18 +3556,8 @@
             "description": "Garage version running on this node"
           },
           "hostname": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": "string",
             "description": "Hostname of this node"
-          },
-          "isUp": {
-            "type": [
-              "boolean",
-              "null"
-            ],
-            "description": "Whether this node is connected in the cluster"
           },
           "metadataPartition": {
             "oneOf": [
@@ -3616,29 +3593,16 @@
       "LocalGetNodeStatisticsResponse": {
         "type": "object",
         "required": [
-          "freeform"
+          "tableStats",
+          "blockManagerStats"
         ],
         "properties": {
           "blockManagerStats": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/NodeBlockManagerStats",
-                "description": "block manager statistics"
-              }
-            ]
-          },
-          "freeform": {
-            "type": "string",
-            "description": "node statistics as a free-form string, kept for compatibility with nodes\nrunning older v2.x versions of garage"
+            "$ref": "#/components/schemas/NodeBlockManagerStats",
+            "description": "block manager statistics"
           },
           "tableStats": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": "array",
             "items": {
               "$ref": "#/components/schemas/NodeTableStats"
             },
@@ -3937,9 +3901,12 @@
               "type": "object",
               "required": [
                 "nodeId",
+                "hostname",
                 "garageVersion",
                 "rustVersion",
-                "dbEngine"
+                "dbEngine",
+                "connectionParameters",
+                "draining"
               ],
               "properties": {
                 "addr": {
@@ -3950,15 +3917,8 @@
                   "description": "Socket address used by other nodes to connect to this node for RPC"
                 },
                 "connectionParameters": {
-                  "oneOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ConnectionParameters",
-                      "description": "Connection parameters for S3 and K2V clients"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ConnectionParameters",
+                  "description": "Connection parameters for S3 and K2V clients"
                 },
                 "dataPartition": {
                   "oneOf": [
@@ -3976,10 +3936,7 @@
                   "description": "Database engine used for metadata"
                 },
                 "draining": {
-                  "type": [
-                    "boolean",
-                    "null"
-                  ],
+                  "type": "boolean",
                   "description": "Whether this node is part of an older layout version and is draining data."
                 },
                 "garageFeatures": {
@@ -3997,18 +3954,8 @@
                   "description": "Garage version running on this node"
                 },
                 "hostname": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
+                  "type": "string",
                   "description": "Hostname of this node"
-                },
-                "isUp": {
-                  "type": [
-                    "boolean",
-                    "null"
-                  ],
-                  "description": "Whether this node is connected in the cluster"
                 },
                 "metadataPartition": {
                   "oneOf": [
@@ -4070,29 +4017,16 @@
             "additionalProperties": {
               "type": "object",
               "required": [
-                "freeform"
+                "tableStats",
+                "blockManagerStats"
               ],
               "properties": {
                 "blockManagerStats": {
-                  "oneOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "$ref": "#/components/schemas/NodeBlockManagerStats",
-                      "description": "block manager statistics"
-                    }
-                  ]
-                },
-                "freeform": {
-                  "type": "string",
-                  "description": "node statistics as a free-form string, kept for compatibility with nodes\nrunning older v2.x versions of garage"
+                  "$ref": "#/components/schemas/NodeBlockManagerStats",
+                  "description": "block manager statistics"
                 },
                 "tableStats": {
-                  "type": [
-                    "array",
-                    "null"
-                  ],
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/NodeTableStats"
                   },
@@ -4725,6 +4659,7 @@
             "type": "object",
             "required": [
               "message",
+              "statistics",
               "newLayout"
             ],
             "properties": {
@@ -4740,15 +4675,8 @@
                 "description": "Details about the new cluster layout"
               },
               "statistics": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/ComputationStat",
-                    "description": "Structured statistics about the layout computation"
-                  }
-                ]
+                "$ref": "#/components/schemas/ComputationStat",
+                "description": "Structured statistics about the layout computation"
               }
             }
           }
@@ -4915,6 +4843,18 @@
                 "$ref": "#/components/schemas/ApiBucketQuotas"
               }
             ]
+          },
+          "tags": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "websiteAccess": {
             "oneOf": [
