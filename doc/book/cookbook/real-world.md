@@ -10,6 +10,9 @@ the safest and most available mode proposed by Garage.
 We recommend first following the [quick start guide](@/documentation/quick-start/_index.md) in order
 to get familiar with Garage's command line and usage patterns.
 
+This page documents how to configure your cluster using the Garage command-line
+interface.  Since v2.6.0, most actions can also be done graphically in the web
+admin GUI.
 
 ## Preparing your environment
 

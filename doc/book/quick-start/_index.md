@@ -112,7 +112,7 @@ your data to be persisted properly.
 
 ### Configuring initial access credentials
 
-Since `v2.n.0`, Garage can automatically create a default access key and a default storage bucket,
+Since `v2.3.0`, Garage can automatically create a default access key and a default storage bucket,
 based on values provided in environment variables.
 
 To use this feature, export the following environment variables:
@@ -170,13 +170,26 @@ a multi-node cluster](@/documentation/cookbook/real-world.md)).
 
 Under Linux, you can substitute `--network host` for `-p 3900:3900 -p 3901:3901 -p 3902:3902 -p 3903:3903`.
 
-### Checking that Garage runs correctly
+### Accessing the Garage web administration GUI
+
+Since v2.6.0, Garage integrates a GUI, in the form of a web interface, to administrate your cluster.
+To open this interface, point your browser to `http://localhost:3903`.
+
+You will need an access credential to log in to the GUI: use the value of the
+`admin_token` set in your `garage.toml` configuration file.
+
+From this interface, you can visualize cluster states and manage cluster nodes,
+buckets and access credentials.
+
+![Cluster overview page in the web admin UI](./webadmin-overview.png)
+
+### Managing Garage from the command line
 
 The `garage` utility is also used as a CLI tool to administrate your Garage
 deployment.  It needs read access to your configuration file and to the metadata directory
 to obtain connection parameters to contact the local Garage node.
 
-Use the following command to show the status of your cluster:
+For example, use the following command to show the status of your cluster:
 
 ```
 garage status
@@ -219,47 +232,39 @@ Log level `debug` can help you check why your S3 API calls are not working.
 
 ## Uploading and downloading from Garage
 
-This section will show how to download and upload files on Garage using a third-party tool named `awscli`.
+This section will show how to download and upload files on Garage using
+`awscli`, the official Amazon client for the S3 API,  as an example.
 
 
 ### Install and configure `awscli`
 
-If you have python on your system, you can install it with:
+`awscli` is packaged in most Linux distributions so install it using your
+package manager if possible. On some distributions, the package is called
+`aws-cli` instead of `awscli`.
+
+Then, you must configure it to talk to your Garage instance using the
+credentials defined above. Export the following environment variables:
 
 ```bash
-python -m pip install --user awscli
-```
-
-Now that `awscli` is installed, you must configure it to talk to your Garage
-instance using the credentials defined above. Here is a simple way to create
-a configuration file in `~/.awsrc` using a single command that will save the
-secrets from your environment:
-
-```bash
-cat > ~/.awsrc <<EOF
 export AWS_ENDPOINT_URL='http://localhost:3900'
 export AWS_DEFAULT_REGION='garage'
 export AWS_ACCESS_KEY_ID='$GARAGE_DEFAULT_ACCESS_KEY'
 export AWS_SECRET_ACCESS_KEY='$GARAGE_DEFAULT_SECRET_KEY'
-
-aws --version
-EOF
-
 ```
 
 Note that you need to have at least `awscli` `>=1.29.0` or `>=2.13.0`, otherwise you
 need to specify `--endpoint-url` explicitly on each `awscli` invocation.
 
-Now, each time you want to use `awscli` on this target, run:
+You can also export environment variables for an access key from the web UI:
+
+![Click "Get S3 access variables" in the key's information page](./webadmin-key-env.png)
+
+Or from the CLI:
 
 ```bash
-source ~/.awsrc
+garage key export-env $GARAGE_DEFAULT_ACCESS_KEY
 ```
 
-*You can create multiple files with different names if you
-have multiple Garage clusters or different keys.
-Switching from one cluster to another is as simple as
-sourcing the right file.*
 
 ### Example usage of `awscli`
 
@@ -294,7 +299,7 @@ The following tools can also be used to send and receive files from/to Garage:
 - [Cyberduck](@/documentation/connect/cli.md#cyberduck)
 - [WinSCP](@/documentation/connect/cli.md#winscp)
 
-An exhaustive list is maintained in the ["Integrations" > "Browsing tools" section](@/documentation/connect/_index.md).
+A more complete list is maintained in the ["Integrations" > "Browsing tools" section](@/documentation/connect/_index.md).
 
 
 
@@ -305,6 +310,22 @@ This section provides instructions that are equivalent to using the
 you are using an older version of Garage (before v2.3.0), you must follow
 these instructions as automatic configuration is not available.
 
+### Using the GUI
+
+Since v2.6.0, you can run all of the manual configuration steps from the admin UI.
+
+Here is a quick screencast of how to configure Garage for a single-node cluster without replication:
+
+<video width="320" height="234" controls src="https://garagehq.deuxfleurs.fr/video/garage-cluster.mp4"></video>
+
+And here is how to create a bucket and an access key to read and write into it:
+
+<video width="320" height="234" controls src="https://garagehq.deuxfleurs.fr/video/garage-initial-access.mp4"></video>
+
+The steps shown in the videos correspond to the CLI commands described below.
+
+### Using the CLI
+
 We will have to run quite a few `garage` administration commands to get started.
 If you ever get lost, don't forget that the `help` command and the `--help` flags can help you anywhere,
 the CLI tool is self-documented! Two examples:
@@ -314,7 +335,7 @@ garage help
 garage bucket allow --help
 ```
 
-### Configuring the `garage` CLI
+#### Configuring the `garage` CLI
 
 Remember that the `garage` CLI needs to know the path of your `garage.toml` configuration file.
 If it is not in the default location of `/etc/garage.toml`, you can specify it either:
@@ -331,7 +352,7 @@ alias garage="docker exec -ti <container name> /garage"
 
 You can test that your `garage` CLI is configured correctly by running a basic command such as `garage status`.
 
-### Creating a cluster layout
+#### Creating a cluster layout
 
 When you first start a cluster without automatic configuration, the output of `garage status` will look as follows:
 
@@ -365,14 +386,14 @@ garage layout apply --version 1
 ```
 
 
-### Creating buckets and keys
+#### Creating buckets and keys
 
 Let's take an example where we want to deploy NextCloud using Garage as the
 main data storage.  We will suppose that we want to create a bucket named
 `nextcloud-bucket` that will be accessed through a key named
 `nextcloud-app-key`.
 
-#### Create a bucket
+##### Create a bucket
 
 First, create the bucket with the following command:
 
@@ -387,7 +408,7 @@ garage bucket list
 garage bucket info nextcloud-bucket
 ```
 
-#### Create an API key
+##### Create an API key
 
 The `nextcloud-bucket` bucket now exists on the Garage server,
 however it cannot be accessed until we add an API key with the proper access rights.
@@ -417,7 +438,7 @@ garage key list
 garage key info nextcloud-app-key
 ```
 
-#### Allow a key to access a bucket
+##### Allow a key to access a bucket
 
 Now that we have a bucket and a key, we need to give permissions to the key on the bucket:
 
