@@ -75,7 +75,12 @@ publish() {
 
   # Push the OCI copy to forgejo
   helm registry login "$helm_oci_registry" --username "$OCI_USERNAME" --password-stdin <<<"$OCI_PASSWORD"
-  helm push "$file" "$helm_oci_repo"
+  # skip the push if this version already exists in the registry so we don't erase its metadata
+  if helm show chart "$helm_oci_repo/$name" --version "$version" >/dev/null 2>&1; then
+    echo "$name:$version already exists in $helm_oci_repo, not pushing it again"
+  else
+    helm push "$file" "$helm_oci_repo"
+  fi
 }
 
 case ${1:-} in
